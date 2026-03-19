@@ -7,6 +7,7 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+Route::post('/validar-rfc', [RFCController::class, 'validarRFC_API']);
 // Login
 Route::get('/login-proveedor', [ProveedorController::class, 'mostrarLogin'])
     ->name('proveedores.login');
