@@ -1,11 +1,20 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProveedorController;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/login-proveedor', function () {
-    return view('login-proveedor');
-});
+// Login
+Route::get('/login-proveedor', [ProveedorController::class, 'mostrarLogin'])
+    ->name('proveedores.login');
+
+// Registro — muestra el formulario
+Route::get('/proveedor/registro', [ProveedorController::class, 'mostrarRegistro'])
+    ->name('proveedores.registro');
+
+// Registro — guarda los datos
+Route::post('/proveedor/registro', [ProveedorController::class, 'guardar'])
+    ->name('proveedores.registro.guardar');
