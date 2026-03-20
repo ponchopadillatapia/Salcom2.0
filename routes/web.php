@@ -26,7 +26,7 @@ Route::post('/proveedor/registro', [ProveedorController::class, 'guardar'])
     ->name('proveedores.registro.guardar');
 
 //Validación RFC
-Route::get('/validar-rfc', [RFCController::class, 'validarRFC_API']);
+Route::get('/validar-rfc', [RFCController::class, 'validar']);
 Route::get('/rfc', function () {
     return view('APIS.rfc');
 });
