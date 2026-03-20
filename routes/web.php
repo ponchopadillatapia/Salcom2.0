@@ -36,3 +36,16 @@ Route::get('/rfc', function () {
 Route::get('/cif', function () {
     return view('APIS.cif');
 });
+
+// Login — procesa el formulario
+Route::post('/login-proveedor', [ProveedorController::class, 'procesarLogin'])
+    ->name('proveedores.login.procesar');
+
+    // Actualización — muestra el formulario
+Route::get('/proveedor/actualizacion', [ProveedorController::class, 'mostrarActualizacion'])
+    ->name('proveedores.actualizacion');
+
+// Actualización — guarda los cambios
+Route::put('/proveedor/actualizacion', [ProveedorController::class, 'guardarActualizacion'])
+    ->name('proveedores.actualizacion.guardar');
+

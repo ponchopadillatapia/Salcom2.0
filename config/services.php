@@ -39,4 +39,8 @@ return [
     'site_key'   => env('RECAPTCHA_SITE_KEY'),
     'secret_key' => env('RECAPTCHA_SECRET_KEY'),
 ],
+
+    'proveedor_api' => [
+    'url' => env('PROVEEDOR_API_URL'),
+],
 ];

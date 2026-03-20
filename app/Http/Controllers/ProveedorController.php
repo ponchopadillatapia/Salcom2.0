@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use App\Services\ProveedorApiService;
 
 class ProveedorController extends Controller
 {
@@ -20,10 +21,38 @@ class ProveedorController extends Controller
         return view('proveedores.registro');
     }
 
-    // Guarda el proveedor nuevo en la base de datos
+    // Procesa el login con la API de Alan
+    public function procesarLogin(Request $request)
+    {
+        $request->validate([
+            'usuario'  => 'required',
+            'password' => 'required',
+        ]);
+
+        $apiService = new ProveedorApiService();
+        $resultado  = $apiService->login(
+            $request->usuario,
+            $request->password
+        );
+
+        if (isset($resultado['usuario']) && isset($resultado['tokencreado'])) {
+            session([
+                'proveedor_token'  => $resultado['tokencreado'],
+                'proveedor_codigo' => $resultado['usuario']['codigo'],
+                'proveedor_nombre' => $resultado['usuario']['nombre'],
+                'proveedor_id'     => $resultado['usuario']['id'],
+            ]);
+
+            return redirect('/dashboard-proveedor')
+                ->with('mensaje', 'Bienvenido ' . $resultado['usuario']['nombre']);
+        }
+
+        return back()->with('error', 'Credenciales incorrectas')->withInput();
+    }
+
+    // Guarda el proveedor nuevo
     public function guardar(Request $request)
     {
-        // Verifica el captcha con Google
         $recaptcha = Http::post('https://www.google.com/recaptcha/api/siteverify', [
             'secret'   => config('services.recaptcha.secret_key'),
             'response' => $request->input('g-recaptcha-response'),
@@ -42,7 +71,26 @@ class ProveedorController extends Controller
             'password' => 'required|min:8|confirmed',
         ]);
 
-        // Por ahora confirmamos que todo llega bien
         return response()->json($request->except('password', 'password_confirmation'));
+    }
+
+    // Muestra el formulario de actualización
+    public function mostrarActualizacion()
+    {
+        return view('proveedores.actualizacion');
+    }
+
+    // Guarda los cambios de actualización
+    public function guardarActualizacion(Request $request)
+    {
+        $request->validate([
+            'nombre'   => 'required|string|max:255',
+            'telefono' => 'required|string|max:20',
+            'correo'   => 'required|email',
+            'password' => 'nullable|min:8|confirmed',
+        ]);
+
+        // TODO: cuando Alan mande el endpoint, aquí se manda a su API
+        return back()->with('mensaje', 'Datos actualizados correctamente');
     }
 }
