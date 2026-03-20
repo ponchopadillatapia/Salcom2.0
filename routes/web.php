@@ -30,3 +30,15 @@ Route::get('/validar-rfc', [RFCController::class, 'validarRFC_API']);
 Route::get('/rfc', function () {
     return view('APIS.rfc');
 });
+
+// Login — procesa el formulario
+Route::post('/login-proveedor', [ProveedorController::class, 'procesarLogin'])
+    ->name('proveedores.login.procesar');
+
+    // Actualización — muestra el formulario
+Route::get('/proveedor/actualizacion', [ProveedorController::class, 'mostrarActualizacion'])
+    ->name('proveedores.actualizacion');
+
+// Actualización — guarda los cambios
+Route::put('/proveedor/actualizacion', [ProveedorController::class, 'guardarActualizacion'])
+    ->name('proveedores.actualizacion.guardar');
