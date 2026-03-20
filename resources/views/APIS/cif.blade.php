@@ -4,39 +4,41 @@
     <title>Constancia de Situación Fiscal</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <style>
-        body { font-family: Arial; background:#f5f5f5; }
+        body { font-family: Arial; background:#eef2f3; }
         .container {
             width: 450px;
-            margin: 80px auto;
+            margin: 60px auto;
             background: white;
-            padding: 20px;
+            padding: 25px;
             border-radius: 10px;
-            box-shadow: 0px 0px 10px #ccc;
+            box-shadow: 0px 0px 10px #aaa;
         }
         h2 { color:#611232; text-align:center; }
         input, button {
             width:100%; padding:10px; margin-top:10px;
         }
         button {
-            background:#611232; color:white; border:none;
+            background:#611232;
+            color:white;
+            border:none;
+            cursor:pointer;
         }
-        .btn-cif {
-            background:green;
-        }
+        .btn-cif { background:#2e7d32; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Consulta CIF</h2>
+    <h2>Consulta de Constancia Fiscal</h2>
 
     <input type="text" id="rfc" placeholder="Ingrese RFC">
+
     <button onclick="validarRFC()">Validar RFC</button>
 
     <div id="resultado"></div>
 
-    <button class="btn-cif" onclick="descargarCIF()" style="display:none;" id="btnCIF">
-        Descargar CIF del mes actual
+    <button id="btnCIF" class="btn-cif" onclick="descargarCIF()" style="display:none;">
+        Descargar CIF (PDF)
     </button>
 </div>
 
@@ -44,13 +46,15 @@
 function validarRFC() {
     let rfc = document.getElementById('rfc').value;
 
+    let formData = new FormData();
+    formData.append('rfc', rfc);
+
     fetch('/validar-rfc', {
         method:'POST',
         headers:{
-            'Content-Type':'application/json',
             'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
         },
-        body: JSON.stringify({ rfc:rfc })
+        body:formData
     })
     .then(res=>res.json())
     .then(data=>{
@@ -73,20 +77,22 @@ function validarRFC() {
 function descargarCIF(){
     let rfc = document.getElementById('rfc').value;
 
+    let formData = new FormData();
+    formData.append('rfc', rfc);
+
     fetch('/generar-cif', {
         method:'POST',
         headers:{
-            'Content-Type':'application/json',
             'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]').content
         },
-        body: JSON.stringify({ rfc:rfc })
+        body:formData
     })
     .then(res => res.blob())
     .then(blob => {
         let url = window.URL.createObjectURL(blob);
         let a = document.createElement('a');
         a.href = url;
-        a.download = "CIF.pdf";
+        a.download = "CIF_"+rfc+".pdf";
         a.click();
     });
 }
