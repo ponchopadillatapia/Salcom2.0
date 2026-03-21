@@ -71,7 +71,8 @@ class ProveedorController extends Controller
             'password' => 'required|min:8|confirmed',
         ]);
 
-        return response()->json($request->except('password', 'password_confirmation'));
+        return redirect('/cif')
+            ->with('mensaje', 'Registro exitoso, por favor valida tus datos fiscales');
     }
 
     // Muestra el formulario de actualización
@@ -90,7 +91,7 @@ class ProveedorController extends Controller
             'password' => 'nullable|min:8|confirmed',
         ]);
 
-        // TODO: cuando Alan mande el endpoint, aquí se manda a su API
-        return back()->with('mensaje', 'Datos actualizados correctamente');
+        return redirect('/cif')
+            ->with('mensaje', 'Datos actualizados, por favor valida tus datos fiscales');
     }
 }
