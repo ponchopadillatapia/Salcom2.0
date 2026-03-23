@@ -94,4 +94,10 @@ class ProveedorController extends Controller
         return redirect('/cif')
             ->with('mensaje', 'Datos actualizados, por favor valida tus datos fiscales');
     }
+
+    public function mostrarDashboard()
+    {
+    return view('proveedores.dashboard');
+    }
+
 }

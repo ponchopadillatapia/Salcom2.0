@@ -49,3 +49,6 @@ Route::get('/proveedor/actualizacion', [ProveedorController::class, 'mostrarActu
 Route::put('/proveedor/actualizacion', [ProveedorController::class, 'guardarActualizacion'])
     ->name('proveedores.actualizacion.guardar');
 
+    Route::get('/dashboard-proveedor', [ProveedorController::class, 'mostrarDashboard'])
+    ->name('proveedores.dashboard');
+
