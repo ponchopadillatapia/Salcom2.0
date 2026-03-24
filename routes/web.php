@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\EmpresaController;
-use App\Http\Controllers\PDFController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -39,10 +38,6 @@ Route::get('/dashboard-proveedor', [ProveedorController::class, 'mostrarDashboar
 
 Route::get('/empresa', [EmpresaController::class, 'form']);
 Route::post('/empresa', [EmpresaController::class, 'guardar']);
-
-// Opinión positiva del mes actual
-Route::get('/opinion', [OpinionController::class, 'form']);
-Route::post('/opinion', [OpinionController::class, 'validar']);
 
 // Ruta de prueba API Alan
 Route::get('/test-api', function () {
