@@ -388,6 +388,14 @@
                 @error('nombre') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
 
+            {{-- Persona física o moral --}}
+            <div class="field">
+                <label>Persona física o moral <span class="req">*</span></label>
+                <input type="text" name="tipo_persona" placeholder="Ej: Persona Física o Persona Moral"
+                        value="{{ old('tipo_persona') }}" required>
+                @error('tipo_persona') <span class="error-msg">{{ $message }}</span> @enderror
+            </div>
+
             {{-- Teléfono y Correo --}}
             <div class="form-row">
                 <div class="field" style="margin-bottom:0">
