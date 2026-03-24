@@ -2,11 +2,15 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProveedorController;
-use App\Http\Controllers\RFCController;
+use App\Http\Controllers\EmpresaController;
 
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/empresa', [EmpresaController::class, 'form']);
+Route::post('/empresa', [EmpresaController::class, 'guardar']);
+Route::get('/ver-pdf', [EmpresaController::class, 'verPDF']);
 
 /*
 use App\Http\Controllers\RFCController;
@@ -51,4 +55,8 @@ Route::put('/proveedor/actualizacion', [ProveedorController::class, 'guardarActu
 
     Route::get('/dashboard-proveedor', [ProveedorController::class, 'mostrarDashboard'])
     ->name('proveedores.dashboard');
+
+//Opinión positiva del mes actual
+Route::get('/opinion', [OpinionController::class, 'form']);
+Route::post('/opinion', [OpinionController::class, 'validar']);
 
