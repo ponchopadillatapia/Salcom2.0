@@ -1,18 +1,46 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Registro de Proveedor</title>
+    <title>Validación</title>
 
-    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
         body {
-            background-color: #f5f7fa;
+            background-color: #F4F6F5;
         }
-        .card {
-            border-radius: 15px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+
+        .card-custom {
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .titulo {
+            color: #0F3D2E;
+            font-weight: bold;
+        }
+
+        .btn-custom {
+            background-color: #0F3D2E;
+            color: white;
+            border: none;
+        }
+
+        .btn-custom:hover {
+            background-color: #1F6F54;
+        }
+
+        .badge-verde {
+            background-color: #1F6F54;
+        }
+
+        .badge-amarillo {
+            background-color: #FFC107;
+            color: black;
+        }
+
+        .badge-rojo {
+            background-color: #DC3545;
         }
     </style>
 </head>
@@ -20,17 +48,36 @@
 
 <div class="container mt-5">
 
-    <div class="card p-4">
-        <h3 class="mb-4">Registro de Empresa</h3>
+    <div class="card card-custom p-4">
 
-        <!-- MENSAJE -->
+        <h3 class="titulo mb-4">Validación de documentos</h3>
+
         @if(session('mensaje'))
-            <div class="alert 
-                @if(session('estado') == 'correcto') alert-success 
-                @elseif(session('estado') == 'advertencia') alert-warning 
-                @else alert-danger @endif">
-
+            <div class="alert alert-secondary">
                 {{ session('mensaje') }}
+            </div>
+        @endif
+
+        @if(session('empresa'))
+            <div class="card p-3 mb-4">
+
+                <p><strong>RFC:</strong> {{ session('empresa')['rfc'] }}</p>
+                <p><strong>Nombre:</strong> {{ session('empresa')['nombre'] }}</p>
+                <p><strong>Tipo:</strong> {{ session('empresa')['tipo'] }}</p>
+
+                <p>
+                    <strong>Estado:</strong>
+
+                    @if(session('empresa')['estado'] == 'verde')
+                        <span class="badge badge-verde">Aprobado</span>
+                    @elseif(session('empresa')['estado'] == 'amarillo')
+                        <span class="badge badge-amarillo">Revisión</span>
+                    @else
+                        <span class="badge badge-rojo">Rechazado</span>
+                    @endif
+
+                </p>
+
             </div>
         @endif
 
@@ -38,33 +85,23 @@
             @csrf
 
             <div class="mb-3">
-                <label>RFC</label>
-                <input type="text" name="rfc" class="form-control" required>
+                <label>Constancia de Situación Fiscal</label>
+                <input type="file" name="cif_pdf" class="form-control" required>
             </div>
 
             <div class="mb-3">
-                <label>Nombre / Razón Social</label>
-                <input type="text" name="nombre" class="form-control" required>
-            </div>
-
-            <div class="mb-3">
-                <label>Opinión de Cumplimiento (PDF)</label>
+                <label>Opinión de cumplimiento</label>
                 <input type="file" name="opinion_pdf" class="form-control" required>
             </div>
 
             <div class="mb-3">
-                <label>Acta Constitutiva (PDF)</label>
+                <label>Acta constitutiva</label>
                 <input type="file" name="acta_pdf" class="form-control" required>
             </div>
 
-            <button class="btn btn-primary w-100">Guardar y Validar</button>
+            <button class="btn btn-custom w-100">Validar documentos</button>
         </form>
-    </div>
 
-    <!-- Vista previa -->
-    <div class="card p-4 mt-4">
-        <h5>Vista previa de Opinión</h5>
-        <iframe src="/ver-pdf" width="100%" height="500px"></iframe>
     </div>
 
 </div>

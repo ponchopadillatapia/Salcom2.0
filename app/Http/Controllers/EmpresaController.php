@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+/*
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -68,5 +69,33 @@ public function guardar(Request $request)
         'estado' => $estado
     ]);
     
+}
+}
+*/
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+class EmpresaController extends Controller
+{
+public function form()
+{
+    return view('APIS.empresa');
+}
+
+public function guardar(Request $request)
+{
+    $response = Http::attach(
+        'cif_pdf', file_get_contents($request->file('cif_pdf')), 'cif.pdf'
+    )->attach(
+        'opinion_pdf', file_get_contents($request->file('opinion_pdf')), 'opinion.pdf'
+    )->attach(
+        'acta_pdf', file_get_contents($request->file('acta_pdf')), 'acta.pdf'
+    )->post('http://127.0.0.1:8000/api/validar-documentos');
+
+    $data = $response->json();
+
+    return back()->with([
+        'mensaje' => $data['mensaje'],
+        'empresa' => $data['empresa']
+    ]);
 }
 }
