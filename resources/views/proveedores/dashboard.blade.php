@@ -383,10 +383,8 @@
 </nav>
 
 {{-- HERO --}}
-<div class="hero-band">
-    <h1>Portal Proveedor</h1>
-    <p>Bienvenido de nuevo — {{ now()->format('l, d \d\e F \d\e Y') }}</p>
-</div>
+<h1>Bienvenido, {{ session('proveedor_nombre', 'Proveedor') }}</h1>
+<p>Código: {{ session('proveedor_codigo', '—') }} — {{ now()->format('d/m/Y') }}</p>
 
 {{-- MAIN --}}
 <div class="main">
