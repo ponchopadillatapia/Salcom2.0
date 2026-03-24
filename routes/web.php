@@ -45,7 +45,7 @@ Route::get('/cif', function () {
 Route::post('/login-proveedor', [ProveedorController::class, 'procesarLogin'])
     ->name('proveedores.login.procesar');
 
-    // Actualización — muestra el formulario
+// Actualización — muestra el formulario
 Route::get('/proveedor/actualizacion', [ProveedorController::class, 'mostrarActualizacion'])
     ->name('proveedores.actualizacion');
 
@@ -53,10 +53,28 @@ Route::get('/proveedor/actualizacion', [ProveedorController::class, 'mostrarActu
 Route::put('/proveedor/actualizacion', [ProveedorController::class, 'guardarActualizacion'])
     ->name('proveedores.actualizacion.guardar');
 
-    Route::get('/dashboard-proveedor', [ProveedorController::class, 'mostrarDashboard'])
+Route::get('/dashboard-proveedor', [ProveedorController::class, 'mostrarDashboard'])
     ->name('proveedores.dashboard');
 
-//Opinión positiva del mes actual
+// Opinión positiva del mes actual
 Route::get('/opinion', [OpinionController::class, 'form']);
 Route::post('/opinion', [OpinionController::class, 'validar']);
 
+// Ruta de prueba API Alan
+Route::get('/test-api', function () {
+    $service = new \App\Services\ProveedorApiService();
+
+    $login = $service->login('TI1', 'Ti.123');
+    $token = $login['tokencreado'] ?? null;
+
+    if (!$token) {
+        return response()->json(['error' => 'No se pudo obtener token']);
+    }
+
+    $proveedor = $service->buscarPorCodigo('102003240', $token);
+
+    return response()->json([
+        'token'     => substr($token, 0, 20) . '...',
+        'proveedor' => $proveedor,
+    ]);
+});

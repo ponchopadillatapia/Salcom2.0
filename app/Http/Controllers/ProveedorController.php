@@ -65,10 +65,11 @@ class ProveedorController extends Controller
         }
 
         $request->validate([
-            'nombre'   => 'required|string|max:255',
-            'telefono' => 'required|string|max:20',
-            'correo'   => 'required|email',
-            'password' => 'required|min:8|confirmed',
+            'nombre'       => 'required|string|max:255',
+            'tipo_persona' => 'required|string|max:255',
+            'telefono'     => 'required|string|max:20',
+            'correo'       => 'required|email',
+            'password'     => 'required|min:8|confirmed',
         ]);
 
         return redirect('/cif')
@@ -85,10 +86,11 @@ class ProveedorController extends Controller
     public function guardarActualizacion(Request $request)
     {
         $request->validate([
-            'nombre'   => 'required|string|max:255',
-            'telefono' => 'required|string|max:20',
-            'correo'   => 'required|email',
-            'password' => 'nullable|min:8|confirmed',
+            'nombre'       => 'required|string|max:255',
+            'tipo_persona' => 'required|string|max:255',
+            'telefono'     => 'required|string|max:20',
+            'correo'       => 'required|email',
+            'password'     => 'nullable|min:8|confirmed',
         ]);
 
         return redirect('/cif')
@@ -97,7 +99,6 @@ class ProveedorController extends Controller
 
     public function mostrarDashboard()
     {
-    return view('proveedores.dashboard');
+        return view('proveedores.dashboard');
     }
-
 }
