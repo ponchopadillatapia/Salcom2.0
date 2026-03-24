@@ -3,21 +3,13 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\EmpresaController;
+use App\Http\Controllers\PDFController;
 
 Route::get('/', function () {
     return view('welcome');
 });
 
-Route::get('/empresa', [EmpresaController::class, 'form']);
-Route::post('/empresa', [EmpresaController::class, 'guardar']);
-Route::get('/ver-pdf', [EmpresaController::class, 'verPDF']);
 
-/*
-use App\Http\Controllers\RFCController;
-
-Route::get('/validar-rfc', [RFCController::class, 'validarRFC_API']);
-*/
-// Login
 Route::get('/login-proveedor', [ProveedorController::class, 'mostrarLogin'])
     ->name('proveedores.login');
 
@@ -28,18 +20,6 @@ Route::get('/proveedor/registro', [ProveedorController::class, 'mostrarRegistro'
 // Registro — guarda los datos
 Route::post('/proveedor/registro', [ProveedorController::class, 'guardar'])
     ->name('proveedores.registro.guardar');
-
-//Validación RFC
-Route::get('/cif', [RFCController::class, 'vista']);
-Route::post('/validar-rfc', [RFCController::class, 'validar']);
-Route::post('/generar-cif', [RFCController::class, 'generarCIF']);
-Route::get('/rfc', function () {
-    return view('APIS.rfc');
-});
-
-Route::get('/cif', function () {
-    return view('APIS.cif');
-});
 
 // Login — procesa el formulario
 Route::post('/login-proveedor', [ProveedorController::class, 'procesarLogin'])
@@ -60,3 +40,28 @@ Route::put('/proveedor/actualizacion', [ProveedorController::class, 'guardarActu
 Route::get('/opinion', [OpinionController::class, 'form']);
 Route::post('/opinion', [OpinionController::class, 'validar']);
 
+Route::get('/empresa', [EmpresaController::class, 'form']);
+Route::post('/empresa', [EmpresaController::class, 'guardar']);
+
+// Opinión positiva del mes actual
+Route::get('/opinion', [OpinionController::class, 'form']);
+Route::post('/opinion', [OpinionController::class, 'validar']);
+
+// Ruta de prueba API Alan
+Route::get('/test-api', function () {
+    $service = new \App\Services\ProveedorApiService();
+
+    $login = $service->login('TI1', 'Ti.123');
+    $token = $login['tokencreado'] ?? null;
+
+    if (!$token) {
+        return response()->json(['error' => 'No se pudo obtener token']);
+    }
+
+    $proveedor = $service->buscarPorCodigo('102003240', $token);
+
+    return response()->json([
+        'token'     => substr($token, 0, 20) . '...',
+        'proveedor' => $proveedor,
+    ]);
+});
