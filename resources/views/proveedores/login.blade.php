@@ -25,7 +25,6 @@
             overflow: hidden;
         }
 
-        /* ── LADO IZQUIERDO ── */
         .left {
             width: 52%;
             background: linear-gradient(150deg, var(--purple-dark) 0%, var(--purple) 55%, var(--purple-mid) 100%);
@@ -38,12 +37,7 @@
             overflow: hidden;
         }
 
-        /* blobs decorativos */
-        .blob {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.06);
-        }
+        .blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.06); }
         .blob-1 { width: 380px; height: 380px; top: -140px; right: -100px; }
         .blob-2 { width: 240px; height: 240px; bottom: -80px; left: -60px; }
         .blob-3 { width: 120px; height: 120px; top: 42%; left: 12%; background: rgba(255,255,255,0.04); }
@@ -116,7 +110,6 @@
             letter-spacing: 0.5px;
         }
 
-        /* ── LADO DERECHO ── */
         .right {
             flex: 1;
             background: #F7F6FB;
@@ -127,7 +120,6 @@
             position: relative;
         }
 
-        /* acuarela decorativa */
         .deco-blob {
             position: absolute;
             bottom: -40px;
@@ -136,7 +128,6 @@
             pointer-events: none;
         }
 
-        /* ── CARD ── */
         .card {
             background: var(--white);
             border-radius: 20px;
@@ -173,7 +164,6 @@
             margin-top: 4px;
         }
 
-        /* fields */
         .field { margin-bottom: 16px; }
         .field label {
             display: block;
@@ -250,7 +240,6 @@
         }
         .register-link a:hover { text-decoration: underline; }
 
-        /* alertas */
         .alert-error {
             background: #FEE2E2;
             border-left: 3px solid #C0392B;
@@ -270,7 +259,6 @@
             margin-bottom: 18px;
         }
 
-        /* responsive */
         @media (max-width: 700px) {
             body { flex-direction: column; height: auto; overflow: auto; }
             .left { width: 100%; padding: 40px 24px; min-height: 220px; }
@@ -283,7 +271,6 @@
 </head>
 <body>
 
-{{-- ── LADO IZQUIERDO ── --}}
 <div class="left">
     <div class="blob blob-1"></div>
     <div class="blob blob-2"></div>
@@ -307,10 +294,8 @@
     <div class="left-footer">© {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
 </div>
 
-{{-- ── LADO DERECHO ── --}}
 <div class="right">
 
-    {{-- blob decorativo --}}
     <svg class="deco-blob" width="320" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
         <path fill="#6B3FA0" d="M39.5,-51.5C50.8,-42.6,59.2,-29.5,63.1,-14.8C67,0,66.3,16.4,59.7,29.7C53.1,43,40.5,53.2,26.4,59.3C12.3,65.4,-3.3,67.4,-17.8,63.1C-32.3,58.8,-45.7,48.2,-54.3,34.5C-62.9,20.8,-66.7,4,-63.9,-11.5C-61.1,-27,-51.7,-41.2,-39.4,-50.2C-27.1,-59.2,-11.9,-63,2,-65.4C15.9,-67.8,28.2,-60.4,39.5,-51.5Z" transform="translate(100 100)" />
     </svg>
@@ -329,7 +314,6 @@
             <p>Ingresa tus credenciales para continuar</p>
         </div>
 
-        {{-- Mensajes de sesión --}}
         @if(session('error'))
             <div class="alert-error">{{ session('error') }}</div>
         @endif
@@ -343,15 +327,15 @@
 
             <div class="field">
                 <label>Usuario</label>
-                <input type="text" name="usuario"
-                       placeholder="Tu usuario"
-                       value="{{ old('usuario') }}"
+                <input type="text" name="codigo"
+                       placeholder="Tu correo o usuario"
+                       value="{{ old('codigo') }}"
                        required autofocus>
             </div>
 
             <div class="field">
                 <label>Contraseña</label>
-                <input type="password" name="password"
+                <input type="password" name="pwd"
                        placeholder="Tu contraseña"
                        required>
             </div>
@@ -362,9 +346,8 @@
 
             <div class="field">
                 <label>Código de compras</label>
-                <input type="text" name="codigo"
-                       placeholder="Código asignado"
-                       required>
+                <input type="text" name="codigo_compras"
+                       placeholder="Código asignado (opcional por ahora)">
             </div>
 
             <button type="submit" class="btn-submit">Ingresar al portal</button>

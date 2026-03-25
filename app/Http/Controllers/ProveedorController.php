@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Hash;
 use App\Services\ProveedorApiService;
+use App\Models\ProveedorUser;
 
 class ProveedorController extends Controller
 {
@@ -21,55 +23,61 @@ class ProveedorController extends Controller
         return view('proveedores.registro');
     }
 
-    // Procesa el login con la API de Alan
+    // Procesa el login con usuario y contraseña propios
     public function procesarLogin(Request $request)
     {
         $request->validate([
-            'usuario'  => 'required',
-            'password' => 'required',
+            'codigo' => 'required',
+            'pwd'    => 'required',
         ]);
 
-        $apiService = new ProveedorApiService();
-        $resultado  = $apiService->login(
-            $request->usuario,
-            $request->password
-        );
+        $proveedor = ProveedorUser::where('usuario', $request->codigo)->first();
 
-        if (isset($resultado['usuario']) && isset($resultado['tokencreado'])) {
-            session([
-                'proveedor_token'  => $resultado['tokencreado'],
-                'proveedor_codigo' => $resultado['usuario']['codigo'],
-                'proveedor_nombre' => $resultado['usuario']['nombre'],
-                'proveedor_id'     => $resultado['usuario']['id'],
-            ]);
-
-            return redirect('/dashboard-proveedor')
-                ->with('mensaje', 'Bienvenido ' . $resultado['usuario']['nombre']);
+        if (!$proveedor || !Hash::check($request->pwd, $proveedor->password)) {
+            return back()->with('error', 'Credenciales incorrectas')->withInput();
         }
 
-        return back()->with('error', 'Credenciales incorrectas')->withInput();
+        session([
+            'proveedor_id'     => $proveedor->id,
+            'proveedor_nombre' => $proveedor->nombre,
+            'proveedor_codigo' => $proveedor->codigo_compras,
+            'proveedor_correo' => $proveedor->correo,
+        ]);
+
+        return redirect('/dashboard-proveedor')
+            ->with('mensaje', 'Bienvenido ' . $proveedor->nombre);
     }
 
-    // Guarda el proveedor nuevo
+    // Guarda el proveedor nuevo en la BD
     public function guardar(Request $request)
     {
-        $recaptcha = Http::post('https://www.google.com/recaptcha/api/siteverify', [
-            'secret'   => config('services.recaptcha.secret_key'),
-            'response' => $request->input('g-recaptcha-response'),
-        ])->json();
+        // CAPTCHA DESACTIVADO TEMPORALMENTE PARA PRUEBAS
+        // $recaptcha = Http::post('https://www.google.com/recaptcha/api/siteverify', [
+        //     'secret'   => config('services.recaptcha.secret_key'),
+        //     'response' => $request->input('g-recaptcha-response'),
+        // ])->json();
 
-        if (!$recaptcha['success']) {
-            return back()
-                ->withErrors(['g-recaptcha-response' => 'Captcha inválido, inténtalo de nuevo'])
-                ->withInput();
-        }
+        // if (!$recaptcha['success']) {
+        //     return back()
+        //         ->withErrors(['g-recaptcha-response' => 'Captcha inválido, inténtalo de nuevo'])
+        //         ->withInput();
+        // }
 
         $request->validate([
             'nombre'       => 'required|string|max:255',
             'tipo_persona' => 'required|string|max:255',
             'telefono'     => 'required|string|max:20',
-            'correo'       => 'required|email',
+            'correo'       => 'required|email|unique:proveedores_users,correo',
             'password'     => 'required|min:8|confirmed',
+        ]);
+
+        ProveedorUser::create([
+            'usuario'      => $request->correo,
+            'password'     => bcrypt($request->password),
+            'nombre'       => $request->nombre,
+            'tipo_persona' => $request->tipo_persona,
+            'telefono'     => $request->telefono,
+            'correo'       => $request->correo,
         ]);
 
         return redirect('/cif')
@@ -92,6 +100,21 @@ class ProveedorController extends Controller
             'correo'       => 'required|email',
             'password'     => 'nullable|min:8|confirmed',
         ]);
+
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+
+        if ($proveedor) {
+            $proveedor->update([
+                'nombre'       => $request->nombre,
+                'tipo_persona' => $request->tipo_persona,
+                'telefono'     => $request->telefono,
+                'correo'       => $request->correo,
+            ]);
+
+            if ($request->password) {
+                $proveedor->update(['password' => bcrypt($request->password)]);
+            }
+        }
 
         return redirect('/cif')
             ->with('mensaje', 'Datos actualizados, por favor valida tus datos fiscales');
