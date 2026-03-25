@@ -58,13 +58,13 @@ class EmpresaApiController extends Controller
         }
 
         return response()->json([
-            'mensaje' => 'Validación realizada',
-            'empresa' => [
-                'rfc' => $rfc,
-                'nombre' => $nombre,
-                'tipo' => $tipo,
-                'estado' => $estado
-            ]
-        ]);
+        'mensaje' => 'SI FUNCIONA',
+        'empresa' => [
+            'rfc' => 'PRUEBA123',
+            'nombre' => 'EMPRESA DEMO',
+            'tipo' => 'Moral',
+            'estado' => 'verde'
+        ]
+    ]);
     }
 }

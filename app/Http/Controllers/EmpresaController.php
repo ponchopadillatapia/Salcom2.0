@@ -74,6 +74,8 @@ public function guardar(Request $request)
 */
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use App\Http\Controllers\APIS\EmpresaApiController;
+
 class EmpresaController extends Controller
 {
 public function form()
@@ -83,19 +85,24 @@ public function form()
 
 public function guardar(Request $request)
 {
-    $response = Http::attach(
-        'cif_pdf', file_get_contents($request->file('cif_pdf')), 'cif.pdf'
-    )->attach(
-        'opinion_pdf', file_get_contents($request->file('opinion_pdf')), 'opinion.pdf'
-    )->attach(
-        'acta_pdf', file_get_contents($request->file('acta_pdf')), 'acta.pdf'
-    )->post('http://127.0.0.1:8000/api/validar-documentos');
+    // Validar archivos
+    $request->validate([
+        'cif_pdf' => 'required|file|mimes:pdf',
+        'opinion_pdf' => 'required|file|mimes:pdf',
+        'acta_pdf' => 'required|file|mimes:pdf',
+    ]);
 
-    $data = $response->json();
+    // Llamar directamente a la API (SIN HTTP)
+    $api = new EmpresaApiController();
+
+    $response = $api->validar($request);
+
+    // Convertir respuesta
+    $data = $response->getData(true);
 
     return back()->with([
         'mensaje' => $data['mensaje'],
-        'empresa' => $data['empresa']
+        'empresa' => $data['empresa'] ?? null
     ]);
 }
 }
