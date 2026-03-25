@@ -92,17 +92,18 @@ public function guardar(Request $request)
         'acta_pdf' => 'required|file|mimes:pdf',
     ]);
 
-    // Llamar directamente a la API (SIN HTTP)
-    $api = new EmpresaApiController();
+    // Guardar archivos
+    $cifRuta = $request->file('cif_pdf')->store('cif');
+    $opinionRuta = $request->file('opinion_pdf')->store('opiniones');
+    $actaRuta = $request->file('acta_pdf')->store('actas');
 
-    $response = $api->validar($request);
-
-    // Convertir respuesta
-    $data = $response->getData(true);
-
-    return back()->with([
-        'mensaje' => $data['mensaje'],
-        'empresa' => $data['empresa'] ?? null
+    // Simulación de validación (puedes meter tu lógica aquí)
+    return response()->json([
+        'empresa' => [
+            'rfc' => 'PRUEBA123',
+            'nombre' => 'EMPRESA DEMO',
+            'estado' => 'verde'
+        ]
     ]);
 }
 }

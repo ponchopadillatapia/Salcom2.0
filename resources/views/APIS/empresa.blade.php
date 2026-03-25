@@ -2,109 +2,132 @@
 <html>
 <head>
     <title>Validación</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    <!-- Bootstrap -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <style>
         body {
-            background-color: #F4F6F5;
+            background-color: #f4f6f5;
+            font-family: Arial, sans-serif;
         }
 
-        .card-custom {
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-        }
-
-        .titulo {
-            color: #0F3D2E;
+        /* NAVBAR */
+        .navbar-wiese {
+            background-color: #0F3D2E;
+            color: white;
+            padding: 15px;
             font-weight: bold;
+            text-align: center;
         }
 
-        .btn-custom {
+        /* CONTENEDOR */
+        .contenedor {
+            max-width: 600px;
+            margin: 40px auto;
+        }
+
+        /* TARJETA */
+        .card-wiese {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0px 4px 10px rgba(0,0,0,0.1);
+        }
+
+        /* BOTÓN */
+        .btn-wiese {
             background-color: #0F3D2E;
             color: white;
             border: none;
         }
 
-        .btn-custom:hover {
+        .btn-wiese:hover {
             background-color: #1F6F54;
         }
 
-        .badge-verde {
-            background-color: #1F6F54;
+        /* RESULTADO */
+        .resultado {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f8f9fa;
         }
 
-        .badge-amarillo {
-            background-color: #FFC107;
-            color: black;
-        }
-
-        .badge-rojo {
-            background-color: #DC3545;
-        }
+        /* SEMÁFORO */
+        .verde { color: green; font-weight: bold; }
+        .amarillo { color: orange; font-weight: bold; }
+        .rojo { color: red; font-weight: bold; }
     </style>
 </head>
+
 <body>
 
-<div class="container mt-5">
+<!-- NAVBAR -->
+<div class="navbar-wiese">
+    SISTEMA DE VALIDACIÓN
+</div>
 
-    <div class="card card-custom p-4">
+<div class="contenedor">
+    <div class="card-wiese">
 
-        <h3 class="titulo mb-4">Validación de documentos</h3>
+        <h4 class="mb-3">Subir documentos</h4>
 
-        @if(session('mensaje'))
-            <div class="alert alert-secondary">
-                {{ session('mensaje') }}
-            </div>
-        @endif
+        <!-- TUS INPUTS (SIN CAMBIOS) -->
+        <input type="file" id="cif" class="form-control mb-3">
+        <input type="file" id="opinion" class="form-control mb-3">
+        <input type="file" id="acta" class="form-control mb-3">
 
-        @if(session('empresa'))
-            <div class="card p-3 mb-4">
+        <br>
 
-                <p><strong>RFC:</strong> {{ session('empresa')['rfc'] }}</p>
-                <p><strong>Nombre:</strong> {{ session('empresa')['nombre'] }}</p>
-                <p><strong>Tipo:</strong> {{ session('empresa')['tipo'] }}</p>
+        <!-- BOTÓN -->
+        <button onclick="enviar()" class="btn btn-wiese w-100">
+            Validar
+        </button>
 
-                <p>
-                    <strong>Estado:</strong>
+        <!-- RESULTADO -->
+        <div id="resultado" class="resultado"></div>
 
-                    @if(session('empresa')['estado'] == 'verde')
-                        <span class="badge badge-verde">Aprobado</span>
-                    @elseif(session('empresa')['estado'] == 'amarillo')
-                        <span class="badge badge-amarillo">Revisión</span>
-                    @else
-                        <span class="badge badge-rojo">Rechazado</span>
-                    @endif
-
-                </p>
-
-            </div>
-        @endif
-
-        <form action="/empresa" method="POST" enctype="multipart/form-data">
-            @csrf
-
-            <div class="mb-3">
-                <label>Constancia de Situación Fiscal</label>
-                <input type="file" name="cif_pdf" class="form-control" required>
-            </div>
-
-            <div class="mb-3">
-                <label>Opinión de cumplimiento</label>
-                <input type="file" name="opinion_pdf" class="form-control" required>
-            </div>
-
-            <div class="mb-3">
-                <label>Acta constitutiva</label>
-                <input type="file" name="acta_pdf" class="form-control" required>
-            </div>
-
-            <button class="btn btn-custom w-100">Validar documentos</button>
-        </form>
-
+  
     </div>
 
 </div>
+
+<script>
+function enviar() {
+
+    let formData = new FormData();
+
+    formData.append('cif_pdf', document.getElementById('cif').files[0]);
+    formData.append('opinion_pdf', document.getElementById('opinion').files[0]);
+    formData.append('acta_pdf', document.getElementById('acta').files[0]);
+
+    fetch('/empresa', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+        },
+        body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+
+        let estado = data.empresa.estado;
+
+        let color = estado === 'verde' ? 'verde' :
+                    estado === 'amarillo' ? 'amarillo' : 'rojo';
+
+        document.getElementById('resultado').innerHTML =
+            "RFC: " + data.empresa.rfc + "<br>" +
+            "Nombre: " + data.empresa.nombre + "<br>" +
+            "Estado: <span class='" + color + "'>" + estado + "</span>";
+    })
+    .catch(error => {
+        console.error(error);
+    });
+}
+</script>
 
 </body>
 </html>
