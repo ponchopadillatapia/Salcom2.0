@@ -8,51 +8,36 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-
+// Login
 Route::get('/login-proveedor', [ProveedorController::class, 'mostrarLogin'])
     ->name('proveedores.login');
 
-// Registro — muestra el formulario
-Route::get('/proveedor/registro', [ProveedorController::class, 'mostrarRegistro'])
-    ->name('proveedores.registro');
-
-// Registro — guarda los datos
-Route::post('/proveedor/registro', [ProveedorController::class, 'guardar'])
-    ->name('proveedores.registro.guardar');
-
-// Login — procesa el formulario
 Route::post('/login-proveedor', [ProveedorController::class, 'procesarLogin'])
     ->name('proveedores.login.procesar');
 
-    // Actualización — muestra el formulario
+// Cerrar sesión
+Route::post('/logout-proveedor', [ProveedorController::class, 'cerrarSesion'])
+    ->name('proveedores.logout');
+
+// Registro
+Route::get('/proveedor/registro', [ProveedorController::class, 'mostrarRegistro'])
+    ->name('proveedores.registro');
+
+Route::post('/proveedor/registro', [ProveedorController::class, 'guardar'])
+    ->name('proveedores.registro.guardar');
+
+// Actualización
 Route::get('/proveedor/actualizacion', [ProveedorController::class, 'mostrarActualizacion'])
     ->name('proveedores.actualizacion');
 
-// Actualización — guarda los cambios
 Route::put('/proveedor/actualizacion', [ProveedorController::class, 'guardarActualizacion'])
     ->name('proveedores.actualizacion.guardar');
+//dashboard
+Route::get('/dashboard-proveedor', [ProveedorController::class, 'mostrarDashboard'])
+    ->name('proveedores.dashboard')
+    ->middleware('auth.proveedor');
 
-    Route::get('/dashboard-proveedor', [ProveedorController::class, 'mostrarDashboard'])
-    ->name('proveedores.dashboard');
-
+// Empresa (tu hermano)
 Route::get('/empresa', [EmpresaController::class, 'form']);
-Route::post('/empresa', [EmpresaController::class, 'guardar']);
+Route::post('/empresa', [EmpresaController::class, 'guardar']); 
 
-// Ruta de prueba API Alan
-Route::get('/test-api', function () {
-    $service = new \App\Services\ProveedorApiService();
-
-    $login = $service->login('TI1', 'Ti.123');
-    $token = $login['tokencreado'] ?? null;
-
-    if (!$token) {
-        return response()->json(['error' => 'No se pudo obtener token']);
-    }
-
-    $proveedor = $service->buscarPorCodigo('102003240', $token);
-
-    return response()->json([
-        'token'     => substr($token, 0, 20) . '...',
-        'proveedor' => $proveedor,
-    ]);
-});

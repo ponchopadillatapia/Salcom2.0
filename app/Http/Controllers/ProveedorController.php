@@ -124,4 +124,19 @@ class ProveedorController extends Controller
     {
         return view('proveedores.dashboard');
     }
+
+    // Cierra la sesión del proveedor
+    public function cerrarSesion()
+    {
+    session()->forget([
+        'proveedor_id',
+        'proveedor_nombre',
+        'proveedor_codigo',
+        'proveedor_correo',
+    ]);
+
+    return redirect('/login-proveedor')
+        ->with('mensaje', 'Sesión cerrada correctamente');
+    }
+
 }

@@ -79,11 +79,14 @@
         .btn-logout {
             font-size: 13px;
             color: var(--gray-text);
-            text-decoration: none;
             padding: 6px 14px;
             border: 0.5px solid var(--border);
             border-radius: 8px;
             transition: all .15s;
+            background: none;
+            cursor: pointer;
+            font-family: 'Nunito', sans-serif;
+            font-weight: 500;
         }
         .btn-logout:hover {
             background: var(--purple-light);
@@ -148,7 +151,7 @@
         }
         .metric-card {
             background: var(--white);
-            border-radius: var(--border-radius-lg, 12px);
+            border-radius: 12px;
             padding: 20px 22px;
             border: 0.5px solid var(--border);
             position: relative;
@@ -222,7 +225,7 @@
         }
         .card-head .ver-todo:hover { text-decoration: underline; }
 
-        /* ── TABLA FACTURAS ── */
+        /* ── TABLA ── */
         .tabla { width: 100%; border-collapse: collapse; }
         .tabla th {
             font-size: 11px;
@@ -243,20 +246,6 @@
         }
         .tabla tr:last-child td { border-bottom: none; }
         .tabla tr:hover td { background: var(--gray-soft); }
-
-        /* ── BADGES ── */
-        .badge {
-            display: inline-block;
-            font-size: 11px;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 999px;
-        }
-        .badge-green  { background: var(--green-bg);  color: var(--green); }
-        .badge-amber  { background: var(--amber-bg);  color: var(--amber); }
-        .badge-blue   { background: var(--blue-bg);   color: var(--blue); }
-        .badge-red    { background: var(--red-bg);    color: var(--red); }
-        .badge-purple { background: var(--purple-light); color: var(--purple); }
 
         /* ── ESTATUS EN TIEMPO REAL ── */
         .estatus-list { padding: 0; }
@@ -378,13 +367,19 @@
     </div>
     <div class="nav-right">
         <span class="nav-user">Hola, <span>{{ session('proveedor_nombre', 'Proveedor') }}</span></span>
-        <a href="{{ route('proveedores.login') }}" class="btn-logout">Cerrar sesión</a>
+        {{-- CERRAR SESIÓN CORREGIDO --}}
+        <form method="POST" action="{{ route('proveedores.logout') }}" style="display:inline;">
+            @csrf
+            <button type="submit" class="btn-logout">Cerrar sesión</button>
+        </form>
     </div>
 </nav>
 
 {{-- HERO --}}
-<h1>Bienvenido, {{ session('proveedor_nombre', 'Proveedor') }}</h1>
-<p>Código: {{ session('proveedor_codigo', '—') }} — {{ now()->format('d/m/Y') }}</p>
+<div class="hero-band">
+    <h1>Bienvenido, {{ session('proveedor_nombre', 'Proveedor') }}</h1>
+    <p>Código: {{ session('proveedor_codigo', '—') }} — {{ now()->format('d/m/Y') }}</p>
+</div>
 
 {{-- MAIN --}}
 <div class="main">
@@ -457,7 +452,6 @@
     {{-- FACTURAS Y ESTATUS --}}
     <div class="two-col">
 
-        {{-- FACTURAS --}}
         <div class="card">
             <div class="card-head">
                 <h3>Facturas recientes</h3>
@@ -482,7 +476,6 @@
             </table>
         </div>
 
-        {{-- ESTATUS EN TIEMPO REAL --}}
         <div class="card">
             <div class="card-head">
                 <h3>Estatus en tiempo real</h3>
