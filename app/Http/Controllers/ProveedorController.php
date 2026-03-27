@@ -11,19 +11,16 @@ use App\Models\ProveedorUser;
 
 class ProveedorController extends Controller
 {
-    // Muestra el formulario de login
     public function mostrarLogin()
     {
         return view('proveedores.login');
     }
 
-    // Muestra el formulario de registro
     public function mostrarRegistro()
     {
         return view('proveedores.registro');
     }
 
-    // Procesa el login con usuario y contraseña propios
     public function procesarLogin(Request $request)
     {
         $request->validate([
@@ -44,11 +41,10 @@ class ProveedorController extends Controller
             'proveedor_correo' => $proveedor->correo,
         ]);
 
-        return redirect('/dashboard-proveedor')
+        return redirect('/portal-proveedor')
             ->with('mensaje', 'Bienvenido ' . $proveedor->nombre);
     }
 
-    // Guarda el proveedor nuevo en la BD
     public function guardar(Request $request)
     {
         // CAPTCHA DESACTIVADO TEMPORALMENTE PARA PRUEBAS
@@ -84,13 +80,11 @@ class ProveedorController extends Controller
             ->with('mensaje', 'Registro exitoso, por favor valida tus datos fiscales');
     }
 
-    // Muestra el formulario de actualización
     public function mostrarActualizacion()
     {
         return view('proveedores.actualizacion');
     }
 
-    // Guarda los cambios de actualización
     public function guardarActualizacion(Request $request)
     {
         $request->validate([
@@ -125,18 +119,21 @@ class ProveedorController extends Controller
         return view('proveedores.dashboard');
     }
 
-    // Cierra la sesión del proveedor
     public function cerrarSesion()
     {
-    session()->forget([
-        'proveedor_id',
-        'proveedor_nombre',
-        'proveedor_codigo',
-        'proveedor_correo',
-    ]);
+        session()->forget([
+            'proveedor_id',
+            'proveedor_nombre',
+            'proveedor_codigo',
+            'proveedor_correo',
+        ]);
 
-    return redirect('/login-proveedor')
-        ->with('mensaje', 'Sesión cerrada correctamente');
+        return redirect('/login-proveedor')
+            ->with('mensaje', 'Sesión cerrada correctamente');
     }
 
+    public function mostrarPortal()
+    {
+        return view('proveedores.portal');
+    }
 }

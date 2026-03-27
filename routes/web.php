@@ -40,4 +40,8 @@ Route::get('/dashboard-proveedor', [ProveedorController::class, 'mostrarDashboar
 // Empresa (tu hermano)
 Route::get('/empresa', [EmpresaController::class, 'form']);
 Route::post('/empresa', [EmpresaController::class, 'guardar']); 
+//portal proveedor
+Route::get('/portal-proveedor', [ProveedorController::class, 'mostrarPortal'])
+    ->name('proveedores.portal')
+    ->middleware('auth.proveedor');
 

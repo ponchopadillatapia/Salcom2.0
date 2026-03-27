@@ -55,7 +55,7 @@
             text-transform: uppercase;
             margin-top: -4px;
         }
-        .nav-links { display: flex; gap: 32px; list-style: none; }
+        .nav-links { display: flex; gap: 32px; list-style: none; align-items: center; }
         .nav-links a {
             text-decoration: none;
             color: var(--gray-text);
@@ -64,6 +64,33 @@
             transition: color .2s;
         }
         .nav-links a:hover { color: var(--purple); }
+
+        /* ── DROPDOWN ── */
+        .dropdown { position: relative; }
+        .dropdown > a { padding-bottom: 12px; display: inline-block; }
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% - 4px);
+            left: 0;
+            background: var(--white);
+            border: 0.5px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 0;
+            min-width: 140px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+            list-style: none;
+            z-index: 200;
+        }
+        .dropdown-menu li a {
+            display: block;
+            padding: 8px 16px;
+            font-size: 13px;
+            color: var(--gray-text);
+        }
+        .dropdown-menu li a:hover { color: var(--purple); background: var(--purple-light); }
+        .dropdown:hover .dropdown-menu { display: block; }
+        .dropdown-menu:hover { display: block; }
 
         /* ── HERO BAND ── */
         .hero-band {
@@ -113,7 +140,6 @@
             position: relative;
         }
 
-        /* acuarela decorativa izquierda */
         .deco-left {
             display: flex;
             align-items: flex-start;
@@ -121,10 +147,7 @@
             padding-right: 32px;
             padding-top: 20px;
         }
-        .watercolor-blob {
-            width: 180px;
-            opacity: 0.18;
-        }
+        .watercolor-blob { width: 180px; opacity: 0.18; }
 
         /* ── CARD ── */
         .card {
@@ -140,10 +163,7 @@
             to   { opacity:1; transform: translateY(0); }
         }
 
-        .card-header {
-            text-align: center;
-            margin-bottom: 32px;
-        }
+        .card-header { text-align: center; margin-bottom: 32px; }
         .card-header .icon-wrap {
             width: 56px; height: 56px;
             border-radius: 50%;
@@ -158,32 +178,19 @@
             color: var(--purple-dark);
             font-weight: 600;
         }
-        .card-header p {
-            font-size: 13px;
-            color: #888;
-            margin-top: 4px;
-            font-weight: 400;
-        }
+        .card-header p { font-size: 13px; color: #888; margin-top: 4px; font-weight: 400; }
 
         /* ── FORM ── */
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-        .form-row.single { grid-template-columns: 1fr; }
-
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .field { display: flex; flex-direction: column; margin-bottom: 18px; }
         .field label {
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 12px; font-weight: 600;
             color: var(--gray-text);
             margin-bottom: 6px;
             letter-spacing: 0.3px;
             text-transform: uppercase;
         }
         .field label .req { color: var(--purple-mid); margin-left: 2px; }
-
         .field input {
             border: 1.5px solid var(--border);
             border-radius: 10px;
@@ -201,35 +208,6 @@
             box-shadow: 0 0 0 3px rgba(156,109,208,0.12);
         }
 
-        /* captcha */
-        .captcha-box {
-            background: var(--purple-light);
-            border-radius: 10px;
-            padding: 14px 16px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            margin-bottom: 18px;
-        }
-        .captcha-question {
-            font-size: 14px;
-            color: var(--purple-dark);
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .captcha-box input {
-            flex: 1;
-            border: 1.5px solid var(--border);
-            border-radius: 8px;
-            padding: 9px 12px;
-            font-size: 14px;
-            font-family: 'Nunito', sans-serif;
-            outline: none;
-            transition: border-color .2s;
-        }
-        .captcha-box input:focus { border-color: var(--purple-mid); }
-
-        /* divider */
         .divider {
             display: flex; align-items: center; gap: 12px;
             margin: 4px 0 20px;
@@ -240,19 +218,14 @@
             border-top: 1px solid var(--border);
         }
 
-        /* submit */
         .btn-submit {
-            width: 100%;
-            padding: 14px;
+            width: 100%; padding: 14px;
             background: var(--purple);
             color: var(--white);
-            border: none;
-            border-radius: 12px;
+            border: none; border-radius: 12px;
             font-family: 'Nunito', sans-serif;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            letter-spacing: 0.3px;
+            font-size: 15px; font-weight: 600;
+            cursor: pointer; letter-spacing: 0.3px;
             transition: background .2s, transform .15s, box-shadow .2s;
             box-shadow: 0 4px 16px rgba(107,63,160,0.25);
         }
@@ -263,32 +236,17 @@
         }
         .btn-submit:active { transform: translateY(0); }
 
-        .login-link {
-            text-align: center;
-            margin-top: 18px;
-            font-size: 13px;
-            color: #999;
-        }
-        .login-link a {
-            color: var(--purple);
-            text-decoration: none;
-            font-weight: 600;
-        }
+        .login-link { text-align: center; margin-top: 18px; font-size: 13px; color: #999; }
+        .login-link a { color: var(--purple); text-decoration: none; font-weight: 600; }
         .login-link a:hover { text-decoration: underline; }
 
-        /* errores de validación Laravel */
-        .error-msg {
-            font-size: 12px;
-            color: #C0392B;
-            margin-top: 4px;
-        }
+        .error-msg { font-size: 12px; color: #C0392B; margin-top: 4px; }
         .alert-errors {
             background: #FEE2E2;
             border-left: 3px solid #C0392B;
             border-radius: 8px;
             padding: 12px 14px;
-            font-size: 13px;
-            color: #991B1B;
+            font-size: 13px; color: #991B1B;
             margin-bottom: 20px;
         }
 
@@ -297,16 +255,10 @@
             background: var(--white);
             border-top: 1px solid var(--border);
             padding: 24px 48px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between;
         }
         footer p { font-size: 12px; color: #AAA; }
-        .footer-logo {
-            font-family: 'Playfair Display', serif;
-            font-size: 16px;
-            color: var(--purple);
-        }
+        .footer-logo { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--purple); }
 
         @media (max-width: 700px) {
             .main { grid-template-columns: 1fr; padding: 24px 16px 48px; }
@@ -329,9 +281,15 @@
         <span>Salcom Industries</span>
     </div>
     <ul class="nav-links">
-        <li><a href="#">Inicio</a></li>
-        <li><a href="#">Productos</a></li>
-        <li><a href="#">Contacto</a></li>
+        <li><a href="https://www.wiese.com.mx" target="_blank">Inicio</a></li>
+        <li class="dropdown">
+            <a href="#">Productos ▾</a>
+            <ul class="dropdown-menu">
+                <li><a href="https://www.wiese.com.mx/es/productos/hogar" target="_blank">Hogar</a></li>
+                <li><a href="https://www.wiese.com.mx/es/productos/negocio" target="_blank">Negocio</a></li>
+            </ul>
+        </li>
+        <li><a href="https://www.wiese.com.mx/es/contacto" target="_blank">Contacto</a></li>
         <li><a href="{{ route('proveedores.login') }}">Iniciar sesión</a></li>
     </ul>
 </nav>
@@ -345,7 +303,6 @@
 {{-- MAIN --}}
 <div class="main">
 
-    {{-- decoración izquierda (blob acuarela SVG simple) --}}
     <div class="deco-left">
         <svg class="watercolor-blob" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
             <path fill="#6B3FA0" d="M44.7,-62.3C56.6,-53.4,63.7,-38.2,68.1,-22.3C72.5,-6.4,74.2,10.2,69.1,24.6C64,39,52.2,51.2,38.4,59.2C24.6,67.2,8.8,71,-6.5,69.2C-21.8,67.4,-36.6,60,-47.3,49.1C-58,38.2,-64.6,23.8,-66.3,8.8C-68,-6.2,-64.8,-21.8,-57,-34.1C-49.2,-46.4,-36.8,-55.4,-23.4,-63.1C-10,-70.8,4.4,-77.2,18.3,-75.1C32.2,-73,45.6,-62.4,44.7,-62.3Z" transform="translate(100 100)" />
@@ -366,7 +323,6 @@
             <p>Completa tus datos para crear tu cuenta</p>
         </div>
 
-        {{-- Errores de validación --}}
         @if ($errors->any())
             <div class="alert-errors">
                 <ul style="padding-left:16px">
@@ -380,7 +336,6 @@
         <form method="POST" action="{{ route('proveedores.registro.guardar') }}">
             @csrf
 
-            {{-- Nombre completo --}}
             <div class="field">
                 <label>Nombre completo <span class="req">*</span></label>
                 <input type="text" name="nombre" placeholder="Tu nombre completo"
@@ -388,7 +343,6 @@
                 @error('nombre') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
 
-            {{-- Persona física o moral --}}
             <div class="field">
                 <label>Persona física o moral <span class="req">*</span></label>
                 <input type="text" name="tipo_persona" placeholder="Ej: Persona Física o Persona Moral"
@@ -396,7 +350,6 @@
                 @error('tipo_persona') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
 
-            {{-- Teléfono y Correo --}}
             <div class="form-row">
                 <div class="field" style="margin-bottom:0">
                     <label>Teléfono <span class="req">*</span></label>
@@ -414,7 +367,6 @@
 
             <div style="margin-bottom:18px"></div>
 
-            {{-- Contraseña --}}
             <div class="form-row">
                 <div class="field" style="margin-bottom:0">
                     <label>Contraseña <span class="req">*</span></label>
@@ -431,11 +383,10 @@
 
             <div class="divider">Verificación de seguridad</div>
 
-            {{-- Captcha --}}
             <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}"></div>
             @error('g-recaptcha-response')
             <span class="error-msg" style="display:block;margin:6px 0 14px">
-             Por favor completa el captcha
+                Por favor completa el captcha
             </span>
             @enderror
 
