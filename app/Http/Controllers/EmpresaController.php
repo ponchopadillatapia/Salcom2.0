@@ -2,12 +2,8 @@
 
 namespace App\Http\Controllers;
 
-/*
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Storage;
-use Smalot\PdfParser\Parser;
-use Carbon\Carbon;
+use App\Http\Controllers\APIS\EmpresaApiController;
 
 class EmpresaController extends Controller
 {
@@ -15,95 +11,14 @@ class EmpresaController extends Controller
     {
         return view('APIS.empresa');
     }
-public function guardar(Request $request)
-{
-    $request->validate([
-        'rfc' => 'required',
-        'nombre' => 'required',
-        'opinion_pdf' => 'required|mimes:pdf',
-        'acta_pdf' => 'required|mimes:pdf',
-    ]);
 
-    // Guardar PDF
-    $rutaPDF = $request->file('opinion_pdf')->store('opiniones');
+    public function guardar(Request $request)
+    {
+        // Llamar a la lógica real
+        $api = new EmpresaApiController();
 
-    // Leer PDF
-    $parser = new Parser();
-    $pdf = $parser->parseFile(storage_path('app/'.$rutaPDF));
-    $texto = strtoupper($pdf->getText());
+        $response = $api->validar($request);
 
-    // Validar palabra POSITIVA
-    $esPositiva = str_contains($texto, 'POSITIVA');
-
-    // Buscar fecha en el PDF
-    preg_match('/\d{2}\/\d{2}\/\d{4}/', $texto, $matches);
-
-    $fechaValida = false;
-
-    if ($matches) {
-        $fechaPDF = Carbon::createFromFormat('d/m/Y', $matches[0]);
-        $hoy = Carbon::now();
-
-        if ($fechaPDF->month == $hoy->month && $fechaPDF->year == $hoy->year) {
-            $fechaValida = true;
-        }
+        return $response;
     }
-
-    // Resultado final
-    if ($esPositiva && $fechaValida) {
-        $estado = 'correcto';
-        $mensaje = 'Opinión positiva del mes actual';
-    } elseif ($esPositiva) {
-        $estado = 'advertencia';
-        $mensaje = 'Es positiva pero no es del mes actual';
-    } else {
-        $estado = 'error';
-        $mensaje = 'Opinión no positiva';
-    }
-
-    // Guardar acta
-    $request->file('acta_pdf')->store('actas');
-
-    return back()->with([
-        'mensaje' => $mensaje,
-        'estado' => $estado
-    ]);
-    
-}
-}
-*/
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use App\Http\Controllers\APIS\EmpresaApiController;
-
-class EmpresaController extends Controller
-{
-public function form()
-{
-    return view('APIS.empresa');
-}
-
-public function guardar(Request $request)
-{
-    // Validar archivos
-    $request->validate([
-        'cif_pdf' => 'required|file|mimes:pdf',
-        'opinion_pdf' => 'required|file|mimes:pdf',
-        'acta_pdf' => 'required|file|mimes:pdf',
-    ]);
-
-    // Guardar archivos
-    $cifRuta = $request->file('cif_pdf')->store('cif');
-    $opinionRuta = $request->file('opinion_pdf')->store('opiniones');
-    $actaRuta = $request->file('acta_pdf')->store('actas');
-
-    // Simulación de validación (puedes meter tu lógica aquí)
-    return response()->json([
-        'empresa' => [
-            'rfc' => 'PRUEBA123',
-            'nombre' => 'EMPRESA DEMO',
-            'estado' => 'verde'
-        ]
-    ]);
-}
 }
