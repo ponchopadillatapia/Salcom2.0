@@ -54,15 +54,21 @@
             text-transform: uppercase;
             margin-top: -4px;
         }
-        .nav-links { display: flex; gap: 32px; list-style: none; }
-        .nav-links a {
-            text-decoration: none;
+        .nav-right { display: flex; align-items: center; gap: 24px; }
+        .nav-user { font-size: 13px; color: var(--gray-text); font-weight: 500; }
+        .nav-user span { color: var(--purple); font-weight: 600; }
+        .btn-logout {
+            font-size: 13px;
             color: var(--gray-text);
-            font-size: 14px;
-            font-weight: 500;
-            transition: color .2s;
+            padding: 6px 14px;
+            border: 0.5px solid var(--border);
+            border-radius: 8px;
+            background: none;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all .15s;
         }
-        .nav-links a:hover { color: var(--purple); }
+        .btn-logout:hover { background: var(--purple-light); color: var(--purple); border-color: var(--purple-mid); }
 
         /* ── HERO BAND ── */
         .hero-band {
@@ -106,7 +112,7 @@
         .main {
             flex: 1;
             display: grid;
-            grid-template-columns: 1fr 480px 1fr;
+            grid-template-columns: 1fr 520px 1fr;
             gap: 0;
             padding: 48px 24px 64px;
             position: relative;
@@ -151,31 +157,24 @@
             color: var(--purple-dark);
             font-weight: 600;
         }
-        .card-header p {
-            font-size: 13px;
-            color: #888;
-            margin-top: 4px;
-        }
+        .card-header p { font-size: 13px; color: #888; margin-top: 4px; }
 
         /* ── FORM ── */
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
         .field { display: flex; flex-direction: column; margin-bottom: 18px; }
         .field label {
-            font-size: 12px;
-            font-weight: 600;
+            font-size: 12px; font-weight: 600;
             color: var(--gray-text);
             margin-bottom: 6px;
             letter-spacing: 0.3px;
             text-transform: uppercase;
         }
         .field label .req { color: var(--purple-mid); margin-left: 2px; }
-
-        .field input {
+        .field input[type="text"],
+        .field input[type="tel"],
+        .field input[type="email"],
+        .field input[type="password"] {
             border: 1.5px solid var(--border);
             border-radius: 10px;
             padding: 11px 14px;
@@ -192,24 +191,56 @@
             box-shadow: 0 0 0 3px rgba(156,109,208,0.12);
         }
 
-        /* campos pendientes */
-        .pending-section {
+        /* ── FILE UPLOAD ── */
+        .file-upload-box {
             border: 1.5px dashed var(--border);
             border-radius: 10px;
-            padding: 16px;
-            margin-bottom: 18px;
-            text-align: center;
+            padding: 16px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: border-color .2s, background .2s;
+            position: relative;
         }
-        .pending-section p {
+        .file-upload-box:hover {
+            border-color: var(--purple-mid);
+            background: var(--purple-light);
+        }
+        .file-upload-box input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+        .file-icon {
+            width: 36px; height: 36px;
+            border-radius: 8px;
+            background: var(--purple-light);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .file-info { flex: 1; }
+        .file-info .file-label {
             font-size: 13px;
-            color: #AAA;
-        }
-        .pending-section span {
-            font-size: 11px;
-            color: var(--purple-mid);
             font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            color: var(--gray-text);
+        }
+        .file-info .file-hint {
+            font-size: 11px;
+            color: #AAA;
+            margin-top: 2px;
+        }
+        .file-badge {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 999px;
+            background: var(--purple-light);
+            color: var(--purple);
+            flex-shrink: 0;
         }
 
         .divider {
@@ -222,19 +253,14 @@
             border-top: 1px solid var(--border);
         }
 
-        /* submit */
         .btn-submit {
-            width: 100%;
-            padding: 14px;
+            width: 100%; padding: 14px;
             background: var(--purple);
             color: var(--white);
-            border: none;
-            border-radius: 12px;
+            border: none; border-radius: 12px;
             font-family: 'Nunito', sans-serif;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            letter-spacing: 0.3px;
+            font-size: 15px; font-weight: 600;
+            cursor: pointer; letter-spacing: 0.3px;
             transition: background .2s, transform .15s, box-shadow .2s;
             box-shadow: 0 4px 16px rgba(107,63,160,0.25);
         }
@@ -245,27 +271,16 @@
         }
         .btn-submit:active { transform: translateY(0); }
 
-        .back-link {
-            text-align: center;
-            margin-top: 18px;
-            font-size: 13px;
-            color: #999;
-        }
-        .back-link a {
-            color: var(--purple);
-            text-decoration: none;
-            font-weight: 600;
-        }
+        .back-link { text-align: center; margin-top: 18px; font-size: 13px; color: #999; }
+        .back-link a { color: var(--purple); text-decoration: none; font-weight: 600; }
         .back-link a:hover { text-decoration: underline; }
 
-        /* alertas */
         .alert-errors {
             background: #FEE2E2;
             border-left: 3px solid #C0392B;
             border-radius: 8px;
             padding: 12px 14px;
-            font-size: 13px;
-            color: #991B1B;
+            font-size: 13px; color: #991B1B;
             margin-bottom: 20px;
         }
         .alert-success {
@@ -273,8 +288,7 @@
             border-left: 3px solid #059669;
             border-radius: 8px;
             padding: 12px 14px;
-            font-size: 13px;
-            color: #065F46;
+            font-size: 13px; color: #065F46;
             margin-bottom: 20px;
         }
         .error-msg { font-size: 12px; color: #C0392B; margin-top: 4px; }
@@ -284,16 +298,10 @@
             background: var(--white);
             border-top: 1px solid var(--border);
             padding: 24px 48px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between;
         }
         footer p { font-size: 12px; color: #AAA; }
-        .footer-logo {
-            font-family: 'Playfair Display', serif;
-            font-size: 16px;
-            color: var(--purple);
-        }
+        .footer-logo { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--purple); }
 
         @media (max-width: 700px) {
             .main { grid-template-columns: 1fr; padding: 24px 16px 48px; }
@@ -301,7 +309,6 @@
             .card { padding: 28px 22px 36px; }
             .form-row { grid-template-columns: 1fr; }
             nav { padding: 12px 20px; }
-            .nav-links { display: none; }
             footer { padding: 18px 20px; }
             .hero-band { padding: 32px 20px 28px; }
         }
@@ -315,12 +322,13 @@
         Wiese
         <span>Salcom Industries</span>
     </div>
-    <ul class="nav-links">
-        <li><a href="#">Inicio</a></li>
-        <li><a href="#">Productos</a></li>
-        <li><a href="#">Contacto</a></li>
-        <li><a href="{{ route('proveedores.login') }}">Cerrar sesión</a></li>
-    </ul>
+    <div class="nav-right">
+        <span class="nav-user">Hola, <span>{{ session('proveedor_nombre', 'Proveedor') }}</span></span>
+        <form method="POST" action="{{ route('proveedores.logout') }}" style="display:inline;">
+            @csrf
+            <button type="submit" class="btn-logout">Cerrar sesión</button>
+        </form>
+    </div>
 </nav>
 
 {{-- HERO --}}
@@ -353,7 +361,6 @@
             <p>Modifica la información de tu cuenta</p>
         </div>
 
-        {{-- Errores --}}
         @if ($errors->any())
             <div class="alert-errors">
                 <ul style="padding-left:16px">
@@ -364,12 +371,11 @@
             </div>
         @endif
 
-        {{-- Éxito --}}
         @if(session('mensaje'))
             <div class="alert-success">{{ session('mensaje') }}</div>
         @endif
 
-        <form method="POST" action="{{ route('proveedores.actualizacion.guardar') }}">
+        <form method="POST" action="{{ route('proveedores.actualizacion.guardar') }}" enctype="multipart/form-data">
             @csrf
             @method('PUT')
 
@@ -417,7 +423,6 @@
 
             <div class="divider">Cambiar contraseña (opcional)</div>
 
-            {{-- Contraseña --}}
             <div class="form-row">
                 <div class="field" style="margin-bottom:0">
                     <label>Nueva contraseña</label>
@@ -434,19 +439,83 @@
 
             <div style="margin-bottom:18px"></div>
 
-            {{-- Sección documentos pendiente --}}
-            <div class="divider">Documentos</div>
-            <div class="pending-section">
-                <span>Próximamente</span>
-                <p style="margin-top:6px">Los campos de documentos se agregarán cuando llegue la información</p>
+            {{-- DOCUMENTOS FISCALES --}}
+            <div class="divider">Documentos fiscales</div>
+
+            {{-- CIF --}}
+            <div class="field">
+                <label>CIF — Constancia de Situación Fiscal <span class="req">*</span></label>
+                <div class="file-upload-box">
+                    <input type="file" name="cif" accept=".pdf">
+                    <div class="file-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                             stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                        </svg>
+                    </div>
+                    <div class="file-info">
+                        <div class="file-label">Subir CIF</div>
+                        <div class="file-hint">Formato PDF · Máx. 5MB · Mes actual</div>
+                    </div>
+                    <span class="file-badge">PDF</span>
+                </div>
+                @error('cif') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
+
+            {{-- Opinión Positiva --}}
+            <div class="field">
+                <label>Opinión de Cumplimiento del SAT <span class="req">*</span></label>
+                <div class="file-upload-box">
+                    <input type="file" name="opinion_positiva" accept=".pdf">
+                    <div class="file-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                             stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <polyline points="9 15 11 17 15 13"/>
+                        </svg>
+                    </div>
+                    <div class="file-info">
+                        <div class="file-label">Subir Opinión Positiva</div>
+                        <div class="file-hint">Formato PDF · Máx. 5MB · Mes actual</div>
+                    </div>
+                    <span class="file-badge">PDF</span>
+                </div>
+                @error('opinion_positiva') <span class="error-msg">{{ $message }}</span> @enderror
+            </div>
+
+            {{-- Acta Constitutiva --}}
+            <div class="field">
+                <label>Acta Constitutiva</label>
+                <div class="file-upload-box">
+                    <input type="file" name="acta_constitutiva" accept=".pdf">
+                    <div class="file-icon">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                             stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="8" y1="13" x2="16" y2="13"/>
+                            <line x1="8" y1="17" x2="16" y2="17"/>
+                        </svg>
+                    </div>
+                    <div class="file-info">
+                        <div class="file-label">Subir Acta Constitutiva</div>
+                        <div class="file-hint">Formato PDF · Máx. 5MB · Solo Persona Moral</div>
+                    </div>
+                    <span class="file-badge">PDF</span>
+                </div>
+                @error('acta_constitutiva') <span class="error-msg">{{ $message }}</span> @enderror
+            </div>
+
+            <div style="margin-bottom:8px"></div>
 
             <button type="submit" class="btn-submit">Guardar cambios</button>
 
         </form>
 
         <p class="back-link">
-            <a href="{{ route('proveedores.login') }}">← Volver al inicio</a>
+            <a href="{{ route('proveedores.portal') }}">← Volver al portal</a>
         </p>
 
     </div>

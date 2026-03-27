@@ -28,20 +28,23 @@ Route::post('/proveedor/registro', [ProveedorController::class, 'guardar'])
 
 // Actualización
 Route::get('/proveedor/actualizacion', [ProveedorController::class, 'mostrarActualizacion'])
-    ->name('proveedores.actualizacion');
+    ->name('proveedores.actualizacion')
+    ->middleware('auth.proveedor');
 
 Route::put('/proveedor/actualizacion', [ProveedorController::class, 'guardarActualizacion'])
-    ->name('proveedores.actualizacion.guardar');
-//dashboard
+    ->name('proveedores.actualizacion.guardar')
+    ->middleware('auth.proveedor');
+
+// Dashboard
 Route::get('/dashboard-proveedor', [ProveedorController::class, 'mostrarDashboard'])
     ->name('proveedores.dashboard')
     ->middleware('auth.proveedor');
 
 // Empresa (tu hermano)
 Route::get('/empresa', [EmpresaController::class, 'form']);
-Route::post('/empresa', [EmpresaController::class, 'guardar']); 
-//portal proveedor
+Route::post('/empresa', [EmpresaController::class, 'guardar']);
+
+// Portal proveedor
 Route::get('/portal-proveedor', [ProveedorController::class, 'mostrarPortal'])
     ->name('proveedores.portal')
     ->middleware('auth.proveedor');
-
