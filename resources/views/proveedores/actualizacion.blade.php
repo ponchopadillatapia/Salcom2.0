@@ -17,6 +17,8 @@
             --gray-soft:   #F7F6FB;
             --border:      #D8CFE8;
             --white:       #FFFFFF;
+            --green:       #059669;
+            --green-bg:    #D1FAE5;
         }
 
         body {
@@ -140,10 +142,7 @@
             to   { opacity:1; transform: translateY(0); }
         }
 
-        .card-header {
-            text-align: center;
-            margin-bottom: 32px;
-        }
+        .card-header { text-align: center; margin-bottom: 32px; }
         .card-header .icon-wrap {
             width: 56px; height: 56px;
             border-radius: 50%;
@@ -207,6 +206,11 @@
             border-color: var(--purple-mid);
             background: var(--purple-light);
         }
+        .file-upload-box.file-selected {
+            border-color: var(--green);
+            border-style: solid;
+            background: var(--green-bg);
+        }
         .file-upload-box input[type="file"] {
             position: absolute;
             inset: 0;
@@ -221,6 +225,13 @@
             background: var(--purple-light);
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
+            transition: background .2s;
+        }
+        .file-selected .file-icon {
+            background: var(--green-bg);
+        }
+        .file-selected .file-icon svg {
+            stroke: var(--green);
         }
         .file-info { flex: 1; }
         .file-info .file-label {
@@ -228,10 +239,16 @@
             font-weight: 600;
             color: var(--gray-text);
         }
+        .file-selected .file-label {
+            color: var(--green);
+        }
         .file-info .file-hint {
             font-size: 11px;
             color: #AAA;
             margin-top: 2px;
+        }
+        .file-selected .file-hint {
+            color: var(--green);
         }
         .file-badge {
             font-size: 10px;
@@ -241,6 +258,10 @@
             background: var(--purple-light);
             color: var(--purple);
             flex-shrink: 0;
+        }
+        .file-selected .file-badge {
+            background: var(--green-bg);
+            color: var(--green);
         }
 
         .divider {
@@ -379,7 +400,6 @@
             @csrf
             @method('PUT')
 
-            {{-- Nombre --}}
             <div class="field">
                 <label>Nombre completo <span class="req">*</span></label>
                 <input type="text" name="nombre"
@@ -389,7 +409,6 @@
                 @error('nombre') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
 
-            {{-- Persona física o moral --}}
             <div class="field">
                 <label>Persona física o moral <span class="req">*</span></label>
                 <input type="text" name="tipo_persona"
@@ -399,7 +418,6 @@
                 @error('tipo_persona') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
 
-            {{-- Teléfono y Correo --}}
             <div class="form-row">
                 <div class="field" style="margin-bottom:0">
                     <label>Teléfono <span class="req">*</span></label>
@@ -439,14 +457,13 @@
 
             <div style="margin-bottom:18px"></div>
 
-            {{-- DOCUMENTOS FISCALES --}}
             <div class="divider">Documentos fiscales</div>
 
             {{-- CIF --}}
             <div class="field">
                 <label>CIF — Constancia de Situación Fiscal <span class="req">*</span></label>
-                <div class="file-upload-box">
-                    <input type="file" name="cif" accept=".pdf">
+                <div class="file-upload-box" id="box-cif">
+                    <input type="file" name="cif" accept=".pdf" id="input-cif">
                     <div class="file-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                              stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -455,10 +472,10 @@
                         </svg>
                     </div>
                     <div class="file-info">
-                        <div class="file-label">Subir CIF</div>
-                        <div class="file-hint">Formato PDF · Máx. 5MB · Mes actual</div>
+                        <div class="file-label" id="label-cif">Subir CIF</div>
+                        <div class="file-hint" id="hint-cif">Formato PDF · Máx. 5MB · Mes actual</div>
                     </div>
-                    <span class="file-badge">PDF</span>
+                    <span class="file-badge" id="badge-cif">PDF</span>
                 </div>
                 @error('cif') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
@@ -466,8 +483,8 @@
             {{-- Opinión Positiva --}}
             <div class="field">
                 <label>Opinión de Cumplimiento del SAT <span class="req">*</span></label>
-                <div class="file-upload-box">
-                    <input type="file" name="opinion_positiva" accept=".pdf">
+                <div class="file-upload-box" id="box-opinion">
+                    <input type="file" name="opinion_positiva" accept=".pdf" id="input-opinion">
                     <div class="file-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                              stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -477,10 +494,10 @@
                         </svg>
                     </div>
                     <div class="file-info">
-                        <div class="file-label">Subir Opinión Positiva</div>
-                        <div class="file-hint">Formato PDF · Máx. 5MB · Mes actual</div>
+                        <div class="file-label" id="label-opinion">Subir Opinión Positiva</div>
+                        <div class="file-hint" id="hint-opinion">Formato PDF · Máx. 5MB · Mes actual</div>
                     </div>
-                    <span class="file-badge">PDF</span>
+                    <span class="file-badge" id="badge-opinion">PDF</span>
                 </div>
                 @error('opinion_positiva') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
@@ -488,8 +505,8 @@
             {{-- Acta Constitutiva --}}
             <div class="field">
                 <label>Acta Constitutiva</label>
-                <div class="file-upload-box">
-                    <input type="file" name="acta_constitutiva" accept=".pdf">
+                <div class="file-upload-box" id="box-acta">
+                    <input type="file" name="acta_constitutiva" accept=".pdf" id="input-acta">
                     <div class="file-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
                              stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -500,10 +517,10 @@
                         </svg>
                     </div>
                     <div class="file-info">
-                        <div class="file-label">Subir Acta Constitutiva</div>
-                        <div class="file-hint">Formato PDF · Máx. 5MB · Solo Persona Moral</div>
+                        <div class="file-label" id="label-acta">Subir Acta Constitutiva</div>
+                        <div class="file-hint" id="hint-acta">Formato PDF · Máx. 5MB · Solo Persona Moral</div>
                     </div>
-                    <span class="file-badge">PDF</span>
+                    <span class="file-badge" id="badge-acta">PDF</span>
                 </div>
                 @error('acta_constitutiva') <span class="error-msg">{{ $message }}</span> @enderror
             </div>
@@ -533,6 +550,29 @@
     <div class="footer-logo">Wiese <span style="font-family:'Nunito';font-size:11px;color:#AAA;font-weight:600;letter-spacing:2px;text-transform:uppercase">Salcom Industries</span></div>
     <p>© {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</p>
 </footer>
+
+<script>
+    function setupFileInput(inputId, boxId, labelId, hintId) {
+        const input = document.getElementById(inputId);
+        const box   = document.getElementById(boxId);
+        const label = document.getElementById(labelId);
+        const hint  = document.getElementById(hintId);
+
+        input.addEventListener('change', function () {
+            if (this.files && this.files[0]) {
+                const fileName = this.files[0].name;
+                const fileSize = (this.files[0].size / 1024).toFixed(0) + ' KB';
+                label.textContent = '✓ ' + fileName;
+                hint.textContent  = fileSize + ' · Listo para subir';
+                box.classList.add('file-selected');
+            }
+        });
+    }
+
+    setupFileInput('input-cif',     'box-cif',     'label-cif',     'hint-cif');
+    setupFileInput('input-opinion', 'box-opinion', 'label-opinion', 'hint-opinion');
+    setupFileInput('input-acta',    'box-acta',    'label-acta',    'hint-acta');
+</script>
 
 </body>
 </html>

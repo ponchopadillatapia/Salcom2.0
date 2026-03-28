@@ -102,7 +102,6 @@ class ProveedorController extends Controller
         $proveedor = ProveedorUser::find(session('proveedor_id'));
 
         if ($proveedor) {
-            // Actualiza datos básicos
             $proveedor->update([
                 'nombre'       => $request->nombre,
                 'tipo_persona' => $request->tipo_persona,
@@ -110,25 +109,20 @@ class ProveedorController extends Controller
                 'correo'       => $request->correo,
             ]);
 
-            // Actualiza contraseña si se envió
             if ($request->password) {
                 $proveedor->update(['password' => bcrypt($request->password)]);
             }
 
-            // Carpeta del proveedor
             $carpeta = 'documentos/' . $proveedor->id;
 
-            // Guarda CIF
             if ($request->hasFile('cif')) {
                 $request->file('cif')->storeAs($carpeta, 'cif.pdf', 'local');
             }
 
-            // Guarda Opinión Positiva
             if ($request->hasFile('opinion_positiva')) {
                 $request->file('opinion_positiva')->storeAs($carpeta, 'opinion_positiva.pdf', 'local');
             }
 
-            // Guarda Acta Constitutiva
             if ($request->hasFile('acta_constitutiva')) {
                 $request->file('acta_constitutiva')->storeAs($carpeta, 'acta_constitutiva.pdf', 'local');
             }
