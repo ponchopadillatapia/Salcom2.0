@@ -1,5 +1,5 @@
 <?php
 
 use App\Http\Controllers\APIS\EmpresaApiController;
-//Route::get('/validar-documentos', [EmpresaApiController::class, 'validar']);
+Route::get('/empresa', [EmpresaController::class, 'form']);
 Route::post('/empresa', [EmpresaController::class, 'guardar']);

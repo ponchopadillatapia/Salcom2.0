@@ -150,11 +150,11 @@ function enviar() {
         let color = estado === 'verde' ? 'verde' :
                     estado === 'amarillo' ? 'amarillo' : 'rojo';
 
-        document.getElementById('resultado').innerHTML =
-            "RFC: " + (data.empresa.rfc || 'N/A') + "<br>" +
-            "Nombre: " + (data.empresa.nombre || 'N/A') + "<br>" +
-            "Tipo: " + (data.empresa.tipo || 'N/A') + "<br>" +
-            "Estado: <span class='" + color + "'>" + estado + "</span>";
+       document.getElementById('resultado').innerHTML =
+    "RFC: " + data.empresa.rfc + "<br>" +
+    "RFC válido: " + data.empresa.rfc_valido + "<br>" +
+    "CIF: " + data.empresa.cif_valido + "<br>" +
+    "Estado: " + data.empresa.estado;
     })
     .catch(error => {
         console.error("ERROR:", error);

@@ -14,11 +14,9 @@ class EmpresaController extends Controller
 
     public function guardar(Request $request)
     {
-        // Llamar a la lógica real
+        // Aquí SOLO rediriges a la lógica real
         $api = new EmpresaApiController();
 
-        $response = $api->validar($request);
-
-        return $response;
+        return $api->validar($request);
     }
 }
