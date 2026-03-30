@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\EmpresaController;
+use App\Http\Controllers\APIS\EmpresaApiController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -41,8 +42,10 @@ Route::get('/dashboard-proveedor', [ProveedorController::class, 'mostrarDashboar
     ->middleware('auth.proveedor');
 
 // Empresa (tu hermano)
+// Mostrar la página
 Route::get('/empresa', [EmpresaController::class, 'form']);
-Route::post('/empresa', [EmpresaController::class, 'guardar']);
+// Procesar la validación (esta es la que llamará el fetch)
+Route::post('/api/empresa', [EmpresaApiController::class, 'validar']);
 
 // Portal proveedor
 Route::get('/portal-proveedor', [ProveedorController::class, 'mostrarPortal'])

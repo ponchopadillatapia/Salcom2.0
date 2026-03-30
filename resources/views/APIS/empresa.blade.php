@@ -1,4 +1,4 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>Validación</title>
@@ -96,21 +96,8 @@
 
 <script>
 
-// 🔥 NUEVO: detectar archivo seleccionado
-function verArchivo(id) {
-    let archivo = document.getElementById(id).files[0];
-
-    if (archivo) {
-        console.log("Archivo seleccionado:", archivo.name);
-
-        document.getElementById(id + "_nombre").innerHTML =
-            "Archivo: " + archivo.name;
-    }
-}
-
-// 🔥 FUNCIÓN PRINCIPAL
+// Mostrar nombre archivo
 function enviar() {
-
     let cif = document.getElementById('cif').files[0];
     let opinion = document.getElementById('opinion').files[0];
     let acta = document.getElementById('acta').files[0];
@@ -120,14 +107,14 @@ function enviar() {
         return;
     }
 
-    console.log("Enviando archivos...");
-
     let formData = new FormData();
     formData.append('cif_pdf', cif);
     formData.append('opinion_pdf', opinion);
     formData.append('acta_pdf', acta);
 
-    fetch('/empresa', {
+    document.getElementById('resultado').innerHTML = "Procesando...";
+
+    fetch('/api/empresa', {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
@@ -136,31 +123,30 @@ function enviar() {
     })
     .then(res => res.json())
     .then(data => {
-
-        console.log("RESPUESTA:", data);
-
-        if (!data.empresa) {
-            document.getElementById('resultado').innerHTML =
-                "<span class='rojo'>"+ (data.mensaje || "Error en el servidor") +"</span>";
+        if (data.mensaje) {
+            document.getElementById('resultado').innerHTML = `<span class='rojo'>${data.mensaje}</span>`;
             return;
         }
 
-        let estado = data.empresa.estado;
+        let e = data.empresa;
+        let color = e.estado; // verde, amarillo o rojo
 
-        let color = estado === 'verde' ? 'verde' :
-                    estado === 'amarillo' ? 'amarillo' : 'rojo';
-
-       document.getElementById('resultado').innerHTML =
-    "RFC: " + data.empresa.rfc + "<br>" +
-    "RFC válido: " + data.empresa.rfc_valido + "<br>" +
-    "CIF: " + data.empresa.cif_valido + "<br>" +
-    "Estado: " + data.empresa.estado;
+        let html = `
+            <strong>Empresa:</strong> ${e.nombre}<br>
+            <strong>RFC:</strong> ${e.rfc} (${e.rfc_valido})<br>
+            <strong>Estado:</strong> <span class="${color}">${e.estado.toUpperCase()}</span><hr>
+            
+            <strong>Opinión:</strong> ${data.opinion.valida ? '✅' : '❌'}<br>
+            <small>${data.opinion.errores.join(', ') || 'Sin errores'}</small><br><br>
+            
+            <strong>Acta Constitutiva:</strong> ${data.acta.valida ? '✅' : '❌'}<br>
+            <small>${data.acta.errores.join(', ') || 'Sin errores'}</small>
+        `;
+        
+        document.getElementById('resultado').innerHTML = html;
     })
     .catch(error => {
-        console.error("ERROR:", error);
-
-        document.getElementById('resultado').innerHTML =
-            "<span class='rojo'>Error de conexión con el servidor</span>";
+        document.getElementById('resultado').innerHTML = "<span class='rojo'>Error de conexión</span>";
     });
 }
 </script>
