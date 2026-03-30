@@ -66,6 +66,16 @@ class ProveedorController extends Controller
             'telefono'     => 'required|string|max:20',
             'correo'       => 'required|email|unique:proveedores_users,correo',
             'password'     => 'required|min:8|confirmed',
+        ], [
+            'nombre.required'      => 'El nombre es obligatorio.',
+            'tipo_persona.required'=> 'El tipo de persona es obligatorio.',
+            'telefono.required'    => 'El teléfono es obligatorio.',
+            'correo.required'      => 'El correo es obligatorio.',
+            'correo.email'         => 'El correo no es válido.',
+            'correo.unique'        => 'Este correo ya está registrado.',
+            'password.required'    => 'La contraseña es obligatoria.',
+            'password.min'         => 'La contraseña debe tener mínimo 8 caracteres.',
+            'password.confirmed'   => 'Las contraseñas no coinciden.',
         ]);
 
         ProveedorUser::create([
@@ -77,8 +87,8 @@ class ProveedorController extends Controller
             'correo'       => $request->correo,
         ]);
 
-        return redirect('/cif')
-            ->with('mensaje', 'Registro exitoso, por favor valida tus datos fiscales');
+        return redirect('/login-proveedor')
+            ->with('mensaje', 'Registro exitoso, ahora puedes iniciar sesión');
     }
 
     public function mostrarActualizacion()
@@ -97,6 +107,19 @@ class ProveedorController extends Controller
             'cif'               => 'nullable|file|mimes:pdf|max:5120',
             'opinion_positiva'  => 'nullable|file|mimes:pdf|max:5120',
             'acta_constitutiva' => 'nullable|file|mimes:pdf|max:5120',
+        ], [
+            'nombre.required'    => 'El nombre es obligatorio.',
+            'telefono.required'  => 'El teléfono es obligatorio.',
+            'correo.required'    => 'El correo es obligatorio.',
+            'correo.email'       => 'El correo no es válido.',
+            'password.min'       => 'La contraseña debe tener mínimo 8 caracteres.',
+            'password.confirmed' => 'Las contraseñas no coinciden.',
+            'cif.mimes'          => 'El CIF debe ser un archivo PDF.',
+            'cif.max'            => 'El CIF no debe superar 5MB.',
+            'opinion_positiva.mimes' => 'La Opinión Positiva debe ser un archivo PDF.',
+            'opinion_positiva.max'   => 'La Opinión Positiva no debe superar 5MB.',
+            'acta_constitutiva.mimes'=> 'El Acta Constitutiva debe ser un archivo PDF.',
+            'acta_constitutiva.max'  => 'El Acta Constitutiva no debe superar 5MB.',
         ]);
 
         $proveedor = ProveedorUser::find(session('proveedor_id'));
