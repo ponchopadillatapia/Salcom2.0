@@ -14,7 +14,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
-        /* ── Variables del sistema visual de Said ── */
         :root {
             --purple:      #6B3FA0;
             --purple-dark: #4A2070;
@@ -37,7 +36,6 @@
             min-height: 100vh;
         }
 
-        /* ── Navbar ── */
         .navbar-salcom {
             background: linear-gradient(135deg, var(--purple-dark) 0%, var(--purple) 100%);
             padding: 0 2rem;
@@ -53,9 +51,7 @@
             color: var(--white);
             letter-spacing: 0.5px;
         }
-        .navbar-salcom .brand span {
-            color: #C9A8FF;
-        }
+        .navbar-salcom .brand span { color: #C9A8FF; }
         .navbar-salcom .nav-badge {
             background: rgba(255,255,255,0.15);
             color: var(--white);
@@ -66,14 +62,12 @@
             border: 1px solid rgba(255,255,255,0.25);
         }
 
-        /* ── Layout central ── */
         .page-wrapper {
             max-width: 680px;
             margin: 2.5rem auto;
             padding: 0 1rem;
         }
 
-        /* ── Encabezado de sección ── */
         .section-header {
             text-align: center;
             margin-bottom: 2rem;
@@ -90,7 +84,6 @@
             opacity: 0.8;
         }
 
-        /* ── Card principal ── */
         .card-salcom {
             background: var(--white);
             border: 1px solid var(--border);
@@ -99,7 +92,6 @@
             box-shadow: 0 4px 24px rgba(107,63,160,0.08);
         }
 
-        /* ── Cada fila de documento ── */
         .doc-row {
             background: var(--gray-soft);
             border: 1.5px dashed var(--border);
@@ -127,19 +119,14 @@
             margin-bottom: 0.6rem;
             cursor: pointer;
         }
-        .doc-row label i {
-            font-size: 1rem;
-            color: var(--purple-mid);
-        }
+        .doc-row label i { font-size: 1rem; color: var(--purple-mid); }
         .doc-row .doc-hint {
             font-size: 0.75rem;
             color: var(--gray-text);
             opacity: 0.7;
             margin-bottom: 0.6rem;
         }
-        .doc-row input[type="file"] {
-            display: none;
-        }
+        .doc-row input[type="file"] { display: none; }
         .file-btn {
             display: inline-flex;
             align-items: center;
@@ -171,7 +158,6 @@
             font-weight: 400;
         }
 
-        /* ── Botón principal ── */
         .btn-salcom {
             width: 100%;
             padding: 0.85rem;
@@ -199,7 +185,6 @@
             cursor: not-allowed;
         }
 
-        /* ── Spinner ── */
         .spinner {
             width: 18px; height: 18px;
             border: 3px solid rgba(255,255,255,0.4);
@@ -210,7 +195,6 @@
         }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        /* ── Resultado ── */
         #resultado { margin-top: 1.5rem; }
 
         .resultado-card {
@@ -221,22 +205,10 @@
         }
         @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
 
-        .resultado-card.verde {
-            background: var(--green-bg);
-            border-color: var(--green);
-        }
-        .resultado-card.amarillo {
-            background: #FEF9C3;
-            border-color: #CA8A04;
-        }
-        .resultado-card.rojo {
-            background: #FEE2E2;
-            border-color: #DC2626;
-        }
-        .resultado-card.procesando {
-            background: var(--purple-light);
-            border-color: var(--purple-mid);
-        }
+        .resultado-card.verde    { background: var(--green-bg); border-color: var(--green); }
+        .resultado-card.amarillo { background: #FEF9C3;         border-color: #CA8A04;      }
+        .resultado-card.rojo     { background: #FEE2E2;         border-color: #DC2626;      }
+        .resultado-card.procesando { background: var(--purple-light); border-color: var(--purple-mid); }
 
         .resultado-header {
             display: flex;
@@ -244,9 +216,7 @@
             gap: 0.6rem;
             margin-bottom: 0.8rem;
         }
-        .semaforo {
-            font-size: 1.5rem;
-        }
+        .semaforo { font-size: 1.5rem; }
         .resultado-empresa {
             font-size: 1rem;
             font-weight: 700;
@@ -279,7 +249,31 @@
             margin-top: 1px;
         }
 
-        /* ── Footer ── */
+        /* ── NUEVO: Botón ir al portal ── */
+        .btn-portal {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, var(--green) 0%, #047857 100%);
+            color: var(--white);
+            font-family: 'Nunito', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            border-radius: 10px;
+            text-decoration: none;
+            margin-top: 0.25rem;
+            transition: opacity 0.2s, transform 0.15s;
+            animation: fadeIn 0.4s ease;
+        }
+        .btn-portal:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+            color: var(--white);
+        }
+
         .page-footer {
             text-align: center;
             margin-top: 2rem;
@@ -292,13 +286,11 @@
 
 <body>
 
-{{-- ── Navbar ── --}}
 <nav class="navbar-salcom">
     <span class="brand">Salcom <span>2.0</span></span>
     <span class="nav-badge"><i class="bi bi-shield-check"></i> Validación Fiscal</span>
 </nav>
 
-{{-- ── Contenido principal ── --}}
 <div class="page-wrapper">
 
     <div class="section-header">
@@ -308,7 +300,6 @@
 
     <div class="card-salcom">
 
-        {{-- Documento 1: CIF --}}
         <div class="doc-row" id="row_cif">
             <label for="cif">
                 <i class="bi bi-file-earmark-text"></i>
@@ -322,7 +313,6 @@
             <span id="cif_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
-        {{-- Documento 2: Opinión --}}
         <div class="doc-row" id="row_opinion">
             <label for="opinion">
                 <i class="bi bi-patch-check"></i>
@@ -336,7 +326,6 @@
             <span id="opinion_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
-        {{-- Documento 3: Acta --}}
         <div class="doc-row" id="row_acta">
             <label for="acta">
                 <i class="bi bi-building"></i>
@@ -350,14 +339,12 @@
             <span id="acta_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
-        {{-- Botón validar --}}
         <button id="btn_validar" class="btn-salcom" onclick="enviar()">
             <span class="spinner" id="spinner"></span>
             <i class="bi bi-shield-check" id="btn_icon"></i>
             <span id="btn_texto">Validar Documentos</span>
         </button>
 
-        {{-- Resultado --}}
         <div id="resultado"></div>
 
     </div>
@@ -367,7 +354,6 @@
 
 
 <script>
-// ── Muestra nombre del archivo y activa estilo del row ──
 function verArchivo(campo) {
     const input   = document.getElementById(campo);
     const label   = document.getElementById(campo + '_nombre');
@@ -385,14 +371,12 @@ function verArchivo(campo) {
     }
 }
 
-// ── Íconos y textos según semáforo ──
 const semaforos = {
-    verde:    { emoji: '🟢', texto: 'Documentos válidos',      clase: 'verde'    },
+    verde:    { emoji: '🟢', texto: 'Documentos válidos',       clase: 'verde'    },
     amarillo: { emoji: '🟡', texto: 'Válido con observaciones', clase: 'amarillo' },
-    rojo:     { emoji: '🔴', texto: 'Documentos con errores',  clase: 'rojo'     },
+    rojo:     { emoji: '🔴', texto: 'Documentos con errores',   clase: 'rojo'     },
 };
 
-// ── Envío al controlador ──
 function enviar() {
     const cif     = document.getElementById('cif').files[0];
     const opinion = document.getElementById('opinion').files[0];
@@ -403,13 +387,12 @@ function enviar() {
         return;
     }
 
-    // UI: cargando
-    const btn    = document.getElementById('btn_validar');
-    const spin   = document.getElementById('spinner');
-    const icon   = document.getElementById('btn_icon');
-    const texto  = document.getElementById('btn_texto');
+    const btn   = document.getElementById('btn_validar');
+    const spin  = document.getElementById('spinner');
+    const icon  = document.getElementById('btn_icon');
+    const texto = document.getElementById('btn_texto');
 
-    btn.disabled      = true;
+    btn.disabled       = true;
     spin.style.display = 'block';
     icon.style.display = 'none';
     texto.textContent  = 'Validando…';
@@ -435,7 +418,6 @@ function enviar() {
     })
     .then(res => res.json())
     .then(data => {
-        // Restaurar botón
         btn.disabled       = false;
         spin.style.display = 'none';
         icon.style.display = 'inline';
@@ -457,11 +439,11 @@ function enviar() {
     });
 }
 
-// ── Renderiza el resultado completo ──
+// ── ACTUALIZADA: incluye botón portal si todo está verde ──
 function renderResultado(data) {
-    const e        = data.empresa;
-    const estado   = e.estado; // verde | amarillo | rojo
-    const sem      = semaforos[estado] || semaforos.rojo;
+    const e      = data.empresa;
+    const estado = e.estado;
+    const sem    = semaforos[estado] || semaforos.rojo;
 
     const opinionOk = data.opinion.valida;
     const actaOk    = data.acta.valida;
@@ -472,6 +454,15 @@ function renderResultado(data) {
     const actaErrores = data.acta.errores.length
         ? data.acta.errores.join(' · ')
         : 'Sin observaciones';
+
+    // ── Botón portal: solo si los 3 son verde ──
+    const todoVerde = estado === 'verde' && opinionOk && actaOk;
+    const btnPortal = todoVerde ? `
+        <hr class="resultado-divider">
+        <a href="http://localhost:8000/portal-proveedor" class="btn-portal">
+            <i class="bi bi-box-arrow-in-right"></i>
+            Ir al Portal del Proveedor
+        </a>` : '';
 
     document.getElementById('resultado').innerHTML = `
         <div class="resultado-card ${sem.clase}">
@@ -510,10 +501,11 @@ function renderResultado(data) {
                 </div>
             </div>
 
+            ${btnPortal}
+
         </div>`;
 }
 
-// ── Mensaje de error genérico ──
 function mostrarError(msg) {
     document.getElementById('resultado').innerHTML = `
         <div class="resultado-card rojo">
