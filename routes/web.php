@@ -51,3 +51,7 @@ Route::post('/api/empresa', [EmpresaApiController::class, 'validar']);
 Route::get('/portal-proveedor', [ProveedorController::class, 'mostrarPortal'])
     ->name('proveedores.portal')
     ->middleware('auth.proveedor');
+// Consultar órdenes de compra
+Route::get('/consultar-oc', [ProveedorController::class, 'mostrarConsultarOC'])
+    ->name('proveedores.oc')
+    ->middleware('auth.proveedor');
