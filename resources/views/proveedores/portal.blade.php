@@ -54,20 +54,9 @@
             text-transform: uppercase;
             margin-top: -4px;
         }
-        .nav-right {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-        }
-        .nav-user {
-            font-size: 13px;
-            color: var(--gray-text);
-            font-weight: 500;
-        }
-        .nav-user span {
-            color: var(--purple);
-            font-weight: 600;
-        }
+        .nav-right { display: flex; align-items: center; gap: 24px; }
+        .nav-user { font-size: 13px; color: var(--gray-text); font-weight: 500; }
+        .nav-user span { color: var(--purple); font-weight: 600; }
         .btn-logout {
             font-size: 13px;
             color: var(--gray-text);
@@ -80,11 +69,7 @@
             font-family: inherit;
             transition: all .15s;
         }
-        .btn-logout:hover {
-            background: var(--purple-light);
-            color: var(--purple);
-            border-color: var(--purple-mid);
-        }
+        .btn-logout:hover { background: var(--purple-light); color: var(--purple); border-color: var(--purple-mid); }
 
         /* ── HERO BAND ── */
         .hero-band {
@@ -195,12 +180,8 @@
             display: flex; align-items: center; justify-content: center;
             transition: background .2s;
         }
-        .opcion-card:hover .opcion-icon {
-            background: var(--purple);
-        }
-        .opcion-card:hover .opcion-icon svg {
-            stroke: var(--white);
-        }
+        .opcion-card:hover .opcion-icon { background: var(--purple); }
+        .opcion-card:hover .opcion-icon svg { stroke: var(--white); }
 
         .opcion-title {
             font-family: 'Playfair Display', serif;
@@ -209,11 +190,7 @@
             font-weight: 600;
         }
 
-        .opcion-desc {
-            font-size: 13px;
-            color: #999;
-            line-height: 1.6;
-        }
+        .opcion-desc { font-size: 13px; color: #999; line-height: 1.6; }
 
         .opcion-badge {
             font-size: 11px;
@@ -223,27 +200,17 @@
             background: var(--purple-light);
             color: var(--purple);
         }
-
-        .opcion-badge.pronto {
-            background: #FEF3C7;
-            color: #D97706;
-        }
+        .opcion-badge.pronto { background: #FEF3C7; color: #D97706; }
 
         /* ── FOOTER ── */
         footer {
             background: var(--white);
             border-top: 1px solid var(--border);
             padding: 24px 48px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
+            display: flex; align-items: center; justify-content: space-between;
         }
         footer p { font-size: 12px; color: #AAA; }
-        .footer-logo {
-            font-family: 'Playfair Display', serif;
-            font-size: 16px;
-            color: var(--purple);
-        }
+        .footer-logo { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--purple); }
 
         @media (max-width: 900px) {
             .opciones-grid { grid-template-columns: 1fr; max-width: 400px; }
@@ -286,7 +253,7 @@
     <div class="opciones-grid">
 
         {{-- Consultar OC --}}
-        <a href="#" class="opcion-card disabled">
+        <a href="{{ route('proveedores.oc') }}" class="opcion-card">
             <div class="opcion-icon">
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none"
                      stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -298,7 +265,7 @@
             </div>
             <div class="opcion-title">Consultar OC</div>
             <div class="opcion-desc">Revisa tus órdenes de compra, cantidades, precios y condiciones</div>
-            <span class="opcion-badge pronto">Próximamente</span>
+            <span class="opcion-badge">Disponible</span>
         </a>
 
         {{-- Dashboard --}}
