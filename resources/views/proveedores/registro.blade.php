@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-    <title>Registro de Proveedor — Salcom Industries</title>
+    <title>Registro de Proveedor — Industrias Salcom</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -28,7 +28,6 @@
             flex-direction: column;
         }
 
-        /* ── NAVBAR ── */
         nav {
             background: var(--white);
             padding: 14px 48px;
@@ -40,7 +39,7 @@
         }
         .nav-logo {
             font-family: 'Playfair Display', serif;
-            font-size: 22px;
+            font-size: 20px;
             color: var(--purple);
             font-weight: 600;
             letter-spacing: -0.5px;
@@ -65,7 +64,6 @@
         }
         .nav-links a:hover { color: var(--purple); }
 
-        /* ── DROPDOWN ── */
         .dropdown { position: relative; }
         .dropdown > a { padding-bottom: 12px; display: inline-block; }
         .dropdown-menu {
@@ -82,17 +80,11 @@
             list-style: none;
             z-index: 200;
         }
-        .dropdown-menu li a {
-            display: block;
-            padding: 8px 16px;
-            font-size: 13px;
-            color: var(--gray-text);
-        }
+        .dropdown-menu li a { display: block; padding: 8px 16px; font-size: 13px; color: var(--gray-text); }
         .dropdown-menu li a:hover { color: var(--purple); background: var(--purple-light); }
         .dropdown:hover .dropdown-menu { display: block; }
         .dropdown-menu:hover { display: block; }
 
-        /* ── HERO BAND ── */
         .hero-band {
             background: linear-gradient(135deg, var(--purple-dark) 0%, var(--purple) 60%, var(--purple-mid) 100%);
             padding: 48px 48px 36px;
@@ -130,7 +122,6 @@
             font-weight: 300;
         }
 
-        /* ── MAIN LAYOUT ── */
         .main {
             flex: 1;
             display: grid;
@@ -149,7 +140,6 @@
         }
         .watercolor-blob { width: 180px; opacity: 0.18; }
 
-        /* ── CARD ── */
         .card {
             background: var(--white);
             border-radius: 20px;
@@ -180,7 +170,6 @@
         }
         .card-header p { font-size: 13px; color: #888; margin-top: 4px; font-weight: 400; }
 
-        /* ── FORM ── */
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         .field { display: flex; flex-direction: column; margin-bottom: 18px; }
         .field label {
@@ -250,7 +239,6 @@
             margin-bottom: 20px;
         }
 
-        /* ── FOOTER ── */
         footer {
             background: var(--white);
             border-top: 1px solid var(--border);
@@ -277,8 +265,8 @@
 {{-- NAVBAR --}}
 <nav>
     <div class="nav-logo">
-        Wiese
-        <span>Salcom Industries</span>
+        Industrias Salcom
+        <span>Portal de Proveedores</span>
     </div>
     <ul class="nav-links">
         <li><a href="https://www.wiese.com.mx" target="_blank">Inicio</a></li>
@@ -297,7 +285,7 @@
 {{-- HERO --}}
 <div class="hero-band">
     <h1>Portal de Proveedores</h1>
-    <p>Crea tu cuenta para comenzar a trabajar con Salcom Industries</p>
+    <p>Crea tu cuenta para comenzar a trabajar con Industrias Salcom</p>
 </div>
 
 {{-- MAIN --}}
@@ -410,7 +398,7 @@
 
 {{-- FOOTER --}}
 <footer>
-    <div class="footer-logo">Wiese <span style="font-family:'Nunito';font-size:11px;color:#AAA;font-weight:600;letter-spacing:2px;text-transform:uppercase">Salcom Industries</span></div>
+    <div class="footer-logo">Industrias Salcom</div>
     <p>© {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</p>
 </footer>
 

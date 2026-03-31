@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Proveedor — Salcom Industries</title>
+    <title>Login Proveedor — Industrias Salcom</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,11 +46,11 @@
 
         .brand-logo {
             font-family: 'Playfair Display', serif;
-            font-size: 52px;
+            font-size: 38px;
             color: var(--white);
             font-weight: 600;
             letter-spacing: -1px;
-            line-height: 1;
+            line-height: 1.2;
         }
         .brand-sub {
             font-size: 11px;
@@ -158,11 +158,7 @@
             color: var(--purple-dark);
             font-weight: 600;
         }
-        .card-header p {
-            font-size: 13px;
-            color: #999;
-            margin-top: 4px;
-        }
+        .card-header p { font-size: 13px; color: #999; margin-top: 4px; }
 
         .field { margin-bottom: 16px; }
         .field label {
@@ -262,7 +258,7 @@
         @media (max-width: 700px) {
             body { flex-direction: column; height: auto; overflow: auto; }
             .left { width: 100%; padding: 40px 24px; min-height: 220px; }
-            .brand-logo { font-size: 36px; }
+            .brand-logo { font-size: 28px; }
             .left-badges, .left-tagline { display: none; }
             .right { padding: 32px 16px 48px; }
             .card { padding: 28px 22px 36px; }
@@ -277,11 +273,11 @@
     <div class="blob blob-3"></div>
 
     <div class="left-content">
-        <div class="brand-logo">Wiese</div>
-        <div class="brand-sub">Salcom Industries</div>
+        <div class="brand-logo">Industrias Salcom</div>
+        <div class="brand-sub">Portal de Proveedores</div>
         <div class="left-divider"></div>
         <div class="left-tagline">
-            <strong>Portal de Proveedores</strong>
+            <strong>Bienvenido</strong>
             Gestiona tus pedidos y da seguimiento a tus operaciones con nosotros.
         </div>
         <div class="left-badges">
