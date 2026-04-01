@@ -226,8 +226,8 @@
 {{-- NAVBAR --}}
 <nav>
     <div class="nav-logo">
-        Wiese
-        <span>Salcom Industries</span>
+        Industrias Salcom
+        <span>Portal de Proveedores</span>
     </div>
     <div class="nav-right">
         <span class="nav-user">Hola, <span>{{ session('proveedor_nombre', 'Proveedor') }}</span></span>
@@ -305,7 +305,7 @@
 
 {{-- FOOTER --}}
 <footer>
-    <div class="footer-logo">Wiese <span style="font-family:'Nunito';font-size:11px;color:#AAA;font-weight:600;letter-spacing:2px;text-transform:uppercase">Salcom Industries</span></div>
+    <div class="footer-logo">Salcom Industries</span></div>
     <p>© {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</p>
 </footer>
 
