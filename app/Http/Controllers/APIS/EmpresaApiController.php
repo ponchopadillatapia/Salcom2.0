@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\APIS;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Smalot\PdfParser\Parser;
 
@@ -13,143 +12,250 @@ class EmpresaApiController extends Controller
     {
         try {
             $request->validate([
-                'cif_pdf'             => 'required|mimes:pdf',
-                'opinion_pdf'         => 'required|mimes:pdf',
-                'acta_pdf'            => 'required|mimes:pdf',
-                'rep_legal_pdf'       => 'required|mimes:pdf',
-                'contribuyente_pdf'   => 'required|mimes:pdf',
-                'caratula_banco_pdf'  => 'required|mimes:pdf',
+                'cif_pdf'            => 'required|mimes:pdf|max:10240',
+                'opinion_pdf'        => 'required|mimes:pdf|max:10240',
+                'acta_pdf'           => 'required|mimes:pdf|max:10240',
+                'rep_legal_pdf'      => 'required|mimes:pdf|max:10240',
+                'contribuyente_pdf'  => 'required|mimes:pdf|max:10240',
+                'caratula_banco_pdf' => 'required|mimes:pdf|max:10240',
             ]);
 
             $parser = new Parser();
 
-            // ── Guardar archivos ──
-            $cifRuta           = $request->file('cif_pdf')->store('cif', 'local');
-            $opinionRuta       = $request->file('opinion_pdf')->store('opiniones', 'local');
-            $actaRuta          = $request->file('acta_pdf')->store('actas', 'local');
-            $repLegalRuta      = $request->file('rep_legal_pdf')->store('rep_legal', 'local');
-            $contribuyenteRuta = $request->file('contribuyente_pdf')->store('contribuyente', 'local');
-            $caratulaRuta      = $request->file('caratula_banco_pdf')->store('caratula_banco', 'local');
+            // ── Guardar y obtener rutas ──
+            $archivos = [
+                'cif'            => $request->file('cif_pdf')->store('cif', 'local'),
+                'opinion'        => $request->file('opinion_pdf')->store('opiniones', 'local'),
+                'acta'           => $request->file('acta_pdf')->store('actas', 'local'),
+                'rep_legal'      => $request->file('rep_legal_pdf')->store('rep_legal', 'local'),
+                'contribuyente'  => $request->file('contribuyente_pdf')->store('contribuyente', 'local'),
+                'caratula_banco' => $request->file('caratula_banco_pdf')->store('caratula_banco', 'local'),
+            ];
 
-            // ── Rutas absolutas ──
-            $pathCif           = storage_path('app/private/cif/'            . basename($cifRuta));
-            $pathOp            = storage_path('app/private/opiniones/'      . basename($opinionRuta));
-            $pathActa          = storage_path('app/private/actas/'          . basename($actaRuta));
-            $pathRepLegal      = storage_path('app/private/rep_legal/'      . basename($repLegalRuta));
-            $pathContribuyente = storage_path('app/private/contribuyente/'  . basename($contribuyenteRuta));
-            $pathCaratula      = storage_path('app/private/caratula_banco/' . basename($caratulaRuta));
+            $carpetas = [
+                'cif'            => 'cif',
+                'opinion'        => 'opiniones',
+                'acta'           => 'actas',
+                'rep_legal'      => 'rep_legal',
+                'contribuyente'  => 'contribuyente',
+                'caratula_banco' => 'caratula_banco',
+            ];
+
+            $textos = [];
+            foreach ($archivos as $clave => $ruta) {
+                $path = storage_path('app/private/' . $carpetas[$clave] . '/' . basename($ruta));
+                try {
+                    $texto = $parser->parseFile($path)->getText();
+                    $textos[$clave] = strtoupper($this->normalizarTexto($texto));
+                } catch (\Exception $e) {
+                    $textos[$clave] = '';
+                }
+            }
 
             // ──────────────────────────────────────────
-            // CIF
+            // CIF — Constancia de Situación Fiscal
+            // Documento real del SAT contiene estas frases
             // ──────────────────────────────────────────
-            $textoCif = strtoupper($parser->parseFile($pathCif)->getText());
+            $textoCif   = $textos['cif'];
+            $erroresCif = [];
+            $escaneadoCif = strlen($textoCif) < 100;
 
-            preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/', $textoCif, $rfcMatch);
-            $rfc    = $rfcMatch[1] ?? null;
-            preg_match('/NOMBRE.?:\s([A-Z\s]+)/', $textoCif, $nombreMatch);
+            if ($escaneadoCif) {
+                $erroresCif[] = '⚠ PDF escaneado — no se puede leer el texto automáticamente';
+            } else {
+                // Frases reales que aparecen en el CIF del SAT
+                $clavesCif = [
+                    'CONSTANCIA DE SITUACION FISCAL'         => 'No es una Constancia de Situación Fiscal del SAT',
+                    'SERVICIO DE ADMINISTRACION TRIBUTARIA'  => 'No tiene sello del SAT (Servicio de Administración Tributaria)',
+                    'REGIMEN'                                => 'No se encontró el Régimen Fiscal',
+                    'DOMICILIO FISCAL'                       => 'No se encontró Domicilio Fiscal',
+                    'RFC'                                    => 'No se encontró RFC en el documento',
+                ];
+                $erroresCif = $this->verificarClaves($textoCif, $clavesCif);
+            }
+
+            // Extraer RFC y nombre del CIF
+            preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/u', $textoCif, $rfcMatch);
+            $rfc = $rfcMatch[1] ?? null;
+
+            // Detectar tipo de persona
+            $esMoral = str_contains($textoCif, 'PERSONA MORAL') ||
+                       str_contains($textoCif, 'SOCIEDAD') ||
+                       str_contains($textoCif, 'S.A') ||
+                       str_contains($textoCif, 'S DE RL') ||
+                       str_contains($textoCif, 'S.A.S');
+
+            // Extraer nombre — Persona Moral tiene RAZON SOCIAL, Física tiene NOMBRE
+            if ($esMoral) {
+                preg_match('/(?:RAZON SOCIAL|DENOMINACION)[:\s]*([A-ZÁÉÍÓÚÑ&\s,\.]+)/u', $textoCif, $nombreMatch);
+            } else {
+                preg_match('/(?:NOMBRE|CONTRIBUYENTE)[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $textoCif, $nombreMatch);
+            }
             $nombre = isset($nombreMatch[1]) ? trim($nombreMatch[1]) : 'DESCONOCIDO';
 
-            // Palabras clave CIF — deben estar TODAS
-            $clavesCif = [
-                'CONSTANCIA DE SITUACION FISCAL' => 'No es Constancia de Situación Fiscal',
-                'SAT'                            => 'No se encontró sello del SAT',
-                'RFC'                            => 'No se encontró RFC en el documento',
-                'CONSTANCIA'                     => 'El documento no parece una constancia válida',
-            ];
-            $erroresCif = $this->verificarClaves($textoCif, $clavesCif);
             $esCifValido = empty($erroresCif);
-
-            $rfcValido = $this->validarRFC($rfc);
+            $rfcValido   = $this->validarRFC($rfc);
 
             // ──────────────────────────────────────────
-            // OPINIÓN DE CUMPLIMIENTO
+            // OPINIÓN DE CUMPLIMIENTO — Art. 32-D SAT
             // ──────────────────────────────────────────
-            $textoOp = strtoupper($parser->parseFile($pathOp)->getText());
+            $textoOp   = $textos['opinion'];
+            $erroresOp = [];
+            $escaneadoOp = strlen($textoOp) < 100;
 
-            // Palabras clave Opinión — deben estar TODAS
-            $clavesOp = [
-                'CUMPLIMIENTO DE OBLIGACIONES FISCALES' => 'No es documento SAT de cumplimiento',
-                'POSITIVA'                              => 'La opinión no es Positiva',
-                'OPINION'                               => 'No se encontró sección de Opinión',
-                'CUMPLIMIENTO'                          => 'No se encontró sección de Cumplimiento',
-            ];
-            $erroresOp = $this->verificarClaves($textoOp, $clavesOp);
+            if ($escaneadoOp) {
+                $erroresOp[] = '⚠ PDF escaneado — no se puede leer el texto automáticamente';
+            } else {
+                // Frases reales de la Opinión del SAT
+                $clavesOp = [
+                    'OPINION DE CUMPLIMIENTO'                => 'No es una Opinión de Cumplimiento del SAT',
+                    'SERVICIO DE ADMINISTRACION TRIBUTARIA'  => 'No tiene sello oficial del SAT',
+                    'POSITIVA'                               => 'La opinión NO es Positiva — el proveedor tiene adeudos fiscales',
+                    'ARTICULO 32-D'                          => 'No corresponde al Art. 32-D del CFF requerido',
+                ];
+                $erroresOp = $this->verificarClaves($textoOp, $clavesOp);
 
-            // Validación adicional: RFC debe coincidir
-            if ($rfc && !str_contains($textoOp, $rfc)) {
-                $erroresOp[] = 'RFC no coincide con el CIF';
+                // El RFC del proveedor debe aparecer en la opinión
+                if ($rfc && !str_contains($textoOp, $rfc)) {
+                    $erroresOp[] = 'El RFC ' . $rfc . ' no coincide con el del CIF';
+                }
+
+                // Validar que sea del mes en curso
+                $mesActual = strtoupper($this->mesEnEspanol(date('n')));
+                $anioActual = date('Y');
+                if (!str_contains($textoOp, $mesActual) || !str_contains($textoOp, $anioActual)) {
+                    $erroresOp[] = 'La opinión no corresponde al mes en curso (' . $mesActual . ' ' . $anioActual . ')';
+                }
             }
 
             // ──────────────────────────────────────────
             // ACTA CONSTITUTIVA
+            // Solo aplica a Persona Moral
             // ──────────────────────────────────────────
-            $textoActa = strtoupper($parser->parseFile($pathActa)->getText());
+            $textoActa   = $textos['acta'];
+            $erroresActa = [];
+            $escaneadoActa = strlen($textoActa) < 100;
 
-            // Palabras clave Acta — deben estar TODAS
-            $clavesActa = [
-                'ACTA'      => 'No se encontró la palabra ACTA en el documento',
-                'NOTARIO'   => 'No se encontró firma o referencia de Notario',
-                'ESCRITURA' => 'No se encontró número de Escritura',
-                'SOCIEDAD'  => 'No se encontró referencia a la Sociedad',
-            ];
-            $erroresActa = $this->verificarClaves($textoActa, $clavesActa);
+            if ($escaneadoActa) {
+                $erroresActa[] = '⚠ PDF escaneado — no se puede leer el texto automáticamente';
+            } else {
+                $clavesActa = [
+                    'ESCRITURA'  => 'No se encontró número de Escritura Pública',
+                    'NOTARIO'    => 'No se encontró referencia al Notario Público',
+                    'SOCIEDAD'   => 'No se encontró el tipo de Sociedad',
+                    'CONSTITUCI' => 'No se encontró cláusula de Constitución',
+                ];
 
-            // Validación adicional: RFC debe estar en el acta
-            if ($rfc && !str_contains($textoActa, $rfc)) {
-                $erroresActa[] = 'RFC no encontrado en el Acta';
+                // Solo Persona Moral tiene Acta Constitutiva
+                if (!$esMoral) {
+                    $erroresActa[] = 'El CIF indica Persona Física — no requiere Acta Constitutiva';
+                } else {
+                    $erroresActa = $this->verificarClaves($textoActa, $clavesActa);
+                }
             }
 
             // ──────────────────────────────────────────
             // ID REPRESENTANTE LEGAL
             // ──────────────────────────────────────────
-            $textoRepLegal   = strtoupper($parser->parseFile($pathRepLegal)->getText());
+            $textoRepLegal   = $textos['rep_legal'];
             $erroresRepLegal = [];
+            $escaneadoRep    = strlen($textoRepLegal) < 100;
 
-            if (!str_contains($textoRepLegal, 'INE')    &&
-                !str_contains($textoRepLegal, 'IFE')    &&
-                !str_contains($textoRepLegal, 'INSTITUTO NACIONAL ELECTORAL'))
-                $erroresRepLegal[] = 'No se detectó INE/IFE';
-            if (!str_contains($textoRepLegal, 'CURP'))
-                $erroresRepLegal[] = 'No se encontró CURP';
-            if (!str_contains($textoRepLegal, 'NOMBRE') &&
-                !str_contains($textoRepLegal, 'APELLIDO'))
-                $erroresRepLegal[] = 'No se encontró nombre del representante';
+            if ($escaneadoRep) {
+                // PDF escaneado: solo advertencia, no bloquear
+                $erroresRepLegal[] = '⚠ PDF escaneado — verificación manual requerida';
+            } else {
+                // INE tiene varias formas en el PDF
+                $tieneIne = str_contains($textoRepLegal, 'INSTITUTO NACIONAL ELECTORAL') ||
+                            str_contains($textoRepLegal, 'INE') ||
+                            str_contains($textoRepLegal, 'IFE') ||
+                            str_contains($textoRepLegal, 'CREDENCIAL PARA VOTAR');
+
+                if (!$tieneIne)
+                    $erroresRepLegal[] = 'No se detectó INE/IFE válido';
+
+                if (!str_contains($textoRepLegal, 'CURP'))
+                    $erroresRepLegal[] = 'No se encontró CURP';
+
+                if (!str_contains($textoRepLegal, 'NOMBRE') &&
+                    !str_contains($textoRepLegal, 'APELLIDO PATERNO'))
+                    $erroresRepLegal[] = 'No se encontró nombre del representante';
+
+                // Vigencia — el INE debe tener año de vigencia >= año actual
+                preg_match('/VIGENCIA[:\s]*(\d{4})/u', $textoRepLegal, $vigMatch);
+                if (isset($vigMatch[1]) && (int)$vigMatch[1] < (int)date('Y')) {
+                    $erroresRepLegal[] = 'La INE está vencida (vigencia: ' . $vigMatch[1] . ')';
+                }
+            }
 
             // ──────────────────────────────────────────
             // ID CONTRIBUYENTE
             // ──────────────────────────────────────────
-            $textoContribuyente   = strtoupper($parser->parseFile($pathContribuyente)->getText());
+            $textoContribuyente   = $textos['contribuyente'];
             $erroresContribuyente = [];
+            $escaneadoContrib     = strlen($textoContribuyente) < 100;
 
-            if (!str_contains($textoContribuyente, 'INE')    &&
-                !str_contains($textoContribuyente, 'IFE')    &&
-                !str_contains($textoContribuyente, 'INSTITUTO NACIONAL ELECTORAL'))
-                $erroresContribuyente[] = 'No se detectó INE/IFE';
-            if (!str_contains($textoContribuyente, 'CURP'))
-                $erroresContribuyente[] = 'No se encontró CURP';
-            if (!str_contains($textoContribuyente, 'NOMBRE') &&
-                !str_contains($textoContribuyente, 'APELLIDO'))
-                $erroresContribuyente[] = 'No se encontró nombre del contribuyente';
+            if ($escaneadoContrib) {
+                $erroresContribuyente[] = '⚠ PDF escaneado — verificación manual requerida';
+            } else {
+                $tieneIneContrib = str_contains($textoContribuyente, 'INSTITUTO NACIONAL ELECTORAL') ||
+                                   str_contains($textoContribuyente, 'INE') ||
+                                   str_contains($textoContribuyente, 'IFE') ||
+                                   str_contains($textoContribuyente, 'CREDENCIAL PARA VOTAR');
+
+                if (!$tieneIneContrib)
+                    $erroresContribuyente[] = 'No se detectó INE/IFE válido';
+
+                if (!str_contains($textoContribuyente, 'CURP'))
+                    $erroresContribuyente[] = 'No se encontró CURP';
+
+                if (!str_contains($textoContribuyente, 'NOMBRE') &&
+                    !str_contains($textoContribuyente, 'APELLIDO PATERNO'))
+                    $erroresContribuyente[] = 'No se encontró nombre del contribuyente';
+
+                preg_match('/VIGENCIA[:\s]*(\d{4})/u', $textoContribuyente, $vigContribMatch);
+                if (isset($vigContribMatch[1]) && (int)$vigContribMatch[1] < (int)date('Y')) {
+                    $erroresContribuyente[] = 'La INE está vencida (vigencia: ' . $vigContribMatch[1] . ')';
+                }
+            }
 
             // ──────────────────────────────────────────
             // CARÁTULA DE BANCO
             // ──────────────────────────────────────────
-            $textoCaratula   = strtoupper($parser->parseFile($pathCaratula)->getText());
+            $textoCaratula   = $textos['caratula_banco'];
             $erroresCaratula = [];
+            $escaneadoBanco  = strlen($textoCaratula) < 100;
 
-            if (!str_contains($textoCaratula, 'BANCO')     &&
-                !str_contains($textoCaratula, 'BANK')      &&
-                !str_contains($textoCaratula, 'BANCOMER')  &&
-                !str_contains($textoCaratula, 'BANAMEX')   &&
-                !str_contains($textoCaratula, 'SANTANDER') &&
-                !str_contains($textoCaratula, 'HSBC')      &&
-                !str_contains($textoCaratula, 'BANORTE'))
-                $erroresCaratula[] = 'No se detectó institución bancaria';
-            if (!str_contains($textoCaratula, 'CLABE'))
-                $erroresCaratula[] = 'No se encontró CLABE interbancaria';
-            if (!str_contains($textoCaratula, 'TITULAR') &&
-                !str_contains($textoCaratula, 'NOMBRE'))
-                $erroresCaratula[] = 'No se encontró nombre del titular';
+            if ($escaneadoBanco) {
+                $erroresCaratula[] = '⚠ PDF escaneado — verificación manual requerida';
+            } else {
+                // Bancos mexicanos más comunes
+                $bancosMX = [
+                    'BBVA', 'BANCOMER', 'BANAMEX', 'CITIBANAMEX', 'SANTANDER',
+                    'BANORTE', 'HSBC', 'SCOTIABANK', 'INBURSA', 'BAJIO',
+                    'AFIRME', 'MIFEL', 'BANCO', 'BANK',
+                ];
+                $tienebanco = false;
+                foreach ($bancosMX as $b) {
+                    if (str_contains($textoCaratula, $b)) { $tienebanco = true; break; }
+                }
+                if (!$tienebanco)
+                    $erroresCaratula[] = 'No se detectó institución bancaria reconocida';
+
+                // CLABE debe tener 18 dígitos
+                preg_match('/CLABE[:\s\w]*(\d{18})/u', $textoCaratula, $clabeMatch);
+                if (!isset($clabeMatch[1])) {
+                    if (!str_contains($textoCaratula, 'CLABE'))
+                        $erroresCaratula[] = 'No se encontró CLABE interbancaria (18 dígitos)';
+                    else
+                        $erroresCaratula[] = 'CLABE encontrada pero no tiene 18 dígitos';
+                }
+
+                if (!str_contains($textoCaratula, 'TITULAR') &&
+                    !str_contains($textoCaratula, 'NOMBRE')   &&
+                    !str_contains($textoCaratula, 'CUENTA'))
+                    $erroresCaratula[] = 'No se encontró nombre del titular de la cuenta';
+            }
 
             // ──────────────────────────────────────────
             // SEMÁFORO GLOBAL
@@ -160,44 +266,51 @@ class EmpresaApiController extends Controller
             $contribuyenteOk = empty($erroresContribuyente);
             $caratulaOk      = empty($erroresCaratula);
 
-            $todoOk = $esCifValido   && $opinionOk  && $actaOk
-                   && $repLegalOk    && $contribuyenteOk && $caratulaOk;
+            $todoOk = $esCifValido && $opinionOk  && $actaOk
+                   && $repLegalOk  && $contribuyenteOk && $caratulaOk;
 
             if ($todoOk) {
                 $estado = 'verde';
-            } elseif ($opinionOk && $repLegalOk && $caratulaOk) {
-                $estado = 'amarillo';
+            } elseif ($esCifValido && $opinionOk) {
+                $estado = 'amarillo'; // Lo fiscal está bien, falta algo en identidad/banco
             } else {
                 $estado = 'rojo';
             }
 
             return response()->json([
                 'empresa' => [
-                    'rfc'        => $rfc,
-                    'nombre'     => $nombre,
-                    'rfc_valido' => $rfcValido   ? 'válido' : 'inválido',
-                    'cif_valido' => $esCifValido ? 'SI'     : 'NO',
-                    'estado'     => $estado,
+                    'rfc'         => $rfc ?? 'No detectado',
+                    'nombre'      => $nombre,
+                    'tipo'        => $esMoral ? 'Persona Moral' : 'Persona Física',
+                    'rfc_valido'  => $rfcValido   ? 'válido'  : 'inválido',
+                    'cif_valido'  => $esCifValido ? 'SI'      : 'NO',
+                    'estado'      => $estado,
+                    'errores_cif' => $erroresCif,
                 ],
                 'opinion' => [
-                    'valida'  => $opinionOk,
-                    'errores' => $erroresOp,
+                    'valida'     => $opinionOk,
+                    'escaneado'  => $escaneadoOp,
+                    'errores'    => $erroresOp,
                 ],
                 'acta' => [
-                    'valida'  => $actaOk,
-                    'errores' => $erroresActa,
+                    'valida'     => $actaOk,
+                    'escaneado'  => $escaneadoActa,
+                    'errores'    => $erroresActa,
                 ],
                 'rep_legal' => [
-                    'valida'  => $repLegalOk,
-                    'errores' => $erroresRepLegal,
+                    'valida'     => $repLegalOk,
+                    'escaneado'  => $escaneadoRep,
+                    'errores'    => $erroresRepLegal,
                 ],
                 'contribuyente' => [
-                    'valida'  => $contribuyenteOk,
-                    'errores' => $erroresContribuyente,
+                    'valida'     => $contribuyenteOk,
+                    'escaneado'  => $escaneadoContrib,
+                    'errores'    => $erroresContribuyente,
                 ],
                 'caratula_banco' => [
-                    'valida'  => $caratulaOk,
-                    'errores' => $erroresCaratula,
+                    'valida'     => $caratulaOk,
+                    'escaneado'  => $escaneadoBanco,
+                    'errores'    => $erroresCaratula,
                 ],
             ]);
 
@@ -210,10 +323,15 @@ class EmpresaApiController extends Controller
         }
     }
 
-    // ──────────────────────────────────────────
-    // Verifica que TODAS las claves estén en el texto
-    // Devuelve array de errores (vacío = documento válido)
-    // ──────────────────────────────────────────
+    // ── Normaliza texto: quita acentos y caracteres raros ──
+    private function normalizarTexto(string $texto): string
+    {
+        $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto);
+        $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
+        return preg_replace('/\s+/', ' ', $texto);
+    }
+
+    // ── Verifica que TODAS las claves estén en el texto ──
     private function verificarClaves(string $texto, array $claves): array
     {
         $errores = [];
@@ -225,9 +343,24 @@ class EmpresaApiController extends Controller
         return $errores;
     }
 
+    // ── Valida formato RFC mexicano (Moral y Física) ──
     private function validarRFC($rfc): bool
     {
         if (!$rfc) return false;
-        return (bool) preg_match('/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/', $rfc);
+        // Persona Moral: 3 letras + 6 dígitos + 3 alfanum
+        // Persona Física: 4 letras + 6 dígitos + 3 alfanum
+        return (bool) preg_match('/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/u', $rfc);
+    }
+
+    // ── Convierte número de mes a nombre en español ──
+    private function mesEnEspanol(int $mes): string
+    {
+        $meses = [
+            1  => 'ENERO',    2  => 'FEBRERO',   3  => 'MARZO',
+            4  => 'ABRIL',    5  => 'MAYO',       6  => 'JUNIO',
+            7  => 'JULIO',    8  => 'AGOSTO',     9  => 'SEPTIEMBRE',
+            10 => 'OCTUBRE',  11 => 'NOVIEMBRE',  12 => 'DICIEMBRE',
+        ];
+        return $meses[$mes] ?? '';
     }
 }
