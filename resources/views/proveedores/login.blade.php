@@ -16,6 +16,7 @@
             --gray-text:   #4A4A6A;
             --border:      #D8CFE8;
             --white:       #FFFFFF;
+            --amber:       #D97706;
         }
 
         body {
@@ -42,12 +43,12 @@
         .blob-2 { width: 240px; height: 240px; bottom: -80px; left: -60px; }
         .blob-3 { width: 120px; height: 120px; top: 42%; left: 12%; background: rgba(255,255,255,0.04); }
 
-        .left-content { position: relative; z-index: 1; text-align: center; }
+        .left-content { position: relative; z-index: 1; text-align: center; width: 100%; }
 
         .brand-logo {
             font-family: 'Playfair Display', serif;
             font-size: 38px;
-            color: var(--white);
+            color: var(--purple-dark);
             font-weight: 600;
             letter-spacing: -1px;
             line-height: 1.2;
@@ -76,9 +77,10 @@
             font-weight: 300;
             line-height: 1.6;
             max-width: 300px;
+            margin: 0 auto;
         }
         .left-tagline strong {
-            color: var(--white);
+            color: var(--purple-dark);
             font-weight: 600;
             display: block;
             font-size: 20px;
@@ -89,17 +91,61 @@
             display: flex;
             gap: 10px;
             justify-content: center;
-            margin-top: 44px;
+            margin-top: 32px;
             flex-wrap: wrap;
         }
         .badge {
             background: rgba(255,255,255,0.12);
-            border: 1px solid rgba(255,255,255,0.2);
+            border: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
             border-radius: 999px;
             padding: 6px 16px;
             font-size: 12px;
             color: rgba(255,255,255,0.85);
             font-weight: 500;
+        }
+
+        /* ── ENVÍO DE MUESTRAS ── */
+        .muestras-card {
+            margin-top: 36px;
+            background: rgba(255,255,255,0.95);
+            border: none;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+            border-radius: 16px;
+            padding: 24px 20px;
+            text-align: center;
+            max-width: 300px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .muestras-icon {
+            width: 56px; height: 56px;
+            border-radius: 16px;
+            background: var(--purple-light);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 12px;
+        }
+        .muestras-titulo {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--purple-dark);
+            margin-bottom: 4px;
+        }
+        .muestras-desc {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 14px;
+            line-height: 1.5;
+        }
+        .muestras-badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 14px;
+            border-radius: 999px;
+            background: #FEF3C7;
+            color: #D97706;
+            border: 1px solid #FCD34D;
         }
 
         .left-footer {
@@ -188,23 +234,15 @@
             box-shadow: 0 0 0 3px rgba(156,109,208,0.12);
         }
 
-        .forgot {
-            text-align: right;
-            margin-top: -8px;
-            margin-bottom: 20px;
-        }
-        .forgot a {
-            font-size: 12px;
-            color: var(--purple-mid);
-            text-decoration: none;
-        }
+        .forgot { text-align: right; margin-top: -8px; margin-bottom: 20px; }
+        .forgot a { font-size: 12px; color: var(--purple-mid); text-decoration: none; }
         .forgot a:hover { text-decoration: underline; }
 
         .btn-submit {
             width: 100%;
             padding: 13px;
             background: var(--purple);
-            color: var(--white);
+            color: var(--purple-dark);
             border: none;
             border-radius: 12px;
             font-family: 'Nunito', sans-serif;
@@ -216,11 +254,7 @@
             box-shadow: 0 4px 16px rgba(107,63,160,0.25);
             margin-top: 4px;
         }
-        .btn-submit:hover {
-            background: var(--purple-dark);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(107,63,160,0.35);
-        }
+        .btn-submit:hover { background: var(--purple-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(107,63,160,0.35); }
         .btn-submit:active { transform: translateY(0); }
 
         .register-link {
@@ -229,37 +263,17 @@
             font-size: 13px;
             color: #999;
         }
-        .register-link a {
-            color: var(--purple);
-            text-decoration: none;
-            font-weight: 600;
-        }
+        .register-link a { color: var(--purple); text-decoration: none; font-weight: 600; }
         .register-link a:hover { text-decoration: underline; }
 
-        .alert-error {
-            background: #FEE2E2;
-            border-left: 3px solid #C0392B;
-            border-radius: 8px;
-            padding: 10px 14px;
-            font-size: 13px;
-            color: #991B1B;
-            margin-bottom: 18px;
-        }
-        .alert-success {
-            background: #D1FAE5;
-            border-left: 3px solid #059669;
-            border-radius: 8px;
-            padding: 10px 14px;
-            font-size: 13px;
-            color: #065F46;
-            margin-bottom: 18px;
-        }
+        .alert-error { background: #FEE2E2; border-left: 3px solid #C0392B; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #991B1B; margin-bottom: 18px; }
+        .alert-success { background: #D1FAE5; border-left: 3px solid #059669; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #065F46; margin-bottom: 18px; }
 
         @media (max-width: 700px) {
             body { flex-direction: column; height: auto; overflow: auto; }
             .left { width: 100%; padding: 40px 24px; min-height: 220px; }
             .brand-logo { font-size: 28px; }
-            .left-badges, .left-tagline { display: none; }
+            .left-badges, .left-tagline, .modulos-wrap { display: none; }
             .right { padding: 32px 16px 48px; }
             .card { padding: 28px 22px 36px; }
         }
@@ -280,28 +294,37 @@
             <strong>Bienvenido</strong>
             Gestiona tus pedidos y da seguimiento a tus operaciones con nosotros.
         </div>
+
         <div class="left-badges">
             <span class="badge">Pedidos en línea</span>
             <span class="badge">Seguimiento</span>
             <span class="badge">Facturas</span>
         </div>
+
+        {{-- MÓDULO ENVÍO DE MUESTRAS --}}
+        <div class="muestras-card">
+            <div class="muestras-icon">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            </div>
+            <div class="muestras-titulo">Envío de muestras</div>
+            <div class="muestras-desc">Registro y seguimiento de muestras</div>
+            <span class="muestras-badge">Próximamente</span>
+        </div>
+
     </div>
 
     <div class="left-footer">© {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
 </div>
 
 <div class="right">
-
     <svg class="deco-blob" width="320" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
         <path fill="#6B3FA0" d="M39.5,-51.5C50.8,-42.6,59.2,-29.5,63.1,-14.8C67,0,66.3,16.4,59.7,29.7C53.1,43,40.5,53.2,26.4,59.3C12.3,65.4,-3.3,67.4,-17.8,63.1C-32.3,58.8,-45.7,48.2,-54.3,34.5C-62.9,20.8,-66.7,4,-63.9,-11.5C-61.1,-27,-51.7,-41.2,-39.4,-50.2C-27.1,-59.2,-11.9,-63,2,-65.4C15.9,-67.8,28.2,-60.4,39.5,-51.5Z" transform="translate(100 100)" />
     </svg>
 
     <div class="card">
-
         <div class="card-header">
             <div class="icon-wrap">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none"
-                     stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                     <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
                     <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                 </svg>
@@ -347,13 +370,11 @@
             </div>
 
             <button type="submit" class="btn-submit">Ingresar al portal</button>
-
         </form>
 
         <p class="register-link">
             ¿Eres proveedor nuevo? <a href="{{ route('proveedores.registro') }}">Regístrate aquí</a>
         </p>
-
     </div>
 </div>
 

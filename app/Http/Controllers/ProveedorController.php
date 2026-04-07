@@ -168,4 +168,11 @@ class ProveedorController extends Controller
     {
     return view('proveedores.business');
     }
+
+    public function mostrarAltaProducto()
+    {
+    return view('proveedores.alta-producto');
+    }
+
+
 }

@@ -63,3 +63,7 @@ Route::get('/onboarding', [ProveedorController::class, 'mostrarOnboarding'])
 Route::get('/business', [ProveedorController::class, 'mostrarBusiness'])
     ->name('proveedores.business')
     ->middleware('auth.proveedor');
+
+Route::get('/alta-producto', [ProveedorController::class, 'mostrarAltaProducto'])
+    ->name('proveedores.alta-producto')
+    ->middleware('auth.proveedor');
