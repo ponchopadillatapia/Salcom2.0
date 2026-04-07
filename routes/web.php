@@ -55,3 +55,11 @@ Route::get('/portal-proveedor', [ProveedorController::class, 'mostrarPortal'])
 Route::get('/consultar-oc', [ProveedorController::class, 'mostrarConsultarOC'])
     ->name('proveedores.oc')
     ->middleware('auth.proveedor');
+//onboarding
+Route::get('/onboarding', [ProveedorController::class, 'mostrarOnboarding'])
+    ->name('proveedores.onboarding')
+    ->middleware('auth.proveedor');
+// Business
+Route::get('/business', [ProveedorController::class, 'mostrarBusiness'])
+    ->name('proveedores.business')
+    ->middleware('auth.proveedor');

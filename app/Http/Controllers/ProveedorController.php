@@ -158,4 +158,14 @@ class ProveedorController extends Controller
     {
         return view('proveedores.consultar-oc');
     }
+
+    public function mostrarOnboarding()
+    {
+    return view('proveedores.onboarding');
+    }
+
+    public function mostrarBusiness()
+    {
+    return view('proveedores.business');
+    }
 }

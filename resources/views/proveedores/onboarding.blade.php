@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal Proveedor — Industrias Salcom</title>
+    <title>Onboarding — Industrias Salcom</title>
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -18,6 +18,10 @@
             --gray-soft:   #F7F6FB;
             --border:      #D8CFE8;
             --white:       #FFFFFF;
+            --green:       #059669;
+            --green-bg:    #D1FAE5;
+            --amber:       #D97706;
+            --amber-bg:    #FEF3C7;
         }
 
         body { font-family: 'Nunito', sans-serif; background: var(--gray-soft); min-height: 100vh; display: flex; flex-direction: column; }
@@ -35,7 +39,7 @@
         /* HERO */
         .hero-band { background: linear-gradient(135deg, var(--purple-dark) 0%, var(--purple) 60%, var(--purple-mid) 100%); padding: 24px 32px; position: relative; overflow: hidden; flex-shrink: 0; }
         .hero-band::before { content: ''; position: absolute; width: 420px; height: 420px; border-radius: 50%; background: rgba(255,255,255,0.06); top: -180px; right: -80px; }
-        .hero-band h1 { font-family: 'Playfair Display', serif; font-size: 28px; color: #fff; font-weight: 600; position: relative; z-index: 1; }
+        .hero-band h1 { font-family: 'Playfair Display', serif; font-size: 24px; color: #fff; font-weight: 600; position: relative; z-index: 1; }
         .hero-band p { color: rgba(255,255,255,0.75); font-size: 13px; margin-top: 4px; position: relative; z-index: 1; }
 
         /* WRAPPER */
@@ -65,37 +69,90 @@
         .sidebar.collapsed .sb-text { display: none; }
 
         /* MAIN */
-        .main-content { flex: 1; min-width: 0; padding: 48px 32px 64px; display: flex; flex-direction: column; align-items: center; }
+        .main-content { flex: 1; min-width: 0; padding: 32px; overflow-y: auto; }
 
-        .main-title { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--purple-dark); font-weight: 600; text-align: center; margin-bottom: 8px; }
-        .main-sub { font-size: 14px; color: #999; text-align: center; margin-bottom: 48px; }
+        /* HEADER INFO */
+        .ob-header { background: var(--white); border-radius: 14px; border: 0.5px solid var(--border); padding: 24px 28px; margin-bottom: 24px; }
+        .ob-header h2 { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--purple-dark); font-weight: 600; margin-bottom: 4px; }
+        .ob-header p { font-size: 13px; color: #999; margin-bottom: 20px; }
 
-        /* OPCIONES */
-        .opciones-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; width: 100%; max-width: 860px; }
+        /* BARRA DE PROGRESO */
+        .progress-wrap { margin-bottom: 8px; }
+        .progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--gray-text); margin-bottom: 6px; font-weight: 600; }
+        .progress-bar { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, var(--purple) 0%, var(--purple-mid) 100%); border-radius: 999px; transition: width .5s; }
 
-        .opcion-card { background: var(--white); border: 0.5px solid var(--border); border-radius: 20px; padding: 40px 28px; text-align: center; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 16px; transition: all .2s; position: relative; overflow: hidden; }
-        .opcion-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--purple); transform: scaleX(0); transition: transform .2s; border-radius: 20px 20px 0 0; }
-        .opcion-card:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(107,63,160,0.15); border-color: var(--purple-mid); }
-        .opcion-card:hover::before { transform: scaleX(1); }
-        .opcion-card.disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+        /* PASOS */
+        .pasos-grid { display: flex; flex-direction: column; gap: 16px; }
 
-        .opcion-icon { width: 64px; height: 64px; border-radius: 18px; background: var(--purple-light); display: flex; align-items: center; justify-content: center; transition: background .2s; }
-        .opcion-card:hover .opcion-icon { background: var(--purple); }
-        .opcion-card:hover .opcion-icon svg { stroke: var(--white); }
+        .paso-card {
+            background: var(--white);
+            border: 0.5px solid var(--border);
+            border-radius: 14px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            transition: box-shadow .2s;
+        }
+        .paso-card:hover { box-shadow: 0 4px 20px rgba(107,63,160,0.10); }
 
-        .opcion-title { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--purple-dark); font-weight: 600; }
-        .opcion-desc { font-size: 13px; color: #999; line-height: 1.6; }
-        .opcion-badge { font-size: 11px; font-weight: 600; padding: 4px 12px; border-radius: 999px; background: var(--purple-light); color: var(--purple); }
-        .opcion-badge.pronto { background: #FEF3C7; color: #D97706; }
+        .paso-card.completado { border-left: 4px solid var(--green); }
+        .paso-card.pendiente  { border-left: 4px solid var(--amber); }
+        .paso-card.bloqueado  { border-left: 4px solid var(--border); opacity: 0.6; }
+
+        .paso-icono {
+            width: 52px; height: 52px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            font-size: 24px;
+        }
+        .paso-icono.verde  { background: var(--green-bg); }
+        .paso-icono.ambar  { background: var(--amber-bg); }
+        .paso-icono.gris   { background: var(--gray-soft); }
+
+        .paso-info { flex: 1; min-width: 0; }
+        .paso-titulo { font-size: 15px; font-weight: 700; color: var(--purple-dark); margin-bottom: 3px; }
+        .paso-desc { font-size: 13px; color: #999; line-height: 1.5; }
+
+        .paso-badge {
+            font-size: 11px; font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 999px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .badge-completado { background: var(--green-bg); color: var(--green); }
+        .badge-pendiente  { background: var(--amber-bg); color: var(--amber); }
+        .badge-bloqueado  { background: var(--gray-soft); color: #AAA; }
+
+        .btn-ver {
+            padding: 7px 18px;
+            border: 1.5px solid var(--purple);
+            border-radius: 8px;
+            background: none;
+            color: var(--purple);
+            font-size: 13px;
+            font-family: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            flex-shrink: 0;
+            transition: all .15s;
+            text-decoration: none;
+        }
+        .btn-ver:hover { background: var(--purple); color: white; }
+        .btn-ver.disabled { border-color: var(--border); color: #CCC; cursor: not-allowed; pointer-events: none; }
 
         footer { background: var(--white); border-top: 1px solid var(--border); padding: 18px 32px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
         footer p { font-size: 12px; color: #AAA; }
         .footer-logo { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--purple); }
 
-        @media (max-width: 900px) {
+        @media (max-width: 768px) {
             .sidebar { display: none; }
-            .opciones-grid { grid-template-columns: 1fr; max-width: 400px; }
-            .main-content { padding: 32px 20px 48px; }
+            .main-content { padding: 20px 16px; }
+            .paso-card { flex-wrap: wrap; }
         }
     </style>
 </head>
@@ -118,8 +175,8 @@
 
 {{-- HERO --}}
 <div class="hero-band">
-    <h1>Bienvenido, {{ session('proveedor_nombre', 'Proveedor') }}</h1>
-    <p>Selecciona una opción para continuar — {{ now()->format('d/m/Y') }}</p>
+    <h1>Onboarding</h1>
+    <p>Sigue los pasos para convertirte en proveedor activo de Industrias Salcom</p>
 </div>
 
 {{-- WRAPPER --}}
@@ -156,7 +213,7 @@
             </a>
             <div class="sb-hr"></div>
             <div class="sb-section">Mi empresa</div>
-            <a href="{{ route('proveedores.onboarding') }}" class="sb-link">
+            <a href="#" class="sb-link active">
                 <div class="sb-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
                 <span class="sb-text">Onboarding</span>
             </a>
@@ -171,51 +228,79 @@
 
     {{-- CONTENIDO --}}
     <div class="main-content">
-        <div class="main-title">¿Qué deseas hacer hoy?</div>
-        <div class="main-sub">Selecciona una de las siguientes opciones</div>
 
-        <div class="opciones-grid">
-
-            <a href="{{ route('proveedores.oc') }}" class="opcion-card">
-                <div class="opcion-icon">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="16" y1="13" x2="8" y2="13"/>
-                        <line x1="16" y1="17" x2="8" y2="17"/>
-                    </svg>
+        {{-- HEADER CON PROGRESO --}}
+        <div class="ob-header">
+            <h2>Hola, {{ session('proveedor_nombre', 'Proveedor') }} 👋</h2>
+            <p>Aquí puedes ver tu progreso como proveedor de Industrias Salcom. Completa cada paso para activar tu cuenta completamente.</p>
+            <div class="progress-wrap">
+                <div class="progress-label">
+                    <span>Progreso de onboarding</span>
+                    <span>2 de 5 pasos completados</span>
                 </div>
-                <div class="opcion-title">Consultar OC</div>
-                <div class="opcion-desc">Revisa tus órdenes de compra, cantidades, precios y condiciones</div>
-                <span class="opcion-badge">Disponible</span>
-            </a>
-
-            <a href="{{ route('proveedores.dashboard') }}" class="opcion-card">
-                <div class="opcion-icon">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <rect x="3" y="3" width="7" height="7"/>
-                        <rect x="14" y="3" width="7" height="7"/>
-                        <rect x="14" y="14" width="7" height="7"/>
-                        <rect x="3" y="14" width="7" height="7"/>
-                    </svg>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 40%"></div>
                 </div>
-                <div class="opcion-title">Dashboard</div>
-                <div class="opcion-desc">Consulta tus facturas, pagos y estatus en tiempo real</div>
-                <span class="opcion-badge">Disponible</span>
-            </a>
+            </div>
+        </div>
 
-            <a href="#" class="opcion-card disabled">
-                <div class="opcion-icon">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                        <line x1="12" y1="22.08" x2="12" y2="12"/>
-                    </svg>
+        {{-- PASOS --}}
+        <div class="pasos-grid">
+
+            {{-- Paso 1: Registro --}}
+            <div class="paso-card completado">
+                <div class="paso-icono verde">✅</div>
+                <div class="paso-info">
+                    <div class="paso-titulo">Registro de proveedor</div>
+                    <div class="paso-desc">Creaste tu cuenta y proporcionaste tus datos básicos: nombre, correo, teléfono y tipo de persona.</div>
                 </div>
-                <div class="opcion-title">Envío de muestras</div>
-                <div class="opcion-desc">Registra lotes de muestras y da seguimiento a su validación</div>
-                <span class="opcion-badge pronto">Próximamente</span>
-            </a>
+                <span class="paso-badge badge-completado">Completado</span>
+                <a href="{{ route('proveedores.actualizacion') }}" class="btn-ver">Ver</a>
+            </div>
+
+            {{-- Paso 2: Documentos fiscales --}}
+            <div class="paso-card completado">
+                <div class="paso-icono verde">✅</div>
+                <div class="paso-info">
+                    <div class="paso-titulo">Documentos fiscales</div>
+                    <div class="paso-desc">Subiste tu CIF, Opinión de Cumplimiento del SAT y Acta Constitutiva. Documentos verificados correctamente.</div>
+                </div>
+                <span class="paso-badge badge-completado">Completado</span>
+                <a href="/empresa" class="btn-ver">Ver</a>
+            </div>
+
+            {{-- Paso 3: Validación Salcom --}}
+            <div class="paso-card pendiente">
+                <div class="paso-icono ambar">⏳</div>
+                <div class="paso-info">
+                    <div class="paso-titulo">Validación por Industrias Salcom</div>
+                    <div class="paso-desc">Nuestro equipo está revisando tu información y documentos. Te notificaremos cuando esté lista la aprobación.</div>
+                </div>
+                <span class="paso-badge badge-pendiente">En revisión</span>
+                <button class="btn-ver disabled">Ver</button>
+            </div>
+
+            {{-- Paso 4: Primera OC --}}
+            <div class="paso-card bloqueado">
+                <div class="paso-icono gris">📋</div>
+                <div class="paso-info">
+                    <div class="paso-titulo">Primera Orden de Compra</div>
+                    <div class="paso-desc">Una vez validado, Industrias Salcom generará tu primera orden de compra. Podrás consultarla desde el módulo de OC.</div>
+                </div>
+                <span class="paso-badge badge-bloqueado">Pendiente</span>
+                <button class="btn-ver disabled">Ver</button>
+            </div>
+
+            {{-- Paso 5: Proveedor activo --}}
+            <div class="paso-card bloqueado">
+                <div class="paso-icono gris">🚀</div>
+                <div class="paso-info">
+                    <div class="paso-titulo">Proveedor activo</div>
+                    <div class="paso-desc">¡Bienvenido a la familia Salcom! Ya puedes operar de forma completa: consultar OC, subir facturas y dar seguimiento a tus pagos.</div>
+                </div>
+                <span class="paso-badge badge-bloqueado">Pendiente</span>
+                <button class="btn-ver disabled">Ver</button>
+            </div>
 
         </div>
     </div>
