@@ -41,6 +41,10 @@ return [
 ],
 
     'proveedor_api' => [
-    'url' => env('PROVEEDOR_API_URL'),
-],
+        'url'             => env('PROVEEDOR_API_URL', ''),
+        'connect_timeout' => (int) env('PROVEEDOR_API_CONNECT_TIMEOUT', 5),
+        'timeout'         => (int) env('PROVEEDOR_API_TIMEOUT', 15),
+        'max_retries'     => (int) env('PROVEEDOR_API_MAX_RETRIES', 3),
+        'login_mode'      => env('PROVEEDOR_LOGIN_MODE', 'fallback'),
+    ],
 ];
