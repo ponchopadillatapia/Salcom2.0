@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Validación de Documentos — Salcom 2.0</title>
+    <title>Validación de Documentos — Industrias Salcom</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -257,6 +257,57 @@
         }
         .btn-portal:hover { opacity: 0.9; transform: translateY(-1px); color: var(--white); }
 
+        /* ── Secciones detalladas del resultado ── */
+        .seccion-doc {
+            border-radius: 10px;
+            padding: 0.9rem 1rem;
+            margin-bottom: 0.65rem;
+            border: 1px solid var(--border);
+            background: var(--gray-soft);
+        }
+        .seccion-doc.seccion-ok { border-left: 4px solid var(--green); }
+        .seccion-doc.seccion-err { border-left: 4px solid #DC2626; }
+
+        .seccion-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            flex-wrap: wrap;
+        }
+        .seccion-icon { font-size: 1rem; }
+        .seccion-titulo {
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: var(--purple-dark);
+        }
+        .seccion-titulo i { margin-right: 0.25rem; color: var(--purple-mid); }
+
+        .chars-badge {
+            margin-left: auto;
+            font-size: 0.68rem;
+            background: var(--purple-light);
+            color: var(--purple);
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+
+        .seccion-detalles { padding-left: 0.25rem; }
+
+        .detalle-item {
+            font-size: 0.8rem;
+            padding: 2px 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.4rem;
+        }
+        .detalle-item i { font-size: 0.75rem; margin-top: 2px; flex-shrink: 0; }
+        .detalle-item.ok { color: #047857; }
+        .detalle-item.ok i { color: var(--green); }
+        .detalle-item.err { color: #B91C1C; }
+        .detalle-item.err i { color: #DC2626; }
+
         .page-footer {
             text-align: center;
             margin-top: 2rem;
@@ -270,7 +321,7 @@
 <body>
 
 <nav class="navbar-salcom">
-    <span class="brand">Salcom <span>2.0</span></span>
+    <span class="brand">Industrias <span>Salcom</span></span>
     <span class="nav-badge"><i class="bi bi-shield-check"></i> Validación Fiscal</span>
 </nav>
 
@@ -351,7 +402,7 @@
 
     </div>
 
-    <p class="page-footer">Salcom 2.0 · Wiese / Salcom Industries · Sistema de validación fiscal</p>
+    <p class="page-footer">Industrias Salcom · Wiese / Salcom Industries · Sistema de validación fiscal</p>
 </div>
 
 
@@ -466,32 +517,60 @@ function enviar() {
 }
 
 function renderResultado(data) {
-    const e      = data.empresa;
-    const estado = e.estado;
+    const estado = data.estado;
     const sem    = semaforos[estado] || semaforos.rojo;
+    const cif    = data.cif;
 
-    const docs = [
-        { label: 'CIF',                        ok: e.cif_valido === 'SI',          errores: [] },
-        { label: 'Opinión SAT',                ok: data.opinion.valida,            errores: data.opinion.errores },
-        { label: 'Acta Constitutiva',          ok: data.acta.valida,               errores: data.acta.errores },
-        { label: 'ID Representante Legal',     ok: data.rep_legal.valida,          errores: data.rep_legal.errores },
-        { label: 'ID Contribuyente',           ok: data.contribuyente.valida,      errores: data.contribuyente.errores },
-        { label: 'Carátula de Banco',          ok: data.caratula_banco.valida,     errores: data.caratula_banco.errores },
+    // Header con datos de la empresa
+    const nombre = cif.datos.nombre || 'NO DETECTADO';
+    const rfc    = cif.datos.rfc || 'No detectado';
+    const tipo   = cif.datos.tipo_persona || '—';
+
+    // Construir secciones detalladas
+    const secciones = [
+        { titulo: 'Constancia de Situación Fiscal (CIF)', icono: 'bi-file-earmark-text', doc: data.cif },
+        { titulo: 'Opinión de Cumplimiento SAT',          icono: 'bi-patch-check',       doc: data.opinion },
+        { titulo: 'Acta Constitutiva',                    icono: 'bi-building',           doc: data.acta },
+        { titulo: 'ID Representante Legal',               icono: 'bi-person-badge',       doc: data.rep_legal },
+        { titulo: 'ID Contribuyente',                     icono: 'bi-person-check',       doc: data.contribuyente },
+        { titulo: 'Carátula de Banco',                    icono: 'bi-credit-card',        doc: data.caratula_banco },
     ];
 
-    const filas = docs.map(d => `
-        <div class="doc-check-row">
-            <span class="check-icon">${d.ok ? '✅' : '❌'}</span>
-            <div>
-                <span class="check-label">${d.label}</span>
-                <div class="check-errors">${d.errores.length ? d.errores.join(' · ') : 'Sin observaciones'}</div>
+    const seccionesHtml = secciones.map(s => {
+        const ok = s.doc.valida;
+        const hallazgos = (s.doc.hallazgos || []);
+        const errores   = (s.doc.errores || []);
+
+        const hallazgosHtml = hallazgos.length
+            ? hallazgos.map(h => `<div class="detalle-item ok"><i class="bi bi-check-circle-fill"></i> ${h}</div>`).join('')
+            : '';
+
+        const erroresHtml = errores.length
+            ? errores.map(e => `<div class="detalle-item err"><i class="bi bi-x-circle-fill"></i> ${e}</div>`).join('')
+            : '';
+
+        const chars = s.doc.datos?.caracteres_leidos ?? 0;
+        const charsInfo = chars > 0 ? `<span class="chars-badge">${chars} caracteres leídos</span>` : '';
+
+        return `
+        <div class="seccion-doc ${ok ? 'seccion-ok' : 'seccion-err'}">
+            <div class="seccion-header">
+                <span class="seccion-icon">${ok ? '✅' : '❌'}</span>
+                <span class="seccion-titulo"><i class="bi ${s.icono}"></i> ${s.titulo}</span>
+                ${charsInfo}
             </div>
-        </div>`).join('');
+            <div class="seccion-detalles">
+                ${hallazgosHtml}
+                ${erroresHtml}
+                ${!hallazgos.length && !errores.length ? '<div class="detalle-item ok"><i class="bi bi-check-circle-fill"></i> Sin observaciones</div>' : ''}
+            </div>
+        </div>`;
+    }).join('');
 
     const todoVerde = estado === 'verde';
     const btnPortal = todoVerde ? `
         <hr class="resultado-divider">
-        <a href="http://localhost:8000/portal-proveedor" class="btn-portal">
+        <a href="/portal-proveedor" class="btn-portal">
             <i class="bi bi-box-arrow-in-right"></i> Ir al Portal del Proveedor
         </a>` : '';
 
@@ -500,12 +579,12 @@ function renderResultado(data) {
             <div class="resultado-header">
                 <span class="semaforo">${sem.emoji}</span>
                 <div>
-                    <div class="resultado-empresa">${e.nombre}</div>
-                    <div class="resultado-rfc">RFC: ${e.rfc} &nbsp;·&nbsp; ${sem.texto}</div>
+                    <div class="resultado-empresa">${nombre}</div>
+                    <div class="resultado-rfc">RFC: ${rfc} · ${tipo} · ${sem.texto}</div>
                 </div>
             </div>
             <hr class="resultado-divider">
-            ${filas}
+            ${seccionesHtml}
             ${btnPortal}
         </div>`;
 }

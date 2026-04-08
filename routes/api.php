@@ -1,6 +1,5 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\APIS\EmpresaApiController;
 
-Route::post('/empresa', [EmpresaApiController::class, 'validar']);
+// Las rutas de la API de empresa están en web.php (usa CSRF con blade)
