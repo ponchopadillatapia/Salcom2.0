@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login Proveedor — Industrias Salcom</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -20,15 +20,16 @@
         }
 
         body {
-            font-family: 'Nunito', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             height: 100vh;
             display: flex;
             overflow: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
         .left {
             width: 52%;
-            background: linear-gradient(150deg, var(--purple-dark) 0%, var(--purple) 55%, var(--purple-mid) 100%);
+            background: linear-gradient(160deg, var(--purple-dark) 0%, var(--purple) 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -38,17 +39,12 @@
             overflow: hidden;
         }
 
-        .blob { position: absolute; border-radius: 50%; background: rgba(255,255,255,0.06); }
-        .blob-1 { width: 380px; height: 380px; top: -140px; right: -100px; }
-        .blob-2 { width: 240px; height: 240px; bottom: -80px; left: -60px; }
-        .blob-3 { width: 120px; height: 120px; top: 42%; left: 12%; background: rgba(255,255,255,0.04); }
-
         .left-content { position: relative; z-index: 1; text-align: center; width: 100%; }
 
         .brand-logo {
             font-family: 'Playfair Display', serif;
             font-size: 38px;
-            color: var(--purple-dark);
+            color: var(--white);
             font-weight: 600;
             letter-spacing: -1px;
             line-height: 1.2;
@@ -57,7 +53,7 @@
             font-size: 11px;
             font-weight: 600;
             letter-spacing: 4px;
-            color: rgba(255,255,255,0.6);
+            color: rgba(255,255,255,0.7);
             text-transform: uppercase;
             margin-top: 6px;
             margin-bottom: 36px;
@@ -80,8 +76,8 @@
             margin: 0 auto;
         }
         .left-tagline strong {
-            color: var(--purple-dark);
-            font-weight: 600;
+            color: var(--white);
+            font-weight: 700;
             display: block;
             font-size: 20px;
             margin-bottom: 4px;
@@ -89,63 +85,75 @@
 
         .left-badges {
             display: flex;
-            gap: 10px;
+            gap: 24px;
             justify-content: center;
             margin-top: 32px;
             flex-wrap: wrap;
         }
         .badge {
-            background: rgba(255,255,255,0.12);
+            background: none;
             border: none;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-            border-radius: 999px;
-            padding: 6px 16px;
-            font-size: 12px;
-            color: rgba(255,255,255,0.85);
-            font-weight: 500;
+            box-shadow: none;
+            border-radius: 0;
+            padding: 0;
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+            font-weight: 400;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .badge::before {
+            content: '';
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.5);
+            flex-shrink: 0;
         }
 
-        /* ── ENVÍO DE MUESTRAS ── */
+        /* ── ENVÍO DE MUESTRAS (right panel) ── */
         .muestras-card {
-            margin-top: 36px;
-            background: rgba(255,255,255,0.95);
-            border: none;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.15);
-            border-radius: 16px;
-            padding: 24px 20px;
+            background: var(--purple-light);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px 20px;
             text-align: center;
-            max-width: 300px;
-            margin-left: auto;
-            margin-right: auto;
+            width: 100%;
+            max-width: 380px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
         }
         .muestras-icon {
-            width: 56px; height: 56px;
-            border-radius: 16px;
-            background: var(--purple-light);
+            width: 42px; height: 42px;
+            border-radius: 10px;
+            background: var(--white);
             display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 12px;
+            flex-shrink: 0;
         }
+        .muestras-info { text-align: left; flex: 1; }
         .muestras-titulo {
-            font-size: 16px;
-            font-weight: 700;
+            font-size: 13px;
+            font-weight: 600;
             color: var(--purple-dark);
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
         .muestras-desc {
             font-size: 12px;
-            color: #999;
-            margin-bottom: 14px;
-            line-height: 1.5;
+            color: #888;
+            line-height: 1.4;
         }
         .muestras-badge {
             display: inline-block;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 4px 14px;
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 10px;
             border-radius: 999px;
             background: #FEF3C7;
             color: #D97706;
-            border: 1px solid #FCD34D;
+            border: none;
+            flex-shrink: 0;
         }
 
         .left-footer {
@@ -158,21 +166,17 @@
 
         .right {
             flex: 1;
-            background: #F7F6FB;
+            background: var(--white);
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
             padding: 40px 32px;
             position: relative;
+            gap: 20px;
         }
 
-        .deco-blob {
-            position: absolute;
-            bottom: -40px;
-            right: -40px;
-            opacity: 0.07;
-            pointer-events: none;
-        }
+        .deco-blob { display: none; }
 
         .card {
             background: var(--white);
@@ -222,7 +226,7 @@
             border-radius: 10px;
             padding: 11px 14px;
             font-size: 14px;
-            font-family: 'Nunito', sans-serif;
+            font-family: 'Inter', sans-serif;
             color: var(--gray-text);
             background: var(--white);
             transition: border-color .2s, box-shadow .2s;
@@ -242,10 +246,10 @@
             width: 100%;
             padding: 13px;
             background: var(--purple);
-            color: var(--purple-dark);
+            color: var(--white);
             border: none;
             border-radius: 12px;
-            font-family: 'Nunito', sans-serif;
+            font-family: 'Inter', sans-serif;
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
@@ -282,10 +286,6 @@
 <body>
 
 <div class="left">
-    <div class="blob blob-1"></div>
-    <div class="blob blob-2"></div>
-    <div class="blob blob-3"></div>
-
     <div class="left-content">
         <div class="brand-logo">Industrias Salcom</div>
         <div class="brand-sub">Portal de Proveedores</div>
@@ -301,26 +301,12 @@
             <span class="badge">Facturas</span>
         </div>
 
-        {{-- MÓDULO ENVÍO DE MUESTRAS --}}
-        <div class="muestras-card">
-            <div class="muestras-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-            </div>
-            <div class="muestras-titulo">Envío de muestras</div>
-            <div class="muestras-desc">Registro y seguimiento de muestras</div>
-            <span class="muestras-badge">Próximamente</span>
-        </div>
-
     </div>
 
-    <div class="left-footer">© {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
+    <div class="left-footer">&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
 </div>
 
 <div class="right">
-    <svg class="deco-blob" width="320" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-        <path fill="#6B3FA0" d="M39.5,-51.5C50.8,-42.6,59.2,-29.5,63.1,-14.8C67,0,66.3,16.4,59.7,29.7C53.1,43,40.5,53.2,26.4,59.3C12.3,65.4,-3.3,67.4,-17.8,63.1C-32.3,58.8,-45.7,48.2,-54.3,34.5C-62.9,20.8,-66.7,4,-63.9,-11.5C-61.1,-27,-51.7,-41.2,-39.4,-50.2C-27.1,-59.2,-11.9,-63,2,-65.4C15.9,-67.8,28.2,-60.4,39.5,-51.5Z" transform="translate(100 100)" />
-    </svg>
-
     <div class="card">
         <div class="card-header">
             <div class="icon-wrap">
@@ -375,6 +361,18 @@
         <p class="register-link">
             ¿Eres proveedor nuevo? <a href="{{ route('proveedores.registro') }}">Regístrate aquí</a>
         </p>
+    </div>
+
+    {{-- ENVÍO DE MUESTRAS --}}
+    <div class="muestras-card">
+        <div class="muestras-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </div>
+        <div class="muestras-info">
+            <div class="muestras-titulo">Envío de muestras</div>
+            <div class="muestras-desc">Registro y seguimiento de muestras</div>
+        </div>
+        <span class="muestras-badge">Próximamente</span>
     </div>
 </div>
 

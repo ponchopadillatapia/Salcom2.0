@@ -86,10 +86,10 @@
         .nav-right { display: flex; align-items: center; gap: 16px; }
         .nav-user {
             font-size: 13px;
-            color: var(--gray-muted);
-            font-weight: 500;
+            color: var(--gray-text);
+            font-weight: 600;
+            letter-spacing: -0.2px;
         }
-        .nav-user strong { color: var(--gray-text); font-weight: 600; }
         .btn-logout {
             font-size: 12px;
             color: var(--gray-muted);
@@ -295,7 +295,7 @@
         <span>Portal de Proveedores</span>
     </div>
     <div class="nav-right">
-        <span class="nav-user">Hola, <strong>{{ session('proveedor_nombre', 'Proveedor') }}</strong></span>
+        <span class="nav-user">{{ session('proveedor_nombre', 'Proveedor') }}</span>
         <form method="POST" action="{{ route('proveedores.logout') }}" style="display:inline;">
             @csrf
             <button type="submit" class="btn-logout">Cerrar sesión</button>

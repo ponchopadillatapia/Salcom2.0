@@ -16,7 +16,7 @@
     .main-title { font-family: 'Playfair Display', serif; font-size: 24px; color: var(--purple-dark); font-weight: 600; text-align: center; margin-bottom: 8px; }
     .main-sub { font-size: 14px; color: #999; text-align: center; margin-bottom: 48px; }
 
-    .opciones-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; width: 100%; max-width: 860px; }
+    .opciones-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; width: 100%; max-width: 640px; }
 
     .opcion-card { background: var(--white); border: 0.5px solid var(--border); border-radius: 20px; padding: 40px 28px; text-align: center; text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 16px; transition: all .2s; position: relative; overflow: hidden; }
     .opcion-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--purple); transform: scaleX(0); transition: transform .2s; border-radius: 20px 20px 0 0; }
@@ -72,19 +72,6 @@
             <div class="opcion-title">Dashboard</div>
             <div class="opcion-desc">Consulta tus facturas, pagos y estatus en tiempo real</div>
             <span class="opcion-badge">Disponible</span>
-        </a>
-
-        <a href="#" class="opcion-card disabled">
-            <div class="opcion-icon">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                    <line x1="12" y1="22.08" x2="12" y2="12"/>
-                </svg>
-            </div>
-            <div class="opcion-title">Envío de muestras</div>
-            <div class="opcion-desc">Registra lotes de muestras y da seguimiento a su validación</div>
-            <span class="opcion-badge pronto">Próximamente</span>
         </a>
 
     </div>

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
     <title>Registro de Proveedor — Industrias Salcom</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -21,11 +21,12 @@
         }
 
         body {
-            font-family: 'Nunito', sans-serif;
-            background: var(--gray-soft);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--white);
             min-height: 100vh;
             display: flex;
             flex-direction: column;
+            -webkit-font-smoothing: antialiased;
         }
 
         nav {
@@ -291,11 +292,7 @@
 {{-- MAIN --}}
 <div class="main">
 
-    <div class="deco-left">
-        <svg class="watercolor-blob" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#6B3FA0" d="M44.7,-62.3C56.6,-53.4,63.7,-38.2,68.1,-22.3C72.5,-6.4,74.2,10.2,69.1,24.6C64,39,52.2,51.2,38.4,59.2C24.6,67.2,8.8,71,-6.5,69.2C-21.8,67.4,-36.6,60,-47.3,49.1C-58,38.2,-64.6,23.8,-66.3,8.8C-68,-6.2,-64.8,-21.8,-57,-34.1C-49.2,-46.4,-36.8,-55.4,-23.4,-63.1C-10,-70.8,4.4,-77.2,18.3,-75.1C32.2,-73,45.6,-62.4,44.7,-62.3Z" transform="translate(100 100)" />
-        </svg>
-    </div>
+    <div class="deco-left"></div>
 
     {{-- CARD --}}
     <div class="card">
@@ -388,11 +385,7 @@
 
     </div>
 
-    <div class="deco-right" style="padding-left:32px; padding-top:60px; opacity:0.12">
-        <svg width="140" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-            <path fill="#9C6DD0" d="M39.5,-51.5C50.8,-42.6,59.2,-29.5,63.1,-14.8C67,0,66.3,16.4,59.7,29.7C53.1,43,40.5,53.2,26.4,59.3C12.3,65.4,-3.3,67.4,-17.8,63.1C-32.3,58.8,-45.7,48.2,-54.3,34.5C-62.9,20.8,-66.7,4,-63.9,-11.5C-61.1,-27,-51.7,-41.2,-39.4,-50.2C-27.1,-59.2,-11.9,-63,2,-65.4C15.9,-67.8,28.2,-60.4,39.5,-51.5Z" transform="translate(100 100)" />
-        </svg>
-    </div>
+    <div></div>
 
 </div>
 
