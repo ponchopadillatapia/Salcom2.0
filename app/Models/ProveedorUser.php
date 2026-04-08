@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
 class ProveedorUser extends Authenticatable
 {
+    use SoftDeletes;
+
     protected $table = 'proveedores_users';
 
     protected $fillable = [
@@ -21,5 +24,9 @@ class ProveedorUser extends Authenticatable
 
     protected $hidden = [
         'password',
+    ];
+
+    protected $casts = [
+        'activo' => 'boolean',
     ];
 }

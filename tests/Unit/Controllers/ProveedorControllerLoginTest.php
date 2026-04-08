@@ -10,6 +10,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ProveedorControllerLoginTest extends TestCase
@@ -284,9 +285,9 @@ class ProveedorControllerLoginTest extends TestCase
     }
 
     /**
-     * @dataProvider invalidModeProvider
      * Feature: login-api-con-fallback, Property 1: Modo inválido resuelve a fallback
      */
+    #[DataProvider('invalidModeProvider')]
     public function test_property_invalid_mode_resolves_to_fallback(string $mode): void
     {
         config(['services.proveedor_api.login_mode' => $mode]);
@@ -314,9 +315,9 @@ class ProveedorControllerLoginTest extends TestCase
     }
 
     /**
-     * @dataProvider apiModeErrorProvider
      * Feature: login-api-con-fallback, Property 5: Modo API nunca hace fallback
      */
+    #[DataProvider('apiModeErrorProvider')]
     public function test_property_api_mode_never_falls_back(int $status): void
     {
         config(['services.proveedor_api.login_mode' => 'api']);

@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ProveedorControllerRateLimitTest extends TestCase
@@ -163,9 +164,9 @@ class ProveedorControllerRateLimitTest extends TestCase
     }
 
     /**
-     * @dataProvider blockedIpProvider
      * Feature: login-rate-limiting, Property 5: IP bloqueada rechaza login
      */
+    #[DataProvider('blockedIpProvider')]
     public function test_property_blocked_ip_rejects_login(int $maxAttempts): void
     {
         $this->crearProveedor();

@@ -6,6 +6,7 @@ use App\Exceptions\ProveedorApiException;
 use App\Services\ProveedorApiService;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class ProveedorApiServiceTest extends TestCase
@@ -365,9 +366,9 @@ class ProveedorApiServiceTest extends TestCase
     }
 
     /**
-     * @dataProvider responseInvariantProvider
      * Feature: blindar-proveedor-api-service, Property 2: Invariante de estructura
      */
+    #[DataProvider('responseInvariantProvider')]
     public function test_property_response_structure_invariant(int $status, array $body): void
     {
         Http::fake([
@@ -408,9 +409,9 @@ class ProveedorApiServiceTest extends TestCase
     }
 
     /**
-     * @dataProvider httpCodeMappingProvider
      * Feature: blindar-proveedor-api-service, Property 3: Mapeo HTTP a error_type
      */
+    #[DataProvider('httpCodeMappingProvider')]
     public function test_property_http_code_to_error_type(int $status, array $body, bool $expectedSuccess, ?string $expectedErrorType): void
     {
         Http::fake([
@@ -439,9 +440,9 @@ class ProveedorApiServiceTest extends TestCase
     }
 
     /**
-     * @dataProvider emptyUrlProvider
      * Feature: blindar-proveedor-api-service, Property 6: URL vacía falla sin HTTP
      */
+    #[DataProvider('emptyUrlProvider')]
     public function test_property_empty_url_fails_without_http(string $url, string $method): void
     {
         config(['services.proveedor_api.url' => $url]);

@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Exceptions\ProveedorApiException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class ProveedorApiExceptionTest extends TestCase
@@ -100,9 +101,9 @@ class ProveedorApiExceptionTest extends TestCase
     }
 
     /**
-     * @dataProvider roundTripProvider
      * Feature: blindar-proveedor-api-service, Property 1: Construcción round-trip
      */
+    #[DataProvider('roundTripProvider')]
     public function test_property_round_trip_construction(string $type, string $message, int $httpCode, array $data): void
     {
         // Use the appropriate factory based on type to verify round-trip
