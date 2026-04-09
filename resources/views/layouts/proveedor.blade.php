@@ -16,11 +16,11 @@
             --purple-light:#F3EEFA;
             --purple-mid:  #9C6DD0;
             --purple-subtle:#F8F5FC;
-            --gray-text:   #3D3D5C;
-            --gray-muted:  #8B8BA3;
-            --gray-soft:   #F5F4F8;
-            --border:      #E5E0EE;
-            --border-light:#EEEAF4;
+            --gray-text:   #1a1a2e;
+            --gray-muted:  #6b7280;
+            --gray-soft:   #f9fafb;
+            --border:      #e5e7eb;
+            --border-light:#f3f4f6;
             --white:       #FFFFFF;
             --green:       #059669;
             --green-bg:    #ECFDF5;
@@ -110,33 +110,21 @@
 
         /* ── HERO ── */
         .hero-band {
-            background: linear-gradient(135deg, var(--purple-dark) 0%, var(--purple) 50%, var(--purple-mid) 100%);
-            padding: 22px 28px;
-            position: relative;
-            overflow: hidden;
+            background: var(--white);
+            padding: 20px 28px;
+            border-bottom: 1px solid var(--border);
             flex-shrink: 0;
         }
-        .hero-band::before {
-            content: '';
-            position: absolute;
-            width: 500px; height: 500px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.04);
-            top: -220px; right: -100px;
-        }
         .hero-band h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 22px;
-            color: #fff;
-            font-weight: 600;
-            position: relative; z-index: 1;
+            font-size: 20px;
+            color: var(--gray-text);
+            font-weight: 700;
             letter-spacing: -0.3px;
         }
         .hero-band p {
-            color: rgba(255,255,255,0.65);
+            color: var(--gray-muted);
             font-size: 13px;
-            margin-top: 3px;
-            position: relative; z-index: 1;
+            margin-top: 2px;
             font-weight: 400;
         }
 
@@ -351,6 +339,16 @@
             <a href="{{ route('proveedores.business') }}" class="sb-link {{ request()->routeIs('proveedores.business') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                 <span class="sb-text">Business</span>
+            </a>
+            <a href="{{ route('proveedores.payment-history') }}" class="sb-link {{ request()->routeIs('proveedores.payment-history') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+                <span class="sb-text">Historial de pagos</span>
+            </a>
+            <div class="sb-hr"></div>
+            <div class="sb-section">Cuenta</div>
+            <a href="{{ route('proveedores.perfil') }}" class="sb-link {{ request()->routeIs('proveedores.perfil') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+                <span class="sb-text">Mi Perfil</span>
             </a>
         </nav>
     </div>

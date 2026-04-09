@@ -6,58 +6,74 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Validación de Documentos — Industrias Salcom</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
 
     <style>
         :root {
             --purple:      #6B3FA0;
             --purple-dark: #4A2070;
-            --purple-light:#EDE7F6;
+            --purple-light:#F3EEFA;
             --purple-mid:  #9C6DD0;
-            --gray-text:   #4A4A6A;
-            --gray-soft:   #F7F6FB;
-            --border:      #D8CFE8;
+            --gray-text:   #1a1a2e;
+            --gray-muted:  #6b7280;
+            --gray-soft:   #f9fafb;
+            --border:      #e5e7eb;
             --white:       #FFFFFF;
             --green:       #059669;
-            --green-bg:    #D1FAE5;
+            --green-bg:    #ecfdf5;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'Nunito', sans-serif;
+            font-family: 'Inter', -apple-system, sans-serif;
             background: var(--gray-soft);
             color: var(--gray-text);
             min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
         }
 
         .navbar-salcom {
-            background: linear-gradient(135deg, var(--purple-dark) 0%, var(--purple) 100%);
+            background: var(--white);
             padding: 0 2rem;
-            height: 64px;
+            height: 52px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            box-shadow: 0 2px 12px rgba(74,32,112,0.18);
+            border-bottom: 1px solid var(--border);
         }
         .navbar-salcom .brand {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.3rem;
-            color: var(--white);
-            letter-spacing: 0.5px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--purple);
         }
-        .navbar-salcom .brand span { color: #C9A8FF; }
         .navbar-salcom .nav-badge {
-            background: rgba(255,255,255,0.15);
-            color: var(--white);
+            background: var(--purple-light);
+            color: var(--purple);
             font-size: 0.75rem;
             font-weight: 600;
             padding: 4px 12px;
             border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.25);
         }
+        .btn-back-nav {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--gray-muted);
+            text-decoration: none;
+            padding: 6px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--white);
+            cursor: pointer;
+            transition: all .15s;
+            font-family: inherit;
+        }
+        .btn-back-nav:hover { background: var(--purple-light); color: var(--purple); border-color: var(--purple-mid); }
+        .btn-back-nav.visible { display: inline-flex; }
 
         .page-wrapper {
             max-width: 780px;
@@ -70,26 +86,23 @@
             margin-bottom: 2rem;
         }
         .section-header h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 1.75rem;
-            color: var(--purple-dark);
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gray-text);
             margin-bottom: 0.4rem;
         }
         .section-header p {
             font-size: 0.92rem;
-            color: var(--gray-text);
-            opacity: 0.8;
+            color: var(--gray-muted);
         }
 
-        /* ── Separador de grupo ── */
         .group-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 1rem;
-            color: var(--purple-dark);
+            font-size: 0.85rem;
+            color: var(--gray-text);
             font-weight: 700;
             margin: 1.5rem 0 0.75rem;
             padding-bottom: 0.4rem;
-            border-bottom: 2px solid var(--purple-light);
+            border-bottom: 1px solid var(--border);
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -98,9 +111,8 @@
         .card-salcom {
             background: var(--white);
             border: 1px solid var(--border);
-            border-radius: 16px;
+            border-radius: 12px;
             padding: 2rem;
-            box-shadow: 0 4px 24px rgba(107,63,160,0.08);
         }
 
         .doc-row {
@@ -162,9 +174,9 @@
         .btn-salcom {
             width: 100%;
             padding: 0.85rem;
-            background: linear-gradient(135deg, var(--purple) 0%, var(--purple-dark) 100%);
+            background: var(--purple);
             color: var(--white);
-            font-family: 'Nunito', sans-serif;
+            font-family: 'Inter', sans-serif;
             font-size: 1rem;
             font-weight: 700;
             border: none;
@@ -321,7 +333,13 @@
 <body>
 
 <nav class="navbar-salcom">
-    <span class="brand">Industrias <span>Salcom</span></span>
+    <div style="display:flex;align-items:center;gap:16px;">
+        <button class="btn-back-nav" id="btnBack" onclick="history.back()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Regresar
+        </button>
+        <span class="brand">Industrias Salcom</span>
+    </div>
     <span class="nav-badge"><i class="bi bi-shield-check"></i> Validación Fiscal</span>
 </nav>
 
@@ -598,6 +616,17 @@ function mostrarError(msg) {
             </div>
         </div>`;
 }
+
+// ── Back button: only show if user came from within the portal ──
+(function() {
+    const ref = document.referrer;
+    const origin = window.location.origin;
+    // Show back button only if referrer is from our portal (onboarding, portal, etc.)
+    // Don't show if there's no referrer (direct access / forced revalidation)
+    if (ref && ref.startsWith(origin) && !ref.includes('validacion-fiscal')) {
+        document.getElementById('btnBack').classList.add('visible');
+    }
+})();
 </script>
 
 </body>

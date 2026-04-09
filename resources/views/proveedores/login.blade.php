@@ -3,377 +3,216 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Proveedor — Industrias Salcom</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>Login — Industrias Salcom</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        :root {
-            --purple:      #6B3FA0;
-            --purple-dark: #4A2070;
-            --purple-light:#EDE7F6;
-            --purple-mid:  #9C6DD0;
-            --gray-text:   #4A4A6A;
-            --border:      #D8CFE8;
-            --white:       #FFFFFF;
-            --amber:       #D97706;
-        }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            height: 100vh;
+            font-family: 'Inter', -apple-system, sans-serif;
+            min-height: 100vh;
             display: flex;
-            overflow: hidden;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #2d1b4e 0%, #4A2070 30%, #6B3FA0 60%, #9C6DD0 100%);
             -webkit-font-smoothing: antialiased;
-        }
-
-        .left {
-            width: 52%;
-            background: linear-gradient(160deg, var(--purple-dark) 0%, var(--purple) 100%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 60px 56px;
             position: relative;
             overflow: hidden;
         }
-
-        .left-content { position: relative; z-index: 1; text-align: center; width: 100%; }
-
-        .brand-logo {
-            font-family: 'Playfair Display', serif;
-            font-size: 38px;
-            color: var(--white);
-            font-weight: 600;
-            letter-spacing: -1px;
-            line-height: 1.2;
-        }
-        .brand-sub {
-            font-size: 11px;
-            font-weight: 600;
-            letter-spacing: 4px;
-            color: rgba(255,255,255,0.7);
-            text-transform: uppercase;
-            margin-top: 6px;
-            margin-bottom: 36px;
-        }
-
-        .left-divider {
-            width: 48px;
-            height: 2px;
-            background: rgba(255,255,255,0.35);
-            margin: 0 auto 28px;
-            border-radius: 2px;
-        }
-
-        .left-tagline {
-            font-size: 18px;
-            color: rgba(255,255,255,0.9);
-            font-weight: 300;
-            line-height: 1.6;
-            max-width: 300px;
-            margin: 0 auto;
-        }
-        .left-tagline strong {
-            color: var(--white);
-            font-weight: 700;
-            display: block;
-            font-size: 20px;
-            margin-bottom: 4px;
-        }
-
-        .left-badges {
-            display: flex;
-            gap: 24px;
-            justify-content: center;
-            margin-top: 32px;
-            flex-wrap: wrap;
-        }
-        .badge {
-            background: none;
-            border: none;
-            box-shadow: none;
-            border-radius: 0;
-            padding: 0;
-            font-size: 13px;
-            color: rgba(255,255,255,0.7);
-            font-weight: 400;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .badge::before {
+        /* Subtle animated shapes */
+        body::before {
             content: '';
-            width: 5px;
-            height: 5px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.5);
-            flex-shrink: 0;
-        }
-
-        /* ── ENVÍO DE MUESTRAS (right panel) ── */
-        .muestras-card {
-            background: var(--purple-light);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 16px 20px;
-            text-align: center;
-            width: 100%;
-            max-width: 380px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-        }
-        .muestras-icon {
-            width: 42px; height: 42px;
-            border-radius: 10px;
-            background: var(--white);
-            display: flex; align-items: center; justify-content: center;
-            flex-shrink: 0;
-        }
-        .muestras-info { text-align: left; flex: 1; }
-        .muestras-titulo {
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--purple-dark);
-            margin-bottom: 2px;
-        }
-        .muestras-desc {
-            font-size: 12px;
-            color: #888;
-            line-height: 1.4;
-        }
-        .muestras-badge {
-            display: inline-block;
-            font-size: 10px;
-            font-weight: 600;
-            padding: 3px 10px;
-            border-radius: 999px;
-            background: #FEF3C7;
-            color: #D97706;
-            border: none;
-            flex-shrink: 0;
-        }
-
-        .left-footer {
             position: absolute;
-            bottom: 24px;
-            font-size: 11px;
-            color: rgba(255,255,255,0.35);
-            letter-spacing: 0.5px;
+            width: 600px; height: 600px;
+            border-radius: 50%;
+            background: rgba(107,63,160,0.15);
+            top: -200px; right: -150px;
+            filter: blur(80px);
+        }
+        body::after {
+            content: '';
+            position: absolute;
+            width: 400px; height: 400px;
+            border-radius: 50%;
+            background: rgba(139,92,246,0.12);
+            bottom: -100px; left: -100px;
+            filter: blur(60px);
         }
 
-        .right {
-            flex: 1;
-            background: var(--white);
+        .login-container {
+            position: relative;
+            z-index: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 40px 32px;
-            position: relative;
-            gap: 20px;
-        }
-
-        .deco-blob { display: none; }
-
-        .card {
-            background: var(--white);
-            border-radius: 20px;
-            padding: 44px 40px 48px;
+            gap: 24px;
             width: 100%;
-            max-width: 380px;
-            box-shadow: 0 8px 40px rgba(107,63,160,0.10);
-            border: 1px solid rgba(107,63,160,0.08);
-            animation: fadeUp .45s ease both;
-            position: relative; z-index: 1;
-        }
-        @keyframes fadeUp {
-            from { opacity:0; transform: translateY(18px); }
-            to   { opacity:1; transform: translateY(0); }
+            max-width: 420px;
+            padding: 32px 24px;
         }
 
-        .card-header { margin-bottom: 30px; }
-        .card-header .icon-wrap {
-            width: 50px; height: 50px;
-            border-radius: 14px;
-            background: var(--purple-light);
-            display: flex; align-items: center; justify-content: center;
-            margin-bottom: 16px;
-        }
-        .card-header h2 {
-            font-family: 'Playfair Display', serif;
-            font-size: 24px;
-            color: var(--purple-dark);
-            font-weight: 600;
-        }
-        .card-header p { font-size: 13px; color: #999; margin-top: 4px; }
+        /* Brand */
+        .brand { text-align: center; margin-bottom: 8px; }
+        .brand h1 { font-size: 28px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
+        .brand p { font-size: 12px; font-weight: 500; letter-spacing: 3px; color: rgba(255,255,255,0.5); text-transform: uppercase; margin-top: 4px; }
 
-        .field { margin-bottom: 16px; }
+        /* Card */
+        .login-card {
+            width: 100%;
+            background: rgba(255,255,255,0.08);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 16px;
+            padding: 36px 32px;
+        }
+
+        .card-title { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .card-sub { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 24px; }
+
+        /* Alerts */
+        .alert { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-bottom: 18px; }
+        .alert-error { background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+        .alert-success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; }
+
+        /* Fields */
+        .field { margin-bottom: 18px; }
         .field label {
             display: block;
             font-size: 11px;
-            font-weight: 700;
-            color: var(--gray-text);
+            font-weight: 600;
+            color: rgba(255,255,255,0.6);
             margin-bottom: 6px;
             letter-spacing: 0.5px;
             text-transform: uppercase;
         }
         .field input {
             width: 100%;
-            border: 1.5px solid var(--border);
+            border: 1px solid rgba(255,255,255,0.15);
             border-radius: 10px;
-            padding: 11px 14px;
+            padding: 12px 14px;
             font-size: 14px;
-            font-family: 'Inter', sans-serif;
-            color: var(--gray-text);
-            background: var(--white);
-            transition: border-color .2s, box-shadow .2s;
+            font-family: inherit;
+            color: #fff;
+            background: rgba(255,255,255,0.06);
+            transition: all .2s;
             outline: none;
         }
-        .field input::placeholder { color: #C4BDD4; }
+        .field input::placeholder { color: rgba(255,255,255,0.3); }
         .field input:focus {
-            border-color: var(--purple-mid);
-            box-shadow: 0 0 0 3px rgba(156,109,208,0.12);
+            border-color: rgba(107,63,160,0.6);
+            background: rgba(255,255,255,0.1);
+            box-shadow: 0 0 0 3px rgba(107,63,160,0.15);
         }
 
-        .forgot { text-align: right; margin-top: -8px; margin-bottom: 20px; }
-        .forgot a { font-size: 12px; color: var(--purple-mid); text-decoration: none; }
-        .forgot a:hover { text-decoration: underline; }
+        .forgot { text-align: right; margin-top: -10px; margin-bottom: 18px; }
+        .forgot a { font-size: 12px; color: rgba(255,255,255,0.5); text-decoration: none; }
+        .forgot a:hover { color: rgba(255,255,255,0.8); }
 
-        .btn-submit {
+        .btn-login {
             width: 100%;
             padding: 13px;
-            background: var(--purple);
-            color: var(--white);
+            background: #6B3FA0;
+            color: #fff;
             border: none;
-            border-radius: 12px;
-            font-family: 'Inter', sans-serif;
+            border-radius: 10px;
+            font-family: inherit;
             font-size: 15px;
             font-weight: 600;
             cursor: pointer;
-            letter-spacing: 0.3px;
-            transition: background .2s, transform .15s, box-shadow .2s;
-            box-shadow: 0 4px 16px rgba(107,63,160,0.25);
-            margin-top: 4px;
+            letter-spacing: 0.5px;
+            transition: all .2s;
+            box-shadow: 0 4px 16px rgba(107,63,160,0.3);
         }
-        .btn-submit:hover { background: var(--purple-dark); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(107,63,160,0.35); }
-        .btn-submit:active { transform: translateY(0); }
+        .btn-login:hover { background: #4A2070; transform: translateY(-1px); box-shadow: 0 6px 20px rgba(107,63,160,0.4); }
+        .btn-login:active { transform: translateY(0); }
 
         .register-link {
             text-align: center;
-            margin-top: 20px;
             font-size: 13px;
-            color: #999;
+            color: rgba(255,255,255,0.5);
         }
-        .register-link a { color: var(--purple); text-decoration: none; font-weight: 600; }
-        .register-link a:hover { text-decoration: underline; }
+        .register-link a { color: #c4b5fd; text-decoration: none; font-weight: 600; }
+        .register-link a:hover { color: #ddd6fe; }
 
-        .alert-error { background: #FEE2E2; border-left: 3px solid #C0392B; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #991B1B; margin-bottom: 18px; }
-        .alert-success { background: #D1FAE5; border-left: 3px solid #059669; border-radius: 8px; padding: 10px 14px; font-size: 13px; color: #065F46; margin-bottom: 18px; }
+        .footer-text {
+            font-size: 11px;
+            color: rgba(255,255,255,0.25);
+            text-align: center;
+        }
 
-        @media (max-width: 700px) {
-            body { flex-direction: column; height: auto; overflow: auto; }
-            .left { width: 100%; padding: 40px 24px; min-height: 220px; }
-            .brand-logo { font-size: 28px; }
-            .left-badges, .left-tagline, .modulos-wrap { display: none; }
-            .right { padding: 32px 16px 48px; }
-            .card { padding: 28px 22px 36px; }
+        /* Muestras card */
+        .muestras-card {
+            width: 100%;
+            background: rgba(255,255,255,0.06);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        .muestras-icon { width: 38px; height: 38px; border-radius: 10px; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .muestras-info { flex: 1; }
+        .muestras-title { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.9); }
+        .muestras-desc { font-size: 11px; color: rgba(255,255,255,0.4); }
+        .muestras-badge { font-size: 10px; font-weight: 600; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.6); flex-shrink: 0; }
+
+        @media (max-width: 500px) {
+            .login-container { padding: 24px 16px; }
+            .login-card { padding: 28px 20px; }
         }
     </style>
 </head>
 <body>
 
-<div class="left">
-    <div class="left-content">
-        <div class="brand-logo">Industrias Salcom</div>
-        <div class="brand-sub">Portal de Proveedores</div>
-        <div class="left-divider"></div>
-        <div class="left-tagline">
-            <strong>Bienvenido</strong>
-            Gestiona tus pedidos y da seguimiento a tus operaciones con nosotros.
-        </div>
-
-        <div class="left-badges">
-            <span class="badge">Pedidos en línea</span>
-            <span class="badge">Seguimiento</span>
-            <span class="badge">Facturas</span>
-        </div>
-
+<div class="login-container">
+    <div class="brand">
+        <h1>Industrias Salcom</h1>
+        <p>Portal de Proveedores</p>
     </div>
 
-    <div class="left-footer">&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
-</div>
-
-<div class="right">
-    <div class="card">
-        <div class="card-header">
-            <div class="icon-wrap">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-            </div>
-            <h2>Bienvenido de nuevo</h2>
-            <p>Ingresa tus credenciales para continuar</p>
-        </div>
+    <div class="login-card">
+        <div class="card-title">Iniciar sesión</div>
+        <div class="card-sub">Ingresa tus credenciales para continuar</div>
 
         @if(session('error'))
-            <div class="alert-error">{{ session('error') }}</div>
+            <div class="alert alert-error">{{ session('error') }}</div>
         @endif
-
         @if(session('mensaje'))
-            <div class="alert-success">{{ session('mensaje') }}</div>
+            <div class="alert alert-success">{{ session('mensaje') }}</div>
         @endif
 
         <form method="POST" action="/login-proveedor">
             @csrf
-
             <div class="field">
                 <label>Usuario</label>
-                <input type="text" name="codigo"
-                       placeholder="Tu correo o usuario"
-                       value="{{ old('codigo') }}"
-                       required autofocus>
+                <input type="text" name="codigo" placeholder="Tu correo o usuario" value="{{ old('codigo') }}" required autofocus>
             </div>
-
             <div class="field">
                 <label>Contraseña</label>
-                <input type="password" name="pwd"
-                       placeholder="Tu contraseña"
-                       required>
+                <input type="password" name="pwd" placeholder="Tu contraseña" required>
             </div>
-
-            <div class="forgot">
-                <a href="#">¿Olvidaste tu contraseña?</a>
-            </div>
-
+            <div class="forgot"><a href="#">¿Olvidaste tu contraseña?</a></div>
             <div class="field">
                 <label>Código de compras</label>
-                <input type="text" name="codigo_compras"
-                       placeholder="Código asignado (opcional por ahora)">
+                <input type="text" name="codigo_compras" placeholder="Código asignado (opcional)">
             </div>
-
-            <button type="submit" class="btn-submit">Ingresar al portal</button>
+            <button type="submit" class="btn-login">Ingresar al portal</button>
         </form>
 
-        <p class="register-link">
+        <p class="register-link" style="margin-top:18px;">
             ¿Eres proveedor nuevo? <a href="{{ route('proveedores.registro') }}">Regístrate aquí</a>
         </p>
     </div>
 
-    {{-- ENVÍO DE MUESTRAS --}}
     <div class="muestras-card">
-        <div class="muestras-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-        </div>
-        <div class="muestras-info">
-            <div class="muestras-titulo">Envío de muestras</div>
-            <div class="muestras-desc">Registro y seguimiento de muestras</div>
-        </div>
+        <div class="muestras-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+        <div class="muestras-info"><div class="muestras-title">Envío de muestras</div><div class="muestras-desc">Registro y seguimiento de muestras</div></div>
         <span class="muestras-badge">Próximamente</span>
     </div>
+
+    <div class="footer-text">&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
 </div>
 
 </body>

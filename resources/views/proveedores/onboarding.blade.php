@@ -68,7 +68,7 @@
     <div class="pasos-grid">
 
         <div class="paso-card completado">
-            <div class="paso-icono verde">✅</div>
+            <div class="paso-icono verde"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Registro de proveedor</div>
                 <div class="paso-desc">Creaste tu cuenta y proporcionaste tus datos básicos: nombre, correo, teléfono y tipo de persona.</div>
@@ -78,17 +78,17 @@
         </div>
 
         <div class="paso-card completado">
-            <div class="paso-icono verde">✅</div>
+            <div class="paso-icono verde"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Documentos fiscales</div>
                 <div class="paso-desc">Subiste tu CIF, Opinión de Cumplimiento del SAT y Acta Constitutiva. Documentos verificados correctamente.</div>
             </div>
             <span class="paso-badge badge-completado">Completado</span>
-            <a href="/empresa" class="btn-ver">Ver</a>
+            <a href="/validacion-fiscal" class="btn-ver">Ver</a>
         </div>
 
         <div class="paso-card pendiente">
-            <div class="paso-icono ambar">⏳</div>
+            <div class="paso-icono ambar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Validación por Industrias Salcom</div>
                 <div class="paso-desc">Nuestro equipo está revisando tu información y documentos. Te notificaremos cuando esté lista la aprobación.</div>
@@ -98,7 +98,7 @@
         </div>
 
         <div class="paso-card bloqueado">
-            <div class="paso-icono gris">📋</div>
+            <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Primera Orden de Compra</div>
                 <div class="paso-desc">Una vez validado, Industrias Salcom generará tu primera orden de compra. Podrás consultarla desde el módulo de OC.</div>
@@ -108,7 +108,7 @@
         </div>
 
         <div class="paso-card bloqueado">
-            <div class="paso-icono gris">🚀</div>
+            <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Proveedor activo</div>
                 <div class="paso-desc">¡Bienvenido a la familia Salcom! Ya puedes operar de forma completa: consultar OC, subir facturas y dar seguimiento a tus pagos.</div>

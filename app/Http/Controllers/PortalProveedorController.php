@@ -23,4 +23,14 @@ class PortalProveedorController extends Controller
     {
         return view('proveedores.business');
     }
+
+    public function mostrarPaymentHistory()
+    {
+        return view('proveedores.payment-history');
+    }
+
+    public function mostrarPerfil()
+    {
+        return view('proveedores.perfil');
+    }
 }

@@ -3,397 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Actualización de Proveedor — Salcom Industries</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>Actualizar Datos — Industrias Salcom</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-        :root {
-            --purple:      #6B3FA0;
-            --purple-dark: #4A2070;
-            --purple-light:#EDE7F6;
-            --purple-mid:  #9C6DD0;
-            --gray-text:   #4A4A6A;
-            --gray-soft:   #F7F6FB;
-            --border:      #D8CFE8;
-            --white:       #FFFFFF;
-            --green:       #059669;
-            --green-bg:    #D1FAE5;
-        }
-
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--white);
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            -webkit-font-smoothing: antialiased;
+            font-family: 'Inter', -apple-system, sans-serif;
+            min-height: 100vh; display: flex; align-items: center; justify-content: center;
+            background: linear-gradient(135deg, #2d1b4e 0%, #4A2070 30%, #6B3FA0 60%, #9C6DD0 100%);
+            -webkit-font-smoothing: antialiased; position: relative; overflow-y: auto; padding: 40px 24px;
         }
+        body::before { content:''; position:fixed; width:600px; height:600px; border-radius:50%; background:rgba(107,63,160,0.15); top:-200px; right:-150px; filter:blur(80px); }
+        body::after { content:''; position:fixed; width:400px; height:400px; border-radius:50%; background:rgba(139,92,246,0.12); bottom:-100px; left:-100px; filter:blur(60px); }
 
-        nav {
-            background: var(--white);
-            padding: 14px 48px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid var(--border);
-            position: sticky; top: 0; z-index: 100;
-        }
-        .nav-logo {
-            font-family: 'Playfair Display', serif;
-            font-size: 22px;
-            color: var(--purple);
-            font-weight: 600;
-            letter-spacing: -0.5px;
-        }
-        .nav-logo span {
-            display: block;
-            font-family: 'Nunito', sans-serif;
-            font-size: 10px;
-            font-weight: 600;
-            letter-spacing: 3px;
-            color: var(--purple-mid);
-            text-transform: uppercase;
-            margin-top: -4px;
-        }
-        .nav-right { display: flex; align-items: center; gap: 24px; }
-        .nav-user { font-size: 13px; color: var(--gray-text); font-weight: 500; }
-        .nav-user span { color: var(--purple); font-weight: 600; }
-        .btn-logout {
-            font-size: 13px;
-            color: var(--gray-text);
-            padding: 6px 14px;
-            border: 0.5px solid var(--border);
-            border-radius: 8px;
-            background: none;
-            cursor: pointer;
-            font-family: inherit;
-            transition: all .15s;
-        }
-        .btn-logout:hover { background: var(--purple-light); color: var(--purple); border-color: var(--purple-mid); }
-
-        .hero-band {
-            background: linear-gradient(135deg, var(--purple-dark) 0%, var(--purple) 60%, var(--purple-mid) 100%);
-            padding: 48px 48px 36px;
-            position: relative;
-            overflow: hidden;
-        }
-        .hero-band::before {
-            content: '';
-            position: absolute;
-            width: 420px; height: 420px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.06);
-            top: -180px; right: -80px;
-        }
-        .hero-band::after {
-            content: '';
-            position: absolute;
-            width: 260px; height: 260px;
-            border-radius: 50%;
-            background: rgba(255,255,255,0.04);
-            bottom: -120px; left: 60px;
-        }
-        .hero-band h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 32px;
-            color: var(--white);
-            font-weight: 600;
-            position: relative; z-index: 1;
-        }
-        .hero-band p {
-            color: rgba(255,255,255,0.75);
-            font-size: 14px;
-            margin-top: 6px;
-            position: relative; z-index: 1;
-            font-weight: 300;
-        }
-
-        .main {
-            flex: 1;
-            display: grid;
-            grid-template-columns: 1fr 520px 1fr;
-            gap: 0;
-            padding: 48px 24px 64px;
-            position: relative;
-        }
-
-        .deco-left {
-            display: flex;
-            align-items: flex-start;
-            justify-content: flex-end;
-            padding-right: 32px;
-            padding-top: 20px;
-        }
+        .container { position:relative; z-index:1; width:100%; max-width:480px; display:flex; flex-direction:column; align-items:center; gap:20px; }
+        .brand { text-align:center; }
+        .brand h1 { font-size:28px; font-weight:700; color:#fff; }
+        .brand p { font-size:12px; font-weight:500; letter-spacing:3px; color:rgba(255,255,255,0.5); text-transform:uppercase; margin-top:4px; }
 
         .card {
-            background: var(--white);
-            border-radius: 20px;
-            padding: 40px 40px 48px;
-            box-shadow: 0 8px 40px rgba(107,63,160,0.10);
-            border: 1px solid rgba(107,63,160,0.08);
-            animation: fadeUp .5s ease both;
+            width:100%; background:rgba(255,255,255,0.08); backdrop-filter:blur(20px);
+            border:1px solid rgba(255,255,255,0.12); border-radius:16px; padding:32px 28px;
         }
-        @keyframes fadeUp {
-            from { opacity:0; transform: translateY(20px); }
-            to   { opacity:1; transform: translateY(0); }
-        }
+        .card-title { font-size:20px; font-weight:700; color:#fff; margin-bottom:4px; }
+        .card-sub { font-size:13px; color:rgba(255,255,255,0.5); margin-bottom:20px; }
 
-        .card-header { text-align: center; margin-bottom: 32px; }
-        .card-header .icon-wrap {
-            width: 56px; height: 56px;
-            border-radius: 50%;
-            background: var(--purple-light);
-            display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 14px;
-        }
-        .card-header h2 {
-            font-family: 'Playfair Display', serif;
-            font-size: 22px;
-            color: var(--purple-dark);
-            font-weight: 600;
-        }
-        .card-header p { font-size: 13px; color: #888; margin-top: 4px; }
+        .alert-errors { background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); color:#fca5a5; border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:16px; }
+        .alert-errors ul { padding-left:16px; }
+        .alert-success { background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); color:#6ee7b7; border-radius:8px; padding:10px 14px; font-size:13px; margin-bottom:16px; }
 
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .field { margin-bottom:16px; }
+        .field label { display:block; font-size:11px; font-weight:600; color:rgba(255,255,255,0.6); margin-bottom:5px; letter-spacing:0.5px; text-transform:uppercase; }
+        .field label .req { color:#c4b5fd; }
+        .field input, .field select {
+            width:100%; border:1px solid rgba(255,255,255,0.15); border-radius:10px; padding:11px 14px;
+            font-size:14px; font-family:inherit; color:#fff; background:rgba(255,255,255,0.06); outline:none; transition:all .2s;
+        }
+        .field input::placeholder { color:rgba(255,255,255,0.3); }
+        .field input:focus, .field select:focus { border-color:rgba(107,63,160,0.6); background:rgba(255,255,255,0.1); box-shadow:0 0 0 3px rgba(107,63,160,0.15); }
+        .field select { cursor:pointer; }
+        .field select option { background:#2d1b4e; color:#fff; }
+        .error-msg { font-size:11px; color:#fca5a5; margin-top:3px; }
 
-        .field { display: flex; flex-direction: column; margin-bottom: 18px; }
-        .field label {
-            font-size: 12px; font-weight: 600;
-            color: var(--gray-text);
-            margin-bottom: 6px;
-            letter-spacing: 0.3px;
-            text-transform: uppercase;
-        }
-        .field label .req { color: var(--purple-mid); margin-left: 2px; }
-        .field input[type="text"],
-        .field input[type="tel"],
-        .field input[type="email"],
-        .field input[type="password"] {
-            border: 1.5px solid var(--border);
-            border-radius: 10px;
-            padding: 11px 14px;
-            font-size: 14px;
-            font-family: 'Nunito', sans-serif;
-            color: var(--gray-text);
-            background: var(--white);
-            transition: border-color .2s, box-shadow .2s;
-            outline: none;
-        }
-        .field input::placeholder { color: #BDB8CC; }
-        .field input:focus {
-            border-color: var(--purple-mid);
-            box-shadow: 0 0 0 3px rgba(156,109,208,0.12);
-        }
-
-        .divider {
-            display: flex; align-items: center; gap: 12px;
-            margin: 4px 0 20px;
-            color: #CCC; font-size: 12px;
-        }
-        .divider::before, .divider::after {
-            content: ''; flex: 1;
-            border-top: 1px solid var(--border);
-        }
+        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+        .divider { display:flex; align-items:center; gap:12px; margin:4px 0 16px; color:rgba(255,255,255,0.3); font-size:12px; }
+        .divider::before, .divider::after { content:''; flex:1; border-top:1px solid rgba(255,255,255,0.1); }
 
         .btn-submit {
-            width: 100%; padding: 14px;
-            background: var(--purple);
-            color: var(--white);
-            border: none; border-radius: 12px;
-            font-family: 'Nunito', sans-serif;
-            font-size: 15px; font-weight: 600;
-            cursor: pointer; letter-spacing: 0.3px;
-            transition: background .2s, transform .15s, box-shadow .2s;
-            box-shadow: 0 4px 16px rgba(107,63,160,0.25);
+            width:100%; padding:13px; background:#6B3FA0; color:#fff; border:none; border-radius:10px;
+            font-family:inherit; font-size:15px; font-weight:600; cursor:pointer; transition:all .2s;
+            box-shadow:0 4px 16px rgba(107,63,160,0.3);
         }
-        .btn-submit:hover {
-            background: var(--purple-dark);
-            transform: translateY(-1px);
-            box-shadow: 0 6px 20px rgba(107,63,160,0.35);
-        }
-        .btn-submit:active { transform: translateY(0); }
+        .btn-submit:hover { background:#4A2070; transform:translateY(-1px); }
 
-        .back-link { text-align: center; margin-top: 18px; font-size: 13px; color: #999; }
-        .back-link a { color: var(--purple); text-decoration: none; font-weight: 600; }
-        .back-link a:hover { text-decoration: underline; }
+        .back-link { text-align:center; margin-top:16px; font-size:13px; color:rgba(255,255,255,0.5); }
+        .back-link a { color:#c4b5fd; text-decoration:none; font-weight:600; }
+        .back-link a:hover { color:#ddd6fe; }
+        .footer-text { font-size:11px; color:rgba(255,255,255,0.25); text-align:center; }
 
-        .alert-errors {
-            background: #FEE2E2;
-            border-left: 3px solid #C0392B;
-            border-radius: 8px;
-            padding: 12px 14px;
-            font-size: 13px; color: #991B1B;
-            margin-bottom: 20px;
-        }
-        .alert-success {
-            background: #D1FAE5;
-            border-left: 3px solid #059669;
-            border-radius: 8px;
-            padding: 12px 14px;
-            font-size: 13px; color: #065F46;
-            margin-bottom: 20px;
-        }
-        .error-msg { font-size: 12px; color: #C0392B; margin-top: 4px; }
-
-        footer {
-            background: var(--white);
-            border-top: 1px solid var(--border);
-            padding: 24px 48px;
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        footer p { font-size: 12px; color: #AAA; }
-        .footer-logo { font-family: 'Playfair Display', serif; font-size: 16px; color: var(--purple); }
-
-        @media (max-width: 700px) {
-            .main { grid-template-columns: 1fr; padding: 24px 16px 48px; }
-            .deco-left, .deco-right { display: none; }
-            .card { padding: 28px 22px 36px; }
-            .form-row { grid-template-columns: 1fr; }
-            nav { padding: 12px 20px; }
-            footer { padding: 18px 20px; }
-            .hero-band { padding: 32px 20px 28px; }
-        }
+        @media (max-width:500px) { .form-row { grid-template-columns:1fr; } .card { padding:24px 20px; } }
     </style>
 </head>
 <body>
-
-{{-- NAVBAR --}}
-<nav>
-    <div class="nav-logo">
-        Industrias Salcom
-        <span>Portal de Proveedores</span>
-    </div>
-    <div class="nav-right">
-        <span class="nav-user">Hola, <span>{{ session('proveedor_nombre', 'Proveedor') }}</span></span>
-        <form method="POST" action="{{ route('proveedores.logout') }}" style="display:inline;">
-            @csrf
-            <button type="submit" class="btn-logout">Cerrar sesión</button>
-        </form>
-    </div>
-</nav>
-
-{{-- HERO --}}
-<div class="hero-band">
-    <h1>Actualizar Información</h1>
-    <p>Mantén tus datos al día para seguir operando con Salcom Industries</p>
-</div>
-
-{{-- MAIN --}}
-<div class="main">
-
-    <div class="deco-left"></div>
-
-    {{-- CARD --}}
+<div class="container">
+    <div class="brand"><h1>Industrias Salcom</h1><p>Portal de Proveedores</p></div>
     <div class="card">
-
-        <div class="card-header">
-            <div class="icon-wrap">
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none"
-                     stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                </svg>
-            </div>
-            <h2>Actualizar Datos</h2>
-            <p>Modifica la información de tu cuenta</p>
-        </div>
+        <div class="card-title">Actualizar Datos</div>
+        <div class="card-sub">Modifica la información de tu cuenta</div>
 
         @if ($errors->any())
-            <div class="alert-errors">
-                <ul style="padding-left:16px">
-                    @foreach ($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
+            <div class="alert-errors"><ul>@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
         @endif
-
         @if(session('mensaje'))
             <div class="alert-success">{{ session('mensaje') }}</div>
         @endif
 
         <form method="POST" action="{{ route('proveedores.actualizacion.guardar') }}">
-            @csrf
-            @method('PUT')
-
-            <div class="field">
-                <label>Nombre completo <span class="req">*</span></label>
-                <input type="text" name="nombre"
-                       placeholder="Tu nombre completo"
-                       value="{{ old('nombre') }}"
-                       required>
-                @error('nombre') <span class="error-msg">{{ $message }}</span> @enderror
-            </div>
-
-            <div class="field">
-                <label>Tipo de persona <span class="req">*</span></label>
-                <select name="tipo_persona" required style="border:1.5px solid var(--border);border-radius:10px;padding:11px 14px;font-size:14px;font-family:inherit;color:var(--gray-text);background:var(--white);outline:none;width:100%;cursor:pointer;">
+            @csrf @method('PUT')
+            <div class="field"><label>Nombre completo <span class="req">*</span></label><input type="text" name="nombre" placeholder="Tu nombre completo" value="{{ old('nombre') }}" required>@error('nombre')<span class="error-msg">{{ $message }}</span>@enderror</div>
+            <div class="field"><label>Tipo de persona <span class="req">*</span></label>
+                <select name="tipo_persona" required>
                     <option value="" disabled {{ old('tipo_persona') ? '' : 'selected' }}>Selecciona una opción</option>
-                    <option value="Persona Física" {{ old('tipo_persona') == 'Persona Física' ? 'selected' : '' }}>Persona Física</option>
-                    <option value="Persona Moral" {{ old('tipo_persona') == 'Persona Moral' ? 'selected' : '' }}>Persona Moral</option>
+                    <option value="Persona Física" {{ old('tipo_persona')=='Persona Física'?'selected':'' }}>Persona Física</option>
+                    <option value="Persona Moral" {{ old('tipo_persona')=='Persona Moral'?'selected':'' }}>Persona Moral</option>
                 </select>
-                @error('tipo_persona') <span class="error-msg">{{ $message }}</span> @enderror
+                @error('tipo_persona')<span class="error-msg">{{ $message }}</span>@enderror
             </div>
-
             <div class="form-row">
-                <div class="field" style="margin-bottom:0">
-                    <label>Teléfono <span class="req">*</span></label>
-                    <input type="tel" name="telefono"
-                           placeholder="33 1234 5678"
-                           value="{{ old('telefono') }}"
-                           required>
-                    @error('telefono') <span class="error-msg">{{ $message }}</span> @enderror
-                </div>
-                <div class="field" style="margin-bottom:0">
-                    <label>Correo electrónico <span class="req">*</span></label>
-                    <input type="email" name="correo"
-                           placeholder="tu@correo.com"
-                           value="{{ old('correo') }}"
-                           required>
-                    @error('correo') <span class="error-msg">{{ $message }}</span> @enderror
-                </div>
+                <div class="field"><label>Teléfono <span class="req">*</span></label><input type="tel" name="telefono" placeholder="33 1234 5678" value="{{ old('telefono') }}" required>@error('telefono')<span class="error-msg">{{ $message }}</span>@enderror</div>
+                <div class="field"><label>Correo electrónico <span class="req">*</span></label><input type="email" name="correo" placeholder="tu@correo.com" value="{{ old('correo') }}" required>@error('correo')<span class="error-msg">{{ $message }}</span>@enderror</div>
             </div>
-
-            <div style="margin-bottom:18px"></div>
-
             <div class="divider">Cambiar contraseña (opcional)</div>
-
             <div class="form-row">
-                <div class="field" style="margin-bottom:0">
-                    <label>Nueva contraseña</label>
-                    <input type="password" name="password"
-                           placeholder="Dejar vacío para no cambiar">
-                    @error('password') <span class="error-msg">{{ $message }}</span> @enderror
-                </div>
-                <div class="field" style="margin-bottom:0">
-                    <label>Confirmar contraseña</label>
-                    <input type="password" name="password_confirmation"
-                           placeholder="Repite la nueva contraseña">
-                </div>
+                <div class="field"><label>Nueva contraseña</label><input type="password" name="password" placeholder="Dejar vacío para no cambiar">@error('password')<span class="error-msg">{{ $message }}</span>@enderror</div>
+                <div class="field"><label>Confirmar contraseña</label><input type="password" name="password_confirmation" placeholder="Repite la nueva contraseña"></div>
             </div>
-
-            <div style="margin-bottom:24px"></div>
-
             <button type="submit" class="btn-submit">Guardar cambios</button>
-
         </form>
-
-        <p class="back-link">
-            <a href="{{ route('proveedores.portal') }}">← Volver al portal</a>
-        </p>
-
+        <p class="back-link"><a href="{{ route('proveedores.portal') }}">← Volver al portal</a></p>
     </div>
-
-    <div></div>
-
+    <div class="footer-text">&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
 </div>
-
-{{-- FOOTER --}}
-<footer>
-    <div class="footer-logo">Industrias Salcom</div>
-    <p>© {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</p>
-</footer>
-
 </body>
 </html>
