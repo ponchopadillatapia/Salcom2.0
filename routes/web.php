@@ -33,7 +33,7 @@ Route::get('/consultar-oc', [OrdenCompraController::class, 'mostrarConsultarOC']
 Route::get('/alta-producto', [AltaProductoController::class, 'mostrarAltaProducto'])->name('proveedores.alta-producto')->middleware('auth.proveedor');
 
 // ── Validación de documentos fiscales (Alfonso) ──
-Route::get('/empresa', function () {
+Route::get('/validacion-fiscal', function () {
     return view('APIS.empresa');
 })->name('empresa.form');
 

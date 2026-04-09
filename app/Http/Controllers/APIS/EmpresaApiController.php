@@ -551,8 +551,18 @@ class EmpresaApiController extends Controller
      */
     private function ocrDesdePdf(Parser $parser, string $pdfPath): string
     {
-        $tesseractPath = 'C:\\Users\\IT 2\\AppData\\Local\\Programs\\Tesseract-OCR\\tesseract.exe';
-        if (!file_exists($tesseractPath)) return '';
+        // Buscar Tesseract en rutas comunes de Windows
+        $rutasPosibles = [
+            'C:\\Users\\IT 2\\AppData\\Local\\Programs\\Tesseract-OCR\\tesseract.exe',  // PC Alfonso
+            'C:\\Users\\IT\\AppData\\Local\\Programs\\Tesseract-OCR\\tesseract.exe',    // PC Said
+            'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+            'C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe',
+        ];
+        $tesseractPath = null;
+        foreach ($rutasPosibles as $ruta) {
+            if (file_exists($ruta)) { $tesseractPath = $ruta; break; }
+        }
+        if (!$tesseractPath) return '';
 
         $textoTotal = '';
         $tmpDir = sys_get_temp_dir();
