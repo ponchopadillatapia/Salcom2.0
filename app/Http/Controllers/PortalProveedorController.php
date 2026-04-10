@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ProveedorUser;
+
 class PortalProveedorController extends Controller
 {
     public function mostrarPortal()
@@ -31,6 +33,10 @@ class PortalProveedorController extends Controller
 
     public function mostrarPerfil()
     {
-        return view('proveedores.perfil');
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+
+        return view('proveedores.perfil', [
+            'proveedor' => $proveedor,
+        ]);
     }
 }
