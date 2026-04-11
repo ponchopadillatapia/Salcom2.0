@@ -6,6 +6,7 @@ use App\Http\Controllers\PortalProveedorController;
 use App\Http\Controllers\OrdenCompraController;
 use App\Http\Controllers\AltaProductoController;
 use App\Http\Controllers\APIS\EmpresaApiController;
+use App\Http\Controllers\MuestraController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -40,3 +41,11 @@ Route::get('/validacion-fiscal', function () {
 })->name('empresa.form');
 
 Route::post('/api/empresa', [EmpresaApiController::class, 'validar'])->name('empresa.validar');
+
+// ── Envío de Muestras (Alfonso) ──
+Route::get('/muestras/nueva', [MuestraController::class, 'crear'])->name('muestras.crear');
+Route::post('/muestras', [MuestraController::class, 'guardar'])->name('muestras.guardar');
+Route::get('/muestras/admin', [MuestraController::class, 'admin'])->name('muestras.admin');
+Route::patch('/muestras/{muestra}/aprobar', [MuestraController::class, 'aprobar'])->name('muestras.aprobar');
+Route::patch('/muestras/{muestra}/rechazar', [MuestraController::class, 'rechazar'])->name('muestras.rechazar');
+Route::patch('/muestras/{muestra}/reiniciar', [MuestraController::class, 'reiniciar'])->name('muestras.reiniciar');
