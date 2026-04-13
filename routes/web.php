@@ -49,3 +49,15 @@ Route::get('/muestras/admin', [MuestraController::class, 'admin'])->name('muestr
 Route::patch('/muestras/{muestra}/aprobar', [MuestraController::class, 'aprobar'])->name('muestras.aprobar');
 Route::patch('/muestras/{muestra}/rechazar', [MuestraController::class, 'rechazar'])->name('muestras.rechazar');
 Route::patch('/muestras/{muestra}/reiniciar', [MuestraController::class, 'reiniciar'])->name('muestras.reiniciar');
+
+// ── Portal de Clientes ──
+use App\Http\Controllers\AuthClienteController;
+use App\Http\Controllers\PortalClienteController;
+
+Route::get('/login-cliente', [AuthClienteController::class, 'mostrarLogin'])->name('clientes.login');
+Route::post('/login-cliente', [AuthClienteController::class, 'procesarLogin'])->name('clientes.login.procesar');
+Route::post('/logout-cliente', [AuthClienteController::class, 'cerrarSesion'])->name('clientes.logout');
+Route::get('/portal-cliente', [PortalClienteController::class, 'mostrarPortal'])->name('clientes.portal')->middleware('auth.cliente');
+Route::get('/cliente/dashboard', [PortalClienteController::class, 'mostrarDashboard'])->name('clientes.dashboard')->middleware('auth.cliente');
+Route::get('/cliente/catalogo', [PortalClienteController::class, 'mostrarCatalogo'])->name('clientes.catalogo')->middleware('auth.cliente');
+Route::get('/cliente/pedidos', [PortalClienteController::class, 'mostrarPedidos'])->name('clientes.pedidos')->middleware('auth.cliente');
