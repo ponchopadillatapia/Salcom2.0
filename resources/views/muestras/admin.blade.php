@@ -130,7 +130,7 @@
 
     @forelse($muestras as $m)
         @php
-            $orden = ['registro','recepcion','validacion','laboratorio','piso','estabilidad','aprobado'];
+            $orden = ['registro','recepcion','laboratorio','piso','estabilidad','aprobado'];
             $etapaActual = $m->etapa;
             $indiceActual = array_search($etapaActual, $orden);
             $esRechazado = $etapaActual === 'rechazado';
