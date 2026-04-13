@@ -61,3 +61,14 @@ Route::get('/portal-cliente', [PortalClienteController::class, 'mostrarPortal'])
 Route::get('/cliente/dashboard', [PortalClienteController::class, 'mostrarDashboard'])->name('clientes.dashboard')->middleware('auth.cliente');
 Route::get('/cliente/catalogo', [PortalClienteController::class, 'mostrarCatalogo'])->name('clientes.catalogo')->middleware('auth.cliente');
 Route::get('/cliente/pedidos', [PortalClienteController::class, 'mostrarPedidos'])->name('clientes.pedidos')->middleware('auth.cliente');
+Route::get('/cliente/estado-cuenta', [PortalClienteController::class, 'mostrarEstadoCuenta'])->name('clientes.estado-cuenta')->middleware('auth.cliente');
+Route::get('/cliente/tracking', [PortalClienteController::class, 'mostrarTracking'])->name('clientes.tracking')->middleware('auth.cliente');
+Route::get('/cliente/perfil', [PortalClienteController::class, 'mostrarPerfil'])->name('clientes.perfil')->middleware('auth.cliente');
+
+// ── Admin: Alta de Clientes (interno Salcom) ──
+use App\Http\Controllers\AdminClienteController;
+Route::get('/admin/cliente/alta', [AdminClienteController::class, 'mostrarAlta'])->name('admin.cliente.alta');
+Route::post('/admin/cliente/alta', [AdminClienteController::class, 'guardar'])->name('admin.cliente.guardar');
+
+// ── Encuesta de satisfacción ──
+Route::get('/cliente/encuesta', [PortalClienteController::class, 'mostrarEncuesta'])->name('clientes.encuesta')->middleware('auth.cliente');

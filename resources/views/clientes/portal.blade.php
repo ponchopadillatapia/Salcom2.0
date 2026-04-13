@@ -56,16 +56,25 @@
     <div class="greeting">Hola, {{ session('cliente_nombre', 'Cliente') }}</div>
     <div class="greeting-sub">Bienvenido al Portal de Clientes de Industrias Salcom</div>
     <div class="top-grid">
-        <div class="card"><h4>Pedidos activos</h4><div class="stat-val">—</div><div class="stat-label">Pendiente de API</div></div>
-        <div class="card"><h4>Catálogo</h4><div class="stat-val">—</div><div class="stat-label">Pendiente de API</div></div>
-        <div class="card"><h4>Estado de cuenta</h4><div class="stat-val">Contado</div><div class="stat-label">Sin crédito</div></div>
-        <div class="card"><h4>Tipo de cliente</h4><div class="stat-val">{{ session('cliente_tipo', '—') }}</div><div class="stat-label">Clasificación</div></div>
+        <div class="card"><h4>Pedidos activos</h4><div class="stat-val">3</div><div class="stat-label">En proceso</div></div>
+        <div class="card"><h4>Último pedido</h4><div class="stat-val">PED-005</div><div class="stat-label">09/04/2026</div></div>
+        <div class="card"><h4>Saldo pendiente</h4><div class="stat-val">$0.00</div><div class="stat-label">Al corriente</div></div>
+        <div class="card"><h4>Tipo de cliente</h4><div class="stat-val">{{ ucfirst(session('cliente_tipo', '—')) }}</div><div class="stat-label">Clasificación</div></div>
     </div>
     <div class="section-label">Acceso rápido</div>
-    <div class="quick-grid">
+    <div class="quick-grid" style="margin-bottom:24px">
         <a href="{{ route('clientes.catalogo') }}" class="quick-card"><div class="quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><div><div class="quick-title">Catálogo</div><div class="quick-desc">Productos y precios</div></div></a>
         <a href="{{ route('clientes.pedidos') }}" class="quick-card"><div class="quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div><div class="quick-title">Mis Pedidos</div><div class="quick-desc">Estatus y seguimiento</div></div></a>
+        <a href="{{ route('clientes.tracking') }}" class="quick-card"><div class="quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><div><div class="quick-title">Tracking</div><div class="quick-desc">Seguimiento de envíos</div></div></a>
+        <a href="{{ route('clientes.estado-cuenta') }}" class="quick-card"><div class="quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><div><div class="quick-title">Estado de cuenta</div><div class="quick-desc">Facturas y saldos</div></div></a>
         <a href="{{ route('clientes.dashboard') }}" class="quick-card"><div class="quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></div><div><div class="quick-title">Dashboard</div><div class="quick-desc">Métricas y resumen</div></div></a>
+        <a href="{{ route('clientes.perfil') }}" class="quick-card"><div class="quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><div><div class="quick-title">Mi Perfil</div><div class="quick-desc">Datos de cuenta</div></div></a>
+    </div>
+    <div class="section-label">Actividad reciente</div>
+    <div style="background:var(--white);border:1px solid var(--border-accent);border-radius:10px;padding:16px 20px">
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><div style="width:7px;height:7px;border-radius:50%;background:#059669;flex-shrink:0"></div><span style="flex:1">PED-2026-004 autorizado por área comercial</span><span style="font-size:11px;color:#9ca3af">07/04</span></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><div style="width:7px;height:7px;border-radius:50%;background:#d97706;flex-shrink:0"></div><span style="flex:1">Factura CFDI-A-001236 pendiente de pago</span><span style="font-size:11px;color:#9ca3af">05/04</span></div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px"><div style="width:7px;height:7px;border-radius:50%;background:#2563eb;flex-shrink:0"></div><span style="flex:1">PED-2026-002 salió de planta</span><span style="font-size:11px;color:#9ca3af">06/04</span></div>
     </div>
 </div>
 <footer><div class="footer-brand">Industrias Salcom</div><p>&copy; {{ date('Y') }} Industrias Salcom.</p></footer>
