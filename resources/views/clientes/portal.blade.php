@@ -13,7 +13,10 @@
         .nav-brand{font-weight:700;font-size:16px;color:var(--primary)}.portal-menu{display:flex;align-items:center}.portal-menu a{font-size:13px;font-weight:600;color:var(--primary);text-decoration:none;padding:16px 14px;border-bottom:2px solid var(--primary)}
         .nav-right{display:flex;align-items:center;gap:16px;margin-left:auto}.nav-user{font-size:13px;color:var(--text);font-weight:500}
         .btn-logout{font-size:12px;color:var(--text-secondary);padding:5px 14px;border:1px solid var(--border);border-radius:6px;background:var(--white);cursor:pointer;font-family:inherit;font-weight:500;transition:all .15s}.btn-logout:hover{background:var(--bg);color:var(--text)}
-        .sidebar-trigger{position:fixed;left:0;top:52px;width:20px;height:calc(100vh - 52px);z-index:300}
+        .sidebar-trigger{position:fixed;left:0;top:52px;width:20px;height:calc(100vh - 52px);z-index:300;display:flex;align-items:center}
+        .sidebar-tab{width:20px;height:48px;background:#6B3FA0;border-radius:0 8px 8px 0;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:.7;transition:all .2s;box-shadow:2px 0 8px rgba(107,63,160,.15)}
+        .sidebar-tab:hover{opacity:1;width:24px}
+        .sidebar-tab svg{stroke:#fff}
         .sidebar-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.15);z-index:299;opacity:0;pointer-events:none;transition:opacity .2s}.sidebar-overlay.active{opacity:1;pointer-events:auto}
         .hover-sidebar{position:fixed;left:-240px;top:52px;width:240px;height:calc(100vh - 52px);background:var(--white);border-right:1px solid var(--border);z-index:301;transition:left .2s;overflow-y:auto;box-shadow:4px 0 20px rgba(0,0,0,0.08);display:flex;flex-direction:column}
         .hover-sidebar.open{left:0}
@@ -41,7 +44,9 @@
     <div class="portal-menu"><a href="{{ route('clientes.portal') }}">Inicio</a></div>
     <div class="nav-right"><span class="nav-user">{{ session('cliente_nombre', 'Cliente') }}</span><form method="POST" action="{{ route('clientes.logout') }}" style="display:inline">@csrf<button type="submit" class="btn-logout">Cerrar sesión</button></form></div>
 </nav>
-<div class="sidebar-trigger" id="sbTrigger"></div>
+<div class="sidebar-trigger" id="sbTrigger">
+    <div class="sidebar-tab"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></div>
+</div>
 <div class="sidebar-overlay" id="sbOverlay"></div>
 <div class="hover-sidebar" id="hoverSidebar">
     <div class="sb-section">Principal</div>
