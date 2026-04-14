@@ -88,7 +88,10 @@
         @media (max-width: 900px) { .top-grid { grid-template-columns: 1fr 1fr; } .mid-grid { grid-template-columns: 1fr; } .portal-menu { display: none; } }
 
         /* ── HOVER SIDEBAR ── */
-        .sidebar-trigger { position: fixed; left: 0; top: 52px; width: 20px; height: calc(100vh - 52px); z-index: 300; }
+        .sidebar-trigger { position: fixed; left: 0; top: 52px; width: 20px; height: calc(100vh - 52px); z-index: 300; display:flex; align-items:center; }
+        .sidebar-tab { width:20px; height:48px; background:#6B3FA0; border-radius:0 8px 8px 0; display:flex; align-items:center; justify-content:center; cursor:pointer; opacity:.7; transition:all .2s; box-shadow:2px 0 8px rgba(107,63,160,.15); }
+        .sidebar-tab:hover { opacity:1; width:24px; }
+        .sidebar-tab svg { stroke:#fff; }
         .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.15); z-index: 299; opacity: 0; pointer-events: none; transition: opacity .2s; }
         .sidebar-overlay.active { opacity: 1; pointer-events: auto; }
         .hover-sidebar {
@@ -126,7 +129,9 @@
 </nav>
 
 {{-- HOVER SIDEBAR --}}
-<div class="sidebar-trigger" id="sbTrigger"></div>
+<div class="sidebar-trigger" id="sbTrigger">
+    <div class="sidebar-tab"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></div>
+</div>
 <div class="sidebar-overlay" id="sbOverlay"></div>
 <div class="hover-sidebar" id="hoverSidebar">
     <div class="sb-section">Principal</div>
