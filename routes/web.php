@@ -72,3 +72,4 @@ Route::post('/admin/cliente/alta', [AdminClienteController::class, 'guardar'])->
 
 // ── Encuesta de satisfacción ──
 Route::get('/cliente/encuesta', [PortalClienteController::class, 'mostrarEncuesta'])->name('clientes.encuesta')->middleware('auth.cliente');
+Route::post('/cliente/encuesta', [PortalClienteController::class, 'guardarEncuesta'])->name('clientes.encuesta.guardar')->middleware('auth.cliente');

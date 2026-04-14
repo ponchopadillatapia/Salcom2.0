@@ -12,52 +12,97 @@
     .radio-group{display:flex;flex-direction:column;gap:8px}.radio-item{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--gray-text);cursor:pointer}.radio-item input{accent-color:#6B3FA0}
     .textarea{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-family:inherit;color:var(--gray-text);outline:none;resize:vertical;min-height:80px}.textarea:focus{border-color:#6B3FA0;box-shadow:0 0 0 3px rgba(107,63,160,.1)}
     .btn-send{padding:12px 32px;background:#6B3FA0;color:#fff;border:none;border-radius:10px;font-size:14px;font-family:inherit;font-weight:600;cursor:pointer;transition:all .15s}.btn-send:hover{background:#4A2070}
-    .success-card{display:none;background:#ecfdf5;border:1px solid #059669;border-radius:12px;padding:32px;text-align:center;max-width:600px}
+    .success-card{background:#ecfdf5;border:1px solid #059669;border-radius:12px;padding:32px;text-align:center;max-width:600px}
     .success-card h3{color:#059669;font-size:18px;margin-bottom:8px}.success-card p{font-size:14px;color:#6b7280}
+    .error-list{background:#fef2f2;border:1px solid #ef4444;border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:#dc2626}
+    .error-list ul{margin:0;padding-left:18px}
 </style>
 @endpush
 @section('content')
-<div class="enc-card" id="encForm">
-    <div class="enc-title">¿Cómo fue tu experiencia?</div>
-    <div class="enc-sub">Pedido: PED-2026-001 — Entregado el 04/04/2026</div>
-    <div class="question">
-        <div class="q-label">Calificación general</div>
-        <div class="stars" id="stars">
-            <button class="star" onclick="setStars(1)">★</button><button class="star" onclick="setStars(2)">★</button><button class="star" onclick="setStars(3)">★</button><button class="star" onclick="setStars(4)">★</button><button class="star" onclick="setStars(5)">★</button>
+
+@if(session('encuesta_guardada'))
+    <div class="success-card">
+        <h3>¡Gracias por tu opinión!</h3>
+        <p>Tu retroalimentación nos ayuda a mejorar nuestro servicio. Si tienes alguna duda, contacta a tu ejecutivo de cuenta.</p>
+    </div>
+@else
+    <form method="POST" action="{{ route('clientes.encuesta.guardar') }}" class="enc-card" id="encForm">
+        @csrf
+        <div class="enc-title">¿Cómo fue tu experiencia?</div>
+        <div class="enc-sub">Completa la encuesta para ayudarnos a mejorar</div>
+
+        @if($errors->any())
+            <div class="error-list">
+                <ul>
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        @if(request('pedido_id'))
+            <input type="hidden" name="pedido_id" value="{{ request('pedido_id') }}">
+        @endif
+
+        <input type="hidden" name="calificacion" id="calificacionInput" value="{{ old('calificacion') }}">
+
+        <div class="question">
+            <div class="q-label">Calificación general</div>
+            <div class="stars" id="stars">
+                <button type="button" class="star" data-value="1" aria-label="1 estrella">★</button>
+                <button type="button" class="star" data-value="2" aria-label="2 estrellas">★</button>
+                <button type="button" class="star" data-value="3" aria-label="3 estrellas">★</button>
+                <button type="button" class="star" data-value="4" aria-label="4 estrellas">★</button>
+                <button type="button" class="star" data-value="5" aria-label="5 estrellas">★</button>
+            </div>
         </div>
-    </div>
-    <div class="question">
-        <div class="q-label">Tiempo de entrega</div>
-        <div class="radio-group">
-            <label class="radio-item"><input type="radio" name="tiempo" value="rapido">Más rápido de lo esperado</label>
-            <label class="radio-item"><input type="radio" name="tiempo" value="normal" checked>Dentro del tiempo estimado</label>
-            <label class="radio-item"><input type="radio" name="tiempo" value="lento">Más lento de lo esperado</label>
+        <div class="question">
+            <div class="q-label">Tiempo de entrega</div>
+            <div class="radio-group">
+                <label class="radio-item"><input type="radio" name="tiempo_entrega" value="rapido" {{ old('tiempo_entrega')=='rapido'?'checked':'' }}>Más rápido de lo esperado</label>
+                <label class="radio-item"><input type="radio" name="tiempo_entrega" value="normal" {{ old('tiempo_entrega','normal')=='normal'?'checked':'' }}>Dentro del tiempo estimado</label>
+                <label class="radio-item"><input type="radio" name="tiempo_entrega" value="lento" {{ old('tiempo_entrega')=='lento'?'checked':'' }}>Más lento de lo esperado</label>
+            </div>
         </div>
-    </div>
-    <div class="question">
-        <div class="q-label">Calidad del producto</div>
-        <div class="radio-group">
-            <label class="radio-item"><input type="radio" name="calidad" value="excelente" checked>Excelente</label>
-            <label class="radio-item"><input type="radio" name="calidad" value="buena">Buena</label>
-            <label class="radio-item"><input type="radio" name="calidad" value="regular">Regular</label>
-            <label class="radio-item"><input type="radio" name="calidad" value="mala">Mala</label>
+        <div class="question">
+            <div class="q-label">Calidad del producto</div>
+            <div class="radio-group">
+                <label class="radio-item"><input type="radio" name="calidad_producto" value="excelente" {{ old('calidad_producto','excelente')=='excelente'?'checked':'' }}>Excelente</label>
+                <label class="radio-item"><input type="radio" name="calidad_producto" value="buena" {{ old('calidad_producto')=='buena'?'checked':'' }}>Buena</label>
+                <label class="radio-item"><input type="radio" name="calidad_producto" value="regular" {{ old('calidad_producto')=='regular'?'checked':'' }}>Regular</label>
+                <label class="radio-item"><input type="radio" name="calidad_producto" value="mala" {{ old('calidad_producto')=='mala'?'checked':'' }}>Mala</label>
+            </div>
         </div>
-    </div>
-    <div class="question">
-        <div class="q-label">Comentarios adicionales</div>
-        <textarea class="textarea" id="comentarios" placeholder="Cuéntanos tu experiencia..."></textarea>
-    </div>
-    <button class="btn-send" onclick="enviarEncuesta()">Enviar encuesta</button>
-</div>
-<div class="success-card" id="encSuccess">
-    <h3>¡Gracias por tu opinión!</h3>
-    <p>Tu retroalimentación nos ayuda a mejorar nuestro servicio. Si tienes alguna duda, contacta a tu ejecutivo de cuenta.</p>
-</div>
+        <div class="question">
+            <div class="q-label">Comentarios adicionales</div>
+            <textarea class="textarea" name="comentarios" placeholder="Cuéntanos tu experiencia...">{{ old('comentarios') }}</textarea>
+        </div>
+        <button type="submit" class="btn-send">Enviar encuesta</button>
+    </form>
+@endif
+
 @endsection
 @push('scripts')
 <script>
-let rating=0;
-function setStars(n){rating=n;document.querySelectorAll('#stars .star').forEach((s,i)=>{s.classList.toggle('active',i<n)})}
-function enviarEncuesta(){if(!rating){alert('Selecciona una calificación');return}document.getElementById('encForm').style.display='none';document.getElementById('encSuccess').style.display='block'}
+(function(){
+    const input = document.getElementById('calificacionInput');
+    const stars = document.querySelectorAll('#stars .star');
+    let rating = parseInt(input?.value) || 0;
+
+    function render() {
+        stars.forEach(function(s, i) { s.classList.toggle('active', i < rating); });
+    }
+
+    stars.forEach(function(s) {
+        s.addEventListener('click', function() {
+            rating = parseInt(this.getAttribute('data-value'));
+            input.value = rating;
+            render();
+        });
+    });
+
+    render();
+})();
 </script>
 @endpush
