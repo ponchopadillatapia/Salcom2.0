@@ -136,6 +136,7 @@
     <div class="sb-section">Operaciones</div>
     <a href="{{ route('proveedores.oc') }}" class="sb-link"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>Consultar OC</a>
     <a href="{{ route('proveedores.alta-producto') }}" class="sb-link"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>Alta de producto</a>
+    <a href="{{ route('muestras.crear') }}" class="sb-link"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>Envío de muestras</a>
     <a href="{{ route('proveedores.payment-history') }}" class="sb-link"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>Historial de pagos</a>
     <div class="sb-hr"></div>
     <div class="sb-section">Mi empresa</div>
@@ -213,7 +214,7 @@
     </div>
 
     {{-- BOTTOM: Quick access --}}
-    <div class="top-grid" style="grid-template-columns: repeat(3,1fr);">
+    <div class="top-grid" style="grid-template-columns: repeat(4,1fr);">
         <a href="{{ route('proveedores.oc') }}" class="card" style="text-decoration:none;display:flex;align-items:center;gap:14px;">
             <div style="width:40px;height:40px;border-radius:10px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
             <div><div style="font-weight:600;color:var(--text);font-size:14px;">Consultar OC</div><div style="font-size:12px;color:var(--text-secondary);">Órdenes de compra</div></div>
@@ -225,6 +226,10 @@
         <a href="{{ route('proveedores.alta-producto') }}" class="card" style="text-decoration:none;display:flex;align-items:center;gap:14px;">
             <div style="width:40px;height:40px;border-radius:10px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
             <div><div style="font-weight:600;color:var(--text);font-size:14px;">Alta de producto</div><div style="font-size:12px;color:var(--text-secondary);">Nuevo producto</div></div>
+        </a>
+        <a href="{{ route('muestras.crear') }}" class="card" style="text-decoration:none;display:flex;align-items:center;gap:14px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+            <div><div style="font-weight:600;color:var(--text);font-size:14px;">Envío de muestras</div><div style="font-size:12px;color:var(--text-secondary);">Registro y seguimiento</div></div>
         </a>
     </div>
 </div>

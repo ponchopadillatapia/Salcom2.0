@@ -206,11 +206,11 @@
         </p>
     </div>
 
-    <div class="muestras-card">
+    <a href="{{ route('muestras.crear') }}" class="muestras-card" style="text-decoration:none;">
         <div class="muestras-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
         <div class="muestras-info"><div class="muestras-title">Envío de muestras</div><div class="muestras-desc">Registro y seguimiento de muestras</div></div>
-        <span class="muestras-badge">Próximamente</span>
-    </div>
+        <span class="muestras-badge" style="background:rgba(107,63,160,0.3);color:#c4b5fd;">Entrar →</span>
+    </a>
 
     <div class="footer-text">&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
 </div>
