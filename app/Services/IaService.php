@@ -105,11 +105,11 @@ class IaService
         }
 
         try {
-            $response = Http::timeout($this->timeout)
+            $response = Http::asJson()
+                ->timeout($this->timeout)
                 ->withHeaders([
                     'x-api-key'         => $this->apiKey,
                     'anthropic-version' => '2023-06-01',
-                    'content-type'      => 'application/json',
                 ])
                 ->post('https://api.anthropic.com/v1/messages', [
                     'model'      => $this->model,
@@ -135,13 +135,18 @@ class IaService
 
             Log::error('IaService: error de API Claude', [
                 'status' => $response->status(),
-                'body'   => $response->body(),
+                'body'   => $response->json() ?? $response->body(),
             ]);
+
+            $errorBody = $response->json();
+            $errorMsg  = $errorBody['error']['message'] ?? null;
 
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => 'Error de la API de Claude (HTTP ' . $response->status() . ')',
+                'error'   => $errorMsg
+                    ? 'Error de Claude: ' . $errorMsg
+                    : 'Error de la API de Claude (HTTP ' . $response->status() . ')',
             ];
         } catch (\Exception $e) {
             Log::error('IaService: excepción al llamar Claude', [

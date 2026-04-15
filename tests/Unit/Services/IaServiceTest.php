@@ -76,14 +76,17 @@ class IaServiceTest extends TestCase
     public function test_llamar_claude_error_http(): void
     {
         Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response(['error' => 'rate_limit'], 429),
+            'https://api.anthropic.com/v1/messages' => Http::response([
+                'type' => 'error',
+                'error' => ['type' => 'rate_limit_error', 'message' => 'Rate limited'],
+            ], 429),
         ]);
 
         $result = $this->service->llamarClaude('Test');
 
         $this->assertFalse($result['success']);
         $this->assertNull($result['content']);
-        $this->assertStringContains('HTTP 429', $result['error']);
+        $this->assertStringContains('Rate limited', $result['error']);
     }
 
     public function test_llamar_claude_log_en_error(): void
