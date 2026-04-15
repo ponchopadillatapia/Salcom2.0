@@ -10,62 +10,72 @@ use Tests\TestCase;
 class IaServiceTest extends TestCase
 {
     private IaService $service;
+    private string $groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
     protected function setUp(): void
     {
         parent::setUp();
-        config(['services.claude.api_key' => 'test-api-key']);
-        config(['services.claude.model' => 'claude-sonnet-4-20250514']);
-        config(['services.claude.timeout' => 30]);
+        config(['services.groq.url' => $this->groqUrl]);
+        config(['services.groq.api_key' => 'test-api-key']);
+        config(['services.groq.model' => 'llama-3.3-70b-versatile']);
+        config(['services.groq.timeout' => 30]);
         $this->service = new IaService();
     }
 
-    // ══════════════════════════════════════════════
-    // llamarClaude
-    // ══════════════════════════════════════════════
-
-    public function test_llamar_claude_exitoso(): void
+    /**
+     * Helper: respuesta exitosa de Groq (formato OpenAI).
+     */
+    private function fakeGroqSuccess(string $text = 'Respuesta de prueba'): void
     {
         Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'content' => [['type' => 'text', 'text' => 'Respuesta de prueba']],
+            $this->groqUrl => Http::response([
+                'id'      => 'chatcmpl-test',
+                'object'  => 'chat.completion',
+                'choices' => [
+                    ['index' => 0, 'message' => ['role' => 'assistant', 'content' => $text]],
+                ],
             ], 200),
         ]);
+    }
 
-        $result = $this->service->llamarClaude('Hola');
+    // ══════════════════════════════════════════════
+    // llamarGroq
+    // ══════════════════════════════════════════════
+
+    public function test_llamar_groq_exitoso(): void
+    {
+        $this->fakeGroqSuccess('Respuesta de prueba');
+
+        $result = $this->service->llamarGroq('Hola');
 
         $this->assertTrue($result['success']);
         $this->assertEquals('Respuesta de prueba', $result['content']);
         $this->assertNull($result['error']);
     }
 
-    public function test_llamar_claude_envia_headers_correctos(): void
+    public function test_llamar_groq_envia_headers_correctos(): void
     {
-        Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'content' => [['type' => 'text', 'text' => 'OK']],
-            ], 200),
-        ]);
+        $this->fakeGroqSuccess('OK');
 
-        $this->service->llamarClaude('Test');
+        $this->service->llamarGroq('Test');
 
         Http::assertSent(function ($request) {
-            return $request->hasHeader('x-api-key', 'test-api-key')
-                && $request->hasHeader('anthropic-version', '2023-06-01')
-                && $request->url() === 'https://api.anthropic.com/v1/messages'
-                && $request['model'] === 'claude-sonnet-4-20250514'
+            return $request->hasHeader('Authorization', 'Bearer test-api-key')
+                && $request->url() === $this->groqUrl
+                && $request['model'] === 'llama-3.3-70b-versatile'
+                && $request['messages'][0]['role'] === 'user'
                 && $request['messages'][0]['content'] === 'Test';
         });
     }
 
-    public function test_llamar_claude_sin_api_key(): void
+    public function test_llamar_groq_sin_api_key(): void
     {
-        config(['services.claude.api_key' => '']);
+        config(['services.groq.api_key' => '']);
         $service = new IaService();
 
         Http::fake();
 
-        $result = $service->llamarClaude('Test');
+        $result = $service->llamarGroq('Test');
 
         $this->assertFalse($result['success']);
         $this->assertNull($result['content']);
@@ -73,33 +83,44 @@ class IaServiceTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_llamar_claude_error_http(): void
+    public function test_llamar_groq_error_http(): void
     {
         Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'type' => 'error',
-                'error' => ['type' => 'rate_limit_error', 'message' => 'Rate limited'],
+            $this->groqUrl => Http::response([
+                'error' => ['message' => 'Rate limit exceeded', 'type' => 'rate_limit_error'],
             ], 429),
         ]);
 
-        $result = $this->service->llamarClaude('Test');
+        $result = $this->service->llamarGroq('Test');
 
         $this->assertFalse($result['success']);
         $this->assertNull($result['content']);
-        $this->assertStringContains('Rate limited', $result['error']);
+        $this->assertStringContains('Rate limit exceeded', $result['error']);
     }
 
-    public function test_llamar_claude_log_en_error(): void
+    public function test_llamar_groq_error_sin_mensaje_detallado(): void
+    {
+        Http::fake([
+            $this->groqUrl => Http::response([], 500),
+        ]);
+
+        $result = $this->service->llamarGroq('Test');
+
+        $this->assertFalse($result['success']);
+        $this->assertStringContains('HTTP 500', $result['error']);
+    }
+
+    public function test_llamar_groq_log_en_error(): void
     {
         Log::shouldReceive('error')
             ->atLeast()->once()
             ->withArgs(fn ($msg) => str_contains($msg, 'IaService'));
 
         Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([], 500),
+            $this->groqUrl => Http::response([], 500),
         ]);
 
-        $this->service->llamarClaude('Test');
+        $this->service->llamarGroq('Test');
     }
 
     // ══════════════════════════════════════════════
@@ -108,11 +129,7 @@ class IaServiceTest extends TestCase
 
     public function test_pronostico_demanda_estructura(): void
     {
-        Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'content' => [['type' => 'text', 'text' => 'Pronóstico generado']],
-            ], 200),
-        ]);
+        $this->fakeGroqSuccess('Pronóstico generado');
 
         $result = $this->service->pronosticoDemanda('CLI-001');
 
@@ -127,11 +144,7 @@ class IaServiceTest extends TestCase
 
     public function test_pronostico_demanda_envia_historial_en_prompt(): void
     {
-        Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'content' => [['type' => 'text', 'text' => 'OK']],
-            ], 200),
-        ]);
+        $this->fakeGroqSuccess('OK');
 
         $this->service->pronosticoDemanda('CLI-002');
 
@@ -149,11 +162,7 @@ class IaServiceTest extends TestCase
 
     public function test_optimizacion_inventario_estructura(): void
     {
-        Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'content' => [['type' => 'text', 'text' => 'Optimización generada']],
-            ], 200),
-        ]);
+        $this->fakeGroqSuccess('Optimización generada');
 
         $result = $this->service->optimizacionInventario();
 
@@ -171,11 +180,7 @@ class IaServiceTest extends TestCase
 
     public function test_seleccion_proveedor_estructura(): void
     {
-        Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'content' => [['type' => 'text', 'text' => 'Proveedor recomendado']],
-            ], 200),
-        ]);
+        $this->fakeGroqSuccess('Proveedor recomendado');
 
         $result = $this->service->seleccionProveedor('SAL-001');
 
@@ -189,15 +194,10 @@ class IaServiceTest extends TestCase
 
     public function test_seleccion_proveedor_producto_no_existente_usa_default(): void
     {
-        Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'content' => [['type' => 'text', 'text' => 'OK']],
-            ], 200),
-        ]);
+        $this->fakeGroqSuccess('OK');
 
         $result = $this->service->seleccionProveedor('NO-EXISTE');
 
-        // Debe usar SAL-001 como default
         $this->assertEquals('SAL-001', $result['producto']['sku']);
     }
 

@@ -2,12 +2,26 @@
 
 namespace Tests\Feature;
 
-use App\Services\IaService;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class IaDashboardTest extends TestCase
 {
+    private string $groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
+
+    private function fakeGroqSuccess(string $text): void
+    {
+        Http::fake([
+            $this->groqUrl => Http::response([
+                'id'      => 'chatcmpl-test',
+                'object'  => 'chat.completion',
+                'choices' => [
+                    ['index' => 0, 'message' => ['role' => 'assistant', 'content' => $text]],
+                ],
+            ], 200),
+        ]);
+    }
+
     public function test_dashboard_ia_carga_correctamente(): void
     {
         $response = $this->get('/admin/ia');
@@ -37,15 +51,10 @@ class IaDashboardTest extends TestCase
         $response->assertSessionHasErrors('codigo_cliente');
     }
 
-    public function test_pronostico_demanda_con_api_claude_exitosa(): void
+    public function test_pronostico_demanda_con_api_groq_exitosa(): void
     {
-        Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'content' => [['type' => 'text', 'text' => 'Análisis de pronóstico generado por IA']],
-            ], 200),
-        ]);
-
-        config(['services.claude.api_key' => 'test-key']);
+        $this->fakeGroqSuccess('Análisis de pronóstico generado por IA');
+        config(['services.groq.api_key' => 'test-key']);
 
         $response = $this->post('/admin/ia/pronostico', [
             'codigo_cliente' => 'CLI-001',
@@ -58,25 +67,20 @@ class IaDashboardTest extends TestCase
 
     public function test_pronostico_demanda_sin_api_key_muestra_error(): void
     {
-        config(['services.claude.api_key' => '']);
+        config(['services.groq.api_key' => '']);
 
         $response = $this->post('/admin/ia/pronostico', [
             'codigo_cliente' => 'CLI-001',
         ]);
 
         $response->assertStatus(200);
-        $response->assertSee('API key de Claude no está configurada');
+        $response->assertSee('API key de Groq no está configurada');
     }
 
     public function test_optimizacion_inventario_con_api_exitosa(): void
     {
-        Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'content' => [['type' => 'text', 'text' => 'Recomendaciones de inventario generadas']],
-            ], 200),
-        ]);
-
-        config(['services.claude.api_key' => 'test-key']);
+        $this->fakeGroqSuccess('Recomendaciones de inventario generadas');
+        config(['services.groq.api_key' => 'test-key']);
 
         $response = $this->post('/admin/ia/inventario');
 
@@ -93,13 +97,8 @@ class IaDashboardTest extends TestCase
 
     public function test_seleccion_proveedor_con_api_exitosa(): void
     {
-        Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([
-                'content' => [['type' => 'text', 'text' => 'Recomendación: Químicos del Norte es el mejor proveedor']],
-            ], 200),
-        ]);
-
-        config(['services.claude.api_key' => 'test-key']);
+        $this->fakeGroqSuccess('Recomendación: Químicos del Norte es el mejor proveedor');
+        config(['services.groq.api_key' => 'test-key']);
 
         $response = $this->post('/admin/ia/proveedor', [
             'producto_id' => 'SAL-001',
@@ -119,19 +118,18 @@ class IaDashboardTest extends TestCase
         $response->assertSee('Catalizador rápido');
     }
 
-    public function test_api_claude_error_500_muestra_mensaje(): void
+    public function test_api_groq_error_500_muestra_mensaje(): void
     {
         Http::fake([
-            'https://api.anthropic.com/v1/messages' => Http::response([], 500),
+            $this->groqUrl => Http::response([], 500),
         ]);
-
-        config(['services.claude.api_key' => 'test-key']);
+        config(['services.groq.api_key' => 'test-key']);
 
         $response = $this->post('/admin/ia/pronostico', [
             'codigo_cliente' => 'CLI-001',
         ]);
 
         $response->assertStatus(200);
-        $response->assertSee('Error de la API de Claude');
+        $response->assertSee('Error de la API de Groq');
     }
 }

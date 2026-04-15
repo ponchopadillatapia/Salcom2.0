@@ -7,15 +7,17 @@ use Illuminate\Support\Facades\Log;
 
 class IaService
 {
+    private string $apiUrl;
     private string $apiKey;
     private string $model;
     private int $timeout;
 
     public function __construct()
     {
-        $this->apiKey  = config('services.claude.api_key', '');
-        $this->model   = config('services.claude.model', 'claude-sonnet-4-20250514');
-        $this->timeout = config('services.claude.timeout', 30);
+        $this->apiUrl  = config('services.groq.url', 'https://api.groq.com/openai/v1/chat/completions');
+        $this->apiKey  = config('services.groq.api_key', '');
+        $this->model   = config('services.groq.model', 'llama-3.3-70b-versatile');
+        $this->timeout = config('services.groq.timeout', 30);
     }
 
     // ══════════════════════════════════════════════
@@ -31,7 +33,7 @@ class IaService
             'historial'      => json_encode($historial, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
         ]);
 
-        $resultado = $this->llamarClaude($prompt);
+        $resultado = $this->llamarGroq($prompt);
 
         return [
             'cliente'    => $codigoCliente,
@@ -55,7 +57,7 @@ class IaService
             'demanda'    => json_encode($demanda, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
         ]);
 
-        $resultado = $this->llamarClaude($prompt);
+        $resultado = $this->llamarGroq($prompt);
 
         return [
             'inventario' => $inventario,
@@ -79,7 +81,7 @@ class IaService
             'proveedores' => json_encode($proveedores, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
         ]);
 
-        $resultado = $this->llamarClaude($prompt);
+        $resultado = $this->llamarGroq($prompt);
 
         return [
             'producto'    => $producto,
@@ -90,17 +92,17 @@ class IaService
     }
 
     // ══════════════════════════════════════════════
-    // Llamada a la API de Claude
+    // Llamada a la API de Groq (formato OpenAI)
     // ══════════════════════════════════════════════
 
-    public function llamarClaude(string $prompt): array
+    public function llamarGroq(string $prompt): array
     {
         if (empty(trim($this->apiKey))) {
-            Log::warning('IaService: API key de Claude no configurada');
+            Log::warning('IaService: API key de Groq no configurada');
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => 'La API key de Claude no está configurada. Agrega CLAUDE_API_KEY en tu .env',
+                'error'   => 'La API key de Groq no está configurada. Agrega GROQ_API_KEY en tu .env',
             ];
         }
 
@@ -108,10 +110,9 @@ class IaService
             $response = Http::asJson()
                 ->timeout($this->timeout)
                 ->withHeaders([
-                    'x-api-key'         => $this->apiKey,
-                    'anthropic-version' => '2023-06-01',
+                    'Authorization' => 'Bearer ' . $this->apiKey,
                 ])
-                ->post('https://api.anthropic.com/v1/messages', [
+                ->post($this->apiUrl, [
                     'model'      => $this->model,
                     'max_tokens' => 2048,
                     'messages'   => [
@@ -124,7 +125,7 @@ class IaService
 
             if ($response->successful()) {
                 $body = $response->json();
-                $text = $body['content'][0]['text'] ?? '';
+                $text = $body['choices'][0]['message']['content'] ?? '';
 
                 return [
                     'success' => true,
@@ -133,7 +134,7 @@ class IaService
                 ];
             }
 
-            Log::error('IaService: error de API Claude', [
+            Log::error('IaService: error de API Groq', [
                 'status' => $response->status(),
                 'body'   => $response->json() ?? $response->body(),
             ]);
@@ -145,18 +146,18 @@ class IaService
                 'success' => false,
                 'content' => null,
                 'error'   => $errorMsg
-                    ? 'Error de Claude: ' . $errorMsg
-                    : 'Error de la API de Claude (HTTP ' . $response->status() . ')',
+                    ? 'Error de Groq: ' . $errorMsg
+                    : 'Error de la API de Groq (HTTP ' . $response->status() . ')',
             ];
         } catch (\Exception $e) {
-            Log::error('IaService: excepción al llamar Claude', [
+            Log::error('IaService: excepción al llamar Groq', [
                 'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => 'No se pudo conectar con la API de Claude: ' . $e->getMessage(),
+                'error'   => 'No se pudo conectar con la API de Groq: ' . $e->getMessage(),
             ];
         }
     }

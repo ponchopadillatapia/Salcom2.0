@@ -56,9 +56,10 @@ return [
         'login_mode'      => env('CLIENTE_LOGIN_MODE', 'fallback'),
     ],
 
-    'claude' => [
-        'api_key' => env('CLAUDE_API_KEY', ''),
-        'model'   => env('CLAUDE_MODEL', 'claude-sonnet-4-20250514'),
-        'timeout' => (int) env('CLAUDE_TIMEOUT', 30),
+    'groq' => [
+        'url'     => env('GROQ_API_URL', 'https://api.groq.com/openai/v1/chat/completions'),
+        'api_key' => env('GROQ_API_KEY', ''),
+        'model'   => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        'timeout' => (int) env('GROQ_TIMEOUT', 30),
     ],
 ];
