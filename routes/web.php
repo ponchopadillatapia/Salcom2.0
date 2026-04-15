@@ -73,3 +73,10 @@ Route::post('/admin/cliente/alta', [AdminClienteController::class, 'guardar'])->
 // ── Encuesta de satisfacción ──
 Route::get('/cliente/encuesta', [PortalClienteController::class, 'mostrarEncuesta'])->name('clientes.encuesta')->middleware('auth.cliente');
 Route::post('/cliente/encuesta', [PortalClienteController::class, 'guardarEncuesta'])->name('clientes.encuesta.guardar')->middleware('auth.cliente');
+
+// ── Módulo de IA (Admin) ──
+use App\Http\Controllers\IaDashboardController;
+Route::get('/admin/ia', [IaDashboardController::class, 'index'])->name('admin.ia');
+Route::post('/admin/ia/pronostico', [IaDashboardController::class, 'pronosticoDemanda'])->name('admin.ia.pronostico');
+Route::post('/admin/ia/inventario', [IaDashboardController::class, 'optimizacionInventario'])->name('admin.ia.inventario');
+Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'seleccionProveedor'])->name('admin.ia.proveedor');

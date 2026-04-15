@@ -47,4 +47,18 @@ return [
         'max_retries'     => (int) env('PROVEEDOR_API_MAX_RETRIES', 3),
         'login_mode'      => env('PROVEEDOR_LOGIN_MODE', 'fallback'),
     ],
+
+    'cliente_api' => [
+        'url'             => env('CLIENTE_API_URL', ''),
+        'connect_timeout' => (int) env('CLIENTE_API_CONNECT_TIMEOUT', 5),
+        'timeout'         => (int) env('CLIENTE_API_TIMEOUT', 15),
+        'max_retries'     => (int) env('CLIENTE_API_MAX_RETRIES', 3),
+        'login_mode'      => env('CLIENTE_LOGIN_MODE', 'fallback'),
+    ],
+
+    'claude' => [
+        'api_key' => env('CLAUDE_API_KEY', ''),
+        'model'   => env('CLAUDE_MODEL', 'claude-sonnet-4-20250514'),
+        'timeout' => (int) env('CLAUDE_TIMEOUT', 30),
+    ],
 ];
