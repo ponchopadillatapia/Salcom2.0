@@ -62,4 +62,45 @@ return [
         'model'   => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
         'timeout' => (int) env('GROQ_TIMEOUT', 30),
     ],
+
+    // ── Twilio (WhatsApp Business API) ──
+    'twilio' => [
+        'sid'            => env('TWILIO_SID', ''),
+        'token'          => env('TWILIO_AUTH_TOKEN', ''),
+        'whatsapp_from'  => env('TWILIO_WHATSAPP_FROM', ''),  // whatsapp:+14155238886
+    ],
+
+    // ── Validación RFC ante SAT (RENAPO / lista 69-B) ──
+    'sat' => [
+        'rfc_url'  => env('SAT_RFC_VALIDATION_URL', 'https://api.el-sat.com/v1'),
+        'api_key'  => env('SAT_API_KEY', ''),
+        'timeout'  => (int) env('SAT_TIMEOUT', 10),
+    ],
+
+    // ── PAC para timbrado CFDI (Facturama, SW Sapien, Diverza) ──
+    'pac' => [
+        'driver'   => env('PAC_DRIVER', 'facturama'),  // facturama | sw_sapien | diverza
+        'url'      => env('PAC_API_URL', ''),
+        'user'     => env('PAC_API_USER', ''),
+        'password' => env('PAC_API_PASSWORD', ''),
+        'sandbox'  => env('PAC_SANDBOX', true),
+        'timeout'  => (int) env('PAC_TIMEOUT', 30),
+    ],
+
+    // ── Paqueterías (tracking) ──
+    'paqueterias' => [
+        'estafeta' => [
+            'url'     => env('ESTAFETA_API_URL', ''),
+            'api_key' => env('ESTAFETA_API_KEY', ''),
+        ],
+        'dhl' => [
+            'url'     => env('DHL_API_URL', 'https://api-eu.dhl.com/track/shipments'),
+            'api_key' => env('DHL_API_KEY', ''),
+        ],
+        'fedex' => [
+            'url'       => env('FEDEX_API_URL', ''),
+            'api_key'   => env('FEDEX_API_KEY', ''),
+            'secret_key'=> env('FEDEX_SECRET_KEY', ''),
+        ],
+    ],
 ];

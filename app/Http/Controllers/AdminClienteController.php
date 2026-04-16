@@ -3,11 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Models\ClienteUser;
+use App\Services\SatRfcService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class AdminClienteController extends Controller
 {
+    public function __construct(
+        private SatRfcService $satService,
+    ) {}
+
     public function mostrarAlta()
     {
         return view('clientes.alta-cliente');
@@ -28,13 +33,21 @@ class AdminClienteController extends Controller
             'limite_credito' => 'nullable|numeric|min:0',
         ]);
 
+        // Validar RFC con SAT si se proporcionó
+        if ($request->filled('rfc')) {
+            $rfcResult = $this->satService->validarConSat($request->rfc);
+            if (!$rfcResult['valido']) {
+                return back()->withInput()->withErrors(['rfc' => $rfcResult['mensaje']]);
+            }
+        }
+
         ClienteUser::create([
             'nombre'             => $request->nombre,
             'correo'             => $request->correo,
             'usuario'            => $request->usuario,
             'password'           => Hash::make($request->password),
             'telefono'           => $request->telefono,
-            'rfc'                => $request->rfc,
+            'rfc'                => strtoupper(trim($request->rfc ?? '')),
             'tipo_persona'       => $request->tipo_persona,
             'tipo_cliente'       => $request->tipo_cliente,
             'codigo_cliente'     => $request->codigo_cliente,
@@ -43,5 +56,17 @@ class AdminClienteController extends Controller
         ]);
 
         return back()->with('mensaje', 'Cliente dado de alta correctamente: ' . $request->usuario);
+    }
+
+    /**
+     * Endpoint AJAX para validar RFC en tiempo real.
+     */
+    public function validarRfc(Request $request)
+    {
+        $request->validate(['rfc' => 'required|string|max:13']);
+
+        $resultado = $this->satService->validarConSat($request->rfc);
+
+        return response()->json($resultado);
     }
 }
