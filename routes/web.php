@@ -9,7 +9,7 @@ use App\Http\Controllers\APIS\EmpresaApiController;
 use App\Http\Controllers\MuestraController;
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('inicio');
 });
 
 // ── Auth: Login / Registro / Logout ──
@@ -65,10 +65,23 @@ Route::get('/cliente/estado-cuenta', [PortalClienteController::class, 'mostrarEs
 Route::get('/cliente/tracking', [PortalClienteController::class, 'mostrarTracking'])->name('clientes.tracking')->middleware('auth.cliente');
 Route::get('/cliente/perfil', [PortalClienteController::class, 'mostrarPerfil'])->name('clientes.perfil')->middleware('auth.cliente');
 
+// ── Auth Admin ──
+use App\Http\Controllers\AuthAdminController;
+Route::get('/login-admin', [AuthAdminController::class, 'mostrarLogin'])->name('admin.login');
+Route::post('/login-admin', [AuthAdminController::class, 'procesarLogin'])->name('admin.login.procesar');
+Route::post('/logout-admin', [AuthAdminController::class, 'cerrarSesion'])->name('admin.logout');
+
 // ── Admin: Alta de Clientes (interno Salcom) ──
 use App\Http\Controllers\AdminClienteController;
-Route::get('/admin/cliente/alta', [AdminClienteController::class, 'mostrarAlta'])->name('admin.cliente.alta');
-Route::post('/admin/cliente/alta', [AdminClienteController::class, 'guardar'])->name('admin.cliente.guardar');
+Route::get('/admin/cliente/alta', [AdminClienteController::class, 'mostrarAlta'])->name('admin.cliente.alta')->middleware('auth.admin');
+Route::post('/admin/cliente/alta', [AdminClienteController::class, 'guardar'])->name('admin.cliente.guardar')->middleware('auth.admin');
+
+// ── Admin: Panel (Clientes, Encuestas, Pedidos) ──
+use App\Http\Controllers\AdminPanelController;
+Route::get('/admin/clientes', [AdminPanelController::class, 'clientes'])->name('admin.clientes')->middleware('auth.admin');
+Route::patch('/admin/clientes/{cliente}/toggle', [AdminPanelController::class, 'toggleCliente'])->name('admin.clientes.toggle')->middleware('auth.admin');
+Route::get('/admin/encuestas', [AdminPanelController::class, 'encuestas'])->name('admin.encuestas')->middleware('auth.admin');
+Route::get('/admin/pedidos', [AdminPanelController::class, 'pedidos'])->name('admin.pedidos')->middleware('auth.admin');
 
 // ── Encuesta de satisfacción ──
 Route::get('/cliente/encuesta', [PortalClienteController::class, 'mostrarEncuesta'])->name('clientes.encuesta')->middleware('auth.cliente');
@@ -76,7 +89,7 @@ Route::post('/cliente/encuesta', [PortalClienteController::class, 'guardarEncues
 
 // ── Módulo de IA (Admin) ──
 use App\Http\Controllers\IaDashboardController;
-Route::get('/admin/ia', [IaDashboardController::class, 'index'])->name('admin.ia');
-Route::post('/admin/ia/pronostico', [IaDashboardController::class, 'pronosticoDemanda'])->name('admin.ia.pronostico');
-Route::post('/admin/ia/inventario', [IaDashboardController::class, 'optimizacionInventario'])->name('admin.ia.inventario');
-Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'seleccionProveedor'])->name('admin.ia.proveedor');
+Route::get('/admin/ia', [IaDashboardController::class, 'index'])->name('admin.ia')->middleware('auth.admin');
+Route::post('/admin/ia/pronostico', [IaDashboardController::class, 'pronosticoDemanda'])->name('admin.ia.pronostico')->middleware('auth.admin');
+Route::post('/admin/ia/inventario', [IaDashboardController::class, 'optimizacionInventario'])->name('admin.ia.inventario')->middleware('auth.admin');
+Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'seleccionProveedor'])->name('admin.ia.proveedor')->middleware('auth.admin');

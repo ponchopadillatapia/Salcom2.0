@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth.proveedor' => \App\Http\Middleware\AutenticacionProveedor::class,
             'auth.cliente'   => \App\Http\Middleware\AutenticacionCliente::class,
+            'auth.admin'     => \App\Http\Middleware\AutenticacionAdmin::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

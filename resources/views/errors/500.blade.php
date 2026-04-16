@@ -1,3 +1,18 @@
+@php
+    if (session('admin_id')) {
+        $portalNombre = 'Panel Administrativo';
+        $portalUrl = '/admin/ia';
+    } elseif (session('cliente_id')) {
+        $portalNombre = 'Portal de Clientes';
+        $portalUrl = '/portal-cliente';
+    } elseif (session('proveedor_id')) {
+        $portalNombre = 'Portal de Proveedores';
+        $portalUrl = '/portal-proveedor';
+    } else {
+        $portalNombre = 'Industrias Salcom';
+        $portalUrl = '/';
+    }
+@endphp
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -32,7 +47,7 @@
 </head>
 <body>
     <nav>
-        <div class="nav-logo">Industrias Salcom<span>Portal de Proveedores</span></div>
+        <div class="nav-logo">Industrias Salcom<span>{{ $portalNombre }}</span></div>
     </nav>
     <div class="error-container">
         <div class="error-card">
@@ -45,7 +60,7 @@
             <div class="error-code">500</div>
             <div class="error-title">Error del servidor</div>
             <div class="error-desc">Algo salió mal de nuestro lado. Estamos trabajando para resolverlo. Intenta de nuevo en unos minutos.</div>
-            <a href="/portal-proveedor" class="btn-back">Volver al portal</a>
+            <a href="{{ $portalUrl }}" class="btn-back">Volver al portal</a>
         </div>
     </div>
     <footer>
