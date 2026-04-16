@@ -1,0 +1,13 @@
+{
+  "name": "mcp-salcom",
+  "version": "1.0.0",
+  "description": "MCP server para conectar Kiro con la API de Industrias Salcom",
+  "type": "module",
+  "main": "server.mjs",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1"
+  }
+}
