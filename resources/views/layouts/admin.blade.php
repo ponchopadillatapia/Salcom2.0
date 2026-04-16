@@ -196,8 +196,8 @@
 <body>
 
 <nav class="top-nav">
-    <div class="nav-logo">
-        Industrias Salcom
+    <div class="nav-logo" style="display:flex;align-items:center;gap:14px;">
+        @include('partials.logo-salcom', ['height' => 30, 'color' => 'dark'])
         <span>Panel Administrativo</span>
     </div>
     <div class="nav-right">

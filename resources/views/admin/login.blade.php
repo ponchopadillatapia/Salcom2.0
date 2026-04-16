@@ -146,7 +146,7 @@
 
 <div class="login-container">
     <div class="brand">
-        <h1>Industrias Salcom</h1>
+        @include('partials.logo-salcom', ['height' => 44, 'color' => 'light'])
         <p>Panel Administrativo</p>
     </div>
 

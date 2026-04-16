@@ -95,11 +95,6 @@ Route::post('/admin/ia/pronostico', [IaDashboardController::class, 'pronosticoDe
 Route::post('/admin/ia/inventario', [IaDashboardController::class, 'optimizacionInventario'])->name('admin.ia.inventario')->middleware('auth.admin');
 Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'seleccionProveedor'])->name('admin.ia.proveedor')->middleware('auth.admin');
 
-Route::get('/admin/ia', [IaDashboardController::class, 'index'])->name('admin.ia');
-Route::post('/admin/ia/pronostico', [IaDashboardController::class, 'pronosticoDemanda'])->name('admin.ia.pronostico');
-Route::post('/admin/ia/inventario', [IaDashboardController::class, 'optimizacionInventario'])->name('admin.ia.inventario');
-Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'seleccionProveedor'])->name('admin.ia.proveedor');
-
 // ── Validación RFC (AJAX) ──
 Route::post('/admin/cliente/validar-rfc', [AdminClienteController::class, 'validarRfc'])->name('admin.cliente.validar-rfc');
 

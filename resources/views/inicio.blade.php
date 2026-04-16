@@ -49,26 +49,8 @@
             padding: 40px 24px;
         }
 
-        /* Brand */
         .brand { text-align: center; }
-        .brand-icon {
-            width: 72px; height: 72px;
-            border-radius: 20px;
-            background: rgba(255,255,255,0.1);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255,255,255,0.15);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 20px;
-        }
-        .brand h1 {
-            font-family: 'Playfair Display', serif;
-            font-size: 34px;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: -0.5px;
-        }
+        .brand svg { display: block; margin: 0 auto 12px; }
         .brand p {
             font-size: 12px;
             font-weight: 500;
@@ -187,14 +169,7 @@
 
 <div class="container">
     <div class="brand">
-        <div class="brand-icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
-                <line x1="12" y1="22.08" x2="12" y2="12"/>
-            </svg>
-        </div>
-        <h1>Industrias Salcom</h1>
+        @include('partials.logo-salcom', ['height' => 52, 'color' => 'light'])
         <p>Plataforma de gestión empresarial</p>
     </div>
 

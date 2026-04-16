@@ -47,7 +47,7 @@
 </head>
 <body>
     <nav>
-        <div class="nav-logo">Industrias Salcom<span>{{ $portalNombre }}</span></div>
+        <div class="nav-logo" style="display:flex;align-items:center;gap:10px;">@include('partials.logo-salcom', ['height' => 24, 'color' => 'dark'])<span>{{ $portalNombre }}</span></div>
     </nav>
     <div class="error-container">
         <div class="error-card">

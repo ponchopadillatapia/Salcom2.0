@@ -29,7 +29,7 @@
 </head>
 <body>
 <div class="container">
-    <div class="brand"><h1>Industrias Salcom</h1><p>Portal de Clientes</p></div>
+    <div class="brand">@include('partials.logo-salcom', ['height' => 44, 'color' => 'light'])<p>Portal de Clientes</p></div>
     <div class="card">
         <div class="card-title">Iniciar sesión</div>
         <div class="card-sub">Ingresa tus credenciales para continuar</div>
