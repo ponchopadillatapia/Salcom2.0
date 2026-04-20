@@ -168,7 +168,7 @@
 
 <div class="login-container">
     <div class="brand">
-        @include('partials.logo-salcom', ['height' => 44, 'color' => 'light'])
+        @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
         <p>Portal de Proveedores</p>
     </div>
 

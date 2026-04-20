@@ -169,7 +169,7 @@
 
 <div class="container">
     <div class="brand">
-        @include('partials.logo-salcom', ['height' => 52, 'color' => 'light'])
+        @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
         <p>Plataforma de gestión empresarial</p>
     </div>
 

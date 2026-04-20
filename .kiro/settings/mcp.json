@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "salcom": {
+      "command": "node",
+      "args": ["mcp-salcom/server.mjs"],
+      "env": {
+        "SALCOM_API_URL": "http://localhost:8000/api/salcom",
+        "SALCOM_API_TOKEN": "salcom-kiro-2026-secret"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "resumen",
+        "clientes",
+        "proveedores",
+        "pedidos",
+        "productos",
+        "encuestas"
+      ]
+    }
+  }
+}

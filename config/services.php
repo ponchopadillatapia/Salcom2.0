@@ -56,6 +56,10 @@ return [
         'login_mode'      => env('CLIENTE_LOGIN_MODE', 'fallback'),
     ],
 
+    'salcom_api' => [
+        'token' => env('SALCOM_API_TOKEN', ''),
+    ],
+
     'groq' => [
         'url'     => env('GROQ_API_URL', 'https://api.groq.com/openai/v1/chat/completions'),
         'api_key' => env('GROQ_API_KEY', ''),
