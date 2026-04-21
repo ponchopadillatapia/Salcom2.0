@@ -145,6 +145,7 @@
 <body>
 
 <div class="login-container">
+    <a href="/" style="font-size:12px;color:rgba(255,255,255,0.4);text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:color .2s;" onmouseover="this.style.color='rgba(255,255,255,0.8)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">← Volver al inicio</a>
     <div class="brand">
         @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
         <p>Panel Administrativo</p>

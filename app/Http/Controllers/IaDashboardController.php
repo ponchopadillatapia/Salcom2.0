@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Services\IaService;
-use Illuminate\Http\Request;
 
 class IaDashboardController extends Controller
 {
@@ -14,57 +13,42 @@ class IaDashboardController extends Controller
         $this->iaService = $iaService;
     }
 
-    public function index()
+    // ══════════════════════════════════════════════
+    //  PROVEEDOR — análisis automático al entrar
+    // ══════════════════════════════════════════════
+
+    public function proveedorIa()
     {
-        $clientes  = $this->iaService->listarClientes();
-        $productos = $this->iaService->listarProductos();
+        $codigoProveedor = session('proveedor_codigo', 'PROV-001');
 
-        return view('proveedores.ia-dashboard', compact('clientes', 'productos'));
-    }
-
-    public function pronosticoDemanda(Request $request)
-    {
-        $request->validate(['codigo_cliente' => 'required|string|max:50']);
-
-        $resultado = $this->iaService->pronosticoDemanda($request->input('codigo_cliente'));
-        $clientes  = $this->iaService->listarClientes();
-        $productos = $this->iaService->listarProductos();
+        // Ejecutar los 3 análisis automáticamente
+        $pronostico  = $this->iaService->pronosticoDemanda($codigoProveedor);
+        $inventario  = $this->iaService->optimizacionInventario();
+        $proveedor   = $this->iaService->seleccionProveedor('SAL-001');
 
         return view('proveedores.ia-dashboard', [
-            'clientes'            => $clientes,
-            'productos'           => $productos,
-            'resultadoPronostico' => $resultado,
-            'tabActiva'           => 'pronostico',
+            'resultadoPronostico' => $pronostico,
+            'resultadoInventario' => $inventario,
+            'resultadoProveedor'  => $proveedor,
+            'productos'           => $this->iaService->listarProductos(),
         ]);
     }
 
-    public function optimizacionInventario()
+    // ══════════════════════════════════════════════
+    //  CLIENTE — análisis automático al entrar
+    // ══════════════════════════════════════════════
+
+    public function clienteIa()
     {
-        $resultado = $this->iaService->optimizacionInventario();
-        $clientes  = $this->iaService->listarClientes();
-        $productos = $this->iaService->listarProductos();
+        $codigoCliente = session('cliente_codigo', 'CLI-001');
 
-        return view('proveedores.ia-dashboard', [
-            'clientes'             => $clientes,
-            'productos'            => $productos,
-            'resultadoInventario'  => $resultado,
-            'tabActiva'            => 'inventario',
-        ]);
-    }
+        // Análisis personalizado para el cliente
+        $pronostico = $this->iaService->pronosticoDemanda($codigoCliente);
+        $inventario = $this->iaService->optimizacionInventario();
 
-    public function seleccionProveedor(Request $request)
-    {
-        $request->validate(['producto_id' => 'required|string|max:50']);
-
-        $resultado = $this->iaService->seleccionProveedor($request->input('producto_id'));
-        $clientes  = $this->iaService->listarClientes();
-        $productos = $this->iaService->listarProductos();
-
-        return view('proveedores.ia-dashboard', [
-            'clientes'            => $clientes,
-            'productos'           => $productos,
-            'resultadoProveedor'  => $resultado,
-            'tabActiva'           => 'proveedor',
+        return view('clientes.ia-dashboard', [
+            'resultadoPronostico' => $pronostico,
+            'resultadoInventario' => $inventario,
         ]);
     }
 }

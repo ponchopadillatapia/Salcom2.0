@@ -54,8 +54,11 @@
 <body>
 
 <nav class="navbar-salcom">
-    <span class="brand">Industrias <span>Salcom</span></span>
-    <span class="nav-badge"><i class="bi bi-box-seam"></i> Envío de Muestras</span>
+    <a href="/" style="text-decoration:none"><span class="brand">Industrias <span>Salcom</span></span></a>
+    <div style="display:flex;align-items:center;gap:12px;">
+        <a href="/" style="font-size:12px;color:rgba(255,255,255,0.6);text-decoration:none;">← Inicio</a>
+        <span class="nav-badge"><i class="bi bi-box-seam"></i> Envío de Muestras</span>
+    </div>
 </nav>
 
 <div class="page-wrapper">

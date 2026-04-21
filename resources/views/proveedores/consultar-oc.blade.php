@@ -189,7 +189,7 @@ function verDetalle(id) {
     document.getElementById('detEstatus').textContent = oc.estatus;
     document.getElementById('detObservacion').textContent = oc.observacion;
     let movHtml = '';
-    oc.movimientos.forEach(m => { movHtml += `<tr><td><strong>${m.producto}</strong><br><span style="font-size:11px;color:#999">${m.nombre}</span></td><td>${m.unidades}</td><td>${m.precio}</td><td>${m.iva}</td><td>${m.total}</td></tr>`; });
+    oc.movimientos.forEach(m => { movHtml += `<tr><td><strong>${m.producto}</strong><br><span style="font-size:12px;color:#6b7280;font-weight:500">${m.nombre}</span></td><td>${m.unidades}</td><td>${m.precio}</td><td>${m.iva}</td><td>${m.total}</td></tr>`; });
     document.getElementById('detMovimientos').innerHTML = movHtml;
     document.getElementById('modalOverlay').classList.add('active');
 }

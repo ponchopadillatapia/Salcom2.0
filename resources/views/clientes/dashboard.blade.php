@@ -57,4 +57,45 @@
         </div>
     </div>
 </div>
+
+{{-- FORECAST: Productos que más compras --}}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+    <div class="card">
+        <div class="card-head">📈 Productos que más compras — Al alza</div>
+        <div class="card-body">
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+                <span style="flex:1;font-weight:600">Resina epóxica industrial</span>
+                <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:92%;height:100%;background:#059669;border-radius:3px"></div></div>
+                <span style="font-size:12px;font-weight:700;color:#059669;width:50px;text-align:right">↑ +12%</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+                <span style="flex:1;font-weight:600">Solvente grado técnico</span>
+                <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:78%;height:100%;background:#059669;border-radius:3px"></div></div>
+                <span style="font-size:12px;font-weight:700;color:#059669;width:50px;text-align:right">↑ +8%</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px">
+                <span style="flex:1;font-weight:600">Pigmento base agua</span>
+                <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:65%;height:100%;background:#059669;border-radius:3px"></div></div>
+                <span style="font-size:12px;font-weight:700;color:#059669;width:50px;text-align:right">↑ +5%</span>
+            </div>
+            <p style="font-size:11px;color:#9ca3af;margin-top:10px">Basado en tu historial de pedidos · Datos de prueba</p>
+        </div>
+    </div>
+    <div class="card">
+        <div class="card-head">📉 Productos a la baja</div>
+        <div class="card-body">
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
+                <span style="flex:1;font-weight:600">Catalizador rápido</span>
+                <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:40%;height:100%;background:#dc2626;border-radius:3px"></div></div>
+                <span style="font-size:12px;font-weight:700;color:#dc2626;width:50px;text-align:right">↓ -5%</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px">
+                <span style="flex:1;font-weight:600">Aditivo antioxidante</span>
+                <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:55%;height:100%;background:#9ca3af;border-radius:3px"></div></div>
+                <span style="font-size:12px;font-weight:700;color:#9ca3af;width:50px;text-align:right">→ Estable</span>
+            </div>
+            <p style="font-size:11px;color:#9ca3af;margin-top:10px">Recomendación: revisa tu inventario de estos productos</p>
+        </div>
+    </div>
+</div>
 @endsection

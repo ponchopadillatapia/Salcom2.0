@@ -28,6 +28,7 @@ Route::get('/onboarding', [PortalProveedorController::class, 'mostrarOnboarding'
 Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->name('proveedores.business')->middleware('auth.proveedor');
 Route::get('/payment-history', [PortalProveedorController::class, 'mostrarPaymentHistory'])->name('proveedores.payment-history')->middleware('auth.proveedor');
 Route::get('/perfil', [PortalProveedorController::class, 'mostrarPerfil'])->name('proveedores.perfil')->middleware('auth.proveedor');
+Route::get('/forecast', function () { return view('proveedores.forecast'); })->name('proveedores.forecast')->middleware('auth.proveedor');
 
 // ── Consultar OC ──
 Route::get('/consultar-oc', [OrdenCompraController::class, 'mostrarConsultarOC'])->name('proveedores.oc')->middleware('auth.proveedor');
@@ -64,6 +65,7 @@ Route::get('/cliente/pedidos', [PortalClienteController::class, 'mostrarPedidos'
 Route::get('/cliente/estado-cuenta', [PortalClienteController::class, 'mostrarEstadoCuenta'])->name('clientes.estado-cuenta')->middleware('auth.cliente');
 Route::get('/cliente/tracking', [PortalClienteController::class, 'mostrarTracking'])->name('clientes.tracking')->middleware('auth.cliente');
 Route::get('/cliente/perfil', [PortalClienteController::class, 'mostrarPerfil'])->name('clientes.perfil')->middleware('auth.cliente');
+Route::get('/cliente/forecast', function () { return view('clientes.forecast'); })->name('clientes.forecast')->middleware('auth.cliente');
 
 // ── Auth Admin ──
 use App\Http\Controllers\AuthAdminController;
@@ -87,13 +89,13 @@ Route::get('/admin/pedidos', [AdminPanelController::class, 'pedidos'])->name('ad
 Route::get('/cliente/encuesta', [PortalClienteController::class, 'mostrarEncuesta'])->name('clientes.encuesta')->middleware('auth.cliente');
 Route::post('/cliente/encuesta', [PortalClienteController::class, 'guardarEncuesta'])->name('clientes.encuesta.guardar')->middleware('auth.cliente');
 
-// ── Módulo de IA (Proveedor) ──
+// ── Módulo de IA (Proveedor — análisis automático) ──
 use App\Http\Controllers\IaDashboardController;
 
-Route::get('/proveedor/ia', [IaDashboardController::class, 'index'])->name('proveedores.ia')->middleware('auth.proveedor');
-Route::post('/proveedor/ia/pronostico', [IaDashboardController::class, 'pronosticoDemanda'])->name('proveedores.ia.pronostico')->middleware('auth.proveedor');
-Route::post('/proveedor/ia/inventario', [IaDashboardController::class, 'optimizacionInventario'])->name('proveedores.ia.inventario')->middleware('auth.proveedor');
-Route::post('/proveedor/ia/proveedor', [IaDashboardController::class, 'seleccionProveedor'])->name('proveedores.ia.proveedor')->middleware('auth.proveedor');
+Route::get('/proveedor/ia', [IaDashboardController::class, 'proveedorIa'])->name('proveedores.ia')->middleware('auth.proveedor');
+
+// ── Módulo de IA (Cliente — análisis automático) ──
+Route::get('/cliente/ia', [IaDashboardController::class, 'clienteIa'])->name('clientes.ia')->middleware('auth.cliente');
 
 // ── Contactos del proveedor ──
 Route::post('/proveedor/contactos', [PortalProveedorController::class, 'guardarContacto'])->name('proveedores.contactos.guardar')->middleware('auth.proveedor');

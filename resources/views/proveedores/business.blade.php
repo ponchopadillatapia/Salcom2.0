@@ -96,11 +96,11 @@
         <div class="resumen-card"><div class="accent" style="background:var(--green)"></div><div class="resumen-label">Notificaciones</div><div class="resumen-value val-green">4</div><div class="resumen-sub">Revisar mensajes de Salcom</div></div>
     </div>
 
-    {{-- PROMEDIO ITEM 360 --}}
+    {{-- TOP PRODUCTOS --}}
     <div class="seccion">
         <div class="seccion-titulo">
             <div class="dot" style="background:var(--purple)"></div>
-            Business — Promedio del producto
+            Rendimiento de productos
             <span class="seccion-sub-label">⚠ Datos de prueba — Pendiente de API</span>
         </div>
         <div class="item360-wrap">
@@ -109,26 +109,29 @@
                 <div class="action-card ok"><div class="action-card-label">OC completadas este mes</div><div class="action-card-value">8</div><div class="action-card-sub">97.6% cumplimiento</div></div>
                 <div class="action-card"><div class="action-card-label">Recomendaciones de mejora</div><div class="action-card-value">2</div><div class="action-card-sub">Ver detalles →</div></div>
             </div>
-            <div class="item360-body">
-                <div class="dona-wrap">
-                    <div class="dona-container">
-                        <canvas id="donaChart" width="200" height="200"></canvas>
-                        <div class="dona-center"><div class="dona-score">86.4</div><div class="dona-label">Score promedio</div></div>
-                    </div>
-                    <div class="dona-legend">
-                        <div class="legend-item"><div class="legend-dot" style="background:#059669"></div><span>Bueno (80-100)</span><span class="legend-pct" style="color:#059669">3 productos (60%)</span></div>
-                        <div class="legend-item"><div class="legend-dot" style="background:#D97706"></div><span>Regular (60-79)</span><span class="legend-pct" style="color:#D97706">1 producto (20%)</span></div>
-                        <div class="legend-item"><div class="legend-dot" style="background:#DC2626"></div><span>Bajo (&lt;60)</span><span class="legend-pct" style="color:#DC2626">1 producto (20%)</span></div>
-                    </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+                {{-- TOP 5 MEJORES --}}
+                <div>
+                    <h4 style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:6px;">📈 Top 5 — Mejor rendimiento</h4>
+                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Resina epóxica industrial</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:92%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 92</div><div class="prod-trend up">↑ +12%</div></div>
+                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Solvente grado técnico</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:88%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 88</div><div class="prod-trend up">↑ +8%</div></div>
+                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Pigmento base agua</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:81%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 81</div><div class="prod-trend flat">→ Estable</div></div>
+                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Fibra de refuerzo</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:79%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 79</div><div class="prod-trend up">↑ +3%</div></div>
+                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Adhesivo estructural</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:76%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 76</div><div class="prod-trend flat">→ Estable</div></div>
                 </div>
-                <div class="prod-right">
-                    <div class="prod-row"><div class="prod-name">PROD-001</div><div class="prod-bar-wrap"><div class="prod-bar"><div class="prod-bar-fill" style="width:92%;background:#059669"></div></div><div class="prod-bar-label">Score: 92 — Bueno</div></div><div class="prod-monto">$800 prom.</div><div class="prod-trend up">↑ +12%</div></div>
-                    <div class="prod-row"><div class="prod-name">PROD-002</div><div class="prod-bar-wrap"><div class="prod-bar"><div class="prod-bar-fill" style="width:88%;background:#059669"></div></div><div class="prod-bar-label">Score: 88 — Bueno</div></div><div class="prod-monto">$900 prom.</div><div class="prod-trend up">↑ +8%</div></div>
-                    <div class="prod-row"><div class="prod-name">PROD-003</div><div class="prod-bar-wrap"><div class="prod-bar"><div class="prod-bar-fill" style="width:81%;background:#059669"></div></div><div class="prod-bar-label">Score: 81 — Bueno</div></div><div class="prod-monto">$410 prom.</div><div class="prod-trend flat">→ Estable</div></div>
-                    <div class="prod-row"><div class="prod-name">PROD-004</div><div class="prod-bar-wrap"><div class="prod-bar"><div class="prod-bar-fill" style="width:72%;background:#D97706"></div></div><div class="prod-bar-label">Score: 72 — Regular</div></div><div class="prod-monto">$511 prom.</div><div class="prod-trend down">↓ -5%</div></div>
-                    <div class="prod-row"><div class="prod-name">PROD-005</div><div class="prod-bar-wrap"><div class="prod-bar"><div class="prod-bar-fill" style="width:58%;background:#DC2626"></div></div><div class="prod-bar-label">Score: 58 — Bajo</div></div><div class="prod-monto">$725 prom.</div><div class="prod-trend down">↓ -15%</div></div>
+
+                {{-- TOP 5 PEORES --}}
+                <div>
+                    <h4 style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:6px;">📉 Top 5 — Necesitan atención</h4>
+                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Aditivo antioxidante</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:58%;background:#DC2626"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 58</div><div class="prod-trend down">↓ -15%</div></div>
+                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Catalizador rápido</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:62%;background:#D97706"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 62</div><div class="prod-trend down">↓ -5%</div></div>
+                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Sellador industrial</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:65%;background:#D97706"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 65</div><div class="prod-trend down">↓ -3%</div></div>
+                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Disolvente especial</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:68%;background:#D97706"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 68</div><div class="prod-trend flat">→ Estable</div></div>
+                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Recubrimiento base</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:70%;background:#D97706"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 70</div><div class="prod-trend down">↓ -2%</div></div>
                 </div>
             </div>
+
             <p class="api-note">⚠ Datos de prueba — se reemplazarán con la API de Alan</p>
         </div>
     </div>
@@ -167,33 +170,6 @@
 
 @push('scripts')
 <script>
-window.addEventListener('load', function() {
-    const canvas = document.getElementById('donaChart');
-    const ctx = canvas.getContext('2d');
-    const cx = 100, cy = 100, r = 80, stroke = 22;
-    const segmentos = [
-        { pct: 0.60, color: '#059669' },
-        { pct: 0.20, color: '#D97706' },
-        { pct: 0.20, color: '#DC2626' },
-    ];
-    const gap = 0.03;
-    let start = -Math.PI / 2;
-    ctx.clearRect(0, 0, 200, 200);
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = '#E5E7EB';
-    ctx.lineWidth = stroke;
-    ctx.stroke();
-    segmentos.forEach(seg => {
-        const end = start + (Math.PI * 2 * seg.pct) - gap;
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, start, end);
-        ctx.strokeStyle = seg.color;
-        ctx.lineWidth = stroke;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-        start = end + gap;
-    });
-});
+// No donut chart needed — using list view
 </script>
 @endpush

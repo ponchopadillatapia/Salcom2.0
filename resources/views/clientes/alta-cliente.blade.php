@@ -28,6 +28,9 @@
 </head>
 <body>
 <div class="container">
+    <div style="text-align:center;margin-bottom:16px;">
+        <a href="/admin/clientes" style="font-size:13px;color:#6B3FA0;text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;">← Volver al panel de administración</a>
+    </div>
     <div class="brand"><h1>Industrias Salcom</h1><p>Alta de Cliente — Uso interno</p></div>
     <div class="card">
         <div class="card-title">Dar de alta cliente</div>

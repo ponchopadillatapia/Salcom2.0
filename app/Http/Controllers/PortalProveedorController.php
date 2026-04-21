@@ -20,7 +20,8 @@ class PortalProveedorController extends Controller
 
     public function mostrarOnboarding()
     {
-        return view('proveedores.onboarding');
+        $proveedor = \App\Models\ProveedorUser::find(session('proveedor_id'));
+        return view('proveedores.onboarding', compact('proveedor'));
     }
 
     public function mostrarBusiness()
