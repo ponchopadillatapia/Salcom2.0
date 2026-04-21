@@ -90,10 +90,10 @@
 @section('content')
 
     <div class="resumen-grid">
-        <div class="resumen-card"><div class="accent" style="background:var(--red)"></div><div class="resumen-label">Documentos por vencer</div><div class="resumen-value val-red">2</div><div class="resumen-sub">Acción requerida</div></div>
-        <div class="resumen-card"><div class="accent" style="background:var(--amber)"></div><div class="resumen-label">Facturas pendientes</div><div class="resumen-value val-amber">3</div><div class="resumen-sub">OC sin factura</div></div>
-        <div class="resumen-card"><div class="accent" style="background:var(--blue)"></div><div class="resumen-label">Pagos próximos</div><div class="resumen-value val-blue">1</div><div class="resumen-sub">Esta semana</div></div>
-        <div class="resumen-card"><div class="accent" style="background:var(--green)"></div><div class="resumen-label">Notificaciones</div><div class="resumen-value val-green">4</div><div class="resumen-sub">Sin leer</div></div>
+        <div class="resumen-card"><div class="accent" style="background:var(--red)"></div><div class="resumen-label">Documentos por vencer</div><div class="resumen-value val-red">2</div><div class="resumen-sub">⚠ Renovar CIF y Opinión SAT</div></div>
+        <div class="resumen-card"><div class="accent" style="background:var(--amber)"></div><div class="resumen-label">Facturas pendientes</div><div class="resumen-value val-amber">3</div><div class="resumen-sub">⚠ Subir factura a OC #10045, #10046, #10049</div></div>
+        <div class="resumen-card"><div class="accent" style="background:var(--blue)"></div><div class="resumen-label">Pagos próximos</div><div class="resumen-value val-blue">1</div><div class="resumen-sub">Verificar datos bancarios actualizados</div></div>
+        <div class="resumen-card"><div class="accent" style="background:var(--green)"></div><div class="resumen-label">Notificaciones</div><div class="resumen-value val-green">4</div><div class="resumen-sub">Revisar mensajes de Salcom</div></div>
     </div>
 
     {{-- PROMEDIO ITEM 360 --}}

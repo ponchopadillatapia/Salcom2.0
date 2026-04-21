@@ -170,11 +170,11 @@ function exportarExcel(tablaId, nombre) {
 }
 
 const ocs = {
-    1: { folio: '#10045', fecha: '01/03/2026', codigoCteProv: '102003240', referencia: 'REF-2026-001', importe: '$12,500.00', vencimiento: '31/03/2026', estatus: 'En proceso', observacion: 'Entrega en almacén central', movimientos: [{ producto: 'PROD-001', unidades: 10, precio: '$800.00', iva: '$128.00', total: '$8,000.00' }, { producto: 'PROD-002', unidades: 5, precio: '$900.00', iva: '$72.00', total: '$4,500.00' }] },
-    2: { folio: '#10046', fecha: '05/03/2026', codigoCteProv: '102003240', referencia: 'REF-2026-002', importe: '$8,200.00', vencimiento: '05/04/2026', estatus: 'Abierta', observacion: '—', movimientos: [{ producto: 'PROD-003', unidades: 20, precio: '$410.00', iva: '$65.60', total: '$8,200.00' }] },
-    3: { folio: '#10047', fecha: '10/03/2026', codigoCteProv: '102003240', referencia: 'REF-2026-003', importe: '$27,300.00', vencimiento: '10/04/2026', estatus: 'Completada', observacion: 'Urgente, prioridad alta', movimientos: [{ producto: 'PROD-001', unidades: 15, precio: '$800.00', iva: '$192.00', total: '$12,000.00' }, { producto: 'PROD-004', unidades: 30, precio: '$511.00', iva: '$244.80', total: '$15,300.00' }] },
-    4: { folio: '#10048', fecha: '15/03/2026', codigoCteProv: '102003240', referencia: 'REF-2026-004', importe: '$5,800.00', vencimiento: '15/04/2026', estatus: 'En proceso', observacion: '—', movimientos: [{ producto: 'PROD-005', unidades: 8, precio: '$725.00', iva: '$116.00', total: '$5,800.00' }] },
-    5: { folio: '#10049', fecha: '20/03/2026', codigoCteProv: '102003240', referencia: 'REF-2026-005', importe: '$15,100.00', vencimiento: '20/04/2026', estatus: 'Abierta', observacion: 'Verificar existencias antes de confirmar', movimientos: [{ producto: 'PROD-002', unidades: 10, precio: '$900.00', iva: '$144.00', total: '$9,000.00' }, { producto: 'PROD-003', unidades: 15, precio: '$410.00', iva: '$98.40', total: '$6,100.00' }] }
+    1: { folio: '#10045', fecha: '01/03/2026', codigoCteProv: '102003240', referencia: 'REF-2026-001', importe: '$12,500.00', vencimiento: '31/03/2026', estatus: 'En proceso', observacion: 'Entrega en almacén central', movimientos: [{ producto: 'PROD-001', nombre: 'Resina epóxica industrial', unidades: 10, precio: '$800.00', iva: '$128.00', total: '$8,000.00' }, { producto: 'PROD-002', nombre: 'Solvente grado técnico', unidades: 5, precio: '$900.00', iva: '$72.00', total: '$4,500.00' }] },
+    2: { folio: '#10046', fecha: '05/03/2026', codigoCteProv: '102003240', referencia: 'REF-2026-002', importe: '$8,200.00', vencimiento: '05/04/2026', estatus: 'Abierta', observacion: '—', movimientos: [{ producto: 'PROD-003', nombre: 'Pigmento base agua', unidades: 20, precio: '$410.00', iva: '$65.60', total: '$8,200.00' }] },
+    3: { folio: '#10047', fecha: '10/03/2026', codigoCteProv: '102003240', referencia: 'REF-2026-003', importe: '$27,300.00', vencimiento: '10/04/2026', estatus: 'Completada', observacion: 'Urgente, prioridad alta', movimientos: [{ producto: 'PROD-001', nombre: 'Resina epóxica industrial', unidades: 15, precio: '$800.00', iva: '$192.00', total: '$12,000.00' }, { producto: 'PROD-004', nombre: 'Catalizador rápido', unidades: 30, precio: '$511.00', iva: '$244.80', total: '$15,300.00' }] },
+    4: { folio: '#10048', fecha: '15/03/2026', codigoCteProv: '102003240', referencia: 'REF-2026-004', importe: '$5,800.00', vencimiento: '15/04/2026', estatus: 'En proceso', observacion: '—', movimientos: [{ producto: 'PROD-005', nombre: 'Aditivo antioxidante', unidades: 8, precio: '$725.00', iva: '$116.00', total: '$5,800.00' }] },
+    5: { folio: '#10049', fecha: '20/03/2026', codigoCteProv: '102003240', referencia: 'REF-2026-005', importe: '$15,100.00', vencimiento: '20/04/2026', estatus: 'Abierta', observacion: 'Verificar existencias antes de confirmar', movimientos: [{ producto: 'PROD-002', nombre: 'Solvente grado técnico', unidades: 10, precio: '$900.00', iva: '$144.00', total: '$9,000.00' }, { producto: 'PROD-003', nombre: 'Pigmento base agua', unidades: 15, precio: '$410.00', iva: '$98.40', total: '$6,100.00' }] }
 };
 
 function verDetalle(id) {
@@ -189,7 +189,7 @@ function verDetalle(id) {
     document.getElementById('detEstatus').textContent = oc.estatus;
     document.getElementById('detObservacion').textContent = oc.observacion;
     let movHtml = '';
-    oc.movimientos.forEach(m => { movHtml += `<tr><td>${m.producto}</td><td>${m.unidades}</td><td>${m.precio}</td><td>${m.iva}</td><td>${m.total}</td></tr>`; });
+    oc.movimientos.forEach(m => { movHtml += `<tr><td><strong>${m.producto}</strong><br><span style="font-size:11px;color:#999">${m.nombre}</span></td><td>${m.unidades}</td><td>${m.precio}</td><td>${m.iva}</td><td>${m.total}</td></tr>`; });
     document.getElementById('detMovimientos').innerHTML = movHtml;
     document.getElementById('modalOverlay').classList.add('active');
 }

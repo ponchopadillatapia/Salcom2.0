@@ -87,13 +87,24 @@ Route::get('/admin/pedidos', [AdminPanelController::class, 'pedidos'])->name('ad
 Route::get('/cliente/encuesta', [PortalClienteController::class, 'mostrarEncuesta'])->name('clientes.encuesta')->middleware('auth.cliente');
 Route::post('/cliente/encuesta', [PortalClienteController::class, 'guardarEncuesta'])->name('clientes.encuesta.guardar')->middleware('auth.cliente');
 
-// ── Módulo de IA (Admin) ──
+// ── Módulo de IA (Proveedor) ──
 use App\Http\Controllers\IaDashboardController;
 
-Route::get('/admin/ia', [IaDashboardController::class, 'index'])->name('admin.ia')->middleware('auth.admin');
-Route::post('/admin/ia/pronostico', [IaDashboardController::class, 'pronosticoDemanda'])->name('admin.ia.pronostico')->middleware('auth.admin');
-Route::post('/admin/ia/inventario', [IaDashboardController::class, 'optimizacionInventario'])->name('admin.ia.inventario')->middleware('auth.admin');
-Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'seleccionProveedor'])->name('admin.ia.proveedor')->middleware('auth.admin');
+Route::get('/proveedor/ia', [IaDashboardController::class, 'index'])->name('proveedores.ia')->middleware('auth.proveedor');
+Route::post('/proveedor/ia/pronostico', [IaDashboardController::class, 'pronosticoDemanda'])->name('proveedores.ia.pronostico')->middleware('auth.proveedor');
+Route::post('/proveedor/ia/inventario', [IaDashboardController::class, 'optimizacionInventario'])->name('proveedores.ia.inventario')->middleware('auth.proveedor');
+Route::post('/proveedor/ia/proveedor', [IaDashboardController::class, 'seleccionProveedor'])->name('proveedores.ia.proveedor')->middleware('auth.proveedor');
+
+// ── Contactos del proveedor ──
+Route::post('/proveedor/contactos', [PortalProveedorController::class, 'guardarContacto'])->name('proveedores.contactos.guardar')->middleware('auth.proveedor');
+Route::delete('/proveedor/contactos/{contacto}', [PortalProveedorController::class, 'eliminarContacto'])->name('proveedores.contactos.eliminar')->middleware('auth.proveedor');
+
+// ── Aviso de privacidad ──
+Route::get('/aviso-privacidad', function () { return view('aviso-privacidad'); })->name('aviso.privacidad');
+Route::post('/proveedor/aviso-privacidad', [PortalProveedorController::class, 'aceptarAvisoPrivacidad'])->name('proveedores.aviso.aceptar')->middleware('auth.proveedor');
+
+// ── Admin: Proveedores con score ──
+Route::get('/admin/proveedores', [AdminPanelController::class, 'proveedores'])->name('admin.proveedores')->middleware('auth.admin');
 
 // ── Validación RFC (AJAX) ──
 Route::post('/admin/cliente/validar-rfc', [AdminClienteController::class, 'validarRfc'])->name('admin.cliente.validar-rfc');

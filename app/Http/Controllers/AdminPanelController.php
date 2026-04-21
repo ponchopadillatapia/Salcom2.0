@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ClienteUser;
 use App\Models\Encuesta;
 use App\Models\Pedido;
+use App\Models\ProveedorUser;
 use Illuminate\Http\Request;
 
 class AdminPanelController extends Controller
@@ -68,5 +69,24 @@ class AdminPanelController extends Controller
         $estatusDisponibles = Pedido::select('estatus')->distinct()->pluck('estatus');
 
         return view('admin.pedidos', compact('pedidos', 'estatus', 'estatusDisponibles'));
+    }
+
+    // ── Proveedores con Score ──
+
+    public function proveedores(Request $request)
+    {
+        $query = ProveedorUser::query();
+
+        if ($busqueda = $request->input('busqueda')) {
+            $query->where(function ($q) use ($busqueda) {
+                $q->where('nombre', 'like', "%{$busqueda}%")
+                  ->orWhere('correo', 'like', "%{$busqueda}%")
+                  ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
+            });
+        }
+
+        $proveedores = $query->orderBy('score_total', 'desc')->paginate(20)->withQueryString();
+
+        return view('admin.proveedores', compact('proveedores', 'busqueda'));
     }
 }

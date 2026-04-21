@@ -19,59 +19,52 @@ class IaDashboardController extends Controller
         $clientes  = $this->iaService->listarClientes();
         $productos = $this->iaService->listarProductos();
 
-        return view('admin.ia-dashboard', compact('clientes', 'productos'));
+        return view('proveedores.ia-dashboard', compact('clientes', 'productos'));
     }
 
     public function pronosticoDemanda(Request $request)
     {
-        $request->validate([
-            'codigo_cliente' => 'required|string|max:50',
-        ]);
+        $request->validate(['codigo_cliente' => 'required|string|max:50']);
 
         $resultado = $this->iaService->pronosticoDemanda($request->input('codigo_cliente'));
-
         $clientes  = $this->iaService->listarClientes();
         $productos = $this->iaService->listarProductos();
 
-        return view('admin.ia-dashboard', [
-            'clientes'             => $clientes,
-            'productos'            => $productos,
-            'resultadoPronostico'  => $resultado,
-            'tabActiva'            => 'pronostico',
+        return view('proveedores.ia-dashboard', [
+            'clientes'            => $clientes,
+            'productos'           => $productos,
+            'resultadoPronostico' => $resultado,
+            'tabActiva'           => 'pronostico',
         ]);
     }
 
     public function optimizacionInventario()
     {
         $resultado = $this->iaService->optimizacionInventario();
-
         $clientes  = $this->iaService->listarClientes();
         $productos = $this->iaService->listarProductos();
 
-        return view('admin.ia-dashboard', [
-            'clientes'              => $clientes,
-            'productos'             => $productos,
-            'resultadoInventario'   => $resultado,
-            'tabActiva'             => 'inventario',
+        return view('proveedores.ia-dashboard', [
+            'clientes'             => $clientes,
+            'productos'            => $productos,
+            'resultadoInventario'  => $resultado,
+            'tabActiva'            => 'inventario',
         ]);
     }
 
     public function seleccionProveedor(Request $request)
     {
-        $request->validate([
-            'producto_id' => 'required|string|max:50',
-        ]);
+        $request->validate(['producto_id' => 'required|string|max:50']);
 
         $resultado = $this->iaService->seleccionProveedor($request->input('producto_id'));
-
         $clientes  = $this->iaService->listarClientes();
         $productos = $this->iaService->listarProductos();
 
-        return view('admin.ia-dashboard', [
-            'clientes'              => $clientes,
-            'productos'             => $productos,
-            'resultadoProveedor'    => $resultado,
-            'tabActiva'             => 'proveedor',
+        return view('proveedores.ia-dashboard', [
+            'clientes'            => $clientes,
+            'productos'           => $productos,
+            'resultadoProveedor'  => $resultado,
+            'tabActiva'           => 'proveedor',
         ]);
     }
 }

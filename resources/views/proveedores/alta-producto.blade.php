@@ -97,12 +97,50 @@
     <div class="info-banner">
         <div class="info-banner-icon">ℹ️</div>
         <div class="info-banner-text">
-            <strong>¿Cómo funciona?</strong> Llena los datos de tu producto, agrega sus atributos y características. Al terminar, descarga la plantilla generada automáticamente y envíala a tu ejecutivo de cuenta en Industrias Salcom para registrar el producto en el sistema.
+            <strong>¿Cómo funciona?</strong> Responde las preguntas generales, llena los datos de tu producto y agrega sus atributos. Al terminar, descarga la plantilla Excel generada automáticamente y envíala a tu ejecutivo de cuenta en Industrias Salcom para completar el registro.
         </div>
     </div>
 
     <div class="success-banner" id="successBanner">
         ✅ ¡Plantilla generada correctamente! Revisa tu carpeta de descargas.
+    </div>
+
+    {{-- SECCIÓN 0: PREGUNTAS GENERALES --}}
+    <div class="form-card">
+        <div class="form-section-title">
+            <div class="num">0</div>
+            Preguntas generales
+        </div>
+        <div class="form-grid">
+            <div class="form-group full">
+                <label>¿Cuál es el uso principal de este producto? <span class="req">*</span></label>
+                <textarea id="usoPrincipal" placeholder="Describe para qué se usa el producto, en qué industria o proceso se aplica"></textarea>
+            </div>
+            <div class="form-group">
+                <label>¿Tiene ficha técnica disponible? <span class="req">*</span></label>
+                <select id="fichaTecnica">
+                    <option value="">— Selecciona —</option>
+                    <option value="si">Sí, la tengo disponible</option>
+                    <option value="en_proceso">Está en proceso</option>
+                    <option value="no">No tengo ficha técnica</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>¿Requiere condiciones especiales de almacenamiento?</label>
+                <select id="condicionesAlmacen">
+                    <option value="">— Selecciona —</option>
+                    <option value="no">No, almacenamiento normal</option>
+                    <option value="refrigerado">Sí, requiere refrigeración</option>
+                    <option value="seco">Sí, ambiente seco</option>
+                    <option value="otro">Otro (especificar en descripción)</option>
+                </select>
+            </div>
+            <div class="form-group full">
+                <label>¿Tiene certificaciones o normativas aplicables?</label>
+                <input type="text" id="certificaciones" placeholder="Ej: ISO 9001, NOM-051, FDA, libre de BPA, etc.">
+                <span class="form-hint">Separa con comas si son varias</span>
+            </div>
+        </div>
     </div>
 
     {{-- SECCIÓN 1: IDENTIFICACIÓN --}}
@@ -335,6 +373,10 @@ function generarPlantilla() {
     });
 
     const datos = {
+        'Uso principal':         document.getElementById('usoPrincipal').value || '—',
+        'Ficha técnica':         document.getElementById('fichaTecnica').value || '—',
+        'Condiciones almacén':   document.getElementById('condicionesAlmacen').value || '—',
+        'Certificaciones':       document.getElementById('certificaciones').value || '—',
         'Número de parte':       document.getElementById('numeroParte').value,
         'Código de barras/EAN':  document.getElementById('codigoBarras').value || '—',
         'Nombre del producto':   document.getElementById('nombreProducto').value,

@@ -10,11 +10,21 @@
       "disabled": false,
       "autoApprove": [
         "resumen",
+        "analisis",
         "clientes",
+        "cliente_detalle",
         "proveedores",
+        "proveedor_detalle",
         "pedidos",
+        "pedido_detalle",
         "productos",
-        "encuestas"
+        "producto_detalle",
+        "facturas",
+        "muestras",
+        "encuestas",
+        "documentos",
+        "validar_documento",
+        "revisar_documento"
       ]
     }
   }

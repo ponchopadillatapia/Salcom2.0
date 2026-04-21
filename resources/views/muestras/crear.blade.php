@@ -101,6 +101,44 @@
 
             <div class="row-2">
                 <div class="mb-3">
+                    <label class="form-label">Material / Composición</label>
+                    <input type="text" name="material" class="form-control" placeholder="Ej: Polietileno, Acero inoxidable" value="{{ old('material') }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Color</label>
+                    <input type="text" name="color" class="form-control" placeholder="Ej: Transparente, Rojo" value="{{ old('color') }}">
+                </div>
+            </div>
+
+            <div class="row-2">
+                <div class="mb-3">
+                    <label class="form-label">Dimensiones</label>
+                    <input type="text" name="dimensiones" class="form-control" placeholder="Ej: 10x5x3 cm" value="{{ old('dimensiones') }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Peso por unidad</label>
+                    <input type="text" name="peso_unidad" class="form-control" placeholder="Ej: 250g, 1.5kg" value="{{ old('peso_unidad') }}">
+                </div>
+            </div>
+
+            <div class="row-2">
+                <div class="mb-3">
+                    <label class="form-label">Certificaciones requeridas</label>
+                    <input type="text" name="certificaciones" class="form-control" placeholder="Ej: ISO 9001, FDA, NOM" value="{{ old('certificaciones') }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Temperatura de almacenamiento</label>
+                    <input type="text" name="temperatura" class="form-control" placeholder="Ej: 15-25°C, Refrigerado" value="{{ old('temperatura') }}">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Pruebas requeridas</label>
+                <textarea name="pruebas_requeridas" class="form-control" rows="2" placeholder="Ej: Prueba de resistencia, análisis químico, prueba de estabilidad">{{ old('pruebas_requeridas') }}</textarea>
+            </div>
+
+            <div class="row-2">
+                <div class="mb-3">
                     <label class="form-label">Cantidad</label>
                     <input type="number" name="cantidad" class="form-control" min="1" value="{{ old('cantidad', 1) }}" required>
                 </div>

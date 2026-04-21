@@ -60,6 +60,13 @@ return [
         'token' => env('SALCOM_API_TOKEN', ''),
     ],
 
+    'anthropic' => [
+        'url'     => env('ANTHROPIC_API_URL', 'https://api.anthropic.com/v1/messages'),
+        'api_key' => env('ANTHROPIC_API_KEY', ''),
+        'model'   => env('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514'),
+        'timeout' => (int) env('ANTHROPIC_TIMEOUT', 60),
+    ],
+
     'groq' => [
         'url'     => env('GROQ_API_URL', 'https://api.groq.com/openai/v1/chat/completions'),
         'api_key' => env('GROQ_API_KEY', ''),

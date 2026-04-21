@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.proveedor')
 @section('title', 'Módulo de IA')
 @section('hero')
 <div class="hero-band">
@@ -96,7 +96,7 @@
             <p style="font-size:13px;color:var(--gray-muted);margin-bottom:16px">
                 Selecciona un cliente para analizar su historial de pedidos y predecir la demanda futura usando IA.
             </p>
-            <form method="POST" action="{{ route('admin.ia.pronostico') }}">
+            <form method="POST" action="{{ route('proveedores.ia.pronostico') }}">
                 @csrf
                 <div class="form-row">
                     <div class="form-group">
@@ -216,7 +216,7 @@
             <p style="font-size:13px;color:var(--gray-muted);margin-bottom:16px">
                 La IA analizará el inventario actual contra la demanda proyectada para sugerir puntos de reorden y cantidades óptimas.
             </p>
-            <form method="POST" action="{{ route('admin.ia.inventario') }}">
+            <form method="POST" action="{{ route('proveedores.ia.inventario') }}">
                 @csrf
                 <button type="submit" class="btn-ia">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
@@ -254,7 +254,7 @@
                 Selecciona un producto para que la IA compare proveedores y recomiende el mejor por costo, tiempo de entrega y calidad.
                 Este módulo corresponde al nodo "IA: Selección proveedor / Mejor costo-tiempo" del diagrama de flujo.
             </p>
-            <form method="POST" action="{{ route('admin.ia.proveedor') }}">
+            <form method="POST" action="{{ route('proveedores.ia.proveedor') }}">
                 @csrf
                 <div class="form-row">
                     <div class="form-group">

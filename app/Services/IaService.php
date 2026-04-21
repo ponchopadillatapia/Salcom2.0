@@ -14,10 +14,10 @@ class IaService
 
     public function __construct()
     {
-        $this->apiUrl  = config('services.groq.url', 'https://api.groq.com/openai/v1/chat/completions');
-        $this->apiKey  = config('services.groq.api_key', '');
-        $this->model   = config('services.groq.model', 'llama-3.3-70b-versatile');
-        $this->timeout = config('services.groq.timeout', 30);
+        $this->apiUrl  = config('services.anthropic.url', 'https://api.anthropic.com/v1/messages');
+        $this->apiKey  = config('services.anthropic.api_key', '');
+        $this->model   = config('services.anthropic.model', 'claude-sonnet-4-20250514');
+        $this->timeout = config('services.anthropic.timeout', 60);
     }
 
     // ══════════════════════════════════════════════
@@ -33,7 +33,7 @@ class IaService
             'historial'      => json_encode($historial, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
         ]);
 
-        $resultado = $this->llamarGroq($prompt);
+        $resultado = $this->llamarClaude($prompt);
 
         return [
             'cliente'    => $codigoCliente,
@@ -57,7 +57,7 @@ class IaService
             'demanda'    => json_encode($demanda, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
         ]);
 
-        $resultado = $this->llamarGroq($prompt);
+        $resultado = $this->llamarClaude($prompt);
 
         return [
             'inventario' => $inventario,
@@ -81,7 +81,7 @@ class IaService
             'proveedores' => json_encode($proveedores, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
         ]);
 
-        $resultado = $this->llamarGroq($prompt);
+        $resultado = $this->llamarClaude($prompt);
 
         return [
             'producto'    => $producto,
@@ -92,17 +92,17 @@ class IaService
     }
 
     // ══════════════════════════════════════════════
-    // Llamada a la API de Groq (formato OpenAI)
+    // Llamada a la API de Anthropic (Claude)
     // ══════════════════════════════════════════════
 
-    public function llamarGroq(string $prompt): array
+    public function llamarClaude(string $prompt): array
     {
         if (empty(trim($this->apiKey))) {
-            Log::warning('IaService: API key de Groq no configurada');
+            Log::warning('IaService: API key de Anthropic no configurada');
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => 'La API key de Groq no está configurada. Agrega GROQ_API_KEY en tu .env',
+                'error'   => 'La API key de Anthropic no está configurada. Agrega ANTHROPIC_API_KEY en tu .env',
             ];
         }
 
@@ -110,11 +110,13 @@ class IaService
             $response = Http::asJson()
                 ->timeout($this->timeout)
                 ->withHeaders([
-                    'Authorization' => 'Bearer ' . $this->apiKey,
+                    'x-api-key'         => $this->apiKey,
+                    'anthropic-version'  => '2023-06-01',
                 ])
                 ->post($this->apiUrl, [
                     'model'      => $this->model,
-                    'max_tokens' => 2048,
+                    'max_tokens' => 4096,
+                    'system'     => 'Eres un analista experto de Industrias Salcom, una empresa manufacturera mexicana. Responde siempre en español, de forma concisa y orientada a la acción.',
                     'messages'   => [
                         [
                             'role'    => 'user',
@@ -125,7 +127,7 @@ class IaService
 
             if ($response->successful()) {
                 $body = $response->json();
-                $text = $body['choices'][0]['message']['content'] ?? '';
+                $text = $body['content'][0]['text'] ?? '';
 
                 return [
                     'success' => true,
@@ -134,7 +136,7 @@ class IaService
                 ];
             }
 
-            Log::error('IaService: error de API Groq', [
+            Log::error('IaService: error de API Anthropic', [
                 'status' => $response->status(),
                 'body'   => $response->json() ?? $response->body(),
             ]);
@@ -146,18 +148,18 @@ class IaService
                 'success' => false,
                 'content' => null,
                 'error'   => $errorMsg
-                    ? 'Error de Groq: ' . $errorMsg
-                    : 'Error de la API de Groq (HTTP ' . $response->status() . ')',
+                    ? 'Error de Claude: ' . $errorMsg
+                    : 'Error de la API de Anthropic (HTTP ' . $response->status() . ')',
             ];
         } catch (\Exception $e) {
-            Log::error('IaService: excepción al llamar Groq', [
+            Log::error('IaService: excepción al llamar Anthropic', [
                 'error' => $e->getMessage(),
             ]);
 
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => 'No se pudo conectar con la API de Groq: ' . $e->getMessage(),
+                'error'   => 'No se pudo conectar con la API de Anthropic: ' . $e->getMessage(),
             ];
         }
     }
@@ -170,26 +172,20 @@ class IaService
     {
         return match ($tipo) {
             'pronostico_demanda' => <<<PROMPT
-Eres un analista de supply chain de Industrias Salcom, una empresa manufacturera mexicana.
-
 Analiza el historial de pedidos del cliente {$datos['codigo_cliente']} y genera un pronóstico de demanda para los próximos 3 meses.
 
 HISTORIAL DE PEDIDOS:
 {$datos['historial']}
 
-Responde en español con formato estructurado:
+Responde con formato estructurado:
 1. **Resumen del patrón**: Describe la tendencia y estacionalidad detectada.
 2. **Pronóstico mensual**: Tabla con mes, cantidad estimada y nivel de confianza.
 3. **Productos clave**: Los 3 productos con mayor probabilidad de reorden.
 4. **Recomendaciones**: Acciones concretas para el equipo de ventas y planeación.
 5. **Riesgos**: Factores que podrían alterar el pronóstico.
-
-Sé conciso y orientado a la acción.
 PROMPT,
 
             'optimizacion_inventario' => <<<PROMPT
-Eres un experto en gestión de inventarios de Industrias Salcom, una empresa manufacturera mexicana.
-
 Analiza el inventario actual y la demanda proyectada para optimizar los niveles de stock.
 
 INVENTARIO ACTUAL:
@@ -198,19 +194,15 @@ INVENTARIO ACTUAL:
 DEMANDA PROYECTADA (próximos 3 meses):
 {$datos['demanda']}
 
-Responde en español con formato estructurado:
+Responde con formato estructurado:
 1. **Alertas críticas**: Productos en riesgo de desabasto (stock < 2 semanas de demanda).
 2. **Punto de reorden**: Para cada producto, cuándo y cuánto reordenar (ROP y EOQ simplificado).
 3. **Sobrestock**: Productos con exceso de inventario y recomendación.
 4. **Ahorro estimado**: Impacto financiero de las optimizaciones propuestas.
 5. **Plan de acción**: Prioridades para las próximas 2 semanas.
-
-Sé conciso y orientado a la acción.
 PROMPT,
 
             'seleccion_proveedor' => <<<PROMPT
-Eres un especialista en compras de Industrias Salcom, una empresa manufacturera mexicana.
-
 Dado el siguiente producto y los proveedores disponibles, recomienda el mejor proveedor considerando costo, tiempo de entrega, calidad y confiabilidad.
 
 PRODUCTO REQUERIDO:
@@ -219,14 +211,12 @@ PRODUCTO REQUERIDO:
 PROVEEDORES DISPONIBLES:
 {$datos['proveedores']}
 
-Responde en español con formato estructurado:
+Responde con formato estructurado:
 1. **Recomendación principal**: Proveedor seleccionado y justificación.
 2. **Comparativa**: Tabla comparativa de todos los proveedores (costo, tiempo, calidad, score).
 3. **Proveedor alternativo**: Segunda opción en caso de que el principal no pueda cumplir.
 4. **Negociación**: Puntos de negociación sugeridos para obtener mejor precio o condiciones.
 5. **Riesgos**: Riesgos identificados con el proveedor seleccionado.
-
-Sé conciso y orientado a la acción.
 PROMPT,
 
             default => $datos['prompt'] ?? '',
@@ -239,7 +229,6 @@ PROMPT,
 
     public function obtenerHistorialPedidos(string $codigoCliente): array
     {
-        // TODO: Reemplazar con datos reales de la API de Alan
         return [
             ['pedido' => 'PED-2025-089', 'fecha' => '2025-11-15', 'productos' => [
                 ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'cantidad' => 500, 'unidad' => 'kg', 'precio_unitario' => 85.00],
@@ -273,7 +262,6 @@ PROMPT,
 
     public function obtenerInventarioActual(): array
     {
-        // TODO: Reemplazar con datos reales de la API de Alan
         return [
             ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'stock_actual' => 1200, 'unidad' => 'kg', 'costo_unitario' => 65.00, 'ubicacion' => 'Almacén A-12'],
             ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico', 'stock_actual' => 150, 'unidad' => 'lt', 'costo_unitario' => 32.00, 'ubicacion' => 'Almacén B-03'],
@@ -286,7 +274,6 @@ PROMPT,
 
     public function obtenerDemandaProyectada(): array
     {
-        // TODO: Reemplazar con datos reales
         return [
             ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'demanda_mensual' => 750, 'unidad' => 'kg', 'tendencia' => 'creciente'],
             ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico', 'demanda_mensual' => 280, 'unidad' => 'lt', 'tendencia' => 'estable'],
@@ -299,7 +286,6 @@ PROMPT,
 
     public function obtenerProducto(string $productoId): array
     {
-        // TODO: Reemplazar con datos reales
         $productos = [
             'SAL-001' => ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'cantidad_requerida' => 800, 'unidad' => 'kg', 'especificaciones' => 'Viscosidad 12000-15000 cP, color transparente, vida útil mín. 12 meses'],
             'SAL-003' => ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico', 'cantidad_requerida' => 300, 'unidad' => 'lt', 'especificaciones' => 'Pureza mín. 99.5%, punto de ebullición 76-78°C'],
@@ -311,7 +297,6 @@ PROMPT,
 
     public function obtenerProveedoresProducto(string $productoId): array
     {
-        // TODO: Reemplazar con datos reales
         return [
             [
                 'codigo' => 'PROV-101', 'nombre' => 'Químicos del Norte S.A.',
@@ -350,7 +335,6 @@ PROMPT,
 
     public function listarClientes(): array
     {
-        // TODO: Reemplazar con datos reales
         return [
             ['codigo' => 'CLI-001', 'nombre' => 'Manufacturas del Pacífico'],
             ['codigo' => 'CLI-002', 'nombre' => 'Grupo Industrial Azteca'],
@@ -360,7 +344,6 @@ PROMPT,
 
     public function listarProductos(): array
     {
-        // TODO: Reemplazar con datos reales
         return [
             ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial'],
             ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico'],
