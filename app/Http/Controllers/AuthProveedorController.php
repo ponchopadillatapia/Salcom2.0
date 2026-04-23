@@ -24,6 +24,9 @@ class AuthProveedorController extends Controller
 
     public function mostrarLogin()
     {
+        if (session('proveedor_id')) {
+            return redirect('/portal-proveedor');
+        }
         return view('proveedores.login');
     }
 

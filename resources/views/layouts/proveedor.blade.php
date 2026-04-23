@@ -280,7 +280,7 @@
 <nav class="top-nav">
     <div class="nav-logo" style="display:flex;align-items:center;gap:14px;">
         @include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])
-        <span>🏭 Portal de Proveedores</span>
+        <span>Portal de Proveedores</span>
     </div>
     <div class="nav-right">
         <span class="nav-user">{{ session('proveedor_nombre', 'Proveedor') }}</span>

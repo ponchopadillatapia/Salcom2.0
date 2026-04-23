@@ -40,7 +40,7 @@
 </head>
 <body>
 <nav class="portal-nav">
-    <div class="nav-brand">🛒 Industrias Salcom</div>
+    <div class="nav-brand">Industrias Salcom</div>
     <div class="portal-menu"><a href="{{ route('clientes.portal') }}">Inicio</a></div>
     <div class="nav-right"><span class="nav-user">{{ session('cliente_nombre', 'Cliente') }}</span><form method="POST" action="{{ route('clientes.logout') }}" style="display:inline">@csrf<button type="submit" class="btn-logout">Cerrar sesión</button></form></div>
 </nav>

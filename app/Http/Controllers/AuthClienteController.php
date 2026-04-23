@@ -21,6 +21,9 @@ class AuthClienteController extends Controller
 
     public function mostrarLogin()
     {
+        if (session('cliente_id')) {
+            return redirect('/portal-cliente');
+        }
         return view('clientes.login');
     }
 

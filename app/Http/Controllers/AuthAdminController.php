@@ -12,6 +12,9 @@ class AuthAdminController extends Controller
 {
     public function mostrarLogin()
     {
+        if (session('admin_id')) {
+            return redirect('/admin/dashboard');
+        }
         return view('admin.login');
     }
 

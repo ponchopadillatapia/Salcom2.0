@@ -32,7 +32,9 @@
     <a href="/" style="font-size:12px;color:rgba(255,255,255,0.4);text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:color .2s;" onmouseover="this.style.color='rgba(255,255,255,0.8)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">← Volver al inicio</a>
     <div class="brand">
         @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
-        <div style="width:64px;height:64px;border-radius:16px;background:rgba(37,99,235,0.2);border:1px solid rgba(37,99,235,0.3);display:flex;align-items:center;justify-content:center;margin:16px auto 8px;font-size:28px;">🛒</div>
+        <div style="width:64px;height:64px;border-radius:16px;background:rgba(37,99,235,0.2);border:1px solid rgba(37,99,235,0.3);display:flex;align-items:center;justify-content:center;margin:16px auto 8px;">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(147,197,253,0.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
         <p>PORTAL DE CLIENTES</p>
     </div>
     <div class="card">
