@@ -141,7 +141,7 @@
 <body>
 
 <nav class="portal-nav">
-    <div class="nav-brand">Industrias Salcom</div>
+    <div class="nav-brand">🏭 Industrias Salcom</div>
     <div class="portal-menu">
         <a href="{{ route('proveedores.portal') }}" class="active">Inicio</a>
     </div>

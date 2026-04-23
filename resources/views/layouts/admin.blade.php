@@ -198,7 +198,7 @@
 <nav class="top-nav">
     <div class="nav-logo" style="display:flex;align-items:center;gap:14px;">
         @include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])
-        <span>Panel Administrativo</span>
+        <span>🛡️ Panel Administrativo</span>
     </div>
     <div class="nav-right">
         <span class="nav-user">{{ session('admin_nombre', 'Administrador') }}</span>
