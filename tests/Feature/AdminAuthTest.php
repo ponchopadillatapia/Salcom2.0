@@ -45,7 +45,7 @@ class AdminAuthTest extends TestCase
             'password' => 'salcom2026',
         ]);
 
-        $response->assertRedirect('/admin/clientes');
+        $response->assertRedirect('/admin/dashboard');
         $response->assertSessionHas('admin_id');
         $response->assertSessionHas('admin_nombre', 'Super Administrador');
         $response->assertSessionHas('admin_usuario', 'ADMIN001');
@@ -126,7 +126,7 @@ class AdminAuthTest extends TestCase
 
     public function test_middleware_redirige_sin_sesion(): void
     {
-        $response = $this->get('/admin/clientes');
+        $response = $this->get('/admin/dashboard');
 
         $response->assertRedirect('/login-admin');
     }
@@ -140,7 +140,7 @@ class AdminAuthTest extends TestCase
             'admin_nombre'  => $admin->nombre,
             'admin_correo'  => $admin->correo,
             'admin_usuario' => $admin->usuario,
-        ])->get('/admin/clientes');
+        ])->get('/admin/dashboard');
 
         $response->assertStatus(200);
     }
@@ -199,7 +199,7 @@ class AdminAuthTest extends TestCase
             'password' => 'salcom2026',
         ]);
 
-        $response->assertRedirect('/admin/clientes');
+        $response->assertRedirect('/admin/dashboard');
         $response->assertSessionHas('admin_id');
     }
 
@@ -251,10 +251,10 @@ class AdminAuthTest extends TestCase
             'usuario'  => 'ADMIN001',
             'password' => 'salcom2026',
         ]);
-        $loginResponse->assertRedirect('/admin/clientes');
+        $loginResponse->assertRedirect('/admin/dashboard');
 
         // 2. Acceder a Dashboard IA
-        $iaResponse = $this->get('/admin/clientes');
+        $iaResponse = $this->get('/admin/dashboard');
         $iaResponse->assertStatus(200);
 
         // 3. Acceder a Alta de Cliente
@@ -266,7 +266,7 @@ class AdminAuthTest extends TestCase
         $logoutResponse->assertRedirect('/login-admin');
 
         // 5. Ya no puede acceder
-        $protectedResponse = $this->get('/admin/clientes');
+        $protectedResponse = $this->get('/admin/dashboard');
         $protectedResponse->assertRedirect('/login-admin');
     }
 }

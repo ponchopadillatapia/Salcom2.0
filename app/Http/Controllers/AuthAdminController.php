@@ -61,7 +61,7 @@ class AuthAdminController extends Controller
 
         Log::info('Login admin exitoso', ['usuario' => $admin->usuario]);
 
-        return redirect('/admin/clientes')->with('mensaje', 'Bienvenido ' . $admin->nombre);
+        return redirect('/admin/dashboard')->with('mensaje', 'Bienvenido ' . $admin->nombre);
     }
 
     public function cerrarSesion()

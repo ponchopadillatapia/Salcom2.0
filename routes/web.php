@@ -78,8 +78,9 @@ use App\Http\Controllers\AdminClienteController;
 Route::get('/admin/cliente/alta', [AdminClienteController::class, 'mostrarAlta'])->name('admin.cliente.alta')->middleware('auth.admin');
 Route::post('/admin/cliente/alta', [AdminClienteController::class, 'guardar'])->name('admin.cliente.guardar')->middleware('auth.admin');
 
-// ── Admin: Panel (Clientes, Encuestas, Pedidos) ──
+// ── Admin: Panel (Dashboard, Clientes, Encuestas, Pedidos, Proveedores) ──
 use App\Http\Controllers\AdminPanelController;
+Route::get('/admin/dashboard', [AdminPanelController::class, 'dashboard'])->name('admin.dashboard')->middleware('auth.admin');
 Route::get('/admin/clientes', [AdminPanelController::class, 'clientes'])->name('admin.clientes')->middleware('auth.admin');
 Route::patch('/admin/clientes/{cliente}/toggle', [AdminPanelController::class, 'toggleCliente'])->name('admin.clientes.toggle')->middleware('auth.admin');
 Route::get('/admin/encuestas', [AdminPanelController::class, 'encuestas'])->name('admin.encuestas')->middleware('auth.admin');

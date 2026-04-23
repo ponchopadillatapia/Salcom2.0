@@ -217,6 +217,16 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </div>
         <nav class="sb-nav">
+            <div class="sb-section">Principal</div>
+
+            <a href="{{ route('admin.dashboard') }}" class="sb-link {{ request()->is('admin/dashboard*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                </div>
+                <span class="sb-text">Dashboard</span>
+            </a>
+
+            <div class="sb-hr"></div>
             <div class="sb-section">Gestión</div>
 
             <a href="{{ route('admin.cliente.alta') }}" class="sb-link {{ request()->is('admin/cliente/alta*') ? 'active' : '' }}">
