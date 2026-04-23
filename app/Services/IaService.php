@@ -7,17 +7,21 @@ use Illuminate\Support\Facades\Log;
 
 class IaService
 {
-    private string $apiUrl;
-    private string $apiKey;
+    private string $provider;
+    private string $region;
+    private string $accessKey;
+    private string $secretKey;
     private string $model;
     private int $timeout;
 
     public function __construct()
     {
-        $this->apiUrl  = config('services.anthropic.url', 'https://api.anthropic.com/v1/messages');
-        $this->apiKey  = config('services.anthropic.api_key', '');
-        $this->model   = config('services.anthropic.model', 'claude-sonnet-4-20250514');
-        $this->timeout = config('services.anthropic.timeout', 60);
+        $this->provider  = config('services.ia.provider', 'bedrock'); // bedrock | anthropic
+        $this->region    = config('services.ia.bedrock_region', 'us-east-1');
+        $this->accessKey = config('services.ia.aws_access_key', '');
+        $this->secretKey = config('services.ia.aws_secret_key', '');
+        $this->model     = config('services.ia.model', 'anthropic.claude-3-5-sonnet-20241022-v2:0');
+        $this->timeout   = config('services.ia.timeout', 60);
     }
 
     // ══════════════════════════════════════════════
@@ -92,17 +96,135 @@ class IaService
     }
 
     // ══════════════════════════════════════════════
-    // Llamada a la API de Anthropic (Claude)
+    // Llamada a la IA (Amazon Bedrock o Anthropic)
     // ══════════════════════════════════════════════
 
     public function llamarClaude(string $prompt): array
     {
-        if (empty(trim($this->apiKey))) {
-            Log::warning('IaService: API key de Anthropic no configurada');
+        if ($this->provider === 'bedrock') {
+            return $this->llamarBedrock($prompt);
+        }
+
+        return $this->llamarAnthropicDirecto($prompt);
+    }
+
+    /**
+     * Amazon Bedrock — Claude via AWS SDK (Signature V4)
+     */
+    private function llamarBedrock(string $prompt): array
+    {
+        if (empty($this->accessKey) || empty($this->secretKey)) {
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => 'La API key de Anthropic no está configurada. Agrega ANTHROPIC_API_KEY en tu .env',
+                'error'   => 'Credenciales de AWS no configuradas. Agrega IA_AWS_ACCESS_KEY e IA_AWS_SECRET_KEY en tu .env',
+            ];
+        }
+
+        $service  = 'bedrock';
+        $host     = "bedrock-runtime.{$this->region}.amazonaws.com";
+        $endpoint = "https://{$host}/model/{$this->model}/invoke";
+
+        $body = json_encode([
+            'anthropic_version' => 'bedrock-2023-05-31',
+            'max_tokens'        => 4096,
+            'system'            => 'Eres un analista experto de Industrias Salcom, una empresa manufacturera mexicana. Responde siempre en español, de forma concisa y orientada a la acción.',
+            'messages'          => [
+                ['role' => 'user', 'content' => $prompt],
+            ],
+        ]);
+
+        try {
+            // AWS Signature V4
+            $now       = gmdate('Ymd\THis\Z');
+            $date      = gmdate('Ymd');
+            $scope     = "{$date}/{$this->region}/{$service}/aws4_request";
+            $headers   = [
+                'content-type'         => 'application/json',
+                'host'                 => $host,
+                'x-amz-date'          => $now,
+            ];
+
+            // Canonical request
+            $canonicalUri     = "/model/{$this->model}/invoke";
+            $canonicalQuery   = '';
+            $canonicalHeaders = '';
+            $signedHeaders    = '';
+            ksort($headers);
+            foreach ($headers as $k => $v) {
+                $canonicalHeaders .= strtolower($k) . ':' . trim($v) . "\n";
+                $signedHeaders    .= ($signedHeaders ? ';' : '') . strtolower($k);
+            }
+            $payloadHash     = hash('sha256', $body);
+            $canonicalRequest = "POST\n{$canonicalUri}\n{$canonicalQuery}\n{$canonicalHeaders}\n{$signedHeaders}\n{$payloadHash}";
+
+            // String to sign
+            $stringToSign = "AWS4-HMAC-SHA256\n{$now}\n{$scope}\n" . hash('sha256', $canonicalRequest);
+
+            // Signing key
+            $kDate    = hash_hmac('sha256', $date, "AWS4{$this->secretKey}", true);
+            $kRegion  = hash_hmac('sha256', $this->region, $kDate, true);
+            $kService = hash_hmac('sha256', $service, $kRegion, true);
+            $kSigning = hash_hmac('sha256', 'aws4_request', $kService, true);
+            $signature = hash_hmac('sha256', $stringToSign, $kSigning);
+
+            $authHeader = "AWS4-HMAC-SHA256 Credential={$this->accessKey}/{$scope}, SignedHeaders={$signedHeaders}, Signature={$signature}";
+
+            $response = Http::timeout($this->timeout)
+                ->withHeaders([
+                    'Content-Type'  => 'application/json',
+                    'X-Amz-Date'   => $now,
+                    'Authorization' => $authHeader,
+                ])
+                ->withBody($body, 'application/json')
+                ->post($endpoint);
+
+            if ($response->successful()) {
+                $data = $response->json();
+                $text = $data['content'][0]['text'] ?? '';
+
+                return ['success' => true, 'content' => $text, 'error' => null];
+            }
+
+            Log::error('IaService: error de Bedrock', [
+                'status' => $response->status(),
+                'body'   => $response->json() ?? $response->body(),
+            ]);
+
+            $errorMsg = $response->json()['message'] ?? null;
+
+            return [
+                'success' => false,
+                'content' => null,
+                'error'   => $errorMsg
+                    ? 'Error de Bedrock: ' . $errorMsg
+                    : 'Error de Amazon Bedrock (HTTP ' . $response->status() . ')',
+            ];
+        } catch (\Exception $e) {
+            Log::error('IaService: excepción Bedrock', ['error' => $e->getMessage()]);
+
+            return [
+                'success' => false,
+                'content' => null,
+                'error'   => 'No se pudo conectar con Amazon Bedrock: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Anthropic directo (fallback)
+     */
+    private function llamarAnthropicDirecto(string $prompt): array
+    {
+        $apiKey = config('services.anthropic.api_key', '');
+        $apiUrl = config('services.anthropic.url', 'https://api.anthropic.com/v1/messages');
+        $model  = config('services.anthropic.model', 'claude-sonnet-4-20250514');
+
+        if (empty(trim($apiKey))) {
+            return [
+                'success' => false,
+                'content' => null,
+                'error'   => 'API key de Anthropic no configurada.',
             ];
         }
 
@@ -110,57 +232,29 @@ class IaService
             $response = Http::asJson()
                 ->timeout($this->timeout)
                 ->withHeaders([
-                    'x-api-key'         => $this->apiKey,
-                    'anthropic-version'  => '2023-06-01',
+                    'x-api-key'        => $apiKey,
+                    'anthropic-version' => '2023-06-01',
                 ])
-                ->post($this->apiUrl, [
-                    'model'      => $this->model,
+                ->post($apiUrl, [
+                    'model'      => $model,
                     'max_tokens' => 4096,
                     'system'     => 'Eres un analista experto de Industrias Salcom, una empresa manufacturera mexicana. Responde siempre en español, de forma concisa y orientada a la acción.',
-                    'messages'   => [
-                        [
-                            'role'    => 'user',
-                            'content' => $prompt,
-                        ],
-                    ],
+                    'messages'   => [['role' => 'user', 'content' => $prompt]],
                 ]);
 
             if ($response->successful()) {
-                $body = $response->json();
-                $text = $body['content'][0]['text'] ?? '';
-
-                return [
-                    'success' => true,
-                    'content' => $text,
-                    'error'   => null,
-                ];
+                $text = $response->json()['content'][0]['text'] ?? '';
+                return ['success' => true, 'content' => $text, 'error' => null];
             }
 
-            Log::error('IaService: error de API Anthropic', [
-                'status' => $response->status(),
-                'body'   => $response->json() ?? $response->body(),
-            ]);
-
-            $errorBody = $response->json();
-            $errorMsg  = $errorBody['error']['message'] ?? null;
-
+            $errorMsg = $response->json()['error']['message'] ?? null;
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => $errorMsg
-                    ? 'Error de Claude: ' . $errorMsg
-                    : 'Error de la API de Anthropic (HTTP ' . $response->status() . ')',
+                'error'   => $errorMsg ? 'Error de Claude: ' . $errorMsg : 'Error HTTP ' . $response->status(),
             ];
         } catch (\Exception $e) {
-            Log::error('IaService: excepción al llamar Anthropic', [
-                'error' => $e->getMessage(),
-            ]);
-
-            return [
-                'success' => false,
-                'content' => null,
-                'error'   => 'No se pudo conectar con la API de Anthropic: ' . $e->getMessage(),
-            ];
+            return ['success' => false, 'content' => null, 'error' => 'Error: ' . $e->getMessage()];
         }
     }
 

@@ -60,6 +60,15 @@ return [
         'token' => env('SALCOM_API_TOKEN', ''),
     ],
 
+    'ia' => [
+        'provider'       => env('IA_PROVIDER', 'bedrock'),        // bedrock | anthropic
+        'model'          => env('IA_MODEL', 'anthropic.claude-3-5-sonnet-20241022-v2:0'),
+        'bedrock_region' => env('IA_BEDROCK_REGION', 'us-east-1'),
+        'aws_access_key' => env('IA_AWS_ACCESS_KEY', ''),
+        'aws_secret_key' => env('IA_AWS_SECRET_KEY', ''),
+        'timeout'        => (int) env('IA_TIMEOUT', 60),
+    ],
+
     'anthropic' => [
         'url'     => env('ANTHROPIC_API_URL', 'https://api.anthropic.com/v1/messages'),
         'api_key' => env('ANTHROPIC_API_KEY', ''),
