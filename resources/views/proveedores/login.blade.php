@@ -171,7 +171,8 @@
 
     <div class="brand">
         @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
-        <p>Portal de Proveedores</p>
+        <div style="width:64px;height:64px;border-radius:16px;background:rgba(107,63,160,0.25);border:1px solid rgba(107,63,160,0.35);display:flex;align-items:center;justify-content:center;margin:16px auto 8px;font-size:28px;">🏭</div>
+        <p>PORTAL DE PROVEEDORES</p>
     </div>
 
     <div class="login-card">

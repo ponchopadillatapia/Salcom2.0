@@ -148,7 +148,8 @@
     <a href="/" style="font-size:12px;color:rgba(255,255,255,0.4);text-decoration:none;display:inline-flex;align-items:center;gap:6px;transition:color .2s;" onmouseover="this.style.color='rgba(255,255,255,0.8)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">← Volver al inicio</a>
     <div class="brand">
         @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
-        <p>Panel Administrativo</p>
+        <div style="width:64px;height:64px;border-radius:16px;background:rgba(220,38,38,0.15);border:1px solid rgba(220,38,38,0.25);display:flex;align-items:center;justify-content:center;margin:16px auto 8px;font-size:28px;">🛡️</div>
+        <p>PANEL ADMINISTRATIVO</p>
     </div>
 
     <div class="login-card">

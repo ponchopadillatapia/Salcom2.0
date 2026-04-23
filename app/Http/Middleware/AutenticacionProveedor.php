@@ -9,12 +9,15 @@ class AutenticacionProveedor
 {
     public function handle(Request $request, Closure $next)
     {
-        // Si no hay sesión activa, manda al login
         if (!session('proveedor_id')) {
             return redirect('/login-proveedor')
                 ->with('error', 'Debes iniciar sesión para acceder al portal');
         }
 
-        return $next($request);
+        $response = $next($request);
+
+        return $response->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                        ->header('Pragma', 'no-cache')
+                        ->header('Expires', '0');
     }
 }
