@@ -217,7 +217,10 @@
         <span class="muestras-badge" style="background:rgba(107,63,160,0.3);color:#c4b5fd;">Entrar →</span>
     </a>
 
-    <div class="footer-text">&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
+    <div class="footer-text">
+        <a href="/aviso-privacidad" style="color:rgba(255,255,255,0.4);text-decoration:none;font-size:11px;" onmouseover="this.style.color='rgba(255,255,255,0.7)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">Aviso de Privacidad</a>
+        · &copy; {{ date('Y') }} Industrias Salcom
+    </div>
 </div>
 
 </body>

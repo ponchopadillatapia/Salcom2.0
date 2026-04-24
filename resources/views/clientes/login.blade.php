@@ -50,7 +50,7 @@
         </form>
         <p class="no-register">¿No tienes cuenta? Contacta a Industrias Salcom para ser dado de alta.</p>
     </div>
-    <div class="footer-text">&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
+    <div class="footer-text"><a href="/aviso-privacidad" style="color:rgba(255,255,255,0.4);text-decoration:none;" onmouseover="this.style.color='rgba(255,255,255,0.7)'" onmouseout="this.style.color='rgba(255,255,255,0.4)'">Aviso de Privacidad</a> · &copy; {{ date('Y') }} Industrias Salcom</div>
 </div>
 </body>
 </html>
