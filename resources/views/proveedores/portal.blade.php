@@ -185,10 +185,10 @@
 
     {{-- TOP: Stats --}}
     <div class="top-grid">
-        <div class="card"><h4>📊 Mi Score como Proveedor</h4><div class="stat-val" style="color:var(--green)">0%</div><div class="stat-label">50% entrega a tiempo + 50% puntualidad</div></div>
-        <div class="card"><h4>OC Abiertas</h4><div class="stat-val">3</div><div class="stat-label">Datos de prueba</div></div>
-        <div class="card"><h4>Facturas pendientes</h4><div class="stat-val">—</div><div class="stat-label">Pendiente de API</div></div>
-        <div class="card"><h4>Onboarding</h4><div class="stat-val">40%</div><div class="stat-label">2 de 5 pasos</div></div>
+        <a href="{{ route('proveedores.onboarding') }}" class="card" style="text-decoration:none;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#6B3FA0';this.style.boxShadow='0 2px 8px rgba(107,63,160,0.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''"><h4>📊 Mi Score como Proveedor</h4><div class="stat-val" style="color:var(--green)">0%</div><div class="stat-label">50% entrega a tiempo + 50% puntualidad</div></a>
+        <a href="{{ route('proveedores.oc') }}" class="card" style="text-decoration:none;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#6B3FA0';this.style.boxShadow='0 2px 8px rgba(107,63,160,0.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''"><h4>OC Abiertas</h4><div class="stat-val">3</div><div class="stat-label">Datos de prueba</div></a>
+        <a href="{{ route('proveedores.payment-history') }}" class="card" style="text-decoration:none;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#6B3FA0';this.style.boxShadow='0 2px 8px rgba(107,63,160,0.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''"><h4>Facturas pendientes</h4><div class="stat-val">—</div><div class="stat-label">Pendiente de API</div></a>
+        <a href="{{ route('proveedores.onboarding') }}" class="card" style="text-decoration:none;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#6B3FA0';this.style.boxShadow='0 2px 8px rgba(107,63,160,0.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''"><h4>Onboarding</h4><div class="stat-val">40%</div><div class="stat-label">2 de 5 pasos</div></a>
     </div>
 
     {{-- WEEK DETAIL (hidden by default) --}}

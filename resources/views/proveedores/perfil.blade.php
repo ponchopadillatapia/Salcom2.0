@@ -156,6 +156,9 @@
         @if(session('mensaje'))
             <div class="alert alert-success">{{ session('mensaje') }}</div>
         @endif
+        @if(session('error_contacto'))
+            <div class="alert" style="background:var(--red-bg);border:1px solid #fca5a5;color:var(--red)">{{ session('error_contacto') }}</div>
+        @endif
 
         @if($contactos->count())
         <table class="contactos-table">
@@ -170,10 +173,7 @@
                     <td>{{ $c->telefono ?? '—' }}</td>
                     <td>{{ $c->correo ?? '—' }}</td>
                     <td>
-                        <form method="POST" action="{{ route('proveedores.contactos.eliminar', $c) }}" onsubmit="return confirm('¿Eliminar este contacto?')">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="btn-delete">Eliminar</button>
-                        </form>
+                        <button type="button" class="btn-delete" onclick="confirmarEliminar({{ $c->id }}, '{{ addslashes($c->nombre) }}')">Eliminar</button>
                     </td>
                 </tr>
             @endforeach
@@ -222,6 +222,31 @@
 
     {{-- Aviso de privacidad --}}
     <div style="margin-top:24px;text-align:center;">
+
+    {{-- Modal de confirmación para eliminar contacto --}}
+    <div id="deleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;">
+        <div style="background:#fff;border-radius:16px;padding:32px;max-width:400px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+            <div style="width:48px;height:48px;border-radius:50%;background:#fef2f2;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <h3 style="font-size:16px;font-weight:700;color:#1a1a2e;margin-bottom:4px">¿Eliminar contacto?</h3>
+            <p id="deleteContactName" style="font-size:13px;color:#6b7280;margin-bottom:16px"></p>
+            <label style="display:block;font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;text-align:left">Ingresa tu contraseña para confirmar</label>
+            <input type="password" id="deletePassword" placeholder="Tu contraseña" style="width:100%;border:1.5px solid #e5e7eb;border-radius:8px;padding:10px 14px;font-size:13px;font-family:inherit;outline:none;margin-bottom:16px" onfocus="this.style.borderColor='#6B3FA0'" onblur="this.style.borderColor='#e5e7eb'">
+            <div style="display:flex;gap:10px">
+                <button onclick="cerrarDeleteModal()" style="flex:1;padding:10px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;color:#6b7280">Cancelar</button>
+                <button onclick="ejecutarEliminar()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#dc2626;color:#fff;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer">Eliminar</button>
+            </div>
+            <p id="deleteError" style="font-size:12px;color:#dc2626;margin-top:8px;display:none">Contraseña incorrecta</p>
+        </div>
+    </div>
+
+    <form id="deleteForm" method="POST" style="display:none">
+        @csrf @method('DELETE')
+        <input type="hidden" name="password" id="deleteFormPassword">
+    </form>
+
+    <div style="margin-top:24px;text-align:center;">
         <a href="{{ route('aviso.privacidad') }}" class="aviso-link" target="_blank">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             Aviso de Privacidad — Industrias Salcom S.A. de C.V.
@@ -236,3 +261,40 @@
         @endif
     </div>
 @endsection
+
+@push('scripts')
+<script>
+let deleteContactId = null;
+
+function confirmarEliminar(id, nombre) {
+    deleteContactId = id;
+    document.getElementById('deleteContactName').textContent = 'Se eliminará a "' + nombre + '" de la lista de contactos.';
+    document.getElementById('deletePassword').value = '';
+    document.getElementById('deleteError').style.display = 'none';
+    document.getElementById('deleteModal').style.display = 'flex';
+    setTimeout(() => document.getElementById('deletePassword').focus(), 100);
+}
+
+function cerrarDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+    deleteContactId = null;
+}
+
+function ejecutarEliminar() {
+    const pwd = document.getElementById('deletePassword').value;
+    if (!pwd) {
+        document.getElementById('deleteError').textContent = 'Ingresa tu contraseña';
+        document.getElementById('deleteError').style.display = 'block';
+        return;
+    }
+    const form = document.getElementById('deleteForm');
+    form.action = '/proveedor/contactos/' + deleteContactId + '?password=' + encodeURIComponent(pwd);
+    document.getElementById('deleteFormPassword').value = pwd;
+    form.submit();
+}
+
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) cerrarDeleteModal();
+});
+</script>
+@endpush

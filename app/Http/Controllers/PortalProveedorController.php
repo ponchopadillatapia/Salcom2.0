@@ -64,10 +64,18 @@ class PortalProveedorController extends Controller
         return back()->with('mensaje', 'Contacto agregado correctamente.');
     }
 
-    public function eliminarContacto(ContactoProveedor $contacto)
+    public function eliminarContacto(Request $request, ContactoProveedor $contacto)
     {
         if ($contacto->proveedor_id != session('proveedor_id')) {
             abort(403);
+        }
+
+        // Verificar contraseña del proveedor
+        $proveedor = \App\Models\ProveedorUser::find(session('proveedor_id'));
+        $password = $request->input('password') ?? $request->query('password');
+
+        if (!$proveedor || !$password || !\Illuminate\Support\Facades\Hash::check($password, $proveedor->password)) {
+            return back()->with('error_contacto', 'Contraseña incorrecta. No se eliminó el contacto.');
         }
 
         $contacto->delete();
