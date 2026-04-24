@@ -20,4 +20,19 @@ class Factura extends Model
         'total' => 'decimal:2',
         'fecha_vencimiento' => 'date',
     ];
+
+    public function pedido()
+    {
+        return $this->belongsTo(Pedido::class, 'pedido_id');
+    }
+
+    public function cliente()
+    {
+        return $this->belongsTo(ClienteUser::class, 'codigo_cliente', 'codigo_cliente');
+    }
+
+    public function proveedor()
+    {
+        return $this->belongsTo(ProveedorUser::class, 'codigo_proveedor', 'codigo_compras');
+    }
 }

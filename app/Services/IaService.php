@@ -2,6 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Pedido;
+use App\Models\Producto;
+use App\Models\ProveedorUser;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -109,7 +112,7 @@ class IaService
     }
 
     /**
-     * Amazon Bedrock — Claude via AWS SDK (Signature V4)
+     * Amazon Bedrock — Claude via AWS Signature V4
      */
     private function llamarBedrock(string $prompt): array
     {
@@ -135,17 +138,15 @@ class IaService
         ]);
 
         try {
-            // AWS Signature V4
             $now       = gmdate('Ymd\THis\Z');
             $date      = gmdate('Ymd');
             $scope     = "{$date}/{$this->region}/{$service}/aws4_request";
             $headers   = [
-                'content-type'         => 'application/json',
-                'host'                 => $host,
-                'x-amz-date'          => $now,
+                'content-type' => 'application/json',
+                'host'         => $host,
+                'x-amz-date'  => $now,
             ];
 
-            // Canonical request
             $canonicalUri     = "/model/{$this->model}/invoke";
             $canonicalQuery   = '';
             $canonicalHeaders = '';
@@ -158,10 +159,8 @@ class IaService
             $payloadHash     = hash('sha256', $body);
             $canonicalRequest = "POST\n{$canonicalUri}\n{$canonicalQuery}\n{$canonicalHeaders}\n{$signedHeaders}\n{$payloadHash}";
 
-            // String to sign
             $stringToSign = "AWS4-HMAC-SHA256\n{$now}\n{$scope}\n" . hash('sha256', $canonicalRequest);
 
-            // Signing key
             $kDate    = hash_hmac('sha256', $date, "AWS4{$this->secretKey}", true);
             $kRegion  = hash_hmac('sha256', $this->region, $kDate, true);
             $kService = hash_hmac('sha256', $service, $kRegion, true);
@@ -232,7 +231,7 @@ class IaService
             $response = Http::asJson()
                 ->timeout($this->timeout)
                 ->withHeaders([
-                    'x-api-key'        => $apiKey,
+                    'x-api-key'         => $apiKey,
                     'anthropic-version' => '2023-06-01',
                 ])
                 ->post($apiUrl, [
@@ -318,130 +317,207 @@ PROMPT,
     }
 
     // ══════════════════════════════════════════════
-    // Datos mockeados (reemplazar con API de Alan)
+    // Datos reales desde la base de datos
     // ══════════════════════════════════════════════
 
+    /**
+     * Obtiene el historial de pedidos reales de un cliente (últimos 6 meses).
+     */
     public function obtenerHistorialPedidos(string $codigoCliente): array
     {
-        return [
-            ['pedido' => 'PED-2025-089', 'fecha' => '2025-11-15', 'productos' => [
-                ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'cantidad' => 500, 'unidad' => 'kg', 'precio_unitario' => 85.00],
-                ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico', 'cantidad' => 200, 'unidad' => 'lt', 'precio_unitario' => 42.50],
-            ], 'total' => 51_000.00],
-            ['pedido' => 'PED-2025-102', 'fecha' => '2025-12-03', 'productos' => [
-                ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'cantidad' => 600, 'unidad' => 'kg', 'precio_unitario' => 85.00],
-                ['sku' => 'SAL-005', 'nombre' => 'Pigmento base agua', 'cantidad' => 100, 'unidad' => 'kg', 'precio_unitario' => 120.00],
-            ], 'total' => 63_000.00],
-            ['pedido' => 'PED-2026-008', 'fecha' => '2026-01-10', 'productos' => [
-                ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'cantidad' => 550, 'unidad' => 'kg', 'precio_unitario' => 85.00],
-                ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico', 'cantidad' => 250, 'unidad' => 'lt', 'precio_unitario' => 42.50],
-                ['sku' => 'SAL-005', 'nombre' => 'Pigmento base agua', 'cantidad' => 80, 'unidad' => 'kg', 'precio_unitario' => 120.00],
-            ], 'total' => 67_975.00],
-            ['pedido' => 'PED-2026-021', 'fecha' => '2026-02-05', 'productos' => [
-                ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'cantidad' => 700, 'unidad' => 'kg', 'precio_unitario' => 85.00],
-                ['sku' => 'SAL-007', 'nombre' => 'Catalizador rápido', 'cantidad' => 50, 'unidad' => 'kg', 'precio_unitario' => 210.00],
-            ], 'total' => 70_000.00],
-            ['pedido' => 'PED-2026-035', 'fecha' => '2026-03-12', 'productos' => [
-                ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'cantidad' => 750, 'unidad' => 'kg', 'precio_unitario' => 85.00],
-                ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico', 'cantidad' => 300, 'unidad' => 'lt', 'precio_unitario' => 42.50],
-                ['sku' => 'SAL-005', 'nombre' => 'Pigmento base agua', 'cantidad' => 120, 'unidad' => 'kg', 'precio_unitario' => 120.00],
-            ], 'total' => 90_900.00],
-            ['pedido' => 'PED-2026-048', 'fecha' => '2026-04-02', 'productos' => [
-                ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'cantidad' => 800, 'unidad' => 'kg', 'precio_unitario' => 85.00],
-                ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico', 'cantidad' => 280, 'unidad' => 'lt', 'precio_unitario' => 42.50],
-                ['sku' => 'SAL-007', 'nombre' => 'Catalizador rápido', 'cantidad' => 60, 'unidad' => 'kg', 'precio_unitario' => 210.00],
-            ], 'total' => 92_500.00],
-        ];
+        $pedidos = Pedido::where('codigo_cliente', $codigoCliente)
+            ->where('created_at', '>=', now()->subMonths(6))
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        if ($pedidos->isEmpty()) {
+            return [];
+        }
+
+        return $pedidos->map(function ($pedido) {
+            $productos = collect($pedido->productos ?? [])->map(function ($p) {
+                return [
+                    'sku'             => $p['sku'] ?? $p['codigo'] ?? 'N/A',
+                    'nombre'          => $p['nombre'] ?? 'Sin nombre',
+                    'cantidad'        => $p['cantidad'] ?? 0,
+                    'unidad'          => $p['unidad'] ?? 'pz',
+                    'precio_unitario' => $p['precio'] ?? $p['precio_unitario'] ?? 0,
+                ];
+            })->toArray();
+
+            return [
+                'pedido'    => $pedido->folio,
+                'fecha'     => $pedido->created_at->format('Y-m-d'),
+                'productos' => $productos,
+                'total'     => (float) $pedido->total,
+            ];
+        })->toArray();
     }
 
+    /**
+     * Obtiene el inventario actual desde la tabla de productos.
+     */
     public function obtenerInventarioActual(): array
     {
-        return [
-            ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'stock_actual' => 1200, 'unidad' => 'kg', 'costo_unitario' => 65.00, 'ubicacion' => 'Almacén A-12'],
-            ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico', 'stock_actual' => 150, 'unidad' => 'lt', 'costo_unitario' => 32.00, 'ubicacion' => 'Almacén B-03'],
-            ['sku' => 'SAL-005', 'nombre' => 'Pigmento base agua', 'stock_actual' => 300, 'unidad' => 'kg', 'costo_unitario' => 95.00, 'ubicacion' => 'Almacén A-07'],
-            ['sku' => 'SAL-007', 'nombre' => 'Catalizador rápido', 'stock_actual' => 25, 'unidad' => 'kg', 'costo_unitario' => 170.00, 'ubicacion' => 'Almacén C-01'],
-            ['sku' => 'SAL-009', 'nombre' => 'Aditivo antioxidante', 'stock_actual' => 500, 'unidad' => 'kg', 'costo_unitario' => 55.00, 'ubicacion' => 'Almacén A-15'],
-            ['sku' => 'SAL-011', 'nombre' => 'Fibra de refuerzo', 'stock_actual' => 80, 'unidad' => 'rollo', 'costo_unitario' => 320.00, 'ubicacion' => 'Almacén D-02'],
-        ];
+        return Producto::where('activo', true)
+            ->orderBy('codigo')
+            ->get()
+            ->map(function ($p) {
+                return [
+                    'sku'            => $p->codigo,
+                    'nombre'         => $p->nombre,
+                    'stock_actual'   => (int) $p->stock,
+                    'unidad'         => $p->unidad_venta,
+                    'costo_unitario' => (float) $p->precio,
+                    'ubicacion'      => 'Almacén principal',
+                ];
+            })->toArray();
     }
 
+    /**
+     * Calcula la demanda proyectada basada en el promedio de los últimos 3 meses de pedidos.
+     */
     public function obtenerDemandaProyectada(): array
     {
-        return [
-            ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'demanda_mensual' => 750, 'unidad' => 'kg', 'tendencia' => 'creciente'],
-            ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico', 'demanda_mensual' => 280, 'unidad' => 'lt', 'tendencia' => 'estable'],
-            ['sku' => 'SAL-005', 'nombre' => 'Pigmento base agua', 'demanda_mensual' => 100, 'unidad' => 'kg', 'tendencia' => 'creciente'],
-            ['sku' => 'SAL-007', 'nombre' => 'Catalizador rápido', 'demanda_mensual' => 55, 'unidad' => 'kg', 'tendencia' => 'creciente'],
-            ['sku' => 'SAL-009', 'nombre' => 'Aditivo antioxidante', 'demanda_mensual' => 40, 'unidad' => 'kg', 'tendencia' => 'decreciente'],
-            ['sku' => 'SAL-011', 'nombre' => 'Fibra de refuerzo', 'demanda_mensual' => 30, 'unidad' => 'rollo', 'tendencia' => 'estable'],
-        ];
+        $productos = Producto::where('activo', true)->get();
+        $tresMesesAtras = now()->subMonths(3);
+
+        return $productos->map(function ($producto) use ($tresMesesAtras) {
+            // Buscar pedidos de los últimos 3 meses que contengan este producto
+            $pedidos = Pedido::where('created_at', '>=', $tresMesesAtras)
+                ->whereNotIn('estatus', ['cancelado'])
+                ->get();
+
+            $cantidadTotal = 0;
+            $mesesConPedido = 0;
+            $cantidadesPorMes = [];
+
+            foreach ($pedidos as $pedido) {
+                $items = collect($pedido->productos ?? []);
+                $item = $items->first(function ($p) use ($producto) {
+                    return ($p['sku'] ?? $p['codigo'] ?? '') === $producto->codigo;
+                });
+
+                if ($item) {
+                    $mes = $pedido->created_at->format('Y-m');
+                    $cantidadesPorMes[$mes] = ($cantidadesPorMes[$mes] ?? 0) + ($item['cantidad'] ?? 0);
+                    $cantidadTotal += ($item['cantidad'] ?? 0);
+                }
+            }
+
+            $mesesConPedido = count($cantidadesPorMes);
+            $demandaMensual = $mesesConPedido > 0 ? round($cantidadTotal / $mesesConPedido) : 0;
+
+            // Determinar tendencia comparando primer y último mes
+            $tendencia = 'estable';
+            if ($mesesConPedido >= 2) {
+                $valores = array_values($cantidadesPorMes);
+                $primero = $valores[0];
+                $ultimo  = end($valores);
+                if ($ultimo > $primero * 1.1) {
+                    $tendencia = 'creciente';
+                } elseif ($ultimo < $primero * 0.9) {
+                    $tendencia = 'decreciente';
+                }
+            }
+
+            return [
+                'sku'              => $producto->codigo,
+                'nombre'           => $producto->nombre,
+                'demanda_mensual'  => $demandaMensual,
+                'unidad'           => $producto->unidad_venta,
+                'tendencia'        => $tendencia,
+            ];
+        })->toArray();
     }
 
+    /**
+     * Obtiene los datos de un producto desde la BD.
+     */
     public function obtenerProducto(string $productoId): array
     {
-        $productos = [
-            'SAL-001' => ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial', 'cantidad_requerida' => 800, 'unidad' => 'kg', 'especificaciones' => 'Viscosidad 12000-15000 cP, color transparente, vida útil mín. 12 meses'],
-            'SAL-003' => ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico', 'cantidad_requerida' => 300, 'unidad' => 'lt', 'especificaciones' => 'Pureza mín. 99.5%, punto de ebullición 76-78°C'],
-            'SAL-007' => ['sku' => 'SAL-007', 'nombre' => 'Catalizador rápido', 'cantidad_requerida' => 60, 'unidad' => 'kg', 'especificaciones' => 'Tiempo de gel 8-12 min, temperatura de activación 25°C'],
-        ];
+        $producto = Producto::where('codigo', $productoId)->first();
 
-        return $productos[$productoId] ?? $productos['SAL-001'];
+        if (!$producto) {
+            return [
+                'sku'                 => $productoId,
+                'nombre'              => 'Producto no encontrado',
+                'cantidad_requerida'  => 0,
+                'unidad'              => 'N/A',
+                'especificaciones'    => 'N/A',
+            ];
+        }
+
+        // Calcular cantidad requerida basada en demanda promedio
+        $demanda = $this->obtenerDemandaProyectada();
+        $demItem = collect($demanda)->firstWhere('sku', $producto->codigo);
+        $cantidadRequerida = $demItem ? $demItem['demanda_mensual'] : 0;
+
+        return [
+            'sku'                => $producto->codigo,
+            'nombre'             => $producto->nombre,
+            'cantidad_requerida' => $cantidadRequerida,
+            'unidad'             => $producto->unidad_venta,
+            'especificaciones'   => $producto->descripcion ?? 'Sin especificaciones',
+        ];
     }
 
+    /**
+     * Obtiene proveedores activos con su score para comparación.
+     */
     public function obtenerProveedoresProducto(string $productoId): array
     {
-        return [
-            [
-                'codigo' => 'PROV-101', 'nombre' => 'Químicos del Norte S.A.',
-                'precio_unitario' => 62.50, 'moneda' => 'MXN',
-                'tiempo_entrega_dias' => 5, 'moq' => 200,
-                'calificacion' => 4.5, 'entregas_a_tiempo' => '94%',
-                'ubicacion' => 'Monterrey, NL', 'certificaciones' => ['ISO 9001', 'ISO 14001'],
-            ],
-            [
-                'codigo' => 'PROV-205', 'nombre' => 'Resinas Industriales MX',
-                'precio_unitario' => 58.00, 'moneda' => 'MXN',
-                'tiempo_entrega_dias' => 8, 'moq' => 500,
-                'calificacion' => 4.2, 'entregas_a_tiempo' => '88%',
-                'ubicacion' => 'Querétaro, QRO', 'certificaciones' => ['ISO 9001'],
-            ],
-            [
-                'codigo' => 'PROV-312', 'nombre' => 'ChemSupply International',
-                'precio_unitario' => 55.00, 'moneda' => 'MXN',
-                'tiempo_entrega_dias' => 15, 'moq' => 1000,
-                'calificacion' => 4.7, 'entregas_a_tiempo' => '97%',
-                'ubicacion' => 'Houston, TX (importación)', 'certificaciones' => ['ISO 9001', 'ISO 14001', 'REACH'],
-            ],
-            [
-                'codigo' => 'PROV-089', 'nombre' => 'Polímeros del Bajío',
-                'precio_unitario' => 67.00, 'moneda' => 'MXN',
-                'tiempo_entrega_dias' => 3, 'moq' => 100,
-                'calificacion' => 4.0, 'entregas_a_tiempo' => '91%',
-                'ubicacion' => 'León, GTO', 'certificaciones' => ['ISO 9001'],
-            ],
-        ];
+        $proveedores = ProveedorUser::where('activo', true)
+            ->where('score_total', '>', 0)
+            ->orderBy('score_total', 'desc')
+            ->limit(10)
+            ->get();
+
+        if ($proveedores->isEmpty()) {
+            // Si no hay proveedores con score, traer todos los activos
+            $proveedores = ProveedorUser::where('activo', true)
+                ->orderBy('nombre')
+                ->limit(10)
+                ->get();
+        }
+
+        return $proveedores->map(function ($prov) {
+            return [
+                'codigo'              => $prov->codigo_compras,
+                'nombre'              => $prov->nombre,
+                'precio_unitario'     => 0, // No tenemos precio por producto-proveedor aún
+                'moneda'              => 'MXN',
+                'tiempo_entrega_dias' => 0, // Pendiente de implementar
+                'moq'                 => 0,
+                'calificacion'        => (float) $prov->score_total,
+                'entregas_a_tiempo'   => $prov->score_entrega > 0
+                    ? round($prov->score_entrega) . '%'
+                    : 'Sin datos',
+                'ubicacion'           => 'México',
+                'certificaciones'     => [],
+            ];
+        })->toArray();
     }
 
     // ══════════════════════════════════════════════
-    // Listados para la UI
+    // Listados para la UI (ahora desde BD)
     // ══════════════════════════════════════════════
 
     public function listarClientes(): array
     {
-        return [
-            ['codigo' => 'CLI-001', 'nombre' => 'Manufacturas del Pacífico'],
-            ['codigo' => 'CLI-002', 'nombre' => 'Grupo Industrial Azteca'],
-            ['codigo' => 'CLI-003', 'nombre' => 'Plásticos y Derivados SA'],
-        ];
+        return \App\Models\ClienteUser::select('codigo_cliente as codigo', 'nombre')
+            ->where('activo', true)
+            ->orderBy('nombre')
+            ->get()
+            ->toArray();
     }
 
     public function listarProductos(): array
     {
-        return [
-            ['sku' => 'SAL-001', 'nombre' => 'Resina epóxica industrial'],
-            ['sku' => 'SAL-003', 'nombre' => 'Solvente grado técnico'],
-            ['sku' => 'SAL-007', 'nombre' => 'Catalizador rápido'],
-        ];
+        return Producto::select('codigo as sku', 'nombre')
+            ->where('activo', true)
+            ->orderBy('nombre')
+            ->get()
+            ->toArray();
     }
 }

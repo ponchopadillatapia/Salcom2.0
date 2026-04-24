@@ -16,4 +16,9 @@ class TrackingPedido extends Model
     protected $casts = [
         'fecha' => 'datetime',
     ];
+
+    public function pedido()
+    {
+        return $this->belongsTo(Pedido::class, 'pedido_id');
+    }
 }

@@ -18,4 +18,19 @@ class Pedido extends Model
         'productos' => 'array',
         'total' => 'decimal:2',
     ];
+
+    public function cliente()
+    {
+        return $this->belongsTo(ClienteUser::class, 'codigo_cliente', 'codigo_cliente');
+    }
+
+    public function tracking()
+    {
+        return $this->hasMany(TrackingPedido::class, 'pedido_id');
+    }
+
+    public function facturas()
+    {
+        return $this->hasMany(Factura::class, 'pedido_id');
+    }
 }

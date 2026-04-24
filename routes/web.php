@@ -98,6 +98,12 @@ Route::get('/proveedor/ia', [IaDashboardController::class, 'proveedorIa'])->name
 // ── Módulo de IA (Cliente — análisis automático) ──
 Route::get('/cliente/ia', [IaDashboardController::class, 'clienteIa'])->name('clientes.ia')->middleware('auth.cliente');
 
+// ── Módulo de IA (Admin — dashboard con formularios) ──
+Route::get('/admin/ia', [IaDashboardController::class, 'adminIa'])->name('admin.ia')->middleware('auth.admin');
+Route::post('/admin/ia/pronostico', [IaDashboardController::class, 'adminPronostico'])->name('admin.ia.pronostico')->middleware('auth.admin');
+Route::post('/admin/ia/inventario', [IaDashboardController::class, 'adminInventario'])->name('admin.ia.inventario')->middleware('auth.admin');
+Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'adminProveedor'])->name('admin.ia.proveedor')->middleware('auth.admin');
+
 // ── Contactos del proveedor ──
 Route::post('/proveedor/contactos', [PortalProveedorController::class, 'guardarContacto'])->name('proveedores.contactos.guardar')->middleware('auth.proveedor');
 Route::delete('/proveedor/contactos/{contacto}', [PortalProveedorController::class, 'eliminarContacto'])->name('proveedores.contactos.eliminar')->middleware('auth.proveedor');
