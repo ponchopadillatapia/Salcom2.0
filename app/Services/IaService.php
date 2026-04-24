@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
+use Aws\BedrockRuntime\BedrockRuntimeClient;
+use Aws\Exception\AwsException;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -112,7 +114,7 @@ class IaService
     }
 
     /**
-     * Amazon Bedrock — Claude via AWS Signature V4
+     * Amazon Bedrock — Claude via AWS SDK oficial
      */
     private function llamarBedrock(string $prompt): array
     {
@@ -124,80 +126,50 @@ class IaService
             ];
         }
 
-        $service  = 'bedrock';
-        $host     = "bedrock-runtime.{$this->region}.amazonaws.com";
-        $endpoint = "https://{$host}/model/{$this->model}/invoke";
-
-        $body = json_encode([
-            'anthropic_version' => 'bedrock-2023-05-31',
-            'max_tokens'        => 4096,
-            'system'            => 'Eres un analista experto de Industrias Salcom, una empresa manufacturera mexicana. Responde siempre en español, de forma concisa y orientada a la acción.',
-            'messages'          => [
-                ['role' => 'user', 'content' => $prompt],
-            ],
-        ]);
-
         try {
-            $now       = gmdate('Ymd\THis\Z');
-            $date      = gmdate('Ymd');
-            $scope     = "{$date}/{$this->region}/{$service}/aws4_request";
-            $headers   = [
-                'content-type' => 'application/json',
-                'host'         => $host,
-                'x-amz-date'  => $now,
-            ];
-
-            $canonicalUri     = "/model/{$this->model}/invoke";
-            $canonicalQuery   = '';
-            $canonicalHeaders = '';
-            $signedHeaders    = '';
-            ksort($headers);
-            foreach ($headers as $k => $v) {
-                $canonicalHeaders .= strtolower($k) . ':' . trim($v) . "\n";
-                $signedHeaders    .= ($signedHeaders ? ';' : '') . strtolower($k);
-            }
-            $payloadHash     = hash('sha256', $body);
-            $canonicalRequest = "POST\n{$canonicalUri}\n{$canonicalQuery}\n{$canonicalHeaders}\n{$signedHeaders}\n{$payloadHash}";
-
-            $stringToSign = "AWS4-HMAC-SHA256\n{$now}\n{$scope}\n" . hash('sha256', $canonicalRequest);
-
-            $kDate    = hash_hmac('sha256', $date, "AWS4{$this->secretKey}", true);
-            $kRegion  = hash_hmac('sha256', $this->region, $kDate, true);
-            $kService = hash_hmac('sha256', $service, $kRegion, true);
-            $kSigning = hash_hmac('sha256', 'aws4_request', $kService, true);
-            $signature = hash_hmac('sha256', $stringToSign, $kSigning);
-
-            $authHeader = "AWS4-HMAC-SHA256 Credential={$this->accessKey}/{$scope}, SignedHeaders={$signedHeaders}, Signature={$signature}";
-
-            $response = Http::timeout($this->timeout)
-                ->withHeaders([
-                    'Content-Type'  => 'application/json',
-                    'X-Amz-Date'   => $now,
-                    'Authorization' => $authHeader,
-                ])
-                ->withBody($body, 'application/json')
-                ->post($endpoint);
-
-            if ($response->successful()) {
-                $data = $response->json();
-                $text = $data['content'][0]['text'] ?? '';
-
-                return ['success' => true, 'content' => $text, 'error' => null];
-            }
-
-            Log::error('IaService: error de Bedrock', [
-                'status' => $response->status(),
-                'body'   => $response->json() ?? $response->body(),
+            $client = new BedrockRuntimeClient([
+                'region'      => $this->region,
+                'version'     => 'latest',
+                'credentials' => [
+                    'key'    => $this->accessKey,
+                    'secret' => $this->secretKey,
+                ],
+                'http' => [
+                    'timeout' => $this->timeout,
+                ],
             ]);
 
-            $errorMsg = $response->json()['message'] ?? null;
+            $body = json_encode([
+                'anthropic_version' => 'bedrock-2023-05-31',
+                'max_tokens'        => 4096,
+                'system'            => 'Eres un analista experto de Industrias Salcom, una empresa manufacturera mexicana. Responde siempre en español, de forma concisa y orientada a la acción.',
+                'messages'          => [
+                    ['role' => 'user', 'content' => $prompt],
+                ],
+            ]);
+
+            $response = $client->invokeModel([
+                'modelId'     => $this->model,
+                'contentType' => 'application/json',
+                'accept'      => 'application/json',
+                'body'        => $body,
+            ]);
+
+            $result = json_decode($response['body']->getContents(), true);
+            $text   = $result['content'][0]['text'] ?? '';
+
+            return ['success' => true, 'content' => $text, 'error' => null];
+
+        } catch (AwsException $e) {
+            Log::error('IaService: error de Bedrock (AWS SDK)', [
+                'code'    => $e->getAwsErrorCode(),
+                'message' => $e->getAwsErrorMessage(),
+            ]);
 
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => $errorMsg
-                    ? 'Error de Bedrock: ' . $errorMsg
-                    : 'Error de Amazon Bedrock (HTTP ' . $response->status() . ')',
+                'error'   => 'Error de Bedrock: ' . ($e->getAwsErrorMessage() ?? $e->getMessage()),
             ];
         } catch (\Exception $e) {
             Log::error('IaService: excepción Bedrock', ['error' => $e->getMessage()]);
