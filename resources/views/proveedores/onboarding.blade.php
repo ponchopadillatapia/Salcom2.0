@@ -55,25 +55,6 @@
         <h2>Hola, {{ session('proveedor_nombre', 'Proveedor') }} 👋</h2>
         <p>Aquí puedes ver tu progreso como proveedor de Industrias Salcom. Completa cada paso para activar tu cuenta completamente.</p>
 
-        {{-- Score del proveedor --}}
-        <div style="display:flex;gap:20px;margin-bottom:20px;flex-wrap:wrap;">
-            <div style="flex:1;min-width:200px;background:var(--green-bg);border-radius:10px;padding:14px 18px;">
-                <div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Score Total</div>
-                <div style="font-size:28px;font-weight:700;color:var(--green);line-height:1">{{ number_format($proveedor->score_total ?? 0, 0) }}%</div>
-                <div style="font-size:11px;color:#999;margin-top:4px">50% entrega + 50% puntualidad</div>
-            </div>
-            <div style="flex:1;min-width:200px;background:var(--blue-bg);border-radius:10px;padding:14px 18px;">
-                <div style="font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Entrega a tiempo</div>
-                <div style="font-size:28px;font-weight:700;color:var(--blue);line-height:1">{{ number_format($proveedor->score_entrega ?? 0, 0) }}%</div>
-                <div style="font-size:11px;color:#999;margin-top:4px">Se calcula con tus OC</div>
-            </div>
-            <div style="flex:1;min-width:200px;background:var(--purple-light);border-radius:10px;padding:14px 18px;">
-                <div style="font-size:11px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Puntualidad</div>
-                <div style="font-size:28px;font-weight:700;color:var(--purple);line-height:1">{{ number_format($proveedor->score_puntualidad ?? 0, 0) }}%</div>
-                <div style="font-size:11px;color:#999;margin-top:4px">Se calcula con tus entregas</div>
-            </div>
-        </div>
-
         <div class="progress-wrap">
             <div class="progress-label">
                 <span>Progreso de onboarding</span>

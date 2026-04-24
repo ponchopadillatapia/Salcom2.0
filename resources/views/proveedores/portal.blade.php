@@ -185,7 +185,7 @@
 
     {{-- TOP: Stats --}}
     <div class="top-grid">
-        <a href="{{ route('proveedores.onboarding') }}" class="card" style="text-decoration:none;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#6B3FA0';this.style.boxShadow='0 2px 8px rgba(107,63,160,0.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''"><h4>📊 Mi Score como Proveedor</h4><div class="stat-val" style="color:var(--green)">0%</div><div class="stat-label">50% entrega a tiempo + 50% puntualidad</div></a>
+        <a href="{{ route('proveedores.business') }}" class="card" style="text-decoration:none;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#6B3FA0';this.style.boxShadow='0 2px 8px rgba(107,63,160,0.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''"><h4>🏢 Mi Negocio</h4><div class="stat-val" style="color:var(--amber)">5</div><div class="stat-label">Tareas pendientes por atender</div></a>
         <a href="{{ route('proveedores.oc') }}" class="card" style="text-decoration:none;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#6B3FA0';this.style.boxShadow='0 2px 8px rgba(107,63,160,0.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''"><h4>OC Abiertas</h4><div class="stat-val">3</div><div class="stat-label">Datos de prueba</div></a>
         <a href="{{ route('proveedores.payment-history') }}" class="card" style="text-decoration:none;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#6B3FA0';this.style.boxShadow='0 2px 8px rgba(107,63,160,0.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''"><h4>Facturas pendientes</h4><div class="stat-val">—</div><div class="stat-label">Pendiente de API</div></a>
         <a href="{{ route('proveedores.onboarding') }}" class="card" style="text-decoration:none;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#6B3FA0';this.style.boxShadow='0 2px 8px rgba(107,63,160,0.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''"><h4>Onboarding</h4><div class="stat-val">40%</div><div class="stat-label">2 de 5 pasos</div></a>
@@ -229,7 +229,7 @@
         </div>
 
         {{-- SCORE DONUT --}}
-        <div class="card score-card">
+        <a href="{{ route('proveedores.forecast') }}" class="card score-card" style="text-decoration:none;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='#6B3FA0';this.style.boxShadow='0 2px 8px rgba(107,63,160,0.1)'" onmouseout="this.style.borderColor='';this.style.boxShadow=''">
             <h4 style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px;align-self:flex-start;">📊 Mi Score</h4>
             <div class="score-donut">
                 <canvas id="scoreDonut" width="120" height="120"></canvas>
@@ -242,7 +242,7 @@
                 <div class="score-legend-row"><div class="score-legend-dot" style="background:var(--green)"></div>Entrega<span class="score-legend-val">0%</span></div>
                 <div class="score-legend-row"><div class="score-legend-dot" style="background:var(--primary)"></div>Puntualidad<span class="score-legend-val">0%</span></div>
             </div>
-        </div>
+        </a>
 
         <div class="card">
             <h4>Actividad reciente <a href="{{ route('proveedores.dashboard') }}" class="card-link" style="float:right">Ver todo →</a></h4>
