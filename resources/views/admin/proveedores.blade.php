@@ -29,6 +29,8 @@
     .badge-activo{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
     .badge-activo.si{background:var(--green-bg);color:var(--green)}
     .badge-activo.no{background:var(--red-bg);color:var(--red)}
+    .btn-eliminar{padding:5px 14px;font-size:12px;font-weight:600;border:1px solid var(--red);border-radius:6px;background:var(--red);color:#fff;cursor:pointer;font-family:inherit;transition:all .15s}
+    .btn-eliminar:hover{background:#b91c1c;border-color:#b91c1c}
     .pagination-wrap{padding:16px;display:flex;justify-content:center}
     .empty-state{text-align:center;padding:48px 20px;color:var(--gray-muted)}
     .empty-state p{font-size:14px;font-weight:500}
@@ -36,6 +38,10 @@
 </style>
 @endpush
 @section('content')
+
+@if(session('mensaje'))
+    <div class="alert alert-success" style="border-radius:8px;padding:10px 16px;font-size:13px;margin-bottom:16px;background:var(--green-bg);border:1px solid #a7f3d0;color:var(--green)">{{ session('mensaje') }}</div>
+@endif
 
 <div class="toolbar">
     <form method="GET" action="{{ route('admin.proveedores') }}" class="search-box">
@@ -57,6 +63,7 @@
                 <th>Entrega</th>
                 <th>Puntualidad</th>
                 <th>Activo</th>
+                <th>Acción</th>
             </tr>
         </thead>
         <tbody>
@@ -75,6 +82,13 @@
                 <td>{{ number_format($p->score_entrega, 0) }}%</td>
                 <td>{{ number_format($p->score_puntualidad, 0) }}%</td>
                 <td><span class="badge-activo {{ $p->activo ? 'si' : 'no' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span></td>
+                <td>
+                    <form method="POST" action="{{ route('admin.proveedores.eliminar', $p) }}" onsubmit="return confirm('¿Estás seguro de eliminar a {{ addslashes($p->nombre ?? $p->usuario) }}? Esta acción no se puede deshacer fácilmente.')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn-eliminar">Eliminar</button>
+                    </form>
+                </td>
             </tr>
         @endforeach
         </tbody>

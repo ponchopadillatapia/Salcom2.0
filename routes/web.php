@@ -83,6 +83,8 @@ use App\Http\Controllers\AdminPanelController;
 Route::get('/admin/dashboard', [AdminPanelController::class, 'dashboard'])->name('admin.dashboard')->middleware('auth.admin');
 Route::get('/admin/clientes', [AdminPanelController::class, 'clientes'])->name('admin.clientes')->middleware('auth.admin');
 Route::patch('/admin/clientes/{cliente}/toggle', [AdminPanelController::class, 'toggleCliente'])->name('admin.clientes.toggle')->middleware('auth.admin');
+Route::delete('/admin/clientes/{cliente}', [AdminPanelController::class, 'eliminarCliente'])->name('admin.clientes.eliminar')->middleware('auth.admin');
+Route::delete('/admin/proveedores/{proveedor}', [AdminPanelController::class, 'eliminarProveedor'])->name('admin.proveedores.eliminar')->middleware('auth.admin');
 Route::get('/admin/encuestas', [AdminPanelController::class, 'encuestas'])->name('admin.encuestas')->middleware('auth.admin');
 Route::get('/admin/pedidos', [AdminPanelController::class, 'pedidos'])->name('admin.pedidos')->middleware('auth.admin');
 

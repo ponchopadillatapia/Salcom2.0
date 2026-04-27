@@ -89,6 +89,22 @@ class AdminPanelController extends Controller
         return back()->with('mensaje', "Cliente {$cliente->nombre} {$estado} correctamente.");
     }
 
+    public function eliminarCliente(ClienteUser $cliente)
+    {
+        $nombre = $cliente->nombre;
+        $cliente->delete(); // soft delete
+
+        return back()->with('mensaje', "Cliente \"{$nombre}\" eliminado correctamente.");
+    }
+
+    public function eliminarProveedor(ProveedorUser $proveedor)
+    {
+        $nombre = $proveedor->nombre ?? $proveedor->usuario;
+        $proveedor->delete(); // soft delete
+
+        return back()->with('mensaje', "Proveedor \"{$nombre}\" eliminado correctamente.");
+    }
+
     // ── Encuestas ──
 
     public function encuestas()

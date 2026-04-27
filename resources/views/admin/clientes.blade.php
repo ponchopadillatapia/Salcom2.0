@@ -31,6 +31,8 @@
     .btn-toggle:hover{background:var(--purple-light);color:var(--purple);border-color:var(--purple-mid)}
     .btn-toggle.desactivar{color:var(--red)}
     .btn-toggle.desactivar:hover{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+    .btn-toggle.eliminar{color:#fff;background:var(--red);border-color:var(--red)}
+    .btn-toggle.eliminar:hover{background:#b91c1c;border-color:#b91c1c}
 
     .pagination-wrap{padding:16px;display:flex;justify-content:center}
     .pagination-wrap nav{display:flex;gap:4px}
@@ -90,13 +92,18 @@
                     </span>
                 </td>
                 <td>{{ $c->created_at?->format('d/m/Y') ?? '—' }}</td>
-                <td>
+                <td style="display:flex;gap:6px;align-items:center">
                     <form method="POST" action="{{ route('admin.clientes.toggle', $c) }}">
                         @csrf
                         @method('PATCH')
                         <button type="submit" class="btn-toggle {{ $c->activo ? 'desactivar' : '' }}">
                             {{ $c->activo ? 'Desactivar' : 'Activar' }}
                         </button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.clientes.eliminar', $c) }}" onsubmit="return confirm('¿Estás seguro de eliminar a {{ addslashes($c->nombre) }}? Esta acción no se puede deshacer fácilmente.')">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="btn-toggle eliminar">Eliminar</button>
                     </form>
                 </td>
             </tr>
