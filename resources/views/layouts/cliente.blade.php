@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Portal de Clientes') — Industrias Salcom</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="/css/ios-theme.css" rel="stylesheet">
     @stack('styles-before')
     <style>
@@ -45,13 +45,13 @@
     <div class="nav-logo" style="display:flex;align-items:center;gap:12px;">@include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])<span>Portal de Clientes</span></div>
     <div class="nav-right">
         <div style="position:relative;cursor:pointer" onclick="toggleNotif()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <span id="notifBadge" style="position:absolute;top:-6px;right:-8px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center">3</span>
-            <div id="notifDrop" style="display:none;position:absolute;right:0;top:32px;width:300px;background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.1);z-index:500;overflow:hidden">
-                <div style="padding:12px 16px;border-bottom:1px solid #e5e7eb;font-size:13px;font-weight:700;color:#1a1a2e">Notificaciones</div>
-                <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;border-bottom:1px solid #f3f4f6;font-size:12px;cursor:pointer;background:#F3EEFA"><div style="font-weight:600;color:#1a1a2e">Pedido PED-2026-004 autorizado</div><div style="color:#6b7280;margin-top:2px">Tu pedido fue aprobado por el área comercial</div></div>
-                <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;border-bottom:1px solid #f3f4f6;font-size:12px;cursor:pointer;background:#F3EEFA"><div style="font-weight:600;color:#1a1a2e">Factura CFDI-A-001236 por vencer</div><div style="color:#6b7280;margin-top:2px">Vence en 5 días — $5,481.00</div></div>
-                <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;font-size:12px;cursor:pointer;background:#F3EEFA"><div style="font-weight:600;color:#1a1a2e">Nuevo producto en catálogo</div><div style="color:#6b7280;margin-top:2px">Refrigerante Industrial disponible</div></div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span id="notifBadge" style="position:absolute;top:-6px;right:-8px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center">3</span>
+            <div id="notifDrop" style="display:none;position:absolute;right:0;top:32px;width:300px;background:#fff;border:1px solid var(--border-light);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:500;overflow:hidden">
+                <div style="padding:12px 16px;border-bottom:1px solid var(--border-light);font-size:13px;font-weight:700;color:var(--gray-text)">Notificaciones</div>
+                <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;border-bottom:1px solid var(--border-light);font-size:12px;cursor:pointer;background:var(--purple-light)"><div style="font-weight:600;color:var(--gray-text)">Pedido PED-2026-004 autorizado</div><div style="color:var(--gray-muted);margin-top:2px">Tu pedido fue aprobado por el área comercial</div></div>
+                <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;border-bottom:1px solid var(--border-light);font-size:12px;cursor:pointer;background:var(--purple-light)"><div style="font-weight:600;color:var(--gray-text)">Factura CFDI-A-001236 por vencer</div><div style="color:var(--gray-muted);margin-top:2px">Vence en 5 días — $5,481.00</div></div>
+                <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;font-size:12px;cursor:pointer;background:var(--purple-light)"><div style="font-weight:600;color:var(--gray-text)">Nuevo producto en catálogo</div><div style="color:var(--gray-muted);margin-top:2px">Refrigerante Industrial disponible</div></div>
             </div>
         </div>
         <span class="nav-user">{{ session('cliente_nombre', 'Cliente') }}</span>
@@ -74,6 +74,7 @@
             <a href="{{ route('clientes.pedidos') }}" class="sb-link {{ request()->routeIs('clientes.pedidos') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span class="sb-text">Pedidos</span></a>
             <a href="{{ route('clientes.estado-cuenta') }}" class="sb-link {{ request()->routeIs('clientes.estado-cuenta') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><span class="sb-text">Estado de cuenta</span></a>
             <a href="{{ route('clientes.tracking') }}" class="sb-link {{ request()->routeIs('clientes.tracking') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><span class="sb-text">Tracking</span></a>
+            <a href="{{ route('clientes.encuesta') }}" class="sb-link {{ request()->routeIs('clientes.encuesta') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><span class="sb-text">Encuesta</span></a>
             <div class="sb-hr"></div>
             <div class="sb-section">Cuenta</div>
             <a href="{{ route('clientes.perfil') }}" class="sb-link {{ request()->routeIs('clientes.perfil') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><span class="sb-text">Mi Perfil</span></a>
@@ -85,7 +86,7 @@
 @stack('scripts')
 <script>
 function toggleNotif(){const d=document.getElementById('notifDrop');d.style.display=d.style.display==='none'?'block':'none'}
-function markRead(el){el.style.background='#fff';let c=document.querySelectorAll('.notif-item[style*="F3EEFA"]').length;document.getElementById('notifBadge').textContent=c;if(c===0)document.getElementById('notifBadge').style.display='none'}
+function markRead(el){el.style.background='#fff';let c=document.querySelectorAll('.notif-item[style*="purple-light"]').length;document.getElementById('notifBadge').textContent=c;if(c===0)document.getElementById('notifBadge').style.display='none'}
 document.addEventListener('click',e=>{if(!e.target.closest('.nav-right [onclick]'))document.getElementById('notifDrop').style.display='none'})
 </script>
 </body>

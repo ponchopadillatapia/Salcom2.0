@@ -1,7 +1,10 @@
 @extends('layouts.cliente')
 @section('title', 'Dashboard')
 @section('hero')
-<div class="hero-band"><h1>Dashboard</h1><p>{{ session('cliente_nombre', 'Cliente') }} — {{ now()->format('d/m/Y') }}</p></div>
+<div class="hero-band">
+    <h1>Bienvenido, {{ session('cliente_nombre', 'Cliente') }}</h1>
+    <p>Código: {{ session('cliente_codigo', '—') }} — {{ now()->format('d/m/Y') }}</p>
+</div>
 @endsection
 @push('styles')
 <style>
