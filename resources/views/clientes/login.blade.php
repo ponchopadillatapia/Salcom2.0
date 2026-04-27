@@ -11,14 +11,16 @@
 <div class="orb-accent"></div>
 
 <div class="ios-login-container">
-    <a href="/" class="ios-back-link">← Volver al inicio</a>
+    <a href="{{ url('/') }}" class="ios-back-link">← Volver al inicio</a>
 
     <div class="ios-brand">
-        @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
-        <div class="ios-icon-badge" style="background:rgba(0,122,255,0.15);border:1px solid rgba(0,122,255,0.25);">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(147,197,253,0.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        <div class="ios-brand-logo">
+            @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
         </div>
-        <p>PORTAL DE CLIENTES</p>
+        <div class="ios-icon-badge" style="background:rgba(0,122,255,0.15);border:1px solid rgba(0,122,255,0.25);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="rgba(147,197,253,0.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <p>Portal de clientes</p>
     </div>
 
     <div class="ios-login-card">
@@ -32,7 +34,7 @@
             <div class="ios-alert ios-alert-success">{{ session('mensaje') }}</div>
         @endif
 
-        <form method="POST" action="/login-cliente">
+        <form method="POST" action="{{ route('clientes.login.procesar') }}">
             @csrf
             <div class="ios-field">
                 <label>Usuario</label>
@@ -45,13 +47,13 @@
             <button type="submit" class="ios-btn-primary">Ingresar al portal</button>
         </form>
 
-        <p style="text-align:center;margin-top:20px;font-size:13px;color:rgba(255,255,255,0.35);">
+        <p class="ios-login-card-foot">
             ¿No tienes cuenta? Contacta a Industrias Salcom para ser dado de alta.
         </p>
     </div>
 
     <div class="ios-footer-text">
-        <a href="/aviso-privacidad">Aviso de Privacidad</a> · &copy; {{ date('Y') }} Industrias Salcom
+        <a href="{{ route('aviso.privacidad') }}">Aviso de Privacidad</a> · &copy; {{ date('Y') }} Industrias Salcom
     </div>
 </div>
 

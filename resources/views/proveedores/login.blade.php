@@ -11,14 +11,16 @@
 <div class="orb-accent"></div>
 
 <div class="ios-login-container">
-    <a href="/" class="ios-back-link">← Volver al inicio</a>
+    <a href="{{ url('/') }}" class="ios-back-link">← Volver al inicio</a>
 
     <div class="ios-brand">
-        @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
-        <div class="ios-icon-badge" style="background:rgba(107,63,160,0.2);border:1px solid rgba(107,63,160,0.3);">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(196,181,253,0.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        <div class="ios-brand-logo">
+            @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
         </div>
-        <p>PORTAL DE PROVEEDORES</p>
+        <div class="ios-icon-badge" style="background:rgba(107,63,160,0.2);border:1px solid rgba(107,63,160,0.3);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="rgba(196,181,253,0.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </div>
+        <p>Portal de proveedores</p>
     </div>
 
     <div class="ios-login-card">
@@ -32,7 +34,7 @@
             <div class="ios-alert ios-alert-success">{{ session('mensaje') }}</div>
         @endif
 
-        <form method="POST" action="/login-proveedor">
+        <form method="POST" action="{{ route('proveedores.login.procesar') }}">
             @csrf
             <div class="ios-field">
                 <label>Usuario</label>
@@ -63,7 +65,7 @@
     </a>
 
     <div class="ios-footer-text">
-        <a href="/aviso-privacidad">Aviso de Privacidad</a> · &copy; {{ date('Y') }} Industrias Salcom
+        <a href="{{ route('aviso.privacidad') }}">Aviso de Privacidad</a> · &copy; {{ date('Y') }} Industrias Salcom
     </div>
 </div>
 

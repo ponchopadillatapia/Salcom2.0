@@ -36,13 +36,17 @@
 .ios-login-bg {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
     min-height: 100vh;
+    min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(160deg, #1a0a2e 0%, #2d1b4e 20%, #4A2070 45%, #6B3FA0 70%, #8b5fc7 90%, #a78bda 100%);
     -webkit-font-smoothing: antialiased;
     position: relative;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: clamp(20px, 4vh, 48px) 20px;
+    box-sizing: border-box;
 }
 
 /* Animated floating orbs */
@@ -83,78 +87,102 @@
     pointer-events: none;
 }
 
-/* Login container */
+/* Login container — columna centrada, sin huecos exagerados */
 .ios-login-container {
     position: relative;
     z-index: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 20px;
+    gap: clamp(16px, 3vh, 22px);
     width: 100%;
     max-width: 420px;
-    padding: 32px 24px;
+    margin: 0 auto;
+    padding: 0;
 }
 
 /* Login card — frosted glass */
 .ios-login-card {
     width: 100%;
-    background: rgba(255,255,255,0.07);
+    background: rgba(255,255,255,0.09);
     -webkit-backdrop-filter: saturate(180%) blur(24px);
     backdrop-filter: saturate(180%) blur(24px);
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.12);
     border-radius: var(--radius-lg);
-    padding: 36px 32px;
+    padding: 26px 26px 22px;
     box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08);
     transition: var(--transition);
+    display: flex;
+    flex-direction: column;
 }
 
-.ios-login-card .card-title {
+.ios-login-card > .ios-badge {
+    align-self: flex-start;
+    margin: 0 0 14px;
+}
+
+.ios-login-card > .card-title {
     font-size: 22px;
     font-weight: 700;
     color: #fff;
-    margin-bottom: 4px;
+    margin: 0 0 6px;
     letter-spacing: -0.4px;
+    line-height: 1.2;
 }
-.ios-login-card .card-sub {
+.ios-login-card > .card-sub {
     font-size: 14px;
-    color: rgba(255,255,255,0.45);
-    margin-bottom: 28px;
+    line-height: 1.45;
+    color: rgba(255,255,255,0.5);
+    margin: 0 0 20px;
+}
+
+.ios-login-card > .ios-alert {
+    margin: 0 0 16px;
+}
+
+.ios-login-card > form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
 }
 
 /* Fields */
-.ios-field { margin-bottom: 20px; }
+.ios-field { margin: 0; }
 .ios-field label {
     display: block;
     font-size: 12px;
     font-weight: 600;
-    color: rgba(255,255,255,0.55);
-    margin-bottom: 8px;
-    letter-spacing: 0.3px;
+    color: rgba(255,255,255,0.62);
+    margin-bottom: 6px;
+    letter-spacing: 0.2px;
 }
 .ios-field input {
     width: 100%;
-    border: 1px solid rgba(255,255,255,0.12);
+    box-sizing: border-box;
+    border: 1px solid rgba(255,255,255,0.14);
     border-radius: var(--radius);
-    padding: 13px 16px;
-    font-size: 15px;
+    padding: 14px 16px;
+    font-size: 16px;
     font-family: inherit;
     color: #fff;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.1);
     transition: var(--transition);
     outline: none;
 }
-.ios-field input::placeholder { color: rgba(255,255,255,0.25); }
+.ios-field input::placeholder { color: rgba(255,255,255,0.32); }
 .ios-field input:focus {
-    border-color: rgba(139,92,246,0.5);
-    background: rgba(255,255,255,0.08);
-    box-shadow: 0 0 0 4px rgba(107,63,160,0.15);
+    border-color: rgba(196,181,253,0.55);
+    background: rgba(255,255,255,0.14);
+    box-shadow: 0 0 0 4px rgba(107,63,160,0.2);
 }
 
 /* Primary button */
+.ios-login-card > form .ios-btn-primary {
+    margin-top: 6px;
+}
 .ios-btn-primary {
     width: 100%;
-    padding: 14px;
+    padding: 15px 16px;
     background: var(--purple);
     color: #fff;
     border: none;
@@ -182,7 +210,8 @@
     border-radius: var(--radius);
     padding: 12px 16px;
     font-size: 13px;
-    margin-bottom: 20px;
+    line-height: 1.45;
+    margin: 0;
     font-weight: 500;
 }
 .ios-alert-error {
@@ -196,46 +225,80 @@
     color: #86efac;
 }
 
-/* Brand */
-.ios-brand { text-align: center; margin-bottom: 4px; }
+/* Brand — logo + icono + nombre portal en bloque compacto */
+.ios-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 12px;
+    width: 100%;
+    margin: 0;
+}
+.ios-brand-logo {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    line-height: 0;
+}
 .ios-brand p {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    letter-spacing: 3.5px;
-    color: rgba(255,255,255,0.4);
+    letter-spacing: 2.4px;
+    color: rgba(255,255,255,0.55);
     text-transform: uppercase;
-    margin-top: 6px;
+    margin: 0;
+    line-height: 1.3;
+    max-width: 100%;
 }
 
 /* Icon badge */
 .ios-icon-badge {
-    width: 64px; height: 64px;
-    border-radius: 18px;
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin: 16px auto 8px;
+    margin: 0;
+    flex-shrink: 0;
     transition: var(--transition);
 }
-.ios-icon-badge:hover { transform: scale(1.05); }
+.ios-icon-badge svg {
+    width: 26px;
+    height: 26px;
+}
+.ios-icon-badge:hover { transform: scale(1.04); }
 
 /* Links */
 .ios-back-link {
     font-size: 13px;
-    color: rgba(255,255,255,0.35);
+    color: rgba(255,255,255,0.45);
     text-decoration: none;
     display: inline-flex;
     align-items: center;
     gap: 6px;
     transition: var(--transition);
     font-weight: 500;
+    margin: 0 0 2px;
 }
-.ios-back-link:hover { color: rgba(255,255,255,0.8); }
+.ios-back-link:hover { color: rgba(255,255,255,0.88); }
+
+.ios-login-card-foot {
+    text-align: center;
+    margin: 18px 0 0;
+    padding-top: 4px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.42);
+}
 
 .ios-footer-text {
-    font-size: 11px;
-    color: rgba(255,255,255,0.2);
+    font-size: 12px;
+    color: rgba(255,255,255,0.38);
     text-align: center;
+    line-height: 1.5;
+    margin-top: 4px;
 }
 .ios-footer-text a {
     color: rgba(255,255,255,0.3);
@@ -246,9 +309,11 @@
 
 .ios-register-link {
     text-align: center;
-    font-size: 14px;
-    color: rgba(255,255,255,0.45);
-    margin-top: 20px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: rgba(255,255,255,0.48);
+    margin: 18px 0 0;
+    padding-top: 2px;
 }
 .ios-register-link a {
     color: #c4b5fd;
@@ -265,23 +330,23 @@
     gap: 6px;
     font-size: 11px;
     font-weight: 600;
-    padding: 5px 14px;
+    padding: 6px 14px;
     border-radius: 999px;
-    background: rgba(255,255,255,0.08);
-    color: rgba(255,255,255,0.5);
-    margin-bottom: 20px;
-    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.65);
+    margin: 0;
+    border: 1px solid rgba(255,255,255,0.1);
 }
 
 /* Muestras card */
 .ios-muestras-card {
     width: 100%;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.06);
     -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255,255,255,0.08);
-    border-radius: var(--radius);
-    padding: 16px 20px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-lg);
+    padding: 14px 18px;
     display: flex;
     align-items: center;
     gap: 14px;
@@ -289,11 +354,14 @@
     transition: var(--transition);
 }
 .ios-muestras-card:hover {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.1);
     transform: translateY(-1px);
 }
 
 @media (max-width: 500px) {
-    .ios-login-container { padding: 24px 16px; }
-    .ios-login-card { padding: 28px 20px; }
+    .ios-login-bg { padding: 16px 14px 28px; }
+    .ios-login-container { gap: 14px; }
+    .ios-login-card { padding: 22px 18px 20px; }
+    .ios-login-card > .card-title { font-size: 20px; }
+    .ios-brand p { font-size: 11px; letter-spacing: 2px; }
 }

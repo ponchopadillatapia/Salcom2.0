@@ -11,14 +11,16 @@
 <div class="orb-accent"></div>
 
 <div class="ios-login-container">
-    <a href="/" class="ios-back-link">← Volver al inicio</a>
+    <a href="{{ url('/') }}" class="ios-back-link">← Volver al inicio</a>
 
     <div class="ios-brand">
-        @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
-        <div class="ios-icon-badge" style="background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.3);">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(196,181,253,0.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        <div class="ios-brand-logo">
+            @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
         </div>
-        <p>PANEL ADMINISTRATIVO</p>
+        <div class="ios-icon-badge" style="background:rgba(139,92,246,0.2);border:1px solid rgba(139,92,246,0.3);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="rgba(196,181,253,0.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <p>Panel administrativo</p>
     </div>
 
     <div class="ios-login-card">
@@ -36,7 +38,7 @@
             <div class="ios-alert ios-alert-success">{{ session('mensaje') }}</div>
         @endif
 
-        <form method="POST" action="/login-admin">
+        <form method="POST" action="{{ route('admin.login.procesar') }}">
             @csrf
             <div class="ios-field">
                 <label>Usuario</label>
@@ -51,7 +53,7 @@
     </div>
 
     <div class="ios-footer-text">
-        <a href="/aviso-privacidad">Aviso de Privacidad</a> · &copy; {{ date('Y') }} Industrias Salcom
+        <a href="{{ route('aviso.privacidad') }}">Aviso de Privacidad</a> · &copy; {{ date('Y') }} Industrias Salcom
     </div>
 </div>
 
