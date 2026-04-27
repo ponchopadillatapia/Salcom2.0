@@ -22,14 +22,13 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
-        /* Navbar — mismo criterio que portal proveedor */
+        /* Navbar — tipografía y medidas iguales que layouts/proveedor */
         nav.top-nav {
             background: rgba(255,255,255,0.72);
             -webkit-backdrop-filter: saturate(180%) blur(20px);
             backdrop-filter: saturate(180%) blur(20px);
             padding: 0 28px;
             height: 56px;
-            min-height: 56px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -40,31 +39,27 @@
             flex-shrink: 0;
         }
         .nav-logo {
-            display: flex;
-            align-items: center;
-            gap: 14px;
             font-family: 'Playfair Display', serif;
             font-size: 19px;
             color: var(--purple);
             font-weight: 700;
             letter-spacing: -0.3px;
-            line-height: 1.15;
+            line-height: 1.1;
         }
         .nav-logo span {
             display: block;
             font-family: 'Inter', sans-serif;
-            font-size: 11px;
+            font-size: 9px;
             font-weight: 600;
-            letter-spacing: 2px;
+            letter-spacing: 2.5px;
             color: var(--purple-mid);
             text-transform: uppercase;
-            margin-top: 2px;
-            max-width: 220px;
+            margin-top: 1px;
         }
         .nav-right {
             display: flex;
             align-items: center;
-            gap: 18px;
+            gap: 16px;
             flex-shrink: 0;
         }
         .nav-notif-wrap {
@@ -79,7 +74,7 @@
         }
         .nav-notif-wrap:hover { background: var(--purple-subtle); }
         .nav-user {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--gray-text);
             font-weight: 600;
             letter-spacing: -0.2px;
@@ -89,15 +84,15 @@
             text-overflow: ellipsis;
         }
         .btn-logout {
-            font-size: 13px;
-            color: var(--gray-text);
-            padding: 8px 18px;
+            font-size: 12px;
+            color: var(--gray-muted);
+            padding: 6px 16px;
             border: 1px solid var(--border-light);
             border-radius: 20px;
             background: var(--gray-soft);
             cursor: pointer;
             font-family: inherit;
-            font-weight: 600;
+            font-weight: 500;
             transition: var(--transition);
         }
         .btn-logout:hover {
@@ -113,8 +108,18 @@
             border-bottom: 1px solid var(--border-light);
             flex-shrink: 0;
         }
-        .hero-band h1 { font-size: 22px; color: var(--gray-text); font-weight: 700; letter-spacing: -0.4px; }
-        .hero-band p { color: var(--gray-muted); font-size: 14px; margin-top: 4px; font-weight: 400; }
+        .hero-band h1 {
+            font-size: 22px;
+            color: var(--gray-text);
+            font-weight: 700;
+            letter-spacing: -0.4px;
+        }
+        .hero-band p {
+            color: var(--gray-muted);
+            font-size: 14px;
+            margin-top: 4px;
+            font-weight: 400;
+        }
         .wrapper { display: flex; flex: 1; }
         .sidebar {
             width: 240px;
@@ -143,7 +148,7 @@
             transition: background .15s;
         }
         .sb-toggle:hover { background: var(--purple-subtle); }
-        .sb-toggle svg { transition: transform .3s cubic-bezier(.4,0,.2,1); color: var(--gray-muted); }
+        .sb-toggle svg { transition: transform 0.2s ease; flex-shrink: 0; color: var(--gray-muted); }
         .sidebar.collapsed .sb-toggle { justify-content: center; padding: 0; }
         .sidebar.collapsed .sb-toggle svg { transform: rotate(180deg); }
         .sb-nav {
@@ -181,6 +186,7 @@
             white-space: nowrap;
             flex-shrink: 0;
             transition: var(--transition);
+            border-left: none;
         }
         .sb-link:hover { background: var(--purple-subtle); color: var(--purple); transform: translateX(2px); }
         .sb-link.active { background: var(--purple-light); color: var(--purple); font-weight: 600; }
@@ -205,10 +211,18 @@
         .sb-text { flex-shrink: 0; }
         .sidebar.collapsed .sb-link { justify-content: center; padding: 8px; margin: 1px 4px; }
         .sidebar.collapsed .sb-text { display: none; }
-        .main-content { flex: 1; min-width: 0; overflow-y: auto; padding: 28px 32px 64px; }
+        .main-content {
+            flex: 1;
+            min-width: 0;
+            overflow-y: auto;
+            padding: 28px 32px 64px;
+            font-size: 14px;
+            line-height: 1.5;
+            letter-spacing: -0.01em;
+        }
         footer {
             background: var(--white);
-            border-top: 1px solid var(--border-light);
+            border-top: 1px solid var(--border);
             padding: 16px 28px;
             display: flex;
             align-items: center;
@@ -233,7 +247,7 @@
 </head>
 <body>
 <nav class="top-nav">
-    <div class="nav-logo">
+    <div class="nav-logo" style="display:flex;align-items:center;gap:14px;">
         @include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])
         <span>Portal de Clientes</span>
     </div>
