@@ -1,0 +1,299 @@
+/* ══════════════════════════════════════════════
+   Industrias Salcom — iOS/Apple Design System
+   Shared across all layouts (admin, cliente, proveedor)
+   ══════════════════════════════════════════════ */
+
+:root {
+    --purple:       #6B3FA0;
+    --purple-dark:  #4A2070;
+    --purple-light: #F3EEFA;
+    --purple-mid:   #9C6DD0;
+    --purple-subtle:#F8F5FC;
+    --gray-text:    #1d1d1f;
+    --gray-muted:   #86868b;
+    --gray-soft:    #f5f5f7;
+    --border:       #d2d2d7;
+    --border-light: #e8e8ed;
+    --white:        #FFFFFF;
+    --green:        #34c759;
+    --green-bg:     #f0fdf4;
+    --amber:        #ff9f0a;
+    --amber-bg:     #fffbeb;
+    --blue:         #007aff;
+    --blue-bg:      #eff6ff;
+    --red:          #ff3b30;
+    --red-bg:       #fef2f2;
+    --shadow-sm:    0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+    --shadow-md:    0 4px 14px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+    --shadow-lg:    0 10px 40px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.03);
+    --radius:       12px;
+    --radius-lg:    16px;
+    --radius-pill:  20px;
+    --transition:   all .25s cubic-bezier(.4,0,.2,1);
+}
+
+/* ── Login pages — premium gradient background ── */
+.ios-login-bg {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(160deg, #1a0a2e 0%, #2d1b4e 20%, #4A2070 45%, #6B3FA0 70%, #8b5fc7 90%, #a78bda 100%);
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Animated floating orbs */
+.ios-login-bg::before {
+    content: '';
+    position: absolute;
+    width: 700px; height: 700px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(139,92,246,0.2) 0%, transparent 70%);
+    top: -250px; right: -200px;
+    animation: float-orb 20s ease-in-out infinite;
+}
+.ios-login-bg::after {
+    content: '';
+    position: absolute;
+    width: 500px; height: 500px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(107,63,160,0.18) 0%, transparent 70%);
+    bottom: -150px; left: -150px;
+    animation: float-orb 25s ease-in-out infinite reverse;
+}
+
+@keyframes float-orb {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    25% { transform: translate(30px, -20px) scale(1.05); }
+    50% { transform: translate(-20px, 30px) scale(0.95); }
+    75% { transform: translate(15px, 15px) scale(1.02); }
+}
+
+/* Third orb via extra element */
+.ios-login-bg .orb-accent {
+    position: absolute;
+    width: 300px; height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(167,139,218,0.12) 0%, transparent 70%);
+    top: 40%; left: 10%;
+    animation: float-orb 18s ease-in-out infinite;
+    pointer-events: none;
+}
+
+/* Login container */
+.ios-login-container {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    max-width: 420px;
+    padding: 32px 24px;
+}
+
+/* Login card — frosted glass */
+.ios-login-card {
+    width: 100%;
+    background: rgba(255,255,255,0.07);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    backdrop-filter: saturate(180%) blur(24px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: var(--radius-lg);
+    padding: 36px 32px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+    transition: var(--transition);
+}
+
+.ios-login-card .card-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 4px;
+    letter-spacing: -0.4px;
+}
+.ios-login-card .card-sub {
+    font-size: 14px;
+    color: rgba(255,255,255,0.45);
+    margin-bottom: 28px;
+}
+
+/* Fields */
+.ios-field { margin-bottom: 20px; }
+.ios-field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.55);
+    margin-bottom: 8px;
+    letter-spacing: 0.3px;
+}
+.ios-field input {
+    width: 100%;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--radius);
+    padding: 13px 16px;
+    font-size: 15px;
+    font-family: inherit;
+    color: #fff;
+    background: rgba(255,255,255,0.05);
+    transition: var(--transition);
+    outline: none;
+}
+.ios-field input::placeholder { color: rgba(255,255,255,0.25); }
+.ios-field input:focus {
+    border-color: rgba(139,92,246,0.5);
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 0 0 4px rgba(107,63,160,0.15);
+}
+
+/* Primary button */
+.ios-btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: var(--purple);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: -0.2px;
+    transition: var(--transition);
+    box-shadow: 0 4px 16px rgba(107,63,160,0.35);
+}
+.ios-btn-primary:hover {
+    background: #5a34a0;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(107,63,160,0.45);
+}
+.ios-btn-primary:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 8px rgba(107,63,160,0.3);
+}
+
+/* Alerts */
+.ios-alert {
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 13px;
+    margin-bottom: 20px;
+    font-weight: 500;
+}
+.ios-alert-error {
+    background: rgba(255,59,48,0.12);
+    border: 1px solid rgba(255,59,48,0.25);
+    color: #fca5a5;
+}
+.ios-alert-success {
+    background: rgba(52,199,89,0.12);
+    border: 1px solid rgba(52,199,89,0.25);
+    color: #86efac;
+}
+
+/* Brand */
+.ios-brand { text-align: center; margin-bottom: 4px; }
+.ios-brand p {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 3.5px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+    margin-top: 6px;
+}
+
+/* Icon badge */
+.ios-icon-badge {
+    width: 64px; height: 64px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 16px auto 8px;
+    transition: var(--transition);
+}
+.ios-icon-badge:hover { transform: scale(1.05); }
+
+/* Links */
+.ios-back-link {
+    font-size: 13px;
+    color: rgba(255,255,255,0.35);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition);
+    font-weight: 500;
+}
+.ios-back-link:hover { color: rgba(255,255,255,0.8); }
+
+.ios-footer-text {
+    font-size: 11px;
+    color: rgba(255,255,255,0.2);
+    text-align: center;
+}
+.ios-footer-text a {
+    color: rgba(255,255,255,0.3);
+    text-decoration: none;
+    transition: var(--transition);
+}
+.ios-footer-text a:hover { color: rgba(255,255,255,0.6); }
+
+.ios-register-link {
+    text-align: center;
+    font-size: 14px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 20px;
+}
+.ios-register-link a {
+    color: #c4b5fd;
+    text-decoration: none;
+    font-weight: 600;
+    transition: var(--transition);
+}
+.ios-register-link a:hover { color: #e9e0ff; }
+
+/* Badge pill */
+.ios-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 5px 14px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.5);
+    margin-bottom: 20px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+
+/* Muestras card */
+.ios-muestras-card {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+    transition: var(--transition);
+}
+.ios-muestras-card:hover {
+    background: rgba(255,255,255,0.08);
+    transform: translateY(-1px);
+}
+
+@media (max-width: 500px) {
+    .ios-login-container { padding: 24px 16px; }
+    .ios-login-card { padding: 28px 20px; }
+}

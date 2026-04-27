@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Security headers en todas las respuestas
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
         $middleware->alias([
             'auth.proveedor' => \App\Http\Middleware\AutenticacionProveedor::class,
             'auth.cliente'   => \App\Http\Middleware\AutenticacionCliente::class,

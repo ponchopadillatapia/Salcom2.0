@@ -5,63 +5,302 @@
 @section('hero')
 <div class="hero-band">
     <h1>Bienvenido, {{ session('proveedor_nombre', 'Proveedor') }}</h1>
-    <p>Código: {{ session('proveedor_codigo', '—') }} — {{ now()->format('d/m/Y') }}</p>
+    <p>Código: {{ session('proveedor_codigo', '—') }} — {{ now()->translatedFormat('d \d\e F, Y') }}</p>
 </div>
 @endsection
 
 @push('styles')
 <style>
-    .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; margin-top: 36px; padding-bottom: 12px; border-bottom: 1.5px solid var(--border); }
+    /* ── iOS-style Dashboard ── */
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        margin-top: 40px;
+        padding-bottom: 0;
+        border-bottom: none;
+    }
     .section-header:first-child { margin-top: 0; }
-    .section-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--purple-light); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-    .section-title { font-family: 'Playfair Display', serif; font-size: 18px; color: var(--purple-dark); font-weight: 600; }
-    .section-sub { font-size: 12px; color: #AAA; margin-left: auto; }
+    .section-title {
+        font-size: 20px;
+        color: var(--gray-text);
+        font-weight: 700;
+        letter-spacing: -0.4px;
+    }
+    .section-sub {
+        font-size: 12px;
+        color: var(--gray-muted);
+        margin-left: auto;
+        font-weight: 500;
+    }
 
-    .metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
-    .metric-card { background: var(--white); border-radius: 12px; padding: 18px 20px; border: 0.5px solid var(--border); position: relative; overflow: hidden; }
-    .metric-card .accent { position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 12px 0 0 12px; }
-    .metric-label { font-size: 12px; color: var(--gray-text); font-weight: 500; margin-bottom: 6px; padding-left: 8px; }
-    .metric-value { font-size: 26px; font-weight: 600; color: var(--purple-dark); padding-left: 8px; line-height: 1; }
-    .metric-sub { font-size: 11px; color: #AAA; padding-left: 8px; margin-top: 4px; }
+    /* ── Metric Cards (iOS widget style) ── */
+    .metrics-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+    .metric-card {
+        background: var(--white);
+        border-radius: var(--radius-lg);
+        padding: 20px 22px;
+        border: none;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+    }
+    .metric-card:hover {
+        box-shadow: var(--shadow-md);
+        transform: translateY(-2px);
+    }
+    .metric-card .accent {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    }
+    .metric-label {
+        font-size: 12px;
+        color: var(--gray-muted);
+        font-weight: 600;
+        margin-bottom: 8px;
+        letter-spacing: -0.1px;
+    }
+    .metric-value {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--gray-text);
+        line-height: 1;
+        letter-spacing: -0.5px;
+    }
+    .metric-sub {
+        font-size: 12px;
+        color: var(--gray-muted);
+        margin-top: 6px;
+        font-weight: 400;
+    }
 
-    .card { background: var(--white); border-radius: 14px; border: 0.5px solid var(--border); overflow: hidden; margin-bottom: 8px; }
-    .card-head { padding: 14px 20px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-    .card-head h3 { font-size: 14px; font-weight: 600; color: var(--purple-dark); }
-    .ver-todo { font-size: 12px; color: var(--purple-mid); text-decoration: none; font-weight: 500; }
-    .ver-todo:hover { text-decoration: underline; }
-    .card-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .filtro-fechas { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .filtro-fechas input[type="date"] { border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px; font-size: 12px; font-family: inherit; color: var(--gray-text); outline: none; }
-    .btn-filtrar { padding: 5px 14px; background: var(--purple); color: white; border: none; border-radius: 8px; font-size: 12px; font-family: inherit; cursor: pointer; font-weight: 600; }
-    .btn-filtrar:hover { background: var(--purple-dark); }
-    .btn-limpiar { padding: 5px 14px; background: var(--gray-soft); color: var(--gray-text); border: 1px solid var(--border); border-radius: 8px; font-size: 12px; font-family: inherit; cursor: pointer; }
-    .btn-limpiar:hover { background: var(--purple-light); color: var(--purple); }
-    .btn-excel { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; background: #16a34a; color: white; border: none; border-radius: 8px; font-size: 12px; font-family: inherit; cursor: pointer; font-weight: 600; }
-    .btn-excel:hover { background: #15803d; }
+    /* ── Cards (iOS grouped style) ── */
+    .card {
+        background: var(--white);
+        border-radius: var(--radius-lg);
+        border: none;
+        overflow: hidden;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow-sm);
+        transition: var(--transition);
+    }
+    .card:hover {
+        box-shadow: var(--shadow-md);
+    }
+    .card-head {
+        padding: 16px 22px;
+        border-bottom: 1px solid var(--border-light);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    .card-head h3 {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--gray-text);
+        letter-spacing: -0.2px;
+    }
+    .ver-todo {
+        font-size: 13px;
+        color: var(--blue);
+        text-decoration: none;
+        font-weight: 500;
+        transition: var(--transition);
+    }
+    .ver-todo:hover { opacity: 0.7; }
 
-    .tabla { width: 100%; border-collapse: collapse; }
-    .tabla th { font-size: 11px; font-weight: 700; color: #AAA; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 20px; text-align: left; background: var(--gray-soft); border-bottom: 0.5px solid var(--border); }
-    .tabla td { padding: 12px 20px; font-size: 13px; color: var(--gray-text); border-bottom: 0.5px solid var(--border); }
+    .card-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    /* ── Filtros (iOS style inputs) ── */
+    .filtro-fechas {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .filtro-fechas input[type="date"] {
+        border: 1px solid var(--border-light);
+        border-radius: 10px;
+        padding: 7px 12px;
+        font-size: 13px;
+        font-family: inherit;
+        color: var(--gray-text);
+        outline: none;
+        background: var(--gray-soft);
+        transition: var(--transition);
+    }
+    .filtro-fechas input[type="date"]:focus {
+        border-color: var(--purple);
+        background: var(--white);
+        box-shadow: 0 0 0 3px rgba(107,63,160,0.12);
+    }
+
+    /* ── Buttons (iOS pill style) ── */
+    .btn-filtrar {
+        padding: 7px 18px;
+        background: var(--purple);
+        color: white;
+        border: none;
+        border-radius: 20px;
+        font-size: 13px;
+        font-family: inherit;
+        cursor: pointer;
+        font-weight: 600;
+        transition: var(--transition);
+        letter-spacing: -0.1px;
+    }
+    .btn-filtrar:hover {
+        background: var(--purple-dark);
+        transform: scale(1.03);
+    }
+    .btn-filtrar:active { transform: scale(0.97); }
+
+    .btn-limpiar {
+        padding: 7px 18px;
+        background: var(--gray-soft);
+        color: var(--gray-muted);
+        border: 1px solid var(--border-light);
+        border-radius: 20px;
+        font-size: 13px;
+        font-family: inherit;
+        cursor: pointer;
+        font-weight: 500;
+        transition: var(--transition);
+    }
+    .btn-limpiar:hover {
+        background: var(--purple-light);
+        color: var(--purple);
+        border-color: var(--purple-mid);
+    }
+
+    .btn-excel {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 18px;
+        background: var(--green);
+        color: white;
+        border: none;
+        border-radius: 20px;
+        font-size: 13px;
+        font-family: inherit;
+        cursor: pointer;
+        font-weight: 600;
+        transition: var(--transition);
+    }
+    .btn-excel:hover {
+        opacity: 0.85;
+        transform: scale(1.03);
+    }
+    .btn-excel:active { transform: scale(0.97); }
+
+    /* ── Tables (iOS list style) ── */
+    .tabla {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .tabla th {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--gray-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding: 12px 22px;
+        text-align: left;
+        background: var(--gray-soft);
+        border-bottom: 1px solid var(--border-light);
+    }
+    .tabla td {
+        padding: 14px 22px;
+        font-size: 14px;
+        color: var(--gray-text);
+        border-bottom: 1px solid var(--border-light);
+    }
     .tabla tr:last-child td { border-bottom: none; }
-    .tabla tr:hover td { background: var(--gray-soft); }
-    .empty-row td { text-align: center; color: #CCC; padding: 28px; font-size: 13px; }
+    .tabla tr {
+        transition: var(--transition);
+    }
+    .tabla tr:hover td {
+        background: var(--gray-soft);
+    }
+    .empty-row td {
+        text-align: center;
+        color: var(--gray-muted);
+        padding: 40px;
+        font-size: 14px;
+        font-weight: 500;
+    }
 
+    /* ── Status list (iOS notification style) ── */
     .estatus-list { padding: 0; }
-    .estatus-item { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 0.5px solid var(--border); transition: background .15s; }
+    .estatus-item {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 22px;
+        border-bottom: 1px solid var(--border-light);
+        transition: var(--transition);
+    }
     .estatus-item:last-child { border-bottom: none; }
-    .estatus-item:hover { background: var(--gray-soft); }
-    .estatus-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .dot-green { background: var(--green); animation: pulse 2s ease-in-out infinite; }
-    .dot-amber { background: var(--amber); animation: pulse 2s ease-in-out infinite; }
-    .dot-blue  { background: var(--blue);  animation: pulse 2s ease-in-out infinite; }
-    .dot-gray  { background: #CCC; }
-    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .estatus-info { flex: 1; }
-    .estatus-info .titulo { font-size: 13px; font-weight: 600; color: var(--gray-text); }
-    .estatus-info .sub { font-size: 12px; color: #AAA; margin-top: 2px; }
-    .estatus-time { font-size: 11px; color: #CCC; }
+    .estatus-item:hover {
+        background: var(--gray-soft);
+    }
+    .estatus-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .dot-green { background: var(--green); box-shadow: 0 0 8px rgba(52,199,89,0.4); animation: pulse-ios 2.5s ease-in-out infinite; }
+    .dot-amber { background: var(--amber); box-shadow: 0 0 8px rgba(255,159,10,0.4); animation: pulse-ios 2.5s ease-in-out infinite; }
+    .dot-blue  { background: var(--blue);  box-shadow: 0 0 8px rgba(0,122,255,0.4);  animation: pulse-ios 2.5s ease-in-out infinite; }
+    .dot-gray  { background: var(--gray-muted); }
 
-    @media (max-width: 768px) { .metrics-row { grid-template-columns: 1fr 1fr; } }
+    @keyframes pulse-ios {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .estatus-info { flex: 1; }
+    .estatus-info .titulo {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--gray-text);
+        letter-spacing: -0.2px;
+    }
+    .estatus-info .sub {
+        font-size: 13px;
+        color: var(--gray-muted);
+        margin-top: 2px;
+    }
+    .estatus-time {
+        font-size: 12px;
+        color: var(--gray-muted);
+        font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+        .metrics-row { grid-template-columns: 1fr; }
+    }
 </style>
 @endpush
 
@@ -69,14 +308,6 @@
 
     {{-- FACTURAS --}}
     <div class="section-header">
-        <div class="section-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                <polyline points="14 2 14 8 20 8"/>
-                <line x1="16" y1="13" x2="8" y2="13"/>
-                <line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-        </div>
         <div class="section-title">Facturas</div>
         <span class="section-sub">Pendiente de API</span>
     </div>
@@ -109,23 +340,18 @@
                 <a href="#" class="ver-todo">Ver todas</a>
                 <button class="btn-excel" onclick="exportarExcel('tablaFacturas','facturas')">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Exportar Excel
+                    Exportar
                 </button>
             </div>
         </div>
         <table class="tabla" id="tablaFacturas">
             <thead><tr><th>Folio</th><th>Fecha</th><th>OC relacionada</th><th>Monto</th><th>Estatus</th></tr></thead>
-            <tbody><tr class="empty-row"><td colspan="5">Pendiente de API</td></tr></tbody>
+            <tbody><tr class="empty-row"><td colspan="5">Sin datos — Pendiente de conexión con API</td></tr></tbody>
         </table>
     </div>
 
     {{-- PAGOS --}}
     <div class="section-header">
-        <div class="section-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
-            </svg>
-        </div>
         <div class="section-title">Pagos</div>
         <span class="section-sub">Pendiente de API</span>
     </div>
@@ -163,45 +389,57 @@
                 </div>
                 <button class="btn-excel" onclick="exportarExcel('tablaPagos','historial-pagos')">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Exportar Excel
+                    Exportar
                 </button>
             </div>
         </div>
         <table class="tabla" id="tablaPagos">
             <thead><tr><th>Referencia</th><th>Factura</th><th>Fecha programada</th><th>Monto</th><th>Estatus</th></tr></thead>
-            <tbody><tr class="empty-row"><td colspan="5">Pendiente de API</td></tr></tbody>
+            <tbody><tr class="empty-row"><td colspan="5">Sin datos — Pendiente de conexión con API</td></tr></tbody>
         </table>
     </div>
 
-    {{-- ESTATUS --}}
+    {{-- ESTATUS EN TIEMPO REAL --}}
     <div class="section-header">
-        <div class="section-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
         <div class="section-title">Estatus en tiempo real</div>
-        <span class="section-sub" style="color:var(--green);font-weight:600;">● En vivo</span>
+        <span class="section-sub" style="color:var(--green);font-weight:600;display:flex;align-items:center;gap:6px;">
+            <span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;box-shadow:0 0 8px rgba(52,199,89,0.5);"></span>
+            En vivo
+        </span>
     </div>
 
     <div class="card">
         <div class="estatus-list">
             <div class="estatus-item">
                 <div class="estatus-dot dot-green"></div>
-                <div class="estatus-info"><div class="titulo">OC generada</div><div class="sub">Salcom generó una orden de compra</div></div>
+                <div class="estatus-info">
+                    <div class="titulo">OC generada</div>
+                    <div class="sub">Salcom generó una orden de compra</div>
+                </div>
                 <div class="estatus-time">Pendiente de API</div>
             </div>
             <div class="estatus-item">
                 <div class="estatus-dot dot-amber"></div>
-                <div class="estatus-info"><div class="titulo">Factura en revisión</div><div class="sub">Tu factura está siendo validada</div></div>
+                <div class="estatus-info">
+                    <div class="titulo">Factura en revisión</div>
+                    <div class="sub">Tu factura está siendo validada</div>
+                </div>
                 <div class="estatus-time">Pendiente de API</div>
             </div>
             <div class="estatus-item">
                 <div class="estatus-dot dot-blue"></div>
-                <div class="estatus-info"><div class="titulo">Pago programado</div><div class="sub">Tu pago tiene fecha asignada</div></div>
+                <div class="estatus-info">
+                    <div class="titulo">Pago programado</div>
+                    <div class="sub">Tu pago tiene fecha asignada</div>
+                </div>
                 <div class="estatus-time">Pendiente de API</div>
             </div>
             <div class="estatus-item">
                 <div class="estatus-dot dot-gray"></div>
-                <div class="estatus-info"><div class="titulo">Historial de pagos</div><div class="sub">Consulta el historial de todos tus pagos</div></div>
+                <div class="estatus-info">
+                    <div class="titulo">Historial de pagos</div>
+                    <div class="sub">Consulta el historial de todos tus pagos</div>
+                </div>
                 <div class="estatus-time">Pendiente de API</div>
             </div>
         </div>
