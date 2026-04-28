@@ -102,6 +102,23 @@
             transform: scale(1.02);
         }
         .btn-logout:active { transform: scale(0.97); }
+        /* Dropdown de notificaciones: hover en desktop + click en touch */
+        .nav-notif-wrap { position: relative; }
+        .nav-notif-wrap .notif-drop {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 44px;
+            width: 300px;
+            background: #fff;
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            z-index: 500;
+            overflow: hidden;
+        }
+        .nav-notif-wrap:hover .notif-drop,
+        .nav-notif-wrap.open .notif-drop { display: block; }
         .hero-band {
             background: var(--white);
             padding: 24px 32px;
@@ -135,6 +152,12 @@
             overflow: hidden;
         }
         .sidebar.collapsed { width: 60px; min-width: 60px; }
+        /* Auto-despliegue del sidebar al pasar el mouse */
+        .sidebar.collapsed:hover { width: 240px; min-width: 240px; }
+        .sidebar.collapsed:hover .sb-text,
+        .sidebar.collapsed:hover .sb-section { display: block; }
+        .sidebar.collapsed:hover .sb-link { justify-content: flex-start; padding: 8px 16px; margin: 1px 8px; }
+        .sidebar.collapsed:hover .sb-toggle { justify-content: flex-end; padding: 0 16px; }
         .sb-toggle {
             height: 44px;
             min-height: 44px;
@@ -252,10 +275,10 @@
         <span>Portal de Clientes</span>
     </div>
     <div class="nav-right">
-        <div class="nav-notif-wrap" onclick="toggleNotif()">
+        <div class="nav-notif-wrap" id="notifWrap">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             <span id="notifBadge" style="position:absolute;top:2px;right:2px;background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;padding:0 5px;border-radius:999px;display:flex;align-items:center;justify-content:center">3</span>
-            <div id="notifDrop" style="display:none;position:absolute;right:0;top:44px;width:300px;background:#fff;border:1px solid var(--border-light);border-radius:var(--radius);box-shadow:var(--shadow-lg);z-index:500;overflow:hidden">
+            <div id="notifDrop" class="notif-drop">
                 <div style="padding:12px 16px;border-bottom:1px solid var(--border-light);font-size:13px;font-weight:700;color:var(--gray-text)">Notificaciones</div>
                 <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;border-bottom:1px solid var(--border-light);font-size:12px;cursor:pointer;background:var(--purple-light)"><div style="font-weight:600;color:var(--gray-text)">Pedido PED-2026-004 autorizado</div><div style="color:var(--gray-muted);margin-top:2px">Tu pedido fue aprobado por el área comercial</div></div>
                 <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;border-bottom:1px solid var(--border-light);font-size:12px;cursor:pointer;background:var(--purple-light)"><div style="font-weight:600;color:var(--gray-text)">Factura CFDI-A-001236 por vencer</div><div style="color:var(--gray-muted);margin-top:2px">Vence en 5 días — $5,481.00</div></div>
@@ -299,9 +322,17 @@
 </footer>
 @stack('scripts')
 <script>
-function toggleNotif(){const d=document.getElementById('notifDrop');d.style.display=d.style.display==='none'?'block':'none'}
+// Click-to-toggle para dispositivos touch (en desktop abre con hover por CSS)
+(() => {
+  const wrap = document.getElementById('notifWrap');
+  if (!wrap) return;
+  wrap.addEventListener('click', (e) => {
+    e.stopPropagation();
+    wrap.classList.toggle('open');
+  });
+})();
 function markRead(el){el.style.background='#fff';let c=document.querySelectorAll('.notif-item[style*="purple-light"]').length;document.getElementById('notifBadge').textContent=c;if(c===0)document.getElementById('notifBadge').style.display='none'}
-document.addEventListener('click',e=>{if(!e.target.closest('.nav-notif-wrap'))document.getElementById('notifDrop').style.display='none'})
+document.addEventListener('click',e=>{const w=document.getElementById('notifWrap');if(w && !e.target.closest('.nav-notif-wrap'))w.classList.remove('open')})
 </script>
 </body>
 </html>
