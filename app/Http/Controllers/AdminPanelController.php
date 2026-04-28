@@ -18,14 +18,56 @@ class AdminPanelController extends Controller
 
     public function dashboard()
     {
+        // ── Datos para gráficas ──
+
+        // Pedidos por mes (últimos 6 meses)
+        $pedidosPorMes = collect();
+        for ($i = 5; $i >= 0; $i--) {
+            $fecha = now()->subMonths($i);
+            $pedidosPorMes->push([
+                'mes'   => $fecha->translatedFormat('M Y'),
+                'total' => Pedido::whereYear('created_at', $fecha->year)->whereMonth('created_at', $fecha->month)->count(),
+                'monto' => Pedido::whereYear('created_at', $fecha->year)->whereMonth('created_at', $fecha->month)->sum('total'),
+            ]);
+        }
+
+        // Pedidos por estatus (para dona)
+        $pedidosPorEstatus = Pedido::selectRaw('estatus, count(*) as total')
+            ->groupBy('estatus')->pluck('total', 'estatus');
+
+        // Facturas por estatus
+        $facturasPorEstatus = Factura::selectRaw('estatus, count(*) as total, sum(total) as monto')
+            ->groupBy('estatus')->get()->keyBy('estatus');
+
+        // Proveedores: score individual (barras)
+        $proveedoresScore = ProveedorUser::where('score_total', '>', 0)
+            ->orderBy('score_total', 'desc')->limit(10)
+            ->get(['nombre', 'usuario', 'score_entrega', 'score_puntualidad', 'score_total']);
+
+        // Clientes: activos vs inactivos
+        $clientesActivos   = ClienteUser::where('activo', true)->count();
+        $clientesInactivos = ClienteUser::where('activo', false)->count();
+
+        // Proveedores: activos vs inactivos
+        $proveedoresActivos   = ProveedorUser::where('activo', true)->count();
+        $proveedoresInactivos = ProveedorUser::where('activo', false)->count();
+
+        // Encuestas promedio por cliente
+        $encuestasPorCliente = Encuesta::selectRaw('codigo_cliente, avg(calificacion) as prom, count(*) as total')
+            ->groupBy('codigo_cliente')->get();
+
+        // Muestras por etapa
+        $muestrasPorEtapa = Muestra::selectRaw('etapa, count(*) as total')
+            ->groupBy('etapa')->pluck('total', 'etapa');
+
         $data = [
             // Clientes
             'totalClientes'   => ClienteUser::count(),
-            'clientesActivos' => ClienteUser::where('activo', true)->count(),
+            'clientesActivos' => $clientesActivos,
 
             // Proveedores
             'totalProveedores'   => ProveedorUser::count(),
-            'proveedoresActivos' => ProveedorUser::where('activo', true)->count(),
+            'proveedoresActivos' => $proveedoresActivos,
             'scorePromedio'      => round((float) ProveedorUser::avg('score_total'), 1),
 
             // Pedidos
@@ -57,6 +99,16 @@ class AdminPanelController extends Controller
 
             // Top proveedores por score
             'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(5)->get(),
+
+            // Datos para gráficas
+            'pedidosPorMes'       => $pedidosPorMes,
+            'pedidosPorEstatus'   => $pedidosPorEstatus,
+            'facturasPorEstatus'  => $facturasPorEstatus,
+            'proveedoresScore'    => $proveedoresScore,
+            'clientesInactivos'   => $clientesInactivos,
+            'proveedoresInactivos'=> $proveedoresInactivos,
+            'encuestasPorCliente' => $encuestasPorCliente,
+            'muestrasPorEtapa'    => $muestrasPorEtapa,
         ];
 
         return view('admin.dashboard', $data);
@@ -156,5 +208,66 @@ class AdminPanelController extends Controller
         $proveedores = $query->orderBy('score_total', 'desc')->paginate(20)->withQueryString();
 
         return view('admin.proveedores', compact('proveedores', 'busqueda'));
+    }
+
+    // ── Productos ──
+
+    public function productos(Request $request)
+    {
+        $query = Producto::query();
+
+        if ($busqueda = $request->input('busqueda')) {
+            $query->where(function ($q) use ($busqueda) {
+                $q->where('nombre', 'like', "%{$busqueda}%")
+                  ->orWhere('codigo', 'like', "%{$busqueda}%");
+            });
+        }
+
+        if ($request->input('sin_stock')) {
+            $query->where('stock', '<=', 0);
+        }
+
+        $productos = $query->orderBy('codigo')->paginate(20)->withQueryString();
+        $busqueda = $request->input('busqueda');
+        $sinStock = $request->input('sin_stock');
+
+        return view('admin.productos', compact('productos', 'busqueda', 'sinStock'));
+    }
+
+    // ── Facturas ──
+
+    public function facturas(Request $request)
+    {
+        $query = Factura::query();
+
+        if ($estatus = $request->input('estatus')) {
+            $query->where('estatus', $estatus);
+        }
+
+        if ($request->input('vencidas')) {
+            $query->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+        }
+
+        $facturas = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+        $estatus = $request->input('estatus');
+        $vencidas = $request->input('vencidas');
+
+        return view('admin.facturas', compact('facturas', 'estatus', 'vencidas'));
+    }
+
+    // ── Documentos de proveedores ──
+
+    public function documentos(Request $request)
+    {
+        $query = DocumentoProveedor::with('proveedor');
+
+        if ($estatus = $request->input('estatus')) {
+            $query->where('estatus', $estatus);
+        }
+
+        $documentos = $query->orderByRaw("FIELD(estatus, 'pendiente', 'rechazado', 'aprobado')")->paginate(20)->withQueryString();
+        $estatus = $request->input('estatus');
+
+        return view('admin.documentos', compact('documentos', 'estatus'));
     }
 }

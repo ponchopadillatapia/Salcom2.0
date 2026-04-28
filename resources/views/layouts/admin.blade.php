@@ -24,11 +24,11 @@
 
         /* ── NAVBAR (frosted glass) ── */
         nav.top-nav {
-            background: rgba(255,255,255,0.72);
+            background: rgba(255,255,255,0.82);
             -webkit-backdrop-filter: saturate(180%) blur(20px);
             backdrop-filter: saturate(180%) blur(20px);
             padding: 0 28px;
-            height: 56px;
+            height: 58px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -75,13 +75,13 @@
 
         /* ── HERO ── */
         .hero-band {
-            background: var(--white);
-            padding: 24px 32px;
+            background: linear-gradient(135deg, var(--white) 0%, var(--purple-subtle) 100%);
+            padding: 28px 32px;
             border-bottom: 1px solid var(--border-light);
             flex-shrink: 0;
         }
         .hero-band h1 { font-size: 22px; color: var(--gray-text); font-weight: 700; letter-spacing: -0.4px; }
-        .hero-band p { color: var(--gray-muted); font-size: 14px; margin-top: 4px; }
+        .hero-band p { color: var(--gray-muted); font-size: 14px; margin-top: 4px; font-weight: 500; }
 
         /* ── WRAPPER ── */
         .wrapper { display: flex; flex: 1; }
@@ -90,16 +90,25 @@
         .sidebar {
             width: 230px;
             min-width: 230px;
-            background: rgba(255,255,255,0.8);
+            background: rgba(255,255,255,0.88);
             -webkit-backdrop-filter: blur(20px);
             backdrop-filter: blur(20px);
             border-right: 1px solid var(--border-light);
             display: flex;
             flex-direction: column;
-            transition: width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1);
+            transition: width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1), box-shadow .3s;
             overflow: hidden;
         }
         .sidebar.collapsed { width: 56px; min-width: 56px; }
+        .sidebar.collapsed:hover {
+            width: 230px; min-width: 230px;
+            box-shadow: 8px 0 24px rgba(0,0,0,0.06);
+        }
+        .sidebar.collapsed:hover .sb-section { display: block; }
+        .sidebar.collapsed:hover .sb-text { display: inline; }
+        .sidebar.collapsed:hover .sb-link { justify-content: flex-start; padding: 8px 16px; margin: 1px 8px; }
+        .sidebar.collapsed:hover .sb-toggle { justify-content: flex-end; padding: 0 14px; }
+        .sidebar.collapsed:hover .sb-toggle svg { transform: rotate(0deg); }
         .sb-toggle {
             height: 40px;
             display: flex;
@@ -155,14 +164,14 @@
         footer {
             background: var(--white);
             border-top: 1px solid var(--border-light);
-            padding: 16px 28px;
+            padding: 18px 28px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             flex-shrink: 0;
         }
-        footer p { font-size: 11px; color: var(--gray-muted); }
-        .footer-logo { font-family: 'Playfair Display', serif; font-size: 15px; color: var(--purple); font-weight: 600; }
+        footer p { font-size: 11px; color: var(--gray-muted); font-weight: 500; }
+        .footer-logo { font-family: 'Playfair Display', serif; font-size: 15px; color: var(--purple); font-weight: 600; letter-spacing: -0.3px; }
 
         @media (max-width: 768px) {
             .sidebar { display: none; }
@@ -244,6 +253,34 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                 </div>
                 <span class="sb-text">Pedidos</span>
+            </a>
+
+            <a href="{{ route('admin.productos') }}" class="sb-link {{ request()->is('admin/productos*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+                </div>
+                <span class="sb-text">Productos</span>
+            </a>
+
+            <a href="{{ route('admin.facturas') }}" class="sb-link {{ request()->is('admin/facturas*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                </div>
+                <span class="sb-text">Facturas</span>
+            </a>
+
+            <a href="{{ route('admin.documentos') }}" class="sb-link {{ request()->is('admin/documentos*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
+                <span class="sb-text">Documentos</span>
+            </a>
+
+            <a href="{{ route('muestras.admin') }}" class="sb-link {{ request()->is('muestras/admin*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v11l-3 3-3-3z"/><path d="M6 21h12"/></svg>
+                </div>
+                <span class="sb-text">Muestras</span>
             </a>
         </nav>
     </aside>
