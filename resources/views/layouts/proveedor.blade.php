@@ -126,6 +126,12 @@
             overflow: hidden;
         }
         .sidebar.collapsed { width: 60px; min-width: 60px; }
+        /* Auto-despliegue del sidebar al pasar el mouse */
+        .sidebar.collapsed:hover { width: 240px; min-width: 240px; }
+        .sidebar.collapsed:hover .sb-text,
+        .sidebar.collapsed:hover .sb-section { display: block; }
+        .sidebar.collapsed:hover .sb-link { justify-content: flex-start; padding: 8px 16px; margin: 1px 8px; }
+        .sidebar.collapsed:hover .sb-toggle { justify-content: flex-end; padding: 0 16px; }
 
         .sb-toggle {
             height: 44px;

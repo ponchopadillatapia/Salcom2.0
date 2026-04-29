@@ -11,13 +11,15 @@ use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 class AdminPanelController extends Controller
 {
-    // ── Dashboard general ──
+    // ── Dashboard general (con cache de 5 minutos) ──
 
     public function dashboard()
     {
+<<<<<<< HEAD
         // ── Datos para gráficas ──
 
         // Pedidos por mes (últimos 6 meses)
@@ -69,31 +71,46 @@ class AdminPanelController extends Controller
             'totalProveedores'   => ProveedorUser::count(),
             'proveedoresActivos' => $proveedoresActivos,
             'scorePromedio'      => round((float) ProveedorUser::avg('score_total'), 1),
+=======
+        $data = Cache::remember('admin_dashboard_metrics', 300, function () {
+            return [
+                // Clientes
+                'totalClientes'   => ClienteUser::count(),
+                'clientesActivos' => ClienteUser::where('activo', true)->count(),
 
-            // Pedidos
-            'totalPedidos'     => Pedido::count(),
-            'pedidosPendientes' => Pedido::whereIn('estatus', ['validacion', 'procesando'])->count(),
-            'pedidosEntregados' => Pedido::where('estatus', 'entregado')->count(),
-            'montoPedidos'     => Pedido::sum('total'),
+                // Proveedores
+                'totalProveedores'   => ProveedorUser::count(),
+                'proveedoresActivos' => ProveedorUser::where('activo', true)->count(),
+                'scorePromedio'      => round((float) ProveedorUser::avg('score_total'), 1),
+>>>>>>> 93a5ec47870fc2e0f8446bed8d823c4f6e2f5a3c
 
-            // Productos
-            'totalProductos' => Producto::count(),
-            'sinStock'       => Producto::where('stock', '<=', 0)->count(),
+                // Pedidos
+                'totalPedidos'     => Pedido::count(),
+                'pedidosPendientes' => Pedido::whereIn('estatus', ['validacion', 'procesando'])->count(),
+                'pedidosEntregados' => Pedido::where('estatus', 'entregado')->count(),
+                'montoPedidos'     => Pedido::sum('total'),
 
-            // Facturas
-            'facturasPendientes' => Factura::where('estatus', 'pendiente')->count(),
-            'montoFacturas'      => Factura::where('estatus', 'pendiente')->sum('total'),
+                // Productos
+                'totalProductos' => Producto::count(),
+                'sinStock'       => Producto::where('stock', '<=', 0)->count(),
 
-            // Encuestas
-            'totalEncuestas'    => Encuesta::count(),
-            'calificacionProm'  => round((float) Encuesta::avg('calificacion'), 1),
+                // Facturas
+                'facturasPendientes' => Factura::where('estatus', 'pendiente')->count(),
+                'montoFacturas'      => Factura::where('estatus', 'pendiente')->sum('total'),
 
-            // Muestras
-            'muestrasActivas' => Muestra::whereNotIn('etapa', ['aprobado', 'rechazado'])->count(),
+                // Encuestas
+                'totalEncuestas'    => Encuesta::count(),
+                'calificacionProm'  => round((float) Encuesta::avg('calificacion'), 1),
 
-            // Documentos
-            'docsPendientes' => DocumentoProveedor::where('estatus', 'pendiente')->count(),
+                // Muestras
+                'muestrasActivas' => Muestra::whereNotIn('etapa', ['aprobado', 'rechazado'])->count(),
 
+                // Documentos
+                'docsPendientes' => DocumentoProveedor::where('estatus', 'pendiente')->count(),
+            ];
+        });
+
+<<<<<<< HEAD
             // Últimos pedidos
             'ultimosPedidos' => Pedido::orderBy('created_at', 'desc')->limit(5)->get(),
 
@@ -110,6 +127,12 @@ class AdminPanelController extends Controller
             'encuestasPorCliente' => $encuestasPorCliente,
             'muestrasPorEtapa'    => $muestrasPorEtapa,
         ];
+=======
+        // Estos no se cachean (cambian frecuentemente y son pocos registros)
+        $data['ultimosPedidos'] = Pedido::orderBy('created_at', 'desc')->limit(5)->get();
+        $data['topProveedores'] = ProveedorUser::where('score_total', '>', 0)
+            ->orderBy('score_total', 'desc')->limit(5)->get();
+>>>>>>> 93a5ec47870fc2e0f8446bed8d823c4f6e2f5a3c
 
         return view('admin.dashboard', $data);
     }

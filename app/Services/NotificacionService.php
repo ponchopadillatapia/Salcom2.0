@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\EnviarNotificacionPedido;
 use App\Mail\PedidoEstatusNotificacion;
 use App\Models\Notificacion;
 use Illuminate\Support\Facades\Log;
@@ -14,18 +15,31 @@ class NotificacionService
     ) {}
 
     /**
-     * Notifica cambio de estatus de pedido por todos los canales disponibles.
+     * Notifica cambio de estatus de pedido.
+     * Despacha un Job a la cola para no bloquear el request.
      *
-     * @param array $cliente  ['nombre', 'correo', 'telefono', 'codigo_cliente']
-     * @param string $folio   Folio del pedido
-     * @param string $estatus Nuevo estatus
-     * @param string|null $notas
+     * En testing (QUEUE_CONNECTION=sync) se ejecuta inmediatamente.
+     * En producción (QUEUE_CONNECTION=database) se ejecuta en background.
      */
-    public function notificarCambioPedido(array $cliente, string $folio, string $estatus, ?string $notas = null): array
+    public function notificarCambioPedido(array $cliente, string $folio, string $estatus, ?string $notas = null): void
+    {
+        EnviarNotificacionPedido::dispatch($cliente, $folio, $estatus, $notas);
+
+        Log::info('Notificación despachada a cola', [
+            'folio'   => $folio,
+            'estatus' => $estatus,
+            'cliente' => $cliente['codigo_cliente'] ?? 'N/A',
+        ]);
+    }
+
+    /**
+     * Envío síncrono (para casos donde necesitas el resultado inmediato).
+     * Útil para testing o procesos batch.
+     */
+    public function notificarSincrono(array $cliente, string $folio, string $estatus, ?string $notas = null): array
     {
         $resultados = ['bd' => false, 'email' => false, 'whatsapp' => false];
 
-        // 1. Guardar notificación en BD (siempre)
         try {
             Notificacion::create([
                 'tipo_usuario'   => 'cliente',
@@ -40,7 +54,6 @@ class NotificacionService
             Log::error('Notificación BD: error', ['error' => $e->getMessage()]);
         }
 
-        // 2. Email (si hay correo configurado)
         if (!empty($cliente['correo'])) {
             try {
                 Mail::to($cliente['correo'])->send(
@@ -48,11 +61,10 @@ class NotificacionService
                 );
                 $resultados['email'] = true;
             } catch (\Exception $e) {
-                Log::error('Notificación Email: error', ['error' => $e->getMessage(), 'correo' => $cliente['correo']]);
+                Log::error('Notificación Email: error', ['error' => $e->getMessage()]);
             }
         }
 
-        // 3. WhatsApp (si hay teléfono)
         if (!empty($cliente['telefono'])) {
             $wa = $this->whatsapp->notificarCambioEstatus($cliente['telefono'], $folio, $estatus);
             $resultados['whatsapp'] = $wa['success'];

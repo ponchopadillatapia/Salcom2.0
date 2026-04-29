@@ -42,7 +42,7 @@ class PedidoController extends Controller
             'usuario_responsable'  => session('proveedor_nombre', session('cliente_nombre', 'Sistema')),
         ]);
 
-        // Notificar al cliente
+        // Notificar al cliente (async via queue)
         $cliente = ClienteUser::where('codigo_cliente', $pedido->codigo_cliente)->first();
         if ($cliente) {
             $this->notificaciones->notificarCambioPedido(
