@@ -1,4 +1,4 @@
-@extends('layouts.proveedor')
+﻿@extends('layouts.proveedor')
 
 @section('title', 'Alta de Producto')
 
@@ -102,7 +102,7 @@
     </div>
 
     <div class="success-banner" id="successBanner">
-        ✅ ¡Plantilla generada correctamente! Revisa tu carpeta de descargas.
+        ¡Plantilla generada correctamente! Revisa tu carpeta de descargas.
     </div>
 
     {{-- SECCIÓN 0: PREGUNTAS GENERALES --}}

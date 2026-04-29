@@ -1,8 +1,8 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 @section('title', 'Documentos Fiscales')
 @section('hero')
 <div class="hero-band">
-    <h1>📄 Documentos Fiscales de Proveedores</h1>
+    <h1>Documentos Fiscales de Proveedores</h1>
     <p>Revisión y validación de documentos subidos por proveedores</p>
 </div>
 @endsection

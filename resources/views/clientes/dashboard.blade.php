@@ -1,4 +1,4 @@
-@extends('layouts.cliente')
+﻿@extends('layouts.cliente')
 @section('title', 'Dashboard')
 @section('hero')
 <div class="hero-band">
@@ -195,7 +195,7 @@
 {{-- FORECAST: Productos que más compras --}}
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
     <div class="card">
-        <div class="card-head">📈 Productos que más compras — Al alza</div>
+        <div class="card-head">Productos que más compras — Al alza</div>
         <div class="card-body">
             <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
                 <span style="flex:1;font-weight:600">Resina epóxica industrial</span>
@@ -216,7 +216,7 @@
         </div>
     </div>
     <div class="card">
-        <div class="card-head">📉 Productos a la baja</div>
+        <div class="card-head">Productos a la baja</div>
         <div class="card-body">
             <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px">
                 <span style="flex:1;font-weight:600">Catalizador rápido</span>

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -573,7 +573,7 @@ function renderResultado(data) {
         return `
         <div class="seccion-doc ${ok ? 'seccion-ok' : 'seccion-err'}">
             <div class="seccion-header">
-                <span class="seccion-icon">${ok ? '✅' : '❌'}</span>
+                <span class="seccion-icon">${ok ? '' : ''}</span>
                 <span class="seccion-titulo"><i class="bi ${s.icono}"></i> ${s.titulo}</span>
                 ${charsInfo}
             </div>

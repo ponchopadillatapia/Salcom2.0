@@ -1,4 +1,4 @@
-@extends('layouts.proveedor')
+﻿﻿@extends('layouts.proveedor')
 
 @section('title', 'Business')
 
@@ -113,7 +113,7 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
                 {{-- TOP 5 MEJORES --}}
                 <div>
-                    <h4 style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:6px;">📈 Top 5 — Mejor rendimiento</h4>
+                    <h4 style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:6px;">Top 5 — Mejor rendimiento</h4>
                     <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Resina epóxica industrial</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:92%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 92</div><div class="prod-trend up">↑ +12%</div></div>
                     <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Solvente grado técnico</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:88%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 88</div><div class="prod-trend up">↑ +8%</div></div>
                     <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Pigmento base agua</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:81%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 81</div><div class="prod-trend flat">→ Estable</div></div>
@@ -123,7 +123,7 @@
 
                 {{-- TOP 5 PEORES --}}
                 <div>
-                    <h4 style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:6px;">📉 Top 5 — Necesitan atención</h4>
+                    <h4 style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:6px;">Top 5 — Necesitan atención</h4>
                     <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Aditivo antioxidante</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:58%;background:#DC2626"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 58</div><div class="prod-trend down">↓ -15%</div></div>
                     <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Catalizador rápido</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:62%;background:#D97706"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 62</div><div class="prod-trend down">↓ -5%</div></div>
                     <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Sellador industrial</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:65%;background:#D97706"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 65</div><div class="prod-trend down">↓ -3%</div></div>
@@ -139,31 +139,31 @@
     {{-- DOCUMENTOS POR VENCER --}}
     <div class="seccion">
         <div class="seccion-titulo"><div class="dot" style="background:var(--red)"></div>Documentos por vencer</div>
-        <div class="tarea-card urgente"><div class="tarea-icono">📄</div><div class="tarea-info"><div class="tarea-titulo">CIF — Constancia de Situación Fiscal</div><div class="tarea-desc">Tu Constancia de Situación Fiscal vence en 5 días. Actualízala para continuar operando sin interrupciones.</div></div><span class="badge-urgente">Urgente</span><div class="tarea-fecha">Vence: 11/04/2026</div><a href="/empresa" class="btn-accion">Actualizar</a></div>
-        <div class="tarea-card advertencia"><div class="tarea-icono">✅</div><div class="tarea-info"><div class="tarea-titulo">Opinión de Cumplimiento del SAT</div><div class="tarea-desc">Tu Opinión Positiva vence en 18 días. Te recomendamos renovarla pronto para evitar retrasos en tus pagos.</div></div><span class="badge-advertencia">Próximo</span><div class="tarea-fecha">Vence: 24/04/2026</div><a href="/empresa" class="btn-accion">Actualizar</a></div>
+        <div class="tarea-card urgente"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">CIF — Constancia de Situación Fiscal</div><div class="tarea-desc">Tu Constancia de Situación Fiscal vence en 5 días. Actualízala para continuar operando sin interrupciones.</div></div><span class="badge-urgente">Urgente</span><div class="tarea-fecha">Vence: 11/04/2026</div><a href="/empresa" class="btn-accion">Actualizar</a></div>
+        <div class="tarea-card advertencia"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">Opinión de Cumplimiento del SAT</div><div class="tarea-desc">Tu Opinión Positiva vence en 18 días. Te recomendamos renovarla pronto para evitar retrasos en tus pagos.</div></div><span class="badge-advertencia">Próximo</span><div class="tarea-fecha">Vence: 24/04/2026</div><a href="/empresa" class="btn-accion">Actualizar</a></div>
     </div>
 
     {{-- FACTURAS PENDIENTES --}}
     <div class="seccion">
         <div class="seccion-titulo"><div class="dot" style="background:var(--amber)"></div>Facturas pendientes de subir</div>
-        <div class="tarea-card advertencia"><div class="tarea-icono">🧾</div><div class="tarea-info"><div class="tarea-titulo">OC #10045 — $12,500.00</div><div class="tarea-desc">Esta orden de compra no tiene factura asociada. Súbela para iniciar el proceso de pago.</div></div><span class="badge-advertencia">Sin factura</span><div class="tarea-fecha">OC: 01/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
-        <div class="tarea-card advertencia"><div class="tarea-icono">🧾</div><div class="tarea-info"><div class="tarea-titulo">OC #10046 — $8,200.00</div><div class="tarea-desc">Esta orden de compra no tiene factura asociada. Súbela para iniciar el proceso de pago.</div></div><span class="badge-advertencia">Sin factura</span><div class="tarea-fecha">OC: 05/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
-        <div class="tarea-card advertencia"><div class="tarea-icono">🧾</div><div class="tarea-info"><div class="tarea-titulo">OC #10049 — $15,100.00</div><div class="tarea-desc">Esta orden de compra no tiene factura asociada. Súbela para iniciar el proceso de pago.</div></div><span class="badge-advertencia">Sin factura</span><div class="tarea-fecha">OC: 20/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
+        <div class="tarea-card advertencia"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">OC #10045 — $12,500.00</div><div class="tarea-desc">Esta orden de compra no tiene factura asociada. Súbela para iniciar el proceso de pago.</div></div><span class="badge-advertencia">Sin factura</span><div class="tarea-fecha">OC: 01/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
+        <div class="tarea-card advertencia"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">OC #10046 — $8,200.00</div><div class="tarea-desc">Esta orden de compra no tiene factura asociada. Súbela para iniciar el proceso de pago.</div></div><span class="badge-advertencia">Sin factura</span><div class="tarea-fecha">OC: 05/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
+        <div class="tarea-card advertencia"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">OC #10049 — $15,100.00</div><div class="tarea-desc">Esta orden de compra no tiene factura asociada. Súbela para iniciar el proceso de pago.</div></div><span class="badge-advertencia">Sin factura</span><div class="tarea-fecha">OC: 20/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
     </div>
 
     {{-- PAGOS PROXIMOS --}}
     <div class="seccion">
         <div class="seccion-titulo"><div class="dot" style="background:var(--blue)"></div>Pagos próximos</div>
-        <div class="tarea-card info"><div class="tarea-icono">💳</div><div class="tarea-info"><div class="tarea-titulo">Pago programado — $27,300.00</div><div class="tarea-desc">Pago correspondiente a la OC #10047 programado para esta semana. Verifica que tus datos bancarios estén actualizados.</div></div><span class="badge-info">Esta semana</span><div class="tarea-fecha">09/04/2026</div><a href="{{ route('proveedores.dashboard') }}" class="btn-accion">Ver detalle</a></div>
+        <div class="tarea-card info"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">Pago programado — $27,300.00</div><div class="tarea-desc">Pago correspondiente a la OC #10047 programado para esta semana. Verifica que tus datos bancarios estén actualizados.</div></div><span class="badge-info">Esta semana</span><div class="tarea-fecha">09/04/2026</div><a href="{{ route('proveedores.dashboard') }}" class="btn-accion">Ver detalle</a></div>
     </div>
 
     {{-- NOTIFICACIONES --}}
     <div class="seccion">
         <div class="seccion-titulo"><div class="dot" style="background:var(--purple)"></div>Notificaciones de Industrias Salcom</div>
-        <div class="tarea-card ok"><div class="tarea-icono">🎉</div><div class="tarea-info"><div class="tarea-titulo">¡Bienvenido al portal de proveedores!</div><div class="tarea-desc">Tu cuenta ha sido creada exitosamente. Completa tu onboarding para activar tu cuenta al 100%.</div></div><span class="badge-ok">Nuevo</span><div class="tarea-fecha">06/04/2026</div></div>
-        <div class="tarea-card info"><div class="tarea-icono">📢</div><div class="tarea-info"><div class="tarea-titulo">Nueva orden de compra generada</div><div class="tarea-desc">Industrias Salcom ha generado una nueva OC #10049 por $15,100.00. Revísala en el módulo de consultar OC.</div></div><span class="badge-info">OC Nueva</span><div class="tarea-fecha">20/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
-        <div class="tarea-card info"><div class="tarea-icono">📋</div><div class="tarea-info"><div class="tarea-titulo">Documentos en revisión</div><div class="tarea-desc">Tu CIF y Opinión Positiva están siendo revisados por el equipo de Salcom. Te notificaremos cuando estén aprobados.</div></div><span class="badge-info">En revisión</span><div class="tarea-fecha">15/03/2026</div></div>
-        <div class="tarea-card ok"><div class="tarea-icono">✅</div><div class="tarea-info"><div class="tarea-titulo">Registro completado</div><div class="tarea-desc">Tu registro como proveedor fue completado exitosamente. Ya puedes acceder al portal.</div></div><span class="badge-ok">Completado</span><div class="tarea-fecha">01/03/2026</div></div>
+        <div class="tarea-card ok"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">¡Bienvenido al portal de proveedores!</div><div class="tarea-desc">Tu cuenta ha sido creada exitosamente. Completa tu onboarding para activar tu cuenta al 100%.</div></div><span class="badge-ok">Nuevo</span><div class="tarea-fecha">06/04/2026</div></div>
+        <div class="tarea-card info"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">Nueva orden de compra generada</div><div class="tarea-desc">Industrias Salcom ha generado una nueva OC #10049 por $15,100.00. Revísala en el módulo de consultar OC.</div></div><span class="badge-info">OC Nueva</span><div class="tarea-fecha">20/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
+        <div class="tarea-card info"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">Documentos en revisión</div><div class="tarea-desc">Tu CIF y Opinión Positiva están siendo revisados por el equipo de Salcom. Te notificaremos cuando estén aprobados.</div></div><span class="badge-info">En revisión</span><div class="tarea-fecha">15/03/2026</div></div>
+        <div class="tarea-card ok"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">Registro completado</div><div class="tarea-desc">Tu registro como proveedor fue completado exitosamente. Ya puedes acceder al portal.</div></div><span class="badge-ok">Completado</span><div class="tarea-fecha">01/03/2026</div></div>
     </div>
 
 @endsection

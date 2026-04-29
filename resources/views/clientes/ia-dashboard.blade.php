@@ -1,8 +1,8 @@
-@extends('layouts.cliente')
+﻿@extends('layouts.cliente')
 @section('title', 'Dashboard IA')
 @section('hero')
 <div class="hero-band">
-    <h1>🤖 Dashboard de Inteligencia Artificial</h1>
+    <h1>Dashboard de Inteligencia Artificial</h1>
     <p>Análisis automático de tus pedidos y demanda — Powered by Claude</p>
 </div>
 @endsection
@@ -27,7 +27,7 @@
 <div class="ia-card">
     <div class="ia-card-head">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-        <h3>📊 Pronóstico de tu demanda</h3>
+        <h3>Pronóstico de tu demanda</h3>
     </div>
     <div class="ia-card-body">
         <p style="font-size:13px;color:var(--gray-muted);margin-bottom:16px">
@@ -49,7 +49,7 @@
 <div class="ia-card">
     <div class="ia-card-head">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        <h3>📦 Disponibilidad de productos</h3>
+        <h3>Disponibilidad de productos</h3>
     </div>
     <div class="ia-card-body">
         <p style="font-size:13px;color:var(--gray-muted);margin-bottom:16px">

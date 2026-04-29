@@ -62,7 +62,7 @@ return [
 
     'ia' => [
         'provider'       => env('IA_PROVIDER', 'bedrock'),        // bedrock | anthropic
-        'model'          => env('IA_MODEL', 'anthropic.claude-3-5-sonnet-20241022-v2:0'),
+        'model'          => env('IA_MODEL', 'anthropic.claude-sonnet-4-20250514-v1:0'),
         'bedrock_region' => env('IA_BEDROCK_REGION', 'us-east-1'),
         'aws_access_key' => env('IA_AWS_ACCESS_KEY', ''),
         'aws_secret_key' => env('IA_AWS_SECRET_KEY', ''),

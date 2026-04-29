@@ -1,8 +1,8 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 @section('title', 'Proveedores — Score')
 @section('hero')
 <div class="hero-band">
-    <h1>🏭 Proveedores — Score</h1>
+    <h1>Proveedores — Score</h1>
     <p>Score = 50% entrega a tiempo + 50% puntualidad</p>
 </div>
 @endsection

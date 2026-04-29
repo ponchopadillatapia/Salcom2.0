@@ -1,8 +1,8 @@
-@extends('layouts.cliente')
+﻿@extends('layouts.cliente')
 @section('title', 'Forecast')
 @section('hero')
 <div class="hero-band">
-    <h1>📊 Forecast — Tendencias de tus compras</h1>
+    <h1>Forecast — Tendencias de tus compras</h1>
     <p>Productos que más compras y sus tendencias de precio y disponibilidad</p>
 </div>
 @endsection
@@ -30,7 +30,7 @@
 
 <div class="forecast-grid">
     <div class="fc-card">
-        <h3 class="up">📈 Productos que más compras — Al alza</h3>
+        <h3 class="up">Productos que más compras — Al alza</h3>
         @php
         $alza = [
             ['Resina epóxica industrial', 'SAL-001', 'Demanda creciente', '+12%'],
@@ -48,7 +48,7 @@
     </div>
 
     <div class="fc-card">
-        <h3 class="down">📉 Productos a la baja</h3>
+        <h3 class="down">Productos a la baja</h3>
         @php
         $baja = [
             ['Catalizador rápido', 'SAL-007', 'Menos pedidos este trimestre', '-5%'],

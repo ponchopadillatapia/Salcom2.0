@@ -548,7 +548,7 @@
         </div>
     </div>
 
-    <div class="pp-forecast-grid">
+    <a href="{{ route('proveedores.forecast') }}" class="pp-forecast-grid" style="text-decoration:none;display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;cursor:pointer;transition:var(--transition);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 16px rgba(107,63,160,0.1)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
         <div class="pp-forecast-card">
             <h4>Productos al alza</h4>
             <div class="pp-forecast-row">
@@ -566,7 +566,7 @@
                 <div class="pp-forecast-bar"><div class="pp-forecast-fill" style="width: 65%; background: var(--green)"></div></div>
                 <span class="pp-forecast-trend pp-trend-up">↑ +5%</span>
             </div>
-            <p style="font-size: 11px; color: var(--gray-muted); margin-top: 8px">Basado en historial de pedidos · Datos de prueba</p>
+            <p style="font-size:11px;color:var(--gray-muted);margin-top:8px">Ver todos los productos →</p>
         </div>
         <div class="pp-forecast-card">
             <h4>Productos a la baja</h4>
@@ -585,9 +585,9 @@
                 <div class="pp-forecast-bar"><div class="pp-forecast-fill" style="width: 55%; background: var(--gray-muted)"></div></div>
                 <span class="pp-forecast-trend pp-trend-flat">→ Estable</span>
             </div>
-            <p style="font-size: 11px; color: var(--gray-muted); margin-top: 8px">Basado en historial de pedidos · Datos de prueba</p>
+            <p style="font-size:11px;color:var(--gray-muted);margin-top:8px">Ver análisis completo →</p>
         </div>
-    </div>
+    </a>
 
     <div class="pp-quick-grid">
         <a href="{{ route('proveedores.ia') }}" class="pp-card pp-quick-card">

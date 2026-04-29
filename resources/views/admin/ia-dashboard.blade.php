@@ -1,8 +1,8 @@
-@extends('layouts.admin')
+﻿﻿@extends('layouts.admin')
 @section('title', 'Módulo de IA')
 @section('hero')
 <div class="hero-band">
-    <h1>🤖 Módulo de Inteligencia Artificial</h1>
+    <h1>Módulo de Inteligencia Artificial</h1>
     <p>Pronóstico de demanda · Optimización de inventario · Selección de proveedor</p>
 </div>
 @endsection
@@ -70,18 +70,18 @@
 @endpush
 @section('content')
 
-<span class="badge-mock">🤖 Powered by Claude (Anthropic) — Datos de prueba</span>
+<span class="badge-mock">Powered by Claude (Anthropic) — Datos de prueba</span>
 
 {{-- TABS --}}
 <div class="tabs">
     <button class="tab {{ ($tabActiva ?? 'pronostico') === 'pronostico' ? 'active' : '' }}" onclick="switchTab('pronostico')">
-        <span class="tab-icon">📊</span> Pronóstico de demanda
+        <span class="tab-icon"></span> Pronóstico de demanda
     </button>
     <button class="tab {{ ($tabActiva ?? '') === 'inventario' ? 'active' : '' }}" onclick="switchTab('inventario')">
-        <span class="tab-icon">📦</span> Optimización de inventario
+        <span class="tab-icon"></span> Optimización de inventario
     </button>
     <button class="tab {{ ($tabActiva ?? '') === 'proveedor' ? 'active' : '' }}" onclick="switchTab('proveedor')">
-        <span class="tab-icon">🏭</span> Selección de proveedor
+        <span class="tab-icon"></span> Selección de proveedor
     </button>
 </div>
 
@@ -120,7 +120,7 @@
             @if(isset($resultadoPronostico))
                 <div class="resultado">
                     <div class="resultado-header">
-                        <h4>📊 Análisis para {{ $resultadoPronostico['cliente'] }}</h4>
+                        <h4>Análisis para {{ $resultadoPronostico['cliente'] }}</h4>
                         <span class="resultado-time">Generado: {{ $resultadoPronostico['generado'] }}</span>
                     </div>
 
@@ -199,7 +199,7 @@
                         <td>{{ number_format($demMes) }} {{ $item['unidad'] }}</td>
                         <td>{{ $cobertura }} meses</td>
                         <td><span class="trend-{{ $tendencia }}">{{ ucfirst($tendencia) }}</span></td>
-                        <td><span class="stock-{{ $estado }}">{{ $estado === 'low' ? '⚠ Crítico' : ($estado === 'high' ? '📦 Exceso' : '✓ OK') }}</span></td>
+                        <td><span class="stock-{{ $estado }}">{{ $estado === 'low' ? '⚠ Crítico' : ($estado === 'high' ? 'Exceso' : '✓ OK') }}</span></td>
                     </tr>
                 @endforeach
                 </tbody>
@@ -227,7 +227,7 @@
             @if(isset($resultadoInventario))
                 <div class="resultado">
                     <div class="resultado-header">
-                        <h4>📦 Recomendaciones de inventario</h4>
+                        <h4>Recomendaciones de inventario</h4>
                         <span class="resultado-time">Generado: {{ $resultadoInventario['generado'] }}</span>
                     </div>
 
@@ -278,7 +278,7 @@
             @if(isset($resultadoProveedor))
                 <div class="resultado">
                     <div class="resultado-header">
-                        <h4>🏭 Análisis para {{ $resultadoProveedor['producto']['nombre'] }}</h4>
+                        <h4>Análisis para {{ $resultadoProveedor['producto']['nombre'] }}</h4>
                         <span class="resultado-time">Generado: {{ $resultadoProveedor['generado'] }}</span>
                     </div>
 

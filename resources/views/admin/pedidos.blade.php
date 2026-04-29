@@ -1,8 +1,8 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 @section('title', 'Pedidos')
 @section('hero')
 <div class="hero-band">
-    <h1>📦 Pedidos</h1>
+    <h1>Pedidos</h1>
     <p>Consulta y seguimiento de todos los pedidos del sistema</p>
 </div>
 @endsection

@@ -1,8 +1,8 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 @section('title', 'Encuestas de Satisfacción')
 @section('hero')
 <div class="hero-band">
-    <h1>📋 Encuestas de Satisfacción</h1>
+    <h1>Encuestas de Satisfacción</h1>
     <p>Resultados y retroalimentación de clientes</p>
 </div>
 @endsection
