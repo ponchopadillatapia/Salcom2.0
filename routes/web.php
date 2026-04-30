@@ -92,13 +92,18 @@ Route::get('/admin/pedidos', [AdminPanelController::class, 'pedidos'])->name('ad
 Route::get('/cliente/encuesta', [PortalClienteController::class, 'mostrarEncuesta'])->name('clientes.encuesta')->middleware('auth.cliente');
 Route::post('/cliente/encuesta', [PortalClienteController::class, 'guardarEncuesta'])->name('clientes.encuesta.guardar')->middleware('auth.cliente');
 
-// ── Módulo de IA (Proveedor — análisis automático) ──
+// ── Módulo de IA (Proveedor — con botones) ──
 use App\Http\Controllers\IaDashboardController;
 
 Route::get('/proveedor/ia', [IaDashboardController::class, 'proveedorIa'])->name('proveedores.ia')->middleware('auth.proveedor');
+Route::post('/proveedor/ia/pronostico', [IaDashboardController::class, 'proveedorPronostico'])->name('proveedores.ia.pronostico')->middleware('auth.proveedor');
+Route::post('/proveedor/ia/inventario', [IaDashboardController::class, 'proveedorInventario'])->name('proveedores.ia.inventario')->middleware('auth.proveedor');
+Route::post('/proveedor/ia/proveedor', [IaDashboardController::class, 'proveedorProveedor'])->name('proveedores.ia.proveedor')->middleware('auth.proveedor');
 
-// ── Módulo de IA (Cliente — análisis automático) ──
+// ── Módulo de IA (Cliente — con botones) ──
 Route::get('/cliente/ia', [IaDashboardController::class, 'clienteIa'])->name('clientes.ia')->middleware('auth.cliente');
+Route::post('/cliente/ia/pronostico', [IaDashboardController::class, 'clientePronostico'])->name('clientes.ia.pronostico')->middleware('auth.cliente');
+Route::post('/cliente/ia/inventario', [IaDashboardController::class, 'clienteInventario'])->name('clientes.ia.inventario')->middleware('auth.cliente');
 
 // ── Módulo de IA (Admin — dashboard con formularios) ──
 Route::get('/admin/ia', [IaDashboardController::class, 'adminIa'])->name('admin.ia')->middleware('auth.admin');

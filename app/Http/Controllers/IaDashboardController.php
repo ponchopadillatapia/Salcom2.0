@@ -69,39 +69,78 @@ class IaDashboardController extends Controller
     }
 
     // ══════════════════════════════════════════════
-    //  PROVEEDOR — análisis automático al entrar
+    //  PROVEEDOR — dashboard con botones (sin auto-load)
     // ══════════════════════════════════════════════
 
     public function proveedorIa()
     {
-        $codigoProveedor = session('proveedor_codigo', 'PROV-001');
+        return view('proveedores.ia-dashboard', [
+            'productos' => $this->listaProductos(),
+        ]);
+    }
 
-        $pronostico = $this->iaService->pronosticoDemanda($codigoProveedor);
-        $inventario = $this->iaService->optimizacionInventario();
-        $proveedor  = $this->iaService->seleccionProveedor('SAL-001');
+    public function proveedorPronostico()
+    {
+        $codigoProveedor = session('proveedor_codigo', 'PROV-001');
+        $resultado = $this->iaService->pronosticoDemanda($codigoProveedor);
 
         return view('proveedores.ia-dashboard', [
-            'resultadoPronostico' => $pronostico,
-            'resultadoInventario' => $inventario,
-            'resultadoProveedor'  => $proveedor,
             'productos'           => $this->listaProductos(),
+            'resultadoPronostico' => $resultado,
+            'tabActiva'           => 'pronostico',
+        ]);
+    }
+
+    public function proveedorInventario()
+    {
+        $resultado = $this->iaService->optimizacionInventario();
+
+        return view('proveedores.ia-dashboard', [
+            'productos'           => $this->listaProductos(),
+            'resultadoInventario' => $resultado,
+            'tabActiva'           => 'inventario',
+        ]);
+    }
+
+    public function proveedorProveedor(Request $request)
+    {
+        $productoId = $request->input('producto_id', 'SAL-001');
+        $resultado = $this->iaService->seleccionProveedor($productoId);
+
+        return view('proveedores.ia-dashboard', [
+            'productos'          => $this->listaProductos(),
+            'resultadoProveedor' => $resultado,
+            'tabActiva'          => 'proveedor',
         ]);
     }
 
     // ══════════════════════════════════════════════
-    //  CLIENTE — análisis automático al entrar
+    //  CLIENTE — dashboard con botones (sin auto-load)
     // ══════════════════════════════════════════════
 
     public function clienteIa()
     {
-        $codigoCliente = session('cliente_codigo', 'CLI-001');
+        return view('clientes.ia-dashboard');
+    }
 
-        $pronostico = $this->iaService->pronosticoDemanda($codigoCliente);
-        $inventario = $this->iaService->optimizacionInventario();
+    public function clientePronostico()
+    {
+        $codigoCliente = session('cliente_codigo', 'CLI-001');
+        $resultado = $this->iaService->pronosticoDemanda($codigoCliente);
 
         return view('clientes.ia-dashboard', [
-            'resultadoPronostico' => $pronostico,
-            'resultadoInventario' => $inventario,
+            'resultadoPronostico' => $resultado,
+            'tabActiva'           => 'pronostico',
+        ]);
+    }
+
+    public function clienteInventario()
+    {
+        $resultado = $this->iaService->optimizacionInventario();
+
+        return view('clientes.ia-dashboard', [
+            'resultadoInventario' => $resultado,
+            'tabActiva'           => 'inventario',
         ]);
     }
 

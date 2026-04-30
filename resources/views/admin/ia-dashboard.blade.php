@@ -37,8 +37,18 @@
     .resultado-header h4{font-size:14px;font-weight:600;color:var(--purple-dark)}
     .resultado-time{font-size:11px;color:var(--gray-muted)}
 
-    .ia-response{background:var(--purple-subtle);border:1px solid #e8ddf5;border-radius:10px;padding:20px 24px;font-size:13px;line-height:1.7;color:var(--gray-text);white-space:pre-wrap;word-wrap:break-word;max-height:600px;overflow-y:auto}
+    .ia-response{background:var(--purple-subtle);border:1px solid #e8ddf5;border-radius:10px;padding:24px 28px;font-size:14px;line-height:1.8;color:var(--gray-text);max-height:600px;overflow-y:auto}
+    .ia-response h1,.ia-response h2,.ia-response h3{color:var(--purple-dark);margin:20px 0 8px;font-weight:700}
+    .ia-response h1{font-size:18px}.ia-response h2{font-size:16px}.ia-response h3{font-size:15px}
+    .ia-response p{margin-bottom:12px}
     .ia-response strong{color:var(--purple-dark)}
+    .ia-response ul,.ia-response ol{padding-left:20px;margin-bottom:12px}
+    .ia-response li{margin-bottom:6px}
+    .ia-response table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px}
+    .ia-response table th{background:var(--purple-light);color:var(--purple-dark);font-weight:700;padding:10px 14px;text-align:left;border:1px solid var(--border)}
+    .ia-response table td{padding:10px 14px;border:1px solid var(--border)}
+    .ia-response table tr:hover td{background:var(--white)}
+    .ia-response blockquote{border-left:3px solid var(--purple);padding-left:16px;margin:12px 0;color:var(--gray-muted);font-style:italic}
 
     .ia-error{background:var(--red-bg);border:1px solid #fca5a5;border-radius:10px;padding:16px 20px;font-size:13px;color:var(--red)}
 
@@ -125,7 +135,7 @@
                     </div>
 
                     @if($resultadoPronostico['analisis']['success'])
-                        <div class="ia-response">{!! nl2br(e($resultadoPronostico['analisis']['content'])) !!}</div>
+                        <div class="ia-response">{!! \Illuminate\Support\Str::markdown($resultadoPronostico['analisis']['content']) !!}</div>
                     @else
                         <div class="ia-error">{{ $resultadoPronostico['analisis']['error'] }}</div>
                     @endif
@@ -232,7 +242,7 @@
                     </div>
 
                     @if($resultadoInventario['analisis']['success'])
-                        <div class="ia-response">{!! nl2br(e($resultadoInventario['analisis']['content'])) !!}</div>
+                        <div class="ia-response">{!! \Illuminate\Support\Str::markdown($resultadoInventario['analisis']['content']) !!}</div>
                     @else
                         <div class="ia-error">{{ $resultadoInventario['analisis']['error'] }}</div>
                     @endif
@@ -303,7 +313,7 @@
                     </table>
 
                     @if($resultadoProveedor['analisis']['success'])
-                        <div class="ia-response">{!! nl2br(e($resultadoProveedor['analisis']['content'])) !!}</div>
+                        <div class="ia-response">{!! \Illuminate\Support\Str::markdown($resultadoProveedor['analisis']['content']) !!}</div>
                     @else
                         <div class="ia-error">{{ $resultadoProveedor['analisis']['error'] }}</div>
                     @endif
