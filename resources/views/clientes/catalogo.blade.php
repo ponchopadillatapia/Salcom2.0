@@ -58,16 +58,22 @@
 
 <div class="products-grid" id="productsGrid"></div>
 
-<div class="pagination-mock">
-    <button class="page-btn">◀</button>
-    <button class="page-btn active">1</button>
-    <button class="page-btn">2</button>
-    <button class="page-btn">3</button>
-    <button class="page-btn">▶</button>
-</div>
+<div class="pagination-mock" id="pagination"></div>
 @endsection
 
 @push('scripts')
+@php
+    use Illuminate\Support\Facades\File;
+    $catalogoImages = [];
+    try {
+        $catalogoImages = collect(File::files(public_path('Catalogo')))
+            ->map(fn ($f) => $f->getFilename())
+            ->values()
+            ->all();
+    } catch (\Throwable $e) {
+        $catalogoImages = [];
+    }
+@endphp
 <script>
 const productos = [
     // Fuente: PDF "2025-LP MX Wiese Institucional 19sep"
@@ -300,6 +306,8 @@ const productos = [
     { seccion:'AROMATIZANTE PARA CLOSET', codigo:'NPAPP00', nombre:'Camiseta PDCB WIESE Lavanda (2) 85g/16 pzas', desc:'Camiseta PDCB WIESE Lavanda (2) 85g/16 pzas', categoria:'aromatizante-para-closet', precio:353.00, unidad:'', stock:999 },
 ];
 
+const catalogoImages = @json($catalogoImages);
+
 const categorias = Array.from(new Map(productos.map(p => [p.categoria, p.seccion])).entries())
     .map(([slug, label]) => ({ slug, label }))
     .sort((a, b) => a.label.localeCompare(b.label, 'es'));
@@ -317,11 +325,132 @@ function stockBadge(s) {
     return '<span class="stock-badge stock-ok">Disponible ('+s+')</span>';
 }
 
+function norm(s) {
+    return String(s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '');
+}
+
+// Mapeo explícito (según bloques del PDF) de CODIGO -> archivo dentro de public/Catalogo.
+// Nota: en tu carpeta hay nombres como "Naeho52 a 78.jpg" que representan LISTAS (no rangos).
+const imageByCode = (() => {
+    const map = {};
+    const add = (file, codes) => {
+        for (const c of codes) map[String(c).toUpperCase()] = file;
+    };
+
+    // --- NAEHO (HO) ---
+    add('Naeho 57 a 10.jpg', ['NAEHO57','NAEHO01','NAEHO02','NAEHO56','NAEHO10','NAEHO18','NAEHO20','NAEHO21','NAEHO23','NAEHO24','NAEHO25']);
+    add('Naeho52 a 78.jpg', ['NAEHO52','NAEHO65','NAEHO78']);
+    add('Naeho 09 a 30.jpg', ['NAEHO09','NAEHO30']);
+    add('Naeho 53 a 77.jpg', ['NAEHO53','NAEHO74','NAEHO77']);
+    add('Naeho 34 a 59.jpg', ['NAEHO34','NAEHO35','NAEHO36','NAEHO41','NAEHO42','NAEHO43','NAEHO55','NAEHO59']);
+    add('Naeho 18 a 25.jpg', ['NAEHO18','NAEHO20','NAEHO21','NAEHO23','NAEHO24','NAEHO25']);
+
+    // --- NAEDC / NAEMC (DC/MC) ---
+    add('Naedc 28 a 43.jpg', ['NAEDC28','NAEDC43']);
+    add('Naemc 03.jpg', ['NAEMC03']);
+    add('Naedc 00 a 07.jpg', ['NAEDC00','NAEDC01','NAEDC02','NAEDC03','NAEDC04','NAEDC05','NAEDC06','NAEDC07']);
+    add('Naedc 09 a 17.jpg', ['NAEDC09','NAEDC10','NAEDC11','NAEDC13','NAEDC25','NAEDC15','NAEDC17']);
+    add('Naedc 18 a 40.jpg', ['NAEDC18','NAEDC20','NAEDC21','NAEDC26','NAEDC27','NAEDC40']);
+
+    // --- Premium ---
+    add('Naedc 49 a 44.jpg', ['NAEDC49','NAEDC45','NAEDC44']);
+    add('Naeho 90 a 85.jpg', ['NAEHO90','NAEHO89','NAEHO88','NAEHO93','NAEHO86','NAEHO85']);
+
+    // --- Kits / MS ---
+    add('Ndidc03 a Ebrdr 05 a 08.jpg', ['NDIDC03','EBRDR05','EBRDR06','EBRDR07','EBRDR08']);
+    add('Naems 00 a 11.jpg', ['NAEMS00','NAEMS01','NAEMS11']);
+    add('Naems 03 a 07.jpg', ['NAEMS03','NAEMS05','NAEMS07']);
+
+    // --- Auto ---
+    add('Narau09 a 12.jpg', ['NARAU09','NARAU10','NARAU11','NARAU12','NARAU13']);
+    add('Nreau 14 a 16.jpg', ['NREAU12','NREAU13','NREAU14','NREAU15','NREAU16']);
+
+    // --- Gel ---
+    add('Narcg 00 a 07.jpg', ['NARCG00','NARCG07']);
+    // (el archivo "Narcg 06 a 16.jpg" parece corresponder a NARGE**, pero el catálogo usa NARGE** sin foto dedicada)
+
+    // --- Eléctrico / Líquido ---
+    add('Ndiel 00 a 03.jpg', ['NDIEL00','NDIEL02','NDIEL03']);
+    add('Ndier 07 a 09.jpg', ['NDIER07','NDIER08','NDIER09']);
+    add('Ndier 10 a 12.jpg', ['NDIER10','NDIER11','NDIER12']);
+    add('Ndilg 04 a Nmang 02.jpg', ['NDILG04','NMANG02']);
+    add('Nlilg 48 a 53.jpg', ['NLILG48','NLILG49','NLILG50','NLILG51','NLILG52','NLILG53']);
+    // Para NLILG10..19 se reutiliza la misma foto del bloque 48..53 (si no hay otra)
+    add('Nlilg 48 a 53.jpg', ['NLILG10','NLILG11','NLILG12','NLILG13','NLILG18','NLILG19']);
+
+    // --- NON-PARA / PARA ---
+    add('Nnopa 00 a 02.png', ['NNOPA00','NNOPA02']);
+    add('Nnopa 17 a 19.jpg', ['NNOPA17','NNOPA18','NNOPA19']);
+    add('Nnomi 00 a 01.jpg', ['NNOMI00','NNOMI01']);
+    add('Nnocr 01 a 02.jpg', ['NNOCR01','NNOCR02']);
+    add('Nnoca 06 a 12.jpg', ['NNOCA06','NNOCA07','NNOCA12']);
+    add('Npccl06.jpg', ['NPCCL06']);
+    add('Ntacp02 a 03.jpg', ['NTACP02','NTACP03']);
+    add('Ntacp 00 a 01.jpg', ['NTACP00','NTACP01']);
+    add('Ntacp06.jpg', ['NTACP06']);
+
+    add('Epare 08 a 09.jpg', ['EPARE08','EPARE09']);
+    add('Npare 00 a 20.jpg', ['NPARE00','NPARE10','NPARE20']);
+    add('Npaal 00 a 20.jpg', ['NPAAL00','NPAAL10','NPAAL20']);
+    add('Npaba 11 a 34.jpg', ['NPABA11','NPABA12','NPABA13','NPABA30','NPABA32','NPABA34']);
+    add('Npacr 04.jpg', ['NPACR04']);
+    add('Nnopa31.jpg', ['NNOPA31']);
+
+    // --- Tapetes / nuevos / clip / hang ---
+    add('Ntaas 25 a 34.jpg', ['NTAAS25','NTAAS26','NTAAS27','NTAAS28','NTAAS29','NTAAS30','NTAAS31','NTAAS32','NTAAS33','NTAAS34']);
+    add('Ntali 00 a 02.jpg', ['NTALI00','NTALI01','NTALI02']);
+    add('Ntast 02 a 19.jpg', ['NTAST02','NTAST03','NTAST12','NTAST13','NTAST14','NTAST15','NTAST19']);
+    add('Ntali 03.jpg', ['NTALI03']);
+    add('Ntaas 14.jpg', ['NTAAS14']);
+    add('Ntaas 37.png', ['NTAAS37']);
+    add('Narco 02 a 08.jpg', ['NARCO02','NARCO03','NARCO04','NARCO05','NARCO06','NARCO07','NARCO08']);
+    add('Narha 00 a 06.jpg', ['NARHA00','NARHA01','NARHA02','NARHA03','NARHA04','NARHA05','NARHA06']);
+
+    // --- Otros sueltos ---
+    add('Npavp 00 a Npapp 00.jpg', ['NPAVP00','NPAPP00']);
+    add('Nlils 02.jpg', ['NLILS02']);
+
+    return map;
+})();
+
+function imageForCode(code) {
+    const raw = String(code || '').toUpperCase().trim();
+    if (!raw) return null;
+    // variantes: con y sin ceros (ej. NAEHO01 -> NAEHO1)
+    const m = raw.match(/^([A-Z]{3,})(0*)([0-9]+)$/);
+    const variants = [raw];
+    if (m) variants.push(m[1] + String(parseInt(m[3], 10)));
+
+    for (const v of variants) {
+        const file = imageByCode[v];
+        if (file) return `{{ asset('Catalogo') }}/${encodeURIComponent(file)}`;
+    }
+
+    // fallback: contiene el código en el nombre del archivo (por si algún nombre es raro)
+    const c = norm(raw);
+    for (const file of catalogoImages) {
+        const f = norm(file);
+        if (f.includes(c)) return `{{ asset('Catalogo') }}/${encodeURIComponent(file)}`;
+    }
+    return null;
+}
+
 function renderProducts(list) {
     const grid = document.getElementById('productsGrid');
+    const imageCache = {};
     grid.innerHTML = list.map(p => `
         <div class="prod-card" data-cat="${p.categoria}" data-name="${p.nombre.toLowerCase()}" data-code="${p.codigo.toLowerCase()}">
-            <div class="prod-img"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+            <div class="prod-img">
+                ${
+                    (imageCache[p.codigo] ??= imageForCode(p.codigo))
+                        ? `<img src="${imageCache[p.codigo]}" alt="${p.nombre.replace(/\"/g,'&quot;')}" style="width:100%;height:100%;object-fit:cover" onerror="this.remove();this.parentElement.innerHTML='<svg width=&quot;48&quot; height=&quot;48&quot; viewBox=&quot;0 0 24 24&quot; fill=&quot;none&quot; stroke=&quot;#9ca3af&quot; stroke-width=&quot;1.5&quot;><rect x=&quot;3&quot; y=&quot;3&quot; width=&quot;18&quot; height=&quot;18&quot; rx=&quot;2&quot;/><line x1=&quot;12&quot; y1=&quot;8&quot; x2=&quot;12&quot; y2=&quot;16&quot;/><line x1=&quot;8&quot; y1=&quot;12&quot; x2=&quot;16&quot; y2=&quot;12&quot;/></svg>';">`
+                        : `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`
+                }
+            </div>
             <div class="prod-body">
                 <div class="prod-cat">${p.seccion || p.categoria}</div>
                 <div class="prod-name">${p.nombre}</div>
@@ -334,24 +463,97 @@ function renderProducts(list) {
             </div>
         </div>
     `).join('');
-    document.getElementById('prodCount').textContent = list.length + ' productos';
+}
+
+// --- Paginación (cliente) ---
+const pageSize = 10;
+let currentPage = 1;
+let filteredProducts = productos.slice();
+
+function pageCount() {
+    return Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+}
+
+function renderPagination() {
+    const container = document.getElementById('pagination');
+    const totalPages = pageCount();
+    const page = Math.min(Math.max(1, currentPage), totalPages);
+    currentPage = page;
+
+    const mkBtn = (label, { disabled = false, active = false, onClick = null } = {}) => {
+        const btn = document.createElement('button');
+        btn.className = 'page-btn' + (active ? ' active' : '');
+        btn.type = 'button';
+        btn.textContent = label;
+        btn.disabled = disabled;
+        if (onClick) btn.addEventListener('click', onClick);
+        return btn;
+    };
+
+    container.innerHTML = '';
+    container.appendChild(mkBtn('◀', { disabled: page <= 1, onClick: () => goToPage(page - 1) }));
+
+    // Ventana de páginas: 1 ... (page-1) page (page+1) ... last
+    const pages = [];
+    pages.push(1);
+    for (let p = page - 1; p <= page + 1; p++) {
+        if (p > 1 && p < totalPages) pages.push(p);
+    }
+    if (totalPages > 1) pages.push(totalPages);
+    const uniquePages = Array.from(new Set(pages)).sort((a, b) => a - b);
+
+    let last = 0;
+    for (const p of uniquePages) {
+        if (p - last > 1) {
+            const dots = mkBtn('…', { disabled: true });
+            container.appendChild(dots);
+        }
+        container.appendChild(mkBtn(String(p), { active: p === page, onClick: () => goToPage(p) }));
+        last = p;
+    }
+
+    container.appendChild(mkBtn('▶', { disabled: page >= totalPages, onClick: () => goToPage(page + 1) }));
+}
+
+function renderCurrentPage() {
+    const total = filteredProducts.length;
+    const totalPages = pageCount();
+    currentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+    const start = (currentPage - 1) * pageSize;
+    const pageItems = filteredProducts.slice(start, start + pageSize);
+    renderProducts(pageItems);
+
+    const shownFrom = total === 0 ? 0 : start + 1;
+    const shownTo = total === 0 ? 0 : Math.min(start + pageSize, total);
+    document.getElementById('prodCount').textContent =
+        `${total} productos · mostrando ${shownFrom}-${shownTo}`;
+
+    renderPagination();
+}
+
+function goToPage(p) {
+    currentPage = p;
+    renderCurrentPage();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function filtrar() {
     const q = document.getElementById('searchInput').value.toLowerCase();
     const cat = document.getElementById('catFilter').value;
-    const filtered = productos.filter(p => {
+    filteredProducts = productos.filter(p => {
         const matchSearch = !q || p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q);
         const matchCat = !cat || p.categoria === cat;
         return matchSearch && matchCat;
     });
-    renderProducts(filtered);
+    currentPage = 1;
+    renderCurrentPage();
 }
 
 function agregarPedido(codigo) {
     alert('Producto ' + codigo + ' agregado al pedido (funcionalidad pendiente de API)');
 }
 
-renderProducts(productos);
+renderCurrentPage();
 </script>
 @endpush
