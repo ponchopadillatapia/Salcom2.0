@@ -33,6 +33,21 @@
     .btn-add:hover { background:#4A2070; }
     .btn-add:disabled { background:#d1d5db; cursor:not-allowed; }
 
+    .modal-overlay-cat{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:400;align-items:center;justify-content:center}
+    .modal-overlay-cat.active{display:flex}
+    .modal-cat{background:var(--white);border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 40px rgba(0,0,0,0.12)}
+    .modal-cat h3{font-size:17px;font-weight:700;color:var(--gray-text);margin:0 0 8px}
+    .modal-cat .modal-sub{font-size:12px;color:var(--gray-muted);margin-bottom:16px;line-height:1.45}
+    .modal-cat label{display:block;font-size:11px;font-weight:600;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+    .modal-cat input[type="number"]{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;outline:none}
+    .modal-cat input:focus{border-color:#6B3FA0;box-shadow:0 0 0 3px rgba(107,63,160,.1)}
+    .modal-cat-actions{display:flex;gap:10px;margin-top:20px}
+    .modal-cat-actions button{flex:1;padding:11px;border-radius:10px;font-size:13px;font-family:inherit;font-weight:600;cursor:pointer;border:none}
+    .btn-modal-cancel{background:#f3f4f6;color:var(--gray-text)}
+    .btn-modal-cancel:hover{background:#e5e7eb}
+    .btn-modal-ok{background:#6B3FA0;color:#fff}
+    .btn-modal-ok:hover{background:#4A2070}
+
     .pagination-mock { display:flex; align-items:center; justify-content:center; gap:4px; }
     .page-btn { width:32px; height:32px; border:1px solid var(--border); border-radius:6px; background:var(--white); font-size:13px; font-family:inherit; color:var(--gray-text); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .1s; }
     .page-btn:hover { background:#F3EEFA; color:#6B3FA0; border-color:#9C6DD0; }
@@ -42,6 +57,20 @@
 
     @media(max-width:900px) { .products-grid { grid-template-columns:1fr 1fr; } }
     @media(max-width:600px) { .products-grid { grid-template-columns:1fr; } }
+
+    .catalog-fly-item {
+        position: fixed;
+        z-index: 600;
+        border-radius: 12px;
+        pointer-events: none;
+        overflow: hidden;
+        box-shadow: 0 10px 28px rgba(107,63,160,0.45);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(145deg, #6B3FA0, #9C6DD0);
+    }
+    .catalog-fly-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
 </style>
 @endpush
 
@@ -59,6 +88,21 @@
 <div class="products-grid" id="productsGrid"></div>
 
 <div class="pagination-mock" id="pagination"></div>
+
+<div class="modal-overlay-cat" id="modalQtyOverlay" onclick="if(event.target===this)cerrarModalCantidad()">
+    <div class="modal-cat" onclick="event.stopPropagation()">
+        <h3 id="modalQtyTitle">Agregar al pedido</h3>
+        <p class="modal-sub" id="modalQtyProduct"></p>
+        <div>
+            <label for="modalQtyInput">Cantidad</label>
+            <input type="number" id="modalQtyInput" min="1" value="1">
+        </div>
+        <div class="modal-cat-actions">
+            <button type="button" class="btn-modal-cancel" onclick="cerrarModalCantidad()">Cancelar</button>
+            <button type="button" class="btn-modal-ok" onclick="confirmarCantidadPedido()">Confirmar</button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -75,6 +119,39 @@
     }
 @endphp
 <script>
+const PEDIDOS_STORAGE_KEY = 'salcom_cliente_pedidos_v1';
+const PEDIDOS_SEED = [
+    {folio:'PED-2026-001',fecha:'01/04/2026',productos:'Detergente Industrial x10, Desengrasante HD x5',total:8450.00,pago:'contado',estatus:'entregado',key:'entregado'},
+    {folio:'PED-2026-002',fecha:'03/04/2026',productos:'Aceite Lubricante SAE 40 x3',total:2670.00,pago:'contado',estatus:'enviado',key:'enviado'},
+    {folio:'PED-2026-003',fecha:'05/04/2026',productos:'Cinta Empaque x50, Stretch Film x20',total:4725.00,pago:'contado',estatus:'produccion',key:'produccion'},
+    {folio:'PED-2026-004',fecha:'07/04/2026',productos:'Sanitizante Multiusos x30',total:5850.00,pago:'contado',estatus:'autorizado',key:'autorizado'},
+    {folio:'PED-2026-005',fecha:'09/04/2026',productos:'Solvente Dieléctrico x8, Refrigerante x2',total:4700.00,pago:'contado',estatus:'validacion',key:'validacion'},
+];
+
+function loadPedidosStorage() {
+    try {
+        const raw = localStorage.getItem(PEDIDOS_STORAGE_KEY);
+        if (raw) {
+            const data = JSON.parse(raw);
+            if (Array.isArray(data) && data.length) return data;
+        }
+    } catch (e) {}
+    return PEDIDOS_SEED.map(p => ({...p}));
+}
+
+function savePedidosStorage(arr) {
+    localStorage.setItem(PEDIDOS_STORAGE_KEY, JSON.stringify(arr));
+}
+
+function nextPedidoFolio(list) {
+    let max = 0;
+    for (const p of list) {
+        const m = /^PED-2026-(\d+)$/.exec(p.folio);
+        if (m) max = Math.max(max, parseInt(m[1], 10));
+    }
+    return 'PED-2026-' + String(max + 1).padStart(3, '0');
+}
+
 const productos = [
     // Fuente: PDF "2025-LP MX Wiese Institucional 19sep"
     // Regla aplicada: si hay rangos, usar "1 a 49"; si el precio viene por bloque, aplicar a todos los códigos del bloque.
@@ -306,6 +383,131 @@ const productos = [
     { seccion:'AROMATIZANTE PARA CLOSET', codigo:'NPAPP00', nombre:'Camiseta PDCB WIESE Lavanda (2) 85g/16 pzas', desc:'Camiseta PDCB WIESE Lavanda (2) 85g/16 pzas', categoria:'aromatizante-para-closet', precio:353.00, unidad:'', stock:999 },
 ];
 
+let pendingPedidoCodigo = null;
+
+function agregarPedido(codigo) {
+    const p = productos.find(x => x.codigo === codigo);
+    if (!p || p.stock === 0) return;
+    pendingPedidoCodigo = codigo;
+    document.getElementById('modalQtyTitle').textContent = 'Agregar al pedido';
+    document.getElementById('modalQtyProduct').textContent = p.nombre + ' · ' + p.codigo + ' — $' + p.precio.toLocaleString('es-MX', {minimumFractionDigits: 2}) + ' c/u';
+    const inp = document.getElementById('modalQtyInput');
+    inp.value = 1;
+    inp.max = p.stock > 0 ? p.stock : '';
+    document.getElementById('modalQtyOverlay').classList.add('active');
+    setTimeout(() => inp.focus(), 50);
+}
+
+function cerrarModalCantidad() {
+    pendingPedidoCodigo = null;
+    document.getElementById('modalQtyOverlay').classList.remove('active');
+}
+
+function getPedidosFlyTargetEl() {
+    if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+        const q = document.getElementById('navPedidosQuick');
+        if (q) return q;
+    }
+    return document.getElementById('sbLinkPedidos');
+}
+
+function flyProductToPedidos(fromRect, imgSrc) {
+    const target = getPedidosFlyTargetEl();
+    if (!target || !fromRect || fromRect.width < 1) {
+        return Promise.resolve();
+    }
+    const to = target.getBoundingClientRect();
+    const size = 52;
+    const el = document.createElement('div');
+    el.className = 'catalog-fly-item';
+    el.setAttribute('aria-hidden', 'true');
+    if (imgSrc) {
+        const img = document.createElement('img');
+        img.src = imgSrc;
+        img.alt = '';
+        el.appendChild(img);
+    } else {
+        el.innerHTML = '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+    }
+    document.body.appendChild(el);
+    const x0 = fromRect.left + fromRect.width / 2 - size / 2;
+    const y0 = fromRect.top + fromRect.height / 2 - size / 2;
+    el.style.left = x0 + 'px';
+    el.style.top = y0 + 'px';
+    el.style.width = size + 'px';
+    el.style.height = size + 'px';
+    const cx0 = fromRect.left + fromRect.width / 2;
+    const cy0 = fromRect.top + fromRect.height / 2;
+    const dx = to.left + to.width / 2 - cx0;
+    const dy = to.top + to.height / 2 - cy0;
+    const keyframes = [
+        { transform: 'translate(0,0) scale(1)', opacity: 1 },
+        { transform: 'translate(' + (dx * 0.5) + 'px,' + (dy * 0.5 - 32) + 'px) scale(0.9)', opacity: 0.98, offset: 0.42 },
+        { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(0.32)', opacity: 0.12 },
+    ];
+    const opts = { duration: 750, easing: 'cubic-bezier(0.2, 0.85, 0.35, 1)' };
+    if (el.animate) {
+        return el.animate(keyframes, opts).finished.then(function () { el.remove(); }).catch(function () { try { el.remove(); } catch (e) {} });
+    }
+    el.remove();
+    return Promise.resolve();
+}
+
+function confirmarCantidadPedido() {
+    if (!pendingPedidoCodigo) return;
+    const p = productos.find(x => x.codigo === pendingPedidoCodigo);
+    if (!p) { cerrarModalCantidad(); return; }
+    let qty = parseInt(document.getElementById('modalQtyInput').value, 10);
+    if (!Number.isFinite(qty) || qty < 1) qty = 1;
+    if (p.stock > 0 && qty > p.stock) qty = p.stock;
+
+    const codigoRef = pendingPedidoCodigo;
+    const card = document.querySelector('.prod-card[data-codigo="' + codigoRef + '"]');
+    let fromRect = null;
+    let imgSrc = null;
+    if (card) {
+        const wrap = card.querySelector('.prod-img');
+        const img = wrap ? wrap.querySelector('img') : null;
+        if (wrap) fromRect = wrap.getBoundingClientRect();
+        if (img && img.src) imgSrc = img.src;
+    }
+
+    const list = loadPedidosStorage();
+    const folio = nextPedidoFolio(list);
+    const total = p.precio * qty;
+    list.unshift({
+        folio,
+        fecha: new Date().toLocaleDateString('es-MX'),
+        productos: p.nombre + ' x' + qty,
+        total,
+        pago: 'contado',
+        estatus: 'En validación',
+        key: 'validacion',
+    });
+    savePedidosStorage(list);
+    cerrarModalCantidad();
+
+    const badgeKey = window.SALCOM_PEDIDOS_NAV_BADGE_KEY || 'salcom_cliente_pedidos_nav_badge';
+    try {
+        const prev = parseInt(localStorage.getItem(badgeKey) || '0', 10) || 0;
+        localStorage.setItem(badgeKey, String(prev + 1));
+    } catch (e) {}
+
+    const syncBadge = function () {
+        if (typeof window.salcomSyncPedidosNavBadge === 'function') window.salcomSyncPedidosNavBadge();
+    };
+
+    if (fromRect && fromRect.width >= 1) {
+        flyProductToPedidos(fromRect, imgSrc).then(syncBadge).catch(syncBadge);
+    } else {
+        syncBadge();
+    }
+}
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && document.getElementById('modalQtyOverlay').classList.contains('active')) cerrarModalCantidad();
+});
+
 const catalogoImages = @json($catalogoImages);
 
 const categorias = Array.from(new Map(productos.map(p => [p.categoria, p.seccion])).entries())
@@ -443,7 +645,7 @@ function renderProducts(list) {
     const grid = document.getElementById('productsGrid');
     const imageCache = {};
     grid.innerHTML = list.map(p => `
-        <div class="prod-card" data-cat="${p.categoria}" data-name="${p.nombre.toLowerCase()}" data-code="${p.codigo.toLowerCase()}">
+        <div class="prod-card" data-codigo="${p.codigo}" data-cat="${p.categoria}" data-name="${p.nombre.toLowerCase()}" data-code="${p.codigo.toLowerCase()}">
             <div class="prod-img">
                 ${
                     (imageCache[p.codigo] ??= imageForCode(p.codigo))
@@ -548,10 +750,6 @@ function filtrar() {
     });
     currentPage = 1;
     renderCurrentPage();
-}
-
-function agregarPedido(codigo) {
-    alert('Producto ' + codigo + ' agregado al pedido (funcionalidad pendiente de API)');
 }
 
 renderCurrentPage();

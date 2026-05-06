@@ -79,14 +79,14 @@
     </div>
     <div class="sum-card">
         <div class="sum-label">Saldo pendiente</div>
-        <div class="sum-val">$0.00</div>
-        <div class="sum-sub">Al corriente</div>
+        <div class="sum-val">$17,719.00</div>
+        <div class="sum-sub">3 facturas pendientes de pago (sin vencidas)</div>
     </div>
 </div>
 
 <div class="status-row">
-    <div class="status-item"><div class="status-dot dot-ok"></div><strong>Cuenta al corriente</strong></div>
-    <div class="status-item" style="color:var(--gray-muted)">Sin adeudos · Sin facturas vencidas</div>
+    <div class="status-item"><div class="status-dot dot-review"></div><strong>Facturas por liquidar</strong></div>
+    <div class="status-item" style="color:var(--gray-muted)">Pendientes: CFDI-A-001236, 001237 y 001238 · Sin facturas vencidas</div>
 </div>
 
 <div class="card">

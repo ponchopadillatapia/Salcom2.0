@@ -214,6 +214,7 @@
         .sb-link:hover { background: var(--purple-subtle); color: var(--purple); transform: translateX(2px); }
         .sb-link.active { background: var(--purple-light); color: var(--purple); font-weight: 600; }
         .sb-icon {
+            position: relative;
             width: 32px;
             height: 32px;
             border-radius: 10px;
@@ -231,6 +232,47 @@
         }
         .sb-link:hover .sb-icon svg,
         .sb-link.active .sb-icon svg { stroke: white !important; }
+        .sb-pedidos-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            background: #6B3FA0;
+            color: #fff;
+            font-size: 10px;
+            font-weight: 700;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid var(--white);
+            box-shadow: 0 2px 8px rgba(107,63,160,0.35);
+            line-height: 1;
+            z-index: 2;
+        }
+        .sb-pedidos-badge.pop { animation: sbPedidosBadgePop 0.5s cubic-bezier(0.34, 1.4, 0.64, 1); }
+        @keyframes sbPedidosBadgePop {
+            0% { transform: scale(1); }
+            35% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .nav-pedidos-quick {
+            display: none;
+            position: relative;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+            border-radius: 10px;
+            color: var(--gray-text);
+            transition: background .15s;
+        }
+        .nav-pedidos-quick:hover { background: var(--purple-subtle); color: var(--purple); }
+        .nav-pedidos-quick svg { display: block; }
+        @media (max-width: 768px) {
+            .nav-pedidos-quick { display: flex; }
+        }
         .sb-text { flex-shrink: 0; }
         .sidebar.collapsed .sb-link { justify-content: center; padding: 8px; margin: 1px 4px; }
         .sidebar.collapsed .sb-text { display: none; }
@@ -275,6 +317,10 @@
         <span>Portal de Clientes</span>
     </div>
     <div class="nav-right">
+        <a href="{{ route('clientes.pedidos') }}" class="nav-pedidos-quick" id="navPedidosQuick" title="Pedidos">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <span class="sb-pedidos-badge js-pedidos-nav-badge" style="display:none;top:-2px;right:-2px" aria-hidden="true">0</span>
+        </a>
         <div class="nav-notif-wrap" id="notifWrap">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             <span id="notifBadge" style="position:absolute;top:2px;right:2px;background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;padding:0 5px;border-radius:999px;display:flex;align-items:center;justify-content:center">3</span>
@@ -305,7 +351,7 @@
             <a href="{{ route('clientes.ia') }}" class="sb-link {{ request()->routeIs('clientes.ia') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V6a4 4 0 0 1 4-4z"/><path d="M16 11v1a4 4 0 0 1-8 0v-1"/><line x1="12" y1="16" x2="12" y2="20"/><line x1="8" y1="20" x2="16" y2="20"/></svg></div><span class="sb-text">Dashboard IA</span></a>
             <a href="{{ route('clientes.forecast') }}" class="sb-link {{ request()->routeIs('clientes.forecast') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div><span class="sb-text">Forecast</span></a>
             <a href="{{ route('clientes.catalogo') }}" class="sb-link {{ request()->routeIs('clientes.catalogo') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><span class="sb-text">Catálogo</span></a>
-            <a href="{{ route('clientes.pedidos') }}" class="sb-link {{ request()->routeIs('clientes.pedidos') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><span class="sb-text">Pedidos</span></a>
+            <a href="{{ route('clientes.pedidos') }}" id="sbLinkPedidos" class="sb-link {{ request()->routeIs('clientes.pedidos') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="sb-pedidos-badge js-pedidos-nav-badge" style="display:none" aria-hidden="true">0</span></div><span class="sb-text">Pedidos</span></a>
             <a href="{{ route('clientes.estado-cuenta') }}" class="sb-link {{ request()->routeIs('clientes.estado-cuenta') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><span class="sb-text">Estado de cuenta</span></a>
             <a href="{{ route('clientes.tracking') }}" class="sb-link {{ request()->routeIs('clientes.tracking') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><span class="sb-text">Tracking</span></a>
             <a href="{{ route('clientes.encuesta') }}" class="sb-link {{ request()->routeIs('clientes.encuesta') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><span class="sb-text">Encuesta</span></a>
@@ -320,6 +366,32 @@
     <div class="footer-logo">Industrias Salcom</div>
     <p>&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</p>
 </footer>
+<script>
+window.SALCOM_PEDIDOS_NAV_BADGE_KEY = 'salcom_cliente_pedidos_nav_badge';
+window.salcomSyncPedidosNavBadge = function () {
+    var key = window.SALCOM_PEDIDOS_NAV_BADGE_KEY || 'salcom_cliente_pedidos_nav_badge';
+    var n = 0;
+    try { n = parseInt(localStorage.getItem(key) || '0', 10) || 0; } catch (e) {}
+    document.querySelectorAll('.js-pedidos-nav-badge').forEach(function (el) {
+        if (n > 0) {
+            el.textContent = n > 99 ? '99+' : String(n);
+            el.style.display = 'flex';
+            el.classList.remove('pop');
+            void el.offsetWidth;
+            el.classList.add('pop');
+        } else {
+            el.textContent = '0';
+            el.style.display = 'none';
+            el.classList.remove('pop');
+        }
+    });
+};
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { window.salcomSyncPedidosNavBadge(); });
+} else {
+    window.salcomSyncPedidosNavBadge();
+}
+</script>
 @stack('scripts')
 <script>
 // Click-to-toggle para dispositivos touch (en desktop abre con hover por CSS)

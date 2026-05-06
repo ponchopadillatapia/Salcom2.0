@@ -154,19 +154,19 @@
 <div class="portal-home">
     <div class="portal-top-grid">
         <div class="portal-card">
-            <h4>Pedidos activos</h4>
+            <h4>Pedidos en proceso</h4>
             <div class="portal-stat-val">3</div>
-            <div class="portal-stat-label">En proceso</div>
+            <div class="portal-stat-label">Validación, autorizado y producción</div>
         </div>
         <div class="portal-card">
             <h4>Último pedido</h4>
-            <div class="portal-stat-val">PED-005</div>
+            <div class="portal-stat-val">PED-2026-005</div>
             <div class="portal-stat-label">09/04/2026</div>
         </div>
         <div class="portal-card">
             <h4>Saldo pendiente</h4>
-            <div class="portal-stat-val">$0.00</div>
-            <div class="portal-stat-label">Al corriente</div>
+            <div class="portal-stat-val">$17,719</div>
+            <div class="portal-stat-label">3 facturas pendientes · Sin vencidas</div>
         </div>
         <div class="portal-card">
             <h4>Tipo de cliente</h4>
@@ -237,15 +237,15 @@
     <div class="portal-forecast-grid">
         <div class="portal-card">
             <h4 style="color: var(--green)">Al alza</h4>
-            <div class="portal-row"><span style="flex:1;font-weight:600">Resina epóxica</span><span style="font-size:12px;font-weight:700;color:var(--green)">↑ +12%</span></div>
-            <div class="portal-row"><span style="flex:1;font-weight:600">Solvente técnico</span><span style="font-size:12px;font-weight:700;color:var(--green)">↑ +8%</span></div>
+            <div class="portal-row"><span style="flex:1;font-weight:600">Resina epóxica industrial</span><span style="font-size:12px;font-weight:700;color:var(--green)">↑ +12%</span></div>
+            <div class="portal-row"><span style="flex:1;font-weight:600">Solvente grado técnico</span><span style="font-size:12px;font-weight:700;color:var(--green)">↑ +8%</span></div>
             <div class="portal-row"><span style="flex:1;font-weight:600">Pigmento base agua</span><span style="font-size:12px;font-weight:700;color:var(--green)">↑ +5%</span></div>
             <a href="{{ route('clientes.forecast') }}" style="display:block;text-align:right;font-size:12px;color:var(--purple);font-weight:600;text-decoration:none;margin-top:8px">Ver todo →</a>
         </div>
         <div class="portal-card">
             <h4 style="color: var(--red)">A la baja</h4>
-            <div class="portal-row"><span style="flex:1;font-weight:600">Aditivo antioxidante</span><span style="font-size:12px;font-weight:700;color:var(--red)">↓ -15%</span></div>
             <div class="portal-row"><span style="flex:1;font-weight:600">Catalizador rápido</span><span style="font-size:12px;font-weight:700;color:var(--red)">↓ -5%</span></div>
+            <div class="portal-row"><span style="flex:1;font-weight:600">Aditivo antioxidante</span><span style="font-size:12px;font-weight:700;color:var(--red)">↓ -15%</span></div>
             <a href="{{ route('clientes.forecast') }}" style="display:block;text-align:right;font-size:12px;color:var(--purple);font-weight:600;text-decoration:none;margin-top:8px">Ver todo →</a>
         </div>
     </div>
