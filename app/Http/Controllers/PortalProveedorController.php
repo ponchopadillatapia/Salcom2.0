@@ -34,6 +34,33 @@ class PortalProveedorController extends Controller
         return view('proveedores.payment-history');
     }
 
+    public function mostrarEncuesta()
+    {
+        return view('proveedores.encuesta');
+    }
+
+    public function guardarEncuestaProveedor(Request $request)
+    {
+        $request->validate([
+            'calificacion'  => 'required|integer|min:1|max:5',
+            'comunicacion'  => 'required|string',
+            'pago_tiempo'   => 'required|string',
+            'proceso_oc'    => 'required|string',
+            'recomendaria'  => 'required|string',
+            'comentarios'   => 'nullable|string|max:2000',
+        ]);
+
+        \App\Models\Encuesta::create([
+            'codigo_cliente'   => session('proveedor_codigo', 'PROV-' . session('proveedor_id')),
+            'calificacion'     => $request->input('calificacion'),
+            'tiempo_entrega'   => array_search($request->input('pago_tiempo'), ['siempre' => 1, 'casi_siempre' => 2, 'a_veces' => 3, 'nunca' => 4]) ?: 2,
+            'calidad_producto' => array_search($request->input('comunicacion'), ['excelente' => 1, 'buena' => 2, 'regular' => 3, 'mala' => 4]) ?: 2,
+            'comentarios'      => $request->input('comentarios'),
+        ]);
+
+        return redirect()->route('proveedores.encuesta')->with('encuesta_guardada', true);
+    }
+
     public function mostrarPerfil()
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));

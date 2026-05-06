@@ -413,14 +413,14 @@
             <div class="pp-stat-label">Datos de prueba</div>
         </a>
         <a href="{{ route('proveedores.payment-history') }}" class="pp-card">
-            <h4>Facturas pendientes</h4>
+            <h4>Cobranza</h4>
             <div class="pp-stat-val">—</div>
             <div class="pp-stat-label">Pendiente de API</div>
         </a>
         <a href="{{ route('proveedores.onboarding') }}" class="pp-card">
-            <h4>Onboarding</h4>
-            <div class="pp-stat-val">40%</div>
-            <div class="pp-stat-label">2 de 5 pasos</div>
+            <h4>Lista de proveedor</h4>
+            <div class="pp-stat-val">33%</div>
+            <div class="pp-stat-label">2 de 6 pasos</div>
         </a>
     </div>
 
@@ -442,55 +442,34 @@
     </div>
 
     <div class="pp-mid-grid">
-        <div class="pp-card">
-            <div class="pp-cal-header">
-                <h4>Calendario</h4>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <div class="pp-cal-nav">
-                        <button type="button" onclick="calPrev()">◀</button>
-                        <button type="button" onclick="calNext()">▶</button>
-                    </div>
-                    <span class="pp-cal-month" id="calMonth"></span>
-                </div>
+        {{-- NEGOCIO (reemplaza calendario) --}}
+        <a href="{{ route('proveedores.business') }}" class="pp-card" style="text-decoration:none;">
+            <h4>Negocio</h4>
+            <div style="margin-bottom:8px">
+                <span style="font-size:12px;color:var(--gray-muted)">Ventas</span>
+                <div style="font-size:22px;font-weight:700;color:var(--green)">$2.5M <span style="font-size:12px;font-weight:600;color:var(--green)">+17%</span></div>
             </div>
-            <table class="pp-cal-table" id="calTable">
-                <thead>
-                    <tr>
-                        <th>WK</th>
-                        <th>DOM</th>
-                        <th>LUN</th>
-                        <th>MAR</th>
-                        <th>MIÉ</th>
-                        <th>JUE</th>
-                        <th>VIE</th>
-                        <th>SÁB</th>
-                    </tr>
-                </thead>
-                <tbody id="calBody"></tbody>
-            </table>
-        </div>
+            <div style="margin-bottom:8px">
+                <span style="font-size:12px;color:var(--gray-muted)">Unidades</span>
+                <div style="font-size:22px;font-weight:700;color:var(--gray-text)">235,348 <span style="font-size:12px;font-weight:600;color:var(--red)">-2%</span></div>
+            </div>
+            <span style="font-size:12px;color:var(--blue);font-weight:600">Ver detalle →</span>
+        </a>
 
-        <a href="{{ route('proveedores.forecast') }}" class="pp-card pp-score-card">
-            <h4 style="font-size: 13px; font-weight: 600; color: var(--gray-text); margin-bottom: 8px; align-self: flex-start;">Mi score</h4>
-            <div class="pp-score-donut">
-                <canvas id="scoreDonut" width="120" height="120"></canvas>
-                <div class="pp-score-center">
-                    <div class="pp-score-num" style="color: var(--green)">0%</div>
-                    <div class="pp-score-lbl">Total</div>
+        {{-- OTIF / Inventario --}}
+        <a href="{{ route('proveedores.business') }}" class="pp-card" style="text-decoration:none;">
+            <h4>OTIF</h4>
+            <div style="display:flex;gap:16px;margin-bottom:8px">
+                <div>
+                    <span style="font-size:11px;color:var(--gray-muted)">On Time</span>
+                    <div style="font-size:22px;font-weight:700;color:var(--green)">98.5%</div>
+                </div>
+                <div>
+                    <span style="font-size:11px;color:var(--gray-muted)">In Full</span>
+                    <div style="font-size:22px;font-weight:700;color:var(--green)">95%</div>
                 </div>
             </div>
-            <div class="pp-score-legend">
-                <div class="pp-score-legend-row">
-                    <div class="pp-score-legend-dot" style="background: var(--green)"></div>
-                    Entrega
-                    <span class="pp-score-legend-val">0%</span>
-                </div>
-                <div class="pp-score-legend-row">
-                    <div class="pp-score-legend-dot" style="background: var(--purple)"></div>
-                    Puntualidad
-                    <span class="pp-score-legend-val">0%</span>
-                </div>
-            </div>
+            <span style="font-size:12px;color:var(--blue);font-weight:600">Ver detalle →</span>
         </a>
 
         <div class="pp-card">
@@ -518,6 +497,26 @@
                 <div class="pp-list-text">Documentos verificados</div>
                 <div class="pp-list-time">Completado</div>
             </div>
+            <div class="pp-list-item">
+                <div class="pp-dot pp-dot-g"></div>
+                <div class="pp-list-text">Estatus OC</div>
+                <div class="pp-list-time">Pendiente</div>
+            </div>
+            <div class="pp-list-item">
+                <div class="pp-dot pp-dot-a"></div>
+                <div class="pp-list-text">Días de inventario</div>
+                <div class="pp-list-time">Pendiente</div>
+            </div>
+            <div class="pp-list-item">
+                <div class="pp-dot pp-dot-a"></div>
+                <div class="pp-list-text">Facturas OC</div>
+                <div class="pp-list-time">Pendiente</div>
+            </div>
+            <div class="pp-list-item">
+                <div class="pp-dot pp-dot-a"></div>
+                <div class="pp-list-text">XML vs SAT</div>
+                <div class="pp-list-time">Pendiente</div>
+            </div>
         </div>
 
         <div class="pp-card">
@@ -527,7 +526,7 @@
             </h4>
             <div class="pp-list-item">
                 <div class="pp-dot pp-dot-g"></div>
-                <div class="pp-list-text">Registro de proveedor</div>
+                <div class="pp-list-text">Alta de proveedor</div>
                 <div class="pp-list-time">Completado</div>
             </div>
             <div class="pp-list-item">
@@ -537,12 +536,17 @@
             </div>
             <div class="pp-list-item">
                 <div class="pp-dot pp-dot-a"></div>
-                <div class="pp-list-text">Validación por Salcom</div>
-                <div class="pp-list-time">En revisión</div>
+                <div class="pp-list-text">Contactos</div>
+                <div class="pp-list-time">Pendiente</div>
             </div>
             <div class="pp-list-item">
                 <div class="pp-dot pp-dot-x"></div>
-                <div class="pp-list-text">Primera OC</div>
+                <div class="pp-list-text">Validación estándar</div>
+                <div class="pp-list-time">Pendiente</div>
+            </div>
+            <div class="pp-list-item">
+                <div class="pp-dot pp-dot-x"></div>
+                <div class="pp-list-text">Detalle de inventario</div>
                 <div class="pp-list-time">Pendiente</div>
             </div>
         </div>

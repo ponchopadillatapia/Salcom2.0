@@ -309,25 +309,25 @@
     {{-- FACTURAS --}}
     <div class="section-header">
         <div class="section-title">Facturas</div>
-        <span class="section-sub">Pendiente de API</span>
+        <span class="section-sub">Verde = Aprobada/Pagada · Rojo = Proceso pendiente</span>
     </div>
 
     <div class="metrics-row">
         <div class="metric-card">
-            <div class="accent" style="background:var(--purple)"></div>
-            <div class="metric-label">Facturas pendientes</div>
+            <div class="accent" style="background:var(--amber)"></div>
+            <div class="metric-label">Pendientes de aprobación (Incomings)</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
         </div>
         <div class="metric-card">
-            <div class="accent" style="background:var(--amber)"></div>
-            <div class="metric-label">Facturas en revisión</div>
+            <div class="accent" style="background:var(--purple)"></div>
+            <div class="metric-label">En revisión</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
         </div>
         <div class="metric-card">
             <div class="accent" style="background:var(--green)"></div>
-            <div class="metric-label">Facturas aprobadas</div>
+            <div class="metric-label">El pago</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
         </div>
@@ -335,7 +335,7 @@
 
     <div class="card">
         <div class="card-head">
-            <h3>Facturas recientes</h3>
+            <h3>Revisión</h3>
             <div class="card-actions">
                 <a href="#" class="ver-todo">Ver todas</a>
                 <button class="btn-excel" onclick="exportarExcel('tablaFacturas','facturas')">
@@ -348,6 +348,9 @@
             <thead><tr><th>Folio</th><th>Fecha</th><th>OC relacionada</th><th>Monto</th><th>Estatus</th></tr></thead>
             <tbody><tr class="empty-row"><td colspan="5">Sin datos — Pendiente de conexión con API</td></tr></tbody>
         </table>
+        <div style="padding:12px 22px;font-size:11px;color:var(--gray-muted);border-top:1px solid var(--border-light)">
+            Flujo de estatus: Liberación Incomings → Cumplimiento Fiscal → Compulsa SAT → Liberación Contabilidad → Finanzas
+        </div>
     </div>
 
     {{-- PAGOS --}}

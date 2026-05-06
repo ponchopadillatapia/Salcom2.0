@@ -115,6 +115,10 @@ Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'adminProveedo
 Route::post('/proveedor/contactos', [PortalProveedorController::class, 'guardarContacto'])->name('proveedores.contactos.guardar')->middleware('auth.proveedor');
 Route::delete('/proveedor/contactos/{contacto}', [PortalProveedorController::class, 'eliminarContacto'])->name('proveedores.contactos.eliminar')->middleware('auth.proveedor');
 
+// ── Encuesta de servicio (proveedor evalúa a Salcom) ──
+Route::get('/proveedor/encuesta', [PortalProveedorController::class, 'mostrarEncuesta'])->name('proveedores.encuesta')->middleware('auth.proveedor');
+Route::post('/proveedor/encuesta', [PortalProveedorController::class, 'guardarEncuestaProveedor'])->name('proveedores.encuesta.guardar')->middleware('auth.proveedor');
+
 // ── Aviso de privacidad ──
 Route::get('/aviso-privacidad', function () { return view('aviso-privacidad'); })->name('aviso.privacidad');
 Route::post('/proveedor/aviso-privacidad', [PortalProveedorController::class, 'aceptarAvisoPrivacidad'])->name('proveedores.aviso.aceptar')->middleware('auth.proveedor');
