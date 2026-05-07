@@ -29,6 +29,7 @@ Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->
 Route::get('/payment-history', [PortalProveedorController::class, 'mostrarPaymentHistory'])->name('proveedores.payment-history')->middleware('auth.proveedor');
 Route::get('/perfil', [PortalProveedorController::class, 'mostrarPerfil'])->name('proveedores.perfil')->middleware('auth.proveedor');
 Route::get('/forecast', function () { return view('proveedores.forecast'); })->name('proveedores.forecast')->middleware('auth.proveedor');
+Route::get('/proveedor/otif', function () { return view('proveedores.otif'); })->name('proveedores.otif')->middleware('auth.proveedor');
 
 // ── Consultar OC ──
 Route::get('/consultar-oc', [OrdenCompraController::class, 'mostrarConsultarOC'])->name('proveedores.oc')->middleware('auth.proveedor');

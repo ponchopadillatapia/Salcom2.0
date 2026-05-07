@@ -15,238 +15,126 @@
         max-width: 1140px;
         margin: 0 auto;
     }
-    .pp-top-grid {
+
+    /* ── Section grids ── */
+    .pp-grid-2 {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 16px;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
         margin-bottom: 24px;
     }
+
+    /* ── Card base ── */
     .pp-card {
         background: var(--white);
         border: 1px solid var(--border-light);
-        border-radius: 10px;
-        padding: 20px;
-        text-decoration: none;
-        color: inherit;
+        border-radius: var(--radius-lg);
+        padding: 22px;
         transition: var(--transition);
     }
     .pp-card:hover {
         border-color: var(--purple-mid);
-        box-shadow: 0 2px 8px rgba(107, 63, 160, 0.1);
+        box-shadow: var(--shadow-md);
     }
     .pp-card h4 {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--gray-text);
-        margin-bottom: 12px;
-    }
-    .pp-stat-val {
-        font-size: 28px;
-        font-weight: 700;
-        color: var(--gray-text);
-        line-height: 1;
-    }
-    .pp-stat-label {
-        font-size: 12px;
-        color: var(--gray-muted);
-        margin-top: 4px;
-    }
-    .pp-stat-highlight {
-        color: var(--amber);
-    }
-    .pp-week-panel {
-        display: none;
-        background: var(--white);
-        border: 1px solid var(--border-light);
-        border-radius: 10px;
-        padding: 20px;
-        margin-bottom: 24px;
-        overflow: hidden;
-    }
-    .pp-week-panel.active {
-        display: block;
-    }
-    .pp-week-panel h4 {
         font-size: 14px;
         font-weight: 700;
         color: var(--gray-text);
-        margin-bottom: 14px;
+        margin-bottom: 16px;
     }
-    .pp-week-panel .pp-close-btn {
-        float: right;
-        background: none;
-        border: none;
-        font-size: 18px;
-        cursor: pointer;
-        color: var(--gray-muted);
-        line-height: 1;
-    }
-    .pp-week-section {
-        margin-bottom: 14px;
-    }
-    .pp-week-section h5 {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--gray-muted);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        margin-bottom: 8px;
-    }
-    .pp-week-row {
-        display: flex;
-        justify-content: space-between;
-        padding: 6px 0;
-        border-bottom: 1px solid var(--border-light);
-        font-size: 13px;
-    }
-    .pp-week-row:last-child {
-        border-bottom: none;
-    }
-    .pp-mid-grid {
-        display: grid;
-        grid-template-columns: 1fr 200px 1fr 1fr;
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-    .pp-cal-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+
+    /* ── Negocio card ── */
+    .pp-negocio-row {
         margin-bottom: 12px;
     }
-    .pp-cal-header h4 {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--gray-text);
-    }
-    .pp-cal-nav {
-        display: flex;
-        gap: 4px;
-    }
-    .pp-cal-nav button {
-        width: 28px;
-        height: 28px;
-        border: 1px solid var(--border-light);
-        border-radius: 6px;
-        background: var(--white);
-        cursor: pointer;
-        font-size: 14px;
+    .pp-negocio-label {
+        font-size: 12px;
         color: var(--gray-muted);
+        font-weight: 500;
+        margin-bottom: 2px;
+    }
+    .pp-negocio-value {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--gray-text);
         display: flex;
+        align-items: baseline;
+        gap: 10px;
+    }
+    .pp-variation {
+        font-size: 20px;
+        font-weight: 700;
+    }
+    .pp-variation-up {
+        color: var(--green);
+    }
+    .pp-variation-down {
+        color: var(--red);
+    }
+
+    /* ── OTIF card ── */
+    .pp-otif-wrap {
+        display: flex;
+        gap: 32px;
         align-items: center;
         justify-content: center;
-        transition: all 0.1s;
+        margin-bottom: 12px;
     }
-    .pp-cal-nav button:hover {
-        background: var(--purple-light);
-        color: var(--purple);
-        border-color: var(--border-light);
-    }
-    .pp-cal-month {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--gray-text);
-    }
-    .pp-cal-table {
-        width: 100%;
-        border-collapse: collapse;
-        font-size: 12px;
-    }
-    .pp-cal-table th {
-        font-weight: 600;
-        color: var(--gray-muted);
-        padding: 6px 2px;
-        text-align: center;
-        font-size: 11px;
-        text-transform: uppercase;
-    }
-    .pp-cal-table td {
-        padding: 5px 2px;
-        text-align: center;
-        color: var(--gray-muted);
-        cursor: default;
-    }
-    .pp-cal-table td.pp-today {
-        background: var(--purple);
-        color: var(--white);
-        border-radius: 6px;
-        font-weight: 600;
-    }
-    .pp-cal-table td.pp-has-data {
-        cursor: pointer;
-        font-weight: 600;
-        color: var(--gray-text);
-    }
-    .pp-cal-table td.pp-has-data:hover {
-        background: var(--purple-light);
-        border-radius: 6px;
-    }
-    .pp-cal-week {
-        font-size: 11px;
-        color: var(--purple);
-        font-weight: 700;
-    }
-    .pp-score-card {
+    .pp-otif-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        justify-content: center;
         gap: 8px;
-        padding: 20px;
     }
-    .pp-score-donut {
+    .pp-otif-canvas-wrap {
         position: relative;
-        width: 120px;
-        height: 120px;
+        width: 100px;
+        height: 100px;
     }
-    .pp-score-donut canvas {
+    .pp-otif-canvas-wrap canvas {
         position: absolute;
         top: 0;
         left: 0;
     }
-    .pp-score-center {
+    .pp-otif-center {
         position: absolute;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
         text-align: center;
     }
-    .pp-score-num {
-        font-size: 28px;
+    .pp-otif-percent {
+        font-size: 18px;
         font-weight: 700;
+        color: var(--green);
         line-height: 1;
     }
-    .pp-score-lbl {
-        font-size: 10px;
-        color: var(--gray-muted);
-        margin-top: 2px;
-    }
-    .pp-score-legend {
-        width: 100%;
+    .pp-otif-label {
         font-size: 11px;
         color: var(--gray-muted);
+        font-weight: 600;
+        margin-top: 4px;
     }
-    .pp-score-legend-row {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        margin-bottom: 4px;
+
+    /* ── Detail link ── */
+    .pp-detail-link {
+        font-size: 13px;
+        color: var(--blue);
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        margin-top: 8px;
     }
-    .pp-score-legend-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        flex-shrink: 0;
+    .pp-detail-link:hover {
+        text-decoration: underline;
     }
-    .pp-score-legend-val {
-        margin-left: auto;
-        font-weight: 700;
-    }
+
+    /* ── Activity list ── */
     .pp-list-item {
         display: flex;
         align-items: center;
         gap: 10px;
-        padding: 8px 0;
+        padding: 9px 0;
         border-bottom: 1px solid var(--border-light);
         font-size: 13px;
     }
@@ -254,100 +142,174 @@
         border-bottom: none;
     }
     .pp-dot {
-        width: 7px;
-        height: 7px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         flex-shrink: 0;
     }
-    .pp-dot-g {
-        background: var(--green);
-    }
-    .pp-dot-a {
-        background: var(--amber);
-    }
-    .pp-dot-x {
-        background: #d1d5db;
-    }
+    .pp-dot-green { background: var(--green); }
+    .pp-dot-amber { background: var(--amber); }
+    .pp-dot-red { background: var(--red); }
     .pp-list-text {
         flex: 1;
         color: var(--gray-text);
+        font-weight: 500;
     }
-    .pp-list-time {
+    .pp-list-status {
         font-size: 11px;
         color: var(--gray-muted);
+        font-weight: 500;
     }
-    .pp-card-link {
+
+    /* ── Pill button ── */
+    .pp-btn-pill {
+        display: inline-block;
+        margin-top: 14px;
+        padding: 8px 20px;
+        background: var(--purple);
+        color: var(--white);
         font-size: 12px;
-        color: var(--purple);
         font-weight: 600;
+        border-radius: var(--radius-pill);
         text-decoration: none;
+        border: none;
+        cursor: pointer;
+        transition: var(--transition);
     }
-    .pp-card-link:hover {
-        text-decoration: underline;
+    .pp-btn-pill:hover {
+        background: var(--purple-dark);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
     }
-    .pp-forecast-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        margin-bottom: 24px;
-    }
-    .pp-forecast-card {
-        background: var(--white);
-        border: 1px solid var(--border-light);
-        border-radius: 10px;
-        padding: 20px;
-    }
-    .pp-forecast-card h4 {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--gray-text);
-        margin-bottom: 14px;
-    }
-    .pp-forecast-row {
+
+    /* ── Onboarding progress ── */
+    .pp-onboarding-header {
         display: flex;
         align-items: center;
-        gap: 10px;
-        padding: 8px 0;
-        border-bottom: 1px solid var(--border-light);
+        justify-content: space-between;
+        margin-bottom: 14px;
+    }
+    .pp-onboarding-progress {
+        font-size: 22px;
+        font-weight: 700;
+    }
+    .pp-onboarding-steps {
+        font-size: 12px;
+        color: var(--gray-muted);
+        margin-bottom: 12px;
+    }
+
+    /* ── OC Sugerida formula ── */
+    .pp-formula-box {
+        background: var(--purple-subtle);
+        border-radius: 10px;
+        padding: 14px 18px;
+        margin-bottom: 16px;
+    }
+    .pp-formula-label {
+        font-size: 11px;
+        color: var(--gray-muted);
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .pp-formula-text {
+        font-size: 13px;
+        color: var(--gray-text);
+        font-weight: 600;
+    }
+    .pp-formula-values {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 16px;
+    }
+    .pp-formula-val-label {
+        font-size: 11px;
+        color: var(--gray-muted);
+        font-weight: 600;
+    }
+    .pp-formula-val-num {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--gray-text);
+        margin-top: 4px;
+    }
+    .pp-formula-val-num span {
+        font-size: 11px;
+        color: var(--gray-muted);
+        font-weight: 500;
+    }
+    .pp-formula-val-num.pp-purple {
+        color: var(--purple);
+    }
+
+    /* ── Totales expandable ── */
+    .pp-totales-summary {
+        padding: 16px 22px;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--gray-text);
+        list-style: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        cursor: pointer;
+    }
+    .pp-totales-summary::-webkit-details-marker { display: none; }
+    .pp-totales-table {
+        width: 100%;
+        border-collapse: collapse;
         font-size: 13px;
     }
-    .pp-forecast-row:last-child {
-        border-bottom: none;
+    .pp-totales-table th {
+        text-align: left;
+        padding: 10px 10px;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--gray-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 1px solid var(--border-light);
     }
-    .pp-forecast-name {
+    .pp-totales-table th:nth-child(n+3) { text-align: right; }
+    .pp-totales-table td {
+        padding: 10px 10px;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .pp-totales-table td:nth-child(n+3) { text-align: right; }
+    .pp-totales-table tr:last-child td { border-bottom: none; }
+
+    /* ── Productos no entregados ── */
+    .pp-fail-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 11px 0;
+        border-bottom: 1px solid var(--border-light);
+    }
+    .pp-fail-item:last-child { border-bottom: none; }
+    .pp-fail-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--red);
+        flex-shrink: 0;
+    }
+    .pp-fail-name {
         flex: 1;
+        font-size: 13px;
         font-weight: 600;
         color: var(--gray-text);
     }
-    .pp-forecast-bar {
-        width: 60px;
-        height: 6px;
-        background: var(--border-light);
-        border-radius: 3px;
-        overflow: hidden;
-    }
-    .pp-forecast-fill {
-        height: 100%;
-        border-radius: 3px;
-    }
-    .pp-forecast-trend {
+    .pp-fail-reason {
         font-size: 12px;
-        font-weight: 700;
-        width: 50px;
-        text-align: right;
-    }
-    .pp-trend-up {
-        color: var(--green);
-    }
-    .pp-trend-down {
         color: var(--red);
+        font-weight: 700;
     }
-    .pp-trend-flat {
-        color: var(--gray-muted);
-    }
+
+    /* ── Quick access grid ── */
     .pp-quick-grid {
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(4, 1fr);
         gap: 16px;
     }
     .pp-quick-card {
@@ -357,41 +319,51 @@
         gap: 14px;
     }
     .pp-quick-icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 10px;
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
         background: var(--purple-light);
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        transition: var(--transition);
     }
-    @media (max-width: 1100px) {
-        .pp-mid-grid {
-            grid-template-columns: 1fr 1fr;
-        }
-        .pp-mid-grid .pp-card:nth-child(2) {
-            grid-column: span 2;
-        }
+    .pp-quick-card:hover .pp-quick-icon {
+        background: var(--purple);
+        box-shadow: 0 2px 8px rgba(107,63,160,0.25);
     }
-    @media (max-width: 900px) {
-        .pp-top-grid {
-            grid-template-columns: 1fr 1fr;
+    .pp-quick-card:hover .pp-quick-icon svg {
+        stroke: white;
+    }
+    .pp-quick-title {
+        font-weight: 600;
+        color: var(--gray-text);
+        font-size: 13px;
+    }
+    .pp-quick-sub {
+        font-size: 11px;
+        color: var(--gray-muted);
+        margin-top: 2px;
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 768px) {
+        .pp-grid-2 {
+            grid-template-columns: 1fr;
         }
         .pp-quick-grid {
             grid-template-columns: 1fr 1fr;
         }
+        .pp-formula-values {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        .pp-otif-wrap {
+            gap: 20px;
+        }
     }
-    @media (max-width: 600px) {
-        .pp-mid-grid {
-            grid-template-columns: 1fr;
-        }
-        .pp-mid-grid .pp-card:nth-child(2) {
-            grid-column: span 1;
-        }
-        .pp-forecast-grid {
-            grid-template-columns: 1fr;
-        }
+    @media (max-width: 480px) {
         .pp-quick-grid {
             grid-template-columns: 1fr;
         }
@@ -401,215 +373,158 @@
 
 @section('content')
 <div class="pp-wrap">
-    <div class="pp-top-grid">
-        <a href="{{ route('proveedores.business') }}" class="pp-card">
-            <h4>Mi negocio</h4>
-            <div class="pp-stat-val pp-stat-highlight">5</div>
-            <div class="pp-stat-label">Tareas pendientes por atender</div>
-        </a>
-        <a href="{{ route('proveedores.oc') }}" class="pp-card">
-            <h4>OC abiertas</h4>
-            <div class="pp-stat-val">3</div>
-            <div class="pp-stat-label">Datos de prueba</div>
-        </a>
-        <a href="{{ route('proveedores.payment-history') }}" class="pp-card">
-            <h4>Cobranza</h4>
-            <div class="pp-stat-val">—</div>
-            <div class="pp-stat-label">Pendiente de API</div>
-        </a>
-        <a href="{{ route('proveedores.onboarding') }}" class="pp-card">
-            <h4>Lista de proveedor</h4>
-            <div class="pp-stat-val">33%</div>
-            <div class="pp-stat-label">2 de 6 pasos</div>
-        </a>
-    </div>
 
-    <div class="pp-week-panel" id="weekPanel">
-        <button type="button" class="pp-close-btn" onclick="closeWeekPanel()">✕</button>
-        <h4 id="weekTitle">Semana W1</h4>
-        <div class="pp-week-section">
-            <h5>Órdenes de compra</h5>
-            <div id="weekOC"></div>
-        </div>
-        <div class="pp-week-section">
-            <h5>Pagos</h5>
-            <div id="weekPagos"></div>
-        </div>
-        <div class="pp-week-section">
-            <h5>Facturas</h5>
-            <div id="weekFacturas"></div>
-        </div>
-    </div>
-
-    <div class="pp-mid-grid">
-        {{-- NEGOCIO (reemplaza calendario) --}}
-        <a href="{{ route('proveedores.business') }}" class="pp-card" style="text-decoration:none;">
+    {{-- ═══ SECTION 1: Negocio + OTIF ═══ --}}
+    <div class="pp-grid-2">
+        {{-- Negocio --}}
+        <a href="{{ route('proveedores.business') }}" style="text-decoration:none;color:inherit;">
+        <div class="pp-card">
             <h4>Negocio</h4>
-            <div style="margin-bottom:8px">
-                <span style="font-size:12px;color:var(--gray-muted)">Ventas</span>
-                <div style="font-size:22px;font-weight:700;color:var(--green)">$2.5M <span style="font-size:12px;font-weight:600;color:var(--green)">+17%</span></div>
-            </div>
-            <div style="margin-bottom:8px">
-                <span style="font-size:12px;color:var(--gray-muted)">Unidades</span>
-                <div style="font-size:22px;font-weight:700;color:var(--gray-text)">235,348 <span style="font-size:12px;font-weight:600;color:var(--red)">-2%</span></div>
-            </div>
-            <span style="font-size:12px;color:var(--blue);font-weight:600">Ver detalle →</span>
-        </a>
-
-        {{-- OTIF / Inventario --}}
-        <a href="{{ route('proveedores.business') }}" class="pp-card" style="text-decoration:none;">
-            <h4>OTIF</h4>
-            <div style="display:flex;gap:16px;margin-bottom:8px">
-                <div>
-                    <span style="font-size:11px;color:var(--gray-muted)">On Time</span>
-                    <div style="font-size:22px;font-weight:700;color:var(--green)">98.5%</div>
-                </div>
-                <div>
-                    <span style="font-size:11px;color:var(--gray-muted)">In Full</span>
-                    <div style="font-size:22px;font-weight:700;color:var(--green)">95%</div>
+            <div class="pp-negocio-row">
+                <div class="pp-negocio-label">Ventas</div>
+                <div class="pp-negocio-value" style="color:var(--green);">
+                    $2,500,000.25
+                    <span class="pp-variation pp-variation-up">+15%</span>
                 </div>
             </div>
-            <span style="font-size:12px;color:var(--blue);font-weight:600">Ver detalle →</span>
+            <div class="pp-negocio-row">
+                <div class="pp-negocio-label">Unidades</div>
+                <div class="pp-negocio-value" style="color:var(--red);">
+                    275,343
+                    <span class="pp-variation pp-variation-down">-2%</span>
+                </div>
+            </div>
+            <span class="pp-detail-link">Ver detalle →</span>
+        </div>
         </a>
 
+        {{-- OTIF --}}
+        <a href="{{ route('proveedores.otif') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card">
-            <h4>
-                Actividad reciente
-                <a href="{{ route('proveedores.dashboard') }}" class="pp-card-link" style="float: right">Ver todo →</a>
-            </h4>
+            <h4>OTIF</h4>
+            <div class="pp-otif-wrap">
+                <div class="pp-otif-item">
+                    <div class="pp-otif-canvas-wrap">
+                        <canvas id="donutOT" width="100" height="100"></canvas>
+                        <div class="pp-otif-center">
+                            <div class="pp-otif-percent">98.5%</div>
+                        </div>
+                    </div>
+                    <span class="pp-otif-label">OT (On Time)</span>
+                </div>
+                <div class="pp-otif-item">
+                    <div class="pp-otif-canvas-wrap">
+                        <canvas id="donutIF" width="100" height="100"></canvas>
+                        <div class="pp-otif-center">
+                            <div class="pp-otif-percent">95%</div>
+                        </div>
+                    </div>
+                    <span class="pp-otif-label">IF (In Full)</span>
+                </div>
+            </div>
+            <span class="pp-detail-link">Ver detalle →</span>
+        </div>
+        </a>
+    </div>
+
+    {{-- ═══ SECTION 2: Actividad reciente + Onboarding ═══ --}}
+    <div class="pp-grid-2">
+        {{-- Actividad reciente --}}
+        <div class="pp-card">
+            <h4>Actividad reciente</h4>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-g"></div>
+                <div class="pp-dot pp-dot-green"></div>
                 <div class="pp-list-text">OC #10045 generada</div>
-                <div class="pp-list-time">Pendiente</div>
+                <div class="pp-list-status">Pendiente</div>
             </div>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-a"></div>
+                <div class="pp-dot pp-dot-amber"></div>
                 <div class="pp-list-text">Factura en revisión</div>
-                <div class="pp-list-time">Pendiente</div>
+                <div class="pp-list-status">Pendiente</div>
             </div>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-g"></div>
+                <div class="pp-dot pp-dot-green"></div>
                 <div class="pp-list-text">Pago programado</div>
-                <div class="pp-list-time">Pendiente</div>
+                <div class="pp-list-status">Pendiente</div>
             </div>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-x"></div>
-                <div class="pp-list-text">Documentos verificados</div>
-                <div class="pp-list-time">Completado</div>
-            </div>
-            <div class="pp-list-item">
-                <div class="pp-dot pp-dot-g"></div>
+                <div class="pp-dot pp-dot-green"></div>
                 <div class="pp-list-text">Estatus OC</div>
-                <div class="pp-list-time">Pendiente</div>
+                <div class="pp-list-status">Pendiente</div>
             </div>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-a"></div>
-                <div class="pp-list-text">Días de inventario</div>
-                <div class="pp-list-time">Pendiente</div>
-            </div>
-            <div class="pp-list-item">
-                <div class="pp-dot pp-dot-a"></div>
+                <div class="pp-dot pp-dot-amber"></div>
                 <div class="pp-list-text">Facturas OC</div>
-                <div class="pp-list-time">Pendiente</div>
+                <div class="pp-list-status">Pendiente</div>
             </div>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-a"></div>
+                <div class="pp-dot pp-dot-amber"></div>
                 <div class="pp-list-text">XML vs SAT</div>
-                <div class="pp-list-time">Pendiente</div>
+                <div class="pp-list-status">Pendiente</div>
+            </div>
+            <div style="text-align:center;">
+                <a href="{{ route('proveedores.dashboard') }}" class="pp-btn-pill">Ver últimos 10 movimientos</a>
             </div>
         </div>
 
+        {{-- Onboarding --}}
         <div class="pp-card">
-            <h4>
-                Onboarding
-                <a href="{{ route('proveedores.onboarding') }}" class="pp-card-link" style="float: right">Ver →</a>
-            </h4>
+            <div class="pp-onboarding-header">
+                <h4 style="margin-bottom:0;">Onboarding</h4>
+                <span class="pp-onboarding-progress" style="color: var(--red);">33%</span>
+            </div>
+            <div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+                <span style="font-size:18px;">⚠</span>
+                <span style="font-size:12px;font-weight:600;color:var(--red);">Tienes pasos pendientes por completar. Finaliza tu onboarding para operar al 100%.</span>
+            </div>
+            <div class="pp-onboarding-steps">2 de 6 pasos completados</div>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-g"></div>
+                <div class="pp-dot pp-dot-green"></div>
                 <div class="pp-list-text">Alta de proveedor</div>
-                <div class="pp-list-time">Completado</div>
+                <div class="pp-list-status">Completado</div>
             </div>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-g"></div>
+                <div class="pp-dot pp-dot-green"></div>
                 <div class="pp-list-text">Documentos fiscales</div>
-                <div class="pp-list-time">Completado</div>
+                <div class="pp-list-status">Completado</div>
             </div>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-a"></div>
+                <div class="pp-dot pp-dot-amber"></div>
                 <div class="pp-list-text">Contactos</div>
-                <div class="pp-list-time">Pendiente</div>
+                <div class="pp-list-status">Pendiente</div>
             </div>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-x"></div>
+                <div class="pp-dot pp-dot-amber"></div>
                 <div class="pp-list-text">Validación estándar</div>
-                <div class="pp-list-time">Pendiente</div>
+                <div class="pp-list-status">Pendiente</div>
             </div>
             <div class="pp-list-item">
-                <div class="pp-dot pp-dot-x"></div>
+                <div class="pp-dot pp-dot-amber"></div>
                 <div class="pp-list-text">Detalle de inventario</div>
-                <div class="pp-list-time">Pendiente</div>
+                <div class="pp-list-status">Pendiente</div>
             </div>
+            <a href="{{ route('proveedores.onboarding') }}" class="pp-detail-link">Ver →</a>
         </div>
     </div>
 
-    <a href="{{ route('proveedores.forecast') }}" class="pp-forecast-grid" style="text-decoration:none;display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;cursor:pointer;transition:var(--transition);" onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 4px 16px rgba(107,63,160,0.1)'" onmouseout="this.style.transform='';this.style.boxShadow=''">
-        <div class="pp-forecast-card">
-            <h4>Productos al alza</h4>
-            <div class="pp-forecast-row">
-                <span class="pp-forecast-name">Resina epóxica</span>
-                <div class="pp-forecast-bar"><div class="pp-forecast-fill" style="width: 92%; background: var(--green)"></div></div>
-                <span class="pp-forecast-trend pp-trend-up">↑ +12%</span>
-            </div>
-            <div class="pp-forecast-row">
-                <span class="pp-forecast-name">Solvente técnico</span>
-                <div class="pp-forecast-bar"><div class="pp-forecast-fill" style="width: 78%; background: var(--green)"></div></div>
-                <span class="pp-forecast-trend pp-trend-up">↑ +8%</span>
-            </div>
-            <div class="pp-forecast-row">
-                <span class="pp-forecast-name">Pigmento base agua</span>
-                <div class="pp-forecast-bar"><div class="pp-forecast-fill" style="width: 65%; background: var(--green)"></div></div>
-                <span class="pp-forecast-trend pp-trend-up">↑ +5%</span>
-            </div>
-            <p style="font-size:11px;color:var(--gray-muted);margin-top:8px">Ver todos los productos →</p>
-        </div>
-        <div class="pp-forecast-card">
-            <h4>Productos a la baja</h4>
-            <div class="pp-forecast-row">
-                <span class="pp-forecast-name">Aditivo antioxidante</span>
-                <div class="pp-forecast-bar"><div class="pp-forecast-fill" style="width: 35%; background: var(--red)"></div></div>
-                <span class="pp-forecast-trend pp-trend-down">↓ -15%</span>
-            </div>
-            <div class="pp-forecast-row">
-                <span class="pp-forecast-name">Catalizador rápido</span>
-                <div class="pp-forecast-bar"><div class="pp-forecast-fill" style="width: 50%; background: var(--amber)"></div></div>
-                <span class="pp-forecast-trend pp-trend-down">↓ -5%</span>
-            </div>
-            <div class="pp-forecast-row">
-                <span class="pp-forecast-name">Fibra de refuerzo</span>
-                <div class="pp-forecast-bar"><div class="pp-forecast-fill" style="width: 55%; background: var(--gray-muted)"></div></div>
-                <span class="pp-forecast-trend pp-trend-flat">→ Estable</span>
-            </div>
-            <p style="font-size:11px;color:var(--gray-muted);margin-top:8px">Ver análisis completo →</p>
-        </div>
-    </a>
-
+    {{-- ═══ SECTION 3: Quick access ═══ --}}
     <div class="pp-quick-grid">
         <a href="{{ route('proveedores.ia') }}" class="pp-card pp-quick-card">
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V6a4 4 0 0 1 4-4z"/><path d="M16 11v1a4 4 0 0 1-8 0v-1"/><line x1="12" y1="16" x2="12" y2="20"/><line x1="8" y1="20" x2="16" y2="20"/></svg>
             </div>
             <div>
-                <div style="font-weight: 600; color: var(--gray-text); font-size: 14px">Dashboard IA</div>
-                <div style="font-size: 12px; color: var(--gray-muted)">Análisis con Claude</div>
+                <div class="pp-quick-title">Módulo IA</div>
+                <div class="pp-quick-sub">Análisis inteligente</div>
             </div>
         </a>
         <a href="{{ route('proveedores.oc') }}" class="pp-card pp-quick-card">
             <div class="pp-quick-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
             <div>
-                <div style="font-weight: 600; color: var(--gray-text); font-size: 14px">Consultar OC</div>
-                <div style="font-size: 12px; color: var(--gray-muted)">Órdenes de compra</div>
+                <div class="pp-quick-title">Consultar OC</div>
+                <div class="pp-quick-sub">Órdenes de compra</div>
             </div>
         </a>
         <a href="{{ route('proveedores.payment-history') }}" class="pp-card pp-quick-card">
@@ -617,17 +532,8 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
             <div>
-                <div style="font-weight: 600; color: var(--gray-text); font-size: 14px">Historial de pagos</div>
-                <div style="font-size: 12px; color: var(--gray-muted)">Pagos y facturas</div>
-            </div>
-        </a>
-        <a href="{{ route('proveedores.alta-producto') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-            </div>
-            <div>
-                <div style="font-weight: 600; color: var(--gray-text); font-size: 14px">Alta de producto</div>
-                <div style="font-size: 12px; color: var(--gray-muted)">Nuevo producto</div>
+                <div class="pp-quick-title">Estatus de pagos</div>
+                <div class="pp-quick-sub">Historial y pendientes</div>
             </div>
         </a>
         <a href="{{ route('muestras.crear') }}" class="pp-card pp-quick-card">
@@ -635,139 +541,48 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
             </div>
             <div>
-                <div style="font-weight: 600; color: var(--gray-text); font-size: 14px">Envío de muestras</div>
-                <div style="font-size: 12px; color: var(--gray-muted)">Registro y seguimiento</div>
+                <div class="pp-quick-title">Envío de muestras</div>
+                <div class="pp-quick-sub">Registro y seguimiento</div>
             </div>
         </a>
     </div>
+
 </div>
 @endsection
 
 @push('scripts')
 <script>
-const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-const regDate = new Date('2026-03-25');
-let calYear = new Date().getFullYear();
-let calMon = new Date().getMonth();
+document.addEventListener('DOMContentLoaded', function() {
+    function drawDonut(canvasId, percent, color) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const size = canvas.width;
+        const center = size / 2;
+        const radius = 40;
+        const lineWidth = 10;
+        const startAngle = -Math.PI / 2;
+        const endAngle = startAngle + (2 * Math.PI * percent / 100);
 
-const weekData = {
-    1: { oc: [{ f: '#10045', m: '$12,500' }], pagos: [{ r: 'PAG-001', m: '$12,500' }], facturas: [{ f: 'FAC-001', m: '$12,500' }] },
-    2: { oc: [{ f: '#10046', m: '$8,200' }], pagos: [], facturas: [{ f: 'FAC-002', m: '$8,200' }] },
-    3: { oc: [{ f: '#10047', m: '$27,300' }, { f: '#10048', m: '$5,800' }], pagos: [{ r: 'PAG-002', m: '$33,100' }], facturas: [] },
-    4: { oc: [], pagos: [{ r: 'PAG-003', m: '$15,100' }], facturas: [{ f: 'FAC-003', m: '$15,100' }] },
-};
-
-function getSupplierWeek(date) {
-    const diff = date - regDate;
-    if (diff < 0) return null;
-    return Math.floor(diff / (7 * 24 * 60 * 60 * 1000)) + 1;
-}
-
-function renderCal() {
-    document.getElementById('calMonth').textContent = MESES[calMon] + ' ' + calYear;
-    const first = new Date(calYear, calMon, 1);
-    const last = new Date(calYear, calMon + 1, 0);
-    const startDay = first.getDay();
-    const today = new Date();
-    let html = '';
-    let day = 1;
-    for (let row = 0; row < 6; row++) {
-        if (day > last.getDate()) break;
-        const weekStart = new Date(calYear, calMon, day);
-        const wk = getSupplierWeek(weekStart);
-        html += '<tr>';
-        html += '<td class="pp-cal-week">' + (wk ? 'W' + wk : '') + '</td>';
-        for (let col = 0; col < 7; col++) {
-            if (row === 0 && col < startDay) {
-                html += '<td></td>';
-                continue;
-            }
-            if (day > last.getDate()) {
-                html += '<td></td>';
-                continue;
-            }
-            const d = new Date(calYear, calMon, day);
-            const isToday = d.toDateString() === today.toDateString();
-            const sw = getSupplierWeek(d);
-            const hasData = sw && weekData[sw];
-            let cls = '';
-            if (isToday) cls = 'pp-today';
-            else if (hasData) cls = 'pp-has-data';
-            const onclick = hasData ? ' onclick="showWeek(' + sw + ')"' : '';
-            html += '<td class="' + cls + '"' + onclick + '>' + day + '</td>';
-            day++;
-        }
-        html += '</tr>';
-    }
-    document.getElementById('calBody').innerHTML = html;
-}
-
-function calPrev() {
-    calMon--;
-    if (calMon < 0) {
-        calMon = 11;
-        calYear--;
-    }
-    renderCal();
-}
-function calNext() {
-    calMon++;
-    if (calMon > 11) {
-        calMon = 0;
-        calYear++;
-    }
-    renderCal();
-}
-
-function showWeek(wk) {
-    const d = weekData[wk] || { oc: [], pagos: [], facturas: [] };
-    document.getElementById('weekTitle').textContent = 'Semana W' + wk;
-    document.getElementById('weekOC').innerHTML = d.oc.length
-        ? d.oc.map((o) => '<div class="pp-week-row"><span>' + o.f + '</span><span>' + o.m + '</span></div>').join('')
-        : '<div style="font-size:13px;color:var(--gray-muted);">Sin órdenes esta semana</div>';
-    document.getElementById('weekPagos').innerHTML = d.pagos.length
-        ? d.pagos.map((p) => '<div class="pp-week-row"><span>' + p.r + '</span><span>' + p.m + '</span></div>').join('')
-        : '<div style="font-size:13px;color:var(--gray-muted);">Sin pagos esta semana</div>';
-    document.getElementById('weekFacturas').innerHTML = d.facturas.length
-        ? d.facturas.map((f) => '<div class="pp-week-row"><span>' + f.f + '</span><span>' + f.m + '</span></div>').join('')
-        : '<div style="font-size:13px;color:var(--gray-muted);">Sin facturas esta semana</div>';
-    document.getElementById('weekPanel').classList.add('active');
-}
-
-function closeWeekPanel() {
-    document.getElementById('weekPanel').classList.remove('active');
-}
-
-renderCal();
-
-(function () {
-    const c = document.getElementById('scoreDonut');
-    if (!c) return;
-    const ctx = c.getContext('2d');
-    const cx = 60;
-    const cy = 60;
-    const r = 48;
-    const sw = 14;
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.strokeStyle = '#e5e7eb';
-    ctx.lineWidth = sw;
-    ctx.stroke();
-    const segs = [
-        { pct: 0.5, color: '#059669' },
-        { pct: 0.5, color: '#6B3FA0' },
-    ];
-    let start = -Math.PI / 2;
-    segs.forEach((s) => {
-        const end = start + Math.PI * 2 * s.pct - 0.04;
+        // Background ring
         ctx.beginPath();
-        ctx.arc(cx, cy, r, start, end);
-        ctx.strokeStyle = s.color;
-        ctx.lineWidth = sw;
+        ctx.arc(center, center, radius, 0, 2 * Math.PI);
+        ctx.strokeStyle = '#e8e8ed';
+        ctx.lineWidth = lineWidth;
         ctx.lineCap = 'round';
         ctx.stroke();
-        start = end + 0.04;
-    });
-})();
+
+        // Value ring
+        ctx.beginPath();
+        ctx.arc(center, center, radius, startAngle, endAngle);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+    }
+
+    drawDonut('donutOT', 98.5, '#34c759');
+    drawDonut('donutIF', 95, '#34c759');
+});
 </script>
 @endpush

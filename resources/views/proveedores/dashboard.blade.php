@@ -351,6 +351,31 @@
         <div style="padding:12px 22px;font-size:11px;color:var(--gray-muted);border-top:1px solid var(--border-light)">
             Flujo de estatus: Liberación Incomings → Cumplimiento Fiscal → Compulsa SAT → Liberación Contabilidad → Finanzas
         </div>
+        <div style="padding:16px 22px;border-top:1px solid var(--border-light);">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-text);margin-bottom:10px;">Estatus — Columna de estados posibles</div>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                    <span style="width:10px;height:10px;border-radius:50%;background:var(--red);flex-shrink:0;"></span>
+                    <span style="font-weight:600;color:var(--gray-text);">Liberación — Incomings</span>
+                    <span style="font-size:11px;color:var(--red);font-weight:600;margin-left:auto;">Pendiente</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                    <span style="width:10px;height:10px;border-radius:50%;background:var(--red);flex-shrink:0;"></span>
+                    <span style="font-weight:600;color:var(--gray-text);">Cumplimiento fiscal</span>
+                    <span style="font-size:11px;color:var(--red);font-weight:600;margin-left:auto;">Pendiente</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                    <span style="width:10px;height:10px;border-radius:50%;background:var(--red);flex-shrink:0;"></span>
+                    <span style="font-weight:600;color:var(--gray-text);">Proceso SAT interno</span>
+                    <span style="font-size:11px;color:var(--red);font-weight:600;margin-left:auto;">Pendiente</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;font-size:13px;">
+                    <span style="width:10px;height:10px;border-radius:50%;background:var(--green);flex-shrink:0;"></span>
+                    <span style="font-weight:600;color:var(--gray-text);">Liberación Contabilidad / Finanzas</span>
+                    <span style="font-size:11px;color:var(--green);font-weight:600;margin-left:auto;">Aprobado</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     {{-- PAGOS --}}

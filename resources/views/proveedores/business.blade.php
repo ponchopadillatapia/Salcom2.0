@@ -62,50 +62,24 @@
 
 @section('content')
 
-{{-- FILA 1: Negocio + OTIF --}}
-<div class="biz-grid">
+{{-- FILA 1: Negocio --}}
+<div class="biz-grid" style="grid-template-columns:1fr;">
     {{-- NEGOCIO --}}
     <div class="biz-card">
         <h3>Negocio</h3>
         <div class="biz-metric">
             <span class="biz-metric-label">Ventas</span>
-            <span class="biz-metric-value" style="color:var(--green)">$2,500,000</span>
+            <span class="biz-metric-value" style="color:var(--green)">$1,525,322.50</span>
             <span class="biz-metric-unit">MXN</span>
             <span class="biz-metric-change biz-up">+17%</span>
         </div>
         <div class="biz-metric">
             <span class="biz-metric-label">Unidades</span>
-            <span class="biz-metric-value">235,348</span>
+            <span class="biz-metric-value">3,523,487</span>
             <span class="biz-metric-unit">kg</span>
-            <span class="biz-metric-change biz-down">-2%</span>
+            <span class="biz-metric-change biz-up">+5%</span>
         </div>
         <a href="#totales" class="biz-link">Ver detalles →</a>
-    </div>
-
-    {{-- OTIF (On Time In Full) --}}
-    <div class="biz-card">
-        <h3>OTIF — Entregas a tiempo y completas</h3>
-        <div class="otif-wrap">
-            <div class="otif-item">
-                <div class="otif-donut">
-                    <canvas id="donutOT" width="120" height="120"></canvas>
-                    <div class="otif-center">
-                        <div class="otif-num">98.5%</div>
-                    </div>
-                </div>
-                <span class="otif-label">On Time (OT)</span>
-            </div>
-            <div class="otif-item">
-                <div class="otif-donut">
-                    <canvas id="donutIF" width="120" height="120"></canvas>
-                    <div class="otif-center">
-                        <div class="otif-num">95%</div>
-                    </div>
-                </div>
-                <span class="otif-label">In Full (IF)</span>
-            </div>
-        </div>
-        <a href="#noentrega" class="biz-link" style="text-align:center;display:block;margin-top:12px">Ver detalles →</a>
     </div>
 </div>
 
@@ -116,19 +90,19 @@
         <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap">
             <div>
                 <span style="font-size:12px;color:var(--gray-muted)">Ventas totales</span>
-                <div style="font-size:20px;font-weight:700;color:var(--green)">$2,500,000.25</div>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">$1,525,322.50</div>
             </div>
             <div>
                 <span style="font-size:12px;color:var(--gray-muted)">Unidades totales</span>
-                <div style="font-size:20px;font-weight:700">235,348 kg</div>
+                <div style="font-size:20px;font-weight:700">3,523,487 kg</div>
             </div>
             <div>
                 <span style="font-size:12px;color:var(--gray-muted)">Variación</span>
-                <div style="font-size:20px;font-weight:700;color:var(--red)">-2%</div>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">+5%</div>
             </div>
             <div>
                 <span style="font-size:12px;color:var(--gray-muted)">Vs. meta</span>
-                <div style="font-size:20px;font-weight:700;color:var(--green)">+5%</div>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">+17%</div>
             </div>
         </div>
 
@@ -225,30 +199,6 @@
 
 @push('scripts')
 <script>
-function drawDonut(canvasId, percentage, color) {
-    const canvas = document.getElementById(canvasId);
-    const ctx = canvas.getContext('2d');
-    const size = 120, center = size / 2, radius = 48, lineWidth = 10;
-
-    // Background ring
-    ctx.beginPath();
-    ctx.arc(center, center, radius, 0, Math.PI * 2);
-    ctx.strokeStyle = '#e8e8ed';
-    ctx.lineWidth = lineWidth;
-    ctx.stroke();
-
-    // Progress ring
-    const startAngle = -Math.PI / 2;
-    const endAngle = startAngle + (Math.PI * 2 * percentage / 100);
-    ctx.beginPath();
-    ctx.arc(center, center, radius, startAngle, endAngle);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    ctx.lineCap = 'round';
-    ctx.stroke();
-}
-
-drawDonut('donutOT', 98.5, '#34c759');
-drawDonut('donutIF', 95, '#34c759');
+// Business page — no donuts needed (OTIF moved to its own module)
 </script>
 @endpush

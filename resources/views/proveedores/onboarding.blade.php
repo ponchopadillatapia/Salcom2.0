@@ -96,7 +96,16 @@
             <div class="paso-icono ambar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Registro de contactos</div>
-                <div class="paso-desc">Registra los contactos de tu empresa por área: Fiscales, CI, Compras, Almacén, LTR, Producción, OTC y demás áreas relevantes.</div>
+                <div class="paso-desc">Registra los contactos de tu empresa por área:</div>
+                <ul style="margin:6px 0 0 16px;font-size:12px;color:var(--gray-muted);line-height:1.8;list-style:disc;">
+                    <li><strong>Business</strong> (área comercial)</li>
+                    <li><strong>Finanzas</strong></li>
+                    <li><strong>Compras</strong> (CA)</li>
+                    <li><strong>Almacén</strong></li>
+                    <li><strong>ITE</strong> (IT/Sistemas)</li>
+                    <li><strong>Producción</strong></li>
+                    <li><strong>OTIF / Calidad</strong></li>
+                </ul>
             </div>
             <span class="paso-badge badge-pendiente">Pendiente</span>
             <a href="{{ route('proveedores.perfil') }}" class="btn-ver">Registrar</a>
@@ -113,12 +122,17 @@
             <button class="btn-ver disabled">Ver</button>
         </div>
 
-        {{-- PASO 5: Validación de estándar / formato MKE y Expat --}}
+        {{-- PASO 5: Validación de estándar / formato NAE y EXDAT --}}
         <div class="paso-card bloqueado">
             <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Validación de estándar</div>
-                <div class="paso-desc">Validación del formato MKE y expediente completo. Se verifica que toda la documentación cumpla con los estándares de Salcom.</div>
+                <div class="paso-desc">El proveedor sube el formato que aplique según su tipo:</div>
+                <ul style="margin:6px 0 0 16px;font-size:12px;color:var(--gray-muted);line-height:1.8;list-style:disc;">
+                    <li><strong>Formato NAE</strong> — Proveedor Nacional</li>
+                    <li><strong>Formato EXDAT</strong> — Proveedor Extranjero</li>
+                </ul>
+                <div style="font-size:11px;color:var(--gray-muted);margin-top:6px;font-style:italic;">Se verifica que toda la documentación cumpla con los estándares de Salcom.</div>
             </div>
             <span class="paso-badge badge-bloqueado">Pendiente</span>
             <button class="btn-ver disabled">Ver</button>

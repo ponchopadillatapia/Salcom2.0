@@ -64,6 +64,30 @@
 
 @section('content')
 
+    {{-- ═══ OC Sugerida ═══ --}}
+    <div style="background: var(--white); border: 1px solid var(--border-light); border-radius: 14px; padding: 22px; margin-bottom: 28px; box-shadow: var(--shadow-sm);">
+        <h3 style="font-size: 14px; font-weight: 700; color: var(--gray-text); margin-bottom: 16px;">Generación automática de OC sugerida</h3>
+        <div style="background: var(--purple-subtle); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px;">
+            <div style="font-size: 11px; color: var(--gray-muted); font-weight: 600; margin-bottom: 4px;">Fórmula</div>
+            <div style="font-size: 13px; color: var(--gray-text); font-weight: 600;">OC sugerida = (Consumo promedio anual / 2) + Necesidades adicionales</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 18px;">
+            <div>
+                <div style="font-size: 11px; color: var(--gray-muted); font-weight: 600;">Consumo promedio anual</div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--gray-text); margin-top: 4px;">$2,000,000 <span style="font-size: 11px; color: var(--gray-muted); font-weight: 500;">MXN</span></div>
+            </div>
+            <div>
+                <div style="font-size: 11px; color: var(--gray-muted); font-weight: 600;">Inventario autorizado</div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--gray-text); margin-top: 4px;">~180 <span style="font-size: 11px; color: var(--gray-muted); font-weight: 500;">días</span></div>
+            </div>
+            <div>
+                <div style="font-size: 11px; color: var(--gray-muted); font-weight: 600;">OC sugerida</div>
+                <div style="font-size: 18px; font-weight: 700; color: var(--purple); margin-top: 4px;">~$1,200,000 <span style="font-size: 11px; color: var(--gray-muted); font-weight: 500;">MXN</span></div>
+            </div>
+        </div>
+        <button disabled style="display: inline-block; padding: 8px 20px; background: var(--purple); color: var(--white); font-size: 12px; font-weight: 600; border-radius: 999px; border: none; cursor: not-allowed; opacity: 0.6;">Generar OC — Pendiente de formato</button>
+    </div>
+
     {{-- BUSCADOR --}}
     <div class="search-bar">
         <input type="text" class="search-input" id="buscarFolio" placeholder="Buscar por número de folio...">
