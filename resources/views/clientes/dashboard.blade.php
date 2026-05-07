@@ -124,8 +124,12 @@
     .dot-g {
         background: var(--green);
     }
-    .dot-a {
-        background: var(--amber);
+    /* Mismos tonos que .badge-* en clientes/pedidos.blade.php */
+    .dot-validacion {
+        background: var(--purple);
+    }
+    .dot-produccion {
+        background: #d97706;
     }
     .dot-b {
         background: var(--blue);
@@ -161,10 +165,10 @@
 @section('content')
 <span class="badge-api">⚠ Datos de prueba</span>
 <div class="metrics">
-    <div class="metric"><div class="metric-label">Pedidos este mes</div><div class="metric-val">5</div><div class="metric-sub">Abril 2026</div></div>
-    <div class="metric"><div class="metric-label">Total facturado</div><div class="metric-val">$30,618</div><div class="metric-sub">Datos de prueba</div></div>
-    <div class="metric"><div class="metric-label">Pedidos pendientes</div><div class="metric-val">3</div><div class="metric-sub">En proceso</div></div>
-    <div class="metric"><div class="metric-label">Último pedido</div><div class="metric-val">PED-005</div><div class="metric-sub">09/04/2026</div></div>
+    <div class="metric"><div class="metric-label">Pedidos este mes</div><div class="metric-val">5</div><div class="metric-sub">Abril 2026 · Mis pedidos</div></div>
+    <div class="metric"><div class="metric-label">Total facturado</div><div class="metric-val">$30,618</div><div class="metric-sub">Suma CFDI · Estado de cuenta</div></div>
+    <div class="metric"><div class="metric-label">Saldo pendiente</div><div class="metric-val">$17,719</div><div class="metric-sub">3 facturas pendientes</div></div>
+    <div class="metric"><div class="metric-label">Último pedido</div><div class="metric-val">PED-2026-005</div><div class="metric-sub">09/04/2026 · En validación</div></div>
 </div>
 <div class="mid-grid">
     <div class="card">
@@ -185,9 +189,9 @@
     <div class="card">
         <div class="card-head">Últimos pedidos</div>
         <div class="card-body" style="padding:12px 20px">
-            <div class="recent-item"><div class="recent-dot dot-a"></div><div class="recent-text">PED-2026-005 — En validación</div><div class="recent-meta">09/04</div></div>
+            <div class="recent-item"><div class="recent-dot dot-validacion"></div><div class="recent-text">PED-2026-005 — En validación</div><div class="recent-meta">09/04</div></div>
             <div class="recent-item"><div class="recent-dot dot-b"></div><div class="recent-text">PED-2026-004 — Autorizado</div><div class="recent-meta">07/04</div></div>
-            <div class="recent-item"><div class="recent-dot dot-a"></div><div class="recent-text">PED-2026-003 — En producción</div><div class="recent-meta">05/04</div></div>
+            <div class="recent-item"><div class="recent-dot dot-produccion"></div><div class="recent-text">PED-2026-003 — En producción</div><div class="recent-meta">05/04</div></div>
         </div>
     </div>
 </div>
@@ -225,10 +229,10 @@
             </div>
             <div style="display:flex;align-items:center;gap:10px;padding:8px 0;font-size:13px">
                 <span style="flex:1;font-weight:600">Aditivo antioxidante</span>
-                <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:55%;height:100%;background:#9ca3af;border-radius:3px"></div></div>
-                <span style="font-size:12px;font-weight:700;color:#9ca3af;width:50px;text-align:right">→ Estable</span>
+                <div style="width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden"><div style="width:72%;height:100%;background:#dc2626;border-radius:3px"></div></div>
+                <span style="font-size:12px;font-weight:700;color:#dc2626;width:50px;text-align:right">↓ -15%</span>
             </div>
-            <p style="font-size:11px;color:#9ca3af;margin-top:10px">Recomendación: revisa tu inventario de estos productos</p>
+            <p style="font-size:11px;color:#9ca3af;margin-top:10px">Misma tendencia que Forecast · Datos de prueba</p>
         </div>
     </div>
 </div>

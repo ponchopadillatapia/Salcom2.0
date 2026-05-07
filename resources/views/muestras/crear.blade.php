@@ -72,7 +72,7 @@
     @endif
 
     <div class="card-salcom">
-        <form method="POST" action="{{ route('muestras.guardar') }}">
+        <form method="POST" action="{{ route('muestras.guardar') }}" enctype="multipart/form-data">
             @csrf
 
             <div class="row-2">
@@ -158,6 +158,31 @@
                 <label class="form-label">Días de validación</label>
                 <input type="text" class="form-control" value="15 a 20 días" disabled style="max-width:160px; background:#f0f0f0;">
                 <input type="hidden" name="dias_validacion" value="15">
+            </div>
+
+            <hr style="margin:1.5rem 0;border-color:var(--border);">
+
+            <div class="mb-3">
+                <label class="form-label">Documentos de envío</label>
+                <input type="file" name="documentos_envio[]" class="form-control" multiple accept=".pdf,.jpg,.png">
+                <small style="color:var(--gray-text);opacity:0.7">Adjunta los documentos que acompañan el envío (guía, certificado de análisis, hoja de seguridad, etc.)</small>
+            </div>
+
+            <div class="row-2">
+                <div class="mb-3">
+                    <label class="form-label">Remitente</label>
+                    <input type="text" name="remitente" class="form-control" placeholder="Nombre de quien envía" value="{{ old('remitente') }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Destinatario</label>
+                    <input type="text" name="destinatario" class="form-control" placeholder="Nombre de quien recibe en Salcom" value="{{ old('destinatario') }}">
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Imagen de la muestra</label>
+                <input type="file" name="imagen_muestra" class="form-control" accept="image/*">
+                <small style="color:var(--gray-text);opacity:0.7">Foto del material o muestra que se envía</small>
             </div>
 
             @if($errors->any())

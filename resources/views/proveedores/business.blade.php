@@ -5,171 +5,200 @@
 @section('hero')
 <div class="hero-band">
     <h1>Business</h1>
-    <p>Tus tareas pendientes y alertas importantes — {{ now()->format('d/m/Y') }}</p>
+    <p>Resumen de tu operación como proveedor — {{ now()->format('d/m/Y') }}</p>
 </div>
 @endsection
 
 @push('styles')
 <style>
-    .resumen-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
-    .resumen-card { background: var(--white); border-radius: 12px; padding: 18px 20px; border: 0.5px solid var(--border); position: relative; overflow: hidden; }
-    .resumen-card .accent { position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 12px 0 0 12px; }
-    .resumen-label { font-size: 12px; color: var(--gray-text); font-weight: 500; margin-bottom: 6px; padding-left: 8px; }
-    .resumen-value { font-size: 28px; font-weight: 700; padding-left: 8px; line-height: 1; }
-    .resumen-sub { font-size: 11px; color: #AAA; padding-left: 8px; margin-top: 4px; }
-    .val-red   { color: var(--red); }
-    .val-amber { color: var(--amber); }
-    .val-green { color: var(--green); }
-    .val-blue  { color: var(--blue); }
+    .biz-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px}
+    .biz-card{background:var(--white);border-radius:var(--radius-lg);padding:24px;box-shadow:var(--shadow-sm);transition:var(--transition)}
+    .biz-card:hover{box-shadow:var(--shadow-md)}
+    .biz-card h3{font-size:16px;font-weight:700;color:var(--gray-text);margin-bottom:16px;letter-spacing:-0.3px}
+    .biz-full{grid-column:1/-1}
 
-    .seccion { margin-bottom: 28px; }
-    .seccion-titulo { display: flex; align-items: center; gap: 10px; font-family: 'Playfair Display', serif; font-size: 17px; color: var(--purple-dark); font-weight: 600; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1.5px solid var(--border); }
-    .seccion-titulo .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .seccion-sub-label { font-size: 11px; color: #AAA; margin-left: auto; font-family: 'Nunito', sans-serif; font-weight: 500; }
+    .biz-metric{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+    .biz-metric-label{font-size:13px;color:var(--gray-muted);font-weight:500}
+    .biz-metric-value{font-size:28px;font-weight:700;letter-spacing:-0.5px}
+    .biz-metric-unit{font-size:13px;color:var(--gray-muted)}
+    .biz-metric-change{font-size:13px;font-weight:700;margin-left:8px}
+    .biz-up{color:var(--green)}.biz-down{color:var(--red)}.biz-flat{color:var(--gray-muted)}
+    .biz-link{font-size:12px;color:var(--blue);text-decoration:none;font-weight:600;margin-top:8px;display:inline-block}
+    .biz-link:hover{opacity:0.7}
 
-    .item360-wrap { background: var(--white); border-radius: 16px; border: 0.5px solid var(--border); padding: 28px; }
-    .action-items { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
-    .action-card { background: var(--gray-soft); border-radius: 12px; padding: 16px 20px; border: 0.5px solid var(--border); }
-    .action-card-label { font-size: 12px; color: var(--gray-text); margin-bottom: 6px; }
-    .action-card-value { font-size: 28px; font-weight: 700; color: var(--purple-dark); line-height: 1; }
-    .action-card-sub { font-size: 12px; color: #AAA; margin-top: 4px; }
-    .action-card.alerta .action-card-value { color: var(--amber); }
-    .action-card.ok .action-card-value { color: var(--green); }
+    /* OTIF donuts */
+    .otif-wrap{display:flex;gap:32px;align-items:center;justify-content:center;flex-wrap:wrap}
+    .otif-item{display:flex;flex-direction:column;align-items:center;gap:8px}
+    .otif-donut{position:relative;width:120px;height:120px}
+    .otif-donut canvas{position:absolute;top:0;left:0}
+    .otif-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
+    .otif-num{font-size:24px;font-weight:700;color:var(--gray-text)}
+    .otif-label{font-size:11px;color:var(--gray-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px}
 
-    .item360-body { display: grid; grid-template-columns: 280px 1fr; gap: 40px; align-items: center; }
-    .dona-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
-    .dona-container { position: relative; width: 200px; height: 200px; }
-    .dona-container canvas { position: absolute; top: 0; left: 0; }
-    .dona-center { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; }
-    .dona-score { font-size: 36px; font-weight: 700; color: var(--purple-dark); line-height: 1; }
-    .dona-label { font-size: 11px; color: #999; margin-top: 2px; }
-    .dona-legend { width: 100%; }
-    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--gray-text); margin-bottom: 6px; }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .legend-pct { font-weight: 700; margin-left: auto; }
+    /* Tabla de artículos */
+    .art-table{width:100%;border-collapse:collapse;margin-top:12px}
+    .art-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px;padding:10px 14px;text-align:left;background:var(--gray-soft);border-bottom:1px solid var(--border-light)}
+    .art-table td{padding:12px 14px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border-light)}
+    .art-table tr:last-child td{border-bottom:none}
+    .art-table tr:hover td{background:var(--gray-soft)}
+    .art-bar{width:80px;height:8px;background:var(--border-light);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px}
+    .art-bar-fill{height:100%;border-radius:4px}
+    .status-verde{color:var(--green);font-weight:700}
+    .status-amarillo{color:var(--amber);font-weight:700}
+    .status-rojo{color:var(--red);font-weight:700}
 
-    .prod-right { display: flex; flex-direction: column; gap: 12px; }
-    .prod-row { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: var(--gray-soft); border-radius: 10px; }
-    .prod-name { font-size: 13px; font-weight: 700; color: var(--purple-dark); width: 70px; flex-shrink: 0; }
-    .prod-bar-wrap { flex: 1; }
-    .prod-bar { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; margin-bottom: 3px; }
-    .prod-bar-fill { height: 100%; border-radius: 999px; }
-    .prod-bar-label { font-size: 11px; color: #999; }
-    .prod-monto { font-size: 13px; font-weight: 600; color: var(--gray-text); white-space: nowrap; }
-    .prod-trend { font-size: 12px; font-weight: 700; white-space: nowrap; }
-    .up   { color: var(--green); }
-    .flat { color: #AAA; }
-    .down { color: var(--red); }
-    .api-note { font-size: 11px; color: #AAA; text-align: center; margin-top: 20px; }
+    /* Productos no entregados */
+    .noentrega-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border-light);font-size:13px}
+    .noentrega-item:last-child{border-bottom:none}
+    .noentrega-dot{width:10px;height:10px;border-radius:50%;background:var(--red);flex-shrink:0}
+    .noentrega-name{flex:1;font-weight:600;color:var(--gray-text)}
+    .noentrega-reason{font-size:12px;color:var(--gray-muted)}
 
-    .tarea-card { background: var(--white); border-radius: 12px; border: 0.5px solid var(--border); padding: 16px 20px; display: flex; align-items: center; gap: 16px; margin-bottom: 10px; transition: box-shadow .15s; }
-    .tarea-card:hover { box-shadow: 0 4px 16px rgba(107,63,160,0.08); }
-    .tarea-card.urgente     { border-left: 4px solid var(--red); }
-    .tarea-card.advertencia { border-left: 4px solid var(--amber); }
-    .tarea-card.info        { border-left: 4px solid var(--blue); }
-    .tarea-card.ok          { border-left: 4px solid var(--green); }
-    .tarea-icono { font-size: 22px; flex-shrink: 0; width: 40px; text-align: center; }
-    .tarea-info { flex: 1; min-width: 0; }
-    .tarea-titulo { font-size: 14px; font-weight: 700; color: var(--purple-dark); margin-bottom: 2px; }
-    .tarea-desc { font-size: 12px; color: #999; line-height: 1.5; }
-    .tarea-fecha { font-size: 11px; color: #BBB; white-space: nowrap; flex-shrink: 0; }
-    .badge-urgente     { background: var(--red-bg);   color: var(--red);   font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
-    .badge-advertencia { background: var(--amber-bg); color: var(--amber); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
-    .badge-info        { background: var(--blue-bg);  color: var(--blue);  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
-    .badge-ok          { background: var(--green-bg); color: var(--green); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
-    .btn-accion { padding: 6px 16px; background: var(--purple); color: white; border: none; border-radius: 8px; font-size: 12px; font-family: inherit; cursor: pointer; font-weight: 600; text-decoration: none; white-space: nowrap; flex-shrink: 0; transition: background .15s; }
-    .btn-accion:hover { background: var(--purple-dark); }
+    .biz-note{font-size:11px;color:var(--gray-muted);text-align:center;margin-top:16px}
 
-    @media (max-width: 900px) {
-        .resumen-grid, .action-items { grid-template-columns: 1fr 1fr; }
-        .item360-body { grid-template-columns: 1fr; }
-    }
+    @media(max-width:768px){.biz-grid{grid-template-columns:1fr}.otif-wrap{flex-direction:column}}
 </style>
 @endpush
 
 @section('content')
 
-    <div class="resumen-grid">
-        <div class="resumen-card"><div class="accent" style="background:var(--red)"></div><div class="resumen-label">Documentos por vencer</div><div class="resumen-value val-red">2</div><div class="resumen-sub">⚠ Renovar CIF y Opinión SAT</div></div>
-        <div class="resumen-card"><div class="accent" style="background:var(--amber)"></div><div class="resumen-label">Facturas pendientes</div><div class="resumen-value val-amber">3</div><div class="resumen-sub">⚠ Subir factura a OC #10045, #10046, #10049</div></div>
-        <div class="resumen-card"><div class="accent" style="background:var(--blue)"></div><div class="resumen-label">Pagos próximos</div><div class="resumen-value val-blue">1</div><div class="resumen-sub">Verificar datos bancarios actualizados</div></div>
-        <div class="resumen-card"><div class="accent" style="background:var(--green)"></div><div class="resumen-label">Notificaciones</div><div class="resumen-value val-green">4</div><div class="resumen-sub">Revisar mensajes de Salcom</div></div>
-    </div>
-
-    {{-- TOP PRODUCTOS --}}
-    <div class="seccion">
-        <div class="seccion-titulo">
-            <div class="dot" style="background:var(--purple)"></div>
-            Rendimiento de productos
-            <span class="seccion-sub-label">⚠ Datos de prueba — Pendiente de API</span>
+{{-- FILA 1: Negocio --}}
+<div class="biz-grid" style="grid-template-columns:1fr;">
+    {{-- NEGOCIO --}}
+    <div class="biz-card">
+        <h3>Negocio</h3>
+        <div class="biz-metric">
+            <span class="biz-metric-label">Ventas</span>
+            <span class="biz-metric-value" style="color:var(--green)">$1,525,322.50</span>
+            <span class="biz-metric-unit">MXN</span>
+            <span class="biz-metric-change biz-up">+17%</span>
         </div>
-        <div class="item360-wrap">
-            <div class="action-items">
-                <div class="action-card alerta"><div class="action-card-label">OC sin factura</div><div class="action-card-value">3</div><div class="action-card-sub">Requieren atención</div></div>
-                <div class="action-card ok"><div class="action-card-label">OC completadas este mes</div><div class="action-card-value">8</div><div class="action-card-sub">97.6% cumplimiento</div></div>
-                <div class="action-card"><div class="action-card-label">Recomendaciones de mejora</div><div class="action-card-value">2</div><div class="action-card-sub">Ver detalles →</div></div>
+        <div class="biz-metric">
+            <span class="biz-metric-label">Unidades</span>
+            <span class="biz-metric-value">3,523,487</span>
+            <span class="biz-metric-unit">kg</span>
+            <span class="biz-metric-change biz-up">+5%</span>
+        </div>
+        <a href="#totales" class="biz-link">Ver detalles →</a>
+    </div>
+</div>
+
+{{-- FILA 2: Totales por artículo --}}
+<div class="biz-grid" id="totales">
+    <div class="biz-card biz-full">
+        <h3>Totales — Listado de productos y resultado por artículo</h3>
+        <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap">
+            <div>
+                <span style="font-size:12px;color:var(--gray-muted)">Ventas totales</span>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">$1,525,322.50</div>
             </div>
-
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-                {{-- TOP 5 MEJORES --}}
-                <div>
-                    <h4 style="font-size:14px;font-weight:700;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:6px;">Top 5 — Mejor rendimiento</h4>
-                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Resina epóxica industrial</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:92%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 92</div><div class="prod-trend up">↑ +12%</div></div>
-                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Solvente grado técnico</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:88%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 88</div><div class="prod-trend up">↑ +8%</div></div>
-                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Pigmento base agua</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:81%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 81</div><div class="prod-trend flat">→ Estable</div></div>
-                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Fibra de refuerzo</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:79%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 79</div><div class="prod-trend up">↑ +3%</div></div>
-                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Adhesivo estructural</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:76%;background:#059669"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 76</div><div class="prod-trend flat">→ Estable</div></div>
-                </div>
-
-                {{-- TOP 5 PEORES --}}
-                <div>
-                    <h4 style="font-size:14px;font-weight:700;color:var(--red);margin-bottom:12px;display:flex;align-items:center;gap:6px;">Top 5 — Necesitan atención</h4>
-                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Aditivo antioxidante</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:58%;background:#DC2626"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 58</div><div class="prod-trend down">↓ -15%</div></div>
-                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Catalizador rápido</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:62%;background:#D97706"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 62</div><div class="prod-trend down">↓ -5%</div></div>
-                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Sellador industrial</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:65%;background:#D97706"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 65</div><div class="prod-trend down">↓ -3%</div></div>
-                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Disolvente especial</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:68%;background:#D97706"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 68</div><div class="prod-trend flat">→ Estable</div></div>
-                    <div class="prod-row"><div class="prod-name" style="width:auto;flex:1">Recubrimiento base</div><div class="prod-bar-wrap" style="flex:0 0 100px"><div class="prod-bar"><div class="prod-bar-fill" style="width:70%;background:#D97706"></div></div></div><div class="prod-monto" style="font-size:12px">Score: 70</div><div class="prod-trend down">↓ -2%</div></div>
-                </div>
+            <div>
+                <span style="font-size:12px;color:var(--gray-muted)">Unidades totales</span>
+                <div style="font-size:20px;font-weight:700">3,523,487 kg</div>
             </div>
+            <div>
+                <span style="font-size:12px;color:var(--gray-muted)">Variación</span>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">+5%</div>
+            </div>
+            <div>
+                <span style="font-size:12px;color:var(--gray-muted)">Vs. meta</span>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">+17%</div>
+            </div>
+        </div>
 
-            <p class="api-note">⚠ Datos de prueba — se reemplazarán con la API de Alan</p>
+        <table class="art-table">
+            <thead>
+                <tr>
+                    <th>Art.</th>
+                    <th>Producto</th>
+                    <th>Cantidad</th>
+                    <th>Variación</th>
+                    <th>Total estándar</th>
+                    <th>Resultado</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>1</strong></td>
+                    <td>PDR (Polvo de resina)</td>
+                    <td>1,000 kg</td>
+                    <td><span class="biz-up">+5%</span></td>
+                    <td>10,000 kg</td>
+                    <td><span class="art-bar"><span class="art-bar-fill" style="width:85%;background:var(--green)"></span></span><span class="status-verde">85%</span></td>
+                </tr>
+                <tr>
+                    <td><strong>2</strong></td>
+                    <td>CLORO (Cloro industrial)</td>
+                    <td>500 lt</td>
+                    <td><span class="biz-down">-10%</span></td>
+                    <td>5,000 lt</td>
+                    <td><span class="art-bar"><span class="art-bar-fill" style="width:60%;background:var(--amber)"></span></span><span class="status-amarillo">60%</span></td>
+                </tr>
+                <tr>
+                    <td><strong>3</strong></td>
+                    <td>SAL (Sal industrial)</td>
+                    <td>300 kg</td>
+                    <td><span class="biz-up">+23%</span></td>
+                    <td>2,000 kg</td>
+                    <td><span class="art-bar"><span class="art-bar-fill" style="width:92%;background:var(--green)"></span></span><span class="status-verde">92%</span></td>
+                </tr>
+                <tr>
+                    <td><strong>4</strong></td>
+                    <td>SOLVENTE (Solvente técnico)</td>
+                    <td>200 lt</td>
+                    <td><span class="biz-down">-5%</span></td>
+                    <td>3,000 lt</td>
+                    <td><span class="art-bar"><span class="art-bar-fill" style="width:40%;background:var(--red)"></span></span><span class="status-rojo">40%</span></td>
+                </tr>
+                <tr>
+                    <td><strong>5</strong></td>
+                    <td>PIGMENTO (Pigmento base agua)</td>
+                    <td>150 kg</td>
+                    <td><span class="biz-flat">0%</span></td>
+                    <td>1,500 kg</td>
+                    <td><span class="art-bar"><span class="art-bar-fill" style="width:75%;background:var(--amber)"></span></span><span class="status-amarillo">75%</span></td>
+                </tr>
+            </tbody>
+        </table>
+        <div style="margin-top:12px;font-size:11px;color:var(--gray-muted)">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:4px"></span> Verde: &gt;80%
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--amber);margin-left:16px;margin-right:4px"></span> Amarillo: 50-80%
+            <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--red);margin-left:16px;margin-right:4px"></span> Rojo: &lt;50%
         </div>
     </div>
+</div>
 
-    {{-- DOCUMENTOS POR VENCER --}}
-    <div class="seccion">
-        <div class="seccion-titulo"><div class="dot" style="background:var(--red)"></div>Documentos por vencer</div>
-        <div class="tarea-card urgente"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">CIF — Constancia de Situación Fiscal</div><div class="tarea-desc">Tu Constancia de Situación Fiscal vence en 5 días. Actualízala para continuar operando sin interrupciones.</div></div><span class="badge-urgente">Urgente</span><div class="tarea-fecha">Vence: 11/04/2026</div><a href="/empresa" class="btn-accion">Actualizar</a></div>
-        <div class="tarea-card advertencia"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">Opinión de Cumplimiento del SAT</div><div class="tarea-desc">Tu Opinión Positiva vence en 18 días. Te recomendamos renovarla pronto para evitar retrasos en tus pagos.</div></div><span class="badge-advertencia">Próximo</span><div class="tarea-fecha">Vence: 24/04/2026</div><a href="/empresa" class="btn-accion">Actualizar</a></div>
+{{-- FILA 3: Productos que no se entregan a tiempo --}}
+<div class="biz-grid" id="noentrega">
+    <div class="biz-card biz-full">
+        <h3>Productos que no se entregan a tiempo y completos</h3>
+        <div class="noentrega-item">
+            <div class="noentrega-dot"></div>
+            <div class="noentrega-name">SOLVENTE (Solvente técnico)</div>
+            <div class="noentrega-reason">Retraso 3 días — Stock insuficiente</div>
+            <span class="status-rojo">40%</span>
+        </div>
+        <div class="noentrega-item">
+            <div class="noentrega-dot" style="background:var(--amber)"></div>
+            <div class="noentrega-name">CLORO (Cloro industrial)</div>
+            <div class="noentrega-reason">Entrega parcial — 60% del pedido</div>
+            <span class="status-amarillo">60%</span>
+        </div>
+        <div class="noentrega-item">
+            <div class="noentrega-dot" style="background:var(--amber)"></div>
+            <div class="noentrega-name">PIGMENTO (Pigmento base agua)</div>
+            <div class="noentrega-reason">Retraso 1 día — Problema logístico</div>
+            <span class="status-amarillo">75%</span>
+        </div>
     </div>
+</div>
 
-    {{-- FACTURAS PENDIENTES --}}
-    <div class="seccion">
-        <div class="seccion-titulo"><div class="dot" style="background:var(--amber)"></div>Facturas pendientes de subir</div>
-        <div class="tarea-card advertencia"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">OC #10045 — $12,500.00</div><div class="tarea-desc">Esta orden de compra no tiene factura asociada. Súbela para iniciar el proceso de pago.</div></div><span class="badge-advertencia">Sin factura</span><div class="tarea-fecha">OC: 01/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
-        <div class="tarea-card advertencia"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">OC #10046 — $8,200.00</div><div class="tarea-desc">Esta orden de compra no tiene factura asociada. Súbela para iniciar el proceso de pago.</div></div><span class="badge-advertencia">Sin factura</span><div class="tarea-fecha">OC: 05/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
-        <div class="tarea-card advertencia"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">OC #10049 — $15,100.00</div><div class="tarea-desc">Esta orden de compra no tiene factura asociada. Súbela para iniciar el proceso de pago.</div></div><span class="badge-advertencia">Sin factura</span><div class="tarea-fecha">OC: 20/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
-    </div>
-
-    {{-- PAGOS PROXIMOS --}}
-    <div class="seccion">
-        <div class="seccion-titulo"><div class="dot" style="background:var(--blue)"></div>Pagos próximos</div>
-        <div class="tarea-card info"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">Pago programado — $27,300.00</div><div class="tarea-desc">Pago correspondiente a la OC #10047 programado para esta semana. Verifica que tus datos bancarios estén actualizados.</div></div><span class="badge-info">Esta semana</span><div class="tarea-fecha">09/04/2026</div><a href="{{ route('proveedores.dashboard') }}" class="btn-accion">Ver detalle</a></div>
-    </div>
-
-    {{-- NOTIFICACIONES --}}
-    <div class="seccion">
-        <div class="seccion-titulo"><div class="dot" style="background:var(--purple)"></div>Notificaciones de Industrias Salcom</div>
-        <div class="tarea-card ok"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">¡Bienvenido al portal de proveedores!</div><div class="tarea-desc">Tu cuenta ha sido creada exitosamente. Completa tu onboarding para activar tu cuenta al 100%.</div></div><span class="badge-ok">Nuevo</span><div class="tarea-fecha">06/04/2026</div></div>
-        <div class="tarea-card info"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">Nueva orden de compra generada</div><div class="tarea-desc">Industrias Salcom ha generado una nueva OC #10049 por $15,100.00. Revísala en el módulo de consultar OC.</div></div><span class="badge-info">OC Nueva</span><div class="tarea-fecha">20/03/2026</div><a href="{{ route('proveedores.oc') }}" class="btn-accion">Ver OC</a></div>
-        <div class="tarea-card info"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">Documentos en revisión</div><div class="tarea-desc">Tu CIF y Opinión Positiva están siendo revisados por el equipo de Salcom. Te notificaremos cuando estén aprobados.</div></div><span class="badge-info">En revisión</span><div class="tarea-fecha">15/03/2026</div></div>
-        <div class="tarea-card ok"><div class="tarea-icono"></div><div class="tarea-info"><div class="tarea-titulo">Registro completado</div><div class="tarea-desc">Tu registro como proveedor fue completado exitosamente. Ya puedes acceder al portal.</div></div><span class="badge-ok">Completado</span><div class="tarea-fecha">01/03/2026</div></div>
-    </div>
+<div class="biz-note">Datos de prueba — se reemplazarán con datos reales de la API</div>
 
 @endsection
 
 @push('scripts')
 <script>
-// No donut chart needed — using list view
+// Business page — no donuts needed (OTIF moved to its own module)
 </script>
 @endpush

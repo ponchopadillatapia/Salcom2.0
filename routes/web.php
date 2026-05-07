@@ -29,6 +29,7 @@ Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->
 Route::get('/payment-history', [PortalProveedorController::class, 'mostrarPaymentHistory'])->name('proveedores.payment-history')->middleware('auth.proveedor');
 Route::get('/perfil', [PortalProveedorController::class, 'mostrarPerfil'])->name('proveedores.perfil')->middleware('auth.proveedor');
 Route::get('/forecast', function () { return view('proveedores.forecast'); })->name('proveedores.forecast')->middleware('auth.proveedor');
+Route::get('/proveedor/otif', function () { return view('proveedores.otif'); })->name('proveedores.otif')->middleware('auth.proveedor');
 
 // ── Consultar OC ──
 Route::get('/consultar-oc', [OrdenCompraController::class, 'mostrarConsultarOC'])->name('proveedores.oc')->middleware('auth.proveedor');
@@ -114,6 +115,10 @@ Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'adminProveedo
 // ── Contactos del proveedor ──
 Route::post('/proveedor/contactos', [PortalProveedorController::class, 'guardarContacto'])->name('proveedores.contactos.guardar')->middleware('auth.proveedor');
 Route::delete('/proveedor/contactos/{contacto}', [PortalProveedorController::class, 'eliminarContacto'])->name('proveedores.contactos.eliminar')->middleware('auth.proveedor');
+
+// ── Encuesta de servicio (proveedor evalúa a Salcom) ──
+Route::get('/proveedor/encuesta', [PortalProveedorController::class, 'mostrarEncuesta'])->name('proveedores.encuesta')->middleware('auth.proveedor');
+Route::post('/proveedor/encuesta', [PortalProveedorController::class, 'guardarEncuestaProveedor'])->name('proveedores.encuesta.guardar')->middleware('auth.proveedor');
 
 // ── Aviso de privacidad ──
 Route::get('/aviso-privacidad', function () { return view('aviso-privacidad'); })->name('aviso.privacidad');
