@@ -77,7 +77,6 @@
                 <div class="paso-desc">Completaste el cuestionario con tus datos generales: nombre, correo, teléfono, tipo de persona y código de compras.</div>
             </div>
             <span class="paso-badge badge-completado">Completado</span>
-            <a href="{{ route('proveedores.actualizacion') }}" class="btn-ver">Ver</a>
         </div>
 
         {{-- PASO 2: Documentos fiscales (listado compartido) --}}

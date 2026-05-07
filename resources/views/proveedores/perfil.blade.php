@@ -246,20 +246,6 @@
         <input type="hidden" name="password" id="deleteFormPassword">
     </form>
 
-    <div style="margin-top:24px;text-align:center;">
-        <a href="{{ route('aviso.privacidad') }}" class="aviso-link" target="_blank">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Aviso de Privacidad — Industrias Salcom S.A. de C.V.
-        </a>
-        @if($proveedor && $proveedor->aviso_privacidad_aceptado)
-            <p style="font-size:11px;color:var(--green);margin-top:4px">✓ Aceptado el {{ $proveedor->aviso_privacidad_fecha?->format('d/m/Y H:i') }}</p>
-        @else
-            <form method="POST" action="{{ route('proveedores.aviso.aceptar') }}" style="margin-top:8px">
-                @csrf
-                <button type="submit" class="btn-add" style="font-size:12px;padding:6px 16px">Aceptar aviso de privacidad</button>
-            </form>
-        @endif
-    </div>
 @endsection
 
 @push('scripts')

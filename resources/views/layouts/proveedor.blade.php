@@ -367,7 +367,7 @@
 
 <footer>
     <div class="footer-logo">Industrias Salcom</div>
-    <p>&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</p>
+    <p><a href="/aviso-privacidad" style="color:var(--gray-muted);text-decoration:none;" target="_blank">Aviso de Privacidad</a> · &copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</p>
 </footer>
 
 <script>

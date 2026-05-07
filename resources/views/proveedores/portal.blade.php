@@ -309,7 +309,7 @@
     /* ── Quick access grid ── */
     .pp-quick-grid {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 16px;
     }
     .pp-quick-card {
@@ -462,8 +462,8 @@
                 <div class="pp-list-text">XML vs SAT</div>
                 <div class="pp-list-status">Pendiente</div>
             </div>
-            <div style="text-align:center;">
-                <a href="{{ route('proveedores.dashboard') }}" class="pp-btn-pill">Ver últimos 10 movimientos</a>
+            <div style="text-align:center;margin-top:14px;">
+                <a href="{{ route('proveedores.dashboard') }}" class="pp-btn-pill" style="display:inline-block;text-decoration:none;color:white;">Ver últimos 10 movimientos</a>
             </div>
         </div>
 
@@ -543,6 +543,24 @@
             <div>
                 <div class="pp-quick-title">Envío de muestras</div>
                 <div class="pp-quick-sub">Registro y seguimiento</div>
+            </div>
+        </a>
+        <a href="{{ route('proveedores.forecast') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            </div>
+            <div>
+                <div class="pp-quick-title">Forecast</div>
+                <div class="pp-quick-sub">Tendencias de productos</div>
+            </div>
+        </a>
+        <a href="{{ route('proveedores.alta-producto') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            </div>
+            <div>
+                <div class="pp-quick-title">Alta de producto</div>
+                <div class="pp-quick-sub">Nuevo producto</div>
             </div>
         </a>
     </div>

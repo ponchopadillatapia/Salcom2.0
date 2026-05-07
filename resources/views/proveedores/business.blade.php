@@ -83,83 +83,104 @@
     </div>
 </div>
 
-{{-- FILA 2: Totales por artículo --}}
+{{-- FILA 2: Totales por artículo (formato comparativo anual Salcom Industries) --}}
 <div class="biz-grid" id="totales">
     <div class="biz-card biz-full">
-        <h3>Totales — Listado de productos y resultado por artículo</h3>
+        <h3>Totales — Reporte de ventas comparativo anual</h3>
+        <div style="font-size:11px;color:var(--gray-muted);margin-bottom:12px;">SALCOM INDUSTRIES — Agrupado por producto/familia</div>
         <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap">
             <div>
-                <span style="font-size:12px;color:var(--gray-muted)">Ventas totales</span>
-                <div style="font-size:20px;font-weight:700;color:var(--green)">$1,525,322.50</div>
+                <span style="font-size:12px;color:var(--gray-muted)">Ventas totales 2026</span>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">$11,011,640.07</div>
             </div>
             <div>
-                <span style="font-size:12px;color:var(--gray-muted)">Unidades totales</span>
-                <div style="font-size:20px;font-weight:700">3,523,487 kg</div>
+                <span style="font-size:12px;color:var(--gray-muted)">Unidades totales 2026</span>
+                <div style="font-size:20px;font-weight:700">1,152,664</div>
             </div>
             <div>
-                <span style="font-size:12px;color:var(--gray-muted)">Variación</span>
-                <div style="font-size:20px;font-weight:700;color:var(--green)">+5%</div>
+                <span style="font-size:12px;color:var(--gray-muted)">Variación unidades</span>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">+16%</div>
             </div>
             <div>
-                <span style="font-size:12px;color:var(--gray-muted)">Vs. meta</span>
-                <div style="font-size:20px;font-weight:700;color:var(--green)">+17%</div>
+                <span style="font-size:12px;color:var(--gray-muted)">Variación ventas</span>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">+20%</div>
             </div>
         </div>
 
-        <table class="art-table">
+        <div style="overflow-x:auto;">
+        <table class="art-table" style="min-width:750px;">
             <thead>
                 <tr>
-                    <th>Art.</th>
-                    <th>Producto</th>
-                    <th>Cantidad</th>
-                    <th>Variación</th>
-                    <th>Total estándar</th>
+                    <th>Código</th>
+                    <th>Producto / Cliente</th>
+                    <th style="text-align:right;">Uds 2025</th>
+                    <th style="text-align:right;">Uds 2026</th>
+                    <th style="text-align:right;">Uds %</th>
+                    <th style="text-align:right;">Ventas 2025</th>
+                    <th style="text-align:right;">Ventas 2026</th>
+                    <th style="text-align:right;">Ventas %</th>
                     <th>Resultado</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td><strong>1</strong></td>
-                    <td>PDR (Polvo de resina)</td>
-                    <td>1,000 kg</td>
-                    <td><span class="biz-up">+5%</span></td>
-                    <td>10,000 kg</td>
-                    <td><span class="art-bar"><span class="art-bar-fill" style="width:85%;background:var(--green)"></span></span><span class="status-verde">85%</span></td>
+                    <td style="font-size:12px;color:var(--gray-muted);">101000138</td>
+                    <td style="font-weight:600;">Walmart Inc</td>
+                    <td style="text-align:right;">678,424</td>
+                    <td style="text-align:right;">848,749</td>
+                    <td style="text-align:right;color:var(--green);font-weight:700;">+25%</td>
+                    <td style="text-align:right;">$7,033,870</td>
+                    <td style="text-align:right;font-weight:600;">$8,812,560</td>
+                    <td style="text-align:right;color:var(--green);font-weight:700;">+25%</td>
+                    <td><span class="art-bar"><span class="art-bar-fill" style="width:95%;background:var(--green)"></span></span><span class="status-verde">95%</span></td>
                 </tr>
                 <tr>
-                    <td><strong>2</strong></td>
-                    <td>CLORO (Cloro industrial)</td>
-                    <td>500 lt</td>
-                    <td><span class="biz-down">-10%</span></td>
-                    <td>5,000 lt</td>
+                    <td style="font-size:12px;color:var(--gray-muted);">101000119</td>
+                    <td style="font-weight:600;">Dollar Tree Stores Inc.</td>
+                    <td style="text-align:right;">155,792</td>
+                    <td style="text-align:right;">136,965</td>
+                    <td style="text-align:right;color:var(--red);font-weight:700;">-12%</td>
+                    <td style="text-align:right;">$1,061,796</td>
+                    <td style="text-align:right;font-weight:600;">$949,583</td>
+                    <td style="text-align:right;color:var(--red);font-weight:700;">-11%</td>
                     <td><span class="art-bar"><span class="art-bar-fill" style="width:60%;background:var(--amber)"></span></span><span class="status-amarillo">60%</span></td>
                 </tr>
                 <tr>
-                    <td><strong>3</strong></td>
-                    <td>SAL (Sal industrial)</td>
-                    <td>300 kg</td>
-                    <td><span class="biz-up">+23%</span></td>
-                    <td>2,000 kg</td>
-                    <td><span class="art-bar"><span class="art-bar-fill" style="width:92%;background:var(--green)"></span></span><span class="status-verde">92%</span></td>
+                    <td style="font-size:12px;color:var(--gray-muted);">101000124</td>
+                    <td style="font-weight:600;">Dollar General Corp.</td>
+                    <td style="text-align:right;">102,900</td>
+                    <td style="text-align:right;">134,400</td>
+                    <td style="text-align:right;color:var(--green);font-weight:700;">+31%</td>
+                    <td style="text-align:right;">$719,092</td>
+                    <td style="text-align:right;font-weight:600;">$1,038,643</td>
+                    <td style="text-align:right;color:var(--green);font-weight:700;">+44%</td>
+                    <td><span class="art-bar"><span class="art-bar-fill" style="width:88%;background:var(--green)"></span></span><span class="status-verde">88%</span></td>
                 </tr>
                 <tr>
-                    <td><strong>4</strong></td>
-                    <td>SOLVENTE (Solvente técnico)</td>
-                    <td>200 lt</td>
-                    <td><span class="biz-down">-5%</span></td>
-                    <td>3,000 lt</td>
-                    <td><span class="art-bar"><span class="art-bar-fill" style="width:40%;background:var(--red)"></span></span><span class="status-rojo">40%</span></td>
+                    <td style="font-size:12px;color:var(--gray-muted);">101000120</td>
+                    <td style="font-weight:600;">Family Dollar Stores</td>
+                    <td style="text-align:right;">59,552</td>
+                    <td style="text-align:right;">32,550</td>
+                    <td style="text-align:right;color:var(--red);font-weight:700;">-45%</td>
+                    <td style="text-align:right;">$386,392</td>
+                    <td style="text-align:right;font-weight:600;">$210,852</td>
+                    <td style="text-align:right;color:var(--red);font-weight:700;">-45%</td>
+                    <td><span class="art-bar"><span class="art-bar-fill" style="width:35%;background:var(--red)"></span></span><span class="status-rojo">35%</span></td>
                 </tr>
-                <tr>
-                    <td><strong>5</strong></td>
-                    <td>PIGMENTO (Pigmento base agua)</td>
-                    <td>150 kg</td>
-                    <td><span class="biz-flat">0%</span></td>
-                    <td>1,500 kg</td>
-                    <td><span class="art-bar"><span class="art-bar-fill" style="width:75%;background:var(--amber)"></span></span><span class="status-amarillo">75%</span></td>
+                <tr style="background:var(--green-bg);font-weight:700;">
+                    <td></td>
+                    <td>GRAN TOTAL</td>
+                    <td style="text-align:right;">996,668</td>
+                    <td style="text-align:right;">1,152,664</td>
+                    <td style="text-align:right;color:var(--green);">+16%</td>
+                    <td style="text-align:right;">$9,200,151</td>
+                    <td style="text-align:right;">$11,011,640</td>
+                    <td style="text-align:right;color:var(--green);">+20%</td>
+                    <td></td>
                 </tr>
             </tbody>
         </table>
+        </div>
         <div style="margin-top:12px;font-size:11px;color:var(--gray-muted)">
             <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--green);margin-right:4px"></span> Verde: &gt;80%
             <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--amber);margin-left:16px;margin-right:4px"></span> Amarillo: 50-80%
