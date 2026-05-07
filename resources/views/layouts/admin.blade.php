@@ -104,33 +104,10 @@
             width: 230px; min-width: 230px;
             box-shadow: 8px 0 24px rgba(0,0,0,0.06);
         }
-        .sidebar.collapsed:hover .sb-section { display: block; }
         .sidebar.collapsed:hover .sb-text { display: inline; }
         .sidebar.collapsed:hover .sb-link { justify-content: flex-start; padding: 8px 16px; margin: 1px 8px; }
-        .sidebar.collapsed:hover .sb-toggle { justify-content: flex-end; padding: 0 14px; }
-        .sidebar.collapsed:hover .sb-toggle svg { transform: rotate(0deg); }
-        .sb-toggle {
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-end;
-            padding: 0 14px;
-            border-bottom: 1px solid var(--border-light);
-            cursor: pointer;
-            transition: var(--transition);
-        }
-        .sb-toggle:hover { background: var(--purple-subtle); }
-        .sb-toggle svg { transition: transform .3s cubic-bezier(.4,0,.2,1); color: var(--gray-muted); }
-        .sidebar.collapsed .sb-toggle { justify-content: center; padding: 0; }
-        .sidebar.collapsed .sb-toggle svg { transform: rotate(180deg); }
 
         .sb-nav { flex: 1; overflow-y: auto; padding: 12px 0; display: flex; flex-direction: column; }
-        .sb-section {
-            font-size: 10px; font-weight: 700; color: var(--gray-muted);
-            text-transform: uppercase; letter-spacing: 1.2px; padding: 16px 20px 6px;
-        }
-        .sidebar.collapsed .sb-section { display: none; }
-        .sb-hr { height: 1px; background: var(--border-light); margin: 8px 16px; }
         .sb-link {
             display: flex; align-items: center; gap: 12px;
             padding: 8px 16px; margin: 1px 8px;
@@ -189,7 +166,7 @@
         <span>Panel Administrativo</span>
     </div>
     <div class="nav-right">
-        <span class="nav-user">{{ session('admin_nombre', 'Administrador') }}</span>
+        <span class="nav-user">Administrador</span>
         <form method="POST" action="/logout-admin" style="margin:0;">
             @csrf
             <button type="submit" class="btn-logout">Cerrar sesión</button>
@@ -200,22 +177,14 @@
 @yield('hero')
 
 <div class="wrapper">
-    <aside class="sidebar" id="sidebar">
-        <div class="sb-toggle" onclick="document.getElementById('sidebar').classList.toggle('collapsed')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        </div>
+    <aside class="sidebar collapsed" id="sidebar">
         <nav class="sb-nav">
-            <div class="sb-section">Principal</div>
-
             <a href="{{ route('admin.dashboard') }}" class="sb-link {{ request()->is('admin/dashboard*') ? 'active' : '' }}">
                 <div class="sb-icon">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
                 </div>
                 <span class="sb-text">Dashboard</span>
             </a>
-
-            <div class="sb-hr"></div>
-            <div class="sb-section">Gestión</div>
 
             <a href="{{ route('admin.cliente.alta') }}" class="sb-link {{ request()->is('admin/cliente/alta*') ? 'active' : '' }}">
                 <div class="sb-icon">
@@ -237,9 +206,6 @@
                 </div>
                 <span class="sb-text">Proveedores / Score</span>
             </a>
-
-            <div class="sb-hr"></div>
-            <div class="sb-section">Consultas</div>
 
             <a href="{{ route('admin.encuestas') }}" class="sb-link {{ request()->is('admin/encuestas*') ? 'active' : '' }}">
                 <div class="sb-icon">

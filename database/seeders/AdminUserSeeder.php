@@ -14,7 +14,7 @@ class AdminUserSeeder extends Seeder
             [
                 'usuario'  => 'ADMIN001',
                 'password' => Hash::make('salcom2026'),
-                'nombre'   => 'Super Administrador',
+                'nombre'   => 'Administrador',
                 'correo'   => 'admin@salcom.com',
                 'activo'   => true,
             ],

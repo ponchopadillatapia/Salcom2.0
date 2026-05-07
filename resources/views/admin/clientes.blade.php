@@ -2,7 +2,7 @@
 @section('title', 'Lista de Clientes')
 @section('hero')
 <div class="hero-band">
-    <h1>👥 Lista de Clientes</h1>
+    <h1>Lista de Clientes</h1>
     <p>Gestión y consulta de clientes registrados en el sistema</p>
 </div>
 @endsection

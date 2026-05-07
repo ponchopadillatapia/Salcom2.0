@@ -207,21 +207,22 @@ class AdminPanelController extends Controller
 
     public function facturas(Request $request)
     {
-        $query = Factura::query();
-
-        if ($estatus = $request->input('estatus')) {
-            $query->where('estatus', $estatus);
-        }
-
-        if ($request->input('vencidas')) {
-            $query->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
-        }
-
-        $facturas = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
         $estatus = $request->input('estatus');
         $vencidas = $request->input('vencidas');
 
-        return view('admin.facturas', compact('facturas', 'estatus', 'vencidas'));
+        // Facturas de clientes
+        $queryClientes = Factura::whereNotNull('codigo_cliente');
+        if ($estatus) $queryClientes->where('estatus', $estatus);
+        if ($vencidas) $queryClientes->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+        $facturasClientes = $queryClientes->orderBy('created_at', 'desc')->get();
+
+        // Facturas de proveedores
+        $queryProveedores = Factura::whereNotNull('codigo_proveedor');
+        if ($estatus) $queryProveedores->where('estatus', $estatus);
+        if ($vencidas) $queryProveedores->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+        $facturasProveedores = $queryProveedores->orderBy('created_at', 'desc')->get();
+
+        return view('admin.facturas', compact('facturasClientes', 'facturasProveedores', 'estatus', 'vencidas'));
     }
 
     // ── Documentos de proveedores ──

@@ -12,25 +12,45 @@ class EmpresaApiController extends Controller
     public function validar(Request $request)
     {
         try {
-            $request->validate([
+            $tipoPersona = $request->input('tipo_persona', 'moral'); // moral | fisica
+
+            // Reglas de validación dinámicas
+            $rules = [
                 'cif_pdf'            => 'required|mimes:pdf|max:10240',
                 'opinion_pdf'        => 'required|mimes:pdf|max:10240',
-                'acta_pdf'           => 'required|mimes:pdf|max:10240',
-                'rep_legal_pdf'      => 'required|mimes:pdf|max:10240',
-                'contribuyente_pdf'  => 'required|mimes:pdf|max:10240',
                 'caratula_banco_pdf' => 'required|mimes:pdf|max:10240',
-            ]);
+                'rep_legal_pdf'      => 'nullable|mimes:pdf|max:10240',
+                'contribuyente_pdf'  => 'nullable|mimes:pdf|max:10240',
+            ];
+
+            // Acta constitutiva solo requerida para Persona Moral
+            if ($tipoPersona === 'moral') {
+                $rules['acta_pdf'] = 'required|mimes:pdf|max:10240';
+            } else {
+                $rules['acta_pdf'] = 'nullable|mimes:pdf|max:10240';
+            }
+
+            $request->validate($rules);
 
             $parser = new Parser();
 
             $archivos = [
                 'cif'            => $request->file('cif_pdf')->store('cif', 'local'),
                 'opinion'        => $request->file('opinion_pdf')->store('opiniones', 'local'),
-                'acta'           => $request->file('acta_pdf')->store('actas', 'local'),
-                'rep_legal'      => $request->file('rep_legal_pdf')->store('rep_legal', 'local'),
-                'contribuyente'  => $request->file('contribuyente_pdf')->store('contribuyente', 'local'),
                 'caratula_banco' => $request->file('caratula_banco_pdf')->store('caratula_banco', 'local'),
             ];
+
+            // Acta: solo si se subió
+            if ($request->hasFile('acta_pdf')) {
+                $archivos['acta'] = $request->file('acta_pdf')->store('actas', 'local');
+            }
+            // Opcionales
+            if ($request->hasFile('rep_legal_pdf')) {
+                $archivos['rep_legal'] = $request->file('rep_legal_pdf')->store('rep_legal', 'local');
+            }
+            if ($request->hasFile('contribuyente_pdf')) {
+                $archivos['contribuyente'] = $request->file('contribuyente_pdf')->store('contribuyente', 'local');
+            }
 
             $textos = [];
             foreach ($archivos as $clave => $ruta) {
@@ -48,19 +68,30 @@ class EmpresaApiController extends Controller
             $opinion = $this->validarOpinion($textos['opinion'], $cif['datos']['rfc']);
 
             // ════════════════════════════════════════
-            // ACTA CONSTITUTIVA
+            // ACTA CONSTITUTIVA (solo Persona Moral)
             // ════════════════════════════════════════
-            $acta = $this->validarActa($textos['acta'], $cif['datos']['es_moral']);
+            $acta = null;
+            if (isset($textos['acta'])) {
+                $acta = $this->validarActa($textos['acta'], $cif['datos']['es_moral']);
+            } elseif ($tipoPersona === 'fisica') {
+                $acta = ['valida' => true, 'datos' => [], 'errores' => [], 'hallazgos' => ['Persona Física — Acta Constitutiva no requerida']];
+            }
 
             // ════════════════════════════════════════
-            // ID REPRESENTANTE LEGAL
+            // ID REPRESENTANTE LEGAL (opcional)
             // ════════════════════════════════════════
-            $repLegal = $this->validarINE($textos['rep_legal'], 'Representante Legal');
+            $repLegal = null;
+            if (isset($textos['rep_legal'])) {
+                $repLegal = $this->validarINE($textos['rep_legal'], 'Representante Legal');
+            }
 
             // ════════════════════════════════════════
-            // ID CONTRIBUYENTE
+            // ID CONTRIBUYENTE (opcional)
             // ════════════════════════════════════════
-            $contribuyente = $this->validarINE($textos['contribuyente'], 'Contribuyente');
+            $contribuyente = null;
+            if (isset($textos['contribuyente'])) {
+                $contribuyente = $this->validarINE($textos['contribuyente'], 'Contribuyente');
+            }
 
             // ════════════════════════════════════════
             // CARÁTULA DE BANCO
@@ -72,9 +103,9 @@ class EmpresaApiController extends Controller
             // ════════════════════════════════════════
             $cifOk   = $cif['valida'];
             $opOk    = $opinion['valida'];
-            $actaOk  = $acta['valida'];
-            $repOk   = $repLegal['valida'];
-            $contOk  = $contribuyente['valida'];
+            $actaOk  = $acta ? $acta['valida'] : true;
+            $repOk   = $repLegal ? $repLegal['valida'] : true;
+            $contOk  = $contribuyente ? $contribuyente['valida'] : true;
             $bancoOk = $banco['valida'];
 
             $todoOk = $cifOk && $opOk && $actaOk && $repOk && $contOk && $bancoOk;
@@ -87,19 +118,23 @@ class EmpresaApiController extends Controller
                 $estado = 'rojo';
             }
 
-            return response()->json([
+            $response = [
                 'estado'        => $estado,
+                'tipo_persona'  => $tipoPersona,
                 'cif'           => $cif,
                 'opinion'       => $opinion,
-                'acta'          => $acta,
-                'rep_legal'     => $repLegal,
-                'contribuyente' => $contribuyente,
                 'caratula_banco'=> $banco,
-            ]);
+            ];
+
+            if ($acta) $response['acta'] = $acta;
+            if ($repLegal) $response['rep_legal'] = $repLegal;
+            if ($contribuyente) $response['contribuyente'] = $contribuyente;
+
+            return response()->json($response);
 
         } catch (\Illuminate\Validation\ValidationException $e) {
             $errores = collect($e->errors())->flatten()->implode(' | ');
-            return response()->json(['mensaje' => 'Archivo inválido: ' . $errores], 422);
+            return response()->json(['mensaje' => 'Archivo inválido — solo se aceptan documentos PDF: ' . $errores], 422);
         } catch (\Exception $e) {
             return response()->json(['mensaje' => 'Error interno: ' . $e->getMessage()], 500);
         }
@@ -487,10 +522,16 @@ class EmpresaApiController extends Controller
             $errores[] = 'No se detectó institución bancaria reconocida';
         }
 
-        // CLABE (18 dígitos)
-        if (preg_match('/(\d{18})/', $texto, $clabeM)) {
+        // CLABE (18 dígitos) — buscar por texto "CLABE" o directamente 18 dígitos consecutivos
+        if (preg_match('/CLABE[:\s\w]*(\d{18})/', $texto, $clabeM)) {
             $datos['clabe'] = $clabeM[1];
-            $hallazgos[] = 'CLABE: ' . $clabeM[1];
+            $hallazgos[] = 'CLABE interbancaria: ' . $clabeM[1];
+        } elseif (preg_match('/CUENTA\s*CLABE[:\s]*(\d{18})/', $texto, $clabeM)) {
+            $datos['clabe'] = $clabeM[1];
+            $hallazgos[] = 'Cuenta CLABE: ' . $clabeM[1];
+        } elseif (preg_match('/(\d{18})/', $texto, $clabeM)) {
+            $datos['clabe'] = $clabeM[1];
+            $hallazgos[] = 'CLABE detectada: ' . $clabeM[1];
         } else {
             $errores[] = 'No se encontró CLABE interbancaria (18 dígitos)';
         }

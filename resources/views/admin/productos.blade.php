@@ -2,7 +2,7 @@
 @section('title', 'Productos')
 @section('hero')
 <div class="hero-band">
-    <h1>🧪 Catálogo de Productos</h1>
+    <h1>Catálogo de Productos</h1>
     <p>Inventario y gestión de productos registrados</p>
 </div>
 @endsection

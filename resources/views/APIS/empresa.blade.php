@@ -327,6 +327,38 @@
             color: var(--gray-text);
             opacity: 0.5;
         }
+
+        .tipo-btn {
+            flex: 1;
+            padding: 16px 20px;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: var(--white);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--gray-text);
+            cursor: pointer;
+            transition: all .2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .tipo-btn:hover { border-color: var(--purple-mid); background: var(--purple-light); color: var(--purple); }
+        .tipo-btn.selected { border-color: var(--purple); background: var(--purple-light); color: var(--purple); box-shadow: 0 0 0 3px rgba(107,63,160,.15); }
+
+        .optional-badge {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--purple-light);
+            color: var(--purple-mid);
+            margin-left: 8px;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
     </style>
 </head>
 
@@ -347,10 +379,23 @@
 
     <div class="section-header">
         <h1>Validación de Documentos</h1>
-        <p>Sube los seis documentos requeridos para continuar con tu registro como proveedor.</p>
+        <p>Sube los documentos requeridos para continuar con tu registro como proveedor.</p>
     </div>
 
     <div class="card-salcom">
+
+        {{-- ── SELECTOR TIPO PERSONA ── --}}
+        <p class="group-title"><i class="bi bi-person-lines-fill"></i> Tipo de Persona</p>
+        <div style="display:flex;gap:12px;margin-bottom:1.5rem">
+            <button type="button" class="tipo-btn" id="btn_moral" onclick="seleccionarTipo('moral')">
+                <i class="bi bi-building"></i> Persona Moral
+            </button>
+            <button type="button" class="tipo-btn" id="btn_fisica" onclick="seleccionarTipo('fisica')">
+                <i class="bi bi-person"></i> Persona Física
+            </button>
+        </div>
+
+        <div id="formulario_docs" style="display:none">
 
         {{-- ── GRUPO 1: Documentos fiscales ── --}}
         <p class="group-title"><i class="bi bi-file-earmark-ruled"></i> Documentos Fiscales</p>
@@ -371,20 +416,20 @@
             <span id="opinion_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
-        <div class="doc-row" id="row_acta">
+        <div class="doc-row" id="row_acta" style="display:none">
             <label class="doc-label" for="acta"><i class="bi bi-building"></i> Acta Constitutiva</label>
-            <p class="doc-hint">Documento de constitución de la empresa · PDF</p>
+            <p class="doc-hint">Documento de constitución de la empresa · PDF (solo Persona Moral)</p>
             <input type="file" id="acta" accept=".pdf" onchange="verArchivo('acta')">
             <label for="acta" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
             <span id="acta_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
-        {{-- ── GRUPO 2: Identificaciones ── --}}
-        <p class="group-title"><i class="bi bi-person-vcard"></i> Identificaciones Oficiales</p>
+        {{-- ── GRUPO 2: Identificaciones (opcionales) ── --}}
+        <p class="group-title"><i class="bi bi-person-vcard"></i> Identificaciones Oficiales <span class="optional-badge">Opcional</span></p>
 
         <div class="doc-row" id="row_rep_legal">
             <label class="doc-label" for="rep_legal"><i class="bi bi-person-badge"></i> ID Oficial del Representante Legal</label>
-            <p class="doc-hint">INE/IFE vigente del representante legal · PDF</p>
+            <p class="doc-hint">INE/IFE vigente del representante legal · PDF (opcional)</p>
             <input type="file" id="rep_legal" accept=".pdf" onchange="verArchivo('rep_legal')">
             <label for="rep_legal" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
             <span id="rep_legal_nombre" class="file-name empty">Sin archivo</span>
@@ -392,7 +437,7 @@
 
         <div class="doc-row" id="row_contribuyente">
             <label class="doc-label" for="contribuyente"><i class="bi bi-person-check"></i> ID Oficial del Contribuyente</label>
-            <p class="doc-hint">INE/IFE vigente del contribuyente · PDF</p>
+            <p class="doc-hint">INE/IFE vigente del contribuyente · PDF (opcional)</p>
             <input type="file" id="contribuyente" accept=".pdf" onchange="verArchivo('contribuyente')">
             <label for="contribuyente" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
             <span id="contribuyente_nombre" class="file-name empty">Sin archivo</span>
@@ -403,7 +448,7 @@
 
         <div class="doc-row" id="row_caratula_banco">
             <label class="doc-label" for="caratula_banco"><i class="bi bi-credit-card"></i> Carátula de Estado de Cuenta Bancario</label>
-            <p class="doc-hint">Debe mostrar CLABE interbancaria y nombre del titular · PDF</p>
+            <p class="doc-hint">Debe mostrar CLABE interbancaria (18 dígitos) o cuenta CLABE y nombre del titular · PDF</p>
             <input type="file" id="caratula_banco" accept=".pdf" onchange="verArchivo('caratula_banco')">
             <label for="caratula_banco" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
             <span id="caratula_banco_nombre" class="file-name empty">Sin archivo</span>
@@ -418,6 +463,8 @@
 
         <div id="resultado"></div>
 
+        </div>{{-- fin formulario_docs --}}
+
     </div>
 
     <p class="page-footer">Industrias Salcom · Wiese / Salcom Industries · Sistema de validación fiscal</p>
@@ -425,6 +472,43 @@
 
 
 <script>
+// ── Estado del formulario ──
+let tipoPersona = null; // 'moral' o 'fisica'
+
+function seleccionarTipo(tipo) {
+    tipoPersona = tipo;
+
+    // UI de botones
+    document.getElementById('btn_moral').classList.toggle('selected', tipo === 'moral');
+    document.getElementById('btn_fisica').classList.toggle('selected', tipo === 'fisica');
+
+    // Mostrar formulario
+    document.getElementById('formulario_docs').style.display = 'block';
+
+    // Acta constitutiva: solo para Persona Moral
+    document.getElementById('row_acta').style.display = tipo === 'moral' ? 'block' : 'none';
+
+    // Limpiar acta si cambia a física
+    if (tipo === 'fisica') {
+        document.getElementById('acta').value = '';
+        document.getElementById('acta_nombre').textContent = 'Sin archivo';
+        document.getElementById('acta_nombre').className = 'file-name empty';
+        document.getElementById('row_acta').classList.remove('has-file');
+    }
+}
+
+// ── Campos requeridos según tipo ──
+function getCamposRequeridos() {
+    const base = ['cif', 'opinion', 'caratula_banco'];
+    if (tipoPersona === 'moral') base.push('acta');
+    return base;
+}
+
+// ── Campos opcionales ──
+function getCamposOpcionales() {
+    return ['rep_legal', 'contribuyente'];
+}
+
 // ── Campos y sus nombres para el FormData ──
 const campos = {
     cif:            'cif_pdf',
@@ -449,13 +533,12 @@ function verArchivo(campo) {
         return;
     }
 
-    // ── Validación de tipo PDF en el cliente ──
     if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
         label.textContent = '⚠ Ese archivo no es un PDF. Selecciona un PDF válido.';
         label.className   = 'file-name pdf-err';
         row.classList.remove('has-file');
         row.classList.add('error-file');
-        input.value = ''; // limpiar el input
+        input.value = '';
         return;
     }
 
@@ -472,17 +555,38 @@ const semaforos = {
 };
 
 function enviar() {
-    // Verificar que todos los campos tengan archivo válido
-    for (const campo of Object.keys(campos)) {
+    if (!tipoPersona) {
+        mostrarError('Selecciona primero si eres Persona Física o Persona Moral.');
+        return;
+    }
+
+    // Verificar campos requeridos
+    const requeridos = getCamposRequeridos();
+    for (const campo of requeridos) {
         const input = document.getElementById(campo);
         if (!input.files[0]) {
-            mostrarError('Debes subir los seis documentos antes de continuar.');
+            const nombres = { cif: 'CIF', opinion: 'Opinión de Cumplimiento', acta: 'Acta Constitutiva', caratula_banco: 'Carátula de Banco' };
+            mostrarError(`Falta el documento: ${nombres[campo] || campo}`);
             return;
         }
         const archivo = input.files[0];
         if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
-            mostrarError(`El archivo "${archivo.name}" no es un PDF válido.`);
+            const nombres = { cif: 'CIF', opinion: 'Opinión de Cumplimiento', acta: 'Acta Constitutiva', caratula_banco: 'Carátula de Banco' };
+            mostrarError(`El archivo de "${nombres[campo] || campo}" no es un PDF válido.`);
             return;
+        }
+    }
+
+    // Verificar opcionales que se hayan subido
+    for (const campo of getCamposOpcionales()) {
+        const input = document.getElementById(campo);
+        if (input.files[0]) {
+            const archivo = input.files[0];
+            if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
+                const nombres = { rep_legal: 'ID Representante Legal', contribuyente: 'ID Contribuyente' };
+                mostrarError(`El archivo de "${nombres[campo] || campo}" no es un PDF válido.`);
+                return;
+            }
         }
     }
 
@@ -506,8 +610,14 @@ function enviar() {
         </div>`;
 
     const formData = new FormData();
+    formData.append('tipo_persona', tipoPersona);
+
+    // Agregar todos los campos que tengan archivo (requeridos + opcionales)
     for (const [campo, nombreCampo] of Object.entries(campos)) {
-        formData.append(nombreCampo, document.getElementById(campo).files[0]);
+        const input = document.getElementById(campo);
+        if (input.files[0]) {
+            formData.append(nombreCampo, input.files[0]);
+        }
     }
 
     fetch('/api/empresa', {
@@ -539,33 +649,36 @@ function renderResultado(data) {
     const sem    = semaforos[estado] || semaforos.rojo;
     const cif    = data.cif;
 
-    // Header con datos de la empresa
     const nombre = cif.datos.nombre || 'NO DETECTADO';
     const rfc    = cif.datos.rfc || 'No detectado';
     const tipo   = cif.datos.tipo_persona || '—';
 
-    // Construir secciones detalladas
     const secciones = [
         { titulo: 'Constancia de Situación Fiscal (CIF)', icono: 'bi-file-earmark-text', doc: data.cif },
         { titulo: 'Opinión de Cumplimiento SAT',          icono: 'bi-patch-check',       doc: data.opinion },
-        { titulo: 'Acta Constitutiva',                    icono: 'bi-building',           doc: data.acta },
-        { titulo: 'ID Representante Legal',               icono: 'bi-person-badge',       doc: data.rep_legal },
-        { titulo: 'ID Contribuyente',                     icono: 'bi-person-check',       doc: data.contribuyente },
-        { titulo: 'Carátula de Banco',                    icono: 'bi-credit-card',        doc: data.caratula_banco },
     ];
 
+    if (tipoPersona === 'moral') {
+        secciones.push({ titulo: 'Acta Constitutiva', icono: 'bi-building', doc: data.acta });
+    }
+
+    if (data.rep_legal) {
+        secciones.push({ titulo: 'ID Representante Legal', icono: 'bi-person-badge', doc: data.rep_legal });
+    }
+    if (data.contribuyente) {
+        secciones.push({ titulo: 'ID Contribuyente', icono: 'bi-person-check', doc: data.contribuyente });
+    }
+
+    secciones.push({ titulo: 'Carátula de Banco', icono: 'bi-credit-card', doc: data.caratula_banco });
+
     const seccionesHtml = secciones.map(s => {
+        if (!s.doc) return '';
         const ok = s.doc.valida;
         const hallazgos = (s.doc.hallazgos || []);
         const errores   = (s.doc.errores || []);
 
-        const hallazgosHtml = hallazgos.length
-            ? hallazgos.map(h => `<div class="detalle-item ok"><i class="bi bi-check-circle-fill"></i> ${h}</div>`).join('')
-            : '';
-
-        const erroresHtml = errores.length
-            ? errores.map(e => `<div class="detalle-item err"><i class="bi bi-x-circle-fill"></i> ${e}</div>`).join('')
-            : '';
+        const hallazgosHtml = hallazgos.map(h => `<div class="detalle-item ok"><i class="bi bi-check-circle-fill"></i> ${h}</div>`).join('');
+        const erroresHtml = errores.map(e => `<div class="detalle-item err"><i class="bi bi-x-circle-fill"></i> ${e}</div>`).join('');
 
         const chars = s.doc.datos?.caracteres_leidos ?? 0;
         const charsInfo = chars > 0 ? `<span class="chars-badge">${chars} caracteres leídos</span>` : '';
@@ -573,7 +686,7 @@ function renderResultado(data) {
         return `
         <div class="seccion-doc ${ok ? 'seccion-ok' : 'seccion-err'}">
             <div class="seccion-header">
-                <span class="seccion-icon">${ok ? '' : ''}</span>
+                <span class="seccion-icon">${ok ? '✅' : '❌'}</span>
                 <span class="seccion-titulo"><i class="bi ${s.icono}"></i> ${s.titulo}</span>
                 ${charsInfo}
             </div>
@@ -617,12 +730,10 @@ function mostrarError(msg) {
         </div>`;
 }
 
-// ── Back button: only show if user came from within the portal ──
+// ── Back button ──
 (function() {
     const ref = document.referrer;
     const origin = window.location.origin;
-    // Show back button only if referrer is from our portal (onboarding, portal, etc.)
-    // Don't show if there's no referrer (direct access / forced revalidation)
     if (ref && ref.startsWith(origin) && !ref.includes('validacion-fiscal')) {
         document.getElementById('btnBack').classList.add('visible');
     }
