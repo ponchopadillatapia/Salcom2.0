@@ -437,34 +437,26 @@
                 <div class="pp-list-text">OC #10045 generada</div>
                 <div class="pp-list-status">Pendiente</div>
             </div>
-            <div class="pp-list-item">
+            <a href="{{ route('proveedores.business') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
                 <div class="pp-dot pp-dot-amber"></div>
                 <div class="pp-list-text">Factura en revisión</div>
                 <div class="pp-list-status">Pendiente</div>
-            </div>
-            <div class="pp-list-item">
+            </a>
+            <a href="{{ route('proveedores.payment-history') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
                 <div class="pp-dot pp-dot-green"></div>
                 <div class="pp-list-text">Pago programado</div>
                 <div class="pp-list-status">Pendiente</div>
-            </div>
-            <div class="pp-list-item">
+            </a>
+            <a href="{{ route('proveedores.oc') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
                 <div class="pp-dot pp-dot-green"></div>
                 <div class="pp-list-text">Estatus OC</div>
                 <div class="pp-list-status">Pendiente</div>
-            </div>
-            <div class="pp-list-item">
+            </a>
+            <a href="{{ route('proveedores.business') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
                 <div class="pp-dot pp-dot-amber"></div>
                 <div class="pp-list-text">Facturas OC</div>
                 <div class="pp-list-status">Pendiente</div>
-            </div>
-            <div class="pp-list-item">
-                <div class="pp-dot pp-dot-amber"></div>
-                <div class="pp-list-text">XML vs SAT</div>
-                <div class="pp-list-status">Pendiente</div>
-            </div>
-            <div style="text-align:center;margin-top:14px;">
-                <a href="{{ route('proveedores.dashboard') }}" class="pp-btn-pill" style="display:inline-block;text-decoration:none;color:white;">Ver últimos 10 movimientos</a>
-            </div>
+            </a>
         </div>
 
         {{-- Onboarding --}}
