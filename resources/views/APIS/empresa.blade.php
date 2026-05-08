@@ -205,29 +205,29 @@
         #resultado { margin-top: 1.5rem; }
 
         .resultado-card {
-            border-radius: 12px;
-            padding: 1.25rem 1.4rem;
+            border-radius: 14px;
+            padding: 1.5rem;
             border: 1.5px solid;
             animation: fadeIn 0.35s ease;
         }
         @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
 
-        .resultado-card.verde     { background: var(--green-bg); border-color: var(--green);  }
-        .resultado-card.amarillo  { background: #FEF9C3;         border-color: #CA8A04;       }
-        .resultado-card.rojo      { background: #FEE2E2;         border-color: #DC2626;       }
+        .resultado-card.verde     { background: #f0fdf4; border-color: #bbf7d0; }
+        .resultado-card.amarillo  { background: #fefce8; border-color: #fde68a; }
+        .resultado-card.rojo      { background: #fef2f2; border-color: #fecaca; }
         .resultado-card.procesando{ background: var(--purple-light); border-color: var(--purple-mid); }
 
         .resultado-header {
             display: flex;
             align-items: center;
-            gap: 0.6rem;
-            margin-bottom: 0.8rem;
+            gap: 0.75rem;
+            margin-bottom: 0;
         }
-        .semaforo           { font-size: 1.5rem; }
-        .resultado-empresa  { font-size: 1rem; font-weight: 700; color: var(--purple-dark); }
-        .resultado-rfc      { font-size: 0.8rem; color: var(--gray-text); font-weight: 500; }
+        .semaforo           { display: flex; align-items: center; flex-shrink: 0; }
+        .resultado-empresa  { font-size: 1.05rem; font-weight: 700; color: var(--gray-text); }
+        .resultado-rfc      { font-size: 0.82rem; color: var(--gray-muted); font-weight: 500; margin-top: 2px; }
 
-        .resultado-divider  { border: none; border-top: 1px solid var(--border); margin: 0.75rem 0; }
+        .resultado-divider  { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
 
         .resultado-group-title {
             font-size: 0.78rem;
@@ -272,28 +272,41 @@
         /* ── Secciones detalladas del resultado ── */
         .seccion-doc {
             border-radius: 10px;
-            padding: 0.9rem 1rem;
+            padding: 1rem 1.1rem;
             margin-bottom: 0.65rem;
             border: 1px solid var(--border);
-            background: var(--gray-soft);
+            background: var(--white);
+            transition: box-shadow .2s;
         }
+        .seccion-doc:hover { box-shadow: 0 2px 8px rgba(0,0,0,.04); }
         .seccion-doc.seccion-ok { border-left: 4px solid var(--green); }
         .seccion-doc.seccion-err { border-left: 4px solid #DC2626; }
 
         .seccion-header {
             display: flex;
             align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
+            gap: 0.6rem;
+            margin-bottom: 0.6rem;
             flex-wrap: wrap;
         }
-        .seccion-icon { font-size: 1rem; }
+        .seccion-icon { display: flex; align-items: center; flex-shrink: 0; }
         .seccion-titulo {
             font-weight: 700;
-            font-size: 0.85rem;
-            color: var(--purple-dark);
+            font-size: 0.88rem;
+            color: var(--gray-text);
+            flex: 1;
         }
-        .seccion-titulo i { margin-right: 0.25rem; color: var(--purple-mid); }
+
+        .status-pill {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+        }
+        .status-pill.ok { background: #ecfdf5; color: #059669; }
+        .status-pill.err { background: #fef2f2; color: #DC2626; }
 
         .chars-badge {
             margin-left: auto;
@@ -308,17 +321,16 @@
         .seccion-detalles { padding-left: 0.25rem; }
 
         .detalle-item {
-            font-size: 0.8rem;
-            padding: 2px 0;
+            font-size: 0.82rem;
+            padding: 4px 0;
             display: flex;
-            align-items: flex-start;
-            gap: 0.4rem;
+            align-items: center;
+            gap: 0.5rem;
+            line-height: 1.4;
         }
-        .detalle-item i { font-size: 0.75rem; margin-top: 2px; flex-shrink: 0; }
+        .detalle-item svg { flex-shrink: 0; }
         .detalle-item.ok { color: #047857; }
-        .detalle-item.ok i { color: var(--green); }
         .detalle-item.err { color: #B91C1C; }
-        .detalle-item.err i { color: #DC2626; }
 
         .page-footer {
             text-align: center;
@@ -425,7 +437,7 @@
         </div>
 
         {{-- ── GRUPO 2: Identificaciones (opcionales) ── --}}
-        <p class="group-title"><i class="bi bi-person-vcard"></i> Identificaciones Oficiales <span class="optional-badge">Opcional</span></p>
+        <p class="group-title"><i class="bi bi-person-vcard"></i> Identificaciones Oficiales</p>
 
         <div class="doc-row" id="row_rep_legal">
             <label class="doc-label" for="rep_legal"><i class="bi bi-person-badge"></i> ID Oficial del Representante Legal</label>
@@ -549,9 +561,9 @@ function verArchivo(campo) {
 }
 
 const semaforos = {
-    verde:    { emoji: '🟢', texto: 'Todos los documentos válidos',  clase: 'verde'    },
-    amarillo: { emoji: '🟡', texto: 'Válido con observaciones',      clase: 'amarillo' },
-    rojo:     { emoji: '🔴', texto: 'Documentos con errores',        clase: 'rojo'     },
+    verde:    { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>', texto: 'Todos los documentos válidos',  clase: 'verde'    },
+    amarillo: { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#CA8A04" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>', texto: 'Válido con observaciones',      clase: 'amarillo' },
+    rojo:     { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', texto: 'Documentos con errores',        clase: 'rojo'     },
 };
 
 function enviar() {
@@ -603,10 +615,10 @@ function enviar() {
     document.getElementById('resultado').innerHTML = `
         <div class="resultado-card procesando">
             <div class="resultado-header">
-                <span class="semaforo">⏳</span>
+                <span class="semaforo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>
                 <span class="resultado-empresa">Procesando documentos…</span>
             </div>
-            <small>Esto puede tardar unos segundos.</small>
+            <small style="color:var(--gray-muted)">Esto puede tardar unos segundos.</small>
         </div>`;
 
     const formData = new FormData();
@@ -677,23 +689,25 @@ function renderResultado(data) {
         const hallazgos = (s.doc.hallazgos || []);
         const errores   = (s.doc.errores || []);
 
-        const hallazgosHtml = hallazgos.map(h => `<div class="detalle-item ok"><i class="bi bi-check-circle-fill"></i> ${h}</div>`).join('');
-        const erroresHtml = errores.map(e => `<div class="detalle-item err"><i class="bi bi-x-circle-fill"></i> ${e}</div>`).join('');
+        const iconOk  = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+        const iconErr = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+        const statusIcon = ok ? iconOk : iconErr;
+        const statusLabel = ok ? '<span class="status-pill ok">Aprobado</span>' : '<span class="status-pill err">Revisar</span>';
 
-        const chars = s.doc.datos?.caracteres_leidos ?? 0;
-        const charsInfo = chars > 0 ? `<span class="chars-badge">${chars} caracteres leídos</span>` : '';
+        const hallazgosHtml = hallazgos.map(h => `<div class="detalle-item ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ${h}</div>`).join('');
+        const erroresHtml = errores.map(e => `<div class="detalle-item err"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> ${e}</div>`).join('');
 
         return `
         <div class="seccion-doc ${ok ? 'seccion-ok' : 'seccion-err'}">
             <div class="seccion-header">
-                <span class="seccion-icon">${ok ? '✅' : '❌'}</span>
-                <span class="seccion-titulo"><i class="bi ${s.icono}"></i> ${s.titulo}</span>
-                ${charsInfo}
+                <span class="seccion-icon">${statusIcon}</span>
+                <span class="seccion-titulo">${s.titulo}</span>
+                ${statusLabel}
             </div>
             <div class="seccion-detalles">
                 ${hallazgosHtml}
                 ${erroresHtml}
-                ${!hallazgos.length && !errores.length ? '<div class="detalle-item ok"><i class="bi bi-check-circle-fill"></i> Sin observaciones</div>' : ''}
+                ${!hallazgos.length && !errores.length ? '<div class="detalle-item ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> Sin observaciones</div>' : ''}
             </div>
         </div>`;
     }).join('');
@@ -705,13 +719,15 @@ function renderResultado(data) {
             <i class="bi bi-box-arrow-in-right"></i> Ir al Portal del Proveedor
         </a>` : '';
 
+    const tipoLabel = tipoPersona === 'moral' ? 'Persona Moral' : 'Persona Física';
+
     document.getElementById('resultado').innerHTML = `
         <div class="resultado-card ${sem.clase}">
             <div class="resultado-header">
-                <span class="semaforo">${sem.emoji}</span>
+                <span class="semaforo">${sem.icon}</span>
                 <div>
                     <div class="resultado-empresa">${nombre}</div>
-                    <div class="resultado-rfc">RFC: ${rfc} · ${tipo} · ${sem.texto}</div>
+                    <div class="resultado-rfc">RFC: ${rfc} · ${tipoLabel} · ${sem.texto}</div>
                 </div>
             </div>
             <hr class="resultado-divider">
@@ -724,7 +740,7 @@ function mostrarError(msg) {
     document.getElementById('resultado').innerHTML = `
         <div class="resultado-card rojo">
             <div class="resultado-header">
-                <span class="semaforo">🔴</span>
+                <span class="semaforo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
                 <span class="resultado-empresa">${msg}</span>
             </div>
         </div>`;
