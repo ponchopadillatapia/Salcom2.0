@@ -24,7 +24,7 @@ class SalcomApiTest extends TestCase
 
     private function authHeaders(): array
     {
-        return ['Authorization' => 'Bearer ' . $this->token];
+        return ['Authorization' => 'Bearer '.$this->token];
     }
 
     // ── Autenticación ──
@@ -57,11 +57,11 @@ class SalcomApiTest extends TestCase
 
         $response->assertStatus(200)
             ->assertJsonStructure([
-                'clientes'    => ['total', 'activos'],
+                'clientes' => ['total', 'activos'],
                 'proveedores' => ['total', 'activos'],
-                'pedidos'     => ['total', 'por_estatus'],
-                'encuestas'   => ['total', 'calificacion_prom'],
-                'productos'   => ['total', 'activos'],
+                'pedidos' => ['total', 'por_estatus'],
+                'encuestas' => ['total', 'calificacion_prom'],
+                'productos' => ['total', 'activos'],
             ]);
     }
 

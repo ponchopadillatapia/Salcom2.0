@@ -13,8 +13,8 @@ class IaDashboardTest extends TestCase
     {
         Http::fake([
             $this->groqUrl => Http::response([
-                'id'      => 'chatcmpl-test',
-                'object'  => 'chat.completion',
+                'id' => 'chatcmpl-test',
+                'object' => 'chat.completion',
                 'choices' => [
                     ['index' => 0, 'message' => ['role' => 'assistant', 'content' => $text]],
                 ],

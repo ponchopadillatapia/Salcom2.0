@@ -27,6 +27,7 @@ class AuthProveedorController extends Controller
         if (session('proveedor_id')) {
             return redirect('/portal-proveedor');
         }
+
         return view('proveedores.login');
     }
 
@@ -37,34 +38,37 @@ class AuthProveedorController extends Controller
 
     public function procesarLogin(LoginProveedorRequest $request)
     {
-        $rateLimitKey = 'login-proveedor|' . $request->ip();
-        $maxAttempts  = config('auth.rate_limiting.max_attempts', 5);
+        $rateLimitKey = 'login-proveedor|'.$request->ip();
+        $maxAttempts = config('auth.rate_limiting.max_attempts', 5);
         $decaySeconds = config('auth.rate_limiting.decay_seconds', 60);
 
         if (RateLimiter::tooManyAttempts($rateLimitKey, $maxAttempts)) {
             $seconds = RateLimiter::availableIn($rateLimitKey);
             Log::warning('Login bloqueado por rate limiting', [
-                'ip'                 => $request->ip(),
+                'ip' => $request->ip(),
                 'segundos_restantes' => $seconds,
             ]);
+
             return back()
                 ->with('error', "Demasiados intentos de inicio de sesión. Intenta de nuevo en {$seconds} segundos.")
                 ->withInput();
         }
 
         $codigo = $request->codigo;
-        $pwd    = $request->pwd;
-        $modo   = $this->getLoginMode();
+        $pwd = $request->pwd;
+        $modo = $this->getLoginMode();
 
         if ($modo === 'local') {
             $datos = $this->loginViaLocal($codigo, $pwd);
             if ($datos) {
                 RateLimiter::clear($rateLimitKey);
                 $this->guardarSesion($datos, 'local', null);
-                return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido ' . $datos['nombre']);
+
+                return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido '.$datos['nombre']);
             }
             RateLimiter::hit($rateLimitKey, $decaySeconds);
             Log::error('Login: fallo local', ['codigo' => $codigo, 'modo' => 'local']);
+
             return back()->with('error', 'Credenciales incorrectas')->withInput();
         }
 
@@ -75,7 +79,8 @@ class AuthProveedorController extends Controller
             RateLimiter::clear($rateLimitKey);
             $this->guardarSesion($datos, 'api', $datos['token']);
             Log::info('Login: exitoso por API', ['codigo' => $codigo]);
-            return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido ' . $datos['nombre']);
+
+            return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido '.$datos['nombre']);
         }
 
         $errorType = $apiResult['error_type'] ?? '';
@@ -83,12 +88,14 @@ class AuthProveedorController extends Controller
         if ($errorType === ProveedorApiException::AUTENTICACION_FALLIDA) {
             RateLimiter::hit($rateLimitKey, $decaySeconds);
             Log::error('Login: credenciales rechazadas por API', ['codigo' => $codigo]);
+
             return back()->with('error', 'Credenciales incorrectas')->withInput();
         }
 
         if ($modo === 'api') {
             RateLimiter::hit($rateLimitKey, $decaySeconds);
             Log::error('Login: API no disponible, sin fallback', ['codigo' => $codigo, 'error_type' => $errorType, 'modo' => 'api']);
+
             return back()->with('error', $apiResult['message'])->withInput();
         }
 
@@ -103,15 +110,18 @@ class AuthProveedorController extends Controller
             if ($datos) {
                 RateLimiter::clear($rateLimitKey);
                 $this->guardarSesion($datos, 'local', null);
-                return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido ' . $datos['nombre']);
+
+                return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido '.$datos['nombre']);
             }
             RateLimiter::hit($rateLimitKey, $decaySeconds);
             Log::error('Login: fallback local también falló', ['codigo' => $codigo]);
+
             return back()->with('error', 'Credenciales incorrectas')->withInput();
         }
 
         RateLimiter::hit($rateLimitKey, $decaySeconds);
         Log::error('Login: error no contemplado', ['codigo' => $codigo, 'error_type' => $errorType]);
+
         return back()->with('error', $apiResult['message'])->withInput();
     }
 
@@ -122,7 +132,7 @@ class AuthProveedorController extends Controller
             $recaptcha = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
                 'secret' => $recaptchaSecret, 'response' => $request->input('g-recaptcha-response'), 'remoteip' => $request->ip(),
             ])->json();
-            if (!($recaptcha['success'] ?? false)) {
+            if (! ($recaptcha['success'] ?? false)) {
                 return back()->withErrors(['g-recaptcha-response' => 'Captcha inválido, inténtalo de nuevo'])->withInput();
             }
         }
@@ -156,7 +166,9 @@ class AuthProveedorController extends Controller
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         if ($proveedor) {
             $proveedor->update(['nombre' => $request->nombre, 'tipo_persona' => $request->tipo_persona, 'telefono' => $request->telefono, 'correo' => $request->correo]);
-            if ($request->password) { $proveedor->update(['password' => bcrypt($request->password)]); }
+            if ($request->password) {
+                $proveedor->update(['password' => bcrypt($request->password)]);
+            }
         }
 
         return redirect('/empresa')->with('mensaje', 'Datos actualizados, ahora sube tus documentos fiscales');
@@ -165,6 +177,7 @@ class AuthProveedorController extends Controller
     public function cerrarSesion()
     {
         session()->forget(['proveedor_id', 'proveedor_nombre', 'proveedor_codigo', 'proveedor_correo', 'proveedor_token', 'proveedor_login_source']);
+
         return redirect('/login-proveedor')->with('mensaje', 'Sesión cerrada correctamente');
     }
 
@@ -173,13 +186,17 @@ class AuthProveedorController extends Controller
     private function loginViaApi(array $apiResult): array
     {
         $data = $apiResult['data'];
+
         return ['id' => $data['usuario'] ?? null, 'nombre' => $data['usuario'] ?? 'Proveedor', 'codigo' => $data['usuario'] ?? null, 'correo' => $data['usuario'] ?? null, 'token' => $data['tokencreado'] ?? null];
     }
 
     private function loginViaLocal(string $codigo, string $pwd): ?array
     {
         $proveedor = ProveedorUser::where('usuario', $codigo)->first();
-        if (!$proveedor || !Hash::check($pwd, $proveedor->password)) { return null; }
+        if (! $proveedor || ! Hash::check($pwd, $proveedor->password)) {
+            return null;
+        }
+
         return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->codigo_compras, 'correo' => $proveedor->correo, 'token' => null];
     }
 
@@ -191,6 +208,7 @@ class AuthProveedorController extends Controller
     private function getLoginMode(): string
     {
         $modo = config('services.proveedor_api.login_mode', 'fallback');
+
         return in_array($modo, ['api', 'local', 'fallback']) ? $modo : 'fallback';
     }
 }

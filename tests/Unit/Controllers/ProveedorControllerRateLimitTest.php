@@ -5,7 +5,6 @@ namespace Tests\Unit\Controllers;
 use App\Models\ProveedorUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -31,13 +30,13 @@ class ProveedorControllerRateLimitTest extends TestCase
     private function crearProveedor(): ProveedorUser
     {
         return ProveedorUser::create([
-            'usuario'        => 'PROV001',
-            'password'       => Hash::make('secret123'),
-            'nombre'         => 'Test Proveedor',
+            'usuario' => 'PROV001',
+            'password' => Hash::make('secret123'),
+            'nombre' => 'Test Proveedor',
             'codigo_compras' => 'COD001',
-            'correo'         => 'test@example.com',
-            'tipo_persona'   => 'Moral',
-            'telefono'       => '5551234567',
+            'correo' => 'test@example.com',
+            'tipo_persona' => 'Moral',
+            'telefono' => '5551234567',
         ]);
     }
 
@@ -147,7 +146,7 @@ class ProveedorControllerRateLimitTest extends TestCase
         config(['auth.rate_limiting.max_attempts' => 200]); // alto para no bloquear
 
         for ($i = 1; $i <= 50; $i++) {
-            $this->post('/login-proveedor', ['codigo' => 'PROV001', 'pwd' => 'wrong_' . $i]);
+            $this->post('/login-proveedor', ['codigo' => 'PROV001', 'pwd' => 'wrong_'.$i]);
             $this->assertEquals($i, RateLimiter::attempts($key), "After attempt {$i}");
         }
     }
@@ -160,6 +159,7 @@ class ProveedorControllerRateLimitTest extends TestCase
             $maxAttempts = rand(1, 5);
             $cases["max_{$maxAttempts}_iter_{$i}"] = [$maxAttempts];
         }
+
         return $cases;
     }
 

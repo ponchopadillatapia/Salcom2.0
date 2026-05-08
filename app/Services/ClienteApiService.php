@@ -11,16 +11,19 @@ use Illuminate\Support\Facades\Log;
 class ClienteApiService
 {
     private string $baseUrl;
+
     private int $connectTimeout;
+
     private int $timeout;
+
     private int $maxRetries;
 
     public function __construct()
     {
-        $this->baseUrl        = config('services.cliente_api.url', '');
+        $this->baseUrl = config('services.cliente_api.url', '');
         $this->connectTimeout = config('services.cliente_api.connect_timeout', 5);
-        $this->timeout        = config('services.cliente_api.timeout', 15);
-        $this->maxRetries     = config('services.cliente_api.max_retries', 3);
+        $this->timeout = config('services.cliente_api.timeout', 15);
+        $this->maxRetries = config('services.cliente_api.max_retries', 3);
     }
 
     // ── Métodos públicos ──
@@ -41,9 +44,9 @@ class ClienteApiService
         try {
             $response = Http::connectTimeout($this->connectTimeout)
                 ->timeout($this->timeout)
-                ->post($this->baseUrl . $endpoint, [
-                    'codigo'       => $codigo,
-                    'pwd'          => $pwd,
+                ->post($this->baseUrl.$endpoint, [
+                    'codigo' => $codigo,
+                    'pwd' => $pwd,
                     'ctipocliente' => 1,
                 ]);
 
@@ -51,9 +54,10 @@ class ClienteApiService
         } catch (ConnectionException $e) {
             Log::error('ClienteAPI: conexión fallida', [
                 'endpoint' => $endpoint,
-                'method'   => 'POST',
-                'error'    => $e->getMessage(),
+                'method' => 'POST',
+                'error' => $e->getMessage(),
             ]);
+
             return $this->buildErrorResponse(
                 'No se pudo conectar con la API del cliente',
                 ProveedorApiException::API_CAIDA
@@ -61,8 +65,9 @@ class ClienteApiService
         } catch (\Exception $e) {
             Log::error('ClienteAPI: error inesperado en login', [
                 'endpoint' => $endpoint,
-                'error'    => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return $this->buildErrorResponse(
                 'Ocurrió un error inesperado',
                 ProveedorApiException::ERROR_DESCONOCIDO
@@ -112,35 +117,36 @@ class ClienteApiService
             try {
                 $response = Http::connectTimeout($this->connectTimeout)
                     ->timeout($this->timeout)
-                    ->withHeaders(['Authorization' => 'Bearer ' . $token])
-                    ->get($this->baseUrl . $endpoint, $params);
+                    ->withHeaders(['Authorization' => 'Bearer '.$token])
+                    ->get($this->baseUrl.$endpoint, $params);
 
                 // Si no es error de servidor retryable, procesar de inmediato
-                if (!$this->esRetryable($response)) {
+                if (! $this->esRetryable($response)) {
                     if ($intento > 1) {
                         Log::warning('ClienteAPI: éxito después de reintentos', [
-                            'endpoint'  => $endpoint,
-                            'intentos'  => $intento,
+                            'endpoint' => $endpoint,
+                            'intentos' => $intento,
                         ]);
                     }
+
                     return $this->procesarRespuesta($response, $endpoint);
                 }
 
                 // Error retryable — log y seguir
                 Log::error('ClienteAPI: intento fallido', [
                     'endpoint' => $endpoint,
-                    'method'   => 'GET',
-                    'intento'  => $intento,
-                    'status'   => $response->status(),
+                    'method' => 'GET',
+                    'intento' => $intento,
+                    'status' => $response->status(),
                 ]);
 
             } catch (ConnectionException $e) {
                 $lastException = $e;
                 Log::error('ClienteAPI: conexión fallida (intento)', [
                     'endpoint' => $endpoint,
-                    'method'   => 'GET',
-                    'intento'  => $intento,
-                    'error'    => $e->getMessage(),
+                    'method' => 'GET',
+                    'intento' => $intento,
+                    'error' => $e->getMessage(),
                 ]);
             }
 
@@ -151,7 +157,7 @@ class ClienteApiService
         }
 
         Log::error('ClienteAPI: todos los reintentos agotados', [
-            'endpoint'    => $endpoint,
+            'endpoint' => $endpoint,
             'max_retries' => $this->maxRetries,
         ]);
 
@@ -172,6 +178,7 @@ class ClienteApiService
                 ProveedorApiException::API_CAIDA
             );
         }
+
         return null;
     }
 
@@ -181,7 +188,7 @@ class ClienteApiService
     private function procesarRespuesta(Response $response, string $endpoint): array
     {
         $status = $response->status();
-        $body   = $response->json() ?? [];
+        $body = $response->json() ?? [];
 
         if ($response->successful()) {
             if (empty($body)) {
@@ -190,11 +197,13 @@ class ClienteApiService
                     ProveedorApiException::NO_ENCONTRADO
                 );
             }
+
             return $this->buildSuccessResponse($body);
         }
 
         if ($status === 401) {
             Log::error('ClienteAPI: autenticación fallida', ['endpoint' => $endpoint, 'status' => $status]);
+
             return $this->buildErrorResponse(
                 'Credenciales inválidas o sesión expirada',
                 ProveedorApiException::AUTENTICACION_FALLIDA
@@ -210,6 +219,7 @@ class ClienteApiService
 
         if ($status >= 500) {
             Log::error('ClienteAPI: error de servidor', ['endpoint' => $endpoint, 'status' => $status]);
+
             return $this->buildErrorResponse(
                 'La API del cliente no está disponible temporalmente',
                 ProveedorApiException::ERROR_SERVIDOR
@@ -217,6 +227,7 @@ class ClienteApiService
         }
 
         Log::error('ClienteAPI: error desconocido', ['endpoint' => $endpoint, 'status' => $status]);
+
         return $this->buildErrorResponse(
             'Ocurrió un error inesperado',
             ProveedorApiException::ERROR_DESCONOCIDO
@@ -226,9 +237,9 @@ class ClienteApiService
     private function buildSuccessResponse(array $data): array
     {
         return [
-            'success'    => true,
-            'data'       => $data,
-            'message'    => 'OK',
+            'success' => true,
+            'data' => $data,
+            'message' => 'OK',
             'error_type' => null,
         ];
     }
@@ -236,9 +247,9 @@ class ClienteApiService
     private function buildErrorResponse(string $message, string $errorType): array
     {
         return [
-            'success'    => false,
-            'data'       => null,
-            'message'    => $message,
+            'success' => false,
+            'data' => null,
+            'message' => $message,
             'error_type' => $errorType,
         ];
     }

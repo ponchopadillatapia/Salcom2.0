@@ -2,6 +2,11 @@
 
 namespace App\Providers;
 
+use App\Models\ClienteUser;
+use App\Models\Encuesta;
+use App\Models\Factura;
+use App\Models\Pedido;
+use App\Models\ProveedorUser;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
@@ -26,20 +31,20 @@ class AppServiceProvider extends ServiceProvider
         };
 
         // Escuchar eventos de modelos que afectan las métricas del dashboard
-        \App\Models\Pedido::created($invalidarDashboard);
-        \App\Models\Pedido::updated($invalidarDashboard);
-        \App\Models\Pedido::deleted($invalidarDashboard);
+        Pedido::created($invalidarDashboard);
+        Pedido::updated($invalidarDashboard);
+        Pedido::deleted($invalidarDashboard);
 
-        \App\Models\ClienteUser::created($invalidarDashboard);
-        \App\Models\ClienteUser::updated($invalidarDashboard);
-        \App\Models\ClienteUser::deleted($invalidarDashboard);
+        ClienteUser::created($invalidarDashboard);
+        ClienteUser::updated($invalidarDashboard);
+        ClienteUser::deleted($invalidarDashboard);
 
-        \App\Models\ProveedorUser::created($invalidarDashboard);
-        \App\Models\ProveedorUser::updated($invalidarDashboard);
+        ProveedorUser::created($invalidarDashboard);
+        ProveedorUser::updated($invalidarDashboard);
 
-        \App\Models\Factura::created($invalidarDashboard);
-        \App\Models\Factura::updated($invalidarDashboard);
+        Factura::created($invalidarDashboard);
+        Factura::updated($invalidarDashboard);
 
-        \App\Models\Encuesta::created($invalidarDashboard);
+        Encuesta::created($invalidarDashboard);
     }
 }

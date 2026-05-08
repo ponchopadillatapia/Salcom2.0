@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContactoProveedor;
+use App\Models\Encuesta;
 use App\Models\ProveedorUser;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 
 class PortalProveedorController extends Controller
 {
@@ -20,7 +22,8 @@ class PortalProveedorController extends Controller
 
     public function mostrarOnboarding()
     {
-        $proveedor = \App\Models\ProveedorUser::find(session('proveedor_id'));
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+
         return view('proveedores.onboarding', compact('proveedor'));
     }
 
@@ -42,20 +45,20 @@ class PortalProveedorController extends Controller
     public function guardarEncuestaProveedor(Request $request)
     {
         $request->validate([
-            'calificacion'  => 'required|integer|min:1|max:5',
-            'comunicacion'  => 'required|string',
-            'pago_tiempo'   => 'required|string',
-            'proceso_oc'    => 'required|string',
-            'recomendaria'  => 'required|string',
-            'comentarios'   => 'nullable|string|max:2000',
+            'calificacion' => 'required|integer|min:1|max:5',
+            'comunicacion' => 'required|string',
+            'pago_tiempo' => 'required|string',
+            'proceso_oc' => 'required|string',
+            'recomendaria' => 'required|string',
+            'comentarios' => 'nullable|string|max:2000',
         ]);
 
-        \App\Models\Encuesta::create([
-            'codigo_cliente'   => session('proveedor_codigo', 'PROV-' . session('proveedor_id')),
-            'calificacion'     => $request->input('calificacion'),
-            'tiempo_entrega'   => array_search($request->input('pago_tiempo'), ['siempre' => 1, 'casi_siempre' => 2, 'a_veces' => 3, 'nunca' => 4]) ?: 2,
+        Encuesta::create([
+            'codigo_cliente' => session('proveedor_codigo', 'PROV-'.session('proveedor_id')),
+            'calificacion' => $request->input('calificacion'),
+            'tiempo_entrega' => array_search($request->input('pago_tiempo'), ['siempre' => 1, 'casi_siempre' => 2, 'a_veces' => 3, 'nunca' => 4]) ?: 2,
             'calidad_producto' => array_search($request->input('comunicacion'), ['excelente' => 1, 'buena' => 2, 'regular' => 3, 'mala' => 4]) ?: 2,
-            'comentarios'      => $request->input('comentarios'),
+            'comentarios' => $request->input('comentarios'),
         ]);
 
         return redirect()->route('proveedores.encuesta')->with('encuesta_guardada', true);
@@ -74,18 +77,18 @@ class PortalProveedorController extends Controller
     public function guardarContacto(Request $request)
     {
         $request->validate([
-            'nombre'   => 'required|string|max:255',
-            'rol'      => 'required|string|max:100',
+            'nombre' => 'required|string|max:255',
+            'rol' => 'required|string|max:100',
             'telefono' => 'nullable|string|max:20',
-            'correo'   => 'nullable|email|max:255',
+            'correo' => 'nullable|email|max:255',
         ]);
 
         ContactoProveedor::create([
             'proveedor_id' => session('proveedor_id'),
-            'nombre'       => $request->nombre,
-            'rol'          => $request->rol,
-            'telefono'     => $request->telefono,
-            'correo'       => $request->correo,
+            'nombre' => $request->nombre,
+            'rol' => $request->rol,
+            'telefono' => $request->telefono,
+            'correo' => $request->correo,
         ]);
 
         return back()->with('mensaje', 'Contacto agregado correctamente.');
@@ -98,10 +101,10 @@ class PortalProveedorController extends Controller
         }
 
         // Verificar contraseña del proveedor
-        $proveedor = \App\Models\ProveedorUser::find(session('proveedor_id'));
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
         $password = $request->input('password') ?? $request->query('password');
 
-        if (!$proveedor || !$password || !\Illuminate\Support\Facades\Hash::check($password, $proveedor->password)) {
+        if (! $proveedor || ! $password || ! Hash::check($password, $proveedor->password)) {
             return back()->with('error_contacto', 'Contraseña incorrecta. No se eliminó el contacto.');
         }
 
@@ -119,7 +122,7 @@ class PortalProveedorController extends Controller
         if ($proveedor) {
             $proveedor->update([
                 'aviso_privacidad_aceptado' => true,
-                'aviso_privacidad_fecha'    => now(),
+                'aviso_privacidad_fecha' => now(),
             ]);
         }
 

@@ -102,11 +102,11 @@ class InicioYErroresTest extends TestCase
     public function test_admin_user_soft_delete_funciona(): void
     {
         $admin = AdminUser::create([
-            'nombre'   => 'Test Admin',
-            'correo'   => 'test@salcom.com',
-            'usuario'  => 'TESTADMIN',
+            'nombre' => 'Test Admin',
+            'correo' => 'test@salcom.com',
+            'usuario' => 'TESTADMIN',
             'password' => Hash::make('test1234'),
-            'activo'   => true,
+            'activo' => true,
         ]);
 
         $admin->delete();
@@ -124,11 +124,11 @@ class InicioYErroresTest extends TestCase
     public function test_admin_user_soft_delete_se_puede_restaurar(): void
     {
         $admin = AdminUser::create([
-            'nombre'   => 'Test Admin',
-            'correo'   => 'test@salcom.com',
-            'usuario'  => 'TESTADMIN',
+            'nombre' => 'Test Admin',
+            'correo' => 'test@salcom.com',
+            'usuario' => 'TESTADMIN',
             'password' => Hash::make('test1234'),
-            'activo'   => true,
+            'activo' => true,
         ]);
 
         $admin->delete();
@@ -143,17 +143,17 @@ class InicioYErroresTest extends TestCase
     public function test_admin_user_soft_deleted_no_puede_hacer_login(): void
     {
         $admin = AdminUser::create([
-            'nombre'   => 'Test Admin',
-            'correo'   => 'test@salcom.com',
-            'usuario'  => 'TESTADMIN',
+            'nombre' => 'Test Admin',
+            'correo' => 'test@salcom.com',
+            'usuario' => 'TESTADMIN',
             'password' => Hash::make('test1234'),
-            'activo'   => true,
+            'activo' => true,
         ]);
 
         $admin->delete();
 
         $response = $this->post('/login-admin', [
-            'usuario'  => 'TESTADMIN',
+            'usuario' => 'TESTADMIN',
             'password' => 'test1234',
         ]);
 

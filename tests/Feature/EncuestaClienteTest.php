@@ -16,7 +16,7 @@ class EncuestaClienteTest extends TestCase
     private function sesionCliente(array $extra = []): array
     {
         return array_merge([
-            'cliente_id'     => 1,
+            'cliente_id' => 1,
             'cliente_codigo' => 'CLI-001',
         ], $extra);
     }
@@ -25,21 +25,21 @@ class EncuestaClienteTest extends TestCase
     {
         $response = $this->withSession($this->sesionCliente())
             ->post('/cliente/encuesta', [
-                'calificacion'     => 4,
-                'tiempo_entrega'   => 'rapido',
+                'calificacion' => 4,
+                'tiempo_entrega' => 'rapido',
                 'calidad_producto' => 'excelente',
-                'comentarios'      => 'Muy buen servicio',
+                'comentarios' => 'Muy buen servicio',
             ]);
 
         $response->assertRedirect(route('clientes.encuesta'));
         $response->assertSessionHas('encuesta_guardada', true);
 
         $this->assertDatabaseHas('encuestas', [
-            'codigo_cliente'   => 'CLI-001',
-            'calificacion'     => 4,
-            'tiempo_entrega'   => 1, // rapido => 1
+            'codigo_cliente' => 'CLI-001',
+            'calificacion' => 4,
+            'tiempo_entrega' => 1, // rapido => 1
             'calidad_producto' => 1, // excelente => 1
-            'comentarios'      => 'Muy buen servicio',
+            'comentarios' => 'Muy buen servicio',
         ]);
     }
 
@@ -47,20 +47,20 @@ class EncuestaClienteTest extends TestCase
     {
         $response = $this->withSession($this->sesionCliente())
             ->post('/cliente/encuesta', [
-                'calificacion'     => 5,
-                'tiempo_entrega'   => 'normal',
+                'calificacion' => 5,
+                'tiempo_entrega' => 'normal',
                 'calidad_producto' => 'buena',
-                'comentarios'      => null,
-                'pedido_id'        => 42,
+                'comentarios' => null,
+                'pedido_id' => 42,
             ]);
 
         $response->assertRedirect(route('clientes.encuesta'));
 
         $this->assertDatabaseHas('encuestas', [
-            'codigo_cliente'   => 'CLI-001',
-            'pedido_id'        => 42,
-            'calificacion'     => 5,
-            'tiempo_entrega'   => 2, // normal => 2
+            'codigo_cliente' => 'CLI-001',
+            'pedido_id' => 42,
+            'calificacion' => 5,
+            'tiempo_entrega' => 2, // normal => 2
             'calidad_producto' => 2, // buena => 2
         ]);
     }
@@ -69,8 +69,8 @@ class EncuestaClienteTest extends TestCase
     {
         $response = $this->withSession($this->sesionCliente())
             ->post('/cliente/encuesta', [
-                'calificacion'     => 3,
-                'tiempo_entrega'   => 'lento',
+                'calificacion' => 3,
+                'tiempo_entrega' => 'lento',
                 'calidad_producto' => 'regular',
             ]);
 
@@ -89,7 +89,7 @@ class EncuestaClienteTest extends TestCase
     {
         $response = $this->withSession($this->sesionCliente())
             ->post('/cliente/encuesta', [
-                'tiempo_entrega'   => 'normal',
+                'tiempo_entrega' => 'normal',
                 'calidad_producto' => 'buena',
             ]);
 
@@ -101,8 +101,8 @@ class EncuestaClienteTest extends TestCase
     {
         $response = $this->withSession($this->sesionCliente())
             ->post('/cliente/encuesta', [
-                'calificacion'     => 4,
-                'tiempo_entrega'   => 'invalido',
+                'calificacion' => 4,
+                'tiempo_entrega' => 'invalido',
                 'calidad_producto' => 'buena',
             ]);
 
@@ -114,8 +114,8 @@ class EncuestaClienteTest extends TestCase
     {
         $response = $this->withSession($this->sesionCliente())
             ->post('/cliente/encuesta', [
-                'calificacion'     => 4,
-                'tiempo_entrega'   => 'normal',
+                'calificacion' => 4,
+                'tiempo_entrega' => 'normal',
                 'calidad_producto' => 'invalido',
             ]);
 
@@ -126,8 +126,8 @@ class EncuestaClienteTest extends TestCase
     public function test_redirige_sin_sesion_cliente(): void
     {
         $response = $this->post('/cliente/encuesta', [
-            'calificacion'     => 5,
-            'tiempo_entrega'   => 'normal',
+            'calificacion' => 5,
+            'tiempo_entrega' => 'normal',
             'calidad_producto' => 'excelente',
         ]);
 
@@ -139,10 +139,10 @@ class EncuestaClienteTest extends TestCase
     {
         $response = $this->withSession($this->sesionCliente())
             ->post('/cliente/encuesta', [
-                'calificacion'     => 5,
-                'tiempo_entrega'   => 'rapido',
+                'calificacion' => 5,
+                'tiempo_entrega' => 'rapido',
                 'calidad_producto' => 'excelente',
-                'comentarios'      => 'Perfecto',
+                'comentarios' => 'Perfecto',
             ]);
 
         // Seguir la redirección para verificar que se muestra el mensaje de éxito

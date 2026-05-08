@@ -10,16 +10,16 @@ class PaqueteriaService
     /**
      * Consulta tracking de un envío según la paquetería.
      *
-     * @param string $carrier  estafeta|dhl|fedex
-     * @param string $guia     Número de guía / tracking
+     * @param  string  $carrier  estafeta|dhl|fedex
+     * @param  string  $guia  Número de guía / tracking
      */
     public function rastrear(string $carrier, string $guia): array
     {
         return match (strtolower($carrier)) {
             'estafeta' => $this->rastrearEstafeta($guia),
-            'dhl'      => $this->rastrearDhl($guia),
-            'fedex'    => $this->rastrearFedex($guia),
-            default    => ['success' => false, 'error' => "Paquetería no soportada: {$carrier}"],
+            'dhl' => $this->rastrearDhl($guia),
+            'fedex' => $this->rastrearFedex($guia),
+            default => ['success' => false, 'error' => "Paquetería no soportada: {$carrier}"],
         };
     }
 
@@ -37,9 +37,10 @@ class PaqueteriaService
 
             return $response->successful()
                 ? ['success' => true, 'carrier' => 'Estafeta', 'data' => $response->json()]
-                : ['success' => false, 'error' => 'Estafeta: ' . $response->status()];
+                : ['success' => false, 'error' => 'Estafeta: '.$response->status()];
         } catch (\Exception $e) {
             Log::error('Paquetería Estafeta: error', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
@@ -58,12 +59,14 @@ class PaqueteriaService
 
             if ($response->successful()) {
                 $shipments = $response->json('shipments') ?? [];
+
                 return ['success' => true, 'carrier' => 'DHL', 'data' => $shipments];
             }
 
-            return ['success' => false, 'error' => 'DHL: ' . $response->status()];
+            return ['success' => false, 'error' => 'DHL: '.$response->status()];
         } catch (\Exception $e) {
             Log::error('Paquetería DHL: error', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
@@ -78,12 +81,12 @@ class PaqueteriaService
         try {
             // FedEx requiere OAuth2 token
             $tokenResponse = Http::asForm()->post("{$cfg['url']}/oauth/token", [
-                'grant_type'    => 'client_credentials',
-                'client_id'     => $cfg['api_key'],
+                'grant_type' => 'client_credentials',
+                'client_id' => $cfg['api_key'],
                 'client_secret' => $cfg['secret_key'],
             ]);
 
-            if (!$tokenResponse->successful()) {
+            if (! $tokenResponse->successful()) {
                 return ['success' => false, 'error' => 'FedEx: no se pudo obtener token'];
             }
 
@@ -98,10 +101,11 @@ class PaqueteriaService
 
             return $response->successful()
                 ? ['success' => true, 'carrier' => 'FedEx', 'data' => $response->json()]
-                : ['success' => false, 'error' => 'FedEx: ' . $response->status()];
+                : ['success' => false, 'error' => 'FedEx: '.$response->status()];
 
         } catch (\Exception $e) {
             Log::error('Paquetería FedEx: error', ['error' => $e->getMessage()]);
+
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }

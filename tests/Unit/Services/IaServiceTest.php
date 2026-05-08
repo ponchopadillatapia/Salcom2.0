@@ -10,6 +10,7 @@ use Tests\TestCase;
 class IaServiceTest extends TestCase
 {
     private IaService $service;
+
     private string $groqUrl = 'https://api.groq.com/openai/v1/chat/completions';
 
     protected function setUp(): void
@@ -19,7 +20,7 @@ class IaServiceTest extends TestCase
         config(['services.groq.api_key' => 'test-api-key']);
         config(['services.groq.model' => 'llama-3.3-70b-versatile']);
         config(['services.groq.timeout' => 30]);
-        $this->service = new IaService();
+        $this->service = new IaService;
     }
 
     /**
@@ -29,8 +30,8 @@ class IaServiceTest extends TestCase
     {
         Http::fake([
             $this->groqUrl => Http::response([
-                'id'      => 'chatcmpl-test',
-                'object'  => 'chat.completion',
+                'id' => 'chatcmpl-test',
+                'object' => 'chat.completion',
                 'choices' => [
                     ['index' => 0, 'message' => ['role' => 'assistant', 'content' => $text]],
                 ],
@@ -71,7 +72,7 @@ class IaServiceTest extends TestCase
     public function test_llamar_groq_sin_api_key(): void
     {
         config(['services.groq.api_key' => '']);
-        $service = new IaService();
+        $service = new IaService;
 
         Http::fake();
 
@@ -150,6 +151,7 @@ class IaServiceTest extends TestCase
 
         Http::assertSent(function ($request) {
             $prompt = $request['messages'][0]['content'];
+
             return str_contains($prompt, 'CLI-002')
                 && str_contains($prompt, 'historial de pedidos')
                 && str_contains($prompt, 'pronóstico');

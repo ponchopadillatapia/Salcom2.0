@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 /**
@@ -197,7 +198,7 @@ class SecurityTest extends TestCase
     public function test_urls_generadas_usan_https_en_produccion(): void
     {
         app()->detectEnvironment(fn () => 'production');
-        \Illuminate\Support\Facades\URL::forceScheme('https');
+        URL::forceScheme('https');
 
         $url = route('proveedores.login');
 

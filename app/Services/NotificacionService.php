@@ -26,7 +26,7 @@ class NotificacionService
         EnviarNotificacionPedido::dispatch($cliente, $folio, $estatus, $notas);
 
         Log::info('Notificación despachada a cola', [
-            'folio'   => $folio,
+            'folio' => $folio,
             'estatus' => $estatus,
             'cliente' => $cliente['codigo_cliente'] ?? 'N/A',
         ]);
@@ -42,19 +42,19 @@ class NotificacionService
 
         try {
             Notificacion::create([
-                'tipo_usuario'   => 'cliente',
+                'tipo_usuario' => 'cliente',
                 'codigo_usuario' => $cliente['codigo_cliente'] ?? '',
-                'titulo'         => "Pedido {$folio} — {$estatus}",
-                'mensaje'        => "Tu pedido {$folio} cambió a: {$estatus}." . ($notas ? " Notas: {$notas}" : ''),
-                'leida'          => false,
-                'tipo'           => 'pedido_estatus',
+                'titulo' => "Pedido {$folio} — {$estatus}",
+                'mensaje' => "Tu pedido {$folio} cambió a: {$estatus}.".($notas ? " Notas: {$notas}" : ''),
+                'leida' => false,
+                'tipo' => 'pedido_estatus',
             ]);
             $resultados['bd'] = true;
         } catch (\Exception $e) {
             Log::error('Notificación BD: error', ['error' => $e->getMessage()]);
         }
 
-        if (!empty($cliente['correo'])) {
+        if (! empty($cliente['correo'])) {
             try {
                 Mail::to($cliente['correo'])->send(
                     new PedidoEstatusNotificacion($folio, $estatus, $cliente['nombre'] ?? 'Cliente', $notas)
@@ -65,7 +65,7 @@ class NotificacionService
             }
         }
 
-        if (!empty($cliente['telefono'])) {
+        if (! empty($cliente['telefono'])) {
             $wa = $this->whatsapp->notificarCambioEstatus($cliente['telefono'], $folio, $estatus);
             $resultados['whatsapp'] = $wa['success'];
         }

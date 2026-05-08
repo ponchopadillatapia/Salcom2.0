@@ -2,6 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Models\Encuesta;
+use App\Models\Factura;
+use App\Models\Notificacion;
+use App\Models\Pedido;
+use App\Models\Producto;
+use App\Models\TrackingPedido;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
@@ -48,33 +54,33 @@ class MigracionesTest extends TestCase
 
     public function test_modelos_pueden_crear_registros(): void
     {
-        $pedido = \App\Models\Pedido::create([
+        $pedido = Pedido::create([
             'folio' => 'PED-TEST-001', 'codigo_cliente' => 'CLI001', 'nombre_cliente' => 'Test',
             'productos' => [['codigo' => 'SAL-001', 'qty' => 5]], 'total' => 2425.00,
         ]);
         $this->assertDatabaseHas('pedidos', ['folio' => 'PED-TEST-001']);
 
-        $producto = \App\Models\Producto::create([
+        $producto = Producto::create([
             'codigo' => 'SAL-TEST', 'nombre' => 'Test Product', 'precio' => 100, 'unidad_venta' => 'Pieza',
         ]);
         $this->assertDatabaseHas('productos', ['codigo' => 'SAL-TEST']);
 
-        $factura = \App\Models\Factura::create([
+        $factura = Factura::create([
             'folio_cfdi' => 'CFDI-TEST-001', 'monto' => 100, 'monto_iva' => 16, 'total' => 116,
         ]);
         $this->assertDatabaseHas('facturas', ['folio_cfdi' => 'CFDI-TEST-001']);
 
-        $notif = \App\Models\Notificacion::create([
+        $notif = Notificacion::create([
             'tipo_usuario' => 'cliente', 'codigo_usuario' => 'CLI001', 'titulo' => 'Test', 'mensaje' => 'Msg',
         ]);
         $this->assertDatabaseHas('notificaciones', ['titulo' => 'Test']);
 
-        $tracking = \App\Models\TrackingPedido::create([
+        $tracking = TrackingPedido::create([
             'pedido_id' => $pedido->id, 'estatus' => 'recibido', 'fecha' => now(),
         ]);
         $this->assertDatabaseHas('tracking_pedidos', ['estatus' => 'recibido']);
 
-        $encuesta = \App\Models\Encuesta::create([
+        $encuesta = Encuesta::create([
             'codigo_cliente' => 'CLI001', 'calificacion' => 5, 'tiempo_entrega' => 4, 'calidad_producto' => 5,
         ]);
         $this->assertDatabaseHas('encuestas', ['calificacion' => 5]);

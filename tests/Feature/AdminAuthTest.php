@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AdminUser;
+use Database\Seeders\AdminUserSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
@@ -15,11 +16,11 @@ class AdminAuthTest extends TestCase
     private function crearAdmin(array $overrides = []): AdminUser
     {
         return AdminUser::create(array_merge([
-            'nombre'   => 'Super Administrador',
-            'correo'   => 'admin@salcom.com',
-            'usuario'  => 'ADMIN001',
+            'nombre' => 'Super Administrador',
+            'correo' => 'admin@salcom.com',
+            'usuario' => 'ADMIN001',
             'password' => Hash::make('salcom2026'),
-            'activo'   => true,
+            'activo' => true,
         ], $overrides));
     }
 
@@ -41,7 +42,7 @@ class AdminAuthTest extends TestCase
         $this->crearAdmin();
 
         $response = $this->post('/login-admin', [
-            'usuario'  => 'ADMIN001',
+            'usuario' => 'ADMIN001',
             'password' => 'salcom2026',
         ]);
 
@@ -58,7 +59,7 @@ class AdminAuthTest extends TestCase
         $this->crearAdmin();
 
         $response = $this->post('/login-admin', [
-            'usuario'  => 'ADMIN001',
+            'usuario' => 'ADMIN001',
             'password' => 'wrongpassword',
         ]);
 
@@ -70,7 +71,7 @@ class AdminAuthTest extends TestCase
     public function test_login_con_usuario_inexistente(): void
     {
         $response = $this->post('/login-admin', [
-            'usuario'  => 'NOEXISTE',
+            'usuario' => 'NOEXISTE',
             'password' => 'salcom2026',
         ]);
 
@@ -85,7 +86,7 @@ class AdminAuthTest extends TestCase
         $this->crearAdmin(['activo' => false]);
 
         $response = $this->post('/login-admin', [
-            'usuario'  => 'ADMIN001',
+            'usuario' => 'ADMIN001',
             'password' => 'salcom2026',
         ]);
 
@@ -111,7 +112,7 @@ class AdminAuthTest extends TestCase
 
         // Login primero
         $this->post('/login-admin', [
-            'usuario'  => 'ADMIN001',
+            'usuario' => 'ADMIN001',
             'password' => 'salcom2026',
         ]);
 
@@ -136,9 +137,9 @@ class AdminAuthTest extends TestCase
         $admin = $this->crearAdmin();
 
         $response = $this->withSession([
-            'admin_id'      => $admin->id,
-            'admin_nombre'  => $admin->nombre,
-            'admin_correo'  => $admin->correo,
+            'admin_id' => $admin->id,
+            'admin_nombre' => $admin->nombre,
+            'admin_correo' => $admin->correo,
             'admin_usuario' => $admin->usuario,
         ])->get('/admin/dashboard');
 
@@ -163,14 +164,14 @@ class AdminAuthTest extends TestCase
         // Agotar intentos
         for ($i = 0; $i < 5; $i++) {
             $this->post('/login-admin', [
-                'usuario'  => 'ADMIN001',
+                'usuario' => 'ADMIN001',
                 'password' => 'wrongpassword',
             ]);
         }
 
         // El siguiente intento debe ser bloqueado
         $response = $this->post('/login-admin', [
-            'usuario'  => 'ADMIN001',
+            'usuario' => 'ADMIN001',
             'password' => 'salcom2026',
         ]);
 
@@ -188,14 +189,14 @@ class AdminAuthTest extends TestCase
         // Algunos intentos fallidos
         for ($i = 0; $i < 3; $i++) {
             $this->post('/login-admin', [
-                'usuario'  => 'ADMIN001',
+                'usuario' => 'ADMIN001',
                 'password' => 'wrongpassword',
             ]);
         }
 
         // Login exitoso limpia el rate limiter
         $response = $this->post('/login-admin', [
-            'usuario'  => 'ADMIN001',
+            'usuario' => 'ADMIN001',
             'password' => 'salcom2026',
         ]);
 
@@ -207,7 +208,7 @@ class AdminAuthTest extends TestCase
 
     public function test_seeder_crea_admin_de_prueba(): void
     {
-        $this->seed(\Database\Seeders\AdminUserSeeder::class);
+        $this->seed(AdminUserSeeder::class);
 
         $admin = AdminUser::where('usuario', 'ADMIN001')->first();
 
@@ -248,7 +249,7 @@ class AdminAuthTest extends TestCase
 
         // 1. Login
         $loginResponse = $this->post('/login-admin', [
-            'usuario'  => 'ADMIN001',
+            'usuario' => 'ADMIN001',
             'password' => 'salcom2026',
         ]);
         $loginResponse->assertRedirect('/admin/dashboard');

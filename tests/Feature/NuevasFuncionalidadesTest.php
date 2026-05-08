@@ -17,18 +17,21 @@ class NuevasFuncionalidadesTest extends TestCase
     private function adminSession(): array
     {
         $admin = AdminUser::create(['nombre' => 'Admin', 'correo' => 'a@a.com', 'usuario' => 'ADM1', 'password' => Hash::make('x'), 'activo' => true]);
+
         return ['admin_id' => $admin->id, 'admin_nombre' => $admin->nombre, 'admin_correo' => $admin->correo, 'admin_usuario' => $admin->usuario];
     }
 
     private function proveedorSession(): array
     {
         $p = ProveedorUser::create(['usuario' => 'P1', 'password' => Hash::make('x'), 'nombre' => 'Prov Test', 'correo' => 'p@p.com']);
+
         return ['proveedor_id' => $p->id, 'proveedor_nombre' => $p->nombre, 'proveedor_codigo' => $p->codigo_compras];
     }
 
     private function clienteSession(): array
     {
         $c = ClienteUser::create(['nombre' => 'Cli Test', 'correo' => 'c@c.com', 'usuario' => 'C1', 'password' => Hash::make('x'), 'codigo_cliente' => 'CLI-001']);
+
         return ['cliente_id' => $c->id, 'cliente_nombre' => $c->nombre, 'cliente_codigo' => $c->codigo_cliente];
     }
 

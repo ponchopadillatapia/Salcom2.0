@@ -21,12 +21,12 @@ class AdminClienteController extends Controller
     public function guardar(Request $request)
     {
         $request->validate([
-            'nombre'       => 'required|string|max:255',
-            'correo'       => 'required|email|unique:clientes_users,correo',
-            'usuario'      => 'required|string|unique:clientes_users,usuario',
-            'password'     => 'required|min:8',
-            'telefono'     => 'nullable|string|max:20',
-            'rfc'          => 'nullable|string|max:13',
+            'nombre' => 'required|string|max:255',
+            'correo' => 'required|email|unique:clientes_users,correo',
+            'usuario' => 'required|string|unique:clientes_users,usuario',
+            'password' => 'required|min:8',
+            'telefono' => 'nullable|string|max:20',
+            'rfc' => 'nullable|string|max:13',
             'tipo_persona' => 'required|string',
             'tipo_cliente' => 'required|string',
             'codigo_cliente' => 'nullable|string',
@@ -36,26 +36,26 @@ class AdminClienteController extends Controller
         // Validar RFC con SAT si se proporcionó
         if ($request->filled('rfc')) {
             $rfcResult = $this->satService->validarConSat($request->rfc);
-            if (!$rfcResult['valido']) {
+            if (! $rfcResult['valido']) {
                 return back()->withInput()->withErrors(['rfc' => $rfcResult['mensaje']]);
             }
         }
 
         ClienteUser::create([
-            'nombre'             => $request->nombre,
-            'correo'             => $request->correo,
-            'usuario'            => $request->usuario,
-            'password'           => Hash::make($request->password),
-            'telefono'           => $request->telefono,
-            'rfc'                => strtoupper(trim($request->rfc ?? '')),
-            'tipo_persona'       => $request->tipo_persona,
-            'tipo_cliente'       => $request->tipo_cliente,
-            'codigo_cliente'     => $request->codigo_cliente,
-            'limite_credito'     => $request->limite_credito,
+            'nombre' => $request->nombre,
+            'correo' => $request->correo,
+            'usuario' => $request->usuario,
+            'password' => Hash::make($request->password),
+            'telefono' => $request->telefono,
+            'rfc' => strtoupper(trim($request->rfc ?? '')),
+            'tipo_persona' => $request->tipo_persona,
+            'tipo_cliente' => $request->tipo_cliente,
+            'codigo_cliente' => $request->codigo_cliente,
+            'limite_credito' => $request->limite_credito,
             'credito_autorizado' => $request->has('credito_autorizado'),
         ]);
 
-        return back()->with('mensaje', 'Cliente dado de alta correctamente: ' . $request->usuario);
+        return back()->with('mensaje', 'Cliente dado de alta correctamente: '.$request->usuario);
     }
 
     /**

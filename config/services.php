@@ -36,24 +36,24 @@ return [
     ],
 
     'recaptcha' => [
-    'site_key'   => env('RECAPTCHA_SITE_KEY'),
-    'secret_key' => env('RECAPTCHA_SECRET_KEY'),
-],
+        'site_key' => env('RECAPTCHA_SITE_KEY'),
+        'secret_key' => env('RECAPTCHA_SECRET_KEY'),
+    ],
 
     'proveedor_api' => [
-        'url'             => env('PROVEEDOR_API_URL', ''),
+        'url' => env('PROVEEDOR_API_URL', ''),
         'connect_timeout' => (int) env('PROVEEDOR_API_CONNECT_TIMEOUT', 5),
-        'timeout'         => (int) env('PROVEEDOR_API_TIMEOUT', 15),
-        'max_retries'     => (int) env('PROVEEDOR_API_MAX_RETRIES', 3),
-        'login_mode'      => env('PROVEEDOR_LOGIN_MODE', 'fallback'),
+        'timeout' => (int) env('PROVEEDOR_API_TIMEOUT', 15),
+        'max_retries' => (int) env('PROVEEDOR_API_MAX_RETRIES', 3),
+        'login_mode' => env('PROVEEDOR_LOGIN_MODE', 'fallback'),
     ],
 
     'cliente_api' => [
-        'url'             => env('CLIENTE_API_URL', ''),
+        'url' => env('CLIENTE_API_URL', ''),
         'connect_timeout' => (int) env('CLIENTE_API_CONNECT_TIMEOUT', 5),
-        'timeout'         => (int) env('CLIENTE_API_TIMEOUT', 15),
-        'max_retries'     => (int) env('CLIENTE_API_MAX_RETRIES', 3),
-        'login_mode'      => env('CLIENTE_LOGIN_MODE', 'fallback'),
+        'timeout' => (int) env('CLIENTE_API_TIMEOUT', 15),
+        'max_retries' => (int) env('CLIENTE_API_MAX_RETRIES', 3),
+        'login_mode' => env('CLIENTE_LOGIN_MODE', 'fallback'),
     ],
 
     'salcom_api' => [
@@ -61,66 +61,66 @@ return [
     ],
 
     'ia' => [
-        'provider'       => env('IA_PROVIDER', 'bedrock'),        // bedrock | anthropic
-        'model'          => env('IA_MODEL', 'anthropic.claude-sonnet-4-20250514-v1:0'),
+        'provider' => env('IA_PROVIDER', 'bedrock'),        // bedrock | anthropic
+        'model' => env('IA_MODEL', 'anthropic.claude-sonnet-4-20250514-v1:0'),
         'bedrock_region' => env('IA_BEDROCK_REGION', 'us-east-1'),
         'aws_access_key' => env('IA_AWS_ACCESS_KEY', ''),
         'aws_secret_key' => env('IA_AWS_SECRET_KEY', ''),
-        'timeout'        => (int) env('IA_TIMEOUT', 60),
+        'timeout' => (int) env('IA_TIMEOUT', 60),
     ],
 
     'anthropic' => [
-        'url'     => env('ANTHROPIC_API_URL', 'https://api.anthropic.com/v1/messages'),
+        'url' => env('ANTHROPIC_API_URL', 'https://api.anthropic.com/v1/messages'),
         'api_key' => env('ANTHROPIC_API_KEY', ''),
-        'model'   => env('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514'),
+        'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-4-20250514'),
         'timeout' => (int) env('ANTHROPIC_TIMEOUT', 60),
     ],
 
     'groq' => [
-        'url'     => env('GROQ_API_URL', 'https://api.groq.com/openai/v1/chat/completions'),
+        'url' => env('GROQ_API_URL', 'https://api.groq.com/openai/v1/chat/completions'),
         'api_key' => env('GROQ_API_KEY', ''),
-        'model'   => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
+        'model' => env('GROQ_MODEL', 'llama-3.3-70b-versatile'),
         'timeout' => (int) env('GROQ_TIMEOUT', 30),
     ],
 
     // ── Twilio (WhatsApp Business API) ──
     'twilio' => [
-        'sid'            => env('TWILIO_SID', ''),
-        'token'          => env('TWILIO_AUTH_TOKEN', ''),
-        'whatsapp_from'  => env('TWILIO_WHATSAPP_FROM', ''),  // whatsapp:+14155238886
+        'sid' => env('TWILIO_SID', ''),
+        'token' => env('TWILIO_AUTH_TOKEN', ''),
+        'whatsapp_from' => env('TWILIO_WHATSAPP_FROM', ''),  // whatsapp:+14155238886
     ],
 
     // ── Validación RFC ante SAT (RENAPO / lista 69-B) ──
     'sat' => [
-        'rfc_url'  => env('SAT_RFC_VALIDATION_URL', 'https://api.el-sat.com/v1'),
-        'api_key'  => env('SAT_API_KEY', ''),
-        'timeout'  => (int) env('SAT_TIMEOUT', 10),
+        'rfc_url' => env('SAT_RFC_VALIDATION_URL', 'https://api.el-sat.com/v1'),
+        'api_key' => env('SAT_API_KEY', ''),
+        'timeout' => (int) env('SAT_TIMEOUT', 10),
     ],
 
     // ── PAC para timbrado CFDI (Facturama, SW Sapien, Diverza) ──
     'pac' => [
-        'driver'   => env('PAC_DRIVER', 'facturama'),  // facturama | sw_sapien | diverza
-        'url'      => env('PAC_API_URL', ''),
-        'user'     => env('PAC_API_USER', ''),
+        'driver' => env('PAC_DRIVER', 'facturama'),  // facturama | sw_sapien | diverza
+        'url' => env('PAC_API_URL', ''),
+        'user' => env('PAC_API_USER', ''),
         'password' => env('PAC_API_PASSWORD', ''),
-        'sandbox'  => env('PAC_SANDBOX', true),
-        'timeout'  => (int) env('PAC_TIMEOUT', 30),
+        'sandbox' => env('PAC_SANDBOX', true),
+        'timeout' => (int) env('PAC_TIMEOUT', 30),
     ],
 
     // ── Paqueterías (tracking) ──
     'paqueterias' => [
         'estafeta' => [
-            'url'     => env('ESTAFETA_API_URL', ''),
+            'url' => env('ESTAFETA_API_URL', ''),
             'api_key' => env('ESTAFETA_API_KEY', ''),
         ],
         'dhl' => [
-            'url'     => env('DHL_API_URL', 'https://api-eu.dhl.com/track/shipments'),
+            'url' => env('DHL_API_URL', 'https://api-eu.dhl.com/track/shipments'),
             'api_key' => env('DHL_API_KEY', ''),
         ],
         'fedex' => [
-            'url'       => env('FEDEX_API_URL', ''),
-            'api_key'   => env('FEDEX_API_KEY', ''),
-            'secret_key'=> env('FEDEX_SECRET_KEY', ''),
+            'url' => env('FEDEX_API_URL', ''),
+            'api_key' => env('FEDEX_API_KEY', ''),
+            'secret_key' => env('FEDEX_SECRET_KEY', ''),
         ],
     ],
 ];

@@ -91,8 +91,8 @@ class ProveedorApiExceptionTest extends TestCase
         for ($i = 0; $i < 100; $i++) {
             $type = $types[array_rand($types)];
             $httpCode = rand(0, 599);
-            $message = 'msg_' . bin2hex(random_bytes(8));
-            $data = rand(0, 1) ? ['key_' . $i => 'val_' . $i] : [];
+            $message = 'msg_'.bin2hex(random_bytes(8));
+            $data = rand(0, 1) ? ['key_'.$i => 'val_'.$i] : [];
 
             $cases["iteration_{$i}"] = [$type, $message, $httpCode, $data];
         }

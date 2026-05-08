@@ -14,15 +14,15 @@ class FlujoCompletoClienteTest extends TestCase
     private function crearCliente(bool $activo = true): ClienteUser
     {
         return ClienteUser::create([
-            'usuario'        => 'CLI001',
-            'password'       => Hash::make('secret123'),
-            'nombre'         => 'Cliente Test SA',
+            'usuario' => 'CLI001',
+            'password' => Hash::make('secret123'),
+            'nombre' => 'Cliente Test SA',
             'codigo_cliente' => 'CLI-TEST-001',
-            'correo'         => 'cli@test.com',
-            'tipo_persona'   => 'Moral',
-            'tipo_cliente'   => 'mayorista',
-            'telefono'       => '8112345678',
-            'activo'         => $activo,
+            'correo' => 'cli@test.com',
+            'tipo_persona' => 'Moral',
+            'tipo_cliente' => 'mayorista',
+            'telefono' => '8112345678',
+            'activo' => $activo,
         ]);
     }
 

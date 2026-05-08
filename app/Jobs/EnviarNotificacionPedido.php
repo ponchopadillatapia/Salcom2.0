@@ -24,6 +24,7 @@ class EnviarNotificacionPedido implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $backoff = 10;
 
     public function __construct(
@@ -38,20 +39,20 @@ class EnviarNotificacionPedido implements ShouldQueue
         // 1. Guardar notificación en BD (siempre)
         try {
             Notificacion::create([
-                'tipo_usuario'   => 'cliente',
+                'tipo_usuario' => 'cliente',
                 'codigo_usuario' => $this->cliente['codigo_cliente'] ?? '',
-                'titulo'         => "Pedido {$this->folio} — {$this->estatus}",
-                'mensaje'        => "Tu pedido {$this->folio} cambió a: {$this->estatus}."
-                    . ($this->notas ? " Notas: {$this->notas}" : ''),
-                'leida'          => false,
-                'tipo'           => 'pedido_estatus',
+                'titulo' => "Pedido {$this->folio} — {$this->estatus}",
+                'mensaje' => "Tu pedido {$this->folio} cambió a: {$this->estatus}."
+                    .($this->notas ? " Notas: {$this->notas}" : ''),
+                'leida' => false,
+                'tipo' => 'pedido_estatus',
             ]);
         } catch (\Exception $e) {
             Log::error('Job Notificación BD: error', ['error' => $e->getMessage()]);
         }
 
         // 2. Email
-        if (!empty($this->cliente['correo'])) {
+        if (! empty($this->cliente['correo'])) {
             try {
                 Mail::to($this->cliente['correo'])->send(
                     new PedidoEstatusNotificacion(
@@ -63,14 +64,14 @@ class EnviarNotificacionPedido implements ShouldQueue
                 );
             } catch (\Exception $e) {
                 Log::error('Job Notificación Email: error', [
-                    'error'  => $e->getMessage(),
+                    'error' => $e->getMessage(),
                     'correo' => $this->cliente['correo'],
                 ]);
             }
         }
 
         // 3. WhatsApp
-        if (!empty($this->cliente['telefono'])) {
+        if (! empty($this->cliente['telefono'])) {
             try {
                 $whatsapp->notificarCambioEstatus(
                     $this->cliente['telefono'],
@@ -83,7 +84,7 @@ class EnviarNotificacionPedido implements ShouldQueue
         }
 
         Log::info('Job Notificación completado', [
-            'folio'   => $this->folio,
+            'folio' => $this->folio,
             'estatus' => $this->estatus,
             'cliente' => $this->cliente['codigo_cliente'] ?? 'N/A',
         ]);

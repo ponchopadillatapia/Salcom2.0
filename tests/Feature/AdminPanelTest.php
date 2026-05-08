@@ -17,17 +17,17 @@ class AdminPanelTest extends TestCase
     private function adminSession(): array
     {
         $admin = AdminUser::create([
-            'nombre'   => 'Super Admin',
-            'correo'   => 'admin@salcom.com',
-            'usuario'  => 'ADMIN001',
+            'nombre' => 'Super Admin',
+            'correo' => 'admin@salcom.com',
+            'usuario' => 'ADMIN001',
             'password' => Hash::make('salcom2026'),
-            'activo'   => true,
+            'activo' => true,
         ]);
 
         return [
-            'admin_id'      => $admin->id,
-            'admin_nombre'  => $admin->nombre,
-            'admin_correo'  => $admin->correo,
+            'admin_id' => $admin->id,
+            'admin_nombre' => $admin->nombre,
+            'admin_correo' => $admin->correo,
             'admin_usuario' => $admin->usuario,
         ];
     }
@@ -38,13 +38,13 @@ class AdminPanelTest extends TestCase
         $counter++;
 
         return ClienteUser::create(array_merge([
-            'nombre'         => "Cliente Test {$counter}",
-            'correo'         => "cliente{$counter}@test.com",
-            'usuario'        => "CLI{$counter}",
-            'password'       => Hash::make('test1234'),
+            'nombre' => "Cliente Test {$counter}",
+            'correo' => "cliente{$counter}@test.com",
+            'usuario' => "CLI{$counter}",
+            'password' => Hash::make('test1234'),
             'codigo_cliente' => "CLI-2026-{$counter}",
-            'tipo_cliente'   => 'mayorista',
-            'activo'         => true,
+            'tipo_cliente' => 'mayorista',
+            'activo' => true,
         ], $overrides));
     }
 
@@ -146,18 +146,18 @@ class AdminPanelTest extends TestCase
     public function test_encuestas_muestra_tabla_y_promedios(): void
     {
         Encuesta::create([
-            'codigo_cliente'   => 'CLI-001',
-            'calificacion'     => 4,
-            'tiempo_entrega'   => 5,
+            'codigo_cliente' => 'CLI-001',
+            'calificacion' => 4,
+            'tiempo_entrega' => 5,
             'calidad_producto' => 3,
-            'comentarios'      => 'Buen servicio',
+            'comentarios' => 'Buen servicio',
         ]);
         Encuesta::create([
-            'codigo_cliente'   => 'CLI-002',
-            'calificacion'     => 2,
-            'tiempo_entrega'   => 3,
+            'codigo_cliente' => 'CLI-002',
+            'calificacion' => 2,
+            'tiempo_entrega' => 3,
             'calidad_producto' => 5,
-            'comentarios'      => null,
+            'comentarios' => null,
         ]);
 
         $response = $this->withSession($this->adminSession())->get('/admin/encuestas');
@@ -192,13 +192,13 @@ class AdminPanelTest extends TestCase
     public function test_pedidos_muestra_tabla(): void
     {
         Pedido::create([
-            'folio'          => 'PED-001',
+            'folio' => 'PED-001',
             'codigo_cliente' => 'CLI-001',
             'nombre_cliente' => 'Acme Corp',
-            'productos'      => [['nombre' => 'Producto A', 'cantidad' => 10]],
-            'total'          => 15000.50,
-            'tipo_pago'      => 'credito',
-            'estatus'        => 'procesando',
+            'productos' => [['nombre' => 'Producto A', 'cantidad' => 10]],
+            'total' => 15000.50,
+            'tipo_pago' => 'credito',
+            'estatus' => 'procesando',
         ]);
 
         $response = $this->withSession($this->adminSession())->get('/admin/pedidos');

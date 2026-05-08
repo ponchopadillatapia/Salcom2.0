@@ -11,13 +11,13 @@ class RegistroCaptchaTest extends TestCase
     use RefreshDatabase;
 
     private array $datosRegistro = [
-        'nombre'                => 'Proveedor Test',
-        'tipo_persona'          => 'Moral',
-        'telefono'              => '5551234567',
-        'correo'                => 'nuevo@test.com',
-        'password'              => 'secret123',
+        'nombre' => 'Proveedor Test',
+        'tipo_persona' => 'Moral',
+        'telefono' => '5551234567',
+        'correo' => 'nuevo@test.com',
+        'password' => 'secret123',
         'password_confirmation' => 'secret123',
-        'g-recaptcha-response'  => 'fake-token',
+        'g-recaptcha-response' => 'fake-token',
     ];
 
     public function test_registro_exitoso_con_captcha_valido(): void

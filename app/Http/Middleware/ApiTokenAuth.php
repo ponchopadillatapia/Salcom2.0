@@ -12,7 +12,7 @@ class ApiTokenAuth
         $token = $request->bearerToken();
         $expected = config('services.salcom_api.token');
 
-        if (!$expected || $token !== $expected) {
+        if (! $expected || $token !== $expected) {
             return response()->json(['error' => 'No autorizado'], 401);
         }
 

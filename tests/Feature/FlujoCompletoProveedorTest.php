@@ -25,13 +25,13 @@ class FlujoCompletoProveedorTest extends TestCase
     private function crearProveedor(): ProveedorUser
     {
         return ProveedorUser::create([
-            'usuario'        => 'PROV001',
-            'password'       => Hash::make('secret123'),
-            'nombre'         => 'Proveedor Test SA',
+            'usuario' => 'PROV001',
+            'password' => Hash::make('secret123'),
+            'nombre' => 'Proveedor Test SA',
             'codigo_compras' => 'COD001',
-            'correo'         => 'prov@test.com',
-            'tipo_persona'   => 'Moral',
-            'telefono'       => '5551234567',
+            'correo' => 'prov@test.com',
+            'tipo_persona' => 'Moral',
+            'telefono' => '5551234567',
         ]);
     }
 
@@ -45,13 +45,13 @@ class FlujoCompletoProveedorTest extends TestCase
 
         // API caída → fallback a BD local
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([], 500),
+            $this->baseUrl.'/Login/Login' => Http::response([], 500),
         ]);
 
         // 1. Login con fallback
         $response = $this->post('/login-proveedor', [
             'codigo' => 'PROV001',
-            'pwd'    => 'secret123',
+            'pwd' => 'secret123',
         ]);
 
         $response->assertRedirect('/portal-proveedor');
@@ -87,8 +87,8 @@ class FlujoCompletoProveedorTest extends TestCase
         config(['services.proveedor_api.login_mode' => 'api']);
 
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([
-                'usuario'     => 'PROV-API-001',
+            $this->baseUrl.'/Login/Login' => Http::response([
+                'usuario' => 'PROV-API-001',
                 'tokencreado' => 'jwt-real-token',
             ], 200),
         ]);
@@ -96,7 +96,7 @@ class FlujoCompletoProveedorTest extends TestCase
         // 1. Login por API
         $response = $this->post('/login-proveedor', [
             'codigo' => 'PROV001',
-            'pwd'    => 'secret',
+            'pwd' => 'secret',
         ]);
 
         $response->assertRedirect('/portal-proveedor');
@@ -144,7 +144,7 @@ class FlujoCompletoProveedorTest extends TestCase
     public function test_logout_limpia_sesion_y_redirige(): void
     {
         $this->crearProveedor();
-        Http::fake([$this->baseUrl . '/Login/Login' => Http::response([], 500)]);
+        Http::fake([$this->baseUrl.'/Login/Login' => Http::response([], 500)]);
 
         // Login
         $this->post('/login-proveedor', ['codigo' => 'PROV001', 'pwd' => 'secret123']);
@@ -173,7 +173,7 @@ class FlujoCompletoProveedorTest extends TestCase
 
         $response = $this->post('/login-proveedor', [
             'codigo' => 'PROV001',
-            'pwd'    => 'wrong_password',
+            'pwd' => 'wrong_password',
         ]);
 
         $response->assertRedirect();

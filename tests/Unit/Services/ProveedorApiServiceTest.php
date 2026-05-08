@@ -12,6 +12,7 @@ use Tests\TestCase;
 class ProveedorApiServiceTest extends TestCase
 {
     private ProveedorApiService $service;
+
     private string $baseUrl = 'http://fake-api.test/api';
 
     protected function setUp(): void
@@ -21,7 +22,7 @@ class ProveedorApiServiceTest extends TestCase
         config(['services.proveedor_api.connect_timeout' => 5]);
         config(['services.proveedor_api.timeout' => 15]);
         config(['services.proveedor_api.max_retries' => 3]);
-        $this->service = new ProveedorApiService();
+        $this->service = new ProveedorApiService;
     }
 
     // ── Helper: assert standard response structure ──
@@ -51,7 +52,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_login_api_success(): void
     {
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([
+            $this->baseUrl.'/Login/Login' => Http::response([
                 'usuario' => 'PROV001',
                 'tokencreado' => 'jwt-token-123',
             ], 200),
@@ -68,7 +69,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_login_api_401_returns_autenticacion_fallida(): void
     {
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([], 401),
+            $this->baseUrl.'/Login/Login' => Http::response([], 401),
         ]);
 
         $result = $this->service->loginApi('PROV001', 'wrong');
@@ -81,7 +82,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_login_api_url_vacia_retorna_api_caida(): void
     {
         config(['services.proveedor_api.url' => '']);
-        $service = new ProveedorApiService();
+        $service = new ProveedorApiService;
 
         Http::fake(); // Should NOT be called
 
@@ -96,7 +97,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_login_api_empty_response_returns_no_encontrado(): void
     {
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([], 200),
+            $this->baseUrl.'/Login/Login' => Http::response([], 200),
         ]);
 
         $result = $this->service->loginApi('PROV001', 'secret');
@@ -113,7 +114,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_buscar_por_codigo_success(): void
     {
         Http::fake([
-            $this->baseUrl . '/ClienteProveedor/BuscarPorCodigo*' => Http::response([
+            $this->baseUrl.'/ClienteProveedor/BuscarPorCodigo*' => Http::response([
                 'IdDocumento' => 1,
                 'CodigoCteProv' => 'PROV001',
                 'Folio' => 'OC-2026-001',
@@ -130,7 +131,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_buscar_por_codigo_404(): void
     {
         Http::fake([
-            $this->baseUrl . '/ClienteProveedor/BuscarPorCodigo*' => Http::response([], 404),
+            $this->baseUrl.'/ClienteProveedor/BuscarPorCodigo*' => Http::response([], 404),
         ]);
 
         $result = $this->service->buscarPorCodigo('NOEXISTE', 'token-123');
@@ -143,7 +144,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_buscar_por_codigo_empty_body(): void
     {
         Http::fake([
-            $this->baseUrl . '/ClienteProveedor/BuscarPorCodigo*' => Http::response([], 200),
+            $this->baseUrl.'/ClienteProveedor/BuscarPorCodigo*' => Http::response([], 200),
         ]);
 
         $result = $this->service->buscarPorCodigo('PROV001', 'token-123');
@@ -156,7 +157,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_buscar_por_codigo_401(): void
     {
         Http::fake([
-            $this->baseUrl . '/ClienteProveedor/BuscarPorCodigo*' => Http::response([], 401),
+            $this->baseUrl.'/ClienteProveedor/BuscarPorCodigo*' => Http::response([], 401),
         ]);
 
         $result = $this->service->buscarPorCodigo('PROV001', 'bad-token');
@@ -173,7 +174,7 @@ class ProveedorApiServiceTest extends TestCase
             ->push(['IdDocumento' => 1, 'Folio' => 'OC-001'], 200);
 
         config(['services.proveedor_api.max_retries' => 3]);
-        $service = new ProveedorApiService();
+        $service = new ProveedorApiService;
 
         $result = $service->buscarPorCodigo('PROV001', 'token-123');
 
@@ -189,7 +190,7 @@ class ProveedorApiServiceTest extends TestCase
             ->push([], 503);
 
         config(['services.proveedor_api.max_retries' => 3]);
-        $service = new ProveedorApiService();
+        $service = new ProveedorApiService;
 
         $result = $service->buscarPorCodigo('PROV001', 'token-123');
 
@@ -205,7 +206,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_listar_por_codigo_success(): void
     {
         Http::fake([
-            $this->baseUrl . '/ClienteProveedor/ListarClienteProvedorPorCodigo*' => Http::response([
+            $this->baseUrl.'/ClienteProveedor/ListarClienteProvedorPorCodigo*' => Http::response([
                 ['IdDocumento' => 1, 'Folio' => 'OC-001'],
                 ['IdDocumento' => 2, 'Folio' => 'OC-002'],
             ], 200),
@@ -221,7 +222,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_listar_por_codigo_404(): void
     {
         Http::fake([
-            $this->baseUrl . '/ClienteProveedor/ListarClienteProvedorPorCodigo*' => Http::response([], 404),
+            $this->baseUrl.'/ClienteProveedor/ListarClienteProvedorPorCodigo*' => Http::response([], 404),
         ]);
 
         $result = $this->service->listarPorCodigo('NOEXISTE', 'token-123');
@@ -234,7 +235,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_listar_por_codigo_empty_body(): void
     {
         Http::fake([
-            $this->baseUrl . '/ClienteProveedor/ListarClienteProvedorPorCodigo*' => Http::response([], 200),
+            $this->baseUrl.'/ClienteProveedor/ListarClienteProvedorPorCodigo*' => Http::response([], 200),
         ]);
 
         $result = $this->service->listarPorCodigo('PROV001', 'token-123');
@@ -247,7 +248,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_listar_por_codigo_401(): void
     {
         Http::fake([
-            $this->baseUrl . '/ClienteProveedor/ListarClienteProvedorPorCodigo*' => Http::response([], 401),
+            $this->baseUrl.'/ClienteProveedor/ListarClienteProvedorPorCodigo*' => Http::response([], 401),
         ]);
 
         $result = $this->service->listarPorCodigo('PROV001', 'bad-token');
@@ -264,7 +265,7 @@ class ProveedorApiServiceTest extends TestCase
             ->push([['IdDocumento' => 1, 'Folio' => 'OC-001']], 200);
 
         config(['services.proveedor_api.max_retries' => 3]);
-        $service = new ProveedorApiService();
+        $service = new ProveedorApiService;
 
         $result = $service->listarPorCodigo('PROV001', 'token-123');
 
@@ -283,7 +284,7 @@ class ProveedorApiServiceTest extends TestCase
             ->withArgs(fn ($msg) => str_contains($msg, 'ProveedorAPI'));
 
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([], 401),
+            $this->baseUrl.'/Login/Login' => Http::response([], 401),
         ]);
 
         $this->service->loginApi('PROV001', 'wrong');
@@ -301,7 +302,7 @@ class ProveedorApiServiceTest extends TestCase
             ->push(['IdDocumento' => 1, 'Folio' => 'OC-001'], 200);
 
         config(['services.proveedor_api.max_retries' => 3]);
-        $service = new ProveedorApiService();
+        $service = new ProveedorApiService;
 
         $service->buscarPorCodigo('PROV001', 'token-123');
     }
@@ -313,7 +314,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_login_does_not_retry_on_500(): void
     {
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([], 500),
+            $this->baseUrl.'/Login/Login' => Http::response([], 500),
         ]);
 
         $result = $this->service->loginApi('PROV001', 'secret');
@@ -335,7 +336,7 @@ class ProveedorApiServiceTest extends TestCase
         // Clear all config
         config(['services.proveedor_api' => []]);
 
-        $service = new ProveedorApiService();
+        $service = new ProveedorApiService;
 
         // URL vacía should trigger api_caida
         Http::fake();
@@ -358,10 +359,11 @@ class ProveedorApiServiceTest extends TestCase
         for ($i = 0; $i < 100; $i++) {
             $status = $statuses[array_rand($statuses)];
             $body = $status >= 200 && $status < 300 && rand(0, 1)
-                ? ['key_' . $i => 'val_' . $i]
+                ? ['key_'.$i => 'val_'.$i]
                 : [];
             $cases["status_{$status}_iter_{$i}"] = [$status, $body];
         }
+
         return $cases;
     }
 
@@ -372,7 +374,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_property_response_structure_invariant(int $status, array $body): void
     {
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response($body, $status),
+            $this->baseUrl.'/Login/Login' => Http::response($body, $status),
         ]);
 
         $result = $this->service->loginApi('test', 'test');
@@ -405,6 +407,7 @@ class ProveedorApiServiceTest extends TestCase
             $code = $serverCodes[array_rand($serverCodes)];
             $cases["5xx_{$code}_{$i}"] = [$code, [], false, ProveedorApiException::ERROR_SERVIDOR];
         }
+
         return $cases;
     }
 
@@ -415,7 +418,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_property_http_code_to_error_type(int $status, array $body, bool $expectedSuccess, ?string $expectedErrorType): void
     {
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response($body, $status),
+            $this->baseUrl.'/Login/Login' => Http::response($body, $status),
         ]);
 
         $result = $this->service->loginApi('test', 'test');
@@ -436,6 +439,7 @@ class ProveedorApiServiceTest extends TestCase
             $method = $methods[array_rand($methods)];
             $cases["empty_url_{$method}_{$i}"] = [$url, $method];
         }
+
         return $cases;
     }
 
@@ -446,7 +450,7 @@ class ProveedorApiServiceTest extends TestCase
     public function test_property_empty_url_fails_without_http(string $url, string $method): void
     {
         config(['services.proveedor_api.url' => $url]);
-        $service = new ProveedorApiService();
+        $service = new ProveedorApiService;
 
         Http::fake();
 
@@ -469,17 +473,17 @@ class ProveedorApiServiceTest extends TestCase
     {
         for ($i = 0; $i < 50; $i++) {
             Http::fake([
-                $this->baseUrl . '/*' => Http::response(['data' => true], 200),
+                $this->baseUrl.'/*' => Http::response(['data' => true], 200),
             ]);
 
-            $token = 'token_' . bin2hex(random_bytes(16));
-            $codigo = 'PROV' . str_pad((string) rand(1, 9999), 4, '0', STR_PAD_LEFT);
+            $token = 'token_'.bin2hex(random_bytes(16));
+            $codigo = 'PROV'.str_pad((string) rand(1, 9999), 4, '0', STR_PAD_LEFT);
 
             $this->service->buscarPorCodigo($codigo, $token);
 
             Http::assertSent(function ($request) use ($token, $codigo) {
-                return $request->hasHeader('Authorization', 'Bearer ' . $token)
-                    && str_contains($request->url(), 'codigo=' . $codigo);
+                return $request->hasHeader('Authorization', 'Bearer '.$token)
+                    && str_contains($request->url(), 'codigo='.$codigo);
             });
         }
     }

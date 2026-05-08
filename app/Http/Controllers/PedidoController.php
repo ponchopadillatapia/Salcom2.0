@@ -24,22 +24,22 @@ class PedidoController extends Controller
     {
         $request->validate([
             'estatus' => 'required|string|max:100',
-            'notas'   => 'nullable|string|max:500',
+            'notas' => 'nullable|string|max:500',
         ]);
 
         $estatusAnterior = $pedido->estatus;
         $pedido->update([
             'estatus' => $request->estatus,
-            'notas'   => $request->notas,
+            'notas' => $request->notas,
         ]);
 
         // Registrar en tracking
         TrackingPedido::create([
-            'pedido_id'            => $pedido->id,
-            'estatus'              => $request->estatus,
-            'descripcion'          => "Cambio de '{$estatusAnterior}' a '{$request->estatus}'" . ($request->notas ? ". {$request->notas}" : ''),
-            'fecha'                => now(),
-            'usuario_responsable'  => session('proveedor_nombre', session('cliente_nombre', 'Sistema')),
+            'pedido_id' => $pedido->id,
+            'estatus' => $request->estatus,
+            'descripcion' => "Cambio de '{$estatusAnterior}' a '{$request->estatus}'".($request->notas ? ". {$request->notas}" : ''),
+            'fecha' => now(),
+            'usuario_responsable' => session('proveedor_nombre', session('cliente_nombre', 'Sistema')),
         ]);
 
         // Notificar al cliente (async via queue)
@@ -47,9 +47,9 @@ class PedidoController extends Controller
         if ($cliente) {
             $this->notificaciones->notificarCambioPedido(
                 [
-                    'nombre'         => $cliente->nombre,
-                    'correo'         => $cliente->correo,
-                    'telefono'       => $cliente->telefono,
+                    'nombre' => $cliente->nombre,
+                    'correo' => $cliente->correo,
+                    'telefono' => $cliente->telefono,
                     'codigo_cliente' => $cliente->codigo_cliente,
                 ],
                 $pedido->folio,
@@ -68,7 +68,7 @@ class PedidoController extends Controller
     {
         $request->validate([
             'carrier' => 'required|string|in:estafeta,dhl,fedex',
-            'guia'    => 'required|string|max:50',
+            'guia' => 'required|string|max:50',
         ]);
 
         $resultado = $this->paqueteria->rastrear($request->carrier, $request->guia);

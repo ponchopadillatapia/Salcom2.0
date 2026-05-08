@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Exceptions\ProveedorApiException;
 use App\Models\ProveedorUser;
 use App\Services\ProveedorApiService;
@@ -35,28 +34,29 @@ class ProveedorController extends Controller
     {
         $request->validate([
             'codigo' => 'required',
-            'pwd'    => 'required',
+            'pwd' => 'required',
         ]);
 
         // Rate limiting — check antes de procesar credenciales
-        $rateLimitKey = 'login-proveedor|' . $request->ip();
-        $maxAttempts  = config('auth.rate_limiting.max_attempts', 5);
+        $rateLimitKey = 'login-proveedor|'.$request->ip();
+        $maxAttempts = config('auth.rate_limiting.max_attempts', 5);
         $decaySeconds = config('auth.rate_limiting.decay_seconds', 60);
 
         if (RateLimiter::tooManyAttempts($rateLimitKey, $maxAttempts)) {
             $seconds = RateLimiter::availableIn($rateLimitKey);
             Log::warning('Login bloqueado por rate limiting', [
-                'ip'                 => $request->ip(),
+                'ip' => $request->ip(),
                 'segundos_restantes' => $seconds,
             ]);
+
             return back()
                 ->with('error', "Demasiados intentos de inicio de sesión. Intenta de nuevo en {$seconds} segundos.")
                 ->withInput();
         }
 
         $codigo = $request->codigo;
-        $pwd    = $request->pwd;
-        $modo   = $this->getLoginMode();
+        $pwd = $request->pwd;
+        $modo = $this->getLoginMode();
 
         // Modo local: solo BD, sin tocar API
         if ($modo === 'local') {
@@ -64,11 +64,13 @@ class ProveedorController extends Controller
             if ($datos) {
                 RateLimiter::clear($rateLimitKey);
                 $this->guardarSesion($datos, 'local', null);
+
                 return redirect('/portal-proveedor')
-                    ->with('mensaje', 'Bienvenido ' . $datos['nombre']);
+                    ->with('mensaje', 'Bienvenido '.$datos['nombre']);
             }
             RateLimiter::hit($rateLimitKey, $decaySeconds);
             Log::error('Login: fallo local', ['codigo' => $codigo, 'modo' => 'local']);
+
             return back()->with('error', 'Credenciales incorrectas')->withInput();
         }
 
@@ -80,8 +82,9 @@ class ProveedorController extends Controller
             RateLimiter::clear($rateLimitKey);
             $this->guardarSesion($datos, 'api', $datos['token']);
             Log::info('Login: exitoso por API', ['codigo' => $codigo]);
+
             return redirect('/portal-proveedor')
-                ->with('mensaje', 'Bienvenido ' . $datos['nombre']);
+                ->with('mensaje', 'Bienvenido '.$datos['nombre']);
         }
 
         // API falló — decidir si hacer fallback
@@ -91,6 +94,7 @@ class ProveedorController extends Controller
         if ($errorType === ProveedorApiException::AUTENTICACION_FALLIDA) {
             RateLimiter::hit($rateLimitKey, $decaySeconds);
             Log::error('Login: credenciales rechazadas por API', ['codigo' => $codigo]);
+
             return back()->with('error', 'Credenciales incorrectas')->withInput();
         }
 
@@ -98,10 +102,11 @@ class ProveedorController extends Controller
         if ($modo === 'api') {
             RateLimiter::hit($rateLimitKey, $decaySeconds);
             Log::error('Login: API no disponible, sin fallback', [
-                'codigo'     => $codigo,
+                'codigo' => $codigo,
                 'error_type' => $errorType,
-                'modo'       => 'api',
+                'modo' => 'api',
             ]);
+
             return back()->with('error', $apiResult['message'])->withInput();
         }
 
@@ -115,7 +120,7 @@ class ProveedorController extends Controller
 
         if (in_array($errorType, $erroresFallback)) {
             Log::warning('Login: fallback a BD local', [
-                'codigo'     => $codigo,
+                'codigo' => $codigo,
                 'error_type' => $errorType,
             ]);
 
@@ -123,21 +128,24 @@ class ProveedorController extends Controller
             if ($datos) {
                 RateLimiter::clear($rateLimitKey);
                 $this->guardarSesion($datos, 'local', null);
+
                 return redirect('/portal-proveedor')
-                    ->with('mensaje', 'Bienvenido ' . $datos['nombre']);
+                    ->with('mensaje', 'Bienvenido '.$datos['nombre']);
             }
 
             RateLimiter::hit($rateLimitKey, $decaySeconds);
             Log::error('Login: fallback local también falló', ['codigo' => $codigo]);
+
             return back()->with('error', 'Credenciales incorrectas')->withInput();
         }
 
         // Cualquier otro error no contemplado
         RateLimiter::hit($rateLimitKey, $decaySeconds);
         Log::error('Login: error no contemplado', [
-            'codigo'     => $codigo,
+            'codigo' => $codigo,
             'error_type' => $errorType,
         ]);
+
         return back()->with('error', $apiResult['message'])->withInput();
     }
 
@@ -146,12 +154,13 @@ class ProveedorController extends Controller
     private function loginViaApi(array $apiResult): array
     {
         $data = $apiResult['data'];
+
         return [
-            'id'     => $data['usuario'] ?? null,
+            'id' => $data['usuario'] ?? null,
             'nombre' => $data['usuario'] ?? 'Proveedor',
             'codigo' => $data['usuario'] ?? null,
             'correo' => $data['usuario'] ?? null,
-            'token'  => $data['tokencreado'] ?? null,
+            'token' => $data['tokencreado'] ?? null,
         ];
     }
 
@@ -159,27 +168,27 @@ class ProveedorController extends Controller
     {
         $proveedor = ProveedorUser::where('usuario', $codigo)->first();
 
-        if (!$proveedor || !Hash::check($pwd, $proveedor->password)) {
+        if (! $proveedor || ! Hash::check($pwd, $proveedor->password)) {
             return null;
         }
 
         return [
-            'id'     => $proveedor->id,
+            'id' => $proveedor->id,
             'nombre' => $proveedor->nombre,
             'codigo' => $proveedor->codigo_compras,
             'correo' => $proveedor->correo,
-            'token'  => null,
+            'token' => null,
         ];
     }
 
     private function guardarSesion(array $datos, string $source, ?string $token): void
     {
         session([
-            'proveedor_id'           => $datos['id'],
-            'proveedor_nombre'       => $datos['nombre'],
-            'proveedor_codigo'       => $datos['codigo'],
-            'proveedor_correo'       => $datos['correo'],
-            'proveedor_token'        => $token,
+            'proveedor_id' => $datos['id'],
+            'proveedor_nombre' => $datos['nombre'],
+            'proveedor_codigo' => $datos['codigo'],
+            'proveedor_correo' => $datos['correo'],
+            'proveedor_token' => $token,
             'proveedor_login_source' => $source,
         ]);
     }
@@ -187,6 +196,7 @@ class ProveedorController extends Controller
     private function getLoginMode(): string
     {
         $modo = config('services.proveedor_api.login_mode', 'fallback');
+
         return in_array($modo, ['api', 'local', 'fallback']) ? $modo : 'fallback';
     }
 
@@ -198,12 +208,12 @@ class ProveedorController extends Controller
         $recaptchaSecret = config('services.recaptcha.secret_key');
         if ($recaptchaSecret) {
             $recaptcha = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
-                'secret'   => $recaptchaSecret,
+                'secret' => $recaptchaSecret,
                 'response' => $request->input('g-recaptcha-response'),
                 'remoteip' => $request->ip(),
             ])->json();
 
-            if (!($recaptcha['success'] ?? false)) {
+            if (! ($recaptcha['success'] ?? false)) {
                 return back()
                     ->withErrors(['g-recaptcha-response' => 'Captcha inválido, inténtalo de nuevo'])
                     ->withInput();
@@ -211,30 +221,30 @@ class ProveedorController extends Controller
         }
 
         $request->validate([
-            'nombre'       => 'required|string|max:255',
+            'nombre' => 'required|string|max:255',
             'tipo_persona' => 'required|string|max:255',
-            'telefono'     => 'required|string|max:20',
-            'correo'       => 'required|email|unique:proveedores_users,correo',
-            'password'     => 'required|min:8|confirmed',
+            'telefono' => 'required|string|max:20',
+            'correo' => 'required|email|unique:proveedores_users,correo',
+            'password' => 'required|min:8|confirmed',
         ], [
-            'nombre.required'      => 'El nombre es obligatorio.',
-            'tipo_persona.required'=> 'El tipo de persona es obligatorio.',
-            'telefono.required'    => 'El teléfono es obligatorio.',
-            'correo.required'      => 'El correo es obligatorio.',
-            'correo.email'         => 'El correo no es válido.',
-            'correo.unique'        => 'Este correo ya está registrado.',
-            'password.required'    => 'La contraseña es obligatoria.',
-            'password.min'         => 'La contraseña debe tener mínimo 8 caracteres.',
-            'password.confirmed'   => 'Las contraseñas no coinciden.',
+            'nombre.required' => 'El nombre es obligatorio.',
+            'tipo_persona.required' => 'El tipo de persona es obligatorio.',
+            'telefono.required' => 'El teléfono es obligatorio.',
+            'correo.required' => 'El correo es obligatorio.',
+            'correo.email' => 'El correo no es válido.',
+            'correo.unique' => 'Este correo ya está registrado.',
+            'password.required' => 'La contraseña es obligatoria.',
+            'password.min' => 'La contraseña debe tener mínimo 8 caracteres.',
+            'password.confirmed' => 'Las contraseñas no coinciden.',
         ]);
 
         ProveedorUser::create([
-            'usuario'      => $request->correo,
-            'password'     => bcrypt($request->password),
-            'nombre'       => $request->nombre,
+            'usuario' => $request->correo,
+            'password' => bcrypt($request->password),
+            'nombre' => $request->nombre,
             'tipo_persona' => $request->tipo_persona,
-            'telefono'     => $request->telefono,
-            'correo'       => $request->correo,
+            'telefono' => $request->telefono,
+            'correo' => $request->correo,
         ]);
 
         return redirect('/login-proveedor')
@@ -249,17 +259,17 @@ class ProveedorController extends Controller
     public function guardarActualizacion(Request $request)
     {
         $request->validate([
-            'nombre'       => 'required|string|max:255',
+            'nombre' => 'required|string|max:255',
             'tipo_persona' => 'required|string|max:255',
-            'telefono'     => 'required|string|max:20',
-            'correo'       => 'required|email',
-            'password'     => 'nullable|min:8|confirmed',
+            'telefono' => 'required|string|max:20',
+            'correo' => 'required|email',
+            'password' => 'nullable|min:8|confirmed',
         ], [
-            'nombre.required'    => 'El nombre es obligatorio.',
-            'telefono.required'  => 'El teléfono es obligatorio.',
-            'correo.required'    => 'El correo es obligatorio.',
-            'correo.email'       => 'El correo no es válido.',
-            'password.min'       => 'La contraseña debe tener mínimo 8 caracteres.',
+            'nombre.required' => 'El nombre es obligatorio.',
+            'telefono.required' => 'El teléfono es obligatorio.',
+            'correo.required' => 'El correo es obligatorio.',
+            'correo.email' => 'El correo no es válido.',
+            'password.min' => 'La contraseña debe tener mínimo 8 caracteres.',
             'password.confirmed' => 'Las contraseñas no coinciden.',
         ]);
 
@@ -267,10 +277,10 @@ class ProveedorController extends Controller
 
         if ($proveedor) {
             $proveedor->update([
-                'nombre'       => $request->nombre,
+                'nombre' => $request->nombre,
                 'tipo_persona' => $request->tipo_persona,
-                'telefono'     => $request->telefono,
-                'correo'       => $request->correo,
+                'telefono' => $request->telefono,
+                'correo' => $request->correo,
             ]);
 
             if ($request->password) {

@@ -11,16 +11,19 @@ use Illuminate\Support\Facades\Log;
 class ProveedorApiService
 {
     private string $baseUrl;
+
     private int $connectTimeout;
+
     private int $timeout;
+
     private int $maxRetries;
 
     public function __construct()
     {
-        $this->baseUrl        = config('services.proveedor_api.url', '');
+        $this->baseUrl = config('services.proveedor_api.url', '');
         $this->connectTimeout = config('services.proveedor_api.connect_timeout', 5);
-        $this->timeout        = config('services.proveedor_api.timeout', 15);
-        $this->maxRetries     = config('services.proveedor_api.max_retries', 3);
+        $this->timeout = config('services.proveedor_api.timeout', 15);
+        $this->maxRetries = config('services.proveedor_api.max_retries', 3);
     }
 
     // ── Métodos públicos ──
@@ -40,18 +43,19 @@ class ProveedorApiService
         try {
             $response = Http::connectTimeout($this->connectTimeout)
                 ->timeout($this->timeout)
-                ->post($this->baseUrl . $endpoint, [
+                ->post($this->baseUrl.$endpoint, [
                     'codigo' => $codigo,
-                    'pwd'    => $pwd,
+                    'pwd' => $pwd,
                 ]);
 
             return $this->procesarRespuesta($response, $endpoint);
         } catch (ConnectionException $e) {
             Log::error('ProveedorAPI: conexión fallida', [
                 'endpoint' => $endpoint,
-                'method'   => 'POST',
-                'error'    => $e->getMessage(),
+                'method' => 'POST',
+                'error' => $e->getMessage(),
             ]);
+
             return $this->buildErrorResponse(
                 'No se pudo conectar con la API del proveedor',
                 ProveedorApiException::API_CAIDA
@@ -59,8 +63,9 @@ class ProveedorApiService
         } catch (\Exception $e) {
             Log::error('ProveedorAPI: error inesperado en login', [
                 'endpoint' => $endpoint,
-                'error'    => $e->getMessage(),
+                'error' => $e->getMessage(),
             ]);
+
             return $this->buildErrorResponse(
                 'Ocurrió un error inesperado',
                 ProveedorApiException::ERROR_DESCONOCIDO
@@ -110,35 +115,36 @@ class ProveedorApiService
             try {
                 $response = Http::connectTimeout($this->connectTimeout)
                     ->timeout($this->timeout)
-                    ->withHeaders(['Authorization' => 'Bearer ' . $token])
-                    ->get($this->baseUrl . $endpoint, $params);
+                    ->withHeaders(['Authorization' => 'Bearer '.$token])
+                    ->get($this->baseUrl.$endpoint, $params);
 
                 // Si no es error de servidor retryable, procesar de inmediato
-                if (!$this->esRetryable($response)) {
+                if (! $this->esRetryable($response)) {
                     if ($intento > 1) {
                         Log::warning('ProveedorAPI: éxito después de reintentos', [
-                            'endpoint'  => $endpoint,
-                            'intentos'  => $intento,
+                            'endpoint' => $endpoint,
+                            'intentos' => $intento,
                         ]);
                     }
+
                     return $this->procesarRespuesta($response, $endpoint);
                 }
 
                 // Error retryable — log y seguir
                 Log::error('ProveedorAPI: intento fallido', [
                     'endpoint' => $endpoint,
-                    'method'   => 'GET',
-                    'intento'  => $intento,
-                    'status'   => $response->status(),
+                    'method' => 'GET',
+                    'intento' => $intento,
+                    'status' => $response->status(),
                 ]);
 
             } catch (ConnectionException $e) {
                 $lastException = $e;
                 Log::error('ProveedorAPI: conexión fallida (intento)', [
                     'endpoint' => $endpoint,
-                    'method'   => 'GET',
-                    'intento'  => $intento,
-                    'error'    => $e->getMessage(),
+                    'method' => 'GET',
+                    'intento' => $intento,
+                    'error' => $e->getMessage(),
                 ]);
             }
 
@@ -149,7 +155,7 @@ class ProveedorApiService
         }
 
         Log::error('ProveedorAPI: todos los reintentos agotados', [
-            'endpoint'    => $endpoint,
+            'endpoint' => $endpoint,
             'max_retries' => $this->maxRetries,
         ]);
 
@@ -171,6 +177,7 @@ class ProveedorApiService
                 ProveedorApiException::API_CAIDA
             );
         }
+
         return null;
     }
 
@@ -180,7 +187,7 @@ class ProveedorApiService
     private function procesarRespuesta(Response $response, string $endpoint): array
     {
         $status = $response->status();
-        $body   = $response->json() ?? [];
+        $body = $response->json() ?? [];
 
         if ($response->successful()) {
             // Respuesta vacía = no encontrado
@@ -190,12 +197,14 @@ class ProveedorApiService
                     ProveedorApiException::NO_ENCONTRADO
                 );
             }
+
             return $this->buildSuccessResponse($body);
         }
 
         // Mapeo de códigos HTTP a tipos de error
         if ($status === 401) {
             Log::error('ProveedorAPI: autenticación fallida', ['endpoint' => $endpoint, 'status' => $status]);
+
             return $this->buildErrorResponse(
                 'Credenciales inválidas o sesión expirada',
                 ProveedorApiException::AUTENTICACION_FALLIDA
@@ -211,6 +220,7 @@ class ProveedorApiService
 
         if ($status >= 500) {
             Log::error('ProveedorAPI: error de servidor', ['endpoint' => $endpoint, 'status' => $status]);
+
             return $this->buildErrorResponse(
                 'La API del proveedor no está disponible temporalmente',
                 ProveedorApiException::ERROR_SERVIDOR
@@ -218,6 +228,7 @@ class ProveedorApiService
         }
 
         Log::error('ProveedorAPI: error desconocido', ['endpoint' => $endpoint, 'status' => $status]);
+
         return $this->buildErrorResponse(
             'Ocurrió un error inesperado',
             ProveedorApiException::ERROR_DESCONOCIDO
@@ -227,9 +238,9 @@ class ProveedorApiService
     private function buildSuccessResponse(array $data): array
     {
         return [
-            'success'    => true,
-            'data'       => $data,
-            'message'    => 'OK',
+            'success' => true,
+            'data' => $data,
+            'message' => 'OK',
             'error_type' => null,
         ];
     }
@@ -237,9 +248,9 @@ class ProveedorApiService
     private function buildErrorResponse(string $message, string $errorType): array
     {
         return [
-            'success'    => false,
-            'data'       => null,
-            'message'    => $message,
+            'success' => false,
+            'data' => null,
+            'message' => $message,
             'error_type' => $errorType,
         ];
     }
