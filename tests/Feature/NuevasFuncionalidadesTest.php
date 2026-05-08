@@ -124,7 +124,10 @@ class NuevasFuncionalidadesTest extends TestCase
         $session = $this->proveedorSession();
         $contacto = ContactoProveedor::create(['proveedor_id' => $session['proveedor_id'], 'nombre' => 'Test', 'rol' => 'ventas']);
 
-        $response = $this->withSession($session)->delete("/proveedor/contactos/{$contacto->id}");
+        // El controlador requiere password para eliminar
+        $response = $this->withSession($session)->delete("/proveedor/contactos/{$contacto->id}", [
+            'password' => 'x',
+        ]);
 
         $response->assertRedirect();
         $this->assertDatabaseMissing('contactos_proveedor', ['id' => $contacto->id]);
