@@ -213,7 +213,7 @@ class AdminAuthTest extends TestCase
         $admin = AdminUser::where('usuario', 'ADMIN001')->first();
 
         $this->assertNotNull($admin);
-        $this->assertEquals('Super Administrador', $admin->nombre);
+        $this->assertEquals('Administrador', $admin->nombre);
         $this->assertEquals('admin@salcom.com', $admin->correo);
         $this->assertTrue($admin->activo);
         $this->assertTrue(Hash::check('salcom2026', $admin->password));
