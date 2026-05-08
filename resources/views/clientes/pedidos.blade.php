@@ -1,126 +1,328 @@
 @extends('layouts.cliente')
-@section('title', 'Mis Pedidos')
+@section('title', 'Pedidos — Carrito')
 @section('hero')
-<div class="hero-band"><h1>Mis Pedidos</h1><p>Consulta el estatus de tus pedidos; los nuevos se crean desde el catálogo</p></div>
+<div class="hero-band"><h1>Pedidos</h1><p>Tu carrito: revisa líneas, selecciona lo que quieres encargar y confirma la compra. Los pedidos encargados los ves en <a href="{{ route('clientes.tracking') }}" style="color:#6B3FA0;font-weight:600">Tracking</a>.</p></div>
 @endsection
 
 @push('styles')
 <style>
-    .ped-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-    .ped-filter{border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);cursor:pointer;outline:none}
-    .ped-count{font-size:13px;color:var(--gray-muted);margin-left:auto}
+    .cart-banner { display:none; padding:12px 16px; border-radius:10px; margin-bottom:20px; font-size:13px; background:#ecfdf5; border:1px solid #6ee7b7; color:#166534; }
+    .cart-banner.err { background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
+    .cart-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+    .cart-toolbar label { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--gray-text); cursor:pointer; user-select:none; }
+    .cart-toolbar input[type="checkbox"] { width:16px; height:16px; accent-color:#6B3FA0; }
+    .cart-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn-ghost { padding:8px 14px; border:1.5px solid var(--border); border-radius:8px; background:var(--white); font-size:12px; font-family:inherit; font-weight:600; color:var(--gray-text); cursor:pointer; transition:all .15s; }
+    .btn-ghost:hover { border-color:#9C6DD0; color:#6B3FA0; background:#F3EEFA; }
+    .btn-buy { padding:10px 20px; background:#6B3FA0; color:#fff; border:none; border-radius:10px; font-size:13px; font-family:inherit; font-weight:700; cursor:pointer; transition:all .15s; }
+    .btn-buy:hover:not(:disabled) { background:#4A2070; }
+    .btn-buy:disabled { background:#d1d5db; cursor:not-allowed; }
+    .cart-summary { margin-left:auto; font-size:13px; color:var(--gray-muted); }
+    .cart-summary strong { color:var(--gray-text); font-size:15px; }
 
-    .card{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden}
-    .tabla{width:100%;border-collapse:collapse}
-    .tabla th{font-size:12px;font-weight:600;color:var(--gray-muted);padding:14px 20px;text-align:left;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
-    .tabla td{padding:14px 20px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border)}
-    .tabla tr:last-child td{border-bottom:none}
-    .tabla tr:hover td{background:#f9fafb}
-    .tabla .folio{font-weight:700;color:#6B3FA0}
-    .tabla .prods{font-size:12px;color:var(--gray-muted);max-width:200px}
-    .btn-del-ped{padding:6px 12px;border:1px solid #fecaca;background:#fef2f2;color:#b91c1c;border-radius:8px;font-size:12px;font-family:inherit;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
-    .btn-del-ped:hover{background:#fee2e2;border-color:#f87171}
-
-    .badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
-    .badge-validacion{background:#F3EEFA;color:#6B3FA0}
-    .badge-autorizado{background:#dbeafe;color:#2563eb}
-    .badge-produccion{background:#fffbeb;color:#d97706}
-    .badge-enviado{background:#ecfdf5;color:#059669}
-    .badge-entregado{background:#f0fdf4;color:#166534}
-    .badge-contado{background:#f3f4f6;color:#6b7280;font-size:10px}
-    .badge-credito{background:#eff6ff;color:#2563eb;font-size:10px}
-
-    .badge-api{font-size:11px;color:#d97706;font-weight:600;background:#fffbeb;padding:3px 10px;border-radius:999px;display:inline-block;margin-bottom:16px}
-    .empty-row td{text-align:center;color:#9ca3af;padding:40px 20px}
+    .card { background:var(--white); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .tabla { width:100%; border-collapse:collapse; }
+    .tabla th { font-size:11px; font-weight:700; color:var(--gray-muted); padding:12px 16px; text-align:left; border-bottom:1px solid var(--border); text-transform:uppercase; letter-spacing:.5px; }
+    .tabla td { padding:14px 16px; font-size:13px; color:var(--gray-text); border-bottom:1px solid var(--border); vertical-align:middle; }
+    .tabla tr:last-child td { border-bottom:none; }
+    .tabla tr:hover td { background:#f9fafb; }
+    .tabla .codigo { font-size:11px; color:var(--gray-muted); }
+    .tabla .nombre { font-weight:600; max-width:280px; }
+    .qty-wrap { display:flex; align-items:center; gap:6px; }
+    .qty-wrap button { width:32px; height:32px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:16px; line-height:1; cursor:pointer; color:var(--gray-text); }
+    .qty-wrap button:hover { background:#F3EEFA; border-color:#9C6DD0; color:#6B3FA0; }
+    .qty-wrap input { width:52px; text-align:center; border:1.5px solid var(--border); border-radius:8px; padding:6px; font-size:13px; font-family:inherit; }
+    .btn-remove { padding:6px 12px; border:1px solid #fecaca; background:#fef2f2; color:#b91c1c; border-radius:8px; font-size:12px; font-family:inherit; font-weight:600; cursor:pointer; }
+    .btn-remove:hover { background:#fee2e2; }
+    .empty-cart { text-align:center; padding:48px 24px; color:var(--gray-muted); }
+    .empty-cart a { color:#6B3FA0; font-weight:700; }
+    .badge-api { font-size:11px; color:#d97706; font-weight:600; background:#fffbeb; padding:3px 10px; border-radius:999px; display:inline-block; margin-bottom:16px; }
 </style>
 @endpush
 
 @section('content')
-<span class="badge-api">⚠ Datos de prueba — Pendiente de API</span>
+<span class="badge-api">⚠ Carrito en este equipo — Pendiente de API</span>
+<div id="cartBanner" class="cart-banner" role="status"></div>
 
-<div class="ped-toolbar">
-    <select class="ped-filter" id="statusFilter" onchange="filtrarPedidos()">
-        <option value="">Todos los estatus</option>
-        <option value="validacion">En validación</option>
-        <option value="autorizado">Autorizado</option>
-        <option value="produccion">En producción</option>
-        <option value="enviado">Enviado</option>
-        <option value="entregado">Entregado</option>
-    </select>
-    <span class="ped-count" id="pedCount"></span>
+<div class="cart-toolbar" id="cartToolbar" style="display:none">
+    <label><input type="checkbox" id="chkMaster" title="Seleccionar o quitar todos"> Seleccionar todos</label>
+    <div class="cart-actions">
+        <button type="button" class="btn-ghost" id="btnDeselect">Quitar selección</button>
+        <button type="button" class="btn-buy" id="btnComprar">Comprar seleccionados</button>
+    </div>
+    <div class="cart-summary">Selección: <strong id="selTotal">$0.00</strong></div>
 </div>
 
-<div class="card">
+<div class="card" id="cartCard">
     <table class="tabla">
-        <thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th>Total</th><th>Pago</th><th>Estatus</th><th></th></tr></thead>
-        <tbody id="pedidosBody"></tbody>
+        <thead>
+            <tr>
+                <th style="width:40px"></th>
+                <th>Producto</th>
+                <th>P. unitario</th>
+                <th>Cantidad</th>
+                <th>Subtotal</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="cartBody"></tbody>
     </table>
+    <div id="cartEmpty" class="empty-cart" style="display:none">
+        Tu carrito está vacío. <a href="{{ route('clientes.catalogo') }}">Ir al catálogo</a> para agregar productos.
+    </div>
 </div>
 @endsection
 
 @push('scripts')
 <script>
-const PEDIDOS_STORAGE_KEY = 'salcom_cliente_pedidos_v1';
-const PEDIDOS_SEED = [
-    {folio:'PED-2026-001',fecha:'01/04/2026',productos:'Detergente Industrial x10, Desengrasante HD x5',total:8450.00,pago:'contado',estatus:'entregado',key:'entregado'},
-    {folio:'PED-2026-002',fecha:'03/04/2026',productos:'Aceite Lubricante SAE 40 x3',total:2670.00,pago:'contado',estatus:'enviado',key:'enviado'},
-    {folio:'PED-2026-003',fecha:'05/04/2026',productos:'Cinta Empaque x50, Stretch Film x20',total:4725.00,pago:'contado',estatus:'produccion',key:'produccion'},
-    {folio:'PED-2026-004',fecha:'07/04/2026',productos:'Sanitizante Multiusos x30',total:5850.00,pago:'contado',estatus:'autorizado',key:'autorizado'},
-    {folio:'PED-2026-005',fecha:'09/04/2026',productos:'Solvente Dieléctrico x8, Refrigerante x2',total:4700.00,pago:'contado',estatus:'validacion',key:'validacion'},
+const CART_KEY = window.SALCOM_CART_STORAGE_KEY || 'salcom_cliente_carrito_v1';
+const HISTORIAL_KEY = 'salcom_cliente_pedidos_v1';
+const HISTORIAL_SEED = [
+    {folio:'PED-2026-001',fecha:'01/04/2026',pago:'contado',estatus:'entregado',key:'entregado',total:8450.00,lineas:[
+        {codigo:'DET-IND',nombre:'Detergente Industrial',cantidad:10,precioUnit:500},
+        {codigo:'DES-HD',nombre:'Desengrasante HD',cantidad:5,precioUnit:690},
+    ]},
+    {folio:'PED-2026-002',fecha:'03/04/2026',pago:'contado',estatus:'enviado',key:'enviado',total:2670.00,lineas:[
+        {codigo:'ACE-SAE40',nombre:'Aceite Lubricante SAE 40',cantidad:3,precioUnit:890},
+    ]},
+    {folio:'PED-2026-003',fecha:'05/04/2026',pago:'contado',estatus:'produccion',key:'produccion',total:4725.00,lineas:[
+        {codigo:'CIN-EMP',nombre:'Cinta Empaque',cantidad:50,precioUnit:55},
+        {codigo:'STR-FILM',nombre:'Stretch Film',cantidad:20,precioUnit:98.75},
+    ]},
+    {folio:'PED-2026-004',fecha:'07/04/2026',pago:'contado',estatus:'autorizado',key:'autorizado',total:5850.00,lineas:[
+        {codigo:'SAN-MUL',nombre:'Sanitizante Multiusos',cantidad:30,precioUnit:195},
+    ]},
+    {folio:'PED-2026-005',fecha:'09/04/2026',pago:'contado',estatus:'validacion',key:'validacion',total:4700.00,lineas:[
+        {codigo:'SOL-DIEL',nombre:'Solvente Dieléctrico',cantidad:8,precioUnit:400},
+        {codigo:'REF-IND',nombre:'Refrigerante',cantidad:2,precioUnit:750},
+    ]},
 ];
 
-function loadPedidosStorage() {
+function loadCart() {
     try {
-        const raw = localStorage.getItem(PEDIDOS_STORAGE_KEY);
+        const raw = localStorage.getItem(CART_KEY);
+        if (raw) {
+            const data = JSON.parse(raw);
+            if (Array.isArray(data)) return data;
+        }
+    } catch (e) {}
+    return [];
+}
+
+function saveCart(arr) {
+    localStorage.setItem(CART_KEY, JSON.stringify(arr));
+}
+
+function loadHistorial() {
+    try {
+        const raw = localStorage.getItem(HISTORIAL_KEY);
         if (raw) {
             const data = JSON.parse(raw);
             if (Array.isArray(data) && data.length) return data;
         }
     } catch (e) {}
-    return PEDIDOS_SEED.map(p => ({...p}));
+    return HISTORIAL_SEED.map(p => ({...p, lineas: p.lineas.map(l => ({...l}))}));
 }
 
-function savePedidosStorage(arr) {
-    localStorage.setItem(PEDIDOS_STORAGE_KEY, JSON.stringify(arr));
+function saveHistorial(arr) {
+    localStorage.setItem(HISTORIAL_KEY, JSON.stringify(arr));
 }
 
-let pedidos = loadPedidosStorage();
-
-try {
-    localStorage.removeItem(window.SALCOM_PEDIDOS_NAV_BADGE_KEY || 'salcom_cliente_pedidos_nav_badge');
-} catch (e) {}
-if (typeof window.salcomSyncPedidosNavBadge === 'function') window.salcomSyncPedidosNavBadge();
-
-const badgeMap = {
-    validacion:'<span class="badge badge-validacion">En validación</span>',
-    autorizado:'<span class="badge badge-autorizado">Autorizado</span>',
-    produccion:'<span class="badge badge-produccion">En producción</span>',
-    enviado:'<span class="badge badge-enviado">Enviado</span>',
-    entregado:'<span class="badge badge-entregado">Entregado</span>',
-};
-const pagoMap = {contado:'<span class="badge badge-contado">Contado</span>',credito:'<span class="badge badge-credito">Crédito</span>'};
-
-function renderPedidos(list) {
-    const body = document.getElementById('pedidosBody');
-    if (!list.length) { body.innerHTML = '<tr class="empty-row"><td colspan="7">No hay pedidos con este filtro</td></tr>'; }
-    else {
-        body.innerHTML = list.map(p => `<tr><td class="folio">${p.folio}</td><td>${p.fecha}</td><td class="prods">${p.productos}</td><td>$${p.total.toLocaleString('es-MX',{minimumFractionDigits:2})}</td><td>${pagoMap[p.pago]||p.pago}</td><td>${badgeMap[p.key]||p.estatus}</td><td><button type="button" class="btn-del-ped" onclick="eliminarPedido('${p.folio}')">Eliminar</button></td></tr>`).join('');
+function nextPedidoFolio(list) {
+    let max = 0;
+    for (const p of list) {
+        const m = /^PED-2026-(\d+)$/.exec(p.folio);
+        if (m) max = Math.max(max, parseInt(m[1], 10));
     }
-    document.getElementById('pedCount').textContent = list.length + ' pedidos';
+    return 'PED-2026-' + String(max + 1).padStart(3, '0');
 }
 
-function filtrarPedidos() {
-    const s = document.getElementById('statusFilter').value;
-    renderPedidos(s ? pedidos.filter(p => p.key === s) : pedidos);
+let cart = loadCart();
+const selected = new Set();
+
+function showBanner(msg, isErr) {
+    const el = document.getElementById('cartBanner');
+    el.textContent = msg;
+    el.style.display = 'block';
+    el.classList.toggle('err', !!isErr);
+    if (!isErr) setTimeout(() => { el.style.display = 'none'; }, 6000);
 }
 
-function eliminarPedido(folio) {
-    if (!confirm('¿Eliminar el pedido ' + folio + '?')) return;
-    pedidos = pedidos.filter(p => p.folio !== folio);
-    savePedidosStorage(pedidos);
-    filtrarPedidos();
+function syncMasterCheckbox() {
+    const master = document.getElementById('chkMaster');
+    const rows = cart.length;
+    if (!rows) { master.checked = false; master.indeterminate = false; return; }
+    let sel = 0;
+    cart.forEach((_, i) => { if (selected.has(i)) sel++; });
+    master.checked = sel === rows;
+    master.indeterminate = sel > 0 && sel < rows;
 }
 
-filtrarPedidos();
+function updateSelectionTotal() {
+    let t = 0;
+    cart.forEach((line, i) => {
+        if (selected.has(i)) t += (line.precioUnit || 0) * (line.cantidad || 0);
+    });
+    document.getElementById('selTotal').textContent = '$' + t.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+    document.getElementById('btnComprar').disabled = selected.size === 0;
+}
+
+function normalizeSelectionAfterRender() {
+    const next = new Set();
+    cart.forEach((_, i) => { if (selected.has(i)) next.add(i); });
+    selected.clear();
+    next.forEach(i => { if (i < cart.length) selected.add(i); });
+}
+
+function render() {
+    cart = loadCart();
+    normalizeSelectionAfterRender();
+
+    const body = document.getElementById('cartBody');
+    const empty = document.getElementById('cartEmpty');
+    const toolbar = document.getElementById('cartToolbar');
+    const table = body.closest('table');
+
+    if (typeof window.salcomSyncPedidosNavBadge === 'function') window.salcomSyncPedidosNavBadge();
+
+    if (!cart.length) {
+        body.innerHTML = '';
+        empty.style.display = 'block';
+        table.style.display = 'none';
+        toolbar.style.display = 'none';
+        return;
+    }
+
+    empty.style.display = 'none';
+    table.style.display = 'table';
+    toolbar.style.display = 'flex';
+
+    body.innerHTML = cart.map((line, i) => {
+        const sub = (line.precioUnit || 0) * (line.cantidad || 0);
+        const chk = selected.has(i) ? 'checked' : '';
+        return `<tr data-idx="${i}">
+            <td><input type="checkbox" class="row-chk" data-idx="${i}" ${chk}></td>
+            <td><div class="nombre">${escapeHtml(line.nombre)}</div><div class="codigo">${escapeHtml(line.codigo)}</div></td>
+            <td>$${Number(line.precioUnit).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+            <td>
+                <div class="qty-wrap">
+                    <button type="button" data-act="minus" data-idx="${i}" aria-label="Menos">−</button>
+                    <input type="number" min="1" value="${line.cantidad}" data-qty="${i}">
+                    <button type="button" data-act="plus" data-idx="${i}" aria-label="Más">+</button>
+                </div>
+            </td>
+            <td>$${sub.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+            <td><button type="button" class="btn-remove" data-remove="${i}">Quitar</button></td>
+        </tr>`;
+    }).join('');
+
+    body.querySelectorAll('.row-chk').forEach(chk => {
+        chk.addEventListener('change', function () {
+            const i = parseInt(this.dataset.idx, 10);
+            if (this.checked) selected.add(i); else selected.delete(i);
+            syncMasterCheckbox();
+            updateSelectionTotal();
+        });
+    });
+
+    body.querySelectorAll('[data-act="minus"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.idx, 10);
+            if (cart[i].cantidad > 1) cart[i].cantidad--;
+            saveCart(cart);
+            render();
+        });
+    });
+    body.querySelectorAll('[data-act="plus"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.idx, 10);
+            cart[i].cantidad++;
+            saveCart(cart);
+            render();
+        });
+    });
+    body.querySelectorAll('[data-qty]').forEach(inp => {
+        inp.addEventListener('change', () => {
+            const i = parseInt(inp.dataset.qty, 10);
+            let v = parseInt(inp.value, 10);
+            if (!Number.isFinite(v) || v < 1) v = 1;
+            cart[i].cantidad = v;
+            saveCart(cart);
+            render();
+        });
+    });
+    body.querySelectorAll('[data-remove]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const i = parseInt(btn.dataset.remove, 10);
+            cart.splice(i, 1);
+            saveCart(cart);
+            selected.clear();
+            render();
+        });
+    });
+
+    syncMasterCheckbox();
+    updateSelectionTotal();
+}
+
+function escapeHtml(s) {
+    const d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+}
+
+document.getElementById('chkMaster').addEventListener('change', function () {
+    cart = loadCart();
+    if (!cart.length) return;
+    if (this.checked) {
+        cart.forEach((_, i) => selected.add(i));
+    } else {
+        selected.clear();
+    }
+    render();
+});
+
+document.getElementById('btnDeselect').addEventListener('click', () => {
+    selected.clear();
+    render();
+});
+
+document.getElementById('btnComprar').addEventListener('click', () => {
+    if (!selected.size) {
+        showBanner('Selecciona al menos una línea para comprar.', true);
+        return;
+    }
+    const indices = Array.from(selected).sort((a, b) => b - a);
+    const lines = indices.map(i => cart[i]).filter(Boolean);
+    const lineas = lines.map(l => ({
+        codigo: l.codigo,
+        nombre: l.nombre,
+        cantidad: l.cantidad,
+        precioUnit: l.precioUnit,
+    }));
+    const total = lineas.reduce((s, l) => s + (Number(l.precioUnit) || 0) * (Number(l.cantidad) || 0), 0);
+
+    const historial = loadHistorial();
+    const folio = nextPedidoFolio(historial);
+    historial.unshift({
+        folio,
+        fecha: new Date().toLocaleDateString('es-MX'),
+        lineas,
+        total,
+        pago: 'contado',
+        estatus: 'En validación',
+        key: 'validacion',
+    });
+    saveHistorial(historial);
+
+    indices.forEach(i => cart.splice(i, 1));
+    saveCart(cart);
+    selected.clear();
+
+    showBanner('Pedido ' + folio + ' encargado correctamente. Lo verás en Tracking.', false);
+    render();
+});
+
+render();
 </script>
 @endpush
