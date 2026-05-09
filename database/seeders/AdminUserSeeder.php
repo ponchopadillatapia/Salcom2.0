@@ -12,11 +12,11 @@ class AdminUserSeeder extends Seeder
     {
         $admins = [
             [
-                'usuario'  => 'ADMIN001',
+                'usuario' => 'ADMIN001',
                 'password' => Hash::make('salcom2026'),
-                'nombre'   => 'Administrador',
-                'correo'   => 'admin@salcom.com',
-                'activo'   => true,
+                'nombre' => 'Administrador',
+                'correo' => 'admin@salcom.com',
+                'activo' => true,
             ],
         ];
 

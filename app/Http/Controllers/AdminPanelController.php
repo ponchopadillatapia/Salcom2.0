@@ -25,7 +25,7 @@ class AdminPanelController extends Controller
         for ($i = 5; $i >= 0; $i--) {
             $fecha = now()->subMonths($i);
             $pedidosPorMes->push([
-                'mes'   => $fecha->translatedFormat('M Y'),
+                'mes' => $fecha->translatedFormat('M Y'),
                 'total' => Pedido::whereYear('created_at', $fecha->year)->whereMonth('created_at', $fecha->month)->count(),
                 'monto' => Pedido::whereYear('created_at', $fecha->year)->whereMonth('created_at', $fecha->month)->sum('total'),
             ]);
@@ -41,10 +41,10 @@ class AdminPanelController extends Controller
             ->orderBy('score_total', 'desc')->limit(10)
             ->get(['nombre', 'usuario', 'score_entrega', 'score_puntualidad', 'score_total']);
 
-        $clientesActivos   = ClienteUser::where('activo', true)->count();
+        $clientesActivos = ClienteUser::where('activo', true)->count();
         $clientesInactivos = ClienteUser::where('activo', false)->count();
 
-        $proveedoresActivos   = ProveedorUser::where('activo', true)->count();
+        $proveedoresActivos = ProveedorUser::where('activo', true)->count();
         $proveedoresInactivos = ProveedorUser::where('activo', false)->count();
 
         $encuestasPorCliente = Encuesta::selectRaw('codigo_cliente, avg(calificacion) as prom, count(*) as total')
@@ -54,35 +54,35 @@ class AdminPanelController extends Controller
             ->groupBy('etapa')->pluck('total', 'etapa');
 
         $data = [
-            'totalClientes'      => ClienteUser::count(),
-            'clientesActivos'    => $clientesActivos,
-            'totalProveedores'   => ProveedorUser::count(),
+            'totalClientes' => ClienteUser::count(),
+            'clientesActivos' => $clientesActivos,
+            'totalProveedores' => ProveedorUser::count(),
             'proveedoresActivos' => $proveedoresActivos,
-            'scorePromedio'      => round((float) ProveedorUser::avg('score_total'), 1),
-            'totalPedidos'       => Pedido::count(),
-            'pedidosPendientes'  => Pedido::whereIn('estatus', ['validacion', 'procesando'])->count(),
-            'pedidosEntregados'  => Pedido::where('estatus', 'entregado')->count(),
-            'montoPedidos'       => Pedido::sum('total'),
-            'totalProductos'     => Producto::count(),
-            'sinStock'           => Producto::where('stock', '<=', 0)->count(),
+            'scorePromedio' => round((float) ProveedorUser::avg('score_total'), 1),
+            'totalPedidos' => Pedido::count(),
+            'pedidosPendientes' => Pedido::whereIn('estatus', ['validacion', 'procesando'])->count(),
+            'pedidosEntregados' => Pedido::where('estatus', 'entregado')->count(),
+            'montoPedidos' => Pedido::sum('total'),
+            'totalProductos' => Producto::count(),
+            'sinStock' => Producto::where('stock', '<=', 0)->count(),
             'facturasPendientes' => Factura::where('estatus', 'pendiente')->count(),
-            'montoFacturas'      => Factura::where('estatus', 'pendiente')->sum('total'),
-            'totalEncuestas'     => Encuesta::count(),
-            'calificacionProm'   => round((float) Encuesta::avg('calificacion'), 1),
-            'muestrasActivas'    => Muestra::whereNotIn('etapa', ['aprobado', 'rechazado'])->count(),
-            'docsPendientes'     => DocumentoProveedor::where('estatus', 'pendiente')->count(),
-            'ultimosPedidos'     => Pedido::orderBy('created_at', 'desc')->limit(5)->get(),
-            'topProveedores'     => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(5)->get(),
+            'montoFacturas' => Factura::where('estatus', 'pendiente')->sum('total'),
+            'totalEncuestas' => Encuesta::count(),
+            'calificacionProm' => round((float) Encuesta::avg('calificacion'), 1),
+            'muestrasActivas' => Muestra::whereNotIn('etapa', ['aprobado', 'rechazado'])->count(),
+            'docsPendientes' => DocumentoProveedor::where('estatus', 'pendiente')->count(),
+            'ultimosPedidos' => Pedido::orderBy('created_at', 'desc')->limit(5)->get(),
+            'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(5)->get(),
 
             // Datos para gráficas
-            'pedidosPorMes'        => $pedidosPorMes,
-            'pedidosPorEstatus'    => $pedidosPorEstatus,
-            'facturasPorEstatus'   => $facturasPorEstatus,
-            'proveedoresScore'     => $proveedoresScore,
-            'clientesInactivos'    => $clientesInactivos,
+            'pedidosPorMes' => $pedidosPorMes,
+            'pedidosPorEstatus' => $pedidosPorEstatus,
+            'facturasPorEstatus' => $facturasPorEstatus,
+            'proveedoresScore' => $proveedoresScore,
+            'clientesInactivos' => $clientesInactivos,
             'proveedoresInactivos' => $proveedoresInactivos,
-            'encuestasPorCliente'  => $encuestasPorCliente,
-            'muestrasPorEtapa'     => $muestrasPorEtapa,
+            'encuestasPorCliente' => $encuestasPorCliente,
+            'muestrasPorEtapa' => $muestrasPorEtapa,
         ];
 
         return view('admin.dashboard', $data);
@@ -97,7 +97,7 @@ class AdminPanelController extends Controller
         if ($busqueda = $request->input('busqueda')) {
             $query->where(function ($q) use ($busqueda) {
                 $q->where('nombre', 'like', "%{$busqueda}%")
-                  ->orWhere('correo', 'like', "%{$busqueda}%");
+                    ->orWhere('correo', 'like', "%{$busqueda}%");
             });
         }
 
@@ -108,8 +108,9 @@ class AdminPanelController extends Controller
 
     public function toggleCliente(ClienteUser $cliente)
     {
-        $cliente->update(['activo' => !$cliente->activo]);
+        $cliente->update(['activo' => ! $cliente->activo]);
         $estado = $cliente->activo ? 'activado' : 'desactivado';
+
         return back()->with('mensaje', "Cliente {$cliente->nombre} {$estado} correctamente.");
     }
 
@@ -117,6 +118,7 @@ class AdminPanelController extends Controller
     {
         $nombre = $cliente->nombre;
         $cliente->delete();
+
         return back()->with('mensaje', "Cliente \"{$nombre}\" eliminado correctamente.");
     }
 
@@ -124,6 +126,7 @@ class AdminPanelController extends Controller
     {
         $nombre = $proveedor->nombre ?? $proveedor->usuario;
         $proveedor->delete();
+
         return back()->with('mensaje', "Proveedor \"{$nombre}\" eliminado correctamente.");
     }
 
@@ -136,7 +139,7 @@ class AdminPanelController extends Controller
         $promedioGeneral = Encuesta::avg('calificacion');
         $promedioEntrega = Encuesta::avg('tiempo_entrega');
         $promedioCalidad = Encuesta::avg('calidad_producto');
-        $totalEncuestas  = Encuesta::count();
+        $totalEncuestas = Encuesta::count();
 
         return view('admin.encuestas', compact(
             'encuestas', 'promedioGeneral', 'promedioEntrega',
@@ -169,8 +172,8 @@ class AdminPanelController extends Controller
         if ($busqueda = $request->input('busqueda')) {
             $query->where(function ($q) use ($busqueda) {
                 $q->where('nombre', 'like', "%{$busqueda}%")
-                  ->orWhere('correo', 'like', "%{$busqueda}%")
-                  ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
+                    ->orWhere('correo', 'like', "%{$busqueda}%")
+                    ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
             });
         }
 
@@ -193,7 +196,7 @@ class AdminPanelController extends Controller
         if ($busqueda = $request->input('busqueda')) {
             $query->where(function ($q) use ($busqueda) {
                 $q->where('nombre', 'like', "%{$busqueda}%")
-                  ->orWhere('codigo', 'like', "%{$busqueda}%");
+                    ->orWhere('codigo', 'like', "%{$busqueda}%");
             });
         }
 
@@ -217,14 +220,22 @@ class AdminPanelController extends Controller
 
         // Facturas de clientes
         $queryClientes = Factura::whereNotNull('codigo_cliente');
-        if ($estatus) $queryClientes->where('estatus', $estatus);
-        if ($vencidas) $queryClientes->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+        if ($estatus) {
+            $queryClientes->where('estatus', $estatus);
+        }
+        if ($vencidas) {
+            $queryClientes->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+        }
         $facturasClientes = $queryClientes->orderBy('created_at', 'desc')->get();
 
         // Facturas de proveedores
         $queryProveedores = Factura::whereNotNull('codigo_proveedor');
-        if ($estatus) $queryProveedores->where('estatus', $estatus);
-        if ($vencidas) $queryProveedores->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+        if ($estatus) {
+            $queryProveedores->where('estatus', $estatus);
+        }
+        if ($vencidas) {
+            $queryProveedores->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+        }
         $facturasProveedores = $queryProveedores->orderBy('created_at', 'desc')->get();
 
         return view('admin.facturas', compact('facturasClientes', 'facturasProveedores', 'estatus', 'vencidas'));

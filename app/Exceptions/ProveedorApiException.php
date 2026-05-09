@@ -8,15 +8,23 @@ class ProveedorApiException extends Exception
 {
     // Tipos de error
     const API_CAIDA = 'api_caida';
+
     const TIMEOUT = 'timeout';
+
     const AUTENTICACION_FALLIDA = 'autenticacion_fallida';
+
     const NO_ENCONTRADO = 'no_encontrado';
+
     const ERROR_SERVIDOR = 'error_servidor';
+
     const ERROR_VALIDACION = 'error_validacion';
+
     const ERROR_DESCONOCIDO = 'error_desconocido';
 
     private string $errorType;
+
     private int $httpCode;
+
     private array $responseData;
 
     private function __construct(string $message, string $errorType, int $httpCode = 0, array $responseData = [])

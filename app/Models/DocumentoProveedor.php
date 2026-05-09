@@ -15,7 +15,7 @@ class DocumentoProveedor extends Model
 
     protected $casts = [
         'resultado_validacion' => 'array',
-        'revisado_at'          => 'datetime',
+        'revisado_at' => 'datetime',
     ];
 
     public function proveedor()

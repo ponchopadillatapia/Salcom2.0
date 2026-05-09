@@ -21,12 +21,12 @@ class ProveedorUser extends Authenticatable
     protected $hidden = ['password'];
 
     protected $casts = [
-        'activo'                    => 'boolean',
-        'score_entrega'             => 'decimal:2',
-        'score_puntualidad'         => 'decimal:2',
-        'score_total'               => 'decimal:2',
+        'activo' => 'boolean',
+        'score_entrega' => 'decimal:2',
+        'score_puntualidad' => 'decimal:2',
+        'score_total' => 'decimal:2',
         'aviso_privacidad_aceptado' => 'boolean',
-        'aviso_privacidad_fecha'    => 'datetime',
+        'aviso_privacidad_fecha' => 'datetime',
     ];
 
     public function contactos()
@@ -46,6 +46,7 @@ class ProveedorUser extends Authenticatable
     {
         $this->score_total = ($this->score_entrega * 0.5) + ($this->score_puntualidad * 0.5);
         $this->save();
+
         return $this->score_total;
     }
 }

@@ -87,12 +87,104 @@
     </div>
 </div>
 
-{{-- GRÁFICA 1: Demanda mensual por producto (barras) --}}
+{{-- TABLA: Mínimos y máximos --}}
 <div class="chart-wrap">
-    <h3>Demanda mensual por producto</h3>
-    <p>Unidades vendidas por mes de los 5 productos principales</p>
-    <div class="chart-container">
-        <canvas id="chartDemanda"></canvas>
+    <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--border-light);">
+        <p style="font-size:11px;color:var(--gray-muted);margin-bottom:4px;text-transform:uppercase;font-weight:600;">SALCOM INDUSTRIES — Agrupado por producto/familia</p>
+        <h3 style="margin-bottom:12px;">Mínimos y máximos</h3>
+        <div style="display:flex;gap:32px;flex-wrap:wrap;">
+            <div>
+                <div style="font-size:11px;color:var(--gray-muted);">Ventas totales 2026</div>
+                <div style="font-size:22px;font-weight:700;color:var(--gray-text);">$11,011,640.07</div>
+            </div>
+            <div>
+                <div style="font-size:11px;color:var(--gray-muted);">Unidades totales 2026</div>
+                <div style="font-size:22px;font-weight:700;color:var(--gray-text);">1,152,664</div>
+            </div>
+            <div>
+                <div style="font-size:11px;color:var(--gray-muted);">Variación unidades</div>
+                <div style="font-size:22px;font-weight:700;color:var(--green);">↑ +16%</div>
+            </div>
+            <div>
+                <div style="font-size:11px;color:var(--gray-muted);">Variación ventas</div>
+                <div style="font-size:22px;font-weight:700;color:var(--green);">↑ +20%</div>
+            </div>
+        </div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <h3>Mínimos y máximos</h3>
+        <button onclick="exportTable('tableMinMax', 'Minimos_Maximos')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12px;font-weight:600;color:#34c759;background:#dcfce7;border:1px solid #34c759;border-radius:8px;cursor:pointer;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar Excel
+        </button>
+    </div>
+    <p style="margin-bottom:12px;">Comparativo de unidades por producto — análisis de tendencia</p>
+    <div style="overflow-x:auto;">
+        <table id="tableMinMax" style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+                <tr style="border-bottom:2px solid var(--border-light);text-align:left;">
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;">Código</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;">Producto</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;text-align:right;">UDS 2025</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;text-align:right;">UDS 2026</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;text-align:center;">UDS %</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;text-align:right;">Ventas 2025</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;text-align:right;">Ventas 2026</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;text-align:center;">Ventas %</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;text-align:center;">Resultado</th>
+                </tr>
+            </thead>
+            <tbody>
+                @php
+                $productos = [
+                    ['SAL-001', 'Resina epóxica industrial', 678424, 848749, 25, 7033870, 8812560, 25, 95],
+                    ['SAL-003', 'Solvente grado técnico', 155782, 136965, -12, 1061796, 949583, -11, 90],
+                    ['SAL-005', 'Pigmento base agua', 102900, 134400, 31, 719092, 1038643, 44, 88],
+                    ['SAL-007', 'Catalizador rápido', 59552, 32550, -45, 386392, 210852, -45, 35],
+                ];
+                @endphp
+                @foreach($productos as [$codigo, $nombre, $uds25, $uds26, $udsPct, $ventas25, $ventas26, $ventasPct, $resultado])
+                <tr style="border-bottom:1px solid var(--border-light);">
+                    <td style="padding:14px 8px;color:var(--gray-muted);font-size:12px;">{{ $codigo }}</td>
+                    <td style="padding:14px 8px;font-weight:600;color:var(--gray-text);">{{ $nombre }}</td>
+                    <td style="padding:14px 8px;text-align:right;">{{ number_format($uds25) }}</td>
+                    <td style="padding:14px 8px;text-align:right;">{{ number_format($uds26) }}</td>
+                    <td style="padding:14px 8px;text-align:center;font-weight:700;color:{{ $udsPct >= 0 ? 'var(--green)' : 'var(--red)' }};">
+                        {{ $udsPct >= 0 ? '↑' : '↓' }} {{ $udsPct >= 0 ? '+' : '' }}{{ $udsPct }}%
+                    </td>
+                    <td style="padding:14px 8px;text-align:right;">${{ number_format($ventas25) }}</td>
+                    <td style="padding:14px 8px;text-align:right;">${{ number_format($ventas26) }}</td>
+                    <td style="padding:14px 8px;text-align:center;font-weight:700;color:{{ $ventasPct >= 0 ? 'var(--green)' : 'var(--red)' }};">
+                        {{ $ventasPct >= 0 ? '↑' : '↓' }} {{ $ventasPct >= 0 ? '+' : '' }}{{ $ventasPct }}%
+                    </td>
+                    <td style="padding:14px 8px;text-align:center;">
+                        <div style="display:flex;align-items:center;gap:6px;justify-content:center;">
+                            <div style="width:60px;height:8px;background:var(--border-light);border-radius:4px;overflow:hidden;">
+                                <div style="height:100%;width:{{ $resultado }}%;border-radius:4px;background:{{ $resultado >= 80 ? 'var(--green)' : ($resultado >= 50 ? 'var(--amber)' : 'var(--red)') }};"></div>
+                            </div>
+                            <span style="font-size:12px;font-weight:700;color:{{ $resultado >= 80 ? 'var(--green)' : ($resultado >= 50 ? 'var(--amber)' : 'var(--red)') }};">{{ $resultado }}%</span>
+                        </div>
+                    </td>
+                </tr>
+                @endforeach
+                <tr style="background:var(--gray-bg);font-weight:700;">
+                    <td style="padding:14px 8px;"></td>
+                    <td style="padding:14px 8px;color:var(--gray-text);">GRAN TOTAL</td>
+                    <td style="padding:14px 8px;text-align:right;">996,658</td>
+                    <td style="padding:14px 8px;text-align:right;">1,152,664</td>
+                    <td style="padding:14px 8px;text-align:center;color:var(--green);">↑ +16%</td>
+                    <td style="padding:14px 8px;text-align:right;">$9,200,151</td>
+                    <td style="padding:14px 8px;text-align:right;">$11,011,640</td>
+                    <td style="padding:14px 8px;text-align:center;color:var(--green);">↑ +20%</td>
+                    <td style="padding:14px 8px;"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:16px;font-size:11px;">
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--green);margin-right:4px;"></span>Verde: >80%</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--amber);margin-right:4px;"></span>Amarillo: 50-80%</span>
+        <span><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--red);margin-right:4px;"></span>Rojo: <50%</span>
     </div>
 </div>
 
@@ -129,32 +221,7 @@ const blue = '#007aff';
 const amber = '#ff9f0a';
 const red = '#ff3b30';
 
-// ── Gráfica 1: Demanda mensual por producto (barras agrupadas) ──
-new Chart(document.getElementById('chartDemanda'), {
-    type: 'bar',
-    data: {
-        labels: meses,
-        datasets: [
-            { label: 'Resina epóxica', data: [500, 600, 550, 700, 750, 800], backgroundColor: purple + 'CC', borderRadius: 6 },
-            { label: 'Solvente técnico', data: [200, 0, 250, 0, 300, 280], backgroundColor: blue + 'CC', borderRadius: 6 },
-            { label: 'Pigmento base agua', data: [0, 100, 80, 0, 120, 0], backgroundColor: green + 'CC', borderRadius: 6 },
-            { label: 'Catalizador rápido', data: [0, 0, 0, 50, 0, 60], backgroundColor: amber + 'CC', borderRadius: 6 },
-        ]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: { position: 'bottom', labels: { usePointStyle: true, pointStyle: 'circle', padding: 20, font: { size: 12, family: 'Inter' } } }
-        },
-        scales: {
-            y: { beginAtZero: true, title: { display: true, text: 'Unidades', font: { size: 12, family: 'Inter' } }, grid: { color: '#f0f0f0' } },
-            x: { grid: { display: false } }
-        }
-    }
-});
-
-// ── Gráfica 2: Distribución de ventas (dona) ──
+// ── Gráfica 1: Distribución de ventas (dona) ──
 new Chart(document.getElementById('chartDistribucion'), {
     type: 'doughnut',
     data: {
@@ -176,7 +243,7 @@ new Chart(document.getElementById('chartDistribucion'), {
     }
 });
 
-// ── Gráfica 3: Tendencia de demanda total (línea) ──
+// ── Gráfica 2: Tendencia de demanda total (línea) ──
 new Chart(document.getElementById('chartTendencia'), {
     type: 'line',
     data: {
@@ -207,5 +274,28 @@ new Chart(document.getElementById('chartTendencia'), {
         }
     }
 });
+
+// ── Exportar tabla a Excel (CSV) ──
+function exportTable(tableId, filename) {
+    const table = document.getElementById(tableId);
+    if (!table) return;
+    let csv = [];
+    const rows = table.querySelectorAll('tr');
+    rows.forEach(row => {
+        const cols = row.querySelectorAll('th, td');
+        const rowData = [];
+        cols.forEach(col => {
+            let text = col.innerText.replace(/"/g, '""').trim();
+            rowData.push('"' + text + '"');
+        });
+        csv.push(rowData.join(','));
+    });
+    const csvContent = '\uFEFF' + csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename + '_' + new Date().toISOString().slice(0,10) + '.csv';
+    link.click();
+}
 </script>
 @endpush

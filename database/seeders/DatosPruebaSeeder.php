@@ -9,6 +9,7 @@ use App\Models\Muestra;
 use App\Models\Notificacion;
 use App\Models\Pedido;
 use App\Models\Producto;
+use App\Models\ProveedorUser;
 use App\Models\TrackingPedido;
 use Illuminate\Database\Seeder;
 
@@ -93,7 +94,7 @@ class DatosPruebaSeeder extends Seeder
             ['folio_cfdi' => 'CFDI-A-001230', 'codigo_cliente' => 'CLI-2026-001', 'monto' => 36206.90, 'monto_iva' => 5793.10, 'total' => 42000.00, 'estatus' => 'pagada',    'fecha_vencimiento' => '2025-12-15'],
             ['folio_cfdi' => 'CFDI-A-001231', 'codigo_cliente' => 'CLI-2026-002', 'monto' => 7327.59,  'monto_iva' => 1172.41, 'total' => 8500.00,  'estatus' => 'pagada',    'fecha_vencimiento' => '2026-01-03'],
             ['folio_cfdi' => 'CFDI-A-001235', 'codigo_cliente' => 'CLI-2026-001', 'monto' => 54310.34, 'monto_iva' => 8689.66, 'total' => 63000.00, 'estatus' => 'pendiente', 'fecha_vencimiento' => '2026-02-10'],
-            ['folio_cfdi' => 'CFDI-A-001236', 'codigo_cliente' => 'CLI-2026-001', 'monto' => 65948.28, 'monto_iva' => 10551.72,'total' => 76500.00, 'estatus' => 'pendiente', 'fecha_vencimiento' => '2026-04-12'],
+            ['folio_cfdi' => 'CFDI-A-001236', 'codigo_cliente' => 'CLI-2026-001', 'monto' => 65948.28, 'monto_iva' => 10551.72, 'total' => 76500.00, 'estatus' => 'pendiente', 'fecha_vencimiento' => '2026-04-12'],
             ['folio_cfdi' => 'CFDI-A-001240', 'codigo_cliente' => 'CLI-2026-001', 'monto' => 58620.69, 'monto_iva' => 9379.31, 'total' => 68000.00, 'estatus' => 'pendiente', 'fecha_vencimiento' => '2026-05-02'],
             ['folio_cfdi' => 'CFDI-A-001241', 'codigo_cliente' => 'CLI-2026-002', 'monto' => 8275.86,  'monto_iva' => 1324.14, 'total' => 9600.00,  'estatus' => 'pendiente', 'fecha_vencimiento' => '2026-05-15'],
             ['folio_cfdi' => 'CFDI-P-000501', 'codigo_proveedor' => '102003240',  'monto' => 12500.00, 'monto_iva' => 2000.00, 'total' => 14500.00, 'estatus' => 'pagada',    'fecha_vencimiento' => '2026-03-01'],
@@ -138,9 +139,9 @@ class DatosPruebaSeeder extends Seeder
         // ══════════════════════════════════════
         // DOCUMENTOS DE PROVEEDORES (6 — mix de estatus)
         // ══════════════════════════════════════
-        $prov1 = \App\Models\ProveedorUser::where('usuario', 'PROV001')->first();
-        $prov2 = \App\Models\ProveedorUser::where('usuario', 'PROV002')->first();
-        $prov3 = \App\Models\ProveedorUser::where('usuario', 'PROV003')->first();
+        $prov1 = ProveedorUser::where('usuario', 'PROV001')->first();
+        $prov2 = ProveedorUser::where('usuario', 'PROV002')->first();
+        $prov3 = ProveedorUser::where('usuario', 'PROV003')->first();
 
         if ($prov1) {
             DocumentoProveedor::updateOrCreate(
@@ -180,8 +181,8 @@ class DatosPruebaSeeder extends Seeder
             ['tipo_usuario' => 'cliente', 'codigo_usuario' => 'CLI-2026-001', 'titulo' => 'Pedido PED-2026-035 — Enviado',     'mensaje' => 'Tu pedido PED-2026-035 ha sido enviado vía Estafeta.',                  'leida' => false, 'tipo' => 'pedido_estatus'],
             ['tipo_usuario' => 'cliente', 'codigo_usuario' => 'CLI-2026-001', 'titulo' => 'Pedido PED-2026-048 — Procesando',  'mensaje' => 'Tu pedido PED-2026-048 está en producción.',                             'leida' => false, 'tipo' => 'pedido_estatus'],
             ['tipo_usuario' => 'cliente', 'codigo_usuario' => 'CLI-2026-001', 'titulo' => 'Factura CFDI-A-001235 vencida',      'mensaje' => 'Tu factura CFDI-A-001235 por $63,000 venció el 10/02/2026.',             'leida' => true,  'tipo' => 'factura'],
-            ['tipo_usuario' => 'cliente', 'codigo_usuario' => 'CLI-2026-002', 'titulo' => 'Pedido PED-2026-055 — En validación','mensaje' => 'Tu pedido PED-2026-055 está siendo validado.',                           'leida' => false, 'tipo' => 'pedido_estatus'],
-            ['tipo_usuario' => 'proveedor','codigo_usuario' => '102003241',   'titulo' => 'Documento pendiente',                'mensaje' => 'Tu CIF está pendiente de revisión. Sube el documento actualizado.',     'leida' => false, 'tipo' => 'documento'],
+            ['tipo_usuario' => 'cliente', 'codigo_usuario' => 'CLI-2026-002', 'titulo' => 'Pedido PED-2026-055 — En validación', 'mensaje' => 'Tu pedido PED-2026-055 está siendo validado.',                           'leida' => false, 'tipo' => 'pedido_estatus'],
+            ['tipo_usuario' => 'proveedor', 'codigo_usuario' => '102003241',   'titulo' => 'Documento pendiente',                'mensaje' => 'Tu CIF está pendiente de revisión. Sube el documento actualizado.',     'leida' => false, 'tipo' => 'documento'],
         ];
 
         foreach ($notificaciones as $n) {
@@ -191,8 +192,8 @@ class DatosPruebaSeeder extends Seeder
         // ══════════════════════════════════════
         // SCORES DE PROVEEDORES
         // ══════════════════════════════════════
-        \App\Models\ProveedorUser::where('usuario', 'PROV001')->update(['score_entrega' => 94, 'score_puntualidad' => 88, 'score_total' => 91]);
-        \App\Models\ProveedorUser::where('usuario', 'PROV002')->update(['score_entrega' => 78, 'score_puntualidad' => 82, 'score_total' => 80]);
-        \App\Models\ProveedorUser::where('usuario', 'PROV003')->update(['score_entrega' => 65, 'score_puntualidad' => 70, 'score_total' => 67.5]);
+        ProveedorUser::where('usuario', 'PROV001')->update(['score_entrega' => 94, 'score_puntualidad' => 88, 'score_total' => 91]);
+        ProveedorUser::where('usuario', 'PROV002')->update(['score_entrega' => 78, 'score_puntualidad' => 82, 'score_total' => 80]);
+        ProveedorUser::where('usuario', 'PROV003')->update(['score_entrega' => 65, 'score_puntualidad' => 70, 'score_total' => 67.5]);
     }
 }

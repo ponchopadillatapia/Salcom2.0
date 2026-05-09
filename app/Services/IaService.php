@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\ClienteUser;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
@@ -13,20 +14,25 @@ use Illuminate\Support\Facades\Log;
 class IaService
 {
     private string $provider;
+
     private string $region;
+
     private string $accessKey;
+
     private string $secretKey;
+
     private string $model;
+
     private int $timeout;
 
     public function __construct()
     {
-        $this->provider  = config('services.ia.provider', 'bedrock'); // bedrock | anthropic
-        $this->region    = config('services.ia.bedrock_region', 'us-east-1');
+        $this->provider = config('services.ia.provider', 'bedrock'); // bedrock | anthropic
+        $this->region = config('services.ia.bedrock_region', 'us-east-1');
         $this->accessKey = config('services.ia.aws_access_key', '');
         $this->secretKey = config('services.ia.aws_secret_key', '');
-        $this->model     = config('services.ia.model', 'anthropic.claude-3-5-sonnet-20241022-v2:0');
-        $this->timeout   = config('services.ia.timeout', 60);
+        $this->model = config('services.ia.model', 'anthropic.claude-3-5-sonnet-20241022-v2:0');
+        $this->timeout = config('services.ia.timeout', 60);
     }
 
     // ══════════════════════════════════════════════
@@ -39,16 +45,16 @@ class IaService
 
         $prompt = $this->buildPrompt('pronostico_demanda', [
             'codigo_cliente' => $codigoCliente,
-            'historial'      => json_encode($historial, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+            'historial' => json_encode($historial, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
         ]);
 
         $resultado = $this->llamarClaude($prompt);
 
         return [
-            'cliente'    => $codigoCliente,
-            'historial'  => $historial,
-            'analisis'   => $resultado,
-            'generado'   => now()->toDateTimeString(),
+            'cliente' => $codigoCliente,
+            'historial' => $historial,
+            'analisis' => $resultado,
+            'generado' => now()->toDateTimeString(),
         ];
     }
 
@@ -59,20 +65,20 @@ class IaService
     public function optimizacionInventario(): array
     {
         $inventario = $this->obtenerInventarioActual();
-        $demanda    = $this->obtenerDemandaProyectada();
+        $demanda = $this->obtenerDemandaProyectada();
 
         $prompt = $this->buildPrompt('optimizacion_inventario', [
             'inventario' => json_encode($inventario, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
-            'demanda'    => json_encode($demanda, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+            'demanda' => json_encode($demanda, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
         ]);
 
         $resultado = $this->llamarClaude($prompt);
 
         return [
             'inventario' => $inventario,
-            'demanda'    => $demanda,
-            'analisis'   => $resultado,
-            'generado'   => now()->toDateTimeString(),
+            'demanda' => $demanda,
+            'analisis' => $resultado,
+            'generado' => now()->toDateTimeString(),
         ];
     }
 
@@ -82,21 +88,21 @@ class IaService
 
     public function seleccionProveedor(string $productoId): array
     {
-        $producto    = $this->obtenerProducto($productoId);
+        $producto = $this->obtenerProducto($productoId);
         $proveedores = $this->obtenerProveedoresProducto($productoId);
 
         $prompt = $this->buildPrompt('seleccion_proveedor', [
-            'producto'    => json_encode($producto, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+            'producto' => json_encode($producto, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
             'proveedores' => json_encode($proveedores, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
         ]);
 
         $resultado = $this->llamarClaude($prompt);
 
         return [
-            'producto'    => $producto,
+            'producto' => $producto,
             'proveedores' => $proveedores,
-            'analisis'    => $resultado,
-            'generado'    => now()->toDateTimeString(),
+            'analisis' => $resultado,
+            'generado' => now()->toDateTimeString(),
         ];
     }
 
@@ -122,16 +128,16 @@ class IaService
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => 'Credenciales de AWS no configuradas. Agrega IA_AWS_ACCESS_KEY e IA_AWS_SECRET_KEY en tu .env',
+                'error' => 'Credenciales de AWS no configuradas. Agrega IA_AWS_ACCESS_KEY e IA_AWS_SECRET_KEY en tu .env',
             ];
         }
 
         try {
             $client = new BedrockRuntimeClient([
-                'region'      => $this->region,
-                'version'     => 'latest',
+                'region' => $this->region,
+                'version' => 'latest',
                 'credentials' => [
-                    'key'    => $this->accessKey,
+                    'key' => $this->accessKey,
                     'secret' => $this->secretKey,
                 ],
                 'http' => [
@@ -141,35 +147,35 @@ class IaService
 
             $body = json_encode([
                 'anthropic_version' => 'bedrock-2023-05-31',
-                'max_tokens'        => 4096,
-                'system'            => 'Eres un analista experto de Industrias Salcom, una empresa manufacturera mexicana. Responde siempre en español, de forma concisa y orientada a la acción.',
-                'messages'          => [
+                'max_tokens' => 4096,
+                'system' => 'Eres un analista experto de Industrias Salcom, una empresa manufacturera mexicana. Responde siempre en español, de forma concisa y orientada a la acción.',
+                'messages' => [
                     ['role' => 'user', 'content' => $prompt],
                 ],
             ]);
 
             $response = $client->invokeModel([
-                'modelId'     => $this->model,
+                'modelId' => $this->model,
                 'contentType' => 'application/json',
-                'accept'      => 'application/json',
-                'body'        => $body,
+                'accept' => 'application/json',
+                'body' => $body,
             ]);
 
             $result = json_decode($response['body']->getContents(), true);
-            $text   = $result['content'][0]['text'] ?? '';
+            $text = $result['content'][0]['text'] ?? '';
 
             return ['success' => true, 'content' => $text, 'error' => null];
 
         } catch (AwsException $e) {
             Log::error('IaService: error de Bedrock (AWS SDK)', [
-                'code'    => $e->getAwsErrorCode(),
+                'code' => $e->getAwsErrorCode(),
                 'message' => $e->getAwsErrorMessage(),
             ]);
 
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => 'Error de Bedrock: ' . ($e->getAwsErrorMessage() ?? $e->getMessage()),
+                'error' => 'Error de Bedrock: '.($e->getAwsErrorMessage() ?? $e->getMessage()),
             ];
         } catch (\Exception $e) {
             Log::error('IaService: excepción Bedrock', ['error' => $e->getMessage()]);
@@ -177,7 +183,7 @@ class IaService
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => 'No se pudo conectar con Amazon Bedrock: ' . $e->getMessage(),
+                'error' => 'No se pudo conectar con Amazon Bedrock: '.$e->getMessage(),
             ];
         }
     }
@@ -189,13 +195,13 @@ class IaService
     {
         $apiKey = config('services.anthropic.api_key', '');
         $apiUrl = config('services.anthropic.url', 'https://api.anthropic.com/v1/messages');
-        $model  = config('services.anthropic.model', 'claude-sonnet-4-20250514');
+        $model = config('services.anthropic.model', 'claude-sonnet-4-20250514');
 
         if (empty(trim($apiKey))) {
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => 'API key de Anthropic no configurada.',
+                'error' => 'API key de Anthropic no configurada.',
             ];
         }
 
@@ -203,29 +209,31 @@ class IaService
             $response = Http::asJson()
                 ->timeout($this->timeout)
                 ->withHeaders([
-                    'x-api-key'         => $apiKey,
+                    'x-api-key' => $apiKey,
                     'anthropic-version' => '2023-06-01',
                 ])
                 ->post($apiUrl, [
-                    'model'      => $model,
+                    'model' => $model,
                     'max_tokens' => 4096,
-                    'system'     => 'Eres un analista experto de Industrias Salcom, una empresa manufacturera mexicana. Responde siempre en español, de forma concisa y orientada a la acción.',
-                    'messages'   => [['role' => 'user', 'content' => $prompt]],
+                    'system' => 'Eres un analista experto de Industrias Salcom, una empresa manufacturera mexicana. Responde siempre en español, de forma concisa y orientada a la acción.',
+                    'messages' => [['role' => 'user', 'content' => $prompt]],
                 ]);
 
             if ($response->successful()) {
                 $text = $response->json()['content'][0]['text'] ?? '';
+
                 return ['success' => true, 'content' => $text, 'error' => null];
             }
 
             $errorMsg = $response->json()['error']['message'] ?? null;
+
             return [
                 'success' => false,
                 'content' => null,
-                'error'   => $errorMsg ? 'Error de Claude: ' . $errorMsg : 'Error HTTP ' . $response->status(),
+                'error' => $errorMsg ? 'Error de Claude: '.$errorMsg : 'Error HTTP '.$response->status(),
             ];
         } catch (\Exception $e) {
-            return ['success' => false, 'content' => null, 'error' => 'Error: ' . $e->getMessage()];
+            return ['success' => false, 'content' => null, 'error' => 'Error: '.$e->getMessage()];
         }
     }
 
@@ -309,19 +317,19 @@ PROMPT,
         return $pedidos->map(function ($pedido) {
             $productos = collect($pedido->productos ?? [])->map(function ($p) {
                 return [
-                    'sku'             => $p['sku'] ?? $p['codigo'] ?? 'N/A',
-                    'nombre'          => $p['nombre'] ?? 'Sin nombre',
-                    'cantidad'        => $p['cantidad'] ?? 0,
-                    'unidad'          => $p['unidad'] ?? 'pz',
+                    'sku' => $p['sku'] ?? $p['codigo'] ?? 'N/A',
+                    'nombre' => $p['nombre'] ?? 'Sin nombre',
+                    'cantidad' => $p['cantidad'] ?? 0,
+                    'unidad' => $p['unidad'] ?? 'pz',
                     'precio_unitario' => $p['precio'] ?? $p['precio_unitario'] ?? 0,
                 ];
             })->toArray();
 
             return [
-                'pedido'    => $pedido->folio,
-                'fecha'     => $pedido->created_at->format('Y-m-d'),
+                'pedido' => $pedido->folio,
+                'fecha' => $pedido->created_at->format('Y-m-d'),
                 'productos' => $productos,
-                'total'     => (float) $pedido->total,
+                'total' => (float) $pedido->total,
             ];
         })->toArray();
     }
@@ -336,12 +344,12 @@ PROMPT,
             ->get()
             ->map(function ($p) {
                 return [
-                    'sku'            => $p->codigo,
-                    'nombre'         => $p->nombre,
-                    'stock_actual'   => (int) $p->stock,
-                    'unidad'         => $p->unidad_venta,
+                    'sku' => $p->codigo,
+                    'nombre' => $p->nombre,
+                    'stock_actual' => (int) $p->stock,
+                    'unidad' => $p->unidad_venta,
                     'costo_unitario' => (float) $p->precio,
-                    'ubicacion'      => 'Almacén principal',
+                    'ubicacion' => 'Almacén principal',
                 ];
             })->toArray();
     }
@@ -385,7 +393,7 @@ PROMPT,
             if ($mesesConPedido >= 2) {
                 $valores = array_values($cantidadesPorMes);
                 $primero = $valores[0];
-                $ultimo  = end($valores);
+                $ultimo = end($valores);
                 if ($ultimo > $primero * 1.1) {
                     $tendencia = 'creciente';
                 } elseif ($ultimo < $primero * 0.9) {
@@ -394,11 +402,11 @@ PROMPT,
             }
 
             return [
-                'sku'              => $producto->codigo,
-                'nombre'           => $producto->nombre,
-                'demanda_mensual'  => $demandaMensual,
-                'unidad'           => $producto->unidad_venta,
-                'tendencia'        => $tendencia,
+                'sku' => $producto->codigo,
+                'nombre' => $producto->nombre,
+                'demanda_mensual' => $demandaMensual,
+                'unidad' => $producto->unidad_venta,
+                'tendencia' => $tendencia,
             ];
         })->toArray();
     }
@@ -410,13 +418,13 @@ PROMPT,
     {
         $producto = Producto::where('codigo', $productoId)->first();
 
-        if (!$producto) {
+        if (! $producto) {
             return [
-                'sku'                 => $productoId,
-                'nombre'              => 'Producto no encontrado',
-                'cantidad_requerida'  => 0,
-                'unidad'              => 'N/A',
-                'especificaciones'    => 'N/A',
+                'sku' => $productoId,
+                'nombre' => 'Producto no encontrado',
+                'cantidad_requerida' => 0,
+                'unidad' => 'N/A',
+                'especificaciones' => 'N/A',
             ];
         }
 
@@ -426,11 +434,11 @@ PROMPT,
         $cantidadRequerida = $demItem ? $demItem['demanda_mensual'] : 0;
 
         return [
-            'sku'                => $producto->codigo,
-            'nombre'             => $producto->nombre,
+            'sku' => $producto->codigo,
+            'nombre' => $producto->nombre,
             'cantidad_requerida' => $cantidadRequerida,
-            'unidad'             => $producto->unidad_venta,
-            'especificaciones'   => $producto->descripcion ?? 'Sin especificaciones',
+            'unidad' => $producto->unidad_venta,
+            'especificaciones' => $producto->descripcion ?? 'Sin especificaciones',
         ];
     }
 
@@ -455,18 +463,18 @@ PROMPT,
 
         return $proveedores->map(function ($prov) {
             return [
-                'codigo'              => $prov->codigo_compras,
-                'nombre'              => $prov->nombre,
-                'precio_unitario'     => 0, // No tenemos precio por producto-proveedor aún
-                'moneda'              => 'MXN',
+                'codigo' => $prov->codigo_compras,
+                'nombre' => $prov->nombre,
+                'precio_unitario' => 0, // No tenemos precio por producto-proveedor aún
+                'moneda' => 'MXN',
                 'tiempo_entrega_dias' => 0, // Pendiente de implementar
-                'moq'                 => 0,
-                'calificacion'        => (float) $prov->score_total,
-                'entregas_a_tiempo'   => $prov->score_entrega > 0
-                    ? round($prov->score_entrega) . '%'
+                'moq' => 0,
+                'calificacion' => (float) $prov->score_total,
+                'entregas_a_tiempo' => $prov->score_entrega > 0
+                    ? round($prov->score_entrega).'%'
                     : 'Sin datos',
-                'ubicacion'           => 'México',
-                'certificaciones'     => [],
+                'ubicacion' => 'México',
+                'certificaciones' => [],
             ];
         })->toArray();
     }
@@ -477,7 +485,7 @@ PROMPT,
 
     public function listarClientes(): array
     {
-        return \App\Models\ClienteUser::select('codigo_cliente as codigo', 'nombre')
+        return ClienteUser::select('codigo_cliente as codigo', 'nombre')
             ->where('activo', true)
             ->orderBy('nombre')
             ->get()

@@ -15,7 +15,7 @@ class LoginProveedorRequest extends FormRequest
     {
         return [
             'codigo' => 'required',
-            'pwd'    => 'required',
+            'pwd' => 'required',
         ];
     }
 }

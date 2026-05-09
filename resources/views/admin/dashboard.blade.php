@@ -69,23 +69,39 @@
 
 {{-- ═══ FILA 1 ═══ --}}
 <div class="metrics">
+<<<<<<< HEAD
     <a href="{{ route('admin.proveedores') }}" class="metric anim anim-d1">
+=======
+    <a href="{{ route('admin.clientes') }}" class="metric anim anim-d1">
+        <div class="accent" style="background:var(--purple)"></div>
+        <div class="metric-icon" style="background:var(--purple-light)">@include('partials.icons', ['name'=>'users','size'=>20,'color'=>'var(--purple)'])</div>
+        <div class="metric-label">Clientes</div>
+        <div class="metric-val">{{ $totalClientes }}</div>
+        <div class="metric-sub">{{ $clientesActivos }} activos @include('partials.trend-arrow', ['value' => 8, 'size' => 11])</div>
+    </a>
+    <a href="{{ route('admin.proveedores') }}" class="metric anim anim-d2">
+>>>>>>> 01bde6eadcfcbeb478f212748b85c458b0e4205f
         <div class="accent" style="background:var(--green)"></div>
         <div class="metric-top">
             <div class="metric-icon" style="background:var(--green-bg)">@include('partials.icons', ['name'=>'factory','size'=>20,'color'=>'var(--green)'])</div>
             <div class="metric-label">Proveedores</div>
         </div>
         <div class="metric-val">{{ $totalProveedores }}</div>
+<<<<<<< HEAD
         <div class="metric-sub">{{ $proveedoresActivos }} activos · Score {{ $scorePromedio }}%</div>
         <div class="metric-details">
             <div class="metric-detail-row"><span>Pedidos</span><span>{{ $totalPedidos }}</span></div>
             <div class="metric-detail-row"><span>Productos</span><span>{{ $totalProductos }}</span></div>
             <div class="metric-detail-row"><span>Facturas pendientes</span><span>{{ $facturasPendientes }}</span></div>
         </div>
+=======
+        <div class="metric-sub">{{ $proveedoresActivos }} activos · Score {{ $scorePromedio }}% @include('partials.trend-arrow', ['value' => 3, 'size' => 11])</div>
+>>>>>>> 01bde6eadcfcbeb478f212748b85c458b0e4205f
     </a>
 
     <a href="{{ route('admin.negocio') }}" class="metric anim anim-d2">
         <div class="accent" style="background:var(--blue)"></div>
+<<<<<<< HEAD
         <div class="metric-top">
             <div class="metric-icon" style="background:var(--blue-bg)">@include('partials.icons', ['name'=>'bar-chart','size'=>20,'color'=>'var(--blue)'])</div>
             <div class="metric-label">Negocio</div>
@@ -121,6 +137,19 @@
             <div class="otif-param"><span class="otif-param-dot" style="background:#dc2626"></span>< 50% Crítico</div>
         </div>
         <div style="margin-top:10px;font-size:12px;color:var(--blue);font-weight:600">Ver detalle →</div>
+=======
+        <div class="metric-icon" style="background:var(--blue-bg)">@include('partials.icons', ['name'=>'package','size'=>20,'color'=>'var(--blue)'])</div>
+        <div class="metric-label">Pedidos</div>
+        <div class="metric-val">{{ $totalPedidos }}</div>
+        <div class="metric-sub">{{ $pedidosPendientes }} pendientes · ${{ number_format($montoPedidos, 0) }} @include('partials.trend-arrow', ['value' => 12, 'size' => 11])</div>
+    </a>
+    <a href="{{ route('admin.productos') }}" class="metric anim anim-d4">
+        <div class="accent" style="background:var(--amber)"></div>
+        <div class="metric-icon" style="background:var(--amber-bg)">@include('partials.icons', ['name'=>'flask','size'=>20,'color'=>'var(--amber)'])</div>
+        <div class="metric-label">Productos</div>
+        <div class="metric-val">{{ $totalProductos }}</div>
+        <div class="metric-sub">{{ $sinStock }} sin stock @include('partials.trend-arrow', ['value' => -2, 'size' => 11])</div>
+>>>>>>> 01bde6eadcfcbeb478f212748b85c458b0e4205f
     </a>
 </div>
 
@@ -147,12 +176,60 @@
     </a>
 </div>
 
+<<<<<<< HEAD
 {{-- ═══ GRÁFICAS ═══ --}}
 <div class="section-title">Análisis</div>
 <div class="grid-2">
     <div class="chart-card">
         <div class="chart-title">Pedidos por mes</div>
         <div class="chart-wrap"><canvas id="chartPedidosMes"></canvas></div>
+=======
+{{-- ═══ MÉTRICAS FILA 3: Fiscal ═══ --}}
+<div class="metrics" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="metric anim" style="animation-delay:.45s">
+        <div class="accent" style="background:var(--green)"></div>
+        <div class="metric-icon" style="background:var(--green-bg)">@include('partials.icons', ['name'=>'file-text','size'=>20,'color'=>'var(--green)'])</div>
+        <div class="metric-label">Fiscal — Proveedores</div>
+        <div class="metric-val">{{ $totalProveedores > 0 ? round(($totalProveedores - ($docsPendientes ?? 0)) / $totalProveedores * 100) : 0 }}%</div>
+        <div class="metric-sub">Documentación fiscal completa</div>
+    </div>
+    <div class="metric anim" style="animation-delay:.50s">
+        <div class="accent" style="background:var(--blue)"></div>
+        <div class="metric-icon" style="background:var(--blue-bg)">@include('partials.icons', ['name'=>'dollar','size'=>20,'color'=>'var(--blue)'])</div>
+        <div class="metric-label">Fiscal — Facturación</div>
+        <div class="metric-val">{{ $facturasPendientes + ($totalEncuestas ?? 0) }}</div>
+        <div class="metric-sub">CFDIs emitidos este mes</div>
+    </div>
+    <div class="metric anim" style="animation-delay:.55s">
+        <div class="accent" style="background:var(--amber)"></div>
+        <div class="metric-icon" style="background:var(--amber-bg)">@include('partials.icons', ['name'=>'flask','size'=>20,'color'=>'var(--amber)'])</div>
+        <div class="metric-label">Fiscal — Pendientes</div>
+        <div class="metric-val">{{ $docsPendientes }}</div>
+        <div class="metric-sub">Documentos por validar con contabilidad</div>
+    </div>
+</div>
+
+{{-- ═══ TABS ═══ --}}
+<div class="dept-tabs anim" style="animation-delay:.42s">
+    <button class="dept-tab active" onclick="switchDept('general')">General</button>
+    <button class="dept-tab" onclick="switchDept('clientes')">Clientes</button>
+    <button class="dept-tab" onclick="switchDept('proveedores')">Proveedores</button>
+</div>
+
+{{-- ═══ PANEL GENERAL ═══ --}}
+<div class="dept-panel active" id="panel-general">
+
+    {{-- Gráficas principales --}}
+    <div class="chart-grid" style="margin-bottom:20px">
+        <div class="chart-card">
+            <div class="chart-title">@include('partials.icons', ['name'=>'bar-chart','size'=>16,'color'=>'var(--purple)']) Pedidos por mes (últimos 6 meses)</div>
+            <div class="chart-wrap"><canvas id="chartPedidosMes"></canvas></div>
+        </div>
+        <div class="chart-card">
+            <div class="chart-title">@include('partials.icons', ['name'=>'package','size'=>16,'color'=>'var(--blue)']) Pedidos por estatus</div>
+            <div class="chart-wrap"><canvas id="chartPedidosEstatus"></canvas></div>
+        </div>
+>>>>>>> 01bde6eadcfcbeb478f212748b85c458b0e4205f
     </div>
     <div class="chart-card">
         <div class="chart-title">Facturación</div>

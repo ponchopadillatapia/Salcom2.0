@@ -1,12 +1,12 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthProveedorController;
-use App\Http\Controllers\PortalProveedorController;
-use App\Http\Controllers\OrdenCompraController;
 use App\Http\Controllers\AltaProductoController;
 use App\Http\Controllers\APIS\EmpresaApiController;
+use App\Http\Controllers\AuthProveedorController;
 use App\Http\Controllers\MuestraController;
+use App\Http\Controllers\OrdenCompraController;
+use App\Http\Controllers\PortalProveedorController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('inicio');
@@ -28,8 +28,12 @@ Route::get('/onboarding', [PortalProveedorController::class, 'mostrarOnboarding'
 Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->name('proveedores.business')->middleware('auth.proveedor');
 Route::get('/payment-history', [PortalProveedorController::class, 'mostrarPaymentHistory'])->name('proveedores.payment-history')->middleware('auth.proveedor');
 Route::get('/perfil', [PortalProveedorController::class, 'mostrarPerfil'])->name('proveedores.perfil')->middleware('auth.proveedor');
-Route::get('/forecast', function () { return view('proveedores.forecast'); })->name('proveedores.forecast')->middleware('auth.proveedor');
-Route::get('/proveedor/otif', function () { return view('proveedores.otif'); })->name('proveedores.otif')->middleware('auth.proveedor');
+Route::get('/forecast', function () {
+    return view('proveedores.forecast');
+})->name('proveedores.forecast')->middleware('auth.proveedor');
+Route::get('/proveedor/otif', function () {
+    return view('proveedores.otif');
+})->name('proveedores.otif')->middleware('auth.proveedor');
 
 // ── Consultar OC ──
 Route::get('/consultar-oc', [OrdenCompraController::class, 'mostrarConsultarOC'])->name('proveedores.oc')->middleware('auth.proveedor');
@@ -66,21 +70,26 @@ Route::get('/cliente/pedidos', [PortalClienteController::class, 'mostrarPedidos'
 Route::get('/cliente/estado-cuenta', [PortalClienteController::class, 'mostrarEstadoCuenta'])->name('clientes.estado-cuenta')->middleware('auth.cliente');
 Route::get('/cliente/tracking', [PortalClienteController::class, 'mostrarTracking'])->name('clientes.tracking')->middleware('auth.cliente');
 Route::get('/cliente/perfil', [PortalClienteController::class, 'mostrarPerfil'])->name('clientes.perfil')->middleware('auth.cliente');
-Route::get('/cliente/forecast', function () { return view('clientes.forecast'); })->name('clientes.forecast')->middleware('auth.cliente');
+Route::get('/cliente/forecast', function () {
+    return view('clientes.forecast');
+})->name('clientes.forecast')->middleware('auth.cliente');
 
 // ── Auth Admin ──
 use App\Http\Controllers\AuthAdminController;
+
 Route::get('/login-admin', [AuthAdminController::class, 'mostrarLogin'])->name('admin.login');
 Route::post('/login-admin', [AuthAdminController::class, 'procesarLogin'])->name('admin.login.procesar');
 Route::post('/logout-admin', [AuthAdminController::class, 'cerrarSesion'])->name('admin.logout');
 
 // ── Admin: Alta de Clientes (interno Salcom) ──
 use App\Http\Controllers\AdminClienteController;
+
 Route::get('/admin/cliente/alta', [AdminClienteController::class, 'mostrarAlta'])->name('admin.cliente.alta')->middleware('auth.admin');
 Route::post('/admin/cliente/alta', [AdminClienteController::class, 'guardar'])->name('admin.cliente.guardar')->middleware('auth.admin');
 
 // ── Admin: Panel (Dashboard, Clientes, Encuestas, Pedidos, Proveedores) ──
 use App\Http\Controllers\AdminPanelController;
+
 Route::get('/admin/dashboard', [AdminPanelController::class, 'dashboard'])->name('admin.dashboard')->middleware('auth.admin');
 Route::get('/admin/clientes', [AdminPanelController::class, 'clientes'])->name('admin.clientes')->middleware('auth.admin');
 Route::patch('/admin/clientes/{cliente}/toggle', [AdminPanelController::class, 'toggleCliente'])->name('admin.clientes.toggle')->middleware('auth.admin');
@@ -121,7 +130,9 @@ Route::get('/proveedor/encuesta', [PortalProveedorController::class, 'mostrarEnc
 Route::post('/proveedor/encuesta', [PortalProveedorController::class, 'guardarEncuestaProveedor'])->name('proveedores.encuesta.guardar')->middleware('auth.proveedor');
 
 // ── Aviso de privacidad ──
-Route::get('/aviso-privacidad', function () { return view('aviso-privacidad'); })->name('aviso.privacidad');
+Route::get('/aviso-privacidad', function () {
+    return view('aviso-privacidad');
+})->name('aviso.privacidad');
 Route::post('/proveedor/aviso-privacidad', [PortalProveedorController::class, 'aceptarAvisoPrivacidad'])->name('proveedores.aviso.aceptar')->middleware('auth.proveedor');
 
 // ── Admin: Proveedores con score ──
@@ -142,6 +153,6 @@ Route::post('/admin/cliente/validar-rfc', [AdminClienteController::class, 'valid
 
 // ── Gestión de Pedidos (estatus + notificaciones) ──
 use App\Http\Controllers\PedidoController;
+
 Route::patch('/pedido/{pedido}/estatus', [PedidoController::class, 'cambiarEstatus'])->name('pedidos.cambiar-estatus');
 Route::post('/pedido/tracking', [PedidoController::class, 'tracking'])->name('pedidos.tracking');
-

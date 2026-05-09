@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 
 class Muestra extends Model
 {
@@ -16,26 +16,26 @@ class Muestra extends Model
     ];
 
     protected $casts = [
-        'fecha_registro'    => 'datetime',
-        'fecha_recepcion'   => 'datetime',
-        'fecha_validacion'  => 'datetime',
+        'fecha_registro' => 'datetime',
+        'fecha_recepcion' => 'datetime',
+        'fecha_validacion' => 'datetime',
         'fecha_laboratorio' => 'datetime',
-        'fecha_piso'        => 'datetime',
+        'fecha_piso' => 'datetime',
         'fecha_estabilidad' => 'datetime',
-        'fecha_resolucion'  => 'datetime',
+        'fecha_resolucion' => 'datetime',
     ];
 
     /**
      * Etapas en orden del proceso.
      */
     public const ETAPAS = [
-        'registro'     => ['label' => 'Registro de Lote',              'icono' => 'bi-box-seam',        'dias' => 0],
-        'recepcion'    => ['label' => 'Recepción',                     'icono' => 'bi-inbox',           'dias' => 1],
-        'laboratorio'  => ['label' => 'Pruebas de Laboratorio 15-20 días', 'icono' => 'bi-eyedropper', 'dias' => 15],
-        'piso'         => ['label' => 'Pruebas de Piso',              'icono' => 'bi-gear',            'dias' => 5],
-        'estabilidad'  => ['label' => 'Pruebas de Estabilidad',       'icono' => 'bi-thermometer-half','dias' => 5],
-        'aprobado'     => ['label' => 'Alta Material Aprobado',       'icono' => 'bi-check-circle',    'dias' => 0],
-        'rechazado'    => ['label' => 'Rechazado',                    'icono' => 'bi-x-circle',        'dias' => 0],
+        'registro' => ['label' => 'Registro de Lote',              'icono' => 'bi-box-seam',        'dias' => 0],
+        'recepcion' => ['label' => 'Recepción',                     'icono' => 'bi-inbox',           'dias' => 1],
+        'laboratorio' => ['label' => 'Pruebas de Laboratorio 15-20 días', 'icono' => 'bi-eyedropper', 'dias' => 15],
+        'piso' => ['label' => 'Pruebas de Piso',              'icono' => 'bi-gear',            'dias' => 5],
+        'estabilidad' => ['label' => 'Pruebas de Estabilidad',       'icono' => 'bi-thermometer-half', 'dias' => 5],
+        'aprobado' => ['label' => 'Alta Material Aprobado',       'icono' => 'bi-check-circle',    'dias' => 0],
+        'rechazado' => ['label' => 'Rechazado',                    'icono' => 'bi-x-circle',        'dias' => 0],
     ];
 
     /**
@@ -43,21 +43,26 @@ class Muestra extends Model
      */
     public function avanzarEtapa(): void
     {
-        if (in_array($this->etapa, ['aprobado', 'rechazado'])) return;
+        if (in_array($this->etapa, ['aprobado', 'rechazado'])) {
+            return;
+        }
 
         $ahora = Carbon::now();
         $orden = ['registro', 'recepcion', 'laboratorio', 'piso', 'estabilidad'];
         $indice = array_search($this->etapa, $orden);
 
-        if ($indice === false) return;
+        if ($indice === false) {
+            return;
+        }
 
         // Verificar si ya pasó el tiempo de la etapa actual
-        $campoFecha = 'fecha_' . $this->etapa;
+        $campoFecha = 'fecha_'.$this->etapa;
         $fechaInicio = $this->{$campoFecha};
 
-        if (!$fechaInicio) {
+        if (! $fechaInicio) {
             $this->{$campoFecha} = $ahora;
             $this->save();
+
             return;
         }
 
@@ -71,7 +76,7 @@ class Muestra extends Model
         if ($ahora->gte($fechaFin) && isset($orden[$indice + 1])) {
             $siguienteEtapa = $orden[$indice + 1];
             $this->etapa = $siguienteEtapa;
-            $this->{'fecha_' . $siguienteEtapa} = $ahora;
+            $this->{'fecha_'.$siguienteEtapa} = $ahora;
             $this->save();
 
             // Recursivo: verificar si también ya pasó la siguiente
@@ -93,7 +98,10 @@ class Muestra extends Model
     {
         $orden = ['registro', 'recepcion', 'laboratorio', 'piso', 'estabilidad', 'aprobado'];
         $indice = array_search($this->etapa, $orden);
-        if ($this->etapa === 'rechazado') return 0;
+        if ($this->etapa === 'rechazado') {
+            return 0;
+        }
+
         return $indice !== false ? (int) round(($indice / (count($orden) - 1)) * 100) : 0;
     }
 }

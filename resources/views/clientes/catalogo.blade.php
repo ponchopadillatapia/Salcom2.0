@@ -91,7 +91,7 @@
 
 <div class="modal-overlay-cat" id="modalQtyOverlay" onclick="if(event.target===this)cerrarModalCantidad()">
     <div class="modal-cat" onclick="event.stopPropagation()">
-        <h3 id="modalQtyTitle">Agregar al pedido</h3>
+        <h3 id="modalQtyTitle">Agregar al carrito</h3>
         <p class="modal-sub" id="modalQtyProduct"></p>
         <div>
             <label for="modalQtyInput">Cantidad</label>
@@ -119,37 +119,21 @@
     }
 @endphp
 <script>
-const PEDIDOS_STORAGE_KEY = 'salcom_cliente_pedidos_v1';
-const PEDIDOS_SEED = [
-    {folio:'PED-2026-001',fecha:'01/04/2026',productos:'Detergente Industrial x10, Desengrasante HD x5',total:8450.00,pago:'contado',estatus:'entregado',key:'entregado'},
-    {folio:'PED-2026-002',fecha:'03/04/2026',productos:'Aceite Lubricante SAE 40 x3',total:2670.00,pago:'contado',estatus:'enviado',key:'enviado'},
-    {folio:'PED-2026-003',fecha:'05/04/2026',productos:'Cinta Empaque x50, Stretch Film x20',total:4725.00,pago:'contado',estatus:'produccion',key:'produccion'},
-    {folio:'PED-2026-004',fecha:'07/04/2026',productos:'Sanitizante Multiusos x30',total:5850.00,pago:'contado',estatus:'autorizado',key:'autorizado'},
-    {folio:'PED-2026-005',fecha:'09/04/2026',productos:'Solvente Dieléctrico x8, Refrigerante x2',total:4700.00,pago:'contado',estatus:'validacion',key:'validacion'},
-];
+const CART_STORAGE_KEY = window.SALCOM_CART_STORAGE_KEY || 'salcom_cliente_carrito_v1';
 
-function loadPedidosStorage() {
+function loadCart() {
     try {
-        const raw = localStorage.getItem(PEDIDOS_STORAGE_KEY);
+        const raw = localStorage.getItem(CART_STORAGE_KEY);
         if (raw) {
             const data = JSON.parse(raw);
-            if (Array.isArray(data) && data.length) return data;
+            if (Array.isArray(data)) return data;
         }
     } catch (e) {}
-    return PEDIDOS_SEED.map(p => ({...p}));
+    return [];
 }
 
-function savePedidosStorage(arr) {
-    localStorage.setItem(PEDIDOS_STORAGE_KEY, JSON.stringify(arr));
-}
-
-function nextPedidoFolio(list) {
-    let max = 0;
-    for (const p of list) {
-        const m = /^PED-2026-(\d+)$/.exec(p.folio);
-        if (m) max = Math.max(max, parseInt(m[1], 10));
-    }
-    return 'PED-2026-' + String(max + 1).padStart(3, '0');
+function saveCart(arr) {
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(arr));
 }
 
 const productos = [
@@ -389,7 +373,7 @@ function agregarPedido(codigo) {
     const p = productos.find(x => x.codigo === codigo);
     if (!p || p.stock === 0) return;
     pendingPedidoCodigo = codigo;
-    document.getElementById('modalQtyTitle').textContent = 'Agregar al pedido';
+    document.getElementById('modalQtyTitle').textContent = 'Agregar al carrito';
     document.getElementById('modalQtyProduct').textContent = p.nombre + ' · ' + p.codigo + ' — $' + p.precio.toLocaleString('es-MX', {minimumFractionDigits: 2}) + ' c/u';
     const inp = document.getElementById('modalQtyInput');
     inp.value = 1;
@@ -472,26 +456,24 @@ function confirmarCantidadPedido() {
         if (img && img.src) imgSrc = img.src;
     }
 
-    const list = loadPedidosStorage();
-    const folio = nextPedidoFolio(list);
-    const total = p.precio * qty;
-    list.unshift({
-        folio,
-        fecha: new Date().toLocaleDateString('es-MX'),
-        productos: p.nombre + ' x' + qty,
-        total,
-        pago: 'contado',
-        estatus: 'En validación',
-        key: 'validacion',
-    });
-    savePedidosStorage(list);
+    const cart = loadCart();
+    const existing = cart.find(x => x.codigo === p.codigo);
+    if (existing) {
+        let nextQty = existing.cantidad + qty;
+        if (p.stock > 0 && nextQty > p.stock) nextQty = p.stock;
+        existing.cantidad = nextQty;
+    } else {
+        let c = qty;
+        if (p.stock > 0 && c > p.stock) c = p.stock;
+        cart.push({
+            codigo: p.codigo,
+            nombre: p.nombre,
+            precioUnit: p.precio,
+            cantidad: c,
+        });
+    }
+    saveCart(cart);
     cerrarModalCantidad();
-
-    const badgeKey = window.SALCOM_PEDIDOS_NAV_BADGE_KEY || 'salcom_cliente_pedidos_nav_badge';
-    try {
-        const prev = parseInt(localStorage.getItem(badgeKey) || '0', 10) || 0;
-        localStorage.setItem(badgeKey, String(prev + 1));
-    } catch (e) {}
 
     const syncBadge = function () {
         if (typeof window.salcomSyncPedidosNavBadge === 'function') window.salcomSyncPedidosNavBadge();

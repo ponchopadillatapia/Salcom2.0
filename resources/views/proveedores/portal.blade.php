@@ -350,7 +350,7 @@
     /* ── Responsive ── */
     @media (max-width: 768px) {
         .pp-grid-2 {
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr !important;
         }
         .pp-quick-grid {
             grid-template-columns: 1fr 1fr;
@@ -361,6 +361,11 @@
         }
         .pp-otif-wrap {
             gap: 20px;
+        }
+    }
+    @media (max-width: 1024px) and (min-width: 769px) {
+        .pp-grid-2 {
+            grid-template-columns: 1fr 1fr !important;
         }
     }
     @media (max-width: 480px) {
@@ -374,8 +379,8 @@
 @section('content')
 <div class="pp-wrap">
 
-    {{-- ═══ SECTION 1: Negocio + OTIF ═══ --}}
-    <div class="pp-grid-2">
+    {{-- ═══ SECTION 1: Negocio + Inventario + OTIF + Fiscal ═══ --}}
+    <div class="pp-grid-2" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
         {{-- Negocio --}}
         <a href="{{ route('proveedores.business') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card">
@@ -392,6 +397,24 @@
                 <div class="pp-negocio-value" style="color:var(--red);">
                     275,343
                     <span class="pp-variation pp-variation-down">-2%</span>
+                </div>
+            </div>
+            <span class="pp-detail-link">Ver detalle →</span>
+        </div>
+        </a>
+
+        {{-- Inventario --}}
+        <a href="{{ route('proveedores.business') }}" style="text-decoration:none;color:inherit;">
+        <div class="pp-card">
+            <h4>Inventario</h4>
+            <div class="pp-negocio-row">
+                <div class="pp-negocio-label">SKUs activos</div>
+                <div class="pp-negocio-value">48</div>
+            </div>
+            <div class="pp-negocio-row">
+                <div class="pp-negocio-label">Stock bajo</div>
+                <div class="pp-negocio-value" style="color:var(--amber);">
+                    3
                 </div>
             </div>
             <span class="pp-detail-link">Ver detalle →</span>
@@ -420,6 +443,26 @@
                         </div>
                     </div>
                     <span class="pp-otif-label">IF (In Full)</span>
+                </div>
+            </div>
+            <span class="pp-detail-link">Ver detalle →</span>
+        </div>
+        </a>
+
+        {{-- Fiscal --}}
+        <a href="{{ route('proveedores.perfil') }}" style="text-decoration:none;color:inherit;">
+        <div class="pp-card">
+            <h4>Fiscal</h4>
+            <div class="pp-negocio-row">
+                <div class="pp-negocio-label">Documentos</div>
+                <div class="pp-negocio-value" style="color:var(--green);">
+                    5/6
+                </div>
+            </div>
+            <div class="pp-negocio-row">
+                <div class="pp-negocio-label">Estatus</div>
+                <div class="pp-negocio-value" style="font-size:14px;color:var(--amber);">
+                    Pendiente validación
                 </div>
             </div>
             <span class="pp-detail-link">Ver detalle →</span>
@@ -563,7 +606,7 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    function drawDonut(canvasId, percent, color) {
+    function drawDonut(canvasId, percent) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -574,25 +617,51 @@ document.addEventListener('DOMContentLoaded', function() {
         const startAngle = -Math.PI / 2;
         const endAngle = startAngle + (2 * Math.PI * percent / 100);
 
-        // Background ring
+        // Colores según porcentaje:
+        // > 95% → verde la parte llena, naranja el gap
+        // <= 95% → verde la parte llena, rojo el gap
+        let mainColor = '#34c759';
+        let gapColor = percent > 95 ? '#ff9500' : '#ff3b30';
+
+        // Fondo gris claro
         ctx.beginPath();
         ctx.arc(center, center, radius, 0, 2 * Math.PI);
         ctx.strokeStyle = '#e8e8ed';
         ctx.lineWidth = lineWidth;
-        ctx.lineCap = 'round';
         ctx.stroke();
 
-        // Value ring
+        // Gap con color (la parte que falta para el 100%)
+        if (percent < 100) {
+            ctx.beginPath();
+            ctx.arc(center, center, radius, endAngle, startAngle + 2 * Math.PI);
+            ctx.strokeStyle = gapColor;
+            ctx.lineWidth = lineWidth + 2;
+            ctx.stroke();
+        }
+
+        // Parte completada (siempre verde)
         ctx.beginPath();
         ctx.arc(center, center, radius, startAngle, endAngle);
-        ctx.strokeStyle = color;
+        ctx.strokeStyle = mainColor;
         ctx.lineWidth = lineWidth;
         ctx.lineCap = 'round';
         ctx.stroke();
+
+        // Cambiar color del texto del porcentaje
+        const percentEl = canvas.parentElement.querySelector('.pp-otif-percent');
+        if (percentEl) {
+            if (percent <= 95) {
+                percentEl.style.color = '#ff3b30'; // rojo
+            } else if (percent < 100) {
+                percentEl.style.color = '#34c759'; // verde (está bien, solo el gap es naranja)
+            } else {
+                percentEl.style.color = '#34c759'; // verde perfecto
+            }
+        }
     }
 
-    drawDonut('donutOT', 98.5, '#34c759');
-    drawDonut('donutIF', 95, '#34c759');
+    drawDonut('donutOT', 98.5);
+    drawDonut('donutIF', 95);
 });
 </script>
 @endpush

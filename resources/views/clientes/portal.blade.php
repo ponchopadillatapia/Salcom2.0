@@ -152,11 +152,11 @@
 
 @section('content')
 <div class="portal-home">
-    <div class="portal-top-grid">
+    <div class="portal-top-grid" style="grid-template-columns: repeat(5, 1fr);">
         <div class="portal-card">
             <h4>Pedidos en proceso</h4>
             <div class="portal-stat-val">3</div>
-            <div class="portal-stat-label">Validación, autorizado y producción</div>
+            <div class="portal-stat-label">Validación, autorizado y producción @include('partials.trend-arrow', ['value' => 5, 'size' => 11])</div>
         </div>
         <div class="portal-card">
             <h4>Último pedido</h4>
@@ -166,12 +166,17 @@
         <div class="portal-card">
             <h4>Saldo pendiente</h4>
             <div class="portal-stat-val">$17,719</div>
-            <div class="portal-stat-label">3 facturas pendientes · Sin vencidas</div>
+            <div class="portal-stat-label">3 facturas pendientes · Sin vencidas @include('partials.trend-arrow', ['value' => -3, 'size' => 11])</div>
         </div>
         <div class="portal-card">
             <h4>Tipo de cliente</h4>
             <div class="portal-stat-val">{{ ucfirst(session('cliente_tipo', '—')) }}</div>
             <div class="portal-stat-label">Clasificación</div>
+        </div>
+        <div class="portal-card">
+            <h4>Fiscal</h4>
+            <div class="portal-stat-val" style="font-size:20px;color:var(--green);">Al día</div>
+            <div class="portal-stat-label">Documentos fiscales completos</div>
         </div>
     </div>
 

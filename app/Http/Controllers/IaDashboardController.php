@@ -23,7 +23,7 @@ class IaDashboardController extends Controller
     public function adminIa()
     {
         return view('admin.ia-dashboard', [
-            'clientes'  => $this->listaClientes(),
+            'clientes' => $this->listaClientes(),
             'productos' => $this->listaProductos(),
         ]);
     }
@@ -35,10 +35,10 @@ class IaDashboardController extends Controller
         $resultado = $this->iaService->pronosticoDemanda($request->input('codigo_cliente'));
 
         return view('admin.ia-dashboard', [
-            'clientes'            => $this->listaClientes(),
-            'productos'           => $this->listaProductos(),
+            'clientes' => $this->listaClientes(),
+            'productos' => $this->listaProductos(),
             'resultadoPronostico' => $resultado,
-            'tabActiva'           => 'pronostico',
+            'tabActiva' => 'pronostico',
         ]);
     }
 
@@ -47,10 +47,10 @@ class IaDashboardController extends Controller
         $resultado = $this->iaService->optimizacionInventario();
 
         return view('admin.ia-dashboard', [
-            'clientes'            => $this->listaClientes(),
-            'productos'           => $this->listaProductos(),
+            'clientes' => $this->listaClientes(),
+            'productos' => $this->listaProductos(),
             'resultadoInventario' => $resultado,
-            'tabActiva'           => 'inventario',
+            'tabActiva' => 'inventario',
         ]);
     }
 
@@ -61,10 +61,10 @@ class IaDashboardController extends Controller
         $resultado = $this->iaService->seleccionProveedor($request->input('producto_id'));
 
         return view('admin.ia-dashboard', [
-            'clientes'           => $this->listaClientes(),
-            'productos'          => $this->listaProductos(),
+            'clientes' => $this->listaClientes(),
+            'productos' => $this->listaProductos(),
             'resultadoProveedor' => $resultado,
-            'tabActiva'          => 'proveedor',
+            'tabActiva' => 'proveedor',
         ]);
     }
 
@@ -85,9 +85,9 @@ class IaDashboardController extends Controller
         $resultado = $this->iaService->pronosticoDemanda($codigoProveedor);
 
         return view('proveedores.ia-dashboard', [
-            'productos'           => $this->listaProductos(),
+            'productos' => $this->listaProductos(),
             'resultadoPronostico' => $resultado,
-            'tabActiva'           => 'pronostico',
+            'tabActiva' => 'pronostico',
         ]);
     }
 
@@ -96,9 +96,9 @@ class IaDashboardController extends Controller
         $resultado = $this->iaService->optimizacionInventario();
 
         return view('proveedores.ia-dashboard', [
-            'productos'           => $this->listaProductos(),
+            'productos' => $this->listaProductos(),
             'resultadoInventario' => $resultado,
-            'tabActiva'           => 'inventario',
+            'tabActiva' => 'inventario',
         ]);
     }
 
@@ -108,9 +108,9 @@ class IaDashboardController extends Controller
         $resultado = $this->iaService->seleccionProveedor($productoId);
 
         return view('proveedores.ia-dashboard', [
-            'productos'          => $this->listaProductos(),
+            'productos' => $this->listaProductos(),
             'resultadoProveedor' => $resultado,
-            'tabActiva'          => 'proveedor',
+            'tabActiva' => 'proveedor',
         ]);
     }
 
@@ -130,7 +130,7 @@ class IaDashboardController extends Controller
 
         return view('clientes.ia-dashboard', [
             'resultadoPronostico' => $resultado,
-            'tabActiva'           => 'pronostico',
+            'tabActiva' => 'pronostico',
         ]);
     }
 
@@ -140,7 +140,7 @@ class IaDashboardController extends Controller
 
         return view('clientes.ia-dashboard', [
             'resultadoInventario' => $resultado,
-            'tabActiva'           => 'inventario',
+            'tabActiva' => 'inventario',
         ]);
     }
 

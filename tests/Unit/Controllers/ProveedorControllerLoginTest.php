@@ -2,10 +2,7 @@
 
 namespace Tests\Unit\Controllers;
 
-use App\Exceptions\ProveedorApiException;
-use App\Http\Controllers\ProveedorController;
 use App\Models\ProveedorUser;
-use App\Services\ProveedorApiService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
@@ -31,22 +28,22 @@ class ProveedorControllerLoginTest extends TestCase
     private function crearProveedorLocal(string $usuario = 'PROV001', string $pwd = 'secret123'): ProveedorUser
     {
         return ProveedorUser::create([
-            'usuario'        => $usuario,
-            'password'       => Hash::make($pwd),
-            'nombre'         => 'Test Proveedor',
+            'usuario' => $usuario,
+            'password' => Hash::make($pwd),
+            'nombre' => 'Test Proveedor',
             'codigo_compras' => 'COD001',
-            'correo'         => 'test@example.com',
-            'tipo_persona'   => 'Moral',
-            'telefono'       => '5551234567',
+            'correo' => 'test@example.com',
+            'tipo_persona' => 'Moral',
+            'telefono' => '5551234567',
         ]);
     }
 
     private function fakeApiSuccess(): void
     {
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([
-                'usuario'      => 'PROV001',
-                'tokencreado'  => 'jwt-token-abc',
+            $this->baseUrl.'/Login/Login' => Http::response([
+                'usuario' => 'PROV001',
+                'tokencreado' => 'jwt-token-abc',
             ], 200),
         ]);
     }
@@ -54,14 +51,14 @@ class ProveedorControllerLoginTest extends TestCase
     private function fakeApiAuthFailed(): void
     {
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([], 401),
+            $this->baseUrl.'/Login/Login' => Http::response([], 401),
         ]);
     }
 
     private function fakeApiDown(): void
     {
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([], 500),
+            $this->baseUrl.'/Login/Login' => Http::response([], 500),
         ]);
     }
 
@@ -222,11 +219,11 @@ class ProveedorControllerLoginTest extends TestCase
     public function test_cerrar_sesion_limpia_token_y_source(): void
     {
         session([
-            'proveedor_id'           => 1,
-            'proveedor_nombre'       => 'Test',
-            'proveedor_codigo'       => 'COD001',
-            'proveedor_correo'       => 'test@example.com',
-            'proveedor_token'        => 'jwt-token',
+            'proveedor_id' => 1,
+            'proveedor_nombre' => 'Test',
+            'proveedor_codigo' => 'COD001',
+            'proveedor_correo' => 'test@example.com',
+            'proveedor_token' => 'jwt-token',
             'proveedor_login_source' => 'api',
         ]);
 
@@ -278,9 +275,10 @@ class ProveedorControllerLoginTest extends TestCase
         $cases = [];
         $invalids = ['', 'invalid', 'API', 'LOCAL', 'FALLBACK', 'both', 'none', '123', 'api ', ' local'];
         for ($i = 0; $i < 100; $i++) {
-            $mode = $invalids[array_rand($invalids)] . bin2hex(random_bytes(2));
+            $mode = $invalids[array_rand($invalids)].bin2hex(random_bytes(2));
             $cases["mode_{$i}"] = [$mode];
         }
+
         return $cases;
     }
 
@@ -311,6 +309,7 @@ class ProveedorControllerLoginTest extends TestCase
             $status = $statuses[array_rand($statuses)];
             $cases["api_error_{$status}_{$i}"] = [$status];
         }
+
         return $cases;
     }
 
@@ -324,7 +323,7 @@ class ProveedorControllerLoginTest extends TestCase
         $this->crearProveedorLocal('PROV001', 'secret');
 
         Http::fake([
-            $this->baseUrl . '/Login/Login' => Http::response([], $status),
+            $this->baseUrl.'/Login/Login' => Http::response([], $status),
         ]);
 
         $response = $this->post('/login-proveedor', ['codigo' => 'PROV001', 'pwd' => 'secret']);
@@ -342,7 +341,7 @@ class ProveedorControllerLoginTest extends TestCase
             config(['services.proveedor_api.login_mode' => 'local']);
             Http::fake();
 
-            $codigo = 'PROV' . str_pad((string) rand(1, 9999), 4, '0', STR_PAD_LEFT);
+            $codigo = 'PROV'.str_pad((string) rand(1, 9999), 4, '0', STR_PAD_LEFT);
             $this->post('/login-proveedor', ['codigo' => $codigo, 'pwd' => 'any_password']);
 
             Http::assertNothingSent();
