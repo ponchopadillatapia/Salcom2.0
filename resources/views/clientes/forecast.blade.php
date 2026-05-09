@@ -83,4 +83,53 @@
 
 <div class="fc-note">⚠ Datos de prueba — se reemplazarán con datos reales de tu historial de pedidos</div>
 
+{{-- Tabla Mínimos y máximos --}}
+<div class="fc-card" style="margin-top:24px;">
+    <h3>Mínimos y máximos</h3>
+    <p style="font-size:13px;color:var(--gray-muted);margin-bottom:16px;">Comparativo de tus compras — análisis de tendencia</p>
+    <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+                <tr style="border-bottom:2px solid var(--border);text-align:left;">
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;">Código</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;">Producto</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;text-align:right;">UDS 2025</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;text-align:right;">UDS 2026</th>
+                    <th style="padding:10px 8px;color:var(--gray-muted);font-weight:600;font-size:11px;text-transform:uppercase;text-align:center;">Variación</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:12px 8px;color:var(--gray-muted);">SAL-001</td>
+                    <td style="padding:12px 8px;font-weight:600;">Resina epóxica industrial</td>
+                    <td style="padding:12px 8px;text-align:right;">1,200</td>
+                    <td style="padding:12px 8px;text-align:right;">1,344</td>
+                    <td style="padding:12px 8px;text-align:center;">@include('partials.trend-arrow', ['value' => 12])</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:12px 8px;color:var(--gray-muted);">SAL-003</td>
+                    <td style="padding:12px 8px;font-weight:600;">Solvente grado técnico</td>
+                    <td style="padding:12px 8px;text-align:right;">800</td>
+                    <td style="padding:12px 8px;text-align:right;">864</td>
+                    <td style="padding:12px 8px;text-align:center;">@include('partials.trend-arrow', ['value' => 8])</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:12px 8px;color:var(--gray-muted);">SAL-007</td>
+                    <td style="padding:12px 8px;font-weight:600;">Catalizador rápido</td>
+                    <td style="padding:12px 8px;text-align:right;">500</td>
+                    <td style="padding:12px 8px;text-align:right;">475</td>
+                    <td style="padding:12px 8px;text-align:center;">@include('partials.trend-arrow', ['value' => -5])</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td style="padding:12px 8px;color:var(--gray-muted);">SAL-009</td>
+                    <td style="padding:12px 8px;font-weight:600;">Aditivo antioxidante</td>
+                    <td style="padding:12px 8px;text-align:right;">300</td>
+                    <td style="padding:12px 8px;text-align:right;">255</td>
+                    <td style="padding:12px 8px;text-align:center;">@include('partials.trend-arrow', ['value' => -15])</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
 @endsection

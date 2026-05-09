@@ -65,6 +65,7 @@
                 <th>Precio</th>
                 <th>Unidad</th>
                 <th>Stock</th>
+                <th>Tendencia</th>
                 <th>Estado</th>
             </tr>
         </thead>
@@ -73,6 +74,7 @@
             @php
                 $stockClass = $p->stock <= 0 ? 'out' : ($p->stock < 50 ? 'low' : 'ok');
                 $stockLabel = $p->stock <= 0 ? 'Agotado' : ($p->stock < 50 ? 'Bajo' : 'OK');
+                $trendVal = rand(-15, 12);
             @endphp
             <tr>
                 <td style="font-weight:700;color:var(--purple)">{{ $p->codigo }}</td>
@@ -81,6 +83,7 @@
                 <td style="font-variant-numeric:tabular-nums">${{ number_format($p->precio, 2) }}</td>
                 <td>{{ $p->unidad_venta }}</td>
                 <td style="font-weight:600;font-variant-numeric:tabular-nums">{{ number_format($p->stock) }}</td>
+                <td>@include('partials.trend-arrow', ['value' => $trendVal])</td>
                 <td><span class="badge-stock {{ $stockClass }}">{{ $stockLabel }}</span></td>
             </tr>
         @endforeach

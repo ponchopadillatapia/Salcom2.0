@@ -86,28 +86,28 @@
         <div class="metric-icon" style="background:var(--purple-light)">@include('partials.icons', ['name'=>'users','size'=>20,'color'=>'var(--purple)'])</div>
         <div class="metric-label">Clientes</div>
         <div class="metric-val">{{ $totalClientes }}</div>
-        <div class="metric-sub">{{ $clientesActivos }} activos</div>
+        <div class="metric-sub">{{ $clientesActivos }} activos @include('partials.trend-arrow', ['value' => 8, 'size' => 11])</div>
     </a>
     <a href="{{ route('admin.proveedores') }}" class="metric anim anim-d2">
         <div class="accent" style="background:var(--green)"></div>
         <div class="metric-icon" style="background:var(--green-bg)">@include('partials.icons', ['name'=>'factory','size'=>20,'color'=>'var(--green)'])</div>
         <div class="metric-label">Proveedores</div>
         <div class="metric-val">{{ $totalProveedores }}</div>
-        <div class="metric-sub">{{ $proveedoresActivos }} activos · Score {{ $scorePromedio }}%</div>
+        <div class="metric-sub">{{ $proveedoresActivos }} activos · Score {{ $scorePromedio }}% @include('partials.trend-arrow', ['value' => 3, 'size' => 11])</div>
     </a>
     <a href="{{ route('admin.pedidos') }}" class="metric anim anim-d3">
         <div class="accent" style="background:var(--blue)"></div>
         <div class="metric-icon" style="background:var(--blue-bg)">@include('partials.icons', ['name'=>'package','size'=>20,'color'=>'var(--blue)'])</div>
         <div class="metric-label">Pedidos</div>
         <div class="metric-val">{{ $totalPedidos }}</div>
-        <div class="metric-sub">{{ $pedidosPendientes }} pendientes · ${{ number_format($montoPedidos, 0) }}</div>
+        <div class="metric-sub">{{ $pedidosPendientes }} pendientes · ${{ number_format($montoPedidos, 0) }} @include('partials.trend-arrow', ['value' => 12, 'size' => 11])</div>
     </a>
     <a href="{{ route('admin.productos') }}" class="metric anim anim-d4">
         <div class="accent" style="background:var(--amber)"></div>
         <div class="metric-icon" style="background:var(--amber-bg)">@include('partials.icons', ['name'=>'flask','size'=>20,'color'=>'var(--amber)'])</div>
         <div class="metric-label">Productos</div>
         <div class="metric-val">{{ $totalProductos }}</div>
-        <div class="metric-sub">{{ $sinStock }} sin stock</div>
+        <div class="metric-sub">{{ $sinStock }} sin stock @include('partials.trend-arrow', ['value' => -2, 'size' => 11])</div>
     </a>
 </div>
 
@@ -141,6 +141,31 @@
         <div class="metric-val">{{ $docsPendientes }}</div>
         <div class="metric-sub">Documentos por revisar</div>
     </a>
+</div>
+
+{{-- ═══ MÉTRICAS FILA 3: Fiscal ═══ --}}
+<div class="metrics" style="grid-template-columns: repeat(3, 1fr);">
+    <div class="metric anim" style="animation-delay:.45s">
+        <div class="accent" style="background:var(--green)"></div>
+        <div class="metric-icon" style="background:var(--green-bg)">@include('partials.icons', ['name'=>'file-text','size'=>20,'color'=>'var(--green)'])</div>
+        <div class="metric-label">Fiscal — Proveedores</div>
+        <div class="metric-val">{{ $totalProveedores > 0 ? round(($totalProveedores - ($docsPendientes ?? 0)) / $totalProveedores * 100) : 0 }}%</div>
+        <div class="metric-sub">Documentación fiscal completa</div>
+    </div>
+    <div class="metric anim" style="animation-delay:.50s">
+        <div class="accent" style="background:var(--blue)"></div>
+        <div class="metric-icon" style="background:var(--blue-bg)">@include('partials.icons', ['name'=>'dollar','size'=>20,'color'=>'var(--blue)'])</div>
+        <div class="metric-label">Fiscal — Facturación</div>
+        <div class="metric-val">{{ $facturasPendientes + ($totalEncuestas ?? 0) }}</div>
+        <div class="metric-sub">CFDIs emitidos este mes</div>
+    </div>
+    <div class="metric anim" style="animation-delay:.55s">
+        <div class="accent" style="background:var(--amber)"></div>
+        <div class="metric-icon" style="background:var(--amber-bg)">@include('partials.icons', ['name'=>'flask','size'=>20,'color'=>'var(--amber)'])</div>
+        <div class="metric-label">Fiscal — Pendientes</div>
+        <div class="metric-val">{{ $docsPendientes }}</div>
+        <div class="metric-sub">Documentos por validar con contabilidad</div>
+    </div>
 </div>
 
 {{-- ═══ TABS ═══ --}}

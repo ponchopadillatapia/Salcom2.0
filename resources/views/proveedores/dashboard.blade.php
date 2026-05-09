@@ -312,7 +312,7 @@
         <span class="section-sub">Verde = Aprobada/Pagada · Rojo = Proceso pendiente</span>
     </div>
 
-    <div class="metrics-row">
+    <div class="metrics-row" style="grid-template-columns: repeat(5, 1fr);">
         <div class="metric-card">
             <div class="accent" style="background:var(--amber)"></div>
             <div class="metric-label">Pendientes de aprobación (Incomings)</div>
@@ -320,7 +320,19 @@
             <div class="metric-sub">Pendiente de API</div>
         </div>
         <div class="metric-card">
+            <div class="accent" style="background:var(--red)"></div>
+            <div class="metric-label">Cumplimiento fiscal</div>
+            <div class="metric-value">—</div>
+            <div class="metric-sub">Pendiente de API</div>
+        </div>
+        <div class="metric-card">
             <div class="accent" style="background:var(--purple)"></div>
+            <div class="metric-label">Compulsa contra el SAT</div>
+            <div class="metric-value">—</div>
+            <div class="metric-sub">Pendiente de API</div>
+        </div>
+        <div class="metric-card">
+            <div class="accent" style="background:var(--blue)"></div>
             <div class="metric-label">En revisión</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
