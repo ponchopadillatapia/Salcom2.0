@@ -20,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.cliente'   => \App\Http\Middleware\AutenticacionCliente::class,
             'auth.admin'     => \App\Http\Middleware\AutenticacionAdmin::class,
             'auth.api_token' => \App\Http\Middleware\ApiTokenAuth::class,
+            'admin.rol'      => \App\Http\Middleware\AdminRol::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

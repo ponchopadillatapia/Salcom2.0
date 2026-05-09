@@ -1,13 +1,19 @@
 ﻿@extends('layouts.admin')
-@section('title', 'Proveedores — Score')
+@section('title', 'Proveedores')
 @section('hero')
 <div class="hero-band">
-    <h1>Proveedores — Score</h1>
-    <p>Score = 50% entrega a tiempo + 50% puntualidad</p>
+    <h1>Proveedores</h1>
+    <p>Gestión de proveedores, pedidos, productos y facturas</p>
 </div>
 @endsection
 @push('styles')
 <style>
+    .prov-tabs{display:flex;gap:4px;background:var(--gray-soft);border-radius:12px;padding:4px;margin-bottom:20px;width:fit-content}
+    .prov-tab{padding:10px 22px;font-size:13px;font-weight:600;color:var(--gray-muted);cursor:pointer;border:none;background:none;border-radius:10px;font-family:inherit;transition:all .2s}
+    .prov-tab:hover{color:var(--purple);background:rgba(107,63,160,.06)}
+    .prov-tab.active{color:var(--purple);background:var(--white);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    .prov-panel{display:none}.prov-panel.active{display:block}
+
     .toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
     .search-box{display:flex;gap:8px;flex:1;max-width:420px}
     .search-box input{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:13px;font-family:inherit;color:var(--gray-text);outline:none;background:var(--white)}
@@ -15,90 +21,189 @@
     .search-box button{padding:9px 18px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:13px;font-family:inherit;font-weight:600;cursor:pointer}
     .search-box button:hover{background:var(--purple-dark)}
     .badge-count{font-size:13px;color:var(--gray-muted);font-weight:500}
+
     .admin-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden}
     .admin-table{width:100%;border-collapse:collapse}
     .admin-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px;padding:12px 16px;text-align:left;background:var(--gray-soft);border-bottom:1px solid var(--border)}
     .admin-table td{padding:12px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border)}
     .admin-table tr:last-child td{border-bottom:none}
     .admin-table tr:hover td{background:var(--purple-subtle)}
+
     .score-bar{width:80px;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px}
     .score-fill{height:100%;border-radius:4px}
     .score-high .score-fill{background:var(--green)}
     .score-mid .score-fill{background:var(--amber)}
     .score-low .score-fill{background:var(--red)}
+
     .badge-activo{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
     .badge-activo.si{background:var(--green-bg);color:var(--green)}
     .badge-activo.no{background:var(--red-bg);color:var(--red)}
+
+    .badge-estatus{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block;text-transform:capitalize}
+    .badge-estatus.validacion{background:var(--amber-bg);color:var(--amber)}
+    .badge-estatus.procesando{background:var(--blue-bg);color:var(--blue)}
+    .badge-estatus.enviado{background:#ede9fe;color:#7c3aed}
+    .badge-estatus.entregado{background:var(--green-bg);color:var(--green)}
+    .badge-estatus.cancelado{background:var(--red-bg);color:var(--red)}
+    .badge-estatus.pendiente{background:var(--amber-bg);color:var(--amber)}
+    .badge-estatus.pagada{background:var(--green-bg);color:var(--green)}
+
+    .badge-stock{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
+    .badge-stock.ok{background:var(--green-bg);color:var(--green)}
+    .badge-stock.low{background:var(--amber-bg);color:var(--amber)}
+    .badge-stock.out{background:var(--red-bg);color:var(--red)}
+
+    .badge-vencida{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--red-bg);color:var(--red);margin-left:6px}
+
     .btn-eliminar{padding:5px 14px;font-size:12px;font-weight:600;border:1px solid var(--red);border-radius:6px;background:var(--red);color:#fff;cursor:pointer;font-family:inherit;transition:all .15s}
     .btn-eliminar:hover{background:#b91c1c;border-color:#b91c1c}
+
     .pagination-wrap{padding:16px;display:flex;justify-content:center}
     .empty-state{text-align:center;padding:48px 20px;color:var(--gray-muted)}
     .empty-state p{font-size:14px;font-weight:500}
-    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.search-box{max-width:100%}}
+    .alert-success{border-radius:8px;padding:10px 16px;font-size:13px;margin-bottom:16px;background:var(--green-bg);border:1px solid #a7f3d0;color:var(--green)}
+
+    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.search-box{max-width:100%}.prov-tabs{width:100%;overflow-x:auto}}
 </style>
 @endpush
 @section('content')
 
 @if(session('mensaje'))
-    <div class="alert alert-success" style="border-radius:8px;padding:10px 16px;font-size:13px;margin-bottom:16px;background:var(--green-bg);border:1px solid #a7f3d0;color:var(--green)">{{ session('mensaje') }}</div>
+    <div class="alert-success">{{ session('mensaje') }}</div>
 @endif
 
-<div class="toolbar">
-    <form method="GET" action="{{ route('admin.proveedores') }}" class="search-box">
-        <input type="text" name="busqueda" placeholder="Buscar por nombre, correo o código…" value="{{ $busqueda ?? '' }}">
-        <button type="submit">Buscar</button>
-    </form>
-    <span class="badge-count">{{ $proveedores->total() }} proveedor{{ $proveedores->total() !== 1 ? 'es' : '' }}</span>
+<div class="prov-tabs">
+    <button class="prov-tab active" onclick="switchProvTab('proveedores')">Proveedores ({{ $proveedores->total() }})</button>
+    <button class="prov-tab" onclick="switchProvTab('pedidos')">Pedidos ({{ $pedidos->count() }})</button>
+    <button class="prov-tab" onclick="switchProvTab('productos')">Productos ({{ $productos->count() }})</button>
+    <button class="prov-tab" onclick="switchProvTab('facturas')">Facturas pendientes ({{ $facturasPendientes->count() }})</button>
 </div>
 
-<div class="admin-table-wrap">
-@if($proveedores->count())
-    <table class="admin-table">
-        <thead>
-            <tr>
-                <th>Código</th>
-                <th>Nombre</th>
-                <th>Correo</th>
-                <th>Score Total</th>
-                <th>Entrega</th>
-                <th>Puntualidad</th>
-                <th>Activo</th>
-                <th>Acción</th>
-            </tr>
-        </thead>
-        <tbody>
-        @foreach($proveedores as $p)
-            @php
-                $scoreClass = $p->score_total >= 70 ? 'score-high' : ($p->score_total >= 40 ? 'score-mid' : 'score-low');
-            @endphp
-            <tr>
-                <td style="font-weight:600;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
-                <td>{{ $p->nombre ?? '—' }}</td>
-                <td>{{ $p->correo ?? '—' }}</td>
-                <td>
-                    <div class="score-bar {{ $scoreClass }}"><div class="score-fill" style="width:{{ $p->score_total }}%"></div></div>
-                    <strong>{{ number_format($p->score_total, 0) }}%</strong>
-                </td>
-                <td>{{ number_format($p->score_entrega, 0) }}%</td>
-                <td>{{ number_format($p->score_puntualidad, 0) }}%</td>
-                <td><span class="badge-activo {{ $p->activo ? 'si' : 'no' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span></td>
-                <td>
-                    <form method="POST" action="{{ route('admin.proveedores.eliminar', $p) }}" onsubmit="return confirm('¿Estás seguro de eliminar a {{ addslashes($p->nombre ?? $p->usuario) }}? Esta acción no se puede deshacer fácilmente.')">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="btn-eliminar">Eliminar</button>
-                    </form>
-                </td>
-            </tr>
-        @endforeach
-        </tbody>
-    </table>
-    @if($proveedores->hasPages())
-        <div class="pagination-wrap">{{ $proveedores->links() }}</div>
+{{-- ═══ TAB PROVEEDORES ═══ --}}
+<div class="prov-panel active" id="panel-proveedores">
+    <div class="toolbar">
+        <form method="GET" action="{{ route('admin.proveedores') }}" class="search-box">
+            <input type="text" name="busqueda" placeholder="Buscar por nombre, correo o código…" value="{{ $busqueda ?? '' }}">
+            <button type="submit">Buscar</button>
+        </form>
+        <span class="badge-count">{{ $proveedores->total() }} proveedor{{ $proveedores->total() !== 1 ? 'es' : '' }}</span>
+    </div>
+    <div class="admin-table-wrap">
+    @if($proveedores->count())
+        <table class="admin-table">
+            <thead><tr><th>Código</th><th>Nombre</th><th>Correo</th><th>Score</th><th>Entrega</th><th>Puntualidad</th><th>Activo</th><th>Acción</th></tr></thead>
+            <tbody>
+            @foreach($proveedores as $p)
+                @php $scoreClass = $p->score_total >= 70 ? 'score-high' : ($p->score_total >= 40 ? 'score-mid' : 'score-low'); @endphp
+                <tr>
+                    <td style="font-weight:600;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
+                    <td>{{ $p->nombre ?? '—' }}</td>
+                    <td>{{ $p->correo ?? '—' }}</td>
+                    <td><div class="score-bar {{ $scoreClass }}"><div class="score-fill" style="width:{{ $p->score_total }}%"></div></div><strong>{{ number_format($p->score_total, 0) }}%</strong></td>
+                    <td>{{ number_format($p->score_entrega, 0) }}%</td>
+                    <td>{{ number_format($p->score_puntualidad, 0) }}%</td>
+                    <td><span class="badge-activo {{ $p->activo ? 'si' : 'no' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span></td>
+                    <td>
+                        <form method="POST" action="{{ route('admin.proveedores.eliminar', $p) }}" onsubmit="return confirm('¿Eliminar a {{ addslashes($p->nombre ?? $p->usuario) }}?')">
+                            @csrf @method('DELETE')
+                            <button type="submit" class="btn-eliminar">Eliminar</button>
+                        </form>
+                    </td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+        @if($proveedores->hasPages())<div class="pagination-wrap">{{ $proveedores->links() }}</div>@endif
+    @else
+        <div class="empty-state"><p>No se encontraron proveedores{{ $busqueda ? ' con esa búsqueda' : '' }}</p></div>
     @endif
-@else
-    <div class="empty-state"><p>No se encontraron proveedores{{ $busqueda ? ' con esa búsqueda' : '' }}</p></div>
-@endif
+    </div>
+</div>
+
+{{-- ═══ TAB PEDIDOS ═══ --}}
+<div class="prov-panel" id="panel-pedidos">
+    <div class="admin-table-wrap">
+    @if($pedidos->count())
+        <table class="admin-table">
+            <thead><tr><th>Folio</th><th>Cliente</th><th>Total</th><th>Tipo pago</th><th>Estatus</th><th>Fecha</th></tr></thead>
+            <tbody>
+            @foreach($pedidos as $ped)
+                <tr>
+                    <td style="font-weight:700;color:var(--purple)">{{ $ped->folio }}</td>
+                    <td>{{ $ped->nombre_cliente }}</td>
+                    <td style="font-variant-numeric:tabular-nums">${{ number_format($ped->total, 2) }}</td>
+                    <td>{{ ucfirst($ped->tipo_pago ?? '—') }}</td>
+                    <td><span class="badge-estatus {{ $ped->estatus }}">{{ ucfirst($ped->estatus) }}</span></td>
+                    <td style="color:var(--gray-muted)">{{ $ped->created_at?->format('d/m/Y') }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    @else
+        <div class="empty-state"><p>No hay pedidos registrados</p></div>
+    @endif
+    </div>
+</div>
+
+{{-- ═══ TAB PRODUCTOS ═══ --}}
+<div class="prov-panel" id="panel-productos">
+    <div class="admin-table-wrap">
+    @if($productos->count())
+        <table class="admin-table">
+            <thead><tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th></tr></thead>
+            <tbody>
+            @foreach($productos as $prod)
+                @php $stockClass = $prod->stock <= 0 ? 'out' : ($prod->stock < 50 ? 'low' : 'ok'); $stockLabel = $prod->stock <= 0 ? 'Agotado' : ($prod->stock < 50 ? 'Bajo' : 'OK'); @endphp
+                <tr>
+                    <td style="font-weight:700;color:var(--purple)">{{ $prod->codigo }}</td>
+                    <td>{{ $prod->nombre }}</td>
+                    <td>{{ $prod->categoria }}</td>
+                    <td style="font-variant-numeric:tabular-nums">${{ number_format($prod->precio, 2) }}</td>
+                    <td style="font-weight:600">{{ number_format($prod->stock) }}</td>
+                    <td><span class="badge-stock {{ $stockClass }}">{{ $stockLabel }}</span></td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    @else
+        <div class="empty-state"><p>No hay productos registrados</p></div>
+    @endif
+    </div>
+</div>
+
+{{-- ═══ TAB FACTURAS PENDIENTES ═══ --}}
+<div class="prov-panel" id="panel-facturas">
+    <div class="admin-table-wrap">
+    @if($facturasPendientes->count())
+        <table class="admin-table">
+            <thead><tr><th>Folio CFDI</th><th>Cliente/Proveedor</th><th>Total</th><th>Estatus</th><th>Vencimiento</th></tr></thead>
+            <tbody>
+            @foreach($facturasPendientes as $f)
+                @php $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast(); @endphp
+                <tr>
+                    <td style="font-weight:700;color:var(--purple)">{{ $f->folio_cfdi }}</td>
+                    <td>{{ $f->codigo_cliente ?? $f->codigo_proveedor ?? '—' }}</td>
+                    <td style="font-weight:600;font-variant-numeric:tabular-nums">${{ number_format($f->total, 2) }}</td>
+                    <td><span class="badge-estatus pendiente">Pendiente</span>@if($vencida)<span class="badge-vencida">VENCIDA</span>@endif</td>
+                    <td style="color:{{ $vencida ? 'var(--red)' : 'var(--gray-muted)' }};font-weight:{{ $vencida ? '700' : '400' }}">{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
+    @else
+        <div class="empty-state"><p>No hay facturas pendientes</p></div>
+    @endif
+    </div>
 </div>
 
 @endsection
+@push('scripts')
+<script>
+function switchProvTab(tab) {
+    document.querySelectorAll('.prov-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.prov-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('panel-' + tab).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+</script>
+@endpush

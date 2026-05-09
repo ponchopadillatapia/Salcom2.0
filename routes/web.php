@@ -129,6 +129,13 @@ Route::get('/admin/proveedores', [AdminPanelController::class, 'proveedores'])->
 Route::get('/admin/productos', [AdminPanelController::class, 'productos'])->name('admin.productos')->middleware('auth.admin');
 Route::get('/admin/facturas', [AdminPanelController::class, 'facturas'])->name('admin.facturas')->middleware('auth.admin');
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
+Route::get('/admin/negocio', [AdminPanelController::class, 'negocio'])->name('admin.negocio')->middleware('auth.admin');
+Route::get('/admin/otif', [AdminPanelController::class, 'otif'])->name('admin.otif')->middleware('auth.admin');
+Route::get('/admin/inventario', [AdminPanelController::class, 'inventario'])->name('admin.inventario')->middleware('auth.admin');
+
+// ── Áreas con control de rol ──
+Route::get('/admin/materia-prima', [AdminPanelController::class, 'materiaPrima'])->name('admin.materia-prima')->middleware(['auth.admin', 'admin.rol:materia_prima']);
+Route::get('/admin/material-empaque', [AdminPanelController::class, 'materialEmpaque'])->name('admin.material-empaque')->middleware(['auth.admin', 'admin.rol:material_empaque']);
 
 // ── Validación RFC (AJAX) ──
 Route::post('/admin/cliente/validar-rfc', [AdminClienteController::class, 'validarRfc'])->name('admin.cliente.validar-rfc');

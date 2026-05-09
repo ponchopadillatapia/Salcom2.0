@@ -176,7 +176,12 @@ class AdminPanelController extends Controller
 
         $proveedores = $query->orderBy('score_total', 'desc')->paginate(20)->withQueryString();
 
-        return view('admin.proveedores', compact('proveedores', 'busqueda'));
+        // Datos adicionales para las secciones de pedidos, productos y facturas
+        $pedidos = Pedido::orderBy('created_at', 'desc')->limit(10)->get();
+        $productos = Producto::where('activo', true)->orderBy('codigo')->limit(10)->get();
+        $facturasPendientes = Factura::where('estatus', 'pendiente')->orderBy('fecha_vencimiento')->get();
+
+        return view('admin.proveedores', compact('proveedores', 'busqueda', 'pedidos', 'productos', 'facturasPendientes'));
     }
 
     // ── Productos ──
@@ -239,5 +244,96 @@ class AdminPanelController extends Controller
         $estatus = $request->input('estatus');
 
         return view('admin.documentos', compact('documentos', 'estatus'));
+    }
+
+    // ── Negocio ──
+
+    public function negocio()
+    {
+        $data = [
+            'ventasTotales'     => Pedido::whereNotIn('estatus', ['cancelado'])->sum('total'),
+            'pedidosEntregados' => Pedido::where('estatus', 'entregado')->count(),
+            'totalPedidos'      => Pedido::count(),
+            'totalEncuestas'    => Encuesta::count(),
+            'calificacionProm'  => round((float) Encuesta::avg('calificacion'), 1),
+            'facturasPagadas'   => Factura::where('estatus', 'pagada')->sum('total'),
+            'facturasPendientes'=> Factura::where('estatus', 'pendiente')->sum('total'),
+            'pedidosPorMes'     => $this->pedidosPorMes(),
+            'encuestas'         => Encuesta::orderBy('created_at', 'desc')->limit(10)->get(),
+        ];
+
+        return view('admin.negocio', $data);
+    }
+
+    // ── OTIF ──
+
+    public function otif()
+    {
+        $total       = Pedido::count();
+        $entregados  = Pedido::where('estatus', 'entregado')->count();
+        $enProceso   = Pedido::whereIn('estatus', ['validacion', 'procesando', 'enviado'])->count();
+        $cancelados  = Pedido::where('estatus', 'cancelado')->count();
+        $porcentaje  = $total > 0 ? round(($entregados / $total) * 100) : 0;
+
+        $pedidos = Pedido::orderBy('created_at', 'desc')->limit(20)->get();
+
+        return view('admin.otif', compact('total', 'entregados', 'enProceso', 'cancelados', 'porcentaje', 'pedidos'));
+    }
+
+    // ── Inventario ──
+
+    public function inventario()
+    {
+        $productos   = Producto::where('activo', true)->orderBy('stock', 'asc')->get();
+        $totalStock  = Producto::where('activo', true)->sum('stock');
+        $sinStock    = Producto::where('activo', true)->where('stock', '<=', 0)->count();
+        $stockBajo   = Producto::where('activo', true)->where('stock', '>', 0)->where('stock', '<', 50)->count();
+        $stockOk     = Producto::where('activo', true)->where('stock', '>=', 50)->count();
+
+        return view('admin.inventario', compact('productos', 'totalStock', 'sinStock', 'stockBajo', 'stockOk'));
+    }
+
+    // ── Helper: pedidos por mes ──
+
+    private function pedidosPorMes()
+    {
+        $data = collect();
+        for ($i = 5; $i >= 0; $i--) {
+            $fecha = now()->subMonths($i);
+            $data->push([
+                'mes'   => $fecha->translatedFormat('M Y'),
+                'total' => Pedido::whereYear('created_at', $fecha->year)->whereMonth('created_at', $fecha->month)->count(),
+                'monto' => Pedido::whereYear('created_at', $fecha->year)->whereMonth('created_at', $fecha->month)->sum('total'),
+            ]);
+        }
+        return $data;
+    }
+
+    // ── Materia Prima (Alejandra) ──
+
+    public function materiaPrima()
+    {
+        $productos = Producto::where('activo', true)
+            ->where('categoria', 'Materia prima')
+            ->orderBy('stock', 'asc')
+            ->get();
+
+        $muestras = Muestra::whereNotIn('etapa', ['aprobado', 'rechazado'])
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('admin.materia-prima', compact('productos', 'muestras'));
+    }
+
+    // ── Material de Empaque (Rosy) ──
+
+    public function materialEmpaque()
+    {
+        $productos = Producto::where('activo', true)
+            ->whereIn('categoria', ['Consumible', 'Producto terminado'])
+            ->orderBy('stock', 'asc')
+            ->get();
+
+        return view('admin.material-empaque', compact('productos'));
     }
 }
