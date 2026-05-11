@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AdminRol;
 use App\Http\Middleware\ApiTokenAuth;
 use App\Http\Middleware\AutenticacionAdmin;
 use App\Http\Middleware\AutenticacionCliente;
@@ -21,18 +22,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(SecurityHeaders::class);
 
         $middleware->alias([
-<<<<<<< HEAD
-            'auth.proveedor' => \App\Http\Middleware\AutenticacionProveedor::class,
-            'auth.cliente'   => \App\Http\Middleware\AutenticacionCliente::class,
-            'auth.admin'     => \App\Http\Middleware\AutenticacionAdmin::class,
-            'auth.api_token' => \App\Http\Middleware\ApiTokenAuth::class,
-            'admin.rol'      => \App\Http\Middleware\AdminRol::class,
-=======
             'auth.proveedor' => AutenticacionProveedor::class,
             'auth.cliente' => AutenticacionCliente::class,
             'auth.admin' => AutenticacionAdmin::class,
             'auth.api_token' => ApiTokenAuth::class,
->>>>>>> 01bde6eadcfcbeb478f212748b85c458b0e4205f
+            'admin.rol' => AdminRol::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

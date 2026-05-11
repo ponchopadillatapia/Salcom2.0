@@ -73,6 +73,8 @@ Route::get('/cliente/perfil', [PortalClienteController::class, 'mostrarPerfil'])
 Route::get('/cliente/forecast', function () {
     return view('clientes.forecast');
 })->name('clientes.forecast')->middleware('auth.cliente');
+Route::get('/cliente/onboarding', [PortalClienteController::class, 'mostrarOnboarding'])->name('clientes.onboarding')->middleware('auth.cliente');
+Route::get('/cliente/otif', [PortalClienteController::class, 'mostrarOtif'])->name('clientes.otif')->middleware('auth.cliente');
 
 // ── Auth Admin ──
 use App\Http\Controllers\AuthAdminController;

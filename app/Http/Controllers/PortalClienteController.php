@@ -13,6 +13,16 @@ class PortalClienteController extends Controller
         return view('clientes.portal');
     }
 
+    public function mostrarOnboarding()
+    {
+        return view('clientes.onboarding');
+    }
+
+    public function mostrarOtif()
+    {
+        return view('clientes.otif');
+    }
+
     public function mostrarDashboard()
     {
         return view('clientes.dashboard');
