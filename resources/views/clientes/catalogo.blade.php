@@ -1,24 +1,36 @@
 @extends('layouts.cliente')
 @section('title', 'Catálogo')
 @section('hero')
-<div class="hero-band"><h1>Catálogo de Productos</h1><p>Consulta productos disponibles y precios según tu tipo de cliente: {{ session('cliente_tipo', '—') }}</p></div>
+<div class="hero-band">
+    <h1>Catálogo de productos</h1>
+    <p>Precios según tu perfil (<strong>{{ ucfirst(session('cliente_tipo', '—')) }}</strong>). Agrega al carrito y confirma en <a class="cli-hero-link" href="{{ route('clientes.pedidos') }}">Pedidos</a> · <a class="cli-hero-link" href="{{ route('clientes.tracking') }}">Tracking</a></p>
+</div>
 @endsection
 
 @push('styles')
 <style>
-    .cat-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:24px; flex-wrap:wrap; }
-    .cat-search { flex:1; min-width:200px; border:1.5px solid var(--border); border-radius:8px; padding:9px 14px; font-size:13px; font-family:inherit; color:var(--gray-text); outline:none; background:var(--white); }
-    .cat-search:focus { border-color:#6B3FA0; box-shadow:0 0 0 3px rgba(107,63,160,0.1); }
-    .cat-filter { border:1.5px solid var(--border); border-radius:8px; padding:9px 14px; font-size:13px; font-family:inherit; color:var(--gray-text); background:var(--white); cursor:pointer; outline:none; }
-    .cat-count { font-size:13px; color:var(--gray-muted); margin-left:auto; }
+    .cli-hero-link { color: var(--purple); font-weight: 600; text-decoration: none; }
+    .cli-hero-link:hover { text-decoration: underline; }
+
+    .cli-notice { font-size: 12px; font-weight: 600; color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber); padding: 10px 14px; border-radius: var(--radius-lg); margin-bottom: 20px; display: inline-flex; align-items: center; gap: 8px; }
+    .cli-surface { background: var(--white); border: 1px solid var(--border-light); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); transition: var(--transition); }
+    .cli-surface--toolbar { padding: 16px 18px; margin-bottom: 22px; }
+    .cli-surface--toolbar:hover { box-shadow: var(--shadow-md); }
+
+    .cat-toolbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+    .cat-search { flex:1; min-width:200px; border:1px solid var(--border-light); border-radius:10px; padding:10px 14px; font-size:13px; font-family:inherit; color:var(--gray-text); outline:none; background:var(--gray-soft); }
+    .cat-search:focus { border-color: var(--purple-mid); background: var(--white); box-shadow:0 0 0 3px var(--purple-subtle); }
+    .cat-filter { border:1px solid var(--border-light); border-radius:10px; padding:10px 14px; font-size:13px; font-family:inherit; color:var(--gray-text); background:var(--white); cursor:pointer; outline:none; }
+    .cat-filter:focus { border-color: var(--purple-mid); }
+    .cat-count { font-size: 12px; font-weight: 600; color: var(--gray-muted); margin-left: auto; letter-spacing: -0.02em; }
 
     .products-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; margin-bottom:24px; }
-    .prod-card { background:var(--white); border:1px solid var(--border); border-radius:12px; overflow:hidden; transition:all .15s; display:flex; flex-direction:column; }
-    .prod-card:hover { border-color:#9C6DD0; box-shadow:0 4px 16px rgba(107,63,160,0.08); }
-    .prod-img { height:140px; background:#f3f4f6; display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--border); }
-    .prod-img svg { opacity:.25; }
+    .prod-card { background:var(--white); border:1px solid var(--border-light); border-radius: var(--radius-lg); overflow:hidden; transition: var(--transition); display:flex; flex-direction:column; box-shadow: var(--shadow-sm); }
+    .prod-card:hover { border-color: var(--purple-mid); box-shadow: var(--shadow-md); }
+    .prod-img { height:148px; background: linear-gradient(165deg, var(--gray-soft) 0%, #ececf0 100%); display:flex; align-items:center; justify-content:center; border-bottom:1px solid var(--border-light); }
+    .prod-img svg { opacity:.22; }
     .prod-body { padding:16px; flex:1; display:flex; flex-direction:column; }
-    .prod-cat { font-size:11px; font-weight:600; color:#6B3FA0; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+    .prod-cat { font-size:11px; font-weight:600; color: var(--purple); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
     .prod-name { font-size:15px; font-weight:700; color:var(--gray-text); margin-bottom:4px; }
     .prod-code { font-size:11px; color:var(--gray-muted); margin-bottom:8px; }
     .prod-desc { font-size:12px; color:var(--gray-muted); line-height:1.5; margin-bottom:12px; flex:1; }
@@ -29,31 +41,31 @@
     .stock-ok { background:#ecfdf5; color:#059669; }
     .stock-low { background:#fffbeb; color:#d97706; }
     .stock-out { background:#fef2f2; color:#dc2626; }
-    .btn-add { padding:7px 14px; background:#6B3FA0; color:#fff; border:none; border-radius:8px; font-size:12px; font-family:inherit; font-weight:600; cursor:pointer; transition:all .15s; white-space:nowrap; }
-    .btn-add:hover { background:#4A2070; }
+    .btn-add { padding:8px 16px; background:var(--purple); color:#fff; border:none; border-radius:10px; font-size:12px; font-family:inherit; font-weight:600; cursor:pointer; transition: var(--transition); white-space:nowrap; }
+    .btn-add:hover { background: var(--purple-dark); }
     .btn-add:disabled { background:#d1d5db; cursor:not-allowed; }
 
-    .modal-overlay-cat{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:400;align-items:center;justify-content:center}
+    .modal-overlay-cat{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:400;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
     .modal-overlay-cat.active{display:flex}
-    .modal-cat{background:var(--white);border-radius:14px;padding:24px;width:100%;max-width:420px;box-shadow:0 20px 40px rgba(0,0,0,0.12)}
+    .modal-cat{background:var(--white);border-radius: var(--radius-lg);border:1px solid var(--border-light);padding:24px;width:100%;max-width:420px;box-shadow:var(--shadow-lg)}
     .modal-cat h3{font-size:17px;font-weight:700;color:var(--gray-text);margin:0 0 8px}
     .modal-cat .modal-sub{font-size:12px;color:var(--gray-muted);margin-bottom:16px;line-height:1.45}
     .modal-cat label{display:block;font-size:11px;font-weight:600;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
-    .modal-cat input[type="number"]{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:14px;font-family:inherit;outline:none}
-    .modal-cat input:focus{border-color:#6B3FA0;box-shadow:0 0 0 3px rgba(107,63,160,.1)}
+    .modal-cat input[type="number"]{width:100%;border:1px solid var(--border-light);border-radius:10px;padding:10px 14px;font-size:14px;font-family:inherit;outline:none}
+    .modal-cat input:focus{border-color: var(--purple-mid);box-shadow:0 0 0 3px var(--purple-subtle)}
     .modal-cat-actions{display:flex;gap:10px;margin-top:20px}
     .modal-cat-actions button{flex:1;padding:11px;border-radius:10px;font-size:13px;font-family:inherit;font-weight:600;cursor:pointer;border:none}
     .btn-modal-cancel{background:#f3f4f6;color:var(--gray-text)}
     .btn-modal-cancel:hover{background:#e5e7eb}
-    .btn-modal-ok{background:#6B3FA0;color:#fff}
-    .btn-modal-ok:hover{background:#4A2070}
+    .btn-modal-ok{background: var(--purple);color:#fff}
+    .btn-modal-ok:hover{background: var(--purple-dark)}
 
-    .pagination-mock { display:flex; align-items:center; justify-content:center; gap:4px; }
-    .page-btn { width:32px; height:32px; border:1px solid var(--border); border-radius:6px; background:var(--white); font-size:13px; font-family:inherit; color:var(--gray-text); cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all .1s; }
-    .page-btn:hover { background:#F3EEFA; color:#6B3FA0; border-color:#9C6DD0; }
-    .page-btn.active { background:#6B3FA0; color:#fff; border-color:#6B3FA0; }
+    .pagination-mock { display:flex; align-items:center; justify-content:center; gap:6px; padding: 14px; }
+    .page-btn { width:36px; height:36px; border:1px solid var(--border-light); border-radius:10px; background:var(--white); font-size:13px; font-family:inherit; color:var(--gray-text); cursor:pointer; display:flex; align-items:center; justify-content:center; transition: var(--transition); }
+    .page-btn:hover { background: var(--purple-subtle); color: var(--purple); border-color: var(--purple-mid); }
+    .page-btn.active { background: var(--purple); color:#fff; border-color: var(--purple); }
 
-    .badge-api { font-size:11px; color:#d97706; font-weight:600; background:#fffbeb; padding:3px 10px; border-radius:999px; display:inline-block; margin-bottom:16px; }
+    .cli-pager-wrap { margin-top: 8px; }
 
     @media(max-width:900px) { .products-grid { grid-template-columns:1fr 1fr; } }
     @media(max-width:600px) { .products-grid { grid-template-columns:1fr; } }
@@ -75,19 +87,23 @@
 @endpush
 
 @section('content')
-<span class="badge-api">⚠ Datos de prueba — Pendiente de API de Alan</span>
+<div class="cli-notice" role="note">Datos de demostración · Integración API pendiente</div>
 
-<div class="cat-toolbar">
-    <input type="text" class="cat-search" id="searchInput" placeholder="Buscar por nombre o código..." oninput="filtrar()">
-    <select class="cat-filter" id="catFilter" onchange="filtrar()">
-        <option value="">Todas las categorías</option>
-    </select>
-    <span class="cat-count" id="prodCount">12 productos</span>
+<div class="cli-surface cli-surface--toolbar">
+    <div class="cat-toolbar">
+        <input type="search" class="cat-search" id="searchInput" placeholder="Buscar por nombre o código…" autocomplete="off" oninput="filtrar()" aria-label="Buscar en catálogo">
+        <select class="cat-filter" id="catFilter" onchange="filtrar()" aria-label="Filtrar por categoría">
+            <option value="">Todas las categorías</option>
+        </select>
+        <span class="cat-count" id="prodCount">—</span>
+    </div>
 </div>
 
 <div class="products-grid" id="productsGrid"></div>
 
-<div class="pagination-mock" id="pagination"></div>
+<div class="cli-surface cli-pager-wrap">
+    <div class="pagination-mock" id="pagination"></div>
+</div>
 
 <div class="modal-overlay-cat" id="modalQtyOverlay" onclick="if(event.target===this)cerrarModalCantidad()">
     <div class="modal-cat" onclick="event.stopPropagation()">

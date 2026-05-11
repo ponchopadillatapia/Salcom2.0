@@ -56,7 +56,10 @@
                 <div class="field"><label>Tipo de persona *</label><select name="tipo_persona" required><option value="">Selecciona</option><option value="Persona Física" {{ old('tipo_persona')=='Persona Física'?'selected':'' }}>Persona Física</option><option value="Persona Moral" {{ old('tipo_persona')=='Persona Moral'?'selected':'' }}>Persona Moral</option></select></div>
                 <div class="field"><label>Tipo de cliente *</label><select name="tipo_cliente" required><option value="">Selecciona</option><option value="mayorista" {{ old('tipo_cliente')=='mayorista'?'selected':'' }}>Mayorista</option><option value="minorista" {{ old('tipo_cliente')=='minorista'?'selected':'' }}>Minorista</option><option value="distribuidor" {{ old('tipo_cliente')=='distribuidor'?'selected':'' }}>Distribuidor</option></select></div>
             </div>
-            <div class="field"><label>Límite de crédito (MXN)</label><input type="number" name="limite_credito" value="{{ old('limite_credito') }}" step="0.01" min="0" placeholder="0.00"></div>
+            <div class="form-row">
+                <div class="field"><label>Límite de crédito (MXN)</label><input type="number" name="limite_credito" value="{{ old('limite_credito') }}" step="0.01" min="0" placeholder="0.00"></div>
+                <div class="field"><label>Días de crédito</label><input type="number" name="dias_credito" value="{{ old('dias_credito') }}" min="0" max="365" placeholder="Ej. 30"></div>
+            </div>
             <div class="check-row"><input type="checkbox" name="credito_autorizado" value="1" {{ old('credito_autorizado')?'checked':'' }}><label>Crédito autorizado (si no, pagos de contado)</label></div>
             <button type="submit" class="btn-submit">Dar de alta cliente</button>
         </form>

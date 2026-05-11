@@ -1,48 +1,62 @@
 @extends('layouts.cliente')
 @section('title', 'Pedidos — Carrito')
 @section('hero')
-<div class="hero-band"><h1>Pedidos</h1><p>Tu carrito: revisa líneas, selecciona lo que quieres encargar y confirma la compra. Los pedidos encargados los ves en <a href="{{ route('clientes.tracking') }}" style="color:#6B3FA0;font-weight:600">Tracking</a>.</p></div>
+<div class="hero-band">
+    <h1>Pedidos</h1>
+    <p>Revisa tu carrito, elige líneas y confirma la compra. Los pedidos encargados aparecen en <a class="cli-hero-link" href="{{ route('clientes.tracking') }}">Tracking</a> y el historial de facturas en <a class="cli-hero-link" href="{{ route('clientes.estado-cuenta') }}">Estado de cuenta</a>.</p>
+</div>
 @endsection
 
 @push('styles')
 <style>
-    .cart-banner { display:none; padding:12px 16px; border-radius:10px; margin-bottom:20px; font-size:13px; background:#ecfdf5; border:1px solid #6ee7b7; color:#166534; }
-    .cart-banner.err { background:#fef2f2; border-color:#fecaca; color:#b91c1c; }
-    .cart-toolbar { display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
-    .cart-toolbar label { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--gray-text); cursor:pointer; user-select:none; }
-    .cart-toolbar input[type="checkbox"] { width:16px; height:16px; accent-color:#6B3FA0; }
-    .cart-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .btn-ghost { padding:8px 14px; border:1.5px solid var(--border); border-radius:8px; background:var(--white); font-size:12px; font-family:inherit; font-weight:600; color:var(--gray-text); cursor:pointer; transition:all .15s; }
-    .btn-ghost:hover { border-color:#9C6DD0; color:#6B3FA0; background:#F3EEFA; }
-    .btn-buy { padding:10px 20px; background:#6B3FA0; color:#fff; border:none; border-radius:10px; font-size:13px; font-family:inherit; font-weight:700; cursor:pointer; transition:all .15s; }
-    .btn-buy:hover:not(:disabled) { background:#4A2070; }
-    .btn-buy:disabled { background:#d1d5db; cursor:not-allowed; }
-    .cart-summary { margin-left:auto; font-size:13px; color:var(--gray-muted); }
-    .cart-summary strong { color:var(--gray-text); font-size:15px; }
+    .cli-hero-link { color: var(--purple); font-weight: 600; text-decoration: none; }
+    .cli-hero-link:hover { text-decoration: underline; }
 
-    .card { background:var(--white); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
-    .tabla { width:100%; border-collapse:collapse; }
-    .tabla th { font-size:11px; font-weight:700; color:var(--gray-muted); padding:12px 16px; text-align:left; border-bottom:1px solid var(--border); text-transform:uppercase; letter-spacing:.5px; }
-    .tabla td { padding:14px 16px; font-size:13px; color:var(--gray-text); border-bottom:1px solid var(--border); vertical-align:middle; }
+    .cli-notice { font-size: 12px; font-weight: 600; color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber); padding: 10px 14px; border-radius: var(--radius-lg); margin-bottom: 20px; display: inline-flex; align-items: center; gap: 8px; }
+
+    .cart-banner { display:none; padding:12px 16px; border-radius: var(--radius-lg); margin-bottom:18px; font-size:13px; font-weight:500; }
+    .cart-banner.ok { background: var(--green-bg); border:1px solid var(--green); color: var(--green); }
+    .cart-banner.err { background: var(--red-bg); border:1px solid var(--red); color: var(--red); }
+
+    .cart-toolbar { display:flex; align-items:center; gap:14px; margin-bottom:18px; flex-wrap:wrap; padding:16px 18px; background:var(--white); border:1px solid var(--border-light); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); }
+    .cart-toolbar label { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--gray-text); cursor:pointer; user-select:none; font-weight:500; }
+    .cart-toolbar input[type="checkbox"] { width:17px; height:17px; accent-color: var(--purple); }
+    .cart-actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn-ghost { padding:9px 16px; border:1px solid var(--border-light); border-radius:10px; background:var(--white); font-size:12px; font-family:inherit; font-weight:600; color:var(--gray-text); cursor:pointer; transition: var(--transition); }
+    .btn-ghost:hover { border-color: var(--purple-mid); color: var(--purple); background: var(--purple-subtle); }
+    .btn-buy { padding:10px 22px; background: var(--purple); color:#fff; border:none; border-radius:10px; font-size:13px; font-family:inherit; font-weight:700; cursor:pointer; transition: var(--transition); }
+    .btn-buy:hover:not(:disabled) { background: var(--purple-dark); box-shadow: var(--shadow-md); }
+    .btn-buy:disabled { background:#d1d5db; cursor:not-allowed; opacity: 0.85; }
+    .cart-summary { margin-left:auto; font-size:13px; color:var(--gray-muted); }
+    .cart-summary strong { color:var(--gray-text); font-size:15px; font-weight: 700; }
+
+    .cart-card { background:var(--white); border:1px solid var(--border-light); border-radius: var(--radius-lg); overflow:hidden; box-shadow: var(--shadow-sm); transition: var(--transition); }
+    .cart-card:hover { box-shadow: var(--shadow-md); }
+    .cli-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tabla { width:100%; min-width: 640px; border-collapse:collapse; }
+    .tabla th { font-size:11px; font-weight:700; color:var(--gray-muted); padding:14px 18px; text-align:left; border-bottom:1px solid var(--border-light); text-transform:uppercase; letter-spacing:.5px; background: var(--gray-soft); }
+    .tabla td { padding:14px 18px; font-size:13px; color:var(--gray-text); border-bottom:1px solid var(--border-light); vertical-align:middle; }
     .tabla tr:last-child td { border-bottom:none; }
-    .tabla tr:hover td { background:#f9fafb; }
+    .tabla tbody tr:hover td { background: var(--purple-subtle); }
     .tabla .codigo { font-size:11px; color:var(--gray-muted); }
-    .tabla .nombre { font-weight:600; max-width:280px; }
+    .tabla .nombre { font-weight:600; max-width:320px; line-height: 1.35; }
     .qty-wrap { display:flex; align-items:center; gap:6px; }
-    .qty-wrap button { width:32px; height:32px; border:1px solid var(--border); border-radius:8px; background:var(--white); font-size:16px; line-height:1; cursor:pointer; color:var(--gray-text); }
-    .qty-wrap button:hover { background:#F3EEFA; border-color:#9C6DD0; color:#6B3FA0; }
-    .qty-wrap input { width:52px; text-align:center; border:1.5px solid var(--border); border-radius:8px; padding:6px; font-size:13px; font-family:inherit; }
-    .btn-remove { padding:6px 12px; border:1px solid #fecaca; background:#fef2f2; color:#b91c1c; border-radius:8px; font-size:12px; font-family:inherit; font-weight:600; cursor:pointer; }
-    .btn-remove:hover { background:#fee2e2; }
-    .empty-cart { text-align:center; padding:48px 24px; color:var(--gray-muted); }
-    .empty-cart a { color:#6B3FA0; font-weight:700; }
-    .badge-api { font-size:11px; color:#d97706; font-weight:600; background:#fffbeb; padding:3px 10px; border-radius:999px; display:inline-block; margin-bottom:16px; }
+    .qty-wrap button { width:34px; height:34px; border:1px solid var(--border-light); border-radius:8px; background:var(--white); font-size:16px; line-height:1; cursor:pointer; color:var(--gray-text); transition: var(--transition); }
+    .qty-wrap button:hover { background: var(--purple-subtle); border-color: var(--purple-mid); color: var(--purple); }
+    .qty-wrap input { width:56px; text-align:center; border:1px solid var(--border-light); border-radius:8px; padding:7px; font-size:13px; font-family:inherit; }
+    .btn-remove { padding:7px 14px; border:1px solid var(--red); background: var(--red-bg); color: var(--red); border-radius:8px; font-size:12px; font-family:inherit; font-weight:600; cursor:pointer; transition: var(--transition); }
+    .btn-remove:hover { filter: brightness(0.97); }
+    .empty-cart { text-align:center; padding:56px 28px; color:var(--gray-muted); border-top: 1px solid var(--border-light); }
+    .empty-cart svg { margin-bottom: 12px; opacity: 0.35; }
+    .empty-cart p { font-size: 15px; font-weight: 600; color: var(--gray-text); margin-bottom: 8px; }
+    .empty-cart a { color: var(--purple); font-weight:700; text-decoration: none; }
+    .empty-cart a:hover { text-decoration: underline; }
 </style>
 @endpush
 
 @section('content')
-<span class="badge-api">⚠ Carrito en este equipo — Pendiente de API</span>
-<div id="cartBanner" class="cart-banner" role="status"></div>
+<div class="cli-notice" role="note">Carrito guardado en este navegador · Pendiente sincronizar con API</div>
+<div id="cartBanner" class="cart-banner" role="status" aria-live="polite"></div>
 
 <div class="cart-toolbar" id="cartToolbar" style="display:none">
     <label><input type="checkbox" id="chkMaster" title="Seleccionar o quitar todos"> Seleccionar todos</label>
@@ -53,22 +67,27 @@
     <div class="cart-summary">Selección: <strong id="selTotal">$0.00</strong></div>
 </div>
 
-<div class="card" id="cartCard">
+<div class="cart-card" id="cartCard">
+    <div class="cli-table-scroll">
     <table class="tabla">
         <thead>
             <tr>
-                <th style="width:40px"></th>
+                <th style="width:44px"></th>
                 <th>Producto</th>
                 <th>P. unitario</th>
                 <th>Cantidad</th>
                 <th>Subtotal</th>
-                <th></th>
+                <th style="width:100px"></th>
             </tr>
         </thead>
         <tbody id="cartBody"></tbody>
     </table>
+    </div>
     <div id="cartEmpty" class="empty-cart" style="display:none">
-        Tu carrito está vacío. <a href="{{ route('clientes.catalogo') }}">Ir al catálogo</a> para agregar productos.
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+        <p>Tu carrito está vacío</p>
+        <span>Explora el catálogo y agrega productos.</span><br><br>
+        <a href="{{ route('clientes.catalogo') }}">Ir al catálogo</a>
     </div>
 </div>
 @endsection
@@ -144,8 +163,9 @@ function showBanner(msg, isErr) {
     const el = document.getElementById('cartBanner');
     el.textContent = msg;
     el.style.display = 'block';
-    el.classList.toggle('err', !!isErr);
-    if (!isErr) setTimeout(() => { el.style.display = 'none'; }, 6000);
+    el.classList.remove('ok', 'err');
+    el.classList.add(isErr ? 'err' : 'ok');
+    if (!isErr) setTimeout(() => { el.style.display = 'none'; }, 6500);
 }
 
 function syncMasterCheckbox() {
@@ -319,7 +339,7 @@ document.getElementById('btnComprar').addEventListener('click', () => {
     saveCart(cart);
     selected.clear();
 
-    showBanner('Pedido ' + folio + ' encargado correctamente. Lo verás en Tracking.', false);
+    showBanner('Pedido ' + folio + ' encargado correctamente. Revisa Tracking.', false);
     render();
 });
 

@@ -23,6 +23,32 @@
         margin-bottom: 24px;
     }
 
+    /* Fila superior: 4 KPI iguales (evita columna Fiscal estrecha por min-content del OTIF) */
+    .pp-kpi-row {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 20px;
+        margin-bottom: 24px;
+    }
+    .pp-kpi-link {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        color: inherit;
+        text-decoration: none;
+    }
+    .pp-kpi-link .pp-card {
+        flex: 1;
+        width: 100%;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .pp-kpi-link .pp-detail-link {
+        margin-top: auto;
+    }
+
     .pp-card {
         background: var(--white);
         border: 1px solid var(--border-light);
@@ -71,21 +97,26 @@
 
     .pp-otif-wrap {
         display: flex;
-        gap: 32px;
+        flex-wrap: wrap;
+        gap: clamp(10px, 2.5vw, 22px);
         align-items: center;
         justify-content: center;
         margin-bottom: 12px;
+        max-width: 100%;
     }
     .pp-otif-item {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
+        flex: 0 1 auto;
+        min-width: 0;
     }
     .pp-otif-canvas-wrap {
         position: relative;
-        width: 100px;
-        height: 100px;
+        width: 88px;
+        height: 88px;
+        flex-shrink: 0;
     }
     .pp-otif-canvas-wrap canvas {
         position: absolute;
@@ -100,7 +131,7 @@
         text-align: center;
     }
     .pp-otif-percent {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 700;
         color: var(--green);
         line-height: 1;
@@ -211,20 +242,20 @@
         margin-top: 2px;
     }
 
+    @media (max-width: 1024px) and (min-width: 769px) {
+        .pp-kpi-row {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
     @media (max-width: 768px) {
+        .pp-kpi-row {
+            grid-template-columns: 1fr;
+        }
         .pp-grid-2 {
             grid-template-columns: 1fr !important;
         }
         .pp-quick-grid {
             grid-template-columns: 1fr 1fr;
-        }
-        .pp-otif-wrap {
-            gap: 20px;
-        }
-    }
-    @media (max-width: 1024px) and (min-width: 769px) {
-        .pp-grid-2 {
-            grid-template-columns: 1fr 1fr !important;
         }
     }
     @media (max-width: 480px) {
@@ -238,8 +269,8 @@
 @section('content')
 <div class="pp-wrap">
 
-    <div class="pp-grid-2" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
-        <a href="{{ route('clientes.estado-cuenta') }}" style="text-decoration:none;color:inherit;">
+    <div class="pp-kpi-row">
+        <a href="{{ route('clientes.estado-cuenta') }}" class="pp-kpi-link">
         <div class="pp-card">
             <h4>Compras</h4>
             <div class="pp-negocio-row">
@@ -260,7 +291,7 @@
         </div>
         </a>
 
-        <a href="{{ route('clientes.catalogo') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('clientes.catalogo') }}" class="pp-kpi-link">
         <div class="pp-card">
             <h4>Catálogo</h4>
             <div class="pp-negocio-row">
@@ -277,24 +308,24 @@
         </div>
         </a>
 
-        <a href="{{ route('clientes.otif') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('clientes.otif') }}" class="pp-kpi-link">
         <div class="pp-card">
             <h4>OTIF</h4>
             <div class="pp-otif-wrap">
                 <div class="pp-otif-item">
                     <div class="pp-otif-canvas-wrap">
-                        <canvas id="donutOTCliente" width="100" height="100"></canvas>
+                        <canvas id="donutOTCliente" width="88" height="88"></canvas>
                         <div class="pp-otif-center">
-                            <div class="pp-otif-percent">98.5%</div>
+                            <div class="pp-otif-percent" id="pctOTCliente">98.5%</div>
                         </div>
                     </div>
                     <span class="pp-otif-label">OT (On Time)</span>
                 </div>
                 <div class="pp-otif-item">
                     <div class="pp-otif-canvas-wrap">
-                        <canvas id="donutIFCliente" width="100" height="100"></canvas>
+                        <canvas id="donutIFCliente" width="88" height="88"></canvas>
                         <div class="pp-otif-center">
-                            <div class="pp-otif-percent">95%</div>
+                            <div class="pp-otif-percent" id="pctIFCliente">95%</div>
                         </div>
                     </div>
                     <span class="pp-otif-label">IF (In Full)</span>
@@ -304,7 +335,7 @@
         </div>
         </a>
 
-        <a href="{{ route('clientes.perfil') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('clientes.perfil') }}" class="pp-kpi-link">
         <div class="pp-card">
             <h4>Fiscal</h4>
             <div class="pp-negocio-row">
@@ -456,46 +487,60 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    function drawDonut(canvasId, percent) {
+    /**
+     * Dona: pista gris → arco faltante (rojo si ≤95%, naranja si >95%) → arco cumplido (verde).
+     * Mismo grosor y lineCap butt en todos para que el rojo quede alineado sin manchas.
+     */
+    function drawDonut(canvasId, percent, percentElId) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const size = canvas.width;
-        const center = size / 2;
-        const radius = 40;
-        const lineWidth = 10;
-        const startAngle = -Math.PI / 2;
-        const endAngle = startAngle + (2 * Math.PI * percent / 100);
+        const css = 88;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = css * dpr;
+        canvas.height = css * dpr;
+        canvas.style.width = css + 'px';
+        canvas.style.height = css + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        let mainColor = '#34c759';
-        let gapColor = percent > 95 ? '#ff9500' : '#ff3b30';
+        const center = css / 2;
+        const radius = 34;
+        const lineWidth = 9;
+        const startAngle = -Math.PI / 2;
+        const p = Math.min(100, Math.max(0, percent));
+        const sweep = (2 * Math.PI * p) / 100;
+        const endAngle = startAngle + sweep;
+        const fullEnd = startAngle + 2 * Math.PI;
+        const gapColor = p > 95 ? '#ff9500' : '#ff3b30';
+
+        ctx.clearRect(0, 0, css, css);
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'butt';
 
         ctx.beginPath();
         ctx.arc(center, center, radius, 0, 2 * Math.PI);
         ctx.strokeStyle = '#e8e8ed';
-        ctx.lineWidth = lineWidth;
         ctx.stroke();
 
-        if (percent < 100) {
+        if (p < 100) {
             ctx.beginPath();
-            ctx.arc(center, center, radius, endAngle, startAngle + 2 * Math.PI);
+            ctx.arc(center, center, radius, endAngle, fullEnd);
             ctx.strokeStyle = gapColor;
-            ctx.lineWidth = lineWidth + 2;
             ctx.stroke();
         }
 
-        ctx.beginPath();
-        ctx.arc(center, center, radius, startAngle, endAngle);
-        ctx.strokeStyle = mainColor;
-        ctx.lineWidth = lineWidth;
-        ctx.lineCap = 'round';
-        ctx.stroke();
+        if (p > 0) {
+            ctx.beginPath();
+            ctx.arc(center, center, radius, startAngle, endAngle);
+            ctx.strokeStyle = '#34c759';
+            ctx.stroke();
+        }
 
-        const percentEl = canvas.parentElement.querySelector('.pp-otif-percent');
+        const percentEl = document.getElementById(percentElId);
         if (percentEl) {
-            if (percent <= 95) {
+            if (p <= 95) {
                 percentEl.style.color = '#ff3b30';
-            } else if (percent < 100) {
+            } else if (p < 100) {
                 percentEl.style.color = '#34c759';
             } else {
                 percentEl.style.color = '#34c759';
@@ -503,8 +548,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    drawDonut('donutOTCliente', 98.5);
-    drawDonut('donutIFCliente', 95);
+    drawDonut('donutOTCliente', 98.5, 'pctOTCliente');
+    drawDonut('donutIFCliente', 95, 'pctIFCliente');
 });
 </script>
 @endpush

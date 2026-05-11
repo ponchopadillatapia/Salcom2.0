@@ -25,7 +25,11 @@ class PortalClienteController extends Controller
 
     public function mostrarDashboard()
     {
-        return view('clientes.dashboard');
+        $cliente = ClienteUser::find(session('cliente_id'));
+
+        return view('clientes.dashboard', [
+            'cliente' => $cliente,
+        ]);
     }
 
     public function mostrarCatalogo()

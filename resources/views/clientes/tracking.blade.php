@@ -1,45 +1,59 @@
 @extends('layouts.cliente')
 @section('title', 'Tracking de pedidos')
 @section('hero')
-<div class="hero-band"><h1>Tracking</h1><p>Cada producto de tu pedido aparece en su propia fila (mismo folio = un solo pedido). Nuevo: <a href="{{ route('clientes.catalogo') }}" style="color:#6B3FA0;font-weight:600">Catálogo</a> → <a href="{{ route('clientes.pedidos') }}" style="color:#6B3FA0;font-weight:600">Pedidos</a>.</p></div>
+<div class="hero-band">
+    <h1>Tracking</h1>
+    <p>Cada producto aparece en su fila; el mismo folio agrupa un pedido. Flujo: <a class="cli-hero-link" href="{{ route('clientes.catalogo') }}">Catálogo</a> → <a class="cli-hero-link" href="{{ route('clientes.pedidos') }}">Pedidos</a> → aquí.</p>
+</div>
 @endsection
 
 @push('styles')
 <style>
-    .ped-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap}
-    .ped-filter{border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);cursor:pointer;outline:none}
-    .ped-count{font-size:13px;color:var(--gray-muted);margin-left:auto}
+    .cli-hero-link { color: var(--purple); font-weight: 600; text-decoration: none; }
+    .cli-hero-link:hover { text-decoration: underline; }
+    .cli-notice { font-size: 12px; font-weight: 600; color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber); padding: 10px 14px; border-radius: var(--radius-lg); margin-bottom: 20px; display: inline-flex; align-items: center; gap: 8px; }
 
-    .card{background:var(--white);border:1px solid var(--border);border-radius:10px;overflow:hidden}
-    .tabla{width:100%;border-collapse:collapse}
-    .tabla th{font-size:11px;font-weight:600;color:var(--gray-muted);padding:12px 14px;text-align:left;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:.5px}
-    .tabla td{padding:12px 14px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border);vertical-align:top}
+    .ped-toolbar{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap;padding:16px 18px;background:var(--white);border:1px solid var(--border-light);border-radius: var(--radius-lg);box-shadow: var(--shadow-sm);transition: var(--transition)}
+    .ped-toolbar:hover{box-shadow: var(--shadow-md)}
+    .ped-filter{border:1px solid var(--border-light);border-radius:10px;padding:10px 14px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);cursor:pointer;outline:none;min-width:200px}
+    .ped-filter:focus{border-color: var(--purple-mid); box-shadow: 0 0 0 3px var(--purple-subtle)}
+    .ped-count{font-size:12px;font-weight:600;color:var(--gray-muted);margin-left:auto;letter-spacing:-0.02em}
+
+    .ped-legend{display:flex;flex-wrap:wrap;gap:12px 20px;margin-bottom:16px;font-size:11px;color:var(--gray-muted)}
+    .ped-legend span{display:inline-flex;align-items:center;gap:6px}
+    .ped-legend i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+    .card{background:var(--white);border:1px solid var(--border-light);border-radius: var(--radius-lg);overflow:hidden;box-shadow: var(--shadow-sm);transition: var(--transition)}
+    .card:hover{box-shadow: var(--shadow-md)}
+    .cli-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:0 0 var(--radius-lg) var(--radius-lg)}
+    .tabla{width:100%;min-width:920px;border-collapse:collapse}
+    .tabla th{font-size:11px;font-weight:700;color:var(--gray-muted);padding:13px 16px;text-align:left;border-bottom:1px solid var(--border-light);text-transform:uppercase;letter-spacing:.5px;background:var(--gray-soft);white-space:nowrap}
+    .tabla td{padding:13px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border-light);vertical-align:top}
     .tabla tbody tr:last-child td{border-bottom:none}
-    .tabla tbody tr:hover td{background:#f9fafb}
-    .tabla tr.tr-pedido-sep td{border-top:2px solid #e5e7eb}
-    .tabla .folio{font-weight:700;color:#6B3FA0;white-space:nowrap}
+    .tabla tbody tr:hover td{background: var(--purple-subtle)}
+    .tabla tr.tr-pedido-sep td{border-top:2px solid var(--border-light)}
+    .tabla .folio{font-weight:700;color: var(--purple);white-space:nowrap;font-size:13px}
     .tabla .codigo{font-size:11px;color:var(--gray-muted)}
-    .tabla .num{text-align:right;white-space:nowrap}
+    .tabla .num{text-align:right;white-space:nowrap;font-variant-numeric: tabular-nums}
 
-    .badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;white-space:nowrap}
-    .badge-validacion{background:#F3EEFA;color:#6B3FA0}
+    .badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap;display:inline-block}
+    .badge-validacion{background: var(--purple-subtle);color: var(--purple)}
     .badge-autorizado{background:#dbeafe;color:#2563eb}
-    .badge-produccion{background:#fffbeb;color:#d97706}
-    .badge-enviado{background:#ecfdf5;color:#059669}
-    .badge-entregado{background:#f0fdf4;color:#166534}
-    .badge-contado{background:#f3f4f6;color:#6b7280;font-size:10px}
-    .badge-credito{background:#eff6ff;color:#2563eb;font-size:10px}
+    .badge-produccion{background: var(--amber-bg);color: var(--amber)}
+    .badge-enviado{background: var(--green-bg);color: var(--green)}
+    .badge-entregado{background:#dcfce7;color:#166534}
+    .badge-contado{background:var(--gray-soft);color:var(--gray-muted);font-size:10px}
+    .badge-credito{background:#dbeafe;color:#2563eb;font-size:10px}
 
-    .badge-api{font-size:11px;color:#d97706;font-weight:600;background:#fffbeb;padding:3px 10px;border-radius:999px;display:inline-block;margin-bottom:16px}
-    .empty-row td{text-align:center;color:#9ca3af;padding:40px 20px}
+    .empty-row td{text-align:center;color:var(--gray-muted);padding:48px 24px;font-size:14px}
 </style>
 @endpush
 
 @section('content')
-<span class="badge-api">⚠ Datos de prueba — Pendiente de API</span>
+<div class="cli-notice" role="note">Datos de demostración · Integración API pendiente</div>
 
 <div class="ped-toolbar">
-    <select class="ped-filter" id="statusFilter" onchange="filtrarPedidos()">
+    <select class="ped-filter" id="statusFilter" onchange="filtrarPedidos()" aria-label="Filtrar por estatus">
         <option value="">Todos los estatus</option>
         <option value="validacion">En validación</option>
         <option value="autorizado">Autorizado</option>
@@ -50,7 +64,15 @@
     <span class="ped-count" id="pedCount"></span>
 </div>
 
+<div class="ped-legend" aria-hidden="true">
+    <span><i style="background:var(--purple)"></i> Validación</span>
+    <span><i style="background:#2563eb"></i> Autorizado</span>
+    <span><i style="background:var(--amber)"></i> Producción</span>
+    <span><i style="background:var(--green)"></i> Enviado / Entregado</span>
+</div>
+
 <div class="card">
+    <div class="cli-table-scroll">
     <table class="tabla">
         <thead>
             <tr>
@@ -68,6 +90,7 @@
         </thead>
         <tbody id="pedidosBody"></tbody>
     </table>
+    </div>
 </div>
 @endsection
 

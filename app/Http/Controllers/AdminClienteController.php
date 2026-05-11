@@ -31,6 +31,7 @@ class AdminClienteController extends Controller
             'tipo_cliente' => 'required|string',
             'codigo_cliente' => 'nullable|string',
             'limite_credito' => 'nullable|numeric|min:0',
+            'dias_credito' => 'nullable|integer|min:0|max:365',
         ]);
 
         // Validar RFC con SAT si se proporcionó
@@ -52,6 +53,7 @@ class AdminClienteController extends Controller
             'tipo_cliente' => $request->tipo_cliente,
             'codigo_cliente' => $request->codigo_cliente,
             'limite_credito' => $request->limite_credito,
+            'dias_credito' => $request->dias_credito,
             'credito_autorizado' => $request->has('credito_autorizado'),
         ]);
 

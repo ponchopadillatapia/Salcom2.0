@@ -5,7 +5,7 @@
 @section('hero')
 <div class="hero-band">
     <h1>OTIF</h1>
-    <p>On Time In Full — Métricas de entrega</p>
+    <p>On Time In Full — Métricas de entrega de tus pedidos con Salcom</p>
 </div>
 @endsection
 
@@ -68,7 +68,7 @@
     <div class="otif-table-section">
         <div class="otif-table-header">
             <h4>On Time — Entregas a tiempo</h4>
-            <button class="btn-export" onclick="exportTable('tableOT', 'OTIF_OnTime')">
+            <button class="btn-export" onclick="exportTable('tableOT', 'OTIF_Pedidos_OnTime')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Exportar Excel
             </button>
@@ -77,7 +77,7 @@
             <table class="otif-table" id="tableOT">
                 <thead>
                     <tr>
-                        <th>OC</th>
+                        <th>Pedido</th>
                         <th>Producto</th>
                         <th>Fecha compromiso</th>
                         <th>Fecha entrega</th>
@@ -87,7 +87,7 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">OC-10045</td>
+                        <td style="font-weight:600;color:var(--purple)">PED-2026-005</td>
                         <td>Resina epóxica industrial</td>
                         <td>01/05/2026</td>
                         <td>01/05/2026</td>
@@ -95,7 +95,7 @@
                         <td><span class="badge-ok">A tiempo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">OC-10042</td>
+                        <td style="font-weight:600;color:var(--purple)">PED-2026-004</td>
                         <td>Pigmento base agua</td>
                         <td>28/04/2026</td>
                         <td>27/04/2026</td>
@@ -103,7 +103,7 @@
                         <td><span class="badge-ok">A tiempo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">OC-10040</td>
+                        <td style="font-weight:600;color:var(--purple)">PED-2026-002</td>
                         <td>Solvente grado técnico</td>
                         <td>25/04/2026</td>
                         <td>28/04/2026</td>
@@ -111,7 +111,7 @@
                         <td><span class="badge-late">Retraso</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">OC-10038</td>
+                        <td style="font-weight:600;color:var(--purple)">PED-2026-001</td>
                         <td>Adhesivo estructural</td>
                         <td>22/04/2026</td>
                         <td>22/04/2026</td>
@@ -119,7 +119,7 @@
                         <td><span class="badge-ok">A tiempo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">OC-10035</td>
+                        <td style="font-weight:600;color:var(--purple)">PED-2025-118</td>
                         <td>Catalizador rápido</td>
                         <td>18/04/2026</td>
                         <td>19/04/2026</td>
@@ -135,7 +135,7 @@
     <div class="otif-table-section">
         <div class="otif-table-header">
             <h4>In Full — Entregas completas</h4>
-            <button class="btn-export" onclick="exportTable('tableIF', 'OTIF_InFull')">
+            <button class="btn-export" onclick="exportTable('tableIF', 'OTIF_Pedidos_InFull')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Exportar Excel
             </button>
@@ -144,7 +144,7 @@
             <table class="otif-table" id="tableIF">
                 <thead>
                     <tr>
-                        <th>OC</th>
+                        <th>Pedido</th>
                         <th>Producto</th>
                         <th>Cantidad solicitada</th>
                         <th>Cantidad entregada</th>
@@ -154,7 +154,7 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">OC-10045</td>
+                        <td style="font-weight:600;color:var(--purple)">PED-2026-005</td>
                         <td>Resina epóxica industrial</td>
                         <td>500 kg</td>
                         <td>500 kg</td>
@@ -162,7 +162,7 @@
                         <td><span class="badge-ok">Completo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">OC-10042</td>
+                        <td style="font-weight:600;color:var(--purple)">PED-2026-004</td>
                         <td>Pigmento base agua</td>
                         <td>200 kg</td>
                         <td>200 kg</td>
@@ -170,7 +170,7 @@
                         <td><span class="badge-ok">Completo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">OC-10040</td>
+                        <td style="font-weight:600;color:var(--purple)">PED-2026-002</td>
                         <td>Solvente grado técnico</td>
                         <td>1,000 lt</td>
                         <td>1,000 lt</td>
@@ -178,7 +178,7 @@
                         <td><span class="badge-ok">Completo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">OC-10038</td>
+                        <td style="font-weight:600;color:var(--purple)">PED-2026-001</td>
                         <td>Cloro industrial</td>
                         <td>300 kg</td>
                         <td>180 kg</td>
@@ -186,7 +186,7 @@
                         <td><span class="badge-partial">Parcial</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">OC-10035</td>
+                        <td style="font-weight:600;color:var(--purple)">PED-2025-118</td>
                         <td>Catalizador rápido</td>
                         <td>150 kg</td>
                         <td>150 kg</td>
@@ -204,50 +204,58 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    /**
+     * Dona: gris → faltante (rojo ≤95%, naranja >95%) → cumplido (verde).
+     * Mismo grosor y lineCap butt para alinear segmentos sin artefactos.
+     */
     function drawDonut(canvasId, percent, percentElId) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const size = canvas.width;
-        const center = size / 2;
+        const css = 180;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = css * dpr;
+        canvas.height = css * dpr;
+        canvas.style.width = css + 'px';
+        canvas.style.height = css + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const center = css / 2;
         const radius = 70;
         const lineWidth = 16;
         const startAngle = -Math.PI / 2;
-        const endAngle = startAngle + (2 * Math.PI * percent / 100);
+        const p = Math.min(100, Math.max(0, percent));
+        const sweep = (2 * Math.PI * p) / 100;
+        const endAngle = startAngle + sweep;
+        const fullEnd = startAngle + 2 * Math.PI;
+        const gapColor = p > 95 ? '#ff9500' : '#ff3b30';
 
-        // Color del gap: > 95% naranja, <= 95% rojo
-        const gapColor = percent > 95 ? '#ff9500' : '#ff3b30';
-        const mainColor = '#34c759';
+        ctx.clearRect(0, 0, css, css);
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'butt';
 
-        // Fondo gris
         ctx.beginPath();
         ctx.arc(center, center, radius, 0, 2 * Math.PI);
         ctx.strokeStyle = '#e8e8ed';
-        ctx.lineWidth = lineWidth;
         ctx.stroke();
 
-        // Gap con color (la parte que falta)
-        if (percent < 100) {
+        if (p < 100) {
             ctx.beginPath();
-            ctx.arc(center, center, radius, endAngle, startAngle + 2 * Math.PI);
+            ctx.arc(center, center, radius, endAngle, fullEnd);
             ctx.strokeStyle = gapColor;
-            ctx.lineWidth = lineWidth;
-            ctx.lineCap = 'round';
             ctx.stroke();
         }
 
-        // Parte completada (verde)
-        ctx.beginPath();
-        ctx.arc(center, center, radius, startAngle, endAngle);
-        ctx.strokeStyle = mainColor;
-        ctx.lineWidth = lineWidth;
-        ctx.lineCap = 'round';
-        ctx.stroke();
+        if (p > 0) {
+            ctx.beginPath();
+            ctx.arc(center, center, radius, startAngle, endAngle);
+            ctx.strokeStyle = '#34c759';
+            ctx.stroke();
+        }
 
-        // Color del texto
         const el = document.getElementById(percentElId);
         if (el) {
-            el.style.color = percent <= 95 ? '#ff3b30' : (percent < 100 ? '#34c759' : '#34c759');
+            el.style.color = p <= 95 ? '#ff3b30' : (p < 100 ? '#34c759' : '#34c759');
         }
     }
 

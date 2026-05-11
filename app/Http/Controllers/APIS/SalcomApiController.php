@@ -92,7 +92,7 @@ class SalcomApiController extends Controller
             ->limit($request->input('limit', 50))
             ->get(['id', 'nombre', 'correo', 'usuario', 'telefono', 'rfc',
                 'tipo_persona', 'codigo_cliente', 'tipo_cliente',
-                'credito_autorizado', 'limite_credito', 'activo', 'created_at']);
+                'credito_autorizado', 'limite_credito', 'dias_credito', 'activo', 'created_at']);
 
         return response()->json(['total' => $clientes->count(), 'data' => $clientes]);
     }

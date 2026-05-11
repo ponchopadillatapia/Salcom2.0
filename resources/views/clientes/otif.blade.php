@@ -201,45 +201,58 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    /**
+     * Dona: gris → faltante (rojo ≤95%, naranja >95%) → cumplido (verde).
+     * Mismo grosor y lineCap butt para que el segmento no se vea como línea suelta.
+     */
     function drawDonut(canvasId, percent, percentElId) {
         const canvas = document.getElementById(canvasId);
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
-        const size = canvas.width;
-        const center = size / 2;
+        const css = 180;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = css * dpr;
+        canvas.height = css * dpr;
+        canvas.style.width = css + 'px';
+        canvas.style.height = css + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const center = css / 2;
         const radius = 70;
         const lineWidth = 16;
         const startAngle = -Math.PI / 2;
-        const endAngle = startAngle + (2 * Math.PI * percent / 100);
+        const p = Math.min(100, Math.max(0, percent));
+        const sweep = (2 * Math.PI * p) / 100;
+        const endAngle = startAngle + sweep;
+        const fullEnd = startAngle + 2 * Math.PI;
+        const gapColor = p > 95 ? '#ff9500' : '#ff3b30';
 
-        const gapColor = percent > 95 ? '#ff9500' : '#ff3b30';
-        const mainColor = '#34c759';
+        ctx.clearRect(0, 0, css, css);
+        ctx.lineWidth = lineWidth;
+        ctx.lineCap = 'butt';
 
         ctx.beginPath();
         ctx.arc(center, center, radius, 0, 2 * Math.PI);
         ctx.strokeStyle = '#e8e8ed';
-        ctx.lineWidth = lineWidth;
         ctx.stroke();
 
-        if (percent < 100) {
+        if (p < 100) {
             ctx.beginPath();
-            ctx.arc(center, center, radius, endAngle, startAngle + 2 * Math.PI);
+            ctx.arc(center, center, radius, endAngle, fullEnd);
             ctx.strokeStyle = gapColor;
-            ctx.lineWidth = lineWidth;
-            ctx.lineCap = 'round';
             ctx.stroke();
         }
 
-        ctx.beginPath();
-        ctx.arc(center, center, radius, startAngle, endAngle);
-        ctx.strokeStyle = mainColor;
-        ctx.lineWidth = lineWidth;
-        ctx.lineCap = 'round';
-        ctx.stroke();
+        if (p > 0) {
+            ctx.beginPath();
+            ctx.arc(center, center, radius, startAngle, endAngle);
+            ctx.strokeStyle = '#34c759';
+            ctx.stroke();
+        }
 
         const el = document.getElementById(percentElId);
         if (el) {
-            el.style.color = percent <= 95 ? '#ff3b30' : '#34c759';
+            el.style.color = p <= 95 ? '#ff3b30' : (p < 100 ? '#34c759' : '#34c759');
         }
     }
 

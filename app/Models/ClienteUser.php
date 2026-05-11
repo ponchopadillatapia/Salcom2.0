@@ -14,7 +14,7 @@ class ClienteUser extends Authenticatable
     protected $fillable = [
         'nombre', 'correo', 'usuario', 'password', 'telefono',
         'rfc', 'tipo_persona', 'codigo_cliente', 'tipo_cliente',
-        'credito_autorizado', 'limite_credito', 'activo',
+        'credito_autorizado', 'limite_credito', 'dias_credito', 'activo',
     ];
 
     protected $hidden = ['password'];
