@@ -74,6 +74,9 @@ Route::get('/cliente/pedidos', [PortalClienteController::class, 'mostrarPedidos'
 Route::get('/cliente/estado-cuenta', [PortalClienteController::class, 'mostrarEstadoCuenta'])->name('clientes.estado-cuenta')->middleware('auth.cliente');
 Route::get('/cliente/tracking', [PortalClienteController::class, 'mostrarTracking'])->name('clientes.tracking')->middleware('auth.cliente');
 Route::get('/cliente/perfil', [PortalClienteController::class, 'mostrarPerfil'])->name('clientes.perfil')->middleware('auth.cliente');
+Route::get('/cliente/fiscal', function () {
+    return view('clientes.fiscal');
+})->name('clientes.fiscal')->middleware('auth.cliente');
 Route::get('/cliente/forecast', function () {
     return view('clientes.forecast');
 })->name('clientes.forecast')->middleware('auth.cliente');
@@ -118,6 +121,7 @@ Route::post('/proveedor/ia/proveedor', [IaDashboardController::class, 'proveedor
 
 // ── Módulo de IA (Cliente — con botones) ──
 Route::get('/cliente/ia', [IaDashboardController::class, 'clienteIa'])->name('clientes.ia')->middleware('auth.cliente');
+Route::post('/cliente/ia/documentacion', [IaDashboardController::class, 'clienteDocumentacion'])->name('clientes.ia.documentacion')->middleware('auth.cliente');
 Route::post('/cliente/ia/pronostico', [IaDashboardController::class, 'clientePronostico'])->name('clientes.ia.pronostico')->middleware('auth.cliente');
 Route::post('/cliente/ia/inventario', [IaDashboardController::class, 'clienteInventario'])->name('clientes.ia.inventario')->middleware('auth.cliente');
 

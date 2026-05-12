@@ -335,7 +335,7 @@
         </div>
         </a>
 
-        <a href="{{ route('clientes.perfil') }}" class="pp-kpi-link">
+        <a href="{{ route('clientes.fiscal') }}" class="pp-kpi-link">
         <div class="pp-card">
             <h4>Fiscal</h4>
             <div class="pp-negocio-row">

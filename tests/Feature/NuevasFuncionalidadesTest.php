@@ -99,7 +99,7 @@ class NuevasFuncionalidadesTest extends TestCase
         $response = $this->withSession($this->clienteSession())->get('/cliente/forecast');
         $response->assertStatus(200);
         $response->assertSee('Forecast');
-        $response->assertSee('Al alza');
+        $response->assertSee('Productos al alza');
     }
 
     // ── Contactos del proveedor ──
