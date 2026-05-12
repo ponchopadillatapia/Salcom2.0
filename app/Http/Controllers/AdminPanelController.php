@@ -18,8 +18,6 @@ class AdminPanelController extends Controller
 
     public function dashboard()
     {
-        // ── Datos para gráficas ──
-
         // Pedidos por mes (últimos 6 meses)
         $pedidosPorMes = collect();
         for ($i = 5; $i >= 0; $i--) {
@@ -31,58 +29,26 @@ class AdminPanelController extends Controller
             ]);
         }
 
-        $pedidosPorEstatus = Pedido::selectRaw('estatus, count(*) as total')
-            ->groupBy('estatus')->pluck('total', 'estatus');
-
         $facturasPorEstatus = Factura::selectRaw('estatus, count(*) as total, sum(total) as monto')
             ->groupBy('estatus')->get()->keyBy('estatus');
 
-        $proveedoresScore = ProveedorUser::where('score_total', '>', 0)
-            ->orderBy('score_total', 'desc')->limit(10)
-            ->get(['nombre', 'usuario', 'score_entrega', 'score_puntualidad', 'score_total']);
-
-        $clientesActivos = ClienteUser::where('activo', true)->count();
-        $clientesInactivos = ClienteUser::where('activo', false)->count();
-
-        $proveedoresActivos = ProveedorUser::where('activo', true)->count();
-        $proveedoresInactivos = ProveedorUser::where('activo', false)->count();
-
-        $encuestasPorCliente = Encuesta::selectRaw('codigo_cliente, avg(calificacion) as prom, count(*) as total')
-            ->groupBy('codigo_cliente')->get();
-
-        $muestrasPorEtapa = Muestra::selectRaw('etapa, count(*) as total')
-            ->groupBy('etapa')->pluck('total', 'etapa');
-
         $data = [
-            'totalClientes' => ClienteUser::count(),
-            'clientesActivos' => $clientesActivos,
-            'totalProveedores' => ProveedorUser::count(),
-            'proveedoresActivos' => $proveedoresActivos,
-            'scorePromedio' => round((float) ProveedorUser::avg('score_total'), 1),
-            'totalPedidos' => Pedido::count(),
-            'pedidosPendientes' => Pedido::whereIn('estatus', ['validacion', 'procesando'])->count(),
-            'pedidosEntregados' => Pedido::where('estatus', 'entregado')->count(),
-            'montoPedidos' => Pedido::sum('total'),
-            'totalProductos' => Producto::count(),
-            'sinStock' => Producto::where('stock', '<=', 0)->count(),
+            'totalProveedores'   => ProveedorUser::count(),
+            'proveedoresActivos' => ProveedorUser::where('activo', true)->count(),
+            'scorePromedio'      => round((float) ProveedorUser::avg('score_total'), 1),
+            'totalPedidos'       => Pedido::count(),
+            'pedidosPendientes'  => Pedido::whereIn('estatus', ['validacion', 'procesando'])->count(),
+            'pedidosEntregados'  => Pedido::where('estatus', 'entregado')->count(),
+            'montoPedidos'       => Pedido::sum('total'),
+            'totalProductos'     => Producto::count(),
+            'sinStock'           => Producto::where('stock', '<=', 0)->count(),
             'facturasPendientes' => Factura::where('estatus', 'pendiente')->count(),
-            'montoFacturas' => Factura::where('estatus', 'pendiente')->sum('total'),
-            'totalEncuestas' => Encuesta::count(),
-            'calificacionProm' => round((float) Encuesta::avg('calificacion'), 1),
-            'muestrasActivas' => Muestra::whereNotIn('etapa', ['aprobado', 'rechazado'])->count(),
-            'docsPendientes' => DocumentoProveedor::where('estatus', 'pendiente')->count(),
-            'ultimosPedidos' => Pedido::orderBy('created_at', 'desc')->limit(5)->get(),
-            'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(5)->get(),
-
-            // Datos para gráficas
-            'pedidosPorMes' => $pedidosPorMes,
-            'pedidosPorEstatus' => $pedidosPorEstatus,
+            'montoFacturas'      => Factura::where('estatus', 'pendiente')->sum('total'),
+            'docsPendientes'     => DocumentoProveedor::where('estatus', 'pendiente')->count(),
+            'ultimosPedidos'     => Pedido::orderBy('created_at', 'desc')->limit(5)->get(),
+            'topProveedores'     => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(5)->get(),
+            'pedidosPorMes'      => $pedidosPorMes,
             'facturasPorEstatus' => $facturasPorEstatus,
-            'proveedoresScore' => $proveedoresScore,
-            'clientesInactivos' => $clientesInactivos,
-            'proveedoresInactivos' => $proveedoresInactivos,
-            'encuestasPorCliente' => $encuestasPorCliente,
-            'muestrasPorEtapa' => $muestrasPorEtapa,
         ];
 
         return view('admin.dashboard', $data);
@@ -179,12 +145,12 @@ class AdminPanelController extends Controller
 
         $proveedores = $query->orderBy('score_total', 'desc')->paginate(20)->withQueryString();
 
-        // Datos adicionales para las secciones de pedidos, productos y facturas
-        $pedidos = Pedido::orderBy('created_at', 'desc')->limit(10)->get();
+        // Datos adicionales para las secciones
+        $ordenes = Factura::whereNotNull('codigo_proveedor')->orderBy('created_at', 'desc')->limit(20)->get();
         $productos = Producto::where('activo', true)->orderBy('codigo')->limit(10)->get();
-        $facturasPendientes = Factura::where('estatus', 'pendiente')->orderBy('fecha_vencimiento')->get();
+        $facturasPendientes = Factura::where('estatus', 'pendiente')->whereNotNull('codigo_proveedor')->orderBy('fecha_vencimiento')->get();
 
-        return view('admin.proveedores', compact('proveedores', 'busqueda', 'pedidos', 'productos', 'facturasPendientes'));
+        return view('admin.proveedores', compact('proveedores', 'busqueda', 'ordenes', 'productos', 'facturasPendientes'));
     }
 
     // ── Productos ──
@@ -218,27 +184,16 @@ class AdminPanelController extends Controller
         $estatus = $request->input('estatus');
         $vencidas = $request->input('vencidas');
 
-        // Facturas de clientes
-        $queryClientes = Factura::whereNotNull('codigo_cliente');
+        $query = Factura::whereNotNull('codigo_proveedor');
         if ($estatus) {
-            $queryClientes->where('estatus', $estatus);
+            $query->where('estatus', $estatus);
         }
         if ($vencidas) {
-            $queryClientes->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+            $query->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
         }
-        $facturasClientes = $queryClientes->orderBy('created_at', 'desc')->get();
+        $facturas = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
 
-        // Facturas de proveedores
-        $queryProveedores = Factura::whereNotNull('codigo_proveedor');
-        if ($estatus) {
-            $queryProveedores->where('estatus', $estatus);
-        }
-        if ($vencidas) {
-            $queryProveedores->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
-        }
-        $facturasProveedores = $queryProveedores->orderBy('created_at', 'desc')->get();
-
-        return view('admin.facturas', compact('facturasClientes', 'facturasProveedores', 'estatus', 'vencidas'));
+        return view('admin.facturas', compact('facturas', 'estatus', 'vencidas'));
     }
 
     // ── Documentos de proveedores ──
