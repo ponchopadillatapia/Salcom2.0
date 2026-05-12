@@ -235,15 +235,42 @@ class AdminPanelController extends Controller
 
     public function otif()
     {
-        $total       = Pedido::count();
-        $entregados  = Pedido::where('estatus', 'entregado')->count();
-        $enProceso   = Pedido::whereIn('estatus', ['validacion', 'procesando', 'enviado'])->count();
-        $cancelados  = Pedido::where('estatus', 'cancelado')->count();
-        $porcentaje  = $total > 0 ? round(($entregados / $total) * 100) : 0;
+        // OTIF basado en facturas de proveedores
+        $facturasProveedor = Factura::whereNotNull('codigo_proveedor')->get();
+        $total      = $facturasProveedor->count();
+        $pagadas    = $facturasProveedor->where('estatus', 'pagada')->count();
+        $pendientes = $facturasProveedor->where('estatus', 'pendiente')->count();
+        $vencidas   = $facturasProveedor->where('estatus', 'pendiente')
+            ->filter(fn($f) => $f->fecha_vencimiento && $f->fecha_vencimiento->isPast())->count();
+        $aTiempo    = $pagadas; // pagadas = entregadas a tiempo
+        $canceladas = $facturasProveedor->where('estatus', 'cancelada')->count();
 
-        $pedidos = Pedido::orderBy('created_at', 'desc')->limit(20)->get();
+        $otPercent = $total > 0 ? round(($aTiempo / $total) * 100, 1) : 0;
+        $ifPercent = $total > 0 ? round((($total - $canceladas) / $total) * 100, 1) : 0;
+        $porcentaje = $total > 0 ? round(($aTiempo / $total) * 100) : 0;
 
-        return view('admin.otif', compact('total', 'entregados', 'enProceso', 'cancelados', 'porcentaje', 'pedidos'));
+        // Detalle por proveedor
+        $proveedores = ProveedorUser::where('activo', true)->orderBy('score_total', 'desc')->get();
+        $detalleProveedores = [];
+        foreach ($proveedores as $prov) {
+            $factProv = Factura::where('codigo_proveedor', $prov->codigo_compras)->get();
+            $totalProv = $factProv->count();
+            if ($totalProv === 0) continue;
+
+            $pagadasProv = $factProv->where('estatus', 'pagada')->count();
+            $otProv = round(($pagadasProv / $totalProv) * 100, 1);
+
+            $detalleProveedores[] = [
+                'nombre'  => $prov->nombre ?? $prov->usuario,
+                'codigo'  => $prov->codigo_compras,
+                'total'   => $totalProv,
+                'pagadas' => $pagadasProv,
+                'ot'      => $otProv,
+                'score'   => $prov->score_total,
+            ];
+        }
+
+        return view('admin.otif', compact('total', 'pagadas', 'pendientes', 'vencidas', 'canceladas', 'otPercent', 'ifPercent', 'porcentaje', 'detalleProveedores'));
     }
 
     // ── Inventario ──
@@ -263,16 +290,291 @@ class AdminPanelController extends Controller
 
     private function pedidosPorMes()
     {
+        $mesesNombres = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
         $data = collect();
         for ($i = 5; $i >= 0; $i--) {
             $fecha = now()->subMonths($i);
             $data->push([
-                'mes'   => $fecha->translatedFormat('M Y'),
+                'mes'   => $mesesNombres[(int)$fecha->format('n')] . ' ' . $fecha->format('Y'),
                 'total' => Pedido::whereYear('created_at', $fecha->year)->whereMonth('created_at', $fecha->month)->count(),
-                'monto' => Pedido::whereYear('created_at', $fecha->year)->whereMonth('created_at', $fecha->month)->sum('total'),
+                'monto' => Factura::whereNotNull('codigo_proveedor')->whereYear('created_at', $fecha->year)->whereMonth('created_at', $fecha->month)->sum('total'),
             ]);
         }
         return $data;
+    }
+
+    // ── Reporte de Proveedores (comparativo anual) ──
+
+    public function reporteProveedores()
+    {
+        $anioActual = (int) date('Y');
+        $anioAnterior = $anioActual - 1;
+
+        $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
+
+        $reporte = [];
+        $totales = ['compras_anterior' => 0, 'compras_actual' => 0, 'facturas_anterior' => 0, 'facturas_actual' => 0];
+
+        foreach ($proveedores as $prov) {
+            $facturasAnterior = Factura::where('codigo_proveedor', $prov->codigo_compras)
+                ->whereYear('created_at', $anioAnterior)->get();
+            $facturasActual = Factura::where('codigo_proveedor', $prov->codigo_compras)
+                ->whereYear('created_at', $anioActual)->get();
+
+            $montoAnterior = $facturasAnterior->sum('total');
+            $montoActual = $facturasActual->sum('total');
+            $cantAnterior = $facturasAnterior->count();
+            $cantActual = $facturasActual->count();
+
+            $variacionMonto = $montoAnterior > 0 ? round((($montoActual - $montoAnterior) / $montoAnterior) * 100, 1) : ($montoActual > 0 ? 100 : 0);
+            $variacionCant = $cantAnterior > 0 ? round((($cantActual - $cantAnterior) / $cantAnterior) * 100, 1) : ($cantActual > 0 ? 100 : 0);
+
+            $reporte[] = [
+                'codigo'           => $prov->codigo_compras,
+                'nombre'           => $prov->nombre ?? $prov->usuario,
+                'compras_anterior' => $montoAnterior,
+                'compras_actual'   => $montoActual,
+                'facturas_anterior'=> $cantAnterior,
+                'facturas_actual'  => $cantActual,
+                'variacion_monto'  => $variacionMonto,
+                'variacion_cant'   => $variacionCant,
+                'score'            => $prov->score_total,
+            ];
+
+            $totales['compras_anterior'] += $montoAnterior;
+            $totales['compras_actual'] += $montoActual;
+            $totales['facturas_anterior'] += $cantAnterior;
+            $totales['facturas_actual'] += $cantActual;
+        }
+
+        $totales['variacion_monto'] = $totales['compras_anterior'] > 0
+            ? round((($totales['compras_actual'] - $totales['compras_anterior']) / $totales['compras_anterior']) * 100, 1)
+            : 0;
+
+        return view('admin.reporte-proveedores', compact('reporte', 'totales', 'anioActual', 'anioAnterior'));
+    }
+
+    public function reporteProveedoresExcel()
+    {
+        $anioActual = (int) date('Y');
+        $anioAnterior = $anioActual - 1;
+
+        $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
+
+        $filename = 'Reporte_Proveedores_' . $anioActual . '.csv';
+
+        // Generar CSV en memoria
+        $output = chr(0xEF) . chr(0xBB) . chr(0xBF); // BOM UTF-8
+
+        $lines = [];
+        $lines[] = ['INDUSTRIAS SALCOM S.A. DE C.V.'];
+        $lines[] = ['REPORTE DE COMPRAS POR PROVEEDOR - COMPARATIVO ANUAL'];
+        $lines[] = ['Generado: ' . now()->format('d/m/Y H:i')];
+        $lines[] = [];
+        $lines[] = ['CODIGO', 'PROVEEDOR', 'SCORE', "FACTURAS {$anioAnterior}", "FACTURAS {$anioActual}", 'VAR FACTURAS %', "COMPRAS {$anioAnterior}", "COMPRAS {$anioActual}", 'VAR COMPRAS %'];
+
+        $totalAnterior = 0;
+        $totalActual = 0;
+
+        foreach ($proveedores as $prov) {
+            $facturasAnt = Factura::where('codigo_proveedor', $prov->codigo_compras)->whereYear('created_at', $anioAnterior)->get();
+            $facturasAct = Factura::where('codigo_proveedor', $prov->codigo_compras)->whereYear('created_at', $anioActual)->get();
+
+            $montoAnt = $facturasAnt->sum('total');
+            $montoAct = $facturasAct->sum('total');
+            $cantAnt = $facturasAnt->count();
+            $cantAct = $facturasAct->count();
+
+            $varMonto = $montoAnt > 0 ? round((($montoAct - $montoAnt) / $montoAnt) * 100, 1) : 0;
+            $varCant = $cantAnt > 0 ? round((($cantAct - $cantAnt) / $cantAnt) * 100, 1) : 0;
+
+            $lines[] = [
+                $prov->codigo_compras,
+                $prov->nombre ?? $prov->usuario,
+                $prov->score_total . '%',
+                $cantAnt,
+                $cantAct,
+                $varCant . '%',
+                number_format($montoAnt, 2),
+                number_format($montoAct, 2),
+                $varMonto . '%',
+            ];
+
+            $totalAnterior += $montoAnt;
+            $totalActual += $montoAct;
+        }
+
+        $lines[] = [];
+        $varTotal = $totalAnterior > 0 ? round((($totalActual - $totalAnterior) / $totalAnterior) * 100, 1) : 0;
+        $lines[] = ['', 'GRAN TOTAL', '', '', '', '', number_format($totalAnterior, 2), number_format($totalActual, 2), $varTotal . '%'];
+
+        // Convertir a CSV string
+        $handle = fopen('php://temp', 'r+');
+        foreach ($lines as $line) {
+            fputcsv($handle, $line);
+        }
+        rewind($handle);
+        $output .= stream_get_contents($handle);
+        fclose($handle);
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
+    // ── Reporte Corte (Enero a mes actual, desglose mensual) ──
+
+    public function reporteCorte()
+    {
+        $anio = (int) date('Y');
+        $mesActual = (int) date('n');
+        $meses = [];
+        for ($m = 1; $m <= $mesActual; $m++) {
+            $meses[$m] = $this->mesNombre($m);
+        }
+
+        $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
+
+        $reporte = [];
+        $totalesMes = array_fill(1, $mesActual, 0);
+        $granTotal = 0;
+
+        foreach ($proveedores as $prov) {
+            $fila = [
+                'codigo' => $prov->codigo_compras,
+                'nombre' => $prov->nombre ?? $prov->usuario,
+                'meses'  => [],
+                'total'  => 0,
+            ];
+
+            for ($m = 1; $m <= $mesActual; $m++) {
+                $monto = Factura::where('codigo_proveedor', $prov->codigo_compras)
+                    ->whereYear('created_at', $anio)
+                    ->whereMonth('created_at', $m)
+                    ->sum('total');
+                $fila['meses'][$m] = $monto;
+                $fila['total'] += $monto;
+                $totalesMes[$m] += $monto;
+            }
+
+            $granTotal += $fila['total'];
+            $reporte[] = $fila;
+        }
+
+        return view('admin.reporte-corte', compact('reporte', 'meses', 'totalesMes', 'granTotal', 'anio', 'mesActual'));
+    }
+
+    public function reporteCorteExcel()
+    {
+        $anio = (int) date('Y');
+        $mesActual = (int) date('n');
+        $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
+
+        $filename = "Corte_Proveedores_Ene-{$this->mesNombre($mesActual)}_{$anio}.csv";
+
+        $lines = [];
+        $lines[] = ['INDUSTRIAS SALCOM S.A. DE C.V.'];
+        $lines[] = ["CORTE DE COMPRAS POR PROVEEDOR - ENERO A " . strtoupper($this->mesNombre($mesActual)) . " {$anio}"];
+        $lines[] = ['Generado: ' . now()->format('d/m/Y H:i')];
+        $lines[] = [];
+
+        // Header
+        $header = ['CODIGO', 'PROVEEDOR'];
+        for ($m = 1; $m <= $mesActual; $m++) {
+            $header[] = strtoupper(substr($this->mesNombre($m), 0, 3));
+        }
+        $header[] = 'TOTAL ACUMULADO';
+        $lines[] = $header;
+
+        $totalesMes = array_fill(1, $mesActual, 0);
+        $granTotal = 0;
+
+        foreach ($proveedores as $prov) {
+            $row = [$prov->codigo_compras, $prov->nombre ?? $prov->usuario];
+            $totalProv = 0;
+
+            for ($m = 1; $m <= $mesActual; $m++) {
+                $monto = Factura::where('codigo_proveedor', $prov->codigo_compras)
+                    ->whereYear('created_at', $anio)
+                    ->whereMonth('created_at', $m)
+                    ->sum('total');
+                $row[] = number_format($monto, 2);
+                $totalProv += $monto;
+                $totalesMes[$m] += $monto;
+            }
+
+            $row[] = number_format($totalProv, 2);
+            $granTotal += $totalProv;
+            $lines[] = $row;
+        }
+
+        // Totales
+        $lines[] = [];
+        $totalRow = ['', 'TOTAL POR MES'];
+        for ($m = 1; $m <= $mesActual; $m++) {
+            $totalRow[] = number_format($totalesMes[$m], 2);
+        }
+        $totalRow[] = number_format($granTotal, 2);
+        $lines[] = $totalRow;
+
+        $handle = fopen('php://temp', 'r+');
+        fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        foreach ($lines as $line) {
+            fputcsv($handle, $line);
+        }
+        rewind($handle);
+        $output = stream_get_contents($handle);
+        fclose($handle);
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
+    private function mesNombre(int $mes): string
+    {
+        return ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][$mes] ?? '';
+    }
+
+    // ── Fiscal — Estado de documentos por proveedor ──
+
+    public function fiscal()
+    {
+        $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
+
+        $documentosPorProveedor = [];
+        $tiposRequeridos = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'caratula_banco'];
+
+        foreach ($proveedores as $prov) {
+            $docs = DocumentoProveedor::where('proveedor_id', $prov->id)->get()->keyBy('tipo');
+            $aprobados = $docs->where('estatus', 'aprobado')->count();
+            $pendientes = $docs->where('estatus', 'pendiente')->count();
+            $rechazados = $docs->where('estatus', 'rechazado')->count();
+            $totalSubidos = $docs->count();
+
+            // Determinar semáforo
+            if ($aprobados >= 3 && $rechazados === 0) {
+                $semaforo = 'verde';
+            } elseif ($totalSubidos > 0 && $rechazados === 0) {
+                $semaforo = 'amarillo';
+            } elseif ($totalSubidos === 0) {
+                $semaforo = 'gris';
+            } else {
+                $semaforo = 'rojo';
+            }
+
+            $documentosPorProveedor[] = [
+                'proveedor'  => $prov,
+                'docs'       => $docs,
+                'aprobados'  => $aprobados,
+                'pendientes' => $pendientes,
+                'rechazados' => $rechazados,
+                'total'      => $totalSubidos,
+                'semaforo'   => $semaforo,
+            ];
+        }
+
+        return view('admin.fiscal', compact('documentosPorProveedor', 'tiposRequeridos'));
     }
 
     // ── Materia Prima (Alejandra) ──

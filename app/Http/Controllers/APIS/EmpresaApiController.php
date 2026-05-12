@@ -481,15 +481,38 @@ class EmpresaApiController extends Controller
             $hallazgos[] = 'Apellido detectado: '.$datos['nombre'];
         }
 
-        // Vigencia
+        // Vigencia — buscar en múltiples formatos
+        $vigenciaEncontrada = false;
         if (preg_match('/VIGENCIA[:\s]*(\d{4})/', $texto, $vigM)) {
             $datos['vigencia'] = $vigM[1];
-            if ((int) $vigM[1] < (int) date('Y')) {
-                $errores[] = 'INE vencida (vigencia: '.$vigM[1].')';
-                $hallazgos[] = 'Vigencia: '.$vigM[1].' (VENCIDA)';
-            } else {
-                $hallazgos[] = 'Vigencia: '.$vigM[1].' (vigente)';
+            $vigenciaEncontrada = true;
+        } elseif (preg_match('/VIG(?:ENCIA)?[:\s.]*(\d{2})[\/\-](\d{2})[\/\-](\d{4})/', $texto, $vigM2)) {
+            $datos['vigencia'] = $vigM2[3];
+            $vigenciaEncontrada = true;
+            $hallazgos[] = 'Fecha vigencia completa: ' . $vigM2[1] . '/' . $vigM2[2] . '/' . $vigM2[3];
+        } elseif (preg_match('/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/', $texto, $fechaM)) {
+            // Buscar cualquier fecha que pueda ser vigencia (año futuro o actual)
+            if ((int) $fechaM[3] >= 2020) {
+                $datos['vigencia'] = $fechaM[3];
+                $vigenciaEncontrada = true;
             }
+        } elseif (preg_match('/20[2-3]\d/', $texto, $anioM)) {
+            // Último recurso: buscar un año 202X o 203X
+            $datos['vigencia'] = $anioM[0];
+            $vigenciaEncontrada = true;
+        }
+
+        if ($vigenciaEncontrada && $datos['vigencia']) {
+            $anioVigencia = (int) $datos['vigencia'];
+            $anioActual = (int) date('Y');
+            if ($anioVigencia < $anioActual) {
+                $errores[] = 'INE vencida — Vigencia: ' . $datos['vigencia'] . ' (año actual: ' . $anioActual . ')';
+                $hallazgos[] = 'Vigencia: ' . $datos['vigencia'] . ' — VENCIDA';
+            } else {
+                $hallazgos[] = 'Vigencia: ' . $datos['vigencia'] . ' — Vigente';
+            }
+        } else {
+            $hallazgos[] = 'No se detectó año de vigencia en el documento';
         }
 
         // Sección

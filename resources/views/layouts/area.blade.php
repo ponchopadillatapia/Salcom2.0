@@ -96,6 +96,14 @@
 </div>
 
 <div class="area-content">
+    @if(session('admin_rol') === 'gerente')
+    <div style="margin-bottom:16px">
+        <a href="{{ route('admin.dashboard') }}" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none;padding:8px 16px;border:1.5px solid var(--border-light);border-radius:8px;background:var(--white);transition:all .15s">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            Regresar al panel
+        </a>
+    </div>
+    @endif
     @if(session('mensaje'))
         <div style="background:var(--green-bg);border:1px solid #a7f3d0;color:var(--green);border-radius:10px;padding:12px 16px;font-size:13px;margin-bottom:20px;font-weight:500">{{ session('mensaje') }}</div>
     @endif

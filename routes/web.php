@@ -153,6 +153,11 @@ Route::get('/admin/inventario', [AdminPanelController::class, 'inventario'])->na
 // ── Áreas con control de rol ──
 Route::get('/admin/materia-prima', [AdminPanelController::class, 'materiaPrima'])->name('admin.materia-prima')->middleware(['auth.admin', 'admin.rol:materia_prima']);
 Route::get('/admin/material-empaque', [AdminPanelController::class, 'materialEmpaque'])->name('admin.material-empaque')->middleware(['auth.admin', 'admin.rol:material_empaque']);
+Route::get('/admin/fiscal', [AdminPanelController::class, 'fiscal'])->name('admin.fiscal')->middleware('auth.admin');
+Route::get('/admin/reporte-proveedores', [AdminPanelController::class, 'reporteProveedores'])->name('admin.reporte-proveedores')->middleware('auth.admin');
+Route::get('/admin/reporte-proveedores/excel', [AdminPanelController::class, 'reporteProveedoresExcel'])->name('admin.reporte-proveedores.excel')->middleware('auth.admin');
+Route::get('/admin/reporte-proveedores/corte', [AdminPanelController::class, 'reporteCorte'])->name('admin.reporte-corte')->middleware('auth.admin');
+Route::get('/admin/reporte-proveedores/corte/excel', [AdminPanelController::class, 'reporteCorteExcel'])->name('admin.reporte-corte.excel')->middleware('auth.admin');
 
 // ── Validación RFC (AJAX) ──
 Route::post('/admin/cliente/validar-rfc', [AdminClienteController::class, 'validarRfc'])->name('admin.cliente.validar-rfc');
