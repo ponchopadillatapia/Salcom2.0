@@ -239,12 +239,6 @@
             </a>
             @endif
 
-            <a href="{{ route('muestras.admin') }}" class="sb-link {{ request()->is('muestras/admin*') ? 'active' : '' }}">
-                <div class="sb-icon">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v11l-3 3-3-3z"/><path d="M6 21h12"/></svg>
-                </div>
-                <span class="sb-text">Muestras</span>
-            </a>
         </nav>
     </aside>
 

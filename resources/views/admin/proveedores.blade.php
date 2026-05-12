@@ -74,7 +74,7 @@
 
 <div class="prov-tabs">
     <button class="prov-tab active" onclick="switchProvTab('proveedores')">Proveedores ({{ $proveedores->total() }})</button>
-    <button class="prov-tab" onclick="switchProvTab('pedidos')">Pedidos ({{ $pedidos->count() }})</button>
+    <button class="prov-tab" onclick="switchProvTab('ordenes')">Órdenes de Compra ({{ $ordenes->count() }})</button>
     <button class="prov-tab" onclick="switchProvTab('productos')">Productos ({{ $productos->count() }})</button>
     <button class="prov-tab" onclick="switchProvTab('facturas')">Facturas pendientes ({{ $facturasPendientes->count() }})</button>
 </div>
@@ -120,27 +120,29 @@
     </div>
 </div>
 
-{{-- ═══ TAB PEDIDOS ═══ --}}
-<div class="prov-panel" id="panel-pedidos">
+{{-- ═══ TAB ÓRDENES DE COMPRA ═══ --}}
+<div class="prov-panel" id="panel-ordenes">
     <div class="admin-table-wrap">
-    @if($pedidos->count())
+    @if($ordenes->count())
         <table class="admin-table">
-            <thead><tr><th>Folio</th><th>Cliente</th><th>Total</th><th>Tipo pago</th><th>Estatus</th><th>Fecha</th></tr></thead>
+            <thead><tr><th>Folio CFDI</th><th>Proveedor</th><th>Monto</th><th>IVA</th><th>Total</th><th>Estatus</th><th>Vencimiento</th></tr></thead>
             <tbody>
-            @foreach($pedidos as $ped)
+            @foreach($ordenes as $o)
+                @php $vencida = $o->estatus === 'pendiente' && $o->fecha_vencimiento && $o->fecha_vencimiento->isPast(); @endphp
                 <tr>
-                    <td style="font-weight:700;color:var(--purple)">{{ $ped->folio }}</td>
-                    <td>{{ $ped->nombre_cliente }}</td>
-                    <td style="font-variant-numeric:tabular-nums">${{ number_format($ped->total, 2) }}</td>
-                    <td>{{ ucfirst($ped->tipo_pago ?? '—') }}</td>
-                    <td><span class="badge-estatus {{ $ped->estatus }}">{{ ucfirst($ped->estatus) }}</span></td>
-                    <td style="color:var(--gray-muted)">{{ $ped->created_at?->format('d/m/Y') }}</td>
+                    <td style="font-weight:700;color:var(--purple)">{{ $o->folio_cfdi }}</td>
+                    <td>{{ $o->codigo_proveedor }}</td>
+                    <td style="font-variant-numeric:tabular-nums">${{ number_format($o->monto, 2) }}</td>
+                    <td style="font-variant-numeric:tabular-nums">${{ number_format($o->monto_iva, 2) }}</td>
+                    <td style="font-weight:600;font-variant-numeric:tabular-nums">${{ number_format($o->total, 2) }}</td>
+                    <td><span class="badge-estatus {{ $o->estatus }}">{{ ucfirst($o->estatus) }}</span>@if($vencida)<span class="badge-vencida">VENCIDA</span>@endif</td>
+                    <td style="color:{{ $vencida ? 'var(--red)' : 'var(--gray-muted)' }}">{{ $o->fecha_vencimiento?->format('d/m/Y') ?? '—' }}</td>
                 </tr>
             @endforeach
             </tbody>
         </table>
     @else
-        <div class="empty-state"><p>No hay pedidos registrados</p></div>
+        <div class="empty-state"><p>No hay órdenes de compra registradas</p></div>
     @endif
     </div>
 </div>
@@ -176,13 +178,13 @@
     <div class="admin-table-wrap">
     @if($facturasPendientes->count())
         <table class="admin-table">
-            <thead><tr><th>Folio CFDI</th><th>Cliente/Proveedor</th><th>Total</th><th>Estatus</th><th>Vencimiento</th></tr></thead>
+            <thead><tr><th>Folio CFDI</th><th>Proveedor</th><th>Total</th><th>Estatus</th><th>Vencimiento</th></tr></thead>
             <tbody>
             @foreach($facturasPendientes as $f)
                 @php $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast(); @endphp
                 <tr>
                     <td style="font-weight:700;color:var(--purple)">{{ $f->folio_cfdi }}</td>
-                    <td>{{ $f->codigo_cliente ?? $f->codigo_proveedor ?? '—' }}</td>
+                    <td>{{ $f->codigo_proveedor ?? '—' }}</td>
                     <td style="font-weight:600;font-variant-numeric:tabular-nums">${{ number_format($f->total, 2) }}</td>
                     <td><span class="badge-estatus pendiente">Pendiente</span>@if($vencida)<span class="badge-vencida">VENCIDA</span>@endif</td>
                     <td style="color:{{ $vencida ? 'var(--red)' : 'var(--gray-muted)' }};font-weight:{{ $vencida ? '700' : '400' }}">{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}</td>
