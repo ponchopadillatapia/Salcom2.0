@@ -404,7 +404,7 @@
         </a>
 
         {{-- Inventario --}}
-        <a href="{{ route('proveedores.business') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('proveedores.inventario') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card">
             <h4>Inventario</h4>
             <div class="pp-negocio-row">
@@ -450,7 +450,7 @@
         </a>
 
         {{-- Fiscal --}}
-        <a href="{{ route('proveedores.perfil') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('proveedores.fiscal') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card">
             <h4>Fiscal</h4>
             <div class="pp-negocio-row">
@@ -617,29 +617,17 @@ document.addEventListener('DOMContentLoaded', function() {
         const startAngle = -Math.PI / 2;
         const endAngle = startAngle + (2 * Math.PI * percent / 100);
 
-        // Colores según porcentaje:
-        // > 95% → verde la parte llena, naranja el gap
-        // <= 95% → verde la parte llena, rojo el gap
-        let mainColor = '#34c759';
-        let gapColor = percent > 95 ? '#ff9500' : '#ff3b30';
+        const mainColor = '#34c759';
+        const gapColor = percent > 95 ? '#ff9500' : '#ff3b30';
 
-        // Fondo gris claro
+        // Fondo gris
         ctx.beginPath();
         ctx.arc(center, center, radius, 0, 2 * Math.PI);
         ctx.strokeStyle = '#e8e8ed';
         ctx.lineWidth = lineWidth;
         ctx.stroke();
 
-        // Gap con color (la parte que falta para el 100%)
-        if (percent < 100) {
-            ctx.beginPath();
-            ctx.arc(center, center, radius, endAngle, startAngle + 2 * Math.PI);
-            ctx.strokeStyle = gapColor;
-            ctx.lineWidth = lineWidth + 2;
-            ctx.stroke();
-        }
-
-        // Parte completada (siempre verde)
+        // Parte completada (verde)
         ctx.beginPath();
         ctx.arc(center, center, radius, startAngle, endAngle);
         ctx.strokeStyle = mainColor;
@@ -647,16 +635,20 @@ document.addEventListener('DOMContentLoaded', function() {
         ctx.lineCap = 'round';
         ctx.stroke();
 
-        // Cambiar color del texto del porcentaje
+        // Gap — pedacito cuadrado (sin round) encima
+        if (percent < 100) {
+            ctx.beginPath();
+            ctx.arc(center, center, radius, endAngle + 0.02, startAngle + 2 * Math.PI - 0.02);
+            ctx.strokeStyle = gapColor;
+            ctx.lineWidth = lineWidth;
+            ctx.lineCap = 'butt';
+            ctx.stroke();
+        }
+
+        // Color del texto
         const percentEl = canvas.parentElement.querySelector('.pp-otif-percent');
         if (percentEl) {
-            if (percent <= 95) {
-                percentEl.style.color = '#ff3b30'; // rojo
-            } else if (percent < 100) {
-                percentEl.style.color = '#34c759'; // verde (está bien, solo el gap es naranja)
-            } else {
-                percentEl.style.color = '#34c759'; // verde perfecto
-            }
+            percentEl.style.color = percent <= 95 ? '#ff3b30' : '#34c759';
         }
     }
 

@@ -41,6 +41,10 @@ Route::get('/consultar-oc', [OrdenCompraController::class, 'mostrarConsultarOC']
 // ── Alta de Producto ──
 Route::get('/alta-producto', [AltaProductoController::class, 'mostrarAltaProducto'])->name('proveedores.alta-producto')->middleware('auth.proveedor');
 
+// ── Inventario y Fiscal ──
+Route::get('/proveedor/inventario', function () { return view('proveedores.inventario'); })->name('proveedores.inventario')->middleware('auth.proveedor');
+Route::get('/proveedor/fiscal', function () { return view('proveedores.fiscal'); })->name('proveedores.fiscal')->middleware('auth.proveedor');
+
 // ── Validación de documentos fiscales (Alfonso) ──
 Route::get('/validacion-fiscal', function () {
     return view('APIS.empresa');
