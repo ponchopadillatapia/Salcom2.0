@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\ClienteUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 class FlujoCompletoClienteTest extends TestCase
@@ -88,5 +89,24 @@ class FlujoCompletoClienteTest extends TestCase
         $this->assertNull(session('cliente_id'));
         $this->assertNull(session('cliente_nombre'));
         $this->assertNull(session('cliente_tipo'));
+    }
+
+    public function test_ia_validacion_documentacion_mes_actual(): void
+    {
+        Http::fake([
+            'api.anthropic.com/*' => Http::response([
+                'content' => [['type' => 'text', 'text' => 'Estimado cliente: pendiente CIF para mayo de 2026.']],
+            ], 200),
+        ]);
+        config(['services.ia.provider' => 'anthropic']);
+        config(['services.anthropic.api_key' => 'test-key-for-phpunit']);
+
+        $this->crearCliente();
+        $this->post('/login-cliente', ['usuario' => 'CLI001', 'password' => 'secret123']);
+
+        $response = $this->post('/cliente/ia/documentacion');
+        $response->assertStatus(200);
+        $response->assertSee('Estimado cliente:', false);
+        $response->assertSee('Validación de documentos', false);
     }
 }
