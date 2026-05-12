@@ -107,6 +107,121 @@ class IaService
     }
 
     // ══════════════════════════════════════════════
+    // 4. Validación de documentación fiscal (clientes)
+    // ══════════════════════════════════════════════
+
+    /**
+     * Genera un mensaje con IA sobre documentación pendiente / a validar en el mes en curso.
+     */
+    public function validacionDocumentosCliente(ClienteUser $cliente): array
+    {
+        $checklist = $this->obtenerChecklistDocumentacionCliente($cliente);
+        $mesEtiqueta = $this->etiquetaMesActualEs();
+
+        $prompt = $this->buildPrompt('validacion_documentos_cliente', [
+            'mes_actual' => $mesEtiqueta,
+            'periodo' => now()->startOfMonth()->format('Y-m-d').' al '.now()->endOfMonth()->format('Y-m-d'),
+            'cliente' => json_encode([
+                'codigo' => $cliente->codigo_cliente,
+                'nombre' => $cliente->nombre,
+                'tipo_cliente' => $cliente->tipo_cliente,
+                'credito_autorizado' => (bool) $cliente->credito_autorizado,
+            ], JSON_UNESCAPED_UNICODE),
+            'checklist' => json_encode($checklist, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+        ]);
+
+        $resultado = $this->llamarClaude($prompt);
+
+        return [
+            'cliente_codigo' => $cliente->codigo_cliente,
+            'mes_actual' => $mesEtiqueta,
+            'checklist' => $checklist,
+            'analisis' => $resultado,
+            'generado' => now()->toDateTimeString(),
+        ];
+    }
+
+    /**
+     * @return array<int, array{clave: string, nombre: string, estado: string, requiere_atencion_mes: bool, detalle: string}>
+     */
+    public function obtenerChecklistDocumentacionCliente(ClienteUser $cliente): array
+    {
+        $rfc = $cliente->rfc ? strtoupper(trim(preg_replace('/\s+/', '', $cliente->rfc))) : '';
+        $rfcOk = strlen($rfc) >= 12 && strlen($rfc) <= 13;
+        $tipoPersonaOk = filled($cliente->tipo_persona);
+
+        $items = [
+            [
+                'clave' => 'rfc',
+                'nombre' => 'RFC registrado y consistente con razón social',
+                'estado' => $rfcOk ? 'vigente' : 'falta_o_incompleto',
+                'requiere_atencion_mes' => ! $rfcOk,
+                'detalle' => $rfcOk ? 'RFC capturado en expediente.' : 'Sin RFC válido en perfil o longitud incorrecta.',
+            ],
+            [
+                'clave' => 'tipo_persona',
+                'nombre' => 'Tipo de persona (física / moral)',
+                'estado' => $tipoPersonaOk ? 'vigente' : 'falta_o_incompleto',
+                'requiere_atencion_mes' => ! $tipoPersonaOk,
+                'detalle' => $tipoPersonaOk ? 'Dato registrado.' : 'Completa en Mi perfil para validación fiscal.',
+            ],
+            [
+                'clave' => 'cif',
+                'nombre' => 'Constancia de situación fiscal (CIF)',
+                'estado' => 'pendiente_validacion',
+                'requiere_atencion_mes' => true,
+                'detalle' => 'Debe estar vigente y coincidir con RFC; revisión mensual Salcom.',
+            ],
+            [
+                'clave' => 'opinion_sat',
+                'nombre' => 'Opinión del cumplimiento de obligaciones fiscales (SAT)',
+                'estado' => 'pendiente_validacion',
+                'requiere_atencion_mes' => true,
+                'detalle' => 'Se solicita opinión positiva del mes en curso o última emitida.',
+            ],
+            [
+                'clave' => 'comprobante_domicilio',
+                'nombre' => 'Comprobante de domicilio fiscal',
+                'estado' => 'pendiente_validacion',
+                'requiere_atencion_mes' => true,
+                'detalle' => 'Máximo 90 días de antigüedad según política interna.',
+            ],
+            [
+                'clave' => 'identificacion',
+                'nombre' => 'Identificación del representante legal o apoderado',
+                'estado' => 'pendiente_validacion',
+                'requiere_atencion_mes' => true,
+                'detalle' => 'INE o pasaporte vigente.',
+            ],
+        ];
+
+        if ($cliente->credito_autorizado) {
+            $items[] = [
+                'clave' => 'caratula_bancaria',
+                'nombre' => 'Carátula bancaria (condiciones de crédito)',
+                'estado' => 'pendiente_validacion',
+                'requiere_atencion_mes' => true,
+                'detalle' => 'Requerido por crédito autorizado; actualización según aviso de contabilidad.',
+            ];
+        }
+
+        return $items;
+    }
+
+    private function etiquetaMesActualEs(): string
+    {
+        $meses = [
+            1 => 'enero', 2 => 'febrero', 3 => 'marzo', 4 => 'abril',
+            5 => 'mayo', 6 => 'junio', 7 => 'julio', 8 => 'agosto',
+            9 => 'septiembre', 10 => 'octubre', 11 => 'noviembre', 12 => 'diciembre',
+        ];
+        $m = (int) now()->month;
+        $y = now()->year;
+
+        return ($meses[$m] ?? 'mes').' de '.$y;
+    }
+
+    // ══════════════════════════════════════════════
     // Llamada a la IA (Amazon Bedrock o Anthropic)
     // ══════════════════════════════════════════════
 
@@ -290,6 +405,30 @@ Responde con formato estructurado:
 3. **Proveedor alternativo**: Segunda opción en caso de que el principal no pueda cumplir.
 4. **Negociación**: Puntos de negociación sugeridos para obtener mejor precio o condiciones.
 5. **Riesgos**: Riesgos identificados con el proveedor seleccionado.
+PROMPT,
+
+            'validacion_documentos_cliente' => <<<PROMPT
+Eres el asistente de cumplimiento documental del **Portal de Clientes** de Industrias Salcom (México).
+
+CONTEXTO DEL PERÍODO:
+- Mes de referencia (validación mensual): **{$datos['mes_actual']}**
+- Rango de fechas del mes en curso: **{$datos['periodo']}**
+
+DATOS DEL CLIENTE (JSON):
+{$datos['cliente']}
+
+CHECKLIST TÉCNICO (estado por documento; `requiere_atencion_mes: true` implica acción en este mes):
+{$datos['checklist']}
+
+INSTRUCCIONES:
+1. Redacta un **mensaje claro y breve** dirigido al cliente (tú de usted), como aviso de validación del mes actual.
+2. Indica **qué documentos faltan, están incompletos o deben validarse** según el checklist (prioriza los marcados `requiere_atencion_mes` y estados distintos de `vigente`).
+3. Menciona explícitamente el mes **{$datos['mes_actual']}** y la necesidad de completar cargas o correcciones **durante este mes**.
+4. Cierra con **pasos concretos**: revisar Mi perfil, subir o actualizar archivos en la sección **Fiscal** del portal, y atender correos de contabilidad si aplica.
+5. No inventes fechas de vencimiento de archivos que no vengan en el JSON; si falta información, dilo con cautela.
+6. Usa viñetas o numeración. Máximo ~280 palabras. Tono profesional y cordial.
+
+Responde **solo** con el mensaje para el cliente (sin prefijos como "Claro" ni bloques de código).
 PROMPT,
 
             default => $datos['prompt'] ?? '',

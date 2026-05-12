@@ -74,6 +74,9 @@ Route::get('/cliente/pedidos', [PortalClienteController::class, 'mostrarPedidos'
 Route::get('/cliente/estado-cuenta', [PortalClienteController::class, 'mostrarEstadoCuenta'])->name('clientes.estado-cuenta')->middleware('auth.cliente');
 Route::get('/cliente/tracking', [PortalClienteController::class, 'mostrarTracking'])->name('clientes.tracking')->middleware('auth.cliente');
 Route::get('/cliente/perfil', [PortalClienteController::class, 'mostrarPerfil'])->name('clientes.perfil')->middleware('auth.cliente');
+Route::get('/cliente/fiscal', function () {
+    return view('clientes.fiscal');
+})->name('clientes.fiscal')->middleware('auth.cliente');
 Route::get('/cliente/forecast', function () {
     return view('clientes.forecast');
 })->name('clientes.forecast')->middleware('auth.cliente');
@@ -118,6 +121,7 @@ Route::post('/proveedor/ia/proveedor', [IaDashboardController::class, 'proveedor
 
 // ── Módulo de IA (Cliente — con botones) ──
 Route::get('/cliente/ia', [IaDashboardController::class, 'clienteIa'])->name('clientes.ia')->middleware('auth.cliente');
+Route::post('/cliente/ia/documentacion', [IaDashboardController::class, 'clienteDocumentacion'])->name('clientes.ia.documentacion')->middleware('auth.cliente');
 Route::post('/cliente/ia/pronostico', [IaDashboardController::class, 'clientePronostico'])->name('clientes.ia.pronostico')->middleware('auth.cliente');
 Route::post('/cliente/ia/inventario', [IaDashboardController::class, 'clienteInventario'])->name('clientes.ia.inventario')->middleware('auth.cliente');
 
@@ -153,6 +157,11 @@ Route::get('/admin/inventario', [AdminPanelController::class, 'inventario'])->na
 // ── Áreas con control de rol ──
 Route::get('/admin/materia-prima', [AdminPanelController::class, 'materiaPrima'])->name('admin.materia-prima')->middleware(['auth.admin', 'admin.rol:materia_prima']);
 Route::get('/admin/material-empaque', [AdminPanelController::class, 'materialEmpaque'])->name('admin.material-empaque')->middleware(['auth.admin', 'admin.rol:material_empaque']);
+Route::get('/admin/fiscal', [AdminPanelController::class, 'fiscal'])->name('admin.fiscal')->middleware('auth.admin');
+Route::get('/admin/reporte-proveedores', [AdminPanelController::class, 'reporteProveedores'])->name('admin.reporte-proveedores')->middleware('auth.admin');
+Route::get('/admin/reporte-proveedores/excel', [AdminPanelController::class, 'reporteProveedoresExcel'])->name('admin.reporte-proveedores.excel')->middleware('auth.admin');
+Route::get('/admin/reporte-proveedores/corte', [AdminPanelController::class, 'reporteCorte'])->name('admin.reporte-corte')->middleware('auth.admin');
+Route::get('/admin/reporte-proveedores/corte/excel', [AdminPanelController::class, 'reporteCorteExcel'])->name('admin.reporte-corte.excel')->middleware('auth.admin');
 
 // ── Validación RFC (AJAX) ──
 Route::post('/admin/cliente/validar-rfc', [AdminClienteController::class, 'validarRfc'])->name('admin.cliente.validar-rfc');

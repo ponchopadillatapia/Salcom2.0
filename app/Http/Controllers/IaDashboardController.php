@@ -144,6 +144,21 @@ class IaDashboardController extends Controller
         ]);
     }
 
+    public function clienteDocumentacion()
+    {
+        $cliente = ClienteUser::find(session('cliente_id'));
+        if (! $cliente) {
+            abort(403);
+        }
+
+        $resultado = $this->iaService->validacionDocumentosCliente($cliente);
+
+        return view('clientes.ia-dashboard', [
+            'resultadoDocumentacion' => $resultado,
+            'tabActiva' => 'documentacion',
+        ]);
+    }
+
     // ══════════════════════════════════════════════
     //  Helpers — listas para selects
     // ══════════════════════════════════════════════

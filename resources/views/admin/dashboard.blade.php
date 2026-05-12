@@ -111,7 +111,7 @@
 </div>
 
 {{-- ═══ FILA 2 ═══ --}}
-<div class="row-2">
+<div class="row-3">
     {{-- Inventario --}}
     <a href="{{ route('admin.inventario') }}" class="card-metric fade" style="animation-delay:.2s">
         <div class="bar" style="background:var(--amber)"></div>
@@ -129,13 +129,23 @@
         <div class="value">{{ $docsPendientes }}</div>
         <div class="sub">Documentos por revisar</div>
     </a>
+
+    {{-- Fiscal --}}
+    <a href="{{ route('admin.fiscal') }}" class="card-metric fade" style="animation-delay:.3s">
+        <div class="bar" style="background:var(--purple)"></div>
+        <div class="icon" style="background:var(--purple-light)">@include('partials.icons', ['name'=>'file-text','size'=>20,'color'=>'var(--purple)'])</div>
+        <div class="label">Fiscal</div>
+        <div class="value">Validación</div>
+        <div class="sub">Estado fiscal de proveedores</div>
+        <span class="link-detail">Ver detalle →</span>
+    </a>
 </div>
 
 {{-- ═══ GRÁFICAS ═══ --}}
 <div class="section-label">Análisis</div>
 <div class="row-2">
     <div class="chart-box">
-        <div class="title">Pedidos por mes</div>
+        <div class="title">Compras a proveedores por mes</div>
         <div class="wrap"><canvas id="chartPedidos"></canvas></div>
     </div>
     <div class="chart-box">
@@ -209,14 +219,18 @@ function gauge(el, pct, color) {
     });
 }
 @php
-    $ot = $totalPedidos > 0 ? round(($pedidosEntregados/$totalPedidos)*100,1) : 0;
-    $if = $totalPedidos > 0 ? round((($totalPedidos - \App\Models\Pedido::where('estatus','cancelado')->count())/$totalPedidos)*100,1) : 0;
+    $facturasProvDash = \App\Models\Factura::whereNotNull('codigo_proveedor')->get();
+    $totalFP = $facturasProvDash->count();
+    $pagadasFP = $facturasProvDash->where('estatus', 'pagada')->count();
+    $canceladasFP = $facturasProvDash->where('estatus', 'cancelada')->count();
+    $ot = $totalFP > 0 ? round(($pagadasFP / $totalFP) * 100, 1) : 0;
+    $if = $totalFP > 0 ? round((($totalFP - $canceladasFP) / $totalFP) * 100, 1) : 0;
 @endphp
 gauge(document.getElementById('gaugeOT'), {{$ot}}, '{{$ot>=80?"#059669":($ot>=50?"#d97706":"#dc2626")}}');
 gauge(document.getElementById('gaugeIF'), {{$if}}, '{{$if>=80?"#059669":($if>=50?"#d97706":"#dc2626")}}');
 
-// ── Pedidos por mes ──
-salcomChart.line(document.getElementById('chartPedidos'),
+// ── Compras por mes ──
+salcomChart.bar(document.getElementById('chartPedidos'),
     {!! json_encode($pedidosPorMes->pluck('mes')) !!},
     {!! json_encode($pedidosPorMes->pluck('monto')) !!},
     {color:SC.purple, yFormat:v=>'$'+Math.round(v/1000)+'K'}

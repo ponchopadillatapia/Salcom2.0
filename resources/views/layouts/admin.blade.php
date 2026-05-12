@@ -176,6 +176,15 @@
 
 @yield('hero')
 
+@unless(request()->is('admin/dashboard'))
+<div style="padding:12px 32px 0;">
+    <a href="{{ route('admin.dashboard') }}" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none;padding:8px 16px;border:1.5px solid var(--border-light);border-radius:8px;background:var(--white);transition:all .15s">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Regresar al panel
+    </a>
+</div>
+@endunless
+
 <div class="wrapper">
     <aside class="sidebar collapsed" id="sidebar">
         <nav class="sb-nav">
@@ -212,6 +221,13 @@
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
                 </div>
                 <span class="sb-text">Facturas</span>
+            </a>
+
+            <a href="{{ route('admin.reporte-proveedores') }}" class="sb-link {{ request()->is('admin/reporte-proveedores*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+                </div>
+                <span class="sb-text">Reportes</span>
             </a>
 
             <a href="{{ route('admin.documentos') }}" class="sb-link {{ request()->is('admin/documentos*') ? 'active' : '' }}">
