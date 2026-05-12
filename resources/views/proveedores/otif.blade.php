@@ -1,11 +1,11 @@
 @extends('layouts.proveedor')
 
-@section('title', 'OTIF — Entregas a tiempo y completas')
+@section('title', 'OTIF — Cumplimiento de entregas a Salcom')
 
 @section('hero')
 <div class="hero-band">
-    <h1>OTIF</h1>
-    <p>On Time In Full — Métricas de entrega de tus pedidos con Salcom</p>
+    <h1>OTIF proveedor</h1>
+    <p>On Time In Full — Compromisos de tus órdenes de compra frente a la fecha y cantidad recibida en planta Salcom (no es el mismo criterio que el OTIF del portal de clientes).</p>
 </div>
 @endsection
 
@@ -48,27 +48,27 @@
             <div class="otif-canvas-wrap">
                 <canvas id="otifDonutOT" width="180" height="180"></canvas>
                 <div class="otif-center">
-                    <div class="otif-percent" id="otPercent">98.5%</div>
+                    <div class="otif-percent" id="otPercent">92%</div>
                 </div>
             </div>
-            <span class="otif-chart-label">OT (On Time)</span>
+            <span class="otif-chart-label">OT — recepción en planta vs. fecha promesa (OC)</span>
         </div>
         <div class="otif-chart-card">
             <div class="otif-canvas-wrap">
                 <canvas id="otifDonutIF" width="180" height="180"></canvas>
                 <div class="otif-center">
-                    <div class="otif-percent" id="ifPercent">95%</div>
+                    <div class="otif-percent" id="ifPercent">88%</div>
                 </div>
             </div>
-            <span class="otif-chart-label">IF (In Full)</span>
+            <span class="otif-chart-label">IF — cantidad recibida vs. cantidad ordenada (OC)</span>
         </div>
     </div>
 
     {{-- ═══ Tabla On Time ═══ --}}
     <div class="otif-table-section">
         <div class="otif-table-header">
-            <h4>On Time — Entregas a tiempo</h4>
-            <button class="btn-export" onclick="exportTable('tableOT', 'OTIF_Pedidos_OnTime')">
+            <h4>On Time — Llegada a planta vs. fecha comprometida en OC</h4>
+            <button class="btn-export" onclick="exportTable('tableOT', 'OTIF_Proveedor_OnTime_OC')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Exportar Excel
             </button>
@@ -77,52 +77,52 @@
             <table class="otif-table" id="tableOT">
                 <thead>
                     <tr>
-                        <th>Pedido</th>
-                        <th>Producto</th>
-                        <th>Fecha compromiso</th>
-                        <th>Fecha entrega</th>
+                        <th>OC Salcom</th>
+                        <th>Material</th>
+                        <th>Fecha promesa (OC)</th>
+                        <th>Recepción en planta</th>
                         <th>Días diferencia</th>
                         <th>Estatus</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-005</td>
+                        <td style="font-weight:600;color:var(--purple)">OC-2026-1045</td>
                         <td>Resina epóxica industrial</td>
-                        <td>01/05/2026</td>
-                        <td>01/05/2026</td>
+                        <td>02/05/2026</td>
+                        <td>02/05/2026</td>
                         <td>@include('partials.trend-arrow', ['value' => 0])</td>
                         <td><span class="badge-ok">A tiempo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-004</td>
-                        <td>Pigmento base agua</td>
+                        <td style="font-weight:600;color:var(--purple)">OC-2026-1038</td>
+                        <td>Adhesivo poliuretano</td>
+                        <td>29/04/2026</td>
                         <td>28/04/2026</td>
-                        <td>27/04/2026</td>
                         <td style="color:var(--green);font-weight:700;">↑ 1 día antes</td>
                         <td><span class="badge-ok">A tiempo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-002</td>
+                        <td style="font-weight:600;color:var(--purple)">OC-2026-1021</td>
                         <td>Solvente grado técnico</td>
-                        <td>25/04/2026</td>
-                        <td>28/04/2026</td>
+                        <td>24/04/2026</td>
+                        <td>27/04/2026</td>
                         <td style="color:var(--red);font-weight:700;">↓ 3 días tarde</td>
                         <td><span class="badge-late">Retraso</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-001</td>
-                        <td>Adhesivo estructural</td>
-                        <td>22/04/2026</td>
-                        <td>22/04/2026</td>
+                        <td style="font-weight:600;color:var(--purple)">OC-2026-1012</td>
+                        <td>Hardener alifático</td>
+                        <td>20/04/2026</td>
+                        <td>20/04/2026</td>
                         <td>@include('partials.trend-arrow', ['value' => 0])</td>
                         <td><span class="badge-ok">A tiempo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2025-118</td>
-                        <td>Catalizador rápido</td>
-                        <td>18/04/2026</td>
-                        <td>19/04/2026</td>
+                        <td style="font-weight:600;color:var(--purple)">OC-2026-0994</td>
+                        <td>Diluyente aromático</td>
+                        <td>15/04/2026</td>
+                        <td>16/04/2026</td>
                         <td style="color:var(--red);font-weight:700;">↓ 1 día tarde</td>
                         <td><span class="badge-late">Retraso</span></td>
                     </tr>
@@ -134,8 +134,8 @@
     {{-- ═══ Tabla In Full ═══ --}}
     <div class="otif-table-section">
         <div class="otif-table-header">
-            <h4>In Full — Entregas completas</h4>
-            <button class="btn-export" onclick="exportTable('tableIF', 'OTIF_Pedidos_InFull')">
+            <h4>In Full — Recibido en almacén vs. cantidad en OC</h4>
+            <button class="btn-export" onclick="exportTable('tableIF', 'OTIF_Proveedor_InFull_OC')">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                 Exportar Excel
             </button>
@@ -144,52 +144,52 @@
             <table class="otif-table" id="tableIF">
                 <thead>
                     <tr>
-                        <th>Pedido</th>
-                        <th>Producto</th>
-                        <th>Cantidad solicitada</th>
-                        <th>Cantidad entregada</th>
+                        <th>OC Salcom</th>
+                        <th>Material / insumo</th>
+                        <th>Cantidad en OC</th>
+                        <th>Cantidad recibida</th>
                         <th>% Cumplimiento</th>
                         <th>Estatus</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-005</td>
-                        <td>Resina epóxica industrial</td>
-                        <td>500 kg</td>
-                        <td>500 kg</td>
+                        <td style="font-weight:600;color:var(--purple)">OC-2026-1042</td>
+                        <td>Ácido clorhídrico 37%</td>
+                        <td>12,000 lt</td>
+                        <td>12,000 lt</td>
                         <td style="color:var(--green);font-weight:700;">100%</td>
                         <td><span class="badge-ok">Completo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-004</td>
-                        <td>Pigmento base agua</td>
-                        <td>200 kg</td>
-                        <td>200 kg</td>
+                        <td style="font-weight:600;color:var(--purple)">OC-2026-1038</td>
+                        <td>Resina poliéster insaturada</td>
+                        <td>8 t</td>
+                        <td>8 t</td>
                         <td style="color:var(--green);font-weight:700;">100%</td>
                         <td><span class="badge-ok">Completo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-002</td>
-                        <td>Solvente grado técnico</td>
-                        <td>1,000 lt</td>
-                        <td>1,000 lt</td>
+                        <td style="font-weight:600;color:var(--purple)">OC-2026-1025</td>
+                        <td>Solvente aromático grado técnico</td>
+                        <td>20,000 lt</td>
+                        <td>20,000 lt</td>
                         <td style="color:var(--green);font-weight:700;">100%</td>
                         <td><span class="badge-ok">Completo</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-001</td>
+                        <td style="font-weight:600;color:var(--purple)">OC-2026-1019</td>
                         <td>Cloro industrial</td>
-                        <td>300 kg</td>
-                        <td>180 kg</td>
+                        <td>10 t</td>
+                        <td>6 t</td>
                         <td style="color:var(--red);font-weight:700;">60%</td>
                         <td><span class="badge-partial">Parcial</span></td>
                     </tr>
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2025-118</td>
-                        <td>Catalizador rápido</td>
-                        <td>150 kg</td>
-                        <td>150 kg</td>
+                        <td style="font-weight:600;color:var(--purple)">OC-2026-1004</td>
+                        <td>Catalizador organometálico</td>
+                        <td>2,400 kg</td>
+                        <td>2,400 kg</td>
                         <td style="color:var(--green);font-weight:700;">100%</td>
                         <td><span class="badge-ok">Completo</span></td>
                     </tr>
@@ -259,8 +259,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    drawDonut('otifDonutOT', 98.5, 'otPercent');
-    drawDonut('otifDonutIF', 95, 'ifPercent');
+    drawDonut('otifDonutOT', 92, 'otPercent');
+    drawDonut('otifDonutIF', 88, 'ifPercent');
 });
 
 // ── Exportar tabla a Excel (CSV) ──

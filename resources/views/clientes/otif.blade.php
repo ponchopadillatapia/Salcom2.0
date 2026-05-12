@@ -1,11 +1,11 @@
 @extends('layouts.cliente')
 
-@section('title', 'OTIF — Entregas a tiempo y completas')
+@section('title', 'OTIF — Entregas de Salcom hacia tu empresa')
 
 @section('hero')
 <div class="hero-band">
-    <h1>OTIF</h1>
-    <p>On Time In Full — Métricas de entrega de tus pedidos con Salcom</p>
+    <h1>OTIF cliente</h1>
+    <p>On Time In Full — Cómo Salcom cumple la fecha y la cantidad de <strong>tus pedidos de venta</strong> (distinto al OTIF del portal de proveedores, que mide entregas del proveedor hacia Salcom bajo OC).</p>
 </div>
 @endsection
 
@@ -50,7 +50,7 @@
                     <div class="otif-percent" id="clienteOtPercent">98.5%</div>
                 </div>
             </div>
-            <span class="otif-chart-label">OT (On Time)</span>
+            <span class="otif-chart-label">OT — fecha acordada vs. entrega a tu empresa</span>
         </div>
         <div class="otif-chart-card">
             <div class="otif-canvas-wrap">
@@ -59,7 +59,7 @@
                     <div class="otif-percent" id="clienteIfPercent">95%</div>
                 </div>
             </div>
-            <span class="otif-chart-label">IF (In Full)</span>
+            <span class="otif-chart-label">IF — cantidad pedida vs. recibida en tu pedido</span>
         </div>
     </div>
 

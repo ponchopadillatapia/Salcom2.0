@@ -424,25 +424,25 @@
         {{-- OTIF --}}
         <a href="{{ route('proveedores.otif') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card">
-            <h4>OTIF</h4>
+            <h4>OTIF (a Salcom)</h4>
             <div class="pp-otif-wrap">
                 <div class="pp-otif-item">
                     <div class="pp-otif-canvas-wrap">
                         <canvas id="donutOT" width="100" height="100"></canvas>
                         <div class="pp-otif-center">
-                            <div class="pp-otif-percent">98.5%</div>
+                            <div class="pp-otif-percent">92%</div>
                         </div>
                     </div>
-                    <span class="pp-otif-label">OT (On Time)</span>
+                    <span class="pp-otif-label">OT — OC / planta</span>
                 </div>
                 <div class="pp-otif-item">
                     <div class="pp-otif-canvas-wrap">
                         <canvas id="donutIF" width="100" height="100"></canvas>
                         <div class="pp-otif-center">
-                            <div class="pp-otif-percent">95%</div>
+                            <div class="pp-otif-percent">88%</div>
                         </div>
                     </div>
-                    <span class="pp-otif-label">IF (In Full)</span>
+                    <span class="pp-otif-label">IF — cantidad vs. OC</span>
                 </div>
             </div>
             <span class="pp-detail-link">Ver detalle →</span>
@@ -652,8 +652,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    drawDonut('donutOT', 98.5);
-    drawDonut('donutIF', 95);
+    drawDonut('donutOT', 92);
+    drawDonut('donutIF', 88);
 });
 </script>
 @endpush

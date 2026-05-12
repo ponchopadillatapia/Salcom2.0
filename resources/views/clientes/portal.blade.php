@@ -310,7 +310,7 @@
 
         <a href="{{ route('clientes.otif') }}" class="pp-kpi-link">
         <div class="pp-card">
-            <h4>OTIF</h4>
+            <h4>OTIF (Salcom → ti)</h4>
             <div class="pp-otif-wrap">
                 <div class="pp-otif-item">
                     <div class="pp-otif-canvas-wrap">
@@ -319,7 +319,7 @@
                             <div class="pp-otif-percent" id="pctOTCliente">98.5%</div>
                         </div>
                     </div>
-                    <span class="pp-otif-label">OT (On Time)</span>
+                    <span class="pp-otif-label">OT — tu pedido a tiempo</span>
                 </div>
                 <div class="pp-otif-item">
                     <div class="pp-otif-canvas-wrap">
@@ -328,7 +328,7 @@
                             <div class="pp-otif-percent" id="pctIFCliente">95%</div>
                         </div>
                     </div>
-                    <span class="pp-otif-label">IF (In Full)</span>
+                    <span class="pp-otif-label">IF — cantidad completa</span>
                 </div>
             </div>
             <span class="pp-detail-link">Ver detalle →</span>
