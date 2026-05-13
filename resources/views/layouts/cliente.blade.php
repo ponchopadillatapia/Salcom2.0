@@ -102,6 +102,25 @@
             transform: scale(1.02);
         }
         .btn-logout:active { transform: scale(0.97); }
+        .skip-to-content {
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            z-index: 10000;
+            padding: 10px 18px;
+            background: var(--purple);
+            color: #fff;
+            font-weight: 600;
+            font-size: 13px;
+            border-radius: 10px;
+            text-decoration: none;
+        }
+        .skip-to-content:focus {
+            left: 12px;
+            top: 62px;
+            outline: 2px solid #fff;
+            outline-offset: 2px;
+        }
         /* Dropdown de notificaciones: hover en desktop + click en touch */
         .nav-notif-wrap { position: relative; }
         .nav-notif-wrap .notif-drop {
@@ -165,7 +184,12 @@
             align-items: center;
             justify-content: flex-end;
             padding: 0 16px;
+            border: none;
             border-bottom: 1px solid var(--border-light);
+            background: transparent;
+            width: 100%;
+            font: inherit;
+            color: inherit;
             cursor: pointer;
             flex-shrink: 0;
             transition: background .15s;
@@ -311,17 +335,18 @@
     @stack('styles')
 </head>
 <body>
+<a href="#contenido-principal" class="skip-to-content">Saltar al contenido</a>
 <nav class="top-nav">
     <div class="nav-logo" style="display:flex;align-items:center;gap:14px;">
         @include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])
         <span>Portal de Clientes</span>
     </div>
     <div class="nav-right">
-        <a href="{{ route('clientes.pedidos') }}" class="nav-pedidos-quick" id="navPedidosQuick" title="Pedidos">
+        <a href="{{ route('clientes.pedidos') }}" class="nav-pedidos-quick" id="navPedidosQuick" title="Pedidos" aria-label="Ir a pedidos y carrito">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <span class="sb-pedidos-badge js-pedidos-nav-badge" style="display:none;top:-2px;right:-2px" aria-hidden="true">0</span>
         </a>
-        <div class="nav-notif-wrap" id="notifWrap">
+        <div class="nav-notif-wrap" id="notifWrap" role="button" tabindex="0" aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             <span id="notifBadge" style="position:absolute;top:2px;right:2px;background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;padding:0 5px;border-radius:999px;display:flex;align-items:center;justify-content:center">3</span>
             <div id="notifDrop" class="notif-drop">
@@ -340,8 +365,8 @@
 </nav>
 @yield('hero')
 <div class="wrapper">
-    <div class="sidebar" id="appSidebar">
-        <div class="sb-toggle" onclick="document.getElementById('appSidebar').classList.toggle('collapsed')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></div>
+        <div class="sidebar" id="appSidebar">
+        <button type="button" class="sb-toggle" aria-expanded="true" aria-label="Contraer o expandir menú lateral" onclick="(function(){var s=document.getElementById('appSidebar');s.classList.toggle('collapsed');this.setAttribute('aria-expanded',s.classList.contains('collapsed')?'false':'true');}).call(this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></button>
         <nav class="sb-nav">
             <div class="sb-section">Principal</div>
             <a href="{{ route('clientes.portal') }}" class="sb-link {{ request()->routeIs('clientes.portal') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div><span class="sb-text">Inicio</span></a>
@@ -353,7 +378,7 @@
             <a href="{{ route('clientes.otif') }}" class="sb-link {{ request()->routeIs('clientes.otif') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><span class="sb-text">OTIF</span></a>
             <a href="{{ route('clientes.catalogo') }}" class="sb-link {{ request()->routeIs('clientes.catalogo') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div><span class="sb-text">Catálogo</span></a>
             <a href="{{ route('clientes.pedidos') }}" id="sbLinkPedidos" class="sb-link {{ request()->routeIs('clientes.pedidos') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="sb-pedidos-badge js-pedidos-nav-badge" style="display:none" aria-hidden="true">0</span></div><span class="sb-text">Pedidos</span></a>
-            <a href="{{ route('clientes.tracking') }}" class="sb-link {{ request()->routeIs('clientes.tracking') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div><span class="sb-text">Tracking</span></a>
+            <a href="{{ route('clientes.tracking') }}" class="sb-link {{ request()->routeIs('clientes.tracking') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div><span class="sb-text">Tracking</span></a>
             <a href="{{ route('clientes.estado-cuenta') }}" class="sb-link {{ request()->routeIs('clientes.estado-cuenta') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div><span class="sb-text">Estado de cuenta</span></a>
             <a href="{{ route('clientes.encuesta') }}" class="sb-link {{ request()->routeIs('clientes.encuesta') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><span class="sb-text">Encuesta</span></a>
             <div class="sb-hr"></div>
@@ -367,7 +392,7 @@
             <a href="{{ route('clientes.perfil') }}" class="sb-link {{ request()->routeIs('clientes.perfil') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><span class="sb-text">Mi Perfil</span></a>
         </nav>
     </div>
-    <div class="main-content @yield('main-class')">@yield('content')</div>
+    <div class="main-content @yield('main-class')" id="contenido-principal" tabindex="-1">@yield('content')</div>
 </div>
 <footer>
     <div class="footer-logo">Industrias Salcom</div>
@@ -376,6 +401,7 @@
 <script>
 window.SALCOM_CART_STORAGE_KEY = 'salcom_cliente_carrito_v1';
 window.SALCOM_PEDIDOS_NAV_BADGE_KEY = 'salcom_cliente_pedidos_nav_badge';
+window.SALCOM_PEDIDOS_HISTORIAL_KEY = @json(config('cliente_portal.historial_pedidos.storage_key'));
 window.salcomCartItemCount = function () {
     var key = window.SALCOM_CART_STORAGE_KEY || 'salcom_cliente_carrito_v1';
     var n = 0;
@@ -414,17 +440,27 @@ if (document.readyState === 'loading') {
 </script>
 @stack('scripts')
 <script>
-// Click-to-toggle para dispositivos touch (en desktop abre con hover por CSS)
+// Click-to-toggle notificaciones (touch); desktop también con hover por CSS
 (() => {
   const wrap = document.getElementById('notifWrap');
   if (!wrap) return;
+  const setOpen = (open) => {
+    wrap.classList.toggle('open', !!open);
+    wrap.setAttribute('aria-expanded', wrap.classList.contains('open') ? 'true' : 'false');
+  };
   wrap.addEventListener('click', (e) => {
     e.stopPropagation();
-    wrap.classList.toggle('open');
+    setOpen(!wrap.classList.contains('open'));
+  });
+  wrap.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      setOpen(!wrap.classList.contains('open'));
+    }
   });
 })();
 function markRead(el){el.style.background='#fff';let c=document.querySelectorAll('.notif-item[style*="purple-light"]').length;document.getElementById('notifBadge').textContent=c;if(c===0)document.getElementById('notifBadge').style.display='none'}
-document.addEventListener('click',e=>{const w=document.getElementById('notifWrap');if(w && !e.target.closest('.nav-notif-wrap'))w.classList.remove('open')})
+document.addEventListener('click',e=>{const w=document.getElementById('notifWrap');if(w && !e.target.closest('.nav-notif-wrap')){w.classList.remove('open');w.setAttribute('aria-expanded','false');}})
 </script>
 </body>
 </html>

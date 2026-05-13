@@ -35,6 +35,8 @@
     .paso-info { flex: 1; min-width: 0; }
     .paso-titulo { font-size: 15px; font-weight: 700; color: var(--gray-text); margin-bottom: 3px; }
     .paso-desc { font-size: 13px; color: var(--gray-muted); line-height: 1.5; }
+    .paso-desc a { color: var(--purple); font-weight: 600; text-decoration: none; }
+    .paso-desc a:hover { text-decoration: underline; }
 
     .paso-badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 999px; white-space: nowrap; flex-shrink: 0; }
     .badge-completado { background: var(--green-bg); color: var(--green); }
@@ -51,6 +53,11 @@
 @endpush
 
 @section('content')
+@php
+    $onboardingTotalPasos = 6;
+    $onboardingCompletados = 2;
+    $onboardingPct = (int) round(100 * $onboardingCompletados / $onboardingTotalPasos);
+@endphp
 
     <div class="ob-header">
         <h2>Hola, {{ session('cliente_nombre', 'Cliente') }}</h2>
@@ -59,10 +66,10 @@
         <div class="progress-wrap">
             <div class="progress-label">
                 <span>Progreso de onboarding</span>
-                <span>2 de 6 pasos completados</span>
+                <span>{{ $onboardingCompletados }} de {{ $onboardingTotalPasos }} pasos completados</span>
             </div>
-            <div class="progress-bar">
-                <div class="progress-fill" style="width: 33%"></div>
+            <div class="progress-bar" role="progressbar" aria-valuenow="{{ $onboardingCompletados }}" aria-valuemin="0" aria-valuemax="{{ $onboardingTotalPasos }}" aria-label="Progreso de onboarding">
+                <div class="progress-fill" style="width: {{ $onboardingPct }}%"></div>
             </div>
         </div>
     </div>
@@ -122,7 +129,7 @@
             <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Cliente activo</div>
-                <div class="paso-desc">Con la cuenta aprobada podrás pedir, consultar OTIF de entregas, estado de cuenta y seguimiento sin restricciones.</div>
+                <div class="paso-desc">Con la cuenta aprobada podrás pedir, consultar OTIF de entregas, estado de cuenta y <a href="{{ route('clientes.tracking') }}">seguimiento de envíos</a> sin restricciones.</div>
             </div>
             <span class="paso-badge badge-bloqueado">Pendiente</span>
             <button type="button" class="btn-ver disabled">Ver</button>

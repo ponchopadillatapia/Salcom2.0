@@ -3,7 +3,7 @@
 @section('hero')
 <div class="hero-band">
     <h1>Tracking</h1>
-    <p>Cada producto aparece en su fila; el mismo folio agrupa un pedido. Flujo: <a class="cli-hero-link" href="{{ route('clientes.catalogo') }}">Catálogo</a> → <a class="cli-hero-link" href="{{ route('clientes.pedidos') }}">Pedidos</a> → aquí.</p>
+    <p>Cada producto aparece en su fila; el mismo folio agrupa un pedido. Incluye <strong>día de envío</strong> y <strong>día de llegada</strong>. Flujo: <a class="cli-hero-link" href="{{ route('clientes.catalogo') }}">Catálogo</a> → <a class="cli-hero-link" href="{{ route('clientes.pedidos') }}">Pedidos</a> → aquí.</p>
 </div>
 @endsection
 
@@ -26,7 +26,9 @@
     .card{background:var(--white);border:1px solid var(--border-light);border-radius: var(--radius-lg);overflow:hidden;box-shadow: var(--shadow-sm);transition: var(--transition)}
     .card:hover{box-shadow: var(--shadow-md)}
     .cli-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:0 0 var(--radius-lg) var(--radius-lg)}
-    .tabla{width:100%;min-width:920px;border-collapse:collapse}
+    .tabla{width:100%;min-width:1080px;border-collapse:collapse}
+    .tabla .dia-track{font-size:12px;white-space:nowrap}
+    .tabla .dia-track.muted{color:var(--gray-muted);font-size:11px}
     .tabla th{font-size:11px;font-weight:700;color:var(--gray-muted);padding:13px 16px;text-align:left;border-bottom:1px solid var(--border-light);text-transform:uppercase;letter-spacing:.5px;background:var(--gray-soft);white-space:nowrap}
     .tabla td{padding:13px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border-light);vertical-align:top}
     .tabla tbody tr:last-child td{border-bottom:none}
@@ -77,7 +79,9 @@
         <thead>
             <tr>
                 <th>Folio</th>
-                <th>Fecha</th>
+                <th>Fecha pedido</th>
+                <th>Día de envío</th>
+                <th>Día de llegada</th>
                 <th>Código</th>
                 <th>Producto</th>
                 <th class="num">Cant.</th>
@@ -96,27 +100,8 @@
 
 @push('scripts')
 <script>
-const HISTORIAL_KEY = 'salcom_cliente_pedidos_v1';
-const HISTORIAL_SEED = [
-    {folio:'PED-2026-001',fecha:'01/04/2026',pago:'contado',estatus:'entregado',key:'entregado',total:8450.00,lineas:[
-        {codigo:'DET-IND',nombre:'Detergente Industrial',cantidad:10,precioUnit:500},
-        {codigo:'DES-HD',nombre:'Desengrasante HD',cantidad:5,precioUnit:690},
-    ]},
-    {folio:'PED-2026-002',fecha:'03/04/2026',pago:'contado',estatus:'enviado',key:'enviado',total:2670.00,lineas:[
-        {codigo:'ACE-SAE40',nombre:'Aceite Lubricante SAE 40',cantidad:3,precioUnit:890},
-    ]},
-    {folio:'PED-2026-003',fecha:'05/04/2026',pago:'contado',estatus:'produccion',key:'produccion',total:4725.00,lineas:[
-        {codigo:'CIN-EMP',nombre:'Cinta Empaque',cantidad:50,precioUnit:55},
-        {codigo:'STR-FILM',nombre:'Stretch Film',cantidad:20,precioUnit:98.75},
-    ]},
-    {folio:'PED-2026-004',fecha:'07/04/2026',pago:'contado',estatus:'autorizado',key:'autorizado',total:5850.00,lineas:[
-        {codigo:'SAN-MUL',nombre:'Sanitizante Multiusos',cantidad:30,precioUnit:195},
-    ]},
-    {folio:'PED-2026-005',fecha:'09/04/2026',pago:'contado',estatus:'validacion',key:'validacion',total:4700.00,lineas:[
-        {codigo:'SOL-DIEL',nombre:'Solvente Dieléctrico',cantidad:8,precioUnit:400},
-        {codigo:'REF-IND',nombre:'Refrigerante',cantidad:2,precioUnit:750},
-    ]},
-];
+const HISTORIAL_KEY = window.SALCOM_PEDIDOS_HISTORIAL_KEY || 'salcom_cliente_pedidos_v1';
+const HISTORIAL_SEED = @json(config('cliente_portal.historial_pedidos.seed'));
 
 function loadHistorial() {
     try {
@@ -137,6 +122,29 @@ function lineasFromPedido(p) {
 
 function totalFromLineas(lineas) {
     return lineas.reduce((s, l) => s + (Number(l.precioUnit) || 0) * (Number(l.cantidad) || 0), 0);
+}
+
+/** Envío y llegada; compatible con datos sin campos o con esquema anterior (diaEntrega). */
+function diasTrackingPedido(p) {
+    let envio = p.diaEnviado != null ? String(p.diaEnviado).trim() : '';
+    let llegada = p.diaLlegada != null ? String(p.diaLlegada).trim() : '';
+    const legEnt = p.diaEntrega != null ? String(p.diaEntrega).trim() : '';
+    if (!envio && legEnt) {
+        const col1 = p.diaLlegada != null ? String(p.diaLlegada).trim() : '';
+        envio = col1;
+        llegada = legEnt;
+    } else if (!envio && !legEnt && llegada && p.key !== 'entregado') {
+        llegada = '';
+    }
+    if (!envio) {
+        if (p.key === 'enviado' || p.key === 'entregado') envio = '—';
+        else envio = '—';
+    }
+    if (!llegada) {
+        if (p.key === 'entregado') llegada = p.fecha || '—';
+        else llegada = 'Pendiente';
+    }
+    return { envio, llegada };
 }
 
 function escHtml(s) {
@@ -162,11 +170,14 @@ function renderPedidos(filteredPedidos) {
     filteredPedidos.forEach(p => {
         const lineas = lineasFromPedido(p);
         const totalPed = p.total != null && p.total !== '' ? Number(p.total) : totalFromLineas(lineas);
+        const dias = diasTrackingPedido(p);
         lineas.forEach(l => {
             const sub = (Number(l.precioUnit) || 0) * (Number(l.cantidad) || 0);
             rows.push({
                 folio: p.folio,
                 fecha: p.fecha,
+                diaEnviado: dias.envio,
+                diaLlegada: dias.llegada,
                 codigo: l.codigo || '',
                 nombre: l.nombre || '—',
                 cantidad: l.cantidad,
@@ -181,7 +192,7 @@ function renderPedidos(filteredPedidos) {
     });
 
     if (!rows.length) {
-        body.innerHTML = '<tr class="empty-row"><td colspan="10">No hay líneas con este filtro</td></tr>';
+        body.innerHTML = '<tr class="empty-row"><td colspan="12">No hay líneas con este filtro</td></tr>';
         document.getElementById('pedCount').textContent = '0 pedidos';
         return;
     }
@@ -192,7 +203,9 @@ function renderPedidos(filteredPedidos) {
         prevFolio = r.folio;
         const pu = Number(r.precioUnit) || 0;
         const fmt = n => '$' + n.toLocaleString('es-MX', { minimumFractionDigits: 2 });
-        return `<tr class="${sep.trim()}"><td class="folio">${escHtml(r.folio)}</td><td>${escHtml(r.fecha)}</td><td class="codigo">${r.codigo ? escHtml(r.codigo) : '—'}</td><td>${escHtml(r.nombre)}</td><td class="num">${escHtml(r.cantidad)}</td><td class="num">${fmt(pu)}</td><td class="num">${fmt(r.subtotal)}</td><td class="num">${fmt(r.totalPedido)}</td><td>${pagoMap[r.pago]||r.pago}</td><td>${badgeMap[r.key]||r.estatus}</td></tr>`;
+        const clsEnv = (r.diaEnviado === '—' || r.diaEnviado === 'Pendiente') ? ' dia-track muted' : ' dia-track';
+        const clsLleg = (r.diaLlegada === '—' || r.diaLlegada === 'Pendiente') ? ' dia-track muted' : ' dia-track';
+        return `<tr class="${sep.trim()}"><td class="folio">${escHtml(r.folio)}</td><td>${escHtml(r.fecha)}</td><td class="${clsEnv.trim()}">${escHtml(r.diaEnviado)}</td><td class="${clsLleg.trim()}">${escHtml(r.diaLlegada)}</td><td class="codigo">${r.codigo ? escHtml(r.codigo) : '—'}</td><td>${escHtml(r.nombre)}</td><td class="num">${escHtml(r.cantidad)}</td><td class="num">${fmt(pu)}</td><td class="num">${fmt(r.subtotal)}</td><td class="num">${fmt(r.totalPedido)}</td><td>${pagoMap[r.pago]||r.pago}</td><td>${badgeMap[r.key]||r.estatus}</td></tr>`;
     }).join('');
 
     const nPed = new Set(filteredPedidos.map(p => p.folio)).size;

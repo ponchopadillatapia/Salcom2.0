@@ -37,12 +37,12 @@
         <form method="POST" action="{{ route('clientes.login.procesar') }}">
             @csrf
             <div class="ios-field">
-                <label>Usuario</label>
-                <input type="text" name="usuario" placeholder="Tu usuario asignado" value="{{ old('usuario') }}" required autofocus>
+                <label for="cli-login-usuario">Usuario</label>
+                <input id="cli-login-usuario" type="text" name="usuario" placeholder="Tu usuario asignado" value="{{ old('usuario') }}" required autofocus autocomplete="username">
             </div>
             <div class="ios-field">
-                <label>Contraseña</label>
-                <input type="password" name="password" placeholder="Tu contraseña" required>
+                <label for="cli-login-password">Contraseña</label>
+                <input id="cli-login-password" type="password" name="password" placeholder="Tu contraseña" required autocomplete="current-password">
             </div>
             <button type="submit" class="ios-btn-primary">Ingresar al portal</button>
         </form>
