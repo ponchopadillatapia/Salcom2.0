@@ -28,6 +28,7 @@
     .btn-export:hover{background:var(--green);color:#fff}
     .otif-table{width:100%;border-collapse:collapse}
     .otif-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px;padding:10px 12px;text-align:left;background:var(--gray-soft);border-bottom:1px solid var(--border-light)}
+    .otif-table th.otif-col-cat{max-width:200px}
     .otif-table td{padding:12px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border-light)}
     .otif-table tr:last-child td{border-bottom:none}
     .otif-table tr:hover td{background:var(--purple-subtle)}
@@ -38,6 +39,12 @@
     @media(max-width:768px){.otif-charts{grid-template-columns:1fr}}
 </style>
 @endpush
+
+@php
+    $otifDemo = config('cliente_portal.analitica_portal.otif', []);
+    $otifOt = $otifDemo['on_time'] ?? [];
+    $otifIf = $otifDemo['in_full'] ?? [];
+@endphp
 
 @section('content')
 <div class="otif-wrap">
@@ -76,6 +83,7 @@
                 <thead>
                     <tr>
                         <th>Pedido</th>
+                        <th class="otif-col-cat">Categoría (catálogo)</th>
                         <th>Producto</th>
                         <th>Fecha compromiso</th>
                         <th>Fecha entrega</th>
@@ -84,46 +92,32 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @foreach($otifOt as $row)
+                    @php $d = (int)($row['diff'] ?? 0); @endphp
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-005</td>
-                        <td>Resina epóxica industrial</td>
-                        <td>01/05/2026</td>
-                        <td>01/05/2026</td>
-                        <td>@include('partials.trend-arrow', ['value' => 0])</td>
-                        <td><span class="badge-ok">A tiempo</span></td>
+                        <td style="font-weight:600;color:var(--purple)">{{ $row['pedido'] ?? '—' }}</td>
+                        <td style="font-size:12px;color:var(--gray-muted);line-height:1.35" title="{{ $row['seccion'] ?? '' }}">{{ $row['seccion'] ?? '—' }}</td>
+                        <td>{{ $row['producto'] ?? '—' }}</td>
+                        <td>{{ $row['compromiso'] ?? '—' }}</td>
+                        <td>{{ $row['entrega'] ?? '—' }}</td>
+                        <td>
+                            @if($d === 0)
+                                @include('partials.trend-arrow', ['value' => 0])
+                            @elseif($d > 0)
+                                <span style="color:var(--green);font-weight:700;">↑ {{ $d }} día{{ $d === 1 ? '' : 's' }} antes</span>
+                            @else
+                                <span style="color:var(--red);font-weight:700;">↓ {{ abs($d) }} día{{ abs($d) === 1 ? '' : 's' }} tarde</span>
+                            @endif
+                        </td>
+                        <td>
+                            @if($d < 0)
+                                <span class="badge-late">Retraso</span>
+                            @else
+                                <span class="badge-ok">A tiempo</span>
+                            @endif
+                        </td>
                     </tr>
-                    <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-004</td>
-                        <td>Pigmento base agua</td>
-                        <td>28/04/2026</td>
-                        <td>27/04/2026</td>
-                        <td style="color:var(--green);font-weight:700;">↑ 1 día antes</td>
-                        <td><span class="badge-ok">A tiempo</span></td>
-                    </tr>
-                    <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-002</td>
-                        <td>Solvente grado técnico</td>
-                        <td>25/04/2026</td>
-                        <td>28/04/2026</td>
-                        <td style="color:var(--red);font-weight:700;">↓ 3 días tarde</td>
-                        <td><span class="badge-late">Retraso</span></td>
-                    </tr>
-                    <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-001</td>
-                        <td>Adhesivo estructural</td>
-                        <td>22/04/2026</td>
-                        <td>22/04/2026</td>
-                        <td>@include('partials.trend-arrow', ['value' => 0])</td>
-                        <td><span class="badge-ok">A tiempo</span></td>
-                    </tr>
-                    <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2025-118</td>
-                        <td>Catalizador rápido</td>
-                        <td>18/04/2026</td>
-                        <td>19/04/2026</td>
-                        <td style="color:var(--red);font-weight:700;">↓ 1 día tarde</td>
-                        <td><span class="badge-late">Retraso</span></td>
-                    </tr>
+                    @endforeach
                 </tbody>
             </table>
         </div>
@@ -142,6 +136,7 @@
                 <thead>
                     <tr>
                         <th>Pedido</th>
+                        <th class="otif-col-cat">Categoría (catálogo)</th>
                         <th>Producto</th>
                         <th>Cantidad solicitada</th>
                         <th>Cantidad entregada</th>
@@ -150,46 +145,24 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @foreach($otifIf as $row)
+                    @php $ok = !empty($row['ok']); $pct = (int)($row['pct'] ?? 0); @endphp
                     <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-005</td>
-                        <td>Resina epóxica industrial</td>
-                        <td>500 kg</td>
-                        <td>500 kg</td>
-                        <td style="color:var(--green);font-weight:700;">100%</td>
-                        <td><span class="badge-ok">Completo</span></td>
+                        <td style="font-weight:600;color:var(--purple)">{{ $row['pedido'] ?? '—' }}</td>
+                        <td style="font-size:12px;color:var(--gray-muted);line-height:1.35">{{ $row['seccion'] ?? '—' }}</td>
+                        <td>{{ $row['producto'] ?? '—' }}</td>
+                        <td>{{ $row['solicitado'] ?? '—' }}</td>
+                        <td>{{ $row['entregado'] ?? '—' }}</td>
+                        <td style="color:{{ $ok ? 'var(--green)' : 'var(--red)' }};font-weight:700;">{{ $pct }}%</td>
+                        <td>
+                            @if($ok)
+                                <span class="badge-ok">Completo</span>
+                            @else
+                                <span class="badge-partial">Parcial</span>
+                            @endif
+                        </td>
                     </tr>
-                    <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-004</td>
-                        <td>Pigmento base agua</td>
-                        <td>200 kg</td>
-                        <td>200 kg</td>
-                        <td style="color:var(--green);font-weight:700;">100%</td>
-                        <td><span class="badge-ok">Completo</span></td>
-                    </tr>
-                    <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-002</td>
-                        <td>Solvente grado técnico</td>
-                        <td>1,000 lt</td>
-                        <td>1,000 lt</td>
-                        <td style="color:var(--green);font-weight:700;">100%</td>
-                        <td><span class="badge-ok">Completo</span></td>
-                    </tr>
-                    <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2026-001</td>
-                        <td>Cloro industrial</td>
-                        <td>300 kg</td>
-                        <td>180 kg</td>
-                        <td style="color:var(--red);font-weight:700;">60%</td>
-                        <td><span class="badge-partial">Parcial</span></td>
-                    </tr>
-                    <tr>
-                        <td style="font-weight:600;color:var(--purple)">PED-2025-118</td>
-                        <td>Catalizador rápido</td>
-                        <td>150 kg</td>
-                        <td>150 kg</td>
-                        <td style="color:var(--green);font-weight:700;">100%</td>
-                        <td><span class="badge-ok">Completo</span></td>
-                    </tr>
+                    @endforeach
                 </tbody>
             </table>
         </div>

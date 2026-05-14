@@ -2,8 +2,8 @@
 @section('title', 'Tracking de pedidos')
 @section('hero')
 <div class="hero-band">
-    <h1>Tracking</h1>
-    <p>Cada producto aparece en su fila; el mismo folio agrupa un pedido. Incluye <strong>día de envío</strong> y <strong>día de llegada</strong>. Flujo: <a class="cli-hero-link" href="{{ route('clientes.catalogo') }}">Catálogo</a> → <a class="cli-hero-link" href="{{ route('clientes.pedidos') }}">Pedidos</a> → aquí.</p>
+    <h1>Tracking de pedidos</h1>
+    <p>Seguimiento <strong>exclusivo de tu cuenta</strong> en el portal de clientes: cada línea es un producto; el folio agrupa el pedido. Incluye día de envío y día de llegada. Flujo: <a class="cli-hero-link" href="{{ route('clientes.catalogo') }}">Catálogo</a> → <a class="cli-hero-link" href="{{ route('clientes.pedidos') }}">Pedidos</a> → aquí.</p>
 </div>
 @endsection
 
@@ -11,51 +11,130 @@
 <style>
     .cli-hero-link { color: var(--purple); font-weight: 600; text-decoration: none; }
     .cli-hero-link:hover { text-decoration: underline; }
-    .cli-notice { font-size: 12px; font-weight: 600; color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber); padding: 10px 14px; border-radius: var(--radius-lg); margin-bottom: 20px; display: inline-flex; align-items: center; gap: 8px; }
+    .cli-notice { font-size: 12px; font-weight: 600; color: var(--amber); background: var(--amber-bg); border: 1px solid var(--amber); padding: 10px 14px; border-radius: var(--radius-lg); margin-bottom: 14px; display: inline-flex; align-items: center; gap: 8px; }
 
-    .ped-toolbar{display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap;padding:16px 18px;background:var(--white);border:1px solid var(--border-light);border-radius: var(--radius-lg);box-shadow: var(--shadow-sm);transition: var(--transition)}
-    .ped-toolbar:hover{box-shadow: var(--shadow-md)}
-    .ped-filter{border:1px solid var(--border-light);border-radius:10px;padding:10px 14px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);cursor:pointer;outline:none;min-width:200px}
-    .ped-filter:focus{border-color: var(--purple-mid); box-shadow: 0 0 0 3px var(--purple-subtle)}
-    .ped-count{font-size:12px;font-weight:600;color:var(--gray-muted);margin-left:auto;letter-spacing:-0.02em}
+    .cli-portal-strip {
+        display: flex; align-items: flex-start; gap: 12px;
+        padding: 12px 16px; margin-bottom: 20px;
+        background: var(--purple-subtle); border: 1px solid #d4c5e8; border-radius: var(--radius-lg);
+        font-size: 13px; color: #4A2070; line-height: 1.45;
+    }
+    .cli-portal-strip svg { flex-shrink: 0; margin-top: 1px; }
+    .cli-portal-strip strong { font-weight: 700; }
 
-    .ped-legend{display:flex;flex-wrap:wrap;gap:12px 20px;margin-bottom:16px;font-size:11px;color:var(--gray-muted)}
-    .ped-legend span{display:inline-flex;align-items:center;gap:6px}
-    .ped-legend i{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .cli-surface { background: var(--white); border: 1px solid var(--border-light); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); transition: var(--transition); }
+    .cli-surface:hover { box-shadow: var(--shadow-md); }
 
-    .card{background:var(--white);border:1px solid var(--border-light);border-radius: var(--radius-lg);overflow:hidden;box-shadow: var(--shadow-sm);transition: var(--transition)}
-    .card:hover{box-shadow: var(--shadow-md)}
-    .cli-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:0 0 var(--radius-lg) var(--radius-lg)}
-    .tabla{width:100%;min-width:1080px;border-collapse:collapse}
-    .tabla .dia-track{font-size:12px;white-space:nowrap}
-    .tabla .dia-track.muted{color:var(--gray-muted);font-size:11px}
-    .tabla th{font-size:11px;font-weight:700;color:var(--gray-muted);padding:13px 16px;text-align:left;border-bottom:1px solid var(--border-light);text-transform:uppercase;letter-spacing:.5px;background:var(--gray-soft);white-space:nowrap}
-    .tabla td{padding:13px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border-light);vertical-align:top}
-    .tabla tbody tr:last-child td{border-bottom:none}
-    .tabla tbody tr:hover td{background: var(--purple-subtle)}
-    .tabla tr.tr-pedido-sep td{border-top:2px solid var(--border-light)}
-    .tabla .folio{font-weight:700;color: var(--purple);white-space:nowrap;font-size:13px}
-    .tabla .codigo{font-size:11px;color:var(--gray-muted)}
-    .tabla .num{text-align:right;white-space:nowrap;font-variant-numeric: tabular-nums}
+    .track-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 18px; }
+    .track-stat {
+        background: var(--white); border: 1px solid var(--border-light); border-radius: var(--radius-lg);
+        padding: 14px 16px; box-shadow: var(--shadow-sm);
+    }
+    .track-stat-label { font-size: 11px; font-weight: 700; color: var(--gray-muted); text-transform: uppercase; letter-spacing: 0.45px; margin-bottom: 6px; }
+    .track-stat-val { font-size: 20px; font-weight: 700; color: var(--gray-text); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+    .track-stat-sub { font-size: 11px; color: var(--gray-muted); margin-top: 4px; }
 
-    .badge{font-size:11px;font-weight:600;padding:4px 10px;border-radius:999px;white-space:nowrap;display:inline-block}
-    .badge-validacion{background: var(--purple-subtle);color: var(--purple)}
-    .badge-autorizado{background:#dbeafe;color:#2563eb}
-    .badge-produccion{background: var(--amber-bg);color: var(--amber)}
-    .badge-enviado{background: var(--green-bg);color: var(--green)}
-    .badge-entregado{background:#dcfce7;color:#166534}
-    .badge-contado{background:var(--gray-soft);color:var(--gray-muted);font-size:10px}
-    .badge-credito{background:#dbeafe;color:#2563eb;font-size:10px}
+    .track-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 16px 18px; margin-bottom: 18px; }
+    .track-search {
+        flex: 1; min-width: 200px; border: 1px solid var(--border-light); border-radius: 10px;
+        padding: 10px 14px; font-size: 13px; font-family: inherit; color: var(--gray-text);
+        outline: none; background: var(--gray-soft);
+    }
+    .track-search:focus { border-color: var(--purple-mid); background: var(--white); box-shadow: 0 0 0 3px var(--purple-subtle); }
+    .track-filter {
+        border: 1px solid var(--border-light); border-radius: 10px; padding: 10px 14px;
+        font-size: 13px; font-family: inherit; color: var(--gray-text); background: var(--white);
+        cursor: pointer; outline: none; min-width: 200px;
+    }
+    .track-filter:focus { border-color: var(--purple-mid); box-shadow: 0 0 0 3px var(--purple-subtle); }
+    .track-count { font-size: 12px; font-weight: 600; color: var(--gray-muted); margin-left: auto; letter-spacing: -0.02em; text-align: right; }
 
-    .empty-row td{text-align:center;color:var(--gray-muted);padding:48px 24px;font-size:14px}
+    .ped-legend { display: flex; flex-wrap: wrap; gap: 10px 18px; margin-bottom: 16px; font-size: 11px; color: var(--gray-muted); padding: 0 2px; }
+    .ped-legend span { display: inline-flex; align-items: center; gap: 6px; }
+    .ped-legend i { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+    .card { background: var(--white); border: 1px solid var(--border-light); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); transition: var(--transition); }
+    .card:hover { box-shadow: var(--shadow-md); }
+    .card-head {
+        padding: 14px 18px; border-bottom: 1px solid var(--border-light);
+        display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;
+        background: var(--gray-soft);
+    }
+    .card-head h2 { font-size: 15px; font-weight: 700; color: var(--gray-text); margin: 0; letter-spacing: -0.02em; }
+    .card-head p { margin: 0; font-size: 12px; color: var(--gray-muted); max-width: 520px; line-height: 1.45; }
+
+    .cli-table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+    .tabla { width: 100%; min-width: 1080px; border-collapse: collapse; }
+    .tabla .dia-track { font-size: 12px; white-space: nowrap; }
+    .tabla .dia-track.muted { color: var(--gray-muted); font-size: 11px; }
+    .tabla th {
+        font-size: 11px; font-weight: 700; color: var(--gray-muted); padding: 13px 16px; text-align: left;
+        border-bottom: 1px solid var(--border-light); text-transform: uppercase; letter-spacing: 0.5px;
+        background: var(--gray-soft); white-space: nowrap;
+    }
+    .tabla td { padding: 13px 16px; font-size: 13px; color: var(--gray-text); border-bottom: 1px solid var(--border-light); vertical-align: top; }
+    .tabla tbody tr:last-child td { border-bottom: none; }
+    .tabla tbody tr:hover td { background: var(--purple-subtle); }
+    .tabla tr.tr-pedido-sep td { border-top: 2px solid var(--border-light); }
+    .tabla .folio { font-weight: 700; color: var(--purple); white-space: nowrap; font-size: 13px; }
+    .tabla .codigo { font-size: 11px; color: var(--gray-muted); }
+    .tabla .num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+    .badge { font-size: 11px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; display: inline-block; }
+    .badge-validacion { background: var(--purple-subtle); color: var(--purple); }
+    .badge-autorizado { background: #dbeafe; color: #2563eb; }
+    .badge-produccion { background: var(--amber-bg); color: var(--amber); }
+    .badge-enviado { background: var(--green-bg); color: var(--green); }
+    .badge-entregado { background: #dcfce7; color: #166534; }
+    .badge-contado { background: var(--gray-soft); color: var(--gray-muted); font-size: 10px; }
+    .badge-credito { background: #dbeafe; color: #2563eb; font-size: 10px; }
+
+    .empty-row td { text-align: center; color: var(--gray-muted); padding: 48px 24px; font-size: 14px; }
+
+    @media (max-width: 900px) {
+        .track-stats { grid-template-columns: repeat(2, 1fr); }
+        .track-count { width: 100%; margin-left: 0; text-align: left; }
+    }
+    @media (max-width: 480px) {
+        .track-stats { grid-template-columns: 1fr; }
+    }
 </style>
 @endpush
 
 @section('content')
 <div class="cli-notice" role="note">Datos de demostración · Integración API pendiente</div>
 
-<div class="ped-toolbar">
-    <select class="ped-filter" id="statusFilter" onchange="filtrarPedidos()" aria-label="Filtrar por estatus">
+<div class="cli-portal-strip" role="status">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    <span><strong>Solo portal de clientes.</strong> Lo que ves aquí corresponde a tu sesión iniciada; no es un panel interno de Salcom ni se mezcla con otros clientes.</span>
+</div>
+
+<div class="track-stats" id="trackStats" aria-live="polite">
+    <div class="track-stat">
+        <div class="track-stat-label">Pedidos</div>
+        <div class="track-stat-val" id="statPedidos">—</div>
+        <div class="track-stat-sub">Folios distintos</div>
+    </div>
+    <div class="track-stat">
+        <div class="track-stat-label">Líneas</div>
+        <div class="track-stat-val" id="statLineas">—</div>
+        <div class="track-stat-sub">Productos listados</div>
+    </div>
+    <div class="track-stat">
+        <div class="track-stat-label">En planta / trámite</div>
+        <div class="track-stat-val" id="statPend">—</div>
+        <div class="track-stat-sub">Validación, autorizado o producción</div>
+    </div>
+    <div class="track-stat">
+        <div class="track-stat-label">En ruta o entregado</div>
+        <div class="track-stat-val" id="statRuta">—</div>
+        <div class="track-stat-sub">Enviado u entregado</div>
+    </div>
+</div>
+
+<div class="cli-surface track-toolbar">
+    <input type="search" class="track-search" id="trackSearch" placeholder="Buscar por folio, código o producto…" autocomplete="off" aria-label="Buscar en tracking" oninput="filtrarPedidos()">
+    <select class="track-filter" id="statusFilter" onchange="filtrarPedidos()" aria-label="Filtrar por estatus">
         <option value="">Todos los estatus</option>
         <option value="validacion">En validación</option>
         <option value="autorizado">Autorizado</option>
@@ -63,7 +142,7 @@
         <option value="enviado">Enviado</option>
         <option value="entregado">Entregado</option>
     </select>
-    <span class="ped-count" id="pedCount"></span>
+    <span class="track-count" id="pedCount"></span>
 </div>
 
 <div class="ped-legend" aria-hidden="true">
@@ -74,26 +153,30 @@
 </div>
 
 <div class="card">
+    <div class="card-head">
+        <h2>Detalle por línea</h2>
+        <p>Misma información que en pedidos, ordenada para seguimiento logístico y facturación.</p>
+    </div>
     <div class="cli-table-scroll">
-    <table class="tabla">
-        <thead>
-            <tr>
-                <th>Folio</th>
-                <th>Fecha pedido</th>
-                <th>Día de envío</th>
-                <th>Día de llegada</th>
-                <th>Código</th>
-                <th>Producto</th>
-                <th class="num">Cant.</th>
-                <th class="num">P. unit.</th>
-                <th class="num">Subtotal</th>
-                <th class="num">Total pedido</th>
-                <th>Pago</th>
-                <th>Estatus</th>
-            </tr>
-        </thead>
-        <tbody id="pedidosBody"></tbody>
-    </table>
+        <table class="tabla">
+            <thead>
+                <tr>
+                    <th>Folio</th>
+                    <th>Fecha pedido</th>
+                    <th>Día de envío</th>
+                    <th>Día de llegada</th>
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th class="num">Cant.</th>
+                    <th class="num">P. unit.</th>
+                    <th class="num">Subtotal</th>
+                    <th class="num">Total pedido</th>
+                    <th>Pago</th>
+                    <th>Estatus</th>
+                </tr>
+            </thead>
+            <tbody id="pedidosBody"></tbody>
+        </table>
     </div>
 </div>
 @endsection
@@ -164,7 +247,34 @@ const badgeMap = {
 };
 const pagoMap = {contado:'<span class="badge badge-contado">Contado</span>',credito:'<span class="badge badge-credito">Crédito</span>'};
 
+function pedidoMatchesSearch(p, q) {
+    if (!q) return true;
+    const qq = q.toLowerCase().trim();
+    if (String(p.folio).toLowerCase().includes(qq)) return true;
+    const lineas = lineasFromPedido(p);
+    return lineas.some(l =>
+        (l.codigo && String(l.codigo).toLowerCase().includes(qq)) ||
+        (l.nombre && String(l.nombre).toLowerCase().includes(qq))
+    );
+}
+
+function updateStats(list) {
+    const folios = new Set(list.map(p => p.folio));
+    let lineas = 0;
+    list.forEach(p => { lineas += lineasFromPedido(p).length; });
+    const pendKeys = ['validacion', 'autorizado', 'produccion'];
+    const rutaKeys = ['enviado', 'entregado'];
+    const nPend = list.filter(p => pendKeys.includes(p.key)).length;
+    const nRuta = list.filter(p => rutaKeys.includes(p.key)).length;
+    document.getElementById('statPedidos').textContent = String(folios.size);
+    document.getElementById('statLineas').textContent = String(lineas);
+    document.getElementById('statPend').textContent = String(nPend);
+    document.getElementById('statRuta').textContent = String(nRuta);
+}
+
 function renderPedidos(filteredPedidos) {
+    updateStats(filteredPedidos);
+
     const body = document.getElementById('pedidosBody');
     const rows = [];
     filteredPedidos.forEach(p => {
@@ -192,7 +302,7 @@ function renderPedidos(filteredPedidos) {
     });
 
     if (!rows.length) {
-        body.innerHTML = '<tr class="empty-row"><td colspan="12">No hay líneas con este filtro</td></tr>';
+        body.innerHTML = '<tr class="empty-row"><td colspan="12">No hay resultados con este filtro o búsqueda</td></tr>';
         document.getElementById('pedCount').textContent = '0 pedidos';
         return;
     }
@@ -209,12 +319,14 @@ function renderPedidos(filteredPedidos) {
     }).join('');
 
     const nPed = new Set(filteredPedidos.map(p => p.folio)).size;
-    document.getElementById('pedCount').textContent = rows.length + ' producto' + (rows.length === 1 ? '' : 's') + ' · ' + nPed + ' pedido' + (nPed === 1 ? '' : 's');
+    document.getElementById('pedCount').textContent = rows.length + ' línea' + (rows.length === 1 ? '' : 's') + ' · ' + nPed + ' pedido' + (nPed === 1 ? '' : 's');
 }
 
 function filtrarPedidos() {
     const s = document.getElementById('statusFilter').value;
-    const list = s ? pedidos.filter(p => p.key === s) : pedidos.slice();
+    const q = document.getElementById('trackSearch').value;
+    let list = s ? pedidos.filter(p => p.key === s) : pedidos.slice();
+    list = list.filter(p => pedidoMatchesSearch(p, q));
     renderPedidos(list);
 }
 

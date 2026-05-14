@@ -1,4 +1,4 @@
-﻿@extends('layouts.cliente')
+@extends('layouts.cliente')
 @section('title', 'Dashboard')
 @section('hero')
 <div class="hero-band">
@@ -18,15 +18,8 @@
 
     $catImg = fn (string $file) => asset('Catalogo/' . rawurlencode($file));
 
-    /** Categorías demo: volumen relativo (bar), tendencia vs periodo anterior, fecha de corte del indicador */
-    $categoriasVenta = [
-        ['nombre' => 'Detergentes y limpieza', 'img' => $catImg('Naedc 28 a 43.jpg'), 'ud' => 2840, 'bar' => 100, 'sube' => true, 'pct' => 12.4, 'fecha' => '01/05/2026'],
-        ['nombre' => 'Químicos industriales (HO)', 'img' => $catImg('Naeho 57 a 10.jpg'), 'ud' => 2210, 'bar' => 78, 'sube' => true, 'pct' => 5.2, 'fecha' => '01/05/2026'],
-        ['nombre' => 'Solventes y dieléctricos', 'img' => $catImg('Ndiel 00 a 03.jpg'), 'ud' => 1680, 'bar' => 59, 'sube' => false, 'pct' => 3.1, 'fecha' => '28/04/2026'],
-        ['nombre' => 'Lubricantes', 'img' => $catImg('Nlilg 48 a 53.jpg'), 'ud' => 1420, 'bar' => 50, 'sube' => false, 'pct' => 8.7, 'fecha' => '28/04/2026'],
-        ['nombre' => 'Línea automotriz', 'img' => $catImg('Narau09 a 12.jpg'), 'ud' => 960, 'bar' => 34, 'sube' => true, 'pct' => 2.0, 'fecha' => '30/04/2026'],
-        ['nombre' => 'Aditivos y especialidades', 'img' => $catImg('Naeho52 a 78.jpg'), 'ud' => 520, 'bar' => 18, 'sube' => false, 'pct' => 11.0, 'fecha' => '25/04/2026'],
-    ];
+    $ap = config('cliente_portal.analitica_portal', []);
+    $dashCats = $ap['dashboard_categorias_mas_vendidas'] ?? [];
 @endphp
 
 @push('styles')
@@ -162,7 +155,7 @@
 
     .mid-grid {
         display: grid;
-        grid-template-columns: 2fr 1fr;
+        grid-template-columns: 1fr;
         gap: 16px;
         margin-bottom: 24px;
     }
@@ -188,69 +181,201 @@
     .cat-sales-caption {
         font-size: 12px;
         color: var(--gray-muted);
-        margin: 0 0 18px;
-        line-height: 1.45;
+        margin: 0 0 14px;
+        line-height: 1.5;
     }
     .cat-sales-caption strong { color: var(--gray-text); }
-    .cat-sales-row {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 10px 14px;
-        padding: 12px 0;
-        border-bottom: 1px solid var(--border-light);
-        font-size: 13px;
+
+    .cat-sales-board {
+        border-radius: 14px;
+        border: 1px solid var(--border-light);
+        background: linear-gradient(180deg, #fbfbfd 0%, #f3f2f7 100%);
+        overflow: hidden;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
     }
-    .cat-sales-row:last-child { border-bottom: none; }
+    .cat-sales-board-row {
+        display: grid;
+        grid-template-columns: minmax(200px, 1.35fr) minmax(140px, 2fr) minmax(96px, 112px);
+        gap: 12px 16px;
+        align-items: center;
+        padding: 12px 16px;
+    }
+    .cat-sales-board-row--scale {
+        background: rgba(255, 255, 255, 0.92);
+        border-bottom: 1px solid var(--border-light);
+        padding-top: 10px;
+        padding-bottom: 8px;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--gray-muted);
+        letter-spacing: 0.02em;
+    }
+    .cat-sales-board-corner {
+        align-self: end;
+        padding-bottom: 2px;
+        line-height: 1.3;
+    }
+    .cat-sales-scale-ticks {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        min-width: 0;
+        padding: 0 2px;
+    }
+    .cat-sales-scale-ticks::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: -6px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(107, 63, 160, 0.2), transparent);
+    }
+    .cat-sales-board-row--data {
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+        background: rgba(255, 255, 255, 0.35);
+    }
+    .cat-sales-board-row--data:last-child { border-bottom: none; }
+    .cat-sales-board-row--data:hover {
+        background: rgba(255, 255, 255, 0.92);
+    }
+
     .cat-sales-lead {
         display: flex;
-        align-items: center;
-        gap: 12px;
-        flex: 1 1 200px;
+        align-items: flex-start;
+        gap: 10px;
         min-width: 0;
     }
+    .cat-sales-rank {
+        width: 28px;
+        height: 28px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--purple);
+        background: rgba(107, 63, 160, 0.12);
+        border: 1px solid rgba(107, 63, 160, 0.18);
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
     .cat-sales-thumb {
-        width: 48px;
-        height: 48px;
-        border-radius: 10px;
+        width: 52px;
+        height: 52px;
+        border-radius: 12px;
         object-fit: cover;
         background: var(--gray-soft);
-        border: 1px solid var(--border-light);
+        border: 1px solid rgba(15, 23, 42, 0.08);
         flex-shrink: 0;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
     }
+    .cat-sales-copy { min-width: 0; flex: 1; }
     .cat-sales-name {
+        margin: 0;
+        font-size: 13px;
         font-weight: 700;
         color: var(--gray-text);
         line-height: 1.25;
-    }
-    .cat-sales-ud {
-        font-size: 11px;
-        color: var(--gray-muted);
-        margin-top: 2px;
-        font-weight: 600;
+        letter-spacing: -0.2px;
     }
     .cat-sales-meta {
-        flex: 1;
+        margin: 6px 0 0;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--gray-muted);
+        line-height: 1.35;
+    }
+    .cat-sales-meta strong { color: var(--gray-text); }
+    .cat-sales-slug {
+        display: inline-block;
+        max-width: 100%;
+        margin-top: 4px;
+        padding: 2px 7px;
+        border-radius: 5px;
+        font-family: ui-monospace, Menlo, Consolas, monospace;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--gray-muted);
+        background: rgba(255, 255, 255, 0.85);
+        border: 1px solid var(--border-light);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+    }
+
+    .cat-sales-board-plot {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         min-width: 0;
     }
-    .cat-sales-bar-track {
-        flex: 1 1 160px;
-        min-width: 100px;
-        height: 10px;
-        border-radius: 999px;
-        background: var(--gray-soft);
+    .cat-sales-chart-track {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        height: 24px;
+        border-radius: 10px;
+        background: #e8e8ee;
         overflow: hidden;
+        box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
     }
-    .cat-sales-bar-fill {
+    .cat-sales-chart-track::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: inherit;
+        background-image: linear-gradient(90deg, rgba(15, 23, 42, 0.07) 1px, transparent 1px);
+        background-size: 25% 100%;
+        pointer-events: none;
+        z-index: 0;
+    }
+    .cat-sales-chart-fill {
+        position: relative;
+        z-index: 1;
         height: 100%;
-        border-radius: 999px;
-        background: linear-gradient(90deg, var(--purple), #9C6DD0);
+        border-radius: 9px;
         max-width: 100%;
+        min-width: 0;
+        background: linear-gradient(90deg, #4a2a7a, var(--purple) 45%, #a889d9);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.35),
+            0 1px 3px rgba(107, 63, 160, 0.25);
+        transition: width 0.35s ease;
     }
-    .cat-sales-trend {
+    .cat-sales-board [role="list"] > .cat-sales-board-row--data:nth-child(4n + 2) .cat-sales-chart-fill {
+        background: linear-gradient(90deg, #1d4ed8, #3b82f6 50%, #93c5fd);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.35),
+            0 1px 3px rgba(37, 99, 235, 0.25);
+    }
+    .cat-sales-board [role="list"] > .cat-sales-board-row--data:nth-child(4n + 3) .cat-sales-chart-fill {
+        background: linear-gradient(90deg, #047857, #10b981 55%, #6ee7b7);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.35),
+            0 1px 3px rgba(16, 185, 129, 0.22);
+    }
+    .cat-sales-board [role="list"] > .cat-sales-board-row--data:nth-child(4n + 4) .cat-sales-chart-fill {
+        background: linear-gradient(90deg, #b45309, #f59e0b 50%, #fcd34d);
+        box-shadow:
+            inset 0 1px 0 rgba(255, 255, 255, 0.35),
+            0 1px 3px rgba(245, 158, 11, 0.25);
+    }
+    .cat-sales-chart-readout {
+        font-size: 13px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        color: var(--gray-text);
+        min-width: 2.75rem;
         text-align: right;
-        flex-shrink: 0;
-        min-width: 120px;
+        letter-spacing: -0.3px;
+    }
+
+    .cat-sales-board-side {
+        text-align: right;
+        min-width: 0;
     }
     .cat-trend-pill {
         display: inline-flex;
@@ -258,7 +383,7 @@
         gap: 4px;
         font-size: 12px;
         font-weight: 700;
-        padding: 4px 10px;
+        padding: 5px 10px;
         border-radius: 999px;
     }
     .cat-trend-pill--up {
@@ -274,7 +399,7 @@
         font-size: 10px;
         font-weight: 600;
         color: var(--gray-muted);
-        margin-top: 4px;
+        margin-top: 6px;
     }
 
     .recent-item {
@@ -317,21 +442,32 @@
 
     @media (max-width: 900px) {
         .metrics { grid-template-columns: 1fr 1fr; }
-        .mid-grid { grid-template-columns: 1fr; }
         .credit-dash-grid { grid-template-columns: 1fr; }
     }
-    @media (max-width: 640px) {
-        .cat-sales-row { flex-direction: column; align-items: stretch; }
-        .cat-sales-lead { flex: none; }
-        .cat-sales-thumb { width: 44px; height: 44px; }
-        .cat-sales-bar-track { flex: none !important; width: 100%; min-width: 0; }
-        .cat-sales-trend { text-align: left; width: 100%; min-width: 0; }
+    @media (max-width: 720px) {
+        .cat-sales-board-row {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        .cat-sales-board-row--scale .cat-sales-board-corner:first-of-type { display: none; }
+        .cat-sales-scale-ticks::after { bottom: -4px; }
+        .cat-sales-board-side {
+            text-align: left;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px 12px;
+            padding-top: 2px;
+            border-top: 1px dashed var(--border-light);
+        }
+        .cat-trend-date { margin-top: 0; }
+        .cat-sales-thumb { width: 48px; height: 48px; }
     }
 </style>
 @endpush
 
 @section('content')
-<span class="badge-api">⚠ Datos de prueba (categorías, tendencias y saldo demo)</span>
+<span class="badge-api">⚠ Datos de prueba (categorías del catálogo y saldo demo)</span>
 
 <div class="metrics">
     <div class="metric"><div class="metric-label">Pedidos este mes</div><div class="metric-val">5</div><div class="metric-sub">Abril 2026 · Mis pedidos</div></div>
@@ -395,31 +531,53 @@
         <div class="card-head">Categorías más vendidas</div>
         <div class="card-body">
             <p class="cat-sales-caption">
-                Gráfica por volumen de unidades (demo). La tendencia <strong>sube</strong> o <strong>baja</strong> vs. el mes anterior; cada renglón muestra la <strong>fecha de corte</strong> del dato.
+                Mismas <strong>secciones que el catálogo</strong> (demo). Gráfico de barras horizontales: longitud = volumen frente al líder (100%). Incluye unidades, tendencia vs. mes anterior y <strong>fecha de corte</strong>.
             </p>
-            @foreach($categoriasVenta as $cat)
-                <div class="cat-sales-row">
-                    <div class="cat-sales-lead">
-                        <img class="cat-sales-thumb" src="{{ $cat['img'] }}" width="48" height="48" alt="" loading="lazy" decoding="async">
-                        <div class="cat-sales-meta">
-                            <div class="cat-sales-name">{{ $cat['nombre'] }}</div>
-                            <div class="cat-sales-ud">{{ number_format($cat['ud']) }} ud. · {{ $cat['bar'] }}% del top</div>
-                        </div>
+            @if(!empty($dashCats))
+            <div class="cat-sales-board" aria-label="Gráfico comparativo de categorías vs. líder de ventas">
+                <div class="cat-sales-board-row cat-sales-board-row--scale">
+                    <span class="cat-sales-board-corner">Categoría · ud.</span>
+                    <div class="cat-sales-scale-ticks" aria-hidden="true">
+                        <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
                     </div>
-                    <div class="cat-sales-bar-track" role="presentation" aria-hidden="true">
-                        <div class="cat-sales-bar-fill" style="width: {{ $cat['bar'] }}%"></div>
-                    </div>
-                    <div class="cat-sales-trend">
-                        @if($cat['sube'])
-                            <span class="cat-trend-pill cat-trend-pill--up" title="Tendencia al alza">↑ Sube {{ number_format($cat['pct'], 1) }}%</span>
-                        @else
-                            <span class="cat-trend-pill cat-trend-pill--down" title="Tendencia a la baja">↓ Baja {{ number_format($cat['pct'], 1) }}%</span>
-                        @endif
-                        <span class="cat-trend-date">Corte {{ $cat['fecha'] }}</span>
-                    </div>
+                    <span class="cat-sales-board-corner" style="text-align:right">Tendencia</span>
                 </div>
-            @endforeach
-            <p class="dash-rotacion-foot">Imágenes representativas por categoría desde <code>public/Catalogo</code>. Sustituir por agregados reales cuando exista historial en API.</p>
+                <div role="list">
+                @foreach($dashCats as $cat)
+                    <article class="cat-sales-board-row cat-sales-board-row--data" role="listitem" aria-labelledby="cat-sales-name-{{ $loop->iteration }}">
+                        <div class="cat-sales-lead">
+                            <span class="cat-sales-rank" title="Posición">{{ $loop->iteration }}</span>
+                            <img class="cat-sales-thumb" src="{{ $catImg($cat['img'] ?? '') }}" width="52" height="52" alt="" loading="lazy" decoding="async">
+                            <div class="cat-sales-copy">
+                                <p class="cat-sales-name" id="cat-sales-name-{{ $loop->iteration }}">{{ $cat['seccion'] ?? '—' }}</p>
+                                <p class="cat-sales-meta"><strong>{{ number_format((int)($cat['ud'] ?? 0)) }}</strong> ud. · vs. líder del ranking</p>
+                                @if(!empty($cat['slug']))
+                                    <code class="cat-sales-slug" title="{{ $cat['slug'] }}">{{ $cat['slug'] }}</code>
+                                @endif
+                            </div>
+                        </div>
+                        <div class="cat-sales-board-plot">
+                            <div class="cat-sales-chart-track" role="img" aria-label="Barra al {{ (int)($cat['bar'] ?? 0) }} por ciento frente al líder">
+                                <div class="cat-sales-chart-fill" style="width: {{ min(100, max(0, (int)($cat['bar'] ?? 0))) }}%"></div>
+                            </div>
+                            <span class="cat-sales-chart-readout">{{ (int)($cat['bar'] ?? 0) }}%</span>
+                        </div>
+                        <div class="cat-sales-board-side">
+                            @if(!empty($cat['sube']))
+                                <span class="cat-trend-pill cat-trend-pill--up" title="Tendencia al alza">↑ Sube {{ number_format((float)($cat['pct'] ?? 0), 1) }}%</span>
+                            @else
+                                <span class="cat-trend-pill cat-trend-pill--down" title="Tendencia a la baja">↓ Baja {{ number_format((float)($cat['pct'] ?? 0), 1) }}%</span>
+                            @endif
+                            <span class="cat-trend-date">Corte {{ $cat['fecha'] ?? '—' }}</span>
+                        </div>
+                    </article>
+                @endforeach
+                </div>
+            </div>
+            @else
+                <p style="color:var(--gray-muted);font-size:13px">Sin datos de demostración.</p>
+            @endif
+            <p class="dash-rotacion-foot">Imágenes desde <code>public/Catalogo</code>. Categorías alineadas con <a href="{{ route('clientes.catalogo') }}" style="color:var(--purple);font-weight:600;">Catálogo</a> y <a href="{{ route('clientes.forecast') }}" style="color:var(--purple);font-weight:600;">Forecast</a>; sustituir por API.</p>
         </div>
     </div>
     <div class="card">

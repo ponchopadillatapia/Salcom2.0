@@ -44,7 +44,11 @@ class PortalClienteController extends Controller
 
     public function mostrarEstadoCuenta()
     {
-        return view('clientes.estado-cuenta');
+        $cliente = ClienteUser::find(session('cliente_id'));
+
+        return view('clientes.estado-cuenta', [
+            'cliente' => $cliente,
+        ]);
     }
 
     public function mostrarPerfil()

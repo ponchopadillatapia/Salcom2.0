@@ -508,14 +508,24 @@ document.addEventListener('keydown', function(e) {
 
 const catalogoImages = @json($catalogoImages);
 
-const categorias = Array.from(new Map(productos.map(p => [p.categoria, p.seccion])).entries())
-    .map(([slug, label]) => ({ slug, label }))
-    .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+const categoriasFromConfig = @json(config('cliente_portal.analitica_portal.catalogo_categorias'));
+const fromConfig = categoriasFromConfig.map(c => ({ slug: c.slug, label: c.seccion }));
+const knownSlugs = new Set(fromConfig.map(c => c.slug));
+const extraFromProductos = [];
+productos.forEach(function (p) {
+    if (p && p.categoria && !knownSlugs.has(p.categoria)) {
+        knownSlugs.add(p.categoria);
+        extraFromProductos.push({ slug: p.categoria, label: p.seccion || p.categoria });
+    }
+});
+const categorias = fromConfig.concat(extraFromProductos).sort(function (a, b) {
+    return a.label.localeCompare(b.label, 'es');
+});
 
 (() => {
     const sel = document.getElementById('catFilter');
-    sel.innerHTML = '<option value=\"\">Todas las categorías</option>' + categorias
-        .map(c => `<option value=\"${c.slug}\">${c.label}</option>`)
+    sel.innerHTML = '<option value="">Todas las categorías</option>' + categorias
+        .map(c => `<option value="${c.slug}">${c.label}</option>`)
         .join('');
 })();
 
