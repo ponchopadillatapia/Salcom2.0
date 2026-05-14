@@ -82,7 +82,7 @@ class IaVerificarInventario extends Command
                         ->first();
 
                     if ($mejorProveedor) {
-                        // Crear borrador de OC
+                        // Crear OC auto-aprobada por IA (sin intervención del admin)
                         $oc = OcBorrador::create([
                             'tipo' => 'automatica',
                             'proveedor_id' => $mejorProveedor->id,
@@ -95,37 +95,39 @@ class IaVerificarInventario extends Command
                             ]],
                             'monto_estimado' => $cantidadAPedir * $producto->precio,
                             'motivo' => "Stock bajo mínimo. Existencia: {$producto->stock}, Mínimo: {$stockMinimo}",
-                            'estatus' => 'pendiente',
+                            'estatus' => 'aprobada',
+                            'aprobada_por' => null,
+                            'aprobada_at' => now(),
+                            'notas' => 'Auto-aprobada por IA',
                         ]);
 
                         $ocGeneradas++;
 
-                        // Alertar al admin
+                        // Notificar al proveedor directamente
                         $alertEngine->alertar([
-                            'tipo' => 'oc_generada',
+                            'tipo' => 'oc_nueva',
                             'modulo' => 'inventario',
-                            'destinatario_tipo' => 'admin',
-                            'destinatario_id' => 1,
-                            'titulo' => "📋 OC generada: {$producto->nombre} ({$producto->codigo})",
-                            'contenido' => "Se generó automáticamente una OC para {$cantidadAPedir} {$producto->unidad_venta} de {$producto->nombre}. Proveedor sugerido: {$mejorProveedor->nombre}. Requiere tu aprobación.",
+                            'destinatario_tipo' => 'proveedor',
+                            'destinatario_id' => $mejorProveedor->id,
+                            'titulo' => "Nueva OC generada: {$producto->nombre}",
+                            'contenido' => "Se generó una orden de compra por {$cantidadAPedir} {$producto->unidad_venta} de {$producto->nombre}. Monto estimado: $" . number_format($oc->monto_estimado, 2) . ". Revisa los detalles en Consultar OC.",
                             'datos' => [
-                                'oc_borrador_id' => $oc->id,
+                                'oc_id' => $oc->id,
                                 'producto_codigo' => $producto->codigo,
                                 'cantidad' => $cantidadAPedir,
-                                'proveedor' => $mejorProveedor->nombre,
                                 'monto_estimado' => $oc->monto_estimado,
                             ],
-                            'nivel' => $estado === 'agotado' ? 'critical' : 'warning',
+                            'nivel' => 'info',
                         ]);
                         $alertasGeneradas++;
                     } else {
-                        // No hay proveedor disponible
+                        // Sin proveedor disponible — esto sí requiere atención del admin
                         $alertEngine->alertar([
                             'tipo' => 'stock_bajo_sin_proveedor',
                             'modulo' => 'inventario',
                             'destinatario_tipo' => 'admin',
                             'destinatario_id' => 1,
-                            'titulo' => "⚠️ Stock bajo sin proveedor: {$producto->nombre}",
+                            'titulo' => "Stock bajo sin proveedor: {$producto->nombre}",
                             'contenido' => "El producto {$producto->nombre} ({$producto->codigo}) está bajo mínimo pero no hay proveedor activo con score asignado. Requiere asignación manual.",
                             'datos' => [
                                 'producto_codigo' => $producto->codigo,

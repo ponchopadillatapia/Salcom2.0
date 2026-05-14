@@ -5,7 +5,7 @@
 @section('hero')
 <div class="hero-band">
     <h1>Consultar Órdenes de Compra</h1>
-    <p>Revisa tus órdenes de compra, cantidades, precios y condiciones</p>
+    <p>Revisa tus órdenes de compra generadas automáticamente por la IA</p>
 </div>
 @endsection
 
@@ -29,7 +29,6 @@
     .card-head { padding: 14px 20px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
     .card-head h3 { font-size: 14px; font-weight: 600; color: var(--purple-dark); }
     .card-head-right { display: flex; align-items: center; gap: 10px; }
-    .badge-api { font-size: 11px; color: var(--amber); font-weight: 600; background: var(--amber-bg); padding: 3px 10px; border-radius: 999px; }
     .btn-excel { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; background: #16a34a; color: white; border: none; border-radius: 8px; font-size: 12px; font-family: inherit; cursor: pointer; font-weight: 600; transition: background .2s; }
     .btn-excel:hover { background: #15803d; }
 
@@ -37,26 +36,18 @@
     .tabla th { font-size: 11px; font-weight: 700; color: #AAA; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 20px; text-align: left; background: var(--gray-soft); border-bottom: 0.5px solid var(--border); }
     .tabla td { padding: 12px 20px; font-size: 13px; color: var(--gray-text); border-bottom: 0.5px solid var(--border); }
     .tabla tr:last-child td { border-bottom: none; }
-    .tabla tr:hover td { background: var(--gray-soft); cursor: pointer; }
+    .tabla tr:hover td { background: var(--gray-soft); }
 
     .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
     .badge-green  { background: var(--green-bg); color: var(--green); }
     .badge-amber  { background: var(--amber-bg); color: var(--amber); }
     .badge-blue   { background: var(--blue-bg);  color: var(--blue); }
 
-    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 300; align-items: center; justify-content: center; }
-    .modal-overlay.active { display: flex; }
-    .modal { background: var(--white); border-radius: 20px; padding: 32px; width: 100%; max-width: 720px; max-height: 85vh; overflow-y: auto; animation: fadeUp .3s ease both; }
-    @keyframes fadeUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
-    .modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 0.5px solid var(--border); }
-    .modal-head h3 { font-family: 'Playfair Display', serif; font-size: 20px; color: var(--purple-dark); }
-    .btn-close { width: 32px; height: 32px; border-radius: 50%; border: none; background: var(--gray-soft); cursor: pointer; font-size: 16px; color: var(--gray-text); display: flex; align-items: center; justify-content: center; }
-    .btn-close:hover { background: var(--purple-light); color: var(--purple); }
-    .modal-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 20px; }
-    .info-label { font-size: 11px; font-weight: 700; color: #AAA; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-    .info-value { font-size: 14px; color: var(--gray-text); font-weight: 500; }
-    .info-item.full { grid-column: 1 / -1; }
-    .section-label { font-size: 12px; font-weight: 700; color: #AAA; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; margin-top: 4px; }
+    .oc-gen-section { background: var(--white); border: 1px solid var(--border-light); border-radius: 14px; padding: 22px; margin-bottom: 28px; }
+    .btn-generar { display: inline-block; padding: 10px 22px; background: var(--purple); color: var(--white); font-size: 13px; font-weight: 600; border-radius: 999px; border: none; cursor: pointer; transition: background .2s, transform .1s; }
+    .btn-generar:hover { background: var(--purple-dark); transform: translateY(-1px); }
+    .alert-success { background: var(--green-bg); border: 1px solid var(--green); border-radius: 8px; padding: 10px 16px; font-size: 13px; color: var(--green); margin-bottom: 16px; }
+    .alert-info { background: var(--blue-bg); border: 1px solid var(--blue); border-radius: 8px; padding: 10px 16px; font-size: 13px; color: var(--blue); margin-bottom: 16px; }
 
     @media (max-width: 768px) { .metrics-row { grid-template-columns: 1fr 1fr; } }
 </style>
@@ -64,33 +55,29 @@
 
 @section('content')
 
-    {{-- ═══ OC Sugerida ═══ --}}
-    <div style="background: var(--white); border: 1px solid var(--border-light); border-radius: 14px; padding: 22px; margin-bottom: 28px; box-shadow: var(--shadow-sm);">
-        <h3 style="font-size: 14px; font-weight: 700; color: var(--gray-text); margin-bottom: 16px;">Generación automática de OC sugerida</h3>
+    @if(session('mensaje'))
+    <div class="alert-success">{{ session('mensaje') }}</div>
+    @endif
+
+    {{-- ═══ Generar OC ═══ --}}
+    <div class="oc-gen-section">
+        <h3 style="font-size: 14px; font-weight: 700; color: var(--gray-text); margin-bottom: 16px;">Generación automática de OC</h3>
         <div style="background: var(--purple-subtle); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px;">
             <div style="font-size: 11px; color: var(--gray-muted); font-weight: 600; margin-bottom: 4px;">Fórmula</div>
             <div style="font-size: 13px; color: var(--gray-text); font-weight: 600;">OC sugerida = (Consumo promedio anual / 2) + Necesidades adicionales</div>
         </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 18px;">
-            <div>
-                <div style="font-size: 11px; color: var(--gray-muted); font-weight: 600;">Consumo promedio anual</div>
-                <div style="font-size: 18px; font-weight: 700; color: var(--gray-text); margin-top: 4px;">$2,000,000 <span style="font-size: 11px; color: var(--gray-muted); font-weight: 500;">MXN</span></div>
-            </div>
-            <div>
-                <div style="font-size: 11px; color: var(--gray-muted); font-weight: 600;">Inventario autorizado</div>
-                <div style="font-size: 18px; font-weight: 700; color: var(--gray-text); margin-top: 4px;">~180 <span style="font-size: 11px; color: var(--gray-muted); font-weight: 500;">días</span></div>
-            </div>
-            <div>
-                <div style="font-size: 11px; color: var(--gray-muted); font-weight: 600;">OC sugerida</div>
-                <div style="font-size: 18px; font-weight: 700; color: var(--purple); margin-top: 4px;">~$1,200,000 <span style="font-size: 11px; color: var(--gray-muted); font-weight: 500;">MXN</span></div>
-            </div>
-        </div>
-        <button disabled style="display: inline-block; padding: 8px 20px; background: var(--purple); color: var(--white); font-size: 12px; font-weight: 600; border-radius: 999px; border: none; cursor: not-allowed; opacity: 0.6;">Generar OC — Pendiente de formato</button>
+        <p style="font-size: 12px; color: var(--gray-muted); margin-bottom: 16px;">
+            La IA analiza el inventario actual y genera una OC con los productos que están bajo el mínimo. Se auto-aprueba inmediatamente.
+        </p>
+        <form method="POST" action="{{ route('proveedores.oc.generar') }}" style="display:inline;">
+            @csrf
+            <button type="submit" class="btn-generar">Generar OC ahora</button>
+        </form>
     </div>
 
     {{-- BUSCADOR --}}
     <div class="search-bar">
-        <input type="text" class="search-input" id="buscarFolio" placeholder="Buscar por número de folio...">
+        <input type="text" class="search-input" id="buscarFolio" placeholder="Buscar por número de folio o producto...">
         <button class="btn-search" onclick="buscarOC()">Buscar</button>
     </div>
 
@@ -99,26 +86,22 @@
         <div class="metric-card">
             <div class="accent" style="background:var(--purple)"></div>
             <div class="metric-label">OC Abiertas</div>
-            <div class="metric-value">3</div>
-            <div class="metric-sub">Datos de prueba</div>
+            <div class="metric-value">{{ $stats['abiertas'] }}</div>
         </div>
         <div class="metric-card">
             <div class="accent" style="background:var(--green)"></div>
             <div class="metric-label">OC Completadas</div>
-            <div class="metric-value">8</div>
-            <div class="metric-sub">Datos de prueba</div>
+            <div class="metric-value">{{ $stats['completadas'] }}</div>
         </div>
         <div class="metric-card">
             <div class="accent" style="background:var(--amber)"></div>
             <div class="metric-label">OC En proceso</div>
-            <div class="metric-value">2</div>
-            <div class="metric-sub">Datos de prueba</div>
+            <div class="metric-value">{{ $stats['en_proceso'] }}</div>
         </div>
         <div class="metric-card">
             <div class="accent" style="background:var(--blue)"></div>
             <div class="metric-label">Monto total</div>
-            <div class="metric-value">$48k</div>
-            <div class="metric-sub">Datos de prueba</div>
+            <div class="metric-value">${{ number_format($stats['monto_total'], 0) }}</div>
         </div>
     </div>
 
@@ -127,7 +110,6 @@
         <div class="card-head">
             <h3>Órdenes de Compra</h3>
             <div class="card-head-right">
-                <span class="badge-api">⚠ Datos de prueba — Pendiente de API</span>
                 <button class="btn-excel" onclick="exportarExcel('tablaOC','ordenes-compra')">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                     Exportar Excel
@@ -137,64 +119,39 @@
         <div style="overflow-x:auto;">
         <table class="tabla" id="tablaOC">
             <thead>
-                <tr><th>Folio</th><th>Fecha</th><th>Cód. Proveedor</th><th>Referencia</th><th>Productos</th><th>Importe</th><th>Vencimiento</th><th>Observaciones</th><th>Estatus</th></tr>
+                <tr><th>OC #</th><th>Fecha</th><th>Productos</th><th>Monto</th><th>Motivo</th><th>Estatus</th></tr>
             </thead>
             <tbody>
+                @forelse($ordenes as $oc)
                 <tr>
-                    <td><strong>#10045</strong></td>
-                    <td>01/03/2026</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">102003240</td>
-                    <td>REF-2026-001</td>
-                    <td style="font-size:12px;"><strong>PROD-001</strong> Resina epóxica (10u)<br><strong>PROD-002</strong> Solvente técnico (5u)</td>
-                    <td style="font-weight:600;">$12,500.00</td>
-                    <td>31/03/2026</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">Entrega en almacén central</td>
-                    <td><span class="badge badge-amber">En proceso</span></td>
+                    <td><strong>#{{ $oc->id }}</strong></td>
+                    <td>{{ $oc->created_at->format('d/m/Y') }}</td>
+                    <td style="font-size:12px;">
+                        @foreach($oc->productos ?? [] as $prod)
+                            <strong>{{ $prod['codigo'] ?? '' }}</strong> {{ $prod['nombre'] ?? '' }} ({{ $prod['cantidad'] ?? 0 }} {{ $prod['unidad'] ?? '' }})<br>
+                        @endforeach
+                    </td>
+                    <td style="font-weight:600;">${{ number_format($oc->monto_estimado, 2) }}</td>
+                    <td style="font-size:12px;color:var(--gray-muted);">{{ Str::limit($oc->motivo, 40) }}</td>
+                    <td>
+                        @if($oc->estatus === 'aprobada')
+                            <span class="badge badge-green">Aprobada</span>
+                        @elseif($oc->estatus === 'en_proceso')
+                            <span class="badge badge-amber">En proceso</span>
+                        @elseif($oc->estatus === 'completada')
+                            <span class="badge badge-blue">Completada</span>
+                        @else
+                            <span class="badge badge-amber">{{ ucfirst($oc->estatus) }}</span>
+                        @endif
+                    </td>
                 </tr>
+                @empty
                 <tr>
-                    <td><strong>#10046</strong></td>
-                    <td>05/03/2026</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">102003240</td>
-                    <td>REF-2026-002</td>
-                    <td style="font-size:12px;"><strong>PROD-003</strong> Pigmento base agua (20u)</td>
-                    <td style="font-weight:600;">$8,200.00</td>
-                    <td>05/04/2026</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">—</td>
-                    <td><span class="badge badge-blue">Abierta</span></td>
+                    <td colspan="6" style="text-align:center;padding:32px;color:var(--gray-muted);">
+                        No hay órdenes de compra. Se generarán automáticamente cuando el inventario lo requiera.
+                    </td>
                 </tr>
-                <tr>
-                    <td><strong>#10047</strong></td>
-                    <td>10/03/2026</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">102003240</td>
-                    <td>REF-2026-003</td>
-                    <td style="font-size:12px;"><strong>PROD-001</strong> Resina epóxica (15u)<br><strong>PROD-004</strong> Catalizador rápido (30u)</td>
-                    <td style="font-weight:600;">$27,300.00</td>
-                    <td>10/04/2026</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">Urgente, prioridad alta</td>
-                    <td><span class="badge badge-green">Completada</span></td>
-                </tr>
-                <tr>
-                    <td><strong>#10048</strong></td>
-                    <td>15/03/2026</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">102003240</td>
-                    <td>REF-2026-004</td>
-                    <td style="font-size:12px;"><strong>PROD-005</strong> Aditivo antioxidante (8u)</td>
-                    <td style="font-weight:600;">$5,800.00</td>
-                    <td>15/04/2026</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">—</td>
-                    <td><span class="badge badge-amber">En proceso</span></td>
-                </tr>
-                <tr>
-                    <td><strong>#10049</strong></td>
-                    <td>20/03/2026</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">102003240</td>
-                    <td>REF-2026-005</td>
-                    <td style="font-size:12px;"><strong>PROD-002</strong> Solvente técnico (10u)<br><strong>PROD-003</strong> Pigmento base agua (15u)</td>
-                    <td style="font-weight:600;">$15,100.00</td>
-                    <td>20/04/2026</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">Verificar existencias</td>
-                    <td><span class="badge badge-blue">Abierta</span></td>
-                </tr>
+                @endforelse
             </tbody>
         </table>
         </div>
@@ -220,9 +177,9 @@ function exportarExcel(tablaId, nombre) {
 }
 
 function buscarOC() {
-    const folio = document.getElementById('buscarFolio').value.toLowerCase();
+    const texto = document.getElementById('buscarFolio').value.toLowerCase();
     document.querySelectorAll('#tablaOC tbody tr').forEach(fila => {
-        fila.style.display = fila.textContent.toLowerCase().includes(folio) ? '' : 'none';
+        fila.style.display = fila.textContent.toLowerCase().includes(texto) ? '' : 'none';
     });
 }
 document.getElementById('buscarFolio').addEventListener('keyup', e => { if (e.key === 'Enter') buscarOC(); });

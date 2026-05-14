@@ -77,7 +77,14 @@ class AlertaController extends Controller
 
     public function aprobarOC(int $id)
     {
+        // Las OC automáticas ya se auto-aprueban por IA.
+        // Este método solo existe para OC manuales o casos excepcionales.
         $oc = OcBorrador::findOrFail($id);
+
+        if ($oc->estatus === 'aprobada') {
+            return back()->with('mensaje', "OC #{$oc->id} ya fue aprobada automáticamente por IA.");
+        }
+
         $oc->update([
             'estatus' => 'aprobada',
             'aprobada_por' => session('admin_id'),
@@ -87,17 +94,17 @@ class AlertaController extends Controller
         // Notificar al proveedor
         $alertEngine = new AlertEngineService;
         $alertEngine->alertar([
-            'tipo' => 'oc_aprobada',
+            'tipo' => 'oc_nueva',
             'modulo' => 'inventario',
             'destinatario_tipo' => 'proveedor',
             'destinatario_id' => $oc->proveedor_id,
-            'titulo' => '✅ Nueva OC aprobada para ti',
+            'titulo' => 'Nueva OC asignada',
             'contenido' => 'Se aprobó una orden de compra por $' . number_format($oc->monto_estimado, 2) . '. Revisa los detalles en Consultar OC.',
             'datos' => ['oc_id' => $oc->id, 'monto' => $oc->monto_estimado],
             'nivel' => 'info',
         ]);
 
-        AuditService::registrar('aprobar_oc', 'inventario', "OC #{$oc->id} aprobada. Monto: \${$oc->monto_estimado}");
+        AuditService::registrar('aprobar_oc', 'inventario', "OC #{$oc->id} aprobada manualmente. Monto: \${$oc->monto_estimado}");
 
         return back()->with('mensaje', "OC #{$oc->id} aprobada. Se notificó al proveedor.");
     }

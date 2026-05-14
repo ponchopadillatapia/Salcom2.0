@@ -88,6 +88,21 @@
             transform: scale(0.97);
         }
 
+        /* ── Dropdown notificaciones ── */
+        .notif-dropdown{display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;background:var(--white);border:1px solid var(--border-light);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.12);z-index:9999;overflow:hidden}
+        .notif-dropdown.show{display:block}
+        .notif-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-light);font-size:13px;font-weight:700;color:var(--gray-text)}
+        .notif-count{font-size:11px;font-weight:600;color:var(--purple);background:var(--purple-subtle);padding:2px 8px;border-radius:999px}
+        .notif-item{padding:12px 16px;border-bottom:1px solid var(--border-light);cursor:default;transition:background .15s}
+        .notif-item:hover{background:var(--purple-subtle)}
+        .notif-item.read{opacity:.6}
+        .notif-item-title{font-size:12px;font-weight:600;color:var(--gray-text);margin-bottom:3px}
+        .notif-item-desc{font-size:11px;color:var(--gray-muted);line-height:1.4}
+        .notif-item-time{font-size:10px;color:var(--gray-muted);margin-top:4px}
+        .notif-empty{padding:24px;text-align:center;font-size:12px;color:var(--gray-muted)}
+        .notif-footer{display:block;text-align:center;padding:10px;font-size:12px;font-weight:600;color:var(--purple);text-decoration:none;border-top:1px solid var(--border-light)}
+        .notif-footer:hover{background:var(--purple-subtle)}
+
         /* ── HERO ── */
         .hero-band {
             background: var(--white);
@@ -313,20 +328,45 @@
         <span>Portal de Proveedores</span>
     </div>
     <div class="nav-right">
-        {{-- Campanita de notificaciones --}}
+        {{-- Campanita de notificaciones con dropdown --}}
         @php
             $alertasSinLeer = \App\Models\Alerta::where('destinatario_tipo', 'proveedor')
                 ->where('destinatario_id', session('proveedor_id'))
                 ->where('estatus', '!=', 'leida')
                 ->where('estatus', '!=', 'accionada')
                 ->count();
+            $alertasRecientes = \App\Models\Alerta::where('destinatario_tipo', 'proveedor')
+                ->where('destinatario_id', session('proveedor_id'))
+                ->orderByDesc('created_at')
+                ->limit(5)
+                ->get();
         @endphp
-        <a href="{{ route('proveedores.ia') }}" style="position:relative;margin-right:16px;text-decoration:none;" title="Notificaciones">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $alertasSinLeer > 0 ? 'var(--purple)' : 'var(--gray-muted)' }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            @if($alertasSinLeer > 0)
-            <span style="position:absolute;top:-4px;right:-6px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;">{{ $alertasSinLeer > 9 ? '9+' : $alertasSinLeer }}</span>
-            @endif
-        </a>
+        <div class="notif-wrapper" style="position:relative;margin-right:16px;">
+            <button type="button" class="notif-bell" onclick="document.getElementById('notifDropdown').classList.toggle('show')" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $alertasSinLeer > 0 ? 'var(--purple)' : 'var(--gray-muted)' }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                @if($alertasSinLeer > 0)
+                <span style="position:absolute;top:-2px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;">{{ $alertasSinLeer > 9 ? '9+' : $alertasSinLeer }}</span>
+                @endif
+            </button>
+            <div id="notifDropdown" class="notif-dropdown">
+                <div class="notif-header">
+                    <span>Notificaciones</span>
+                    @if($alertasSinLeer > 0)
+                    <span class="notif-count">{{ $alertasSinLeer }} nuevas</span>
+                    @endif
+                </div>
+                @forelse($alertasRecientes as $notif)
+                <div class="notif-item {{ in_array($notif->estatus, ['leida','accionada']) ? 'read' : '' }}">
+                    <div class="notif-item-title">{{ Str::limit($notif->titulo, 50) }}</div>
+                    <div class="notif-item-desc">{{ Str::limit($notif->contenido, 80) }}</div>
+                    <div class="notif-item-time">{{ $notif->created_at->diffForHumans() }}</div>
+                </div>
+                @empty
+                <div class="notif-empty">Sin notificaciones</div>
+                @endforelse
+                <a href="{{ route('proveedores.ia') }}" class="notif-footer">Ver todas</a>
+            </div>
+        </div>
         <span class="nav-user">{{ session('proveedor_nombre', 'Proveedor') }}</span>
         <form method="POST" action="{{ route('proveedores.logout') }}" style="display:inline;">
             @csrf
@@ -446,6 +486,16 @@ function sbToggle(btn) {
     var el = btn || document.getElementById('sbToggleBtn');
     if (el) el.setAttribute('aria-expanded', s.classList.contains('collapsed') ? 'false' : 'true');
 }
+</script>
+<script>
+// Cerrar dropdown de notificaciones al hacer clic fuera
+document.addEventListener('click', function(e) {
+    var dropdown = document.getElementById('notifDropdown');
+    var wrapper = document.querySelector('.notif-wrapper');
+    if (dropdown && wrapper && !wrapper.contains(e.target)) {
+        dropdown.classList.remove('show');
+    }
+});
 </script>
 @stack('scripts')
 </body>

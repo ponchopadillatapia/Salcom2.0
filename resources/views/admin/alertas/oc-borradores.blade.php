@@ -1,9 +1,9 @@
 @extends('layouts.admin')
-@section('title', 'OC Borradores')
+@section('title', 'OC Automáticas')
 @section('hero')
 <div class="hero-band">
-    <h1>📋 OC Generadas por IA</h1>
-    <p>Borradores de órdenes de compra generados automáticamente — Requieren aprobación</p>
+    <h1>OC Generadas por IA</h1>
+    <p>Historial de órdenes de compra generadas y aprobadas automáticamente</p>
 </div>
 @endsection
 @push('styles')
@@ -19,13 +19,7 @@
     .oc-productos{font-size:12px;color:var(--gray-text);margin-bottom:12px}
     .oc-producto-item{padding:6px 0;border-bottom:1px solid var(--border-light)}
     .oc-producto-item:last-child{border-bottom:none}
-    .oc-actions{display:flex;gap:8px}
-    .btn-aprobar{padding:8px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
-    .btn-aprobar:hover{background:#15803d}
-    .btn-rechazar{padding:8px 16px;background:var(--red-bg);color:var(--red);border:1px solid var(--red);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer}
-    .btn-rechazar:hover{background:var(--red);color:#fff}
     .badge-oc{font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px}
-    .badge-oc.pendiente{background:var(--amber-bg);color:var(--amber)}
     .badge-oc.aprobada{background:var(--green-bg);color:var(--green)}
     .badge-oc.rechazada{background:var(--red-bg);color:var(--red)}
     .alert-success{background:var(--green-bg);border:1px solid var(--green);border-radius:8px;padding:10px 16px;font-size:13px;color:var(--green);margin-bottom:16px}
@@ -39,16 +33,16 @@
 
 <div class="oc-stats">
     <div class="oc-stat">
-        <div class="oc-stat-val" style="color:var(--amber)">{{ $stats['pendientes'] }}</div>
-        <div class="oc-stat-label">Pendientes de aprobación</div>
+        <div class="oc-stat-val" style="color:var(--green)">{{ $stats['aprobadas'] }}</div>
+        <div class="oc-stat-label">Aprobadas por IA</div>
     </div>
     <div class="oc-stat">
-        <div class="oc-stat-val" style="color:var(--green)">{{ $stats['aprobadas'] }}</div>
-        <div class="oc-stat-label">Aprobadas</div>
+        <div class="oc-stat-val">{{ $stats['pendientes'] + $stats['aprobadas'] }}</div>
+        <div class="oc-stat-label">Total generadas</div>
     </div>
     <div class="oc-stat">
         <div class="oc-stat-val">${{ number_format($stats['monto_pendiente'], 0) }}</div>
-        <div class="oc-stat-label">Monto pendiente</div>
+        <div class="oc-stat-label">Monto total</div>
     </div>
 </div>
 
@@ -56,7 +50,7 @@
 <div class="oc-card">
     <div class="oc-card-head">
         <div>
-            <span class="oc-card-title">OC #{{ $oc->id }} — {{ $oc->tipo }}</span>
+            <span class="oc-card-title">OC #{{ $oc->id }}</span>
             <span class="badge-oc {{ $oc->estatus }}">{{ ucfirst($oc->estatus) }}</span>
         </div>
         <div class="oc-card-meta">
@@ -64,6 +58,9 @@
         </div>
     </div>
     <div class="oc-card-meta" style="margin-bottom:8px;">Motivo: {{ $oc->motivo }}</div>
+    @if($oc->notas)
+    <div class="oc-card-meta" style="margin-bottom:8px;color:var(--green);">{{ $oc->notas }}</div>
+    @endif
     <div class="oc-productos">
         @foreach($oc->productos ?? [] as $prod)
         <div class="oc-producto-item">
@@ -71,22 +68,10 @@
         </div>
         @endforeach
     </div>
-    @if($oc->estatus === 'pendiente')
-    <div class="oc-actions">
-        <form method="POST" action="{{ route('admin.alertas.oc.aprobar', $oc->id) }}" style="display:inline;">
-            @csrf
-            <button type="submit" class="btn-aprobar">✓ Aprobar</button>
-        </form>
-        <form method="POST" action="{{ route('admin.alertas.oc.rechazar', $oc->id) }}" style="display:inline;">
-            @csrf
-            <button type="submit" class="btn-rechazar">✕ Rechazar</button>
-        </form>
-    </div>
-    @endif
 </div>
 @empty
 <div style="text-align:center;padding:48px;color:var(--gray-muted);background:var(--white);border-radius:14px;border:1px solid var(--border-light);">
-    <p style="font-size:14px;font-weight:500;">No hay borradores de OC</p>
+    <p style="font-size:14px;font-weight:500;">No hay OC generadas</p>
     <p style="font-size:12px;margin-top:4px;">Se generarán automáticamente cuando el inventario baje del mínimo.</p>
 </div>
 @endforelse

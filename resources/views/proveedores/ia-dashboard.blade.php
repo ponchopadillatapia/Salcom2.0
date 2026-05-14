@@ -33,24 +33,35 @@
 @php
 use App\Models\Alerta;
 $provId = session('proveedor_id');
+
+// Solo alertas de esta semana (se renuevan cada miércoles)
+$inicioSemana = now()->startOfWeek();
 $alertas = Alerta::where('destinatario_tipo', 'proveedor')
     ->where('destinatario_id', $provId)
+    ->where('created_at', '>=', $inicioSemana)
     ->orderByDesc('created_at')
-    ->limit(10)
     ->get();
+
 $sugerencias = $alertas->where('tipo', 'sugerencia_ia');
 $alertasRecientes = $alertas->where('tipo', '!=', 'sugerencia_ia');
+
+// Marcar como leídas al entrar a esta página
+Alerta::where('destinatario_tipo', 'proveedor')
+    ->where('destinatario_id', $provId)
+    ->where('estatus', '!=', 'leida')
+    ->where('estatus', '!=', 'accionada')
+    ->update(['estatus' => 'leida']);
 @endphp
 
 {{-- Alertas recientes --}}
 <div class="ia-section">
-    <h3>🔔 Alertas recientes</h3>
+    <h3>Alertas recientes</h3>
     @if($alertasRecientes->count())
         <div class="ia-alert-list">
             @foreach($alertasRecientes->take(5) as $alerta)
             <div class="ia-alert-item">
                 <div class="ia-alert-icon {{ $alerta->nivel }}">
-                    {{ $alerta->nivel === 'critical' ? '🚨' : ($alerta->nivel === 'warning' ? '⚠️' : 'ℹ️') }}
+                    {{ $alerta->nivel === 'critical' ? '!' : ($alerta->nivel === 'warning' ? '!' : 'i') }}
                 </div>
                 <div class="ia-alert-content">
                     <div class="ia-alert-title">{{ $alerta->titulo }}</div>
@@ -62,14 +73,14 @@ $alertasRecientes = $alertas->where('tipo', '!=', 'sugerencia_ia');
         </div>
     @else
         <div class="ia-empty">
-            <p>✅ No hay alertas pendientes. Todo está en orden.</p>
+            <p>No hay alertas pendientes. Todo está en orden.</p>
         </div>
     @endif
 </div>
 
 {{-- Sugerencias de la semana --}}
 <div class="ia-section">
-    <h3>💡 Sugerencias de la semana</h3>
+    <h3>Sugerencias de la semana</h3>
     @if($sugerencias->count())
         @foreach($sugerencias->take(3) as $sug)
         <div class="ia-sugerencia">
@@ -85,7 +96,7 @@ $alertasRecientes = $alertas->where('tipo', '!=', 'sugerencia_ia');
 
 {{-- Análisis bajo demanda --}}
 <div class="ia-section">
-    <h3>🧠 Análisis personalizado</h3>
+    <h3>Análisis personalizado</h3>
     <p style="font-size:13px;color:var(--gray-muted);margin-bottom:16px;">
         La IA genera análisis automáticos cada semana. Si necesitas algo específico, usa estos botones:
     </p>
@@ -111,7 +122,7 @@ $alertasRecientes = $alertas->where('tipo', '!=', 'sugerencia_ia');
 {{-- Resultado de IA (si viene de un análisis) --}}
 @if(isset($resultado))
 <div class="ia-section">
-    <h3>📋 Resultado del análisis</h3>
+    <h3>Resultado del análisis</h3>
     <div style="background:var(--gray-soft);border-radius:10px;padding:16px;font-size:13px;line-height:1.6;color:var(--gray-text);">
         {!! nl2br(e($resultado['analisis']['content'] ?? 'Sin resultado disponible')) !!}
     </div>
