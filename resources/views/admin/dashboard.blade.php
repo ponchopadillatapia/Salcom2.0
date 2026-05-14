@@ -126,7 +126,7 @@
 </div>
 
 {{-- ═══ FILA 2 ═══ --}}
-<div class="row-3">
+<div class="row-2" style="grid-template-columns:repeat(4,1fr)">
     {{-- Inventario --}}
     <a href="{{ route('admin.inventario') }}" class="card-metric fade" style="animation-delay:.2s">
         <div class="bar" style="background:var(--amber)"></div>
@@ -140,7 +140,7 @@
     <a href="{{ route('admin.documentos', ['estatus'=>'pendiente']) }}" class="card-metric fade" style="animation-delay:.25s">
         <div class="bar" style="background:var(--red)"></div>
         <div class="icon" style="background:var(--red-bg)">@include('partials.icons', ['name'=>'file-text','size'=>20,'color'=>'var(--red)'])</div>
-        <div class="label">Proveedor con docs. pendientes</div>
+        <div class="label">Docs. pendientes</div>
         <div class="value">{{ $docsPendientes }}</div>
         <div class="sub">Documentos por revisar</div>
     </a>
@@ -152,6 +152,30 @@
         <div class="label">Fiscal</div>
         <div class="value">Validación</div>
         <div class="sub">Estado fiscal de proveedores</div>
+    </a>
+
+    {{-- Opinión Positiva --}}
+    <a href="{{ route('admin.opinion-positiva') }}" class="card-metric fade" style="animation-delay:.35s">
+        <div class="bar" style="background:var(--green)"></div>
+        <div class="icon" style="background:var(--green-bg)">@include('partials.icons', ['name'=>'star','size'=>20,'color'=>'var(--green)'])</div>
+        <div class="label">Opinión Positiva</div>
+        @php
+            $opActualizados = \App\Models\DocumentoProveedor::where('tipo','opinion')->where('estatus','aprobado')->count();
+            $opTotal = \App\Models\ProveedorUser::where('activo',true)->count();
+            $opNoActualizados = $opTotal - $opActualizados;
+            $opPctAct = $opTotal > 0 ? round(($opActualizados / $opTotal) * 100, 1) : 0;
+            $opPctNo = $opTotal > 0 ? round(($opNoActualizados / $opTotal) * 100, 1) : 0;
+        @endphp
+        <div style="display:flex;align-items:center;justify-content:center;gap:20px;margin-top:12px">
+            <div style="text-align:center">
+                <canvas id="gaugeOpAct" width="90" height="90" style="width:90px!important;height:90px!important"></canvas>
+                <div style="font-size:10px;color:var(--gray-muted);font-weight:600;margin-top:4px">Actualizados</div>
+            </div>
+            <div style="text-align:center">
+                <canvas id="gaugeOpNo" width="90" height="90" style="width:90px!important;height:90px!important"></canvas>
+                <div style="font-size:10px;color:var(--gray-muted);font-weight:600;margin-top:4px">No actualizados</div>
+            </div>
+        </div>
         <span class="link-detail">Ver detalle →</span>
     </a>
 </div>
@@ -232,6 +256,26 @@ const SC = SALCOM_COLORS;
 @endphp
 salcomDrawOtifDonut('gaugeOT', {{ $ot }}, 'dashOtPct', 100);
 salcomDrawOtifDonut('gaugeIF', {{ $if }}, 'dashIfPct', 100);
+
+// ── Opinión Positiva gauges ──
+(function(){
+    const actPct = {{ $opPctAct }};
+    const noPct = {{ $opPctNo }};
+
+    // Gauge Actualizados (verde, faltante en rojo claro)
+    new Chart(document.getElementById('gaugeOpAct'), {
+        type:'doughnut',
+        data:{datasets:[{data:[actPct, 100-actPct],backgroundColor:['#059669','#fecaca'],borderWidth:0,borderRadius:12}]},
+        options:{responsive:false,cutout:'74%',plugins:{legend:{display:false},tooltip:{enabled:false},centerText:{text:actPct+'%',color:'#059669'}}}
+    });
+
+    // Gauge No actualizados (rojo, faltante en verde claro)
+    new Chart(document.getElementById('gaugeOpNo'), {
+        type:'doughnut',
+        data:{datasets:[{data:[noPct, 100-noPct],backgroundColor:['#dc2626','#bbf7d0'],borderWidth:0,borderRadius:12}]},
+        options:{responsive:false,cutout:'74%',plugins:{legend:{display:false},tooltip:{enabled:false},centerText:{text:noPct+'%',color:'#dc2626'}}}
+    });
+})();
 
 // ── Compras por mes ──
 salcomChart.bar(document.getElementById('chartPedidos'),
