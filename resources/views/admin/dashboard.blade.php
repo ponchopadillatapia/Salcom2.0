@@ -28,7 +28,10 @@
 
     .otif-box{display:flex;align-items:center;justify-content:center;gap:28px;margin-top:14px}
     .otif-item{text-align:center}
-    .otif-item canvas{width:100px!important;height:100px!important;display:block;margin:0 auto}
+    .otif-canvas-wrap{position:relative;width:100px;height:100px;margin:0 auto}
+    .otif-canvas-wrap canvas{position:absolute;top:0;left:0}
+    .otif-center-mini{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none}
+    .otif-pct{font-weight:700;line-height:1;font-size:17px}
     .otif-item .lbl{font-size:11px;color:var(--gray-muted);font-weight:600;margin-top:6px}
     .otif-legend{display:flex;gap:10px;justify-content:center;margin-top:12px;padding-top:10px;border-top:1px solid var(--border-light)}
     .otif-legend span{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:var(--gray-text)}
@@ -98,13 +101,25 @@
         <div class="icon" style="background:var(--green-bg)">@include('partials.icons', ['name'=>'package','size'=>20,'color'=>'var(--green)'])</div>
         <div class="label">OTIF</div>
         <div class="otif-box">
-            <div class="otif-item"><canvas id="gaugeOT" width="100" height="100"></canvas><div class="lbl">OT (On Time)</div></div>
-            <div class="otif-item"><canvas id="gaugeIF" width="100" height="100"></canvas><div class="lbl">IF (In Full)</div></div>
+            <div class="otif-item">
+                <div class="otif-canvas-wrap">
+                    <canvas id="gaugeOT" width="100" height="100"></canvas>
+                    <div class="otif-center-mini"><div class="otif-pct" id="dashOtPct"></div></div>
+                </div>
+                <div class="lbl">OT (On Time)</div>
+            </div>
+            <div class="otif-item">
+                <div class="otif-canvas-wrap">
+                    <canvas id="gaugeIF" width="100" height="100"></canvas>
+                    <div class="otif-center-mini"><div class="otif-pct" id="dashIfPct"></div></div>
+                </div>
+                <div class="lbl">IF (In Full)</div>
+            </div>
         </div>
         <div class="otif-legend">
-            <span><span class="dot" style="background:#059669"></span>≥80%</span>
-            <span><span class="dot" style="background:#d97706"></span>50-79%</span>
-            <span><span class="dot" style="background:#dc2626"></span>&lt;50%</span>
+            <span><span class="dot" style="background:#34c759"></span>Cumplido</span>
+            <span><span class="dot" style="background:#ff9500"></span>&gt;95%</span>
+            <span><span class="dot" style="background:#ff3b30"></span>≤95%</span>
         </div>
         <span class="link-detail">Ver detalle →</span>
     </a>
@@ -203,21 +218,10 @@
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <script src="/js/chart-config.js"></script>
+<script src="/js/otif-donut.js"></script>
 <script>
 const SC = SALCOM_COLORS;
 
-// ── OTIF Gauges ──
-function gauge(el, pct, color) {
-    let d, c;
-    if (pct >= 80) { d = [pct, (100-pct)*.6, (100-pct)*.4]; c = [color,'#d97706','#dc2626']; }
-    else if (pct >= 50) { d = [pct, 100-pct]; c = [color,'#dc2626']; }
-    else { d = [pct, 100-pct]; c = [color,'#fecaca']; }
-    new Chart(el, {
-        type:'doughnut',
-        data:{datasets:[{data:d,backgroundColor:c,borderWidth:0,borderRadius:12}]},
-        options:{responsive:false,cutout:'74%',plugins:{legend:{display:false},tooltip:{enabled:false},centerText:{text:pct.toFixed(pct%1?1:0)+'%',color:color}}}
-    });
-}
 @php
     $facturasProvDash = \App\Models\Factura::whereNotNull('codigo_proveedor')->get();
     $totalFP = $facturasProvDash->count();
@@ -226,8 +230,8 @@ function gauge(el, pct, color) {
     $ot = $totalFP > 0 ? round(($pagadasFP / $totalFP) * 100, 1) : 0;
     $if = $totalFP > 0 ? round((($totalFP - $canceladasFP) / $totalFP) * 100, 1) : 0;
 @endphp
-gauge(document.getElementById('gaugeOT'), {{$ot}}, '{{$ot>=80?"#059669":($ot>=50?"#d97706":"#dc2626")}}');
-gauge(document.getElementById('gaugeIF'), {{$if}}, '{{$if>=80?"#059669":($if>=50?"#d97706":"#dc2626")}}');
+salcomDrawOtifDonut('gaugeOT', {{ $ot }}, 'dashOtPct', 100);
+salcomDrawOtifDonut('gaugeIF', {{ $if }}, 'dashIfPct', 100);
 
 // ── Compras por mes ──
 salcomChart.bar(document.getElementById('chartPedidos'),

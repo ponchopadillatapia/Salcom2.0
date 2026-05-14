@@ -150,6 +150,31 @@
         footer p { font-size: 11px; color: var(--gray-muted); font-weight: 500; }
         .footer-logo { font-family: 'Playfair Display', serif; font-size: 15px; color: var(--purple); font-weight: 600; letter-spacing: -0.3px; }
 
+        /* ── Volver al panel (dentro del contenido principal) ── */
+        .admin-back-nav {
+            margin: 0 0 20px;
+        }
+        .admin-back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-muted);
+            text-decoration: none;
+            padding: 0;
+            border: none;
+            background: none;
+            transition: color 0.15s ease;
+        }
+        .admin-back-link:hover {
+            color: var(--purple);
+        }
+        .admin-back-link svg {
+            flex-shrink: 0;
+            opacity: 0.9;
+        }
+
         @media (max-width: 768px) {
             .sidebar { display: none; }
             .main-content { padding: 20px 16px 48px; }
@@ -175,15 +200,6 @@
 </nav>
 
 @yield('hero')
-
-@unless(request()->is('admin/dashboard'))
-<div style="padding:12px 32px 0;">
-    <a href="{{ route('admin.dashboard') }}" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none;padding:8px 16px;border:1.5px solid var(--border-light);border-radius:8px;background:var(--white);transition:all .15s">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Regresar al panel
-    </a>
-</div>
-@endunless
 
 <div class="wrapper">
     <aside class="sidebar collapsed" id="sidebar">
@@ -266,6 +282,14 @@
     </aside>
 
     <div class="main-content">
+        @unless(request()->is('admin/dashboard'))
+        <nav class="admin-back-nav" aria-label="Navegación secundaria">
+            <a href="{{ route('admin.dashboard') }}" class="admin-back-link">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+                Regresar al panel
+            </a>
+        </nav>
+        @endunless
         @yield('content')
     </div>
 </div>
