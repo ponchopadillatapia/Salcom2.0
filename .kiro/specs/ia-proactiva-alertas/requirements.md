@@ -113,3 +113,30 @@ Sistema de inteligencia artificial proactiva para Industrias Salcom que monitore
 3. THE Sistema_IA SHALL presentar al Administrador un dashboard con el historial de alertas generadas, filtrable por tipo, fecha, destinatario y estatus (enviada, leída, accionada)
 4. WHEN un Administrador modifica un umbral de configuración, THE Sistema_IA SHALL registrar el cambio en el log de auditoría con el valor anterior y el nuevo valor
 5. IF el Motor_Alertas no puede enviar una notificación por un Canal_Notificacion, THEN THE Motor_Alertas SHALL reintentar por un canal alternativo y registrar la falla en el log de auditoría
+
+### Requirement 8: Validación de Alta de Producto por IA mediante Excel Estandarizado
+
+**User Story:** Como Proveedor, quiero dar de alta productos nuevos llenando un Excel estandarizado que la IA valide automáticamente, para que el proceso sea rápido y sin errores de formato.
+
+#### Acceptance Criteria
+
+1. THE Sistema_IA SHALL proporcionar al Proveedor un template Excel descargable con los campos estandarizados: código, nombre (formato [TIPO]+[MARCA]+[MODELO]+[MEDIDA]+[ESPECIFICACIÓN]), familia, subfamilia, unidad de medida, precio, marca, especificaciones técnicas
+2. WHEN un Proveedor sube un Excel de alta de producto, THE Sistema_IA SHALL validar automáticamente: formato de nomenclatura correcto, campos obligatorios completos, unidades de medida válidas, categorías existentes y ausencia de duplicados en el catálogo
+3. WHEN la validación del Excel es exitosa, THE Sistema_IA SHALL generar una solicitud de alta dirigida al Administrador con el resumen de productos validados para su aprobación
+4. WHEN la validación del Excel detecta errores, THE Sistema_IA SHALL devolver al Proveedor un reporte detallado indicando fila por fila qué campo tiene error y cuál es el formato correcto esperado
+5. THE Sistema_IA SHALL verificar duplicados comparando nombre normalizado (sin acentos, mayúsculas, sin espacios extra) contra el catálogo maestro existente
+6. WHEN el Administrador aprueba el alta, THE Sistema_IA SHALL asignar SKU automático según la clasificación del producto y registrarlo en el catálogo maestro
+7. IF el Excel contiene más de 50 productos, THEN THE Sistema_IA SHALL procesarlo en segundo plano y notificar al Proveedor cuando la validación esté completa
+
+### Requirement 9: Generación Automática de OC Trimestral
+
+**User Story:** Como Administrador, quiero que el Sistema_IA genere automáticamente órdenes de compra cada 3 meses basadas en el consumo promedio y la fórmula de mínimos y máximos, para mantener el inventario sin intervención manual periódica.
+
+#### Acceptance Criteria
+
+1. THE Sistema_IA SHALL ejecutar cada 90 días (trimestralmente) un cálculo masivo de reorden usando la fórmula: Cantidad a Pedir = (Consumo Diario × DDI) − Existencia Actual − Pendiente de Recibir, donde DDI = 90 días
+2. WHEN el cálculo trimestral genera cantidades a pedir mayores a cero, THE Sistema_IA SHALL agrupar los productos por Proveedor y generar un borrador de OC consolidada por cada Proveedor
+3. WHEN se genera una OC trimestral, THE Motor_Alertas SHALL notificar al Administrador con el resumen de todas las OC propuestas para revisión y aprobación masiva
+4. THE Sistema_IA SHALL calcular el Stock Mínimo de cada producto como: Consumo Diario × Días promedio de entrega del Proveedor
+5. THE Sistema_IA SHALL calcular el Stock Máximo de cada producto como: Consumo Diario × 90 (DDI política Salcom)
+6. WHEN el Administrador aprueba las OC trimestrales, THE Motor_Alertas SHALL notificar a cada Proveedor con su OC correspondiente incluyendo: productos, cantidades, fecha límite de entrega y condiciones

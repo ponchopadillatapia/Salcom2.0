@@ -40,6 +40,8 @@ Route::get('/consultar-oc', [OrdenCompraController::class, 'mostrarConsultarOC']
 
 // ── Alta de Producto ──
 Route::get('/alta-producto', [AltaProductoController::class, 'mostrarAltaProducto'])->name('proveedores.alta-producto')->middleware('auth.proveedor');
+Route::get('/alta-producto/template', [AltaProductoController::class, 'descargarTemplate'])->name('proveedores.alta-producto.template')->middleware('auth.proveedor');
+Route::post('/alta-producto/subir', [AltaProductoController::class, 'subirExcel'])->name('proveedores.alta-producto.subir')->middleware('auth.proveedor');
 
 // ── Inventario y Fiscal ──
 Route::get('/proveedor/inventario', function () { return view('proveedores.inventario'); })->name('proveedores.inventario')->middleware('auth.proveedor');
@@ -162,6 +164,15 @@ Route::get('/admin/reporte-proveedores', [AdminPanelController::class, 'reporteP
 Route::get('/admin/reporte-proveedores/excel', [AdminPanelController::class, 'reporteProveedoresExcel'])->name('admin.reporte-proveedores.excel')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores/corte', [AdminPanelController::class, 'reporteCorte'])->name('admin.reporte-corte')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores/corte/excel', [AdminPanelController::class, 'reporteCorteExcel'])->name('admin.reporte-corte.excel')->middleware('auth.admin');
+
+// ── Alertas IA Proactiva ──
+use App\Http\Controllers\AlertaController;
+Route::get('/admin/alertas', [AlertaController::class, 'index'])->name('admin.alertas')->middleware('auth.admin');
+Route::get('/admin/alertas/configuracion', [AlertaController::class, 'configuracion'])->name('admin.alertas.config')->middleware('auth.admin');
+Route::post('/admin/alertas/configuracion', [AlertaController::class, 'guardarConfig'])->name('admin.alertas.config.guardar')->middleware('auth.admin');
+Route::get('/admin/alertas/oc-borradores', [AlertaController::class, 'ocBorradores'])->name('admin.alertas.oc')->middleware('auth.admin');
+Route::post('/admin/alertas/oc-borradores/{id}/aprobar', [AlertaController::class, 'aprobarOC'])->name('admin.alertas.oc.aprobar')->middleware('auth.admin');
+Route::post('/admin/alertas/oc-borradores/{id}/rechazar', [AlertaController::class, 'rechazarOC'])->name('admin.alertas.oc.rechazar')->middleware('auth.admin');
 
 // ── Validación RFC (AJAX) ──
 Route::post('/admin/cliente/validar-rfc', [AdminClienteController::class, 'validarRfc'])->name('admin.cliente.validar-rfc');

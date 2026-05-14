@@ -380,92 +380,82 @@
 <div class="pp-wrap">
 
     {{-- ═══ SECTION 1: Negocio + Inventario + OTIF + Fiscal ═══ --}}
-    <div class="pp-grid-2" style="grid-template-columns: 1fr 1fr 1fr 1fr;">
+    <div class="pp-grid-2" style="grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: stretch;">
         {{-- Negocio --}}
         <a href="{{ route('proveedores.business') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card">
+        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
             <h4>Negocio</h4>
             <div class="pp-negocio-row">
                 <div class="pp-negocio-label">Ventas</div>
-                <div class="pp-negocio-value" style="color:var(--green);">
+                <div class="pp-negocio-value" style="color:var(--green);font-size:20px;">
                     $2,500,000.25
-                    <span class="pp-variation pp-variation-up">+15%</span>
+                    <span class="pp-variation pp-variation-up" style="font-size:14px;">+15%</span>
                 </div>
             </div>
             <div class="pp-negocio-row">
                 <div class="pp-negocio-label">Unidades</div>
-                <div class="pp-negocio-value" style="color:var(--red);">
+                <div class="pp-negocio-value" style="color:var(--red);font-size:20px;">
                     275,343
-                    <span class="pp-variation pp-variation-down">-2%</span>
+                    <span class="pp-variation pp-variation-down" style="font-size:14px;">-2%</span>
                 </div>
             </div>
-            <span class="pp-detail-link">Ver detalle →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div>
         </a>
 
         {{-- Inventario --}}
         <a href="{{ route('proveedores.inventario') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card">
+        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
             <h4>Inventario</h4>
             <div class="pp-negocio-row">
                 <div class="pp-negocio-label">SKUs activos</div>
-                <div class="pp-negocio-value">48</div>
+                <div class="pp-negocio-value" style="font-size:20px;">48</div>
             </div>
             <div class="pp-negocio-row">
                 <div class="pp-negocio-label">Stock bajo</div>
-                <div class="pp-negocio-value" style="color:var(--amber);">
-                    3
-                </div>
+                <div class="pp-negocio-value" style="color:var(--amber);font-size:20px;">3</div>
             </div>
-            <span class="pp-detail-link">Ver detalle →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div>
         </a>
 
         {{-- OTIF --}}
         <a href="{{ route('proveedores.otif') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card">
-            <h4>OTIF (a Salcom)</h4>
-            <div class="pp-otif-wrap">
-                <div class="pp-otif-item">
-                    <div class="pp-otif-canvas-wrap">
-                        <canvas id="donutOT" width="100" height="100"></canvas>
-                        <div class="pp-otif-center">
-                            <div class="pp-otif-percent">92%</div>
-                        </div>
+        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
+            <h4>OTIF</h4>
+            <div style="display:flex;gap:14px;align-items:center;justify-content:center;flex:1;">
+                <div style="text-align:center;">
+                    <div style="position:relative;width:80px;height:80px;margin:0 auto;">
+                        <canvas id="donutOT" width="80" height="80"></canvas>
+                        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;font-weight:700;color:var(--green);">92%</div>
                     </div>
-                    <span class="pp-otif-label">OT — OC / planta</span>
+                    <div style="font-size:10px;color:var(--gray-muted);margin-top:4px;">OT</div>
                 </div>
-                <div class="pp-otif-item">
-                    <div class="pp-otif-canvas-wrap">
-                        <canvas id="donutIF" width="100" height="100"></canvas>
-                        <div class="pp-otif-center">
-                            <div class="pp-otif-percent">88%</div>
-                        </div>
+                <div style="text-align:center;">
+                    <div style="position:relative;width:80px;height:80px;margin:0 auto;">
+                        <canvas id="donutIF" width="80" height="80"></canvas>
+                        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:14px;font-weight:700;color:var(--red);">88%</div>
                     </div>
-                    <span class="pp-otif-label">IF — cantidad vs. OC</span>
+                    <div style="font-size:10px;color:var(--gray-muted);margin-top:4px;">IF</div>
                 </div>
             </div>
-            <span class="pp-detail-link">Ver detalle →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div>
         </a>
 
         {{-- Fiscal --}}
         <a href="{{ route('proveedores.fiscal') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card">
+        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
             <h4>Fiscal</h4>
             <div class="pp-negocio-row">
                 <div class="pp-negocio-label">Documentos</div>
-                <div class="pp-negocio-value" style="color:var(--green);">
-                    5/6
-                </div>
+                <div class="pp-negocio-value" style="color:var(--green);font-size:20px;">5/6</div>
             </div>
             <div class="pp-negocio-row">
                 <div class="pp-negocio-label">Estatus</div>
-                <div class="pp-negocio-value" style="font-size:14px;color:var(--amber);">
-                    Pendiente validación
-                </div>
+                <div class="pp-negocio-value" style="font-size:12px;color:var(--amber);">Pendiente validación</div>
             </div>
-            <span class="pp-detail-link">Ver detalle →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div>
         </a>
     </div>
@@ -612,8 +602,8 @@ document.addEventListener('DOMContentLoaded', function() {
         const ctx = canvas.getContext('2d');
         const size = canvas.width;
         const center = size / 2;
-        const radius = 40;
-        const lineWidth = 10;
+        const radius = size * 0.38;
+        const lineWidth = size * 0.12;
         const startAngle = -Math.PI / 2;
         const endAngle = startAngle + (2 * Math.PI * percent / 100);
 

@@ -42,6 +42,34 @@
 @section('content')
 <div class="otif-wrap">
 
+    {{-- ═══ Mi Score ═══ --}}
+    @php
+        $miProv = \App\Models\ProveedorUser::find(session('proveedor_id'));
+        $miScore = $miProv ? (float)$miProv->score_total : 0;
+        $miEntrega = $miProv ? (float)$miProv->score_entrega : 0;
+        $miPuntualidad = $miProv ? (float)$miProv->score_puntualidad : 0;
+        $scoreColor = $miScore >= 80 ? 'var(--green)' : ($miScore >= 60 ? 'var(--amber)' : 'var(--red)');
+    @endphp
+    <div style="background:var(--white);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:24px;margin-bottom:24px;display:flex;align-items:center;gap:32px;flex-wrap:wrap;">
+        <div style="text-align:center;min-width:120px;">
+            <div style="font-size:48px;font-weight:800;color:{{ $scoreColor }};line-height:1;">{{ $miScore }}%</div>
+            <div style="font-size:12px;color:var(--gray-muted);margin-top:6px;">Score General</div>
+        </div>
+        <div style="flex:1;display:flex;gap:24px;flex-wrap:wrap;">
+            <div>
+                <div style="font-size:12px;color:var(--gray-muted);margin-bottom:4px;">Entrega (In Full)</div>
+                <div style="font-size:24px;font-weight:700;color:{{ $miEntrega >= 80 ? 'var(--green)' : ($miEntrega >= 60 ? 'var(--amber)' : 'var(--red)') }};">{{ $miEntrega }}%</div>
+            </div>
+            <div>
+                <div style="font-size:12px;color:var(--gray-muted);margin-bottom:4px;">Puntualidad (On Time)</div>
+                <div style="font-size:24px;font-weight:700;color:{{ $miPuntualidad >= 80 ? 'var(--green)' : ($miPuntualidad >= 60 ? 'var(--amber)' : 'var(--red)') }};">{{ $miPuntualidad }}%</div>
+            </div>
+        </div>
+        <div style="padding:10px 16px;border-radius:10px;background:{{ $miScore >= 80 ? 'var(--green-bg)' : ($miScore >= 60 ? 'var(--amber-bg)' : 'var(--red-bg)') }};font-size:12px;font-weight:600;color:{{ $scoreColor }};">
+            {{ $miScore >= 80 ? '✅ Excelente — Proveedor preferente' : ($miScore >= 60 ? '⚠️ Aceptable — Puede mejorar' : '🚨 Bajo rendimiento — Requiere atención') }}
+        </div>
+    </div>
+
     {{-- ═══ Donut Charts ═══ --}}
     <div class="otif-charts">
         <div class="otif-chart-card">

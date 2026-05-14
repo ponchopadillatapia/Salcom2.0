@@ -346,14 +346,34 @@
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             <span class="sb-pedidos-badge js-pedidos-nav-badge" style="display:none;top:-2px;right:-2px" aria-hidden="true">0</span>
         </a>
-        <div class="nav-notif-wrap" id="notifWrap" role="button" tabindex="0" aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false">
+        <div class="nav-notif-wrap" id="notifWrap" role="button" tabindex="0" aria-label="Notificaciones" aria-haspopup="true" aria-expanded="false" onclick="document.getElementById('notifDrop').classList.toggle('show')">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            <span id="notifBadge" style="position:absolute;top:2px;right:2px;background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;padding:0 5px;border-radius:999px;display:flex;align-items:center;justify-content:center">3</span>
+            @php
+                $alertasClienteSinLeer = \App\Models\Alerta::where('destinatario_tipo', 'cliente')
+                    ->where('destinatario_id', session('cliente_id'))
+                    ->whereNotIn('estatus', ['leida', 'accionada'])
+                    ->count();
+            @endphp
+            @if($alertasClienteSinLeer > 0)
+            <span id="notifBadge" style="position:absolute;top:2px;right:2px;background:var(--red);color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;padding:0 5px;border-radius:999px;display:flex;align-items:center;justify-content:center">{{ $alertasClienteSinLeer > 9 ? '9+' : $alertasClienteSinLeer }}</span>
+            @endif
             <div id="notifDrop" class="notif-drop">
                 <div style="padding:12px 16px;border-bottom:1px solid var(--border-light);font-size:13px;font-weight:700;color:var(--gray-text)">Notificaciones</div>
-                <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;border-bottom:1px solid var(--border-light);font-size:12px;cursor:pointer;background:var(--purple-light)"><div style="font-weight:600;color:var(--gray-text)">Pedido PED-2026-004 autorizado</div><div style="color:var(--gray-muted);margin-top:2px">Tu pedido fue aprobado por el área comercial</div></div>
-                <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;border-bottom:1px solid var(--border-light);font-size:12px;cursor:pointer;background:var(--purple-light)"><div style="font-weight:600;color:var(--gray-text)">Factura CFDI-A-001236 por vencer</div><div style="color:var(--gray-muted);margin-top:2px">Vence en 5 días — $5,481.00</div></div>
-                <div class="notif-item" onclick="markRead(this)" style="padding:10px 16px;font-size:12px;cursor:pointer;background:var(--purple-light)"><div style="font-weight:600;color:var(--gray-text)">Nuevo producto en catálogo</div><div style="color:var(--gray-muted);margin-top:2px">Refrigerante Industrial disponible</div></div>
+                @php
+                    $notisCliente = \App\Models\Alerta::where('destinatario_tipo', 'cliente')
+                        ->where('destinatario_id', session('cliente_id'))
+                        ->orderByDesc('created_at')
+                        ->limit(5)
+                        ->get();
+                @endphp
+                @forelse($notisCliente as $noti)
+                <div class="notif-item" style="padding:10px 16px;border-bottom:1px solid var(--border-light);font-size:12px;">
+                    <div style="font-weight:600;color:var(--gray-text)">{{ Str::limit($noti->titulo, 40) }}</div>
+                    <div style="color:var(--gray-muted);margin-top:2px">{{ Str::limit($noti->contenido, 50) }}</div>
+                </div>
+                @empty
+                <div style="padding:16px;text-align:center;font-size:12px;color:var(--gray-muted);">Sin notificaciones</div>
+                @endforelse
             </div>
         </div>
         <span class="nav-user" title="{{ session('cliente_nombre', 'Cliente') }}">{{ session('cliente_nombre', 'Cliente') }}</span>
@@ -366,6 +386,16 @@
 @yield('hero')
 <div class="wrapper">
         <div class="sidebar" id="appSidebar">
+        {{-- Logo/Rol badge (estilo Apple Music) --}}
+        <div style="padding:20px 16px 12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border-light);margin-bottom:8px;">
+            <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg, #2563eb, #60a5fa);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div style="min-width:0;">
+                <div style="font-size:14px;font-weight:700;color:var(--gray-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Cliente</div>
+                <div style="font-size:11px;color:var(--gray-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Portal de Clientes</div>
+            </div>
+        </div>
         <button type="button" class="sb-toggle" aria-expanded="true" aria-label="Contraer o expandir menú lateral" onclick="(function(){var s=document.getElementById('appSidebar');s.classList.toggle('collapsed');this.setAttribute('aria-expanded',s.classList.contains('collapsed')?'false':'true');}).call(this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></button>
         <nav class="sb-nav">
             <div class="sb-section">Principal</div>

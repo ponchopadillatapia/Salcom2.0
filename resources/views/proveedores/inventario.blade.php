@@ -2,8 +2,8 @@
 @section('title', 'Inventario')
 @section('hero')
 <div class="hero-band">
-    <h1>Inventario</h1>
-    <p>Consulta el estado de tus productos, stock y niveles de reorden</p>
+    <h1>Inventario — Stock Máximo y Mínimo</h1>
+    <p>Reporte de niveles de inventario · DDI: 90 días · Al: {{ now()->format('d/m/Y') }}</p>
 </div>
 @endsection
 @push('styles')
@@ -18,52 +18,94 @@
     .inv-card-head{padding:16px 22px;border-bottom:1px solid var(--border-light);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
     .inv-card-head h3{font-size:15px;font-weight:700;color:var(--gray-text)}
     .inv-table{width:100%;border-collapse:collapse}
-    .inv-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px;padding:12px 16px;text-align:left;background:var(--gray-soft);border-bottom:1px solid var(--border-light)}
-    .inv-table td{padding:12px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border-light)}
+    .inv-table th{font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.4px;padding:10px 12px;text-align:left;background:var(--gray-soft);border-bottom:1px solid var(--border-light)}
+    .inv-table td{padding:10px 12px;font-size:12px;color:var(--gray-text);border-bottom:1px solid var(--border-light)}
     .inv-table tr:last-child td{border-bottom:none}
     .inv-table tr:hover td{background:var(--purple-subtle)}
-    .badge-stock{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
+    .inv-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+    .badge-stock{font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;display:inline-block}
     .badge-stock.ok{background:var(--green-bg);color:var(--green)}
     .badge-stock.low{background:var(--amber-bg);color:var(--amber)}
     .badge-stock.out{background:var(--red-bg);color:var(--red)}
+    .badge-stock.over{background:var(--blue-bg);color:var(--blue)}
     .btn-export{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12px;font-weight:600;color:var(--green);background:var(--green-bg);border:1px solid var(--green);border-radius:8px;cursor:pointer;transition:var(--transition)}
     .btn-export:hover{background:var(--green);color:#fff}
+    .formula-box{background:var(--purple-subtle);border-radius:10px;padding:14px 18px;margin-bottom:24px;font-size:12px}
+    .formula-box strong{color:var(--purple)}
     @media(max-width:768px){.inv-metrics{grid-template-columns:1fr 1fr}}
 </style>
 @endpush
 @section('content')
 
+<div class="formula-box">
+    <strong>Fórmula:</strong> Stock Mínimo = Consumo Diario × Días entrega proveedor &nbsp;|&nbsp;
+    <strong>Stock Máximo</strong> = Consumo Diario × 90 días (DDI) &nbsp;|&nbsp;
+    <strong>Cantidad a Pedir</strong> = Stock Máximo − Existencia − Pendiente de Recibir
+</div>
+
+@php
+$ddi = 90;
+$items = [
+    ['SAL-001', 'Resina epóxica industrial', 'GUANGZHOU FANEI', 850, 280, 15, 0, 'KG'],
+    ['SAL-003', 'Solvente grado técnico', 'INTERFLEX GROUP', 320, 180, 12, 50, 'LT'],
+    ['SAL-005', 'Pigmento base agua', 'ALPHA AROMATICS', 90, 120, 20, 0, 'KG'],
+    ['SAL-007', 'Catalizador rápido', 'QINGDAO GREENEI', 45, 60, 18, 30, 'KG'],
+    ['SAL-009', 'Aditivo antioxidante', 'RECOCHEMIC INC', 0, 40, 25, 0, 'KG'],
+    ['SAL-011', 'Fibra de refuerzo', 'SALCOM INDUSTRIE', 600, 150, 10, 100, 'KG'],
+    ['SAL-015', 'Adhesivo estructural', 'DCC GROUP COMP', 220, 90, 14, 0, 'KG'],
+    ['SAL-018', 'Disolvente especial', 'HANGZHOU HUALIC', 15, 35, 22, 0, 'LT'],
+    ['SAL-020', 'Sellador industrial', 'BOBSON HYGIENE', 0, 45, 16, 0, 'KG'],
+    ['SAL-022', 'Recubrimiento base', 'NINGBO REVIEW T', 0, 30, 30, 0, 'KG'],
+];
+$totalSKU = count($items);
+$stockOk = 0; $stockLow = 0; $stockOut = 0; $stockOver = 0;
+$rows = [];
+foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $diasEntrega, $pendRecibir, $um]) {
+    $consumoDiario = round($consumoMes / 30, 2);
+    $stockMinimo = round($consumoDiario * $diasEntrega);
+    $stockMaximo = round($consumoDiario * $ddi);
+    $diasInventario = $consumoDiario > 0 ? round($existencia / $consumoDiario) : 0;
+    $totalAPedir = max(0, $stockMaximo - $existencia - $pendRecibir);
+    $cobertura = $consumoDiario > 0 ? round($existencia / $consumoDiario) : 0;
+    if ($existencia <= 0) { $estado = 'out'; $estadoLabel = 'Agotado'; $stockOut++; }
+    elseif ($existencia < $stockMinimo) { $estado = 'low'; $estadoLabel = 'Bajo mínimo'; $stockLow++; }
+    elseif ($existencia > $stockMaximo) { $estado = 'over'; $estadoLabel = 'Sobre stock'; $stockOver++; }
+    else { $estado = 'ok'; $estadoLabel = 'OK'; $stockOk++; }
+    $rows[] = compact('codigo','nombre','proveedor','existencia','consumoMes','consumoDiario','diasEntrega','stockMinimo','stockMaximo','diasInventario','pendRecibir','totalAPedir','cobertura','estado','estadoLabel','um');
+}
+@endphp
+
 <div class="inv-metrics">
     <div class="inv-metric">
         <div class="accent" style="background:var(--purple)"></div>
-        <div class="inv-metric-label">SKUs activos</div>
-        <div class="inv-metric-val">48</div>
+        <div class="inv-metric-label">SKUs totales</div>
+        <div class="inv-metric-val">{{ $totalSKU }}</div>
         <div class="inv-metric-sub">Productos en catálogo</div>
     </div>
     <div class="inv-metric">
         <div class="accent" style="background:var(--green)"></div>
         <div class="inv-metric-label">Stock OK</div>
-        <div class="inv-metric-val">42</div>
-        <div class="inv-metric-sub">Nivel adecuado</div>
+        <div class="inv-metric-val">{{ $stockOk }}</div>
+        <div class="inv-metric-sub">Dentro de rango</div>
     </div>
     <div class="inv-metric">
         <div class="accent" style="background:var(--amber)"></div>
-        <div class="inv-metric-label">Stock bajo</div>
-        <div class="inv-metric-val">3</div>
-        <div class="inv-metric-sub">Requiere atención</div>
+        <div class="inv-metric-label">Bajo mínimo</div>
+        <div class="inv-metric-val">{{ $stockLow }}</div>
+        <div class="inv-metric-sub">Requiere reorden</div>
     </div>
     <div class="inv-metric">
         <div class="accent" style="background:var(--red)"></div>
         <div class="inv-metric-label">Agotados</div>
-        <div class="inv-metric-val">3</div>
-        <div class="inv-metric-sub">Sin stock disponible</div>
+        <div class="inv-metric-val">{{ $stockOut }}</div>
+        <div class="inv-metric-sub">Sin stock</div>
     </div>
 </div>
 
 <div class="inv-card">
     <div class="inv-card-head">
-        <h3>Detalle de inventario</h3>
-        <button class="btn-export" onclick="exportTable('tablaInventario', 'Inventario')">
+        <h3>Reporte Stock Máximo y Mínimo</h3>
+        <button class="btn-export" onclick="exportTable('tablaInventario', 'Stock_Maximos_Minimos')">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Exportar Excel
         </button>
@@ -74,46 +116,39 @@
                 <tr>
                     <th>Código</th>
                     <th>Producto</th>
-                    <th>Stock actual</th>
-                    <th>Mínimo</th>
-                    <th>Máximo</th>
-                    <th>Demanda/mes</th>
+                    <th>Proveedor</th>
+                    <th>U.M.</th>
+                    <th>Existencia</th>
+                    <th>Consumo/mes</th>
+                    <th>Consumo diario</th>
+                    <th>Stock mínimo</th>
+                    <th>Stock máximo</th>
+                    <th>Días inventario</th>
+                    <th>Días entrega prov.</th>
+                    <th>Pend. recibir</th>
+                    <th>Cantidad a pedir</th>
                     <th>Cobertura</th>
-                    <th>Tendencia</th>
                     <th>Estado</th>
                 </tr>
             </thead>
             <tbody>
-                @php
-                $items = [
-                    ['SAL-001', 'Resina epóxica industrial', 850, 200, 1000, 280, 'creciente', 'ok'],
-                    ['SAL-003', 'Solvente grado técnico', 320, 150, 800, 180, 'estable', 'ok'],
-                    ['SAL-005', 'Pigmento base agua', 90, 100, 500, 120, 'creciente', 'low'],
-                    ['SAL-007', 'Catalizador rápido', 45, 80, 400, 60, 'decreciente', 'low'],
-                    ['SAL-009', 'Aditivo antioxidante', 0, 50, 300, 40, 'decreciente', 'out'],
-                    ['SAL-011', 'Fibra de refuerzo', 600, 100, 700, 150, 'creciente', 'ok'],
-                    ['SAL-015', 'Adhesivo estructural', 220, 80, 500, 90, 'estable', 'ok'],
-                    ['SAL-018', 'Disolvente especial', 15, 50, 250, 35, 'decreciente', 'low'],
-                    ['SAL-020', 'Sellador industrial', 0, 60, 300, 45, 'estable', 'out'],
-                    ['SAL-022', 'Recubrimiento base', 0, 40, 200, 30, 'decreciente', 'out'],
-                ];
-                @endphp
-                @foreach($items as [$codigo, $nombre, $stock, $min, $max, $demanda, $tendencia, $estado])
-                @php
-                    $cobertura = $demanda > 0 ? round($stock / $demanda, 1) : 0;
-                    $estadoLabel = $estado === 'ok' ? 'OK' : ($estado === 'low' ? 'Bajo' : 'Agotado');
-                    $trendVal = $tendencia === 'creciente' ? rand(3,12) : ($tendencia === 'decreciente' ? rand(-12,-1) : 0);
-                @endphp
+                @foreach($rows as $r)
                 <tr>
-                    <td style="font-weight:700;color:var(--purple)">{{ $codigo }}</td>
-                    <td>{{ $nombre }}</td>
-                    <td style="font-weight:600;">{{ number_format($stock) }}</td>
-                    <td>{{ number_format($min) }}</td>
-                    <td>{{ number_format($max) }}</td>
-                    <td>{{ number_format($demanda) }}</td>
-                    <td>{{ $cobertura }} meses</td>
-                    <td>@include('partials.trend-arrow', ['value' => $trendVal])</td>
-                    <td><span class="badge-stock {{ $estado }}">{{ $estadoLabel }}</span></td>
+                    <td style="font-weight:700;color:var(--purple)">{{ $r['codigo'] }}</td>
+                    <td>{{ $r['nombre'] }}</td>
+                    <td style="font-size:11px;color:var(--gray-muted);">{{ $r['proveedor'] }}</td>
+                    <td>{{ $r['um'] }}</td>
+                    <td class="num" style="font-weight:600;">{{ number_format($r['existencia']) }}</td>
+                    <td class="num">{{ number_format($r['consumoMes']) }}</td>
+                    <td class="num">{{ $r['consumoDiario'] }}</td>
+                    <td class="num" style="color:var(--amber);font-weight:600;">{{ number_format($r['stockMinimo']) }}</td>
+                    <td class="num" style="color:var(--green);font-weight:600;">{{ number_format($r['stockMaximo']) }}</td>
+                    <td class="num">{{ $r['diasInventario'] }} días</td>
+                    <td class="num">{{ $r['diasEntrega'] }} días</td>
+                    <td class="num">{{ number_format($r['pendRecibir']) }}</td>
+                    <td class="num" style="font-weight:700;color:{{ $r['totalAPedir'] > 0 ? 'var(--red)' : 'var(--green)' }};">{{ number_format($r['totalAPedir']) }}</td>
+                    <td class="num">{{ $r['cobertura'] }} días</td>
+                    <td><span class="badge-stock {{ $r['estado'] }}">{{ $r['estadoLabel'] }}</span></td>
                 </tr>
                 @endforeach
             </tbody>
@@ -121,7 +156,9 @@
     </div>
 </div>
 
-<p style="font-size:11px;color:var(--gray-muted);text-align:center;">⚠ Datos de prueba — se reemplazarán con datos reales cuando se conecte la API</p>
+<p style="font-size:11px;color:var(--gray-muted);text-align:center;padding:12px;background:var(--gray-soft);border-radius:10px;">
+    ⚠ Datos de prueba — Se conectará con la BD cuando Alan tenga la API lista. DDI configurado a 90 días.
+</p>
 
 @endsection
 @push('scripts')

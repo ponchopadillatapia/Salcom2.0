@@ -159,12 +159,12 @@
             flex-direction: column;
         }
         .sb-section {
-            font-size: 10px;
-            font-weight: 700;
-            color: var(--gray-muted);
+            font-size: 11px;
+            font-weight: 600;
+            color: #86868b;
             text-transform: uppercase;
-            letter-spacing: 1.2px;
-            padding: 16px 20px 6px;
+            letter-spacing: 0.6px;
+            padding: 22px 20px 8px;
             white-space: nowrap;
             flex-shrink: 0;
         }
@@ -272,6 +272,20 @@
         <span>Portal de Proveedores</span>
     </div>
     <div class="nav-right">
+        {{-- Campanita de notificaciones --}}
+        @php
+            $alertasSinLeer = \App\Models\Alerta::where('destinatario_tipo', 'proveedor')
+                ->where('destinatario_id', session('proveedor_id'))
+                ->where('estatus', '!=', 'leida')
+                ->where('estatus', '!=', 'accionada')
+                ->count();
+        @endphp
+        <a href="{{ route('proveedores.ia') }}" style="position:relative;margin-right:16px;text-decoration:none;" title="Notificaciones">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $alertasSinLeer > 0 ? 'var(--purple)' : 'var(--gray-muted)' }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            @if($alertasSinLeer > 0)
+            <span style="position:absolute;top:-4px;right:-6px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;">{{ $alertasSinLeer > 9 ? '9+' : $alertasSinLeer }}</span>
+            @endif
+        </a>
         <span class="nav-user">{{ session('proveedor_nombre', 'Proveedor') }}</span>
         <form method="POST" action="{{ route('proveedores.logout') }}" style="display:inline;">
             @csrf
@@ -288,6 +302,16 @@
 
     {{-- SIDEBAR --}}
     <div class="sidebar" id="appSidebar">
+        {{-- Logo/Rol badge (estilo Apple Music) --}}
+        <div style="padding:20px 16px 12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border-light);margin-bottom:8px;">
+            <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg, #6B3FA0, #9C6DD0);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            </div>
+            <div style="min-width:0;">
+                <div style="font-size:14px;font-weight:700;color:var(--gray-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Proveedor</div>
+                <div style="font-size:11px;color:var(--gray-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Portal de Proveedores</div>
+            </div>
+        </div>
         <div class="sb-toggle" onclick="sbToggle()">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </div>
@@ -348,10 +372,6 @@
             <a href="{{ route('proveedores.payment-history') }}" class="sb-link {{ request()->routeIs('proveedores.payment-history') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
                 <span class="sb-text">Historial de pagos</span>
-            </a>
-            <a href="{{ route('proveedores.encuesta') }}" class="sb-link {{ request()->routeIs('proveedores.encuesta') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
-                <span class="sb-text">Encuesta</span>
             </a>
             <a href="{{ route('proveedores.business') }}" class="sb-link {{ request()->routeIs('proveedores.business') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
