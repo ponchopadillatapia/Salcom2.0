@@ -92,7 +92,7 @@
                 <div class="paso-desc">RFC, datos fiscales y documentos requeridos quedaron cargados y asociados a tu cuenta.</div>
             </div>
             <span class="paso-badge badge-completado">Completado</span>
-            <a href="{{ route('clientes.perfil') }}" class="btn-ver">Ver</a>
+            <a href="{{ route('empresa.form') }}" class="btn-ver">Ver</a>
         </div>
 
         <div class="paso-card pendiente">

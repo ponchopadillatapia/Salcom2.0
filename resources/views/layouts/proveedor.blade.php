@@ -140,7 +140,12 @@
             align-items: center;
             justify-content: flex-end;
             padding: 0 16px;
+            border: none;
             border-bottom: 1px solid var(--border-light);
+            background: transparent;
+            width: 100%;
+            font: inherit;
+            color: inherit;
             cursor: pointer;
             flex-shrink: 0;
             transition: background .15s;
@@ -149,6 +154,42 @@
         .sb-toggle svg { transition: transform .2s ease; flex-shrink: 0; color: var(--gray-muted); }
         .sidebar.collapsed .sb-toggle { justify-content: center; padding: 0; }
         .sidebar.collapsed .sb-toggle svg { transform: rotate(180deg); }
+        /* Bloque identidad proveedor: alineado con ítems al colapsar; mismo icono 40×40 */
+        .sb-client {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px 10px;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 6px;
+            flex-shrink: 0;
+            transition: padding .25s cubic-bezier(.4,0,.2,1), margin .25s cubic-bezier(.4,0,.2,1), gap .25s cubic-bezier(.4,0,.2,1);
+        }
+        .sidebar.collapsed .sb-client {
+            justify-content: center;
+            padding: 6px 4px 8px;
+            margin-bottom: 2px;
+            gap: 0;
+        }
+        .sidebar.collapsed:hover .sb-client {
+            justify-content: flex-start;
+            padding: 14px 16px 10px;
+            margin-bottom: 6px;
+            gap: 12px;
+        }
+        .sb-client-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6B3FA0, #9C6DD0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .sb-client-meta { min-width: 0; }
+        .sidebar.collapsed .sb-client-meta { display: none; }
+        .sidebar.collapsed:hover .sb-client-meta { display: block; }
 
         .sb-nav {
             flex: 1;
@@ -302,18 +343,18 @@
 
     {{-- SIDEBAR --}}
     <div class="sidebar" id="appSidebar">
-        {{-- Logo/Rol badge (estilo Apple Music) --}}
-        <div style="padding:20px 16px 12px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border-light);margin-bottom:8px;">
-            <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg, #6B3FA0, #9C6DD0);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <button type="button" class="sb-toggle" id="sbToggleBtn" aria-expanded="true" aria-label="Contraer o expandir menú lateral" onclick="sbToggle(this)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        {{-- Logo/Rol badge (estilo Apple Music) — icono igual; layout adaptable al sidebar colapsado --}}
+        <div class="sb-client">
+            <div class="sb-client-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
             </div>
-            <div style="min-width:0;">
+            <div class="sb-client-meta">
                 <div style="font-size:14px;font-weight:700;color:var(--gray-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Proveedor</div>
                 <div style="font-size:11px;color:var(--gray-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Portal de Proveedores</div>
             </div>
-        </div>
-        <div class="sb-toggle" onclick="sbToggle()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </div>
         <nav class="sb-nav">
             <div class="sb-section">Principal</div>
@@ -399,8 +440,11 @@
 </footer>
 
 <script>
-function sbToggle() {
-    document.getElementById('appSidebar').classList.toggle('collapsed');
+function sbToggle(btn) {
+    var s = document.getElementById('appSidebar');
+    s.classList.toggle('collapsed');
+    var el = btn || document.getElementById('sbToggleBtn');
+    if (el) el.setAttribute('aria-expanded', s.classList.contains('collapsed') ? 'false' : 'true');
 }
 </script>
 @stack('scripts')
