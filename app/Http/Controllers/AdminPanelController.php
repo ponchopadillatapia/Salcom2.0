@@ -536,6 +536,34 @@ class AdminPanelController extends Controller
         return ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'][$mes] ?? '';
     }
 
+    // ── Opinión Positiva SAT por proveedor ──
+
+    public function opinionPositiva()
+    {
+        $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
+
+        $opiniones = [];
+        foreach ($proveedores as $prov) {
+            $doc = DocumentoProveedor::where('proveedor_id', $prov->id)
+                ->where('tipo', 'opinion')
+                ->latest()
+                ->first();
+
+            $opiniones[] = [
+                'proveedor' => $prov,
+                'documento' => $doc,
+                'estatus'   => $doc ? $doc->estatus : 'sin_documento',
+            ];
+        }
+
+        $aprobados = collect($opiniones)->where('estatus', 'aprobado')->count();
+        $pendientes = collect($opiniones)->where('estatus', 'pendiente')->count();
+        $rechazados = collect($opiniones)->where('estatus', 'rechazado')->count();
+        $sinDoc = collect($opiniones)->where('estatus', 'sin_documento')->count();
+
+        return view('admin.opinion-positiva', compact('opiniones', 'aprobados', 'pendientes', 'rechazados', 'sinDoc'));
+    }
+
     // ── Fiscal — Estado de documentos por proveedor ──
 
     public function fiscal()

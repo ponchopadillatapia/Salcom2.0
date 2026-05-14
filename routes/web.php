@@ -160,6 +160,7 @@ Route::get('/admin/inventario', [AdminPanelController::class, 'inventario'])->na
 Route::get('/admin/materia-prima', [AdminPanelController::class, 'materiaPrima'])->name('admin.materia-prima')->middleware(['auth.admin', 'admin.rol:materia_prima']);
 Route::get('/admin/material-empaque', [AdminPanelController::class, 'materialEmpaque'])->name('admin.material-empaque')->middleware(['auth.admin', 'admin.rol:material_empaque']);
 Route::get('/admin/fiscal', [AdminPanelController::class, 'fiscal'])->name('admin.fiscal')->middleware('auth.admin');
+Route::get('/admin/opinion-positiva', [AdminPanelController::class, 'opinionPositiva'])->name('admin.opinion-positiva')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores', [AdminPanelController::class, 'reporteProveedores'])->name('admin.reporte-proveedores')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores/excel', [AdminPanelController::class, 'reporteProveedoresExcel'])->name('admin.reporte-proveedores.excel')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores/corte', [AdminPanelController::class, 'reporteCorte'])->name('admin.reporte-corte')->middleware('auth.admin');
