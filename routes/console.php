@@ -29,3 +29,6 @@ Schedule::command('ia:generar-sugerencias')->weeklyOn(3, '08:00');
 
 // Trimestral — Generar OC masiva
 Schedule::command('ia:oc-trimestral')->quarterly();
+
+// Día 1 de cada mes 08:00 — Enviar aviso de opinión positiva a proveedores sin documento vigente
+Schedule::command('salcom:aviso-opinion')->monthlyOn(1, '08:00');

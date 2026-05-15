@@ -74,6 +74,7 @@
 
 <div class="prov-tabs">
     <button class="prov-tab active" onclick="switchProvTab('proveedores')">Proveedores ({{ $proveedores->total() }})</button>
+    <button class="prov-tab" onclick="switchProvTab('forecast')">Forecast</button>
     <button class="prov-tab" onclick="switchProvTab('ordenes')">Órdenes de Compra ({{ $ordenes->count() }})</button>
     <button class="prov-tab" onclick="switchProvTab('productos')">Productos ({{ $productos->count() }})</button>
     <button class="prov-tab" onclick="switchProvTab('facturas')">Facturas pendientes ({{ $facturasPendientes->count() }})</button>
@@ -117,6 +118,38 @@
     @else
         <div class="empty-state"><p>No se encontraron proveedores{{ $busqueda ? ' con esa búsqueda' : '' }}</p></div>
     @endif
+    </div>
+</div>
+
+{{-- ═══ TAB FORECAST ═══ --}}
+<div class="prov-panel" id="panel-forecast">
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead><tr><th>Código</th><th>Proveedor</th><th>Score</th><th>Forecast %</th><th>Compras último trimestre</th><th>Estimado próximo mes</th></tr></thead>
+            <tbody>
+            @foreach($proveedores as $p)
+                @php
+                    $forecast = min(100, max(0, $p->score_total * 1.1));
+                    $comprasTrim = \App\Models\Factura::where('codigo_proveedor', $p->codigo_compras)
+                        ->where('created_at', '>=', now()->subMonths(3))->sum('total');
+                    $estimado = $comprasTrim > 0 ? round($comprasTrim / 3, 2) : 0;
+                @endphp
+                <tr>
+                    <td style="font-weight:700;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
+                    <td style="font-weight:600">{{ $p->nombre ?? $p->usuario }}</td>
+                    <td>{{ number_format($p->score_total, 0) }}%</td>
+                    <td>
+                        <div style="width:80px;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px">
+                            <div style="height:100%;border-radius:4px;background:var(--purple);width:{{ $forecast }}%"></div>
+                        </div>
+                        <strong>{{ number_format($forecast, 0) }}%</strong>
+                    </td>
+                    <td style="font-variant-numeric:tabular-nums">${{ number_format($comprasTrim, 2) }}</td>
+                    <td style="font-weight:600;font-variant-numeric:tabular-nums">${{ number_format($estimado, 2) }}</td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
     </div>
 </div>
 

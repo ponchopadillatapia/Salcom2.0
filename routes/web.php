@@ -166,6 +166,7 @@ Route::get('/admin/material-empaque', [AdminPanelController::class, 'materialEmp
 Route::get('/admin/fiscal', [AdminPanelController::class, 'fiscal'])->name('admin.fiscal')->middleware('auth.admin');
 Route::get('/admin/opinion-positiva', [AdminPanelController::class, 'opinionPositiva'])->name('admin.opinion-positiva')->middleware('auth.admin');
 Route::get('/admin/gestion-compras', [AdminPanelController::class, 'gestionCompras'])->name('admin.gestion-compras')->middleware('auth.admin');
+Route::post('/admin/gestion-compras/enviar-avisos-opinion', [AdminPanelController::class, 'enviarAvisosOpinion'])->name('admin.enviar-avisos-opinion')->middleware('auth.admin');
 Route::post('/admin/gestion-compras/autorizar-proveedor', [AdminPanelController::class, 'autorizarProveedor'])->name('admin.autorizar-proveedor')->middleware('auth.admin');
 Route::post('/admin/gestion-compras/autorizar-costo', [AdminPanelController::class, 'autorizarCosto'])->name('admin.autorizar-costo')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores', [AdminPanelController::class, 'reporteProveedores'])->name('admin.reporte-proveedores')->middleware('auth.admin');

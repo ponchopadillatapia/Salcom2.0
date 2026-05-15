@@ -59,7 +59,6 @@
 
 <div class="gc-tabs">
     <button class="gc-tab active" onclick="switchGC('opinion')">Opinión Positiva</button>
-    <button class="gc-tab" onclick="switchGC('forecast')">Forecast</button>
     <button class="gc-tab" onclick="switchGC('autorizacion')">Autorización Proveedores</button>
     <button class="gc-tab" onclick="switchGC('dias')">Días de Inventario</button>
     <button class="gc-tab" onclick="switchGC('costos')">Autorizar Costos</button>
@@ -68,9 +67,12 @@
 {{-- ═══ OPINIÓN POSITIVA ═══ --}}
 <div class="gc-panel active" id="panel-opinion">
     <div class="card">
-        <div class="card-head">Opinión de Cumplimiento SAT — Pendientes y estado</div>
+        <div class="card-head" style="display:flex;align-items:center;justify-content:space-between">
+            <span>Opinión de Cumplimiento SAT — Pendientes y estado</span>
+            <span style="font-size:11px;color:var(--gray-muted);font-weight:500">Correo automático el día 1 de cada mes</span>
+        </div>
         <table class="tbl">
-            <thead><tr><th>Código</th><th>Proveedor</th><th>Estado</th><th>Acción</th></tr></thead>
+            <thead><tr><th>Código</th><th>Proveedor</th><th>Estado</th><th>Correo</th></tr></thead>
             <tbody>
             @foreach($opinionData as $op)
                 @php
@@ -82,38 +84,13 @@
                     <td style="font-weight:700;color:var(--purple)">{{ $op['proveedor']->codigo_compras ?? '—' }}</td>
                     <td style="font-weight:600">{{ $op['proveedor']->nombre ?? $op['proveedor']->usuario }}</td>
                     <td><span class="badge badge-{{ $cls }}">{{ $lbl }}</span></td>
-                    <td>
-                        @if($est !== 'aprobado')
-                            <a href="mailto:{{ $op['proveedor']->correo }}?subject=Opinión de Cumplimiento SAT Pendiente&body=Estimado proveedor, le solicitamos actualizar su Opinión de Cumplimiento ante el SAT." class="btn-sm btn-auth">Enviar correo</a>
+                    <td style="font-size:11px;color:var(--gray-muted)">
+                        @if($est === 'aprobado')
+                            <span style="color:#059669;font-weight:600">✓ Al día</span>
                         @else
-                            <span style="font-size:11px;color:#059669;font-weight:600">✓ Al día</span>
+                            Se notifica automáticamente
                         @endif
                     </td>
-                </tr>
-            @endforeach
-            </tbody>
-        </table>
-    </div>
-</div>
-
-{{-- ═══ FORECAST ═══ --}}
-<div class="gc-panel" id="panel-forecast">
-    <div class="card">
-        <div class="card-head">% Forecast por Proveedor — Estimado por Dirección</div>
-        <table class="tbl">
-            <thead><tr><th>Código</th><th>Proveedor</th><th>Score</th><th>Forecast %</th><th>Estimado</th></tr></thead>
-            <tbody>
-            @foreach($proveedores as $prov)
-                @php $forecast = min(100, max(0, $prov->score_total * 1.1)); @endphp
-                <tr>
-                    <td style="font-weight:700;color:var(--purple)">{{ $prov->codigo_compras ?? '—' }}</td>
-                    <td style="font-weight:600">{{ $prov->nombre ?? $prov->usuario }}</td>
-                    <td>{{ number_format($prov->score_total, 0) }}%</td>
-                    <td>
-                        <div class="forecast-bar"><div class="forecast-fill" style="width:{{ $forecast }}%"></div></div>
-                        <strong>{{ number_format($forecast, 0) }}%</strong>
-                    </td>
-                    <td style="font-size:11px;color:var(--gray-muted)">Autorizado por dirección</td>
                 </tr>
             @endforeach
             </tbody>

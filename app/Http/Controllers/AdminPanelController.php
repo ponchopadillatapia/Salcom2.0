@@ -599,6 +599,32 @@ class AdminPanelController extends Controller
         return view('admin.gestion-compras', compact('proveedores', 'productos', 'opinionData', 'inventarioDias'));
     }
 
+    public function enviarAvisosOpinion()
+    {
+        $proveedores = ProveedorUser::where('activo', true)->get();
+        $enviados = 0;
+
+        foreach ($proveedores as $prov) {
+            if (empty($prov->correo)) continue;
+
+            $doc = DocumentoProveedor::where('proveedor_id', $prov->id)->where('tipo', 'opinion')->latest()->first();
+            $estatus = $doc ? $doc->estatus : 'sin_documento';
+
+            if ($estatus === 'aprobado') continue;
+
+            try {
+                \Illuminate\Support\Facades\Mail::to($prov->correo)->send(
+                    new \App\Mail\OpinionPositivaAviso($prov->nombre ?? $prov->usuario, $estatus)
+                );
+                $enviados++;
+            } catch (\Exception $e) {
+                // continuar con el siguiente
+            }
+        }
+
+        return back()->with('mensaje', "Se enviaron {$enviados} correos de aviso de opinión positiva.");
+    }
+
     public function autorizarProveedor(Request $request)
     {
         $request->validate(['proveedor_id' => 'required', 'accion' => 'required|in:alta,baja']);
