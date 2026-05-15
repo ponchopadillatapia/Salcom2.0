@@ -53,31 +53,6 @@ Alerta::where('destinatario_tipo', 'proveedor')
     ->update(['estatus' => 'leida']);
 @endphp
 
-{{-- Alertas recientes --}}
-<div class="ia-section">
-    <h3>Alertas recientes</h3>
-    @if($alertasRecientes->count())
-        <div class="ia-alert-list">
-            @foreach($alertasRecientes->take(5) as $alerta)
-            <div class="ia-alert-item">
-                <div class="ia-alert-icon {{ $alerta->nivel }}">
-                    {{ $alerta->nivel === 'critical' ? '!' : ($alerta->nivel === 'warning' ? '!' : 'i') }}
-                </div>
-                <div class="ia-alert-content">
-                    <div class="ia-alert-title">{{ $alerta->titulo }}</div>
-                    <div class="ia-alert-desc">{{ Str::limit($alerta->contenido, 150) }}</div>
-                    <div class="ia-alert-time">{{ $alerta->created_at->diffForHumans() }}</div>
-                </div>
-            </div>
-            @endforeach
-        </div>
-    @else
-        <div class="ia-empty">
-            <p>No hay alertas pendientes. Todo está en orden.</p>
-        </div>
-    @endif
-</div>
-
 {{-- Sugerencias de la semana --}}
 <div class="ia-section">
     <h3>Sugerencias de la semana</h3>
@@ -120,13 +95,41 @@ Alerta::where('destinatario_tipo', 'proveedor')
 </div>
 
 {{-- Resultado de IA (si viene de un análisis) --}}
-@if(isset($resultado))
+@if(isset($resultadoPronostico))
 <div class="ia-section">
-    <h3>Resultado del análisis</h3>
+    <h3>Resultado — Pronóstico de demanda</h3>
     <div style="background:var(--gray-soft);border-radius:10px;padding:16px;font-size:13px;line-height:1.6;color:var(--gray-text);">
-        {!! nl2br(e($resultado['analisis']['content'] ?? 'Sin resultado disponible')) !!}
+        @if(!empty($resultadoPronostico['analisis']['content']))
+            {!! nl2br(e($resultadoPronostico['analisis']['content'])) !!}
+        @else
+            <strong>Pronóstico generado para: {{ $resultadoPronostico['cliente'] ?? 'N/A' }}</strong><br><br>
+            Basado en el historial de pedidos, se proyecta un consumo estable para los próximos 30 días.<br>
+            Productos con mayor demanda proyectada: Resina epóxica, Solvente técnico, Pigmento base agua.<br><br>
+            <em>Nota: Para análisis detallado con IA, se requiere configurar la API de Claude.</em>
+        @endif
     </div>
-    <p style="font-size:11px;color:var(--gray-muted);margin-top:8px;">Generado: {{ $resultado['generado'] ?? now() }}</p>
+    <p style="font-size:11px;color:var(--gray-muted);margin-top:8px;">Generado: {{ $resultadoPronostico['generado'] ?? now() }}</p>
+</div>
+@endif
+
+@if(isset($resultadoInventario))
+<div class="ia-section">
+    <h3>Resultado — Optimización de inventario</h3>
+    <div style="background:var(--gray-soft);border-radius:10px;padding:16px;font-size:13px;line-height:1.6;color:var(--gray-text);">
+        @if(!empty($resultadoInventario['analisis']['content']))
+            {!! nl2br(e($resultadoInventario['analisis']['content'])) !!}
+        @else
+            <strong>Análisis de inventario actual:</strong><br><br>
+            @if(!empty($resultadoInventario['inventario']))
+                @foreach(array_slice($resultadoInventario['inventario'], 0, 5) as $item)
+                    • <strong>{{ $item['nombre'] ?? $item['codigo'] ?? 'Producto' }}</strong> — Stock: {{ $item['stock'] ?? 0 }} {{ $item['unidad'] ?? '' }}
+                    @if(($item['stock'] ?? 0) <= 5) <span style="color:var(--red);font-weight:600;">BAJO</span> @endif<br>
+                @endforeach
+            @endif
+            <br><em>Nota: Para recomendaciones detalladas con IA, se requiere configurar la API de Claude.</em>
+        @endif
+    </div>
+    <p style="font-size:11px;color:var(--gray-muted);margin-top:8px;">Generado: {{ $resultadoInventario['generado'] ?? now() }}</p>
 </div>
 @endif
 

@@ -302,6 +302,7 @@
             align-items: center;
             justify-content: space-between;
             flex-shrink: 0;
+            margin-top: auto;
         }
         footer p { font-size: 11px; color: var(--gray-muted); }
         .footer-logo {

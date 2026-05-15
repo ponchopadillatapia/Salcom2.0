@@ -460,36 +460,38 @@
         </a>
     </div>
 
-    {{-- ═══ SECTION 2: Actividad reciente + Onboarding ═══ --}}
+    {{-- ═══ SECTION 2: Alertas recientes + Onboarding ═══ --}}
     <div class="pp-grid-2">
-        {{-- Actividad reciente --}}
+        {{-- Alertas recientes (de la IA) --}}
         <div class="pp-card">
-            <h4>Actividad reciente</h4>
-            <a href="{{ route('proveedores.oc') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
-                <div class="pp-dot pp-dot-green"></div>
-                <div class="pp-list-text">OC #10045 generada</div>
-                <div class="pp-list-status">Pendiente</div>
+            <h4>Alertas recientes</h4>
+            @php
+                $alertasPortal = \App\Models\Alerta::where('destinatario_tipo', 'proveedor')
+                    ->where('destinatario_id', session('proveedor_id'))
+                    ->where('tipo', '!=', 'sugerencia_ia')
+                    ->orderByDesc('created_at')
+                    ->limit(5)
+                    ->get();
+            @endphp
+            @forelse($alertasPortal as $alerta)
+            @php
+                // Determinar la ruta según el módulo/tipo de alerta
+                $alertaRoute = match(true) {
+                    str_contains($alerta->tipo, 'oc') => route('proveedores.oc'),
+                    str_contains($alerta->tipo, 'documento') || $alerta->modulo === 'fiscal' => route('proveedores.fiscal'),
+                    str_contains($alerta->tipo, 'inventario') || $alerta->modulo === 'inventario' => route('proveedores.inventario'),
+                    str_contains($alerta->tipo, 'proveedor_bajo') || $alerta->modulo === 'proveedores' => route('proveedores.otif'),
+                    default => route('proveedores.ia'),
+                };
+            @endphp
+            <a href="{{ $alertaRoute }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
+                <div class="pp-dot {{ $alerta->nivel === 'warning' ? 'pp-dot-amber' : ($alerta->nivel === 'critical' ? 'pp-dot-red' : 'pp-dot-green') }}"></div>
+                <div class="pp-list-text">{{ Str::limit($alerta->titulo, 40) }}</div>
+                <div class="pp-list-status" style="font-size:10px;">{{ $alerta->created_at->diffForHumans() }}</div>
             </a>
-            <a href="{{ route('proveedores.fiscal') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
-                <div class="pp-dot pp-dot-amber"></div>
-                <div class="pp-list-text">Factura en revisión</div>
-                <div class="pp-list-status">Pendiente</div>
-            </a>
-            <a href="{{ route('proveedores.payment-history') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
-                <div class="pp-dot pp-dot-green"></div>
-                <div class="pp-list-text">Pago programado</div>
-                <div class="pp-list-status">Pendiente</div>
-            </a>
-            <a href="{{ route('proveedores.oc') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
-                <div class="pp-dot pp-dot-green"></div>
-                <div class="pp-list-text">Estatus OC</div>
-                <div class="pp-list-status">Pendiente</div>
-            </a>
-            <a href="{{ route('proveedores.fiscal') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
-                <div class="pp-dot pp-dot-amber"></div>
-                <div class="pp-list-text">Facturas OC</div>
-                <div class="pp-list-status">Pendiente</div>
-            </a>
+            @empty
+            <div style="padding:16px 0;text-align:center;font-size:12px;color:var(--gray-muted);">Sin alertas recientes. Todo en orden.</div>
+            @endforelse
         </div>
 
         {{-- Onboarding --}}

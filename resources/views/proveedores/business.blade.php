@@ -85,7 +85,13 @@
 {{-- FILA 2: Totales por artículo (formato comparativo anual Salcom Industries) --}}
 <div class="biz-grid" id="totales">
     <div class="biz-card biz-full">
-        <h3>Totales — Reporte de ventas comparativo anual</h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <h3 style="margin:0;">Totales — Reporte de ventas comparativo anual</h3>
+            <button onclick="exportarTabla('tablaTotales','Reporte_Ventas_Comparativo')" style="display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:#16a34a;color:white;border:none;border-radius:8px;font-size:12px;font-family:inherit;cursor:pointer;font-weight:600;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar Excel
+            </button>
+        </div>
         <div style="font-size:11px;color:var(--gray-muted);margin-bottom:12px;">SALCOM INDUSTRIES — Agrupado por producto/familia</div>
         <div style="display:flex;gap:24px;margin-bottom:16px;flex-wrap:wrap">
             <div>
@@ -107,7 +113,7 @@
         </div>
 
         <div style="overflow-x:auto;">
-        <table class="art-table" style="min-width:750px;">
+        <table class="art-table" id="tablaTotales" style="min-width:750px;">
             <thead>
                 <tr>
                     <th>Código</th>
@@ -219,6 +225,19 @@
 
 @push('scripts')
 <script>
-// Business page — no donuts needed (OTIF moved to its own module)
+function exportarTabla(tablaId, nombre) {
+    const tabla = document.getElementById(tablaId);
+    if (!tabla) return;
+    let csv = [];
+    tabla.querySelectorAll('tr').forEach(fila => {
+        const data = Array.from(fila.querySelectorAll('th,td')).map(c => '"' + c.innerText.trim().replace(/"/g,'""').replace(/\n/g,' ') + '"');
+        csv.push(data.join(','));
+    });
+    const blob = new Blob(['\uFEFF' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nombre + '_' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+}
 </script>
 @endpush
