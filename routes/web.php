@@ -165,6 +165,9 @@ Route::post('/admin/materia-prima/nuevo', [AdminPanelController::class, 'materia
 Route::get('/admin/material-empaque', [AdminPanelController::class, 'materialEmpaque'])->name('admin.material-empaque')->middleware(['auth.admin', 'admin.rol:material_empaque']);
 Route::get('/admin/fiscal', [AdminPanelController::class, 'fiscal'])->name('admin.fiscal')->middleware('auth.admin');
 Route::get('/admin/opinion-positiva', [AdminPanelController::class, 'opinionPositiva'])->name('admin.opinion-positiva')->middleware('auth.admin');
+Route::get('/admin/gestion-compras', [AdminPanelController::class, 'gestionCompras'])->name('admin.gestion-compras')->middleware('auth.admin');
+Route::post('/admin/gestion-compras/autorizar-proveedor', [AdminPanelController::class, 'autorizarProveedor'])->name('admin.autorizar-proveedor')->middleware('auth.admin');
+Route::post('/admin/gestion-compras/autorizar-costo', [AdminPanelController::class, 'autorizarCosto'])->name('admin.autorizar-costo')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores', [AdminPanelController::class, 'reporteProveedores'])->name('admin.reporte-proveedores')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores/excel', [AdminPanelController::class, 'reporteProveedoresExcel'])->name('admin.reporte-proveedores.excel')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores/corte', [AdminPanelController::class, 'reporteCorte'])->name('admin.reporte-corte')->middleware('auth.admin');

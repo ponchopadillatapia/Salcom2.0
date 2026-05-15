@@ -253,6 +253,13 @@
                 <span class="sb-text">Documentos</span>
             </a>
 
+            <a href="{{ route('admin.gestion-compras') }}" class="sb-link {{ request()->is('admin/gestion-compras*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5z"/><path d="M6 9.01V9"/></svg>
+                </div>
+                <span class="sb-text">Gestión Compras</span>
+            </a>
+
             @if(in_array(session('admin_rol'), ['gerente', 'materia_prima']))
             <a href="{{ route('admin.materia-prima') }}" class="sb-link {{ request()->is('admin/materia-prima*') ? 'active' : '' }}">
                 <div class="sb-icon">

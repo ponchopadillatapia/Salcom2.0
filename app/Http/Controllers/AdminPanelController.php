@@ -564,6 +564,62 @@ class AdminPanelController extends Controller
         return view('admin.opinion-positiva', compact('opiniones', 'aprobados', 'pendientes', 'rechazados', 'sinDoc'));
     }
 
+    // ── Gestión de Compras ──
+
+    public function gestionCompras()
+    {
+        $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
+        $productos = Producto::where('activo', true)->orderBy('nombre')->get();
+
+        // Opinión positiva resumen
+        $opinionData = [];
+        foreach ($proveedores as $prov) {
+            $doc = DocumentoProveedor::where('proveedor_id', $prov->id)->where('tipo', 'opinion')->latest()->first();
+            $opinionData[] = ['proveedor' => $prov, 'estatus' => $doc ? $doc->estatus : 'sin_documento'];
+        }
+
+        // Días de inventario por producto
+        $inventarioDias = [];
+        foreach ($productos as $prod) {
+            $ventaMensual = Factura::whereNotNull('codigo_proveedor')
+                ->where('created_at', '>=', now()->subMonths(3))
+                ->count();
+            $diasInventario = $prod->stock > 0 && $ventaMensual > 0
+                ? round(($prod->stock / ($ventaMensual / 90)) * 1, 0)
+                : 0;
+
+            $inventarioDias[] = [
+                'producto'        => $prod,
+                'dias_inventario' => $diasInventario,
+                'dias_pedido'     => 7,  // configurable después
+                'dias_entrega'    => 5,  // configurable después
+            ];
+        }
+
+        return view('admin.gestion-compras', compact('proveedores', 'productos', 'opinionData', 'inventarioDias'));
+    }
+
+    public function autorizarProveedor(Request $request)
+    {
+        $request->validate(['proveedor_id' => 'required', 'accion' => 'required|in:alta,baja']);
+
+        $prov = ProveedorUser::findOrFail($request->proveedor_id);
+        $prov->update(['activo' => $request->accion === 'alta']);
+
+        return back()->with('mensaje', "Proveedor {$prov->nombre} " . ($request->accion === 'alta' ? 'dado de alta' : 'dado de baja') . " por dirección.");
+    }
+
+    public function autorizarCosto(Request $request)
+    {
+        $request->validate(['producto_id' => 'required', 'nuevo_precio' => 'required|numeric|min:0']);
+
+        $prod = Producto::findOrFail($request->producto_id);
+        $precioAnterior = $prod->precio;
+        $prod->update(['precio' => $request->nuevo_precio]);
+
+        return back()->with('mensaje', "Costo de {$prod->nombre} actualizado: \${$precioAnterior} → \${$request->nuevo_precio} (autorizado por dirección).");
+    }
+
     // ── Fiscal — Estado de documentos por proveedor ──
 
     public function fiscal()
