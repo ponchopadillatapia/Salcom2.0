@@ -79,7 +79,6 @@
             <span class="biz-metric-unit">kg</span>
             <span class="biz-metric-change biz-up">+5%</span>
         </div>
-        <a href="#totales" class="biz-link">Ver detalles →</a>
     </div>
 </div>
 

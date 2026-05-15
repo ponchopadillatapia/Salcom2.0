@@ -66,17 +66,22 @@
             </div>
         </div>
         <div style="padding:10px 16px;border-radius:10px;background:{{ $miScore >= 80 ? 'var(--green-bg)' : ($miScore >= 60 ? 'var(--amber-bg)' : 'var(--red-bg)') }};font-size:12px;font-weight:600;color:{{ $scoreColor }};">
-            {{ $miScore >= 80 ? '✅ Excelente — Proveedor preferente' : ($miScore >= 60 ? '⚠️ Aceptable — Puede mejorar' : '🚨 Bajo rendimiento — Requiere atención') }}
+            {{ $miScore >= 80 ? 'Excelente — Proveedor preferente' : ($miScore >= 60 ? 'Aceptable — Puede mejorar' : 'Bajo rendimiento — Requiere atención') }}
         </div>
     </div>
 
     {{-- ═══ Donut Charts ═══ --}}
+    @php
+        // Calcular OT e IF desde los datos del proveedor (misma fuente que el score)
+        $otValue = $miPuntualidad; // On Time = puntualidad
+        $ifValue = $miEntrega;     // In Full = entrega
+    @endphp
     <div class="otif-charts">
         <div class="otif-chart-card">
             <div class="otif-canvas-wrap">
                 <canvas id="otifDonutOT" width="180" height="180"></canvas>
                 <div class="otif-center">
-                    <div class="otif-percent" id="otPercent">92%</div>
+                    <div class="otif-percent" id="otPercent">{{ $otValue }}%</div>
                 </div>
             </div>
             <span class="otif-chart-label">OT — recepción en planta vs. fecha promesa (OC)</span>
@@ -85,7 +90,7 @@
             <div class="otif-canvas-wrap">
                 <canvas id="otifDonutIF" width="180" height="180"></canvas>
                 <div class="otif-center">
-                    <div class="otif-percent" id="ifPercent">88%</div>
+                    <div class="otif-percent" id="ifPercent">{{ $ifValue }}%</div>
                 </div>
             </div>
             <span class="otif-chart-label">IF — cantidad recibida vs. cantidad ordenada (OC)</span>
@@ -287,8 +292,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    drawDonut('otifDonutOT', 92, 'otPercent');
-    drawDonut('otifDonutIF', 88, 'ifPercent');
+    drawDonut('otifDonutOT', {{ $otValue }}, 'otPercent');
+    drawDonut('otifDonutIF', {{ $ifValue }}, 'ifPercent');
 });
 
 // ── Exportar tabla a Excel (CSV) ──

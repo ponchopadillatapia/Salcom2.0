@@ -465,12 +465,12 @@
         {{-- Actividad reciente --}}
         <div class="pp-card">
             <h4>Actividad reciente</h4>
-            <div class="pp-list-item">
+            <a href="{{ route('proveedores.oc') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
                 <div class="pp-dot pp-dot-green"></div>
                 <div class="pp-list-text">OC #10045 generada</div>
                 <div class="pp-list-status">Pendiente</div>
-            </div>
-            <a href="{{ route('proveedores.business') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
+            </a>
+            <a href="{{ route('proveedores.fiscal') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
                 <div class="pp-dot pp-dot-amber"></div>
                 <div class="pp-list-text">Factura en revisión</div>
                 <div class="pp-list-status">Pendiente</div>
@@ -485,7 +485,7 @@
                 <div class="pp-list-text">Estatus OC</div>
                 <div class="pp-list-status">Pendiente</div>
             </a>
-            <a href="{{ route('proveedores.business') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
+            <a href="{{ route('proveedores.fiscal') }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
                 <div class="pp-dot pp-dot-amber"></div>
                 <div class="pp-list-text">Facturas OC</div>
                 <div class="pp-list-status">Pendiente</div>
@@ -493,7 +493,8 @@
         </div>
 
         {{-- Onboarding --}}
-        <div class="pp-card">
+        <a href="{{ route('proveedores.onboarding') }}" style="text-decoration:none;color:inherit;">
+        <div class="pp-card" style="cursor:pointer;">
             <div class="pp-onboarding-header">
                 <h4 style="margin-bottom:0;">Onboarding</h4>
                 <span class="pp-onboarding-progress" style="color: var(--red);">33%</span>
@@ -528,8 +529,8 @@
                 <div class="pp-list-text">Detalle de inventario</div>
                 <div class="pp-list-status">Pendiente</div>
             </div>
-            <a href="{{ route('proveedores.onboarding') }}" class="pp-detail-link">Ver →</a>
         </div>
+        </a>
     </div>
 
     {{-- ═══ SECTION 3: Quick access ═══ --}}
