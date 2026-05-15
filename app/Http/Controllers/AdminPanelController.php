@@ -611,14 +611,44 @@ class AdminPanelController extends Controller
     {
         $productos = Producto::where('activo', true)
             ->where('categoria', 'Materia prima')
-            ->orderBy('stock', 'asc')
+            ->orderBy('familia')
+            ->orderBy('nombre')
             ->get();
+
+        $productosPorFamilia = $productos->groupBy(fn($p) => $p->familia ?? 'Sin familia');
 
         $muestras = Muestra::whereNotIn('etapa', ['aprobado', 'rechazado'])
             ->orderBy('created_at', 'desc')
             ->get();
 
-        return view('admin.materia-prima', compact('productos', 'muestras'));
+        return view('admin.materia-prima', compact('productos', 'productosPorFamilia', 'muestras'));
+    }
+
+    public function materiaPrimaCrear()
+    {
+        return view('admin.materia-prima-crear');
+    }
+
+    public function materiaPrimaGuardar(Request $request)
+    {
+        $request->validate([
+            'codigo'  => 'required|string|unique:productos,codigo',
+            'nombre'  => 'required|string|max:255',
+        ]);
+
+        Producto::create([
+            'codigo'      => $request->codigo,
+            'nombre'      => $request->nombre,
+            'descripcion' => $request->descripcion,
+            'categoria'   => 'Materia prima',
+            'familia'     => $request->familia ?? 'Sin familia',
+            'precio'      => $request->precio ?? 0,
+            'unidad_venta'=> $request->unidad_venta ?? 'kg',
+            'stock'       => $request->stock ?? 0,
+            'activo'      => !$request->has('inactivo'),
+        ]);
+
+        return redirect()->route('admin.materia-prima')->with('mensaje', 'Producto registrado: ' . $request->codigo);
     }
 
     // ── Material de Empaque (Rosy) ──

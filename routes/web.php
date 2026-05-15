@@ -160,6 +160,8 @@ Route::get('/admin/inventario', [AdminPanelController::class, 'inventario'])->na
 
 // ── Áreas con control de rol ──
 Route::get('/admin/materia-prima', [AdminPanelController::class, 'materiaPrima'])->name('admin.materia-prima')->middleware(['auth.admin', 'admin.rol:materia_prima']);
+Route::get('/admin/materia-prima/nuevo', [AdminPanelController::class, 'materiaPrimaCrear'])->name('admin.materia-prima.crear')->middleware(['auth.admin', 'admin.rol:materia_prima']);
+Route::post('/admin/materia-prima/nuevo', [AdminPanelController::class, 'materiaPrimaGuardar'])->name('admin.materia-prima.guardar')->middleware(['auth.admin', 'admin.rol:materia_prima']);
 Route::get('/admin/material-empaque', [AdminPanelController::class, 'materialEmpaque'])->name('admin.material-empaque')->middleware(['auth.admin', 'admin.rol:material_empaque']);
 Route::get('/admin/fiscal', [AdminPanelController::class, 'fiscal'])->name('admin.fiscal')->middleware('auth.admin');
 Route::get('/admin/opinion-positiva', [AdminPanelController::class, 'opinionPositiva'])->name('admin.opinion-positiva')->middleware('auth.admin');

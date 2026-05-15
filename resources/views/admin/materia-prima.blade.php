@@ -44,25 +44,34 @@
     <div class="kpi"><div class="kpi-val" style="color:var(--red)">{{ $sinStock }}</div><div class="kpi-label">Agotados</div></div>
 </div>
 
+<div style="margin-bottom:16px">
+    <a href="{{ route('admin.materia-prima.crear') }}" style="display:inline-flex;align-items:center;gap:6px;padding:10px 20px;font-size:13px;font-weight:600;color:#fff;background:var(--purple);border-radius:10px;text-decoration:none;transition:all .15s">+ Nuevo producto</a>
+</div>
+
 <div class="card">
-    <div class="card-head">Inventario de Materia Prima</div>
-    @if($productos->count())
-    <table class="tbl">
-        <thead><tr><th>Código</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Unidad</th><th>Estado</th></tr></thead>
-        <tbody>
-        @foreach($productos as $p)
-            @php $cls = $p->stock <= 0 ? 'out' : ($p->stock < 50 ? 'low' : 'ok'); $lbl = $p->stock <= 0 ? 'Agotado' : ($p->stock < 50 ? 'Bajo' : 'OK'); @endphp
-            <tr>
-                <td style="font-weight:700;color:var(--purple)">{{ $p->codigo }}</td>
-                <td>{{ $p->nombre }}</td>
-                <td style="font-variant-numeric:tabular-nums">${{ number_format($p->precio, 2) }}</td>
-                <td style="font-weight:700">{{ number_format($p->stock) }}</td>
-                <td>{{ $p->unidad_venta }}</td>
-                <td><span class="badge badge-{{ $cls }}">{{ $lbl }}</span></td>
-            </tr>
+    <div class="card-head">Inventario de Materia Prima — Agrupado por Familia</div>
+    @if($productosPorFamilia->count())
+        @foreach($productosPorFamilia as $familia => $items)
+        <div style="padding:12px 16px 4px;font-size:12px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.5px;background:var(--purple-light);border-bottom:1px solid var(--border-light)">
+            {{ $familia }} ({{ $items->count() }})
+        </div>
+        <table class="tbl">
+            <thead><tr><th>Código</th><th>Nombre</th><th>Precio</th><th>Stock</th><th>Unidad</th><th>Estado</th></tr></thead>
+            <tbody>
+            @foreach($items as $p)
+                @php $cls = $p->stock <= 0 ? 'out' : ($p->stock < 50 ? 'low' : 'ok'); $lbl = $p->stock <= 0 ? 'Agotado' : ($p->stock < 50 ? 'Bajo' : 'OK'); @endphp
+                <tr>
+                    <td style="font-weight:700;color:var(--purple)">{{ $p->codigo }}</td>
+                    <td>{{ $p->nombre }}</td>
+                    <td style="font-variant-numeric:tabular-nums">${{ number_format($p->precio, 2) }}</td>
+                    <td style="font-weight:700">{{ number_format($p->stock) }}</td>
+                    <td>{{ $p->unidad_venta }}</td>
+                    <td><span class="badge badge-{{ $cls }}">{{ $lbl }}</span></td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
         @endforeach
-        </tbody>
-    </table>
     @else
     <div class="empty">No hay materias primas registradas</div>
     @endif
