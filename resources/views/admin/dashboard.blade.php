@@ -84,11 +84,17 @@
         <div class="label">OTIF</div>
         <div class="otif-box">
             <div class="otif-item">
-                <div class="otif-canvas-wrap"><canvas id="gaugeOT" width="80" height="80"></canvas></div>
+                <div class="otif-canvas-wrap">
+                    <canvas id="gaugeOT" width="80" height="80"></canvas>
+                    <div class="otif-center-mini"><div class="otif-pct" id="dashOtPct"></div></div>
+                </div>
                 <div class="lbl">OT</div>
             </div>
             <div class="otif-item">
-                <div class="otif-canvas-wrap"><canvas id="gaugeIF" width="80" height="80"></canvas></div>
+                <div class="otif-canvas-wrap">
+                    <canvas id="gaugeIF" width="80" height="80"></canvas>
+                    <div class="otif-center-mini"><div class="otif-pct" id="dashIfPct"></div></div>
+                </div>
                 <div class="lbl">IF</div>
             </div>
         </div>
@@ -103,14 +109,20 @@
             $opPctAct = $opTotal > 0 ? round(($opActualizados / $opTotal) * 100, 1) : 0;
             $opPctNo = $opTotal > 0 ? round(($opNoActualizados / $opTotal) * 100, 1) : 0;
         @endphp
-        <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-top:10px">
-            <div style="text-align:center">
-                <canvas id="gaugeOpAct" width="70" height="70" style="width:70px!important;height:70px!important"></canvas>
-                <div style="font-size:10px;color:var(--gray-muted);font-weight:600;margin-top:4px">Actualizados</div>
+        <div class="otif-box">
+            <div class="otif-item">
+                <div class="otif-canvas-wrap">
+                    <canvas id="gaugeOpAct" width="80" height="80"></canvas>
+                    <div class="otif-center-mini"><div class="otif-pct" id="dashOpActPct"></div></div>
+                </div>
+                <div class="lbl">Actualizados</div>
             </div>
-            <div style="text-align:center">
-                <canvas id="gaugeOpNo" width="70" height="70" style="width:70px!important;height:70px!important"></canvas>
-                <div style="font-size:10px;color:var(--gray-muted);font-weight:600;margin-top:4px">No actualizados</div>
+            <div class="otif-item">
+                <div class="otif-canvas-wrap">
+                    <canvas id="gaugeOpNo" width="80" height="80"></canvas>
+                    <div class="otif-center-mini"><div class="otif-pct" id="dashOpNoPct"></div></div>
+                </div>
+                <div class="lbl">No actualizados</div>
             </div>
         </div>
     </a>
@@ -215,25 +227,8 @@ const SC = SALCOM_COLORS;
 salcomDrawOtifDonut('gaugeOT', {{ $ot }}, 'dashOtPct', 100);
 salcomDrawOtifDonut('gaugeIF', {{ $if }}, 'dashIfPct', 100);
 
-// ── Opinión Positiva gauges ──
-(function(){
-    const actPct = {{ $opPctAct }};
-    const noPct = {{ $opPctNo }};
-
-    // Gauge Actualizados (verde, faltante en rojo claro)
-    new Chart(document.getElementById('gaugeOpAct'), {
-        type:'doughnut',
-        data:{datasets:[{data:[actPct, 100-actPct],backgroundColor:['#059669','#fecaca'],borderWidth:0,borderRadius:12}]},
-        options:{responsive:false,cutout:'74%',plugins:{legend:{display:false},tooltip:{enabled:false},centerText:{text:actPct+'%',color:'#059669'}}}
-    });
-
-    // Gauge No actualizados (rojo, faltante en verde claro)
-    new Chart(document.getElementById('gaugeOpNo'), {
-        type:'doughnut',
-        data:{datasets:[{data:[noPct, 100-noPct],backgroundColor:['#dc2626','#bbf7d0'],borderWidth:0,borderRadius:12}]},
-        options:{responsive:false,cutout:'74%',plugins:{legend:{display:false},tooltip:{enabled:false},centerText:{text:noPct+'%',color:'#dc2626'}}}
-    });
-})();
+salcomDrawOtifDonut('gaugeOpAct', {{ $opPctAct }}, 'dashOpActPct', 100, { fill: '#059669', gap: '#fecaca', text: '#059669' });
+salcomDrawOtifDonut('gaugeOpNo', {{ $opPctNo }}, 'dashOpNoPct', 100, { fill: '#dc2626', gap: '#bbf7d0', text: '#dc2626' });
 
 // ── Compras por mes ──
 salcomChart.bar(document.getElementById('chartPedidos'),

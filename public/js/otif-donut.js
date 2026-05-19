@@ -8,11 +8,12 @@
         return (n % 1 === 0 ? String(Math.round(n)) : n.toFixed(1)) + '%';
     }
 
-    window.salcomDrawOtifDonut = function (canvasId, percent, percentElId, css) {
+    window.salcomDrawOtifDonut = function (canvasId, percent, percentElId, css, colors) {
         var canvas = document.getElementById(canvasId);
         if (!canvas) return;
         var ctx = canvas.getContext('2d');
         css = css || 180;
+        colors = colors || {};
         var dpr = window.devicePixelRatio || 1;
         canvas.width = css * dpr;
         canvas.height = css * dpr;
@@ -29,7 +30,11 @@
         var sweep = (2 * Math.PI * p) / 100;
         var endAngle = startAngle + sweep;
         var fullEnd = startAngle + 2 * Math.PI;
-        var gapColor = p > 95 ? '#ff9500' : '#ff3b30';
+        var trackColor = colors.track || '#e8e8ed';
+        var fillColor = colors.fill || '#34c759';
+        var gapColor = colors.gap != null
+            ? (typeof colors.gap === 'function' ? colors.gap(p) : colors.gap)
+            : (p > 95 ? '#ff9500' : '#ff3b30');
 
         ctx.clearRect(0, 0, css, css);
         ctx.lineWidth = lineWidth;
@@ -37,7 +42,7 @@
 
         ctx.beginPath();
         ctx.arc(center, center, radius, 0, 2 * Math.PI);
-        ctx.strokeStyle = '#e8e8ed';
+        ctx.strokeStyle = trackColor;
         ctx.stroke();
 
         if (p < 100) {
@@ -50,17 +55,17 @@
         if (p > 0) {
             ctx.beginPath();
             ctx.arc(center, center, radius, startAngle, endAngle);
-            ctx.strokeStyle = '#34c759';
+            ctx.strokeStyle = fillColor;
             ctx.stroke();
         }
 
         var el = document.getElementById(percentElId);
         if (el) {
             el.textContent = formatOtifPct(p);
-            if (p <= 95) {
+            if (colors.text) {
+                el.style.color = colors.text;
+            } else if (p <= 95) {
                 el.style.color = '#ff3b30';
-            } else if (p < 100) {
-                el.style.color = '#34c759';
             } else {
                 el.style.color = '#34c759';
             }

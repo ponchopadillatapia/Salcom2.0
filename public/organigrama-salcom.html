@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organigrama Salcom 2.0</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f0f14;
+            --card: #1a1a24;
+            --border: rgba(255,255,255,0.08);
+            --text: #f0f0f5;
+            --muted: rgba(255,255,255,0.5);
+            --accent: #6b3fa0;
+            --ok: #34c759;
+            --warn: #f59e0b;
+            --future: #818cf8;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            padding: 24px 16px 80px;
+        }
+        .wrap { max-width: 1200px; margin: 0 auto; }
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 32px;
+            border-bottom: 1px solid var(--border);
+        }
+        header h1 {
+            font-size: clamp(1.5rem, 4vw, 2rem);
+            font-weight: 700;
+            background: linear-gradient(135deg, #fff 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header .sub { color: var(--muted); font-size: 14px; margin-top: 8px; }
+        .meta-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .meta-pill {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+        .meta-pill strong { color: #a78bfa; }
+        section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        section h2 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        section h2 .dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+        section .desc { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 13px;
+        }
+        .legend span { display: flex; align-items: center; gap: 6px; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-ok { background: rgba(52,199,89,0.2); color: var(--ok); }
+        .badge-warn { background: rgba(245,158,11,0.2); color: var(--warn); }
+        .badge-fut { background: rgba(99,102,241,0.2); color: var(--future); }
+        .mermaid {
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td {
+            padding: 10px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        th { color: var(--muted); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+        tr:hover td { background: rgba(255,255,255,0.02); }
+        .fecha {
+            font-size: 12px;
+            color: #a78bfa;
+            white-space: nowrap;
+        }
+        .fecha-curso { color: var(--ok); }
+        .fecha-fut { color: var(--future); }
+        .fecha-warn { color: var(--warn); }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+        }
+        .card-mini {
+            background: rgba(0,0,0,0.25);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        .card-mini h3 { font-size: 14px; margin-bottom: 4px; color: #c4b5fd; }
+        .card-mini .card-fecha {
+            font-size: 12px;
+            color: #a78bfa;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .card-mini ul { list-style: none; font-size: 13px; color: var(--muted); }
+        .card-mini li { padding: 4px 0; border-bottom: 1px solid var(--border); }
+        .card-mini li:last-child { border: none; }
+        /* Proveedor: mismo contenido, escala un poco menor */
+        .section-proveedor { padding: 18px 20px; }
+        .section-proveedor .mermaid {
+            padding: 12px;
+            margin: 10px 0;
+        }
+        .section-proveedor .mermaid svg {
+            max-width: 100%;
+            transform: scale(0.88);
+            transform-origin: top center;
+        }
+        .section-proveedor table { font-size: 12px; }
+        .section-proveedor th,
+        .section-proveedor td { padding: 6px 10px; }
+        .section-proveedor .fecha { font-size: 11px; }
+        .section-proveedor h3 { font-size: 13px; margin: 16px 0 10px; }
+        .mod-item-removed, .mod-grupo { display: none !important; }
+        footer {
+            text-align: center;
+            color: var(--muted);
+            font-size: 12px;
+            margin-top: 32px;
+        }
+        @media print {
+            body { background: #fff; color: #111; }
+            section { break-inside: avoid; border-color: #ddd; }
+        }
+    </style>
+</head>
+<body>
+<div class="wrap">
+
+    <header>
+        <h1>Organigrama Salcom 2.0</h1>
+        <p class="sub">Plataforma de gestión empresarial — Portales Proveedor y Administrador</p>
+        <div class="meta-row">
+            <div class="meta-pill"><strong>Inicio proyecto:</strong> 14 marzo 2026</div>
+            <div class="meta-pill"><strong>Estado:</strong> En desarrollo activo</div>
+            <div class="meta-pill"><strong>Hoy:</strong> 15 mayo 2026</div>
+        </div>
+    </header>
+
+    <section>
+        <h2><span class="dot"></span> Leyenda</h2>
+        <p class="desc">Cada cuadro incluye fecha de inicio y fin. <strong>En curso</strong> = sigue activo desde esa fecha.</p>
+        <div class="legend">
+            <span><span class="badge badge-ok">✅</span> Implementado</span>
+            <span><span class="badge badge-warn">🟡</span> Parcial</span>
+            <span><span class="badge badge-fut">🔜</span> Planificado</span>
+            <span class="fecha fecha-curso">📅 En curso</span>
+        </div>
+    </section>
+
+    <!-- VISTA GENERAL -->
+    <section>
+        <h2><span class="dot"></span> Vista general de la plataforma</h2>
+        <p class="desc">Ecosistema Salcom 2.0 con fechas por portal y módulos futuros.</p>
+        <pre class="mermaid">
+flowchart TB
+    subgraph SALCOM["SALCOM 2.0 · desde 14 mar 2026"]
+        INICIO["Página inicio<br/>14 mar – en curso"]
+    end
+    INICIO --> PROV["Portal Proveedores<br/>14 mar – en curso"]
+    INICIO --> CLI["Portal Clientes<br/>21 mar – en curso"]
+    INICIO --> ADM["Panel Administrador<br/>14 mar – en curso"]
+    subgraph FUTURO["Módulos futuros planificados"]
+        CONT["Contabilidad<br/>1 jul – 30 nov 2026"]
+        VENT["Ventas<br/>1 ago – 31 dic 2026"]
+        COMP["Compras<br/>1 jun – 30 sep 2026"]
+    end
+    ADM -.-> CONT
+    ADM -.-> VENT
+    ADM -.-> COMP
+    PROV -.-> COMP
+    CLI -.-> VENT
+        </pre>
+    </section>
+
+    <!-- ADMIN -->
+    <section>
+        <h2><span class="dot"></span> Portal Administrador</h2>
+        <p class="desc">Acceso: /login-admin · Roles: gerente, materia_prima, material_empaque</p>
+        <pre class="mermaid">
+flowchart TB
+    subgraph ADMIN["PANEL ADMIN · 14 mar 2026"]
+        AUTH["Autenticación ✅<br/>14 mar – 20 mar"]
+        DASH["Dashboard KPIs ✅<br/>21 mar – en curso"]
+    end
+    AUTH --> DASH
+    subgraph CORE["Núcleo operativo"]
+        PROV["Proveedores ✅<br/>28 mar – en curso"]
+        PED["Pedidos ✅<br/>1 abr – en curso"]
+        PROD["Productos ✅<br/>4 abr – en curso"]
+        FACT["Facturas ✅<br/>7 abr – en curso"]
+        DOC["Documentos ✅<br/>10 abr – en curso"]
+        REP["Reportes ✅<br/>14 abr – en curso"]
+    end
+    subgraph ANALITICA["Analítica"]
+        NEG["Negocio ✅<br/>18 abr – en curso"]
+        OTIF["OTIF ✅<br/>22 abr – en curso"]
+        INV["Inventario ✅<br/>25 abr – en curso"]
+        FISC["Fiscal ✅<br/>28 abr – en curso"]
+        OPIN["Opinión SAT ✅<br/>1 may – en curso"]
+    end
+    subgraph GESTION["Gestión"]
+        CLI["Clientes ✅<br/>5 abr – en curso"]
+        ENC["Encuestas ✅<br/>8 abr – en curso"]
+    end
+    subgraph AREAS["Por rol"]
+        MP["Materia prima ✅<br/>10 abr – en curso"]
+        ME["Material empaque ✅<br/>12 abr – en curso"]
+        MUE["Muestras lab 🟡<br/>20 abr – en curso"]
+    end
+    subgraph IA["Inteligencia artificial"]
+        IAD["Dashboard IA ✅<br/>3 may – en curso"]
+        ALERT["Alertas 🟡<br/>1 may – pendiente"]
+    end
+    subgraph FUT["Futuro"]
+        CONT2["Contabilidad 🔜<br/>1 jul – 30 nov"]
+        VENT2["Ventas 🔜<br/>1 ago – 31 dic"]
+        COMP2["Compras 🔜<br/>1 jun – 30 sep"]
+    end
+    DASH --> CORE
+    DASH --> ANALITICA
+    DASH --> GESTION
+    DASH --> AREAS
+    DASH --> IA
+    DASH -.-> FUT
+        </pre>
+
+        <h3 style="font-size:14px;margin:24px 0 12px;color:#c4b5fd;">Detalle módulos Admin</h3>
+        <div style="overflow-x:auto">
+        <table>
+            <thead>
+                <tr><th>Módulo</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Acceso</th></tr>
+            </thead>
+            <tbody>
+                <tr><td>Login / Logout</td><td class="fecha">14 mar 2026</td><td class="fecha">20 mar 2026</td><td><span class="badge badge-ok">✅</span></td><td>/login-admin</td></tr>
+                <tr><td>Dashboard</td><td class="fecha">21 mar 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Menú lateral</td></tr>
+                <tr><td>Proveedores / Score</td><td class="fecha">28 mar 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Menú lateral</td></tr>
+                <tr><td>Pedidos</td><td class="fecha">1 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Menú lateral</td></tr>
+                <tr><td>Productos</td><td class="fecha">4 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Menú lateral</td></tr>
+                <tr><td>Facturas</td><td class="fecha">7 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Menú lateral</td></tr>
+                <tr><td>Documentos</td><td class="fecha">10 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Menú lateral</td></tr>
+                <tr><td>Reportes proveedores</td><td class="fecha">14 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Menú lateral</td></tr>
+                <tr><td>Reporte corte mensual</td><td class="fecha">16 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Desde reportes</td></tr>
+                <tr><td>Negocio</td><td class="fecha">18 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Dashboard</td></tr>
+                <tr><td>OTIF</td><td class="fecha">22 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Dashboard</td></tr>
+                <tr><td>Inventario</td><td class="fecha">25 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Dashboard</td></tr>
+                <tr><td>Fiscal</td><td class="fecha">28 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Dashboard</td></tr>
+                <tr><td>Opinión positiva</td><td class="fecha">1 may 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Dashboard</td></tr>
+                <tr><td>Clientes</td><td class="fecha">5 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/admin/clientes</td></tr>
+                <tr><td>Alta de cliente</td><td class="fecha">5 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/admin/cliente/alta</td></tr>
+                <tr><td>Encuestas</td><td class="fecha">8 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/admin/encuestas</td></tr>
+                <tr><td>Dashboard IA</td><td class="fecha">3 may 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/admin/ia</td></tr>
+                <tr><td>Materia prima</td><td class="fecha">10 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Rol materia_prima</td></tr>
+                <tr><td>Material empaque</td><td class="fecha">12 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>Rol material_empaque</td></tr>
+                <tr><td>Muestras lab</td><td class="fecha">20 abr 2026</td><td class="fecha fecha-warn">Pendiente cierre</td><td><span class="badge badge-warn">🟡</span></td><td>/muestras/admin</td></tr>
+                <tr><td>Alertas IA</td><td class="fecha">1 may 2026</td><td class="fecha fecha-warn">Pendiente rutas</td><td><span class="badge badge-warn">🟡</span></td><td>Vistas sin rutas</td></tr>
+                <tr><td>Contabilidad</td><td class="fecha fecha-fut">1 jul 2026</td><td class="fecha fecha-fut">30 nov 2026</td><td><span class="badge badge-fut">🔜</span></td><td>—</td></tr>
+                <tr><td>Ventas</td><td class="fecha fecha-fut">1 ago 2026</td><td class="fecha fecha-fut">31 dic 2026</td><td><span class="badge badge-fut">🔜</span></td><td>—</td></tr>
+                <tr><td>Compras</td><td class="fecha fecha-fut">1 jun 2026</td><td class="fecha fecha-fut">30 sep 2026</td><td><span class="badge badge-fut">🔜</span></td><td>—</td></tr>
+            </tbody>
+        </table>
+        </div>
+    </section>
+
+    <!-- PROVEEDOR -->
+    <section class="section-proveedor">
+        <h2><span class="dot"></span> Portal Proveedor</h2>
+        <p class="desc">Acceso: /login-proveedor · Inicio portal: 14 marzo 2026</p>
+        <pre class="mermaid">
+flowchart TB
+    subgraph PROVPORTAL["PORTAL PROVEEDOR · 14 mar 2026"]
+        PUB["Registro y Login ✅<br/>14 mar – 25 mar"]
+        PORT["Inicio Portal ✅<br/>21 mar – en curso"]
+        DASHP["Dashboard ✅<br/>21 mar – en curso"]
+    end
+    PUB --> PORT --> DASHP
+    subgraph OPS["Operaciones"]
+        IA["Módulo IA ✅<br/>3 may – en curso"]
+        FC["Forecast ✅<br/>5 may – en curso"]
+        OTIFP["OTIF ✅<br/>22 abr – en curso"]
+        OC["Consultar OC ✅<br/>1 abr – en curso"]
+        AP["Alta producto ✅<br/>8 abr – en curso"]
+        INVP["Inventario ✅<br/>25 abr – en curso"]
+        FISCP["Fiscal ✅<br/>28 abr – en curso"]
+        FACTP["Facturas 🟡<br/>10 may – pendiente"]
+    end
+    subgraph EMP["Mi empresa"]
+        ONB["Onboarding ✅<br/>15 mar – en curso"]
+        BUS["Business ✅<br/>18 abr – en curso"]
+        PAG["Historial pagos ✅<br/>20 abr – en curso"]
+        PER["Perfil contactos ✅<br/>14 mar – en curso"]
+        ENC2["Encuesta ✅<br/>8 abr – en curso"]
+    end
+    PORT --> OPS
+    PORT --> EMP
+        </pre>
+
+        <h3 style="color:#c4b5fd;">Detalle módulos Proveedor</h3>
+        <div style="overflow-x:auto">
+        <table>
+            <thead><tr><th>Módulo</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Ruta</th></tr></thead>
+            <tbody>
+                <tr><td>Login / Logout</td><td class="fecha">14 mar 2026</td><td class="fecha">20 mar 2026</td><td><span class="badge badge-ok">✅</span></td><td>/login-proveedor</td></tr>
+                <tr><td>Registro</td><td class="fecha">14 mar 2026</td><td class="fecha">25 mar 2026</td><td><span class="badge badge-ok">✅</span></td><td>/proveedor/registro</td></tr>
+                <tr><td>Actualización datos</td><td class="fecha">18 mar 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/proveedor/actualizacion</td></tr>
+                <tr><td>Inicio portal</td><td class="fecha">21 mar 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/portal-proveedor</td></tr>
+                <tr><td>Dashboard</td><td class="fecha">21 mar 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/dashboard-proveedor</td></tr>
+                <tr><td>Onboarding</td><td class="fecha">15 mar 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/onboarding</td></tr>
+                <tr><td>Mi perfil</td><td class="fecha">14 mar 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/perfil</td></tr>
+                <tr><td>Consultar OC</td><td class="fecha">1 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/consultar-oc</td></tr>
+                <tr><td>Alta de producto</td><td class="fecha">8 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/alta-producto</td></tr>
+                <tr><td>Encuesta</td><td class="fecha">8 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/proveedor/encuesta</td></tr>
+                <tr><td>Business</td><td class="fecha">18 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/business</td></tr>
+                <tr><td>Historial pagos</td><td class="fecha">20 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/payment-history</td></tr>
+                <tr><td>OTIF</td><td class="fecha">22 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/proveedor/otif</td></tr>
+                <tr><td>Inventario</td><td class="fecha">25 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/proveedor/inventario</td></tr>
+                <tr><td>Fiscal</td><td class="fecha">28 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/proveedor/fiscal</td></tr>
+                <tr><td>Módulo IA</td><td class="fecha">3 may 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/proveedor/ia</td></tr>
+                <tr><td>Forecast</td><td class="fecha">5 may 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/forecast</td></tr>
+                <tr><td>Facturas</td><td class="fecha">10 may 2026</td><td class="fecha fecha-warn">Pendiente módulo</td><td><span class="badge badge-warn">🟡</span></td><td>Sin ruta propia</td></tr>
+                <tr><td>Muestras</td><td class="fecha">20 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/muestras/*</td></tr>
+                <tr><td>Validación fiscal</td><td class="fecha">28 abr 2026</td><td class="fecha fecha-curso">En curso</td><td><span class="badge badge-ok">✅</span></td><td>/validacion-fiscal</td></tr>
+            </tbody>
+        </table>
+        </div>
+        <!--
+            <div class="mod-item-removed"><span class="mod-name">Onboarding</span><span class="mod-fecha">15 mar – en curso</span><span class="mod-estado"><span class="badge badge-ok">✅</span></span></div>
+            <div class="mod-item-removed"><span class="mod-name">Business / Pagos / Encuesta</span><span class="mod-fecha">8–20 abr – en curso</span><span class="mod-estado"><span class="badge badge-ok">✅</span></span></div>
+            <div class="mod-grupo">Operaciones</div>
+            <div class="mod-item-removed"><span class="mod-name">OC / Alta producto</span><span class="mod-fecha">1–8 abr – en curso</span><span class="mod-estado"><span class="badge badge-ok">✅</span></span></div>
+            <div class="mod-item-removed"><span class="mod-name">OTIF / Inventario / Fiscal</span><span class="mod-fecha">22–28 abr – en curso</span><span class="mod-estado"><span class="badge badge-ok">✅</span></span></div>
+            <div class="mod-item-removed"><span class="mod-name">IA / Forecast / Muestras</span><span class="mod-fecha">3–20 may – en curso</span><span class="mod-estado"><span class="badge badge-ok">✅</span></span></div>
+            <div class="mod-item-removed"><span class="mod-name">Facturas</span><span class="mod-fecha">10 may – pendiente</span><span class="mod-estado"><span class="badge badge-warn">🟡</span></span></div>
+        -->
+    </section>
+
+    <!-- FLUJO -->
+    <section>
+        <h2><span class="dot"></span> Relación entre portales</h2>
+        <p class="desc">Flujo de negocio con periodo de cada área</p>
+        <pre class="mermaid">
+flowchart LR
+    subgraph PROVEEDOR["Portal Proveedor<br/>14 mar – en curso"]
+        P1["Alta productos<br/>8 abr – en curso"]
+        P2["Docs fiscales<br/>28 abr – en curso"]
+        P3["OC entregas<br/>1 abr – en curso"]
+        P4["OTIF Forecast<br/>22 abr – en curso"]
+    end
+    subgraph ADMIN["Panel Admin<br/>14 mar – en curso"]
+        A1["Revisión docs<br/>10 abr – en curso"]
+        A2["Score proveedores<br/>28 mar – en curso"]
+        A3["Pedidos Facturas<br/>1 abr – en curso"]
+        A4["Reportes OTIF<br/>14 abr – en curso"]
+    end
+    subgraph FUTURO2["Módulos futuros"]
+        C1["Contabilidad<br/>jul – nov 2026"]
+        V1["Ventas<br/>ago – dic 2026"]
+        CO1["Compras<br/>jun – sep 2026"]
+    end
+    P1 --> A3
+    P2 --> A1
+    P3 --> A3
+    P4 --> A4
+    A1 --> C1
+    A3 --> CO1
+    A3 --> V1
+        </pre>
+    </section>
+
+    <!-- ROADMAP -->
+    <section>
+        <h2><span class="dot"></span> Roadmap y línea de tiempo</h2>
+        <p class="desc">Calendario visual del proyecto completo</p>
+        <pre class="mermaid">
+gantt
+    title Salcom 2.0 — Cronograma
+    dateFormat YYYY-MM-DD
+    axisFormat %d %b
+    section Portales actuales
+    Portal Proveedor           :active, p1, 2026-03-14, 2026-08-31
+    Panel Administrador        :active, p2, 2026-03-14, 2026-08-31
+    Portal Clientes            :active, p3, 2026-03-21, 2026-08-31
+    section Módulos futuros
+    Compras                    :c1, 2026-06-01, 2026-09-30
+    Contabilidad               :c2, 2026-07-01, 2026-11-30
+    Ventas                     :c3, 2026-08-01, 2026-12-31
+        </pre>
+
+        <div class="grid-2" style="margin-top:20px">
+            <div class="card-mini">
+                <h3>🔜 Contabilidad</h3>
+                <p class="card-fecha">📅 1 jul 2026 → 30 nov 2026</p>
+                <ul>
+                    <li>CxP / CxC y conciliación CFDI</li>
+                    <li>Vincula: Facturas, Fiscal, Pagos</li>
+                    <li>Área: Finanzas</li>
+                </ul>
+            </div>
+            <div class="card-mini">
+                <h3>🔜 Ventas</h3>
+                <p class="card-fecha">📅 1 ago 2026 → 31 dic 2026</p>
+                <ul>
+                    <li>Cotizaciones, CRM, metas</li>
+                    <li>Vincula: Negocio, Clientes, Pedidos</li>
+                    <li>Área: Comercial</li>
+                </ul>
+            </div>
+            <div class="card-mini">
+                <h3>🔜 Compras</h3>
+                <p class="card-fecha">📅 1 jun 2026 → 30 sep 2026</p>
+                <ul>
+                    <li>Ciclo OC, aprobaciones, requisiciones</li>
+                    <li>Vincula: Proveedores, OC, Reportes</li>
+                    <li>Área: Abastecimiento</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <!-- RESUMEN -->
+    <section>
+        <h2><span class="dot"></span> Resumen ejecutivo</h2>
+        <div class="grid-2">
+            <div class="card-mini">
+                <h3>Portal Admin</h3>
+                <p class="card-fecha">📅 14 mar 2026 → en curso</p>
+                <ul>
+                    <li>~20 áreas · 3 roles internos</li>
+                    <li>Cierre estimado fase 1: ago 2026</li>
+                    <li>Pendiente: Alertas, menú IA</li>
+                </ul>
+            </div>
+            <div class="card-mini">
+                <h3>Portal Proveedor</h3>
+                <p class="card-fecha">📅 14 mar 2026 → en curso</p>
+                <ul>
+                    <li>~18 pantallas / flujos</li>
+                    <li>Cierre estimado fase 1: ago 2026</li>
+                    <li>Pendiente: módulo Facturas</li>
+                </ul>
+            </div>
+            <div class="card-mini">
+                <h3>Próximos módulos</h3>
+                <p class="card-fecha">📅 jun – dic 2026</p>
+                <ul>
+                    <li>Compras: jun – sep 2026</li>
+                    <li>Contabilidad: jul – nov 2026</li>
+                    <li>Ventas: ago – dic 2026</li>
+                </ul>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        Industrias Salcom · Salcom 2.0 · Organigrama actualizado 15 mayo 2026
+    </footer>
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        htmlLabels: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#6b3fa0',
+            primaryTextColor: '#f0f0f5',
+            primaryBorderColor: '#8b5cf6',
+            lineColor: '#6b7280',
+            secondaryColor: '#1a1a24',
+            tertiaryColor: '#0f0f14',
+            background: '#1a1a24',
+            mainBkg: '#2a2a3a',
+            nodeBorder: '#4b5563',
+            clusterBkg: '#1a1a24',
+            titleColor: '#e5e7eb',
+            edgeLabelBackground: '#1a1a24',
+            fontSize: '13px'
+        },
+        flowchart: { curve: 'basis', padding: 20, nodeSpacing: 40, rankSpacing: 50 },
+        gantt: { barHeight: 24, fontSize: 12 }
+    });
+</script>
+</body>
+</html>
