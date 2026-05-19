@@ -46,47 +46,55 @@
 @php
 $ddi = 90;
 $items = [
-    ['SAL-001', 'Resina epóxica industrial', 'GUANGZHOU FANEI', 850, 280, 15, 0, 'KG'],
-    ['SAL-003', 'Solvente grado técnico', 'INTERFLEX GROUP', 320, 180, 12, 50, 'LT'],
-    ['SAL-005', 'Pigmento base agua', 'ALPHA AROMATICS', 90, 120, 20, 0, 'KG'],
-    ['SAL-007', 'Catalizador rápido', 'QINGDAO GREENEI', 45, 60, 18, 30, 'KG'],
-    ['SAL-009', 'Aditivo antioxidante', 'RECOCHEMIC INC', 0, 40, 25, 0, 'KG'],
-    ['SAL-011', 'Fibra de refuerzo', 'SALCOM INDUSTRIE', 600, 150, 10, 100, 'KG'],
-    ['SAL-015', 'Adhesivo estructural', 'DCC GROUP COMP', 220, 90, 14, 0, 'KG'],
-    ['SAL-018', 'Disolvente especial', 'HANGZHOU HUALIC', 15, 35, 22, 0, 'LT'],
-    ['SAL-020', 'Sellador industrial', 'BOBSON HYGIENE', 0, 45, 16, 0, 'KG'],
-    ['SAL-022', 'Recubrimiento base', 'NINGBO REVIEW T', 0, 30, 30, 0, 'KG'],
+    ['SAL-001', 'Resina epóxica industrial', 'GUANGZHOU FANEI', 850, 280, 15, 0, 'KG', 85.00, 'Resinas'],
+    ['SAL-003', 'Solvente grado técnico', 'INTERFLEX GROUP', 320, 180, 12, 50, 'LT', 42.50, 'Solventes'],
+    ['SAL-005', 'Pigmento base agua', 'ALPHA AROMATICS', 90, 120, 20, 0, 'KG', 120.00, 'Pigmentos'],
+    ['SAL-007', 'Catalizador rápido', 'QINGDAO GREENEI', 45, 60, 18, 30, 'KG', 210.00, 'Aditivos'],
+    ['SAL-009', 'Aditivo antioxidante', 'RECOCHEMIC INC', 0, 40, 25, 0, 'KG', 55.00, 'Aditivos'],
+    ['SAL-011', 'Fibra de refuerzo', 'SALCOM INDUSTRIE', 600, 150, 10, 100, 'KG', 320.00, 'Refuerzos'],
+    ['SAL-015', 'Adhesivo estructural', 'DCC GROUP COMP', 220, 90, 14, 0, 'KG', 180.00, 'Resinas'],
+    ['SAL-018', 'Disolvente especial', 'HANGZHOU HUALIC', 15, 35, 22, 0, 'LT', 65.00, 'Solventes'],
+    ['SAL-020', 'Sellador industrial', 'BOBSON HYGIENE', 0, 45, 16, 0, 'KG', 95.00, 'Selladores'],
+    ['SAL-022', 'Recubrimiento base', 'NINGBO REVIEW T', 0, 30, 30, 0, 'KG', 78.00, 'Pigmentos'],
+];
+
+// Colores por grupo/familia
+$coloresGrupo = [
+    'Resinas' => '#E3F2FD',     // Azul cielo
+    'Solventes' => '#FFF9C4',   // Amarillo pastel
+    'Pigmentos' => '#F3E5F5',   // Lila pastel
+    'Aditivos' => '#E8F5E9',    // Verde pastel
+    'Refuerzos' => '#FFF3E0',   // Naranja pastel
+    'Selladores' => '#E0F7FA',  // Cyan pastel
 ];
 $totalSKU = count($items);
 $stockOk = 0; $stockLow = 0; $stockOut = 0; $stockOver = 0;
 $rows = [];
-foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $diasEntrega, $pendRecibir, $um]) {
+foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $diasEntrega, $pendRecibir, $um, $precio, $grupo]) {
     $consumoDiario = round($consumoMes / 30, 2);
     $stockMinimo = round($consumoDiario * $diasEntrega);
     $stockMaximo = round($consumoDiario * $ddi);
     $diasInventario = $consumoDiario > 0 ? round($existencia / $consumoDiario) : 0;
     $totalAPedir = max(0, $stockMaximo - $existencia - $pendRecibir);
     $cobertura = $consumoDiario > 0 ? round($existencia / $consumoDiario) : 0;
+    $ventasMes = $consumoMes * $precio;
+    $colorFila = $coloresGrupo[$grupo] ?? '#FFFFFF';
+    $porcentajeUso = $stockMaximo > 0 ? round(($existencia / $stockMaximo) * 100) : 0;
+    $consumoAltoMes = round($consumoMes * 1.3); // Pico estimado: 30% arriba del promedio
     if ($existencia <= 0) { $estado = 'out'; $estadoLabel = 'Agotado'; $stockOut++; }
     elseif ($existencia < $stockMinimo) { $estado = 'low'; $estadoLabel = 'Bajo mínimo'; $stockLow++; }
     elseif ($existencia > $stockMaximo) { $estado = 'over'; $estadoLabel = 'Sobre stock'; $stockOver++; }
     else { $estado = 'ok'; $estadoLabel = 'OK'; $stockOk++; }
-    $rows[] = compact('codigo','nombre','proveedor','existencia','consumoMes','consumoDiario','diasEntrega','stockMinimo','stockMaximo','diasInventario','pendRecibir','totalAPedir','cobertura','estado','estadoLabel','um');
+    $rows[] = compact('codigo','nombre','proveedor','existencia','consumoMes','consumoDiario','diasEntrega','stockMinimo','stockMaximo','diasInventario','pendRecibir','totalAPedir','cobertura','estado','estadoLabel','um','precio','ventasMes','grupo','colorFila','porcentajeUso','consumoAltoMes');
 }
 @endphp
 
 <div class="inv-metrics">
     <div class="inv-metric">
-        <div class="accent" style="background:var(--purple)"></div>
-        <div class="inv-metric-label">SKUs totales</div>
-        <div class="inv-metric-val">{{ $totalSKU }}</div>
-        <div class="inv-metric-sub">Productos en catálogo</div>
-    </div>
-    <div class="inv-metric">
-        <div class="accent" style="background:var(--green)"></div>
-        <div class="inv-metric-label">Stock OK</div>
-        <div class="inv-metric-val">{{ $stockOk }}</div>
-        <div class="inv-metric-sub">Dentro de rango</div>
+        <div class="accent" style="background:var(--red)"></div>
+        <div class="inv-metric-label">Agotados</div>
+        <div class="inv-metric-val">{{ $stockOut }}</div>
+        <div class="inv-metric-sub">Sin stock</div>
     </div>
     <div class="inv-metric">
         <div class="accent" style="background:var(--amber)"></div>
@@ -95,10 +103,16 @@ foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $dia
         <div class="inv-metric-sub">Requiere reorden</div>
     </div>
     <div class="inv-metric">
-        <div class="accent" style="background:var(--red)"></div>
-        <div class="inv-metric-label">Agotados</div>
-        <div class="inv-metric-val">{{ $stockOut }}</div>
-        <div class="inv-metric-sub">Sin stock</div>
+        <div class="accent" style="background:var(--green)"></div>
+        <div class="inv-metric-label">Stock OK</div>
+        <div class="inv-metric-val">{{ $stockOk }}</div>
+        <div class="inv-metric-sub">Dentro de rango</div>
+    </div>
+    <div class="inv-metric">
+        <div class="accent" style="background:var(--purple)"></div>
+        <div class="inv-metric-label">SKUs totales</div>
+        <div class="inv-metric-val">{{ $totalSKU }}</div>
+        <div class="inv-metric-sub">Productos en catálogo</div>
     </div>
 </div>
 
@@ -114,17 +128,22 @@ foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $dia
         <table class="inv-table" id="tablaInventario">
             <thead>
                 <tr>
+                    <th>Grupo</th>
                     <th>Código</th>
                     <th>Producto</th>
                     <th>Proveedor</th>
                     <th>U.M.</th>
+                    <th>Precio</th>
                     <th>Existencia</th>
+                    <th>%</th>
                     <th>Consumo/mes</th>
+                    <th>Consumo alto</th>
+                    <th>Ventas/mes</th>
                     <th>Consumo diario</th>
                     <th>Stock mínimo</th>
                     <th>Stock máximo</th>
                     <th>Días inventario</th>
-                    <th>Días entrega prov.</th>
+                    <th>Días entrega</th>
                     <th>Pend. recibir</th>
                     <th>Cantidad a pedir</th>
                     <th>Cobertura</th>
@@ -133,20 +152,25 @@ foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $dia
             </thead>
             <tbody>
                 @foreach($rows as $r)
-                <tr>
+                <tr style="background:{{ $r['colorFila'] }};">
+                    <td style="font-size:10px;font-weight:600;color:var(--gray-muted);">{{ $r['grupo'] }}</td>
                     <td style="font-weight:700;color:var(--purple)">{{ $r['codigo'] }}</td>
                     <td>{{ $r['nombre'] }}</td>
                     <td style="font-size:11px;color:var(--gray-muted);">{{ $r['proveedor'] }}</td>
                     <td>{{ $r['um'] }}</td>
-                    <td class="num" style="font-weight:600;">{{ number_format($r['existencia']) }}</td>
-                    <td class="num">{{ number_format($r['consumoMes']) }}</td>
-                    <td class="num">{{ $r['consumoDiario'] }}</td>
-                    <td class="num" style="color:var(--amber);font-weight:600;">{{ number_format($r['stockMinimo']) }}</td>
-                    <td class="num" style="color:var(--green);font-weight:600;">{{ number_format($r['stockMaximo']) }}</td>
+                    <td class="num">${{ number_format($r['precio'], 2) }}</td>
+                    <td class="num" style="font-weight:600;">{{ number_format($r['existencia'], 3) }}</td>
+                    <td class="num" style="font-weight:700;color:{{ $r['porcentajeUso'] > 100 ? 'var(--red)' : ($r['porcentajeUso'] > 50 ? 'var(--green)' : 'var(--amber)') }};">{{ $r['porcentajeUso'] }}%</td>
+                    <td class="num">{{ number_format($r['consumoMes'], 3) }}</td>
+                    <td class="num" style="color:var(--red);font-weight:600;">{{ number_format($r['consumoAltoMes'], 3) }}</td>
+                    <td class="num" style="font-weight:600;">${{ number_format($r['ventasMes'], 2) }}</td>
+                    <td class="num">{{ number_format($r['consumoDiario'], 3) }}</td>
+                    <td class="num" style="color:var(--amber);font-weight:600;">{{ number_format($r['stockMinimo'], 3) }}</td>
+                    <td class="num" style="color:var(--green);font-weight:600;">{{ number_format($r['stockMaximo'], 3) }}</td>
                     <td class="num">{{ $r['diasInventario'] }} días</td>
                     <td class="num">{{ $r['diasEntrega'] }} días</td>
-                    <td class="num">{{ number_format($r['pendRecibir']) }}</td>
-                    <td class="num" style="font-weight:700;color:{{ $r['totalAPedir'] > 0 ? 'var(--red)' : 'var(--green)' }};">{{ number_format($r['totalAPedir']) }}</td>
+                    <td class="num">{{ number_format($r['pendRecibir'], 3) }}</td>
+                    <td class="num" style="font-weight:700;color:{{ $r['totalAPedir'] > 0 ? 'var(--red)' : 'var(--green)' }};">{{ number_format($r['totalAPedir'], 3) }}</td>
                     <td class="num">{{ $r['cobertura'] }} días</td>
                     <td><span class="badge-stock {{ $r['estado'] }}">{{ $r['estadoLabel'] }}</span></td>
                 </tr>

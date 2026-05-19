@@ -52,7 +52,7 @@
         <div class="fiscal-status">
             <div class="fiscal-dot ok"></div>
             <div class="fiscal-name">Opinión de cumplimiento SAT</div>
-            <span class="fiscal-badge ok">Vigente</span>
+            <span class="fiscal-badge ok" style="font-size:12px;padding:4px 12px;font-weight:700;">POSITIVA</span>
         </div>
         <div class="fiscal-status">
             <div class="fiscal-dot ok"></div>
@@ -99,49 +99,64 @@
     </div>
 </div>
 
-{{-- Formulario para enviar documentos a contabilidad --}}
+{{-- Formulario para subir documentos de facturación --}}
 <div class="fiscal-form">
-    <h4>Enviar documento fiscal a contabilidad</h4>
-    <p>Sube tu documento actualizado. Contabilidad lo revisará y validará en un plazo de 24-48 horas.</p>
+    <h4>Subir documentos de facturación</h4>
+    <p>Sube tu OC, factura (PDF), XML y comprobante de pago. La IA los validará automáticamente.</p>
 
-    <form method="POST" action="#" enctype="multipart/form-data">
+    <form method="POST" action="{{ route('proveedores.fiscal.subir') }}" enctype="multipart/form-data" id="formFiscal">
         @csrf
+        <input type="hidden" name="tipo_documento" value="facturacion">
         <div class="form-row">
             <div class="form-group">
-                <label>Tipo de documento</label>
-                <select name="tipo_documento">
-                    <option value="">Selecciona...</option>
-                    <option value="cif">Constancia de Situación Fiscal (CIF)</option>
-                    <option value="opinion">Opinión de cumplimiento SAT</option>
-                    <option value="acta">Acta constitutiva</option>
-                    <option value="rep_legal">INE Representante legal</option>
-                    <option value="caratula_banco">Carátula bancaria</option>
-                    <option value="comprobante_domicilio">Comprobante de domicilio</option>
-                </select>
+                <label>Orden de Compra (PDF)</label>
+                <input type="file" name="archivo_oc" accept=".pdf">
             </div>
             <div class="form-group">
-                <label>RFC</label>
-                <input type="text" name="rfc" placeholder="Ej: ABC123456XYZ" value="{{ session('proveedor_rfc', '') }}" readonly style="background:var(--gray-soft);">
+                <label>Factura (PDF)</label>
+                <input type="file" name="archivo" accept=".pdf" required>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Archivo PDF</label>
-                <input type="file" name="archivo" accept=".pdf">
+                <label>XML de la factura</label>
+                <input type="file" name="archivo_xml" accept=".xml">
             </div>
+            <div class="form-group">
+                <label>Comprobante de pago (PDF)</label>
+                <input type="file" name="archivo_pago" accept=".pdf">
+            </div>
+        </div>
+        <div class="form-row">
             <div class="form-group">
                 <label>Notas (opcional)</label>
-                <input type="text" name="notas" placeholder="Ej: Documento renovado mayo 2026">
+                <input type="text" name="notas" placeholder="Ej: Factura correspondiente a OC #10045">
+                <input type="hidden" name="rfc" value="{{ session('proveedor_rfc', '') }}">
+            </div>
+            <div class="form-group" style="justify-content:flex-end;">
+                <button type="submit" class="btn-submit">Subir y validar</button>
             </div>
         </div>
-        <button type="submit" class="btn-submit" disabled style="opacity:0.6;cursor:not-allowed;">
-            Enviar a contabilidad — Módulo pendiente
-        </button>
     </form>
-</div>
 
-<div class="fiscal-note">
-    ⚠ El módulo de contabilidad está en desarrollo. Por ahora puedes ver el estado de tus documentos. Cuando el módulo esté listo, podrás enviar directamente desde aquí.
+    @if(session('fiscal_resultado'))
+        @php $res = session('fiscal_resultado'); @endphp
+        <div style="margin-top:16px;padding:16px;border-radius:10px;background:{{ $res['aprobado'] ? 'var(--green-bg)' : 'var(--red-bg)' }};border:1px solid {{ $res['aprobado'] ? 'var(--green)' : 'var(--red)' }};">
+            <div style="font-size:13px;font-weight:700;color:{{ $res['aprobado'] ? 'var(--green)' : 'var(--red)' }};margin-bottom:6px;">
+                {{ $res['aprobado'] ? 'Documentos aprobados' : 'Documentos rechazados' }}
+            </div>
+            <div style="font-size:12px;color:var(--gray-text);">{{ $res['mensaje'] }}</div>
+        </div>
+    @endif
+
+    @if($errors->any())
+        <div style="margin-top:16px;padding:16px;border-radius:10px;background:var(--red-bg);border:1px solid var(--red);">
+            <div style="font-size:13px;font-weight:700;color:var(--red);margin-bottom:6px;">Error</div>
+            @foreach($errors->all() as $error)
+                <div style="font-size:12px;color:var(--gray-text);">{{ $error }}</div>
+            @endforeach
+        </div>
+    @endif
 </div>
 
 @endsection

@@ -71,13 +71,13 @@
             <span class="biz-metric-label">Ventas</span>
             <span class="biz-metric-value" style="color:var(--green)">$1,525,322.50</span>
             <span class="biz-metric-unit">MXN</span>
-            <span class="biz-metric-change biz-up">+17%</span>
+            <span class="biz-metric-change biz-up">↑ +17%</span>
         </div>
         <div class="biz-metric">
             <span class="biz-metric-label">Unidades</span>
             <span class="biz-metric-value">3,523,487</span>
             <span class="biz-metric-unit">kg</span>
-            <span class="biz-metric-change biz-up">+5%</span>
+            <span class="biz-metric-change biz-up">↑ +5%</span>
         </div>
     </div>
 </div>
@@ -104,11 +104,11 @@
             </div>
             <div>
                 <span style="font-size:12px;color:var(--gray-muted)">Variación unidades</span>
-                <div style="font-size:20px;font-weight:700;color:var(--green)">+16%</div>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">↑ +16%</div>
             </div>
             <div>
                 <span style="font-size:12px;color:var(--gray-muted)">Variación ventas</span>
-                <div style="font-size:20px;font-weight:700;color:var(--green)">+20%</div>
+                <div style="font-size:20px;font-weight:700;color:var(--green)">↑ +20%</div>
             </div>
         </div>
 
@@ -133,10 +133,10 @@
                     <td style="font-weight:600;">Walmart Inc</td>
                     <td style="text-align:right;">678,424</td>
                     <td style="text-align:right;">848,749</td>
-                    <td style="text-align:right;color:var(--green);font-weight:700;">+25%</td>
+                    <td style="text-align:right;color:var(--green);font-weight:700;">↑ +25%</td>
                     <td style="text-align:right;">$7,033,870</td>
                     <td style="text-align:right;font-weight:600;">$8,812,560</td>
-                    <td style="text-align:right;color:var(--green);font-weight:700;">+25%</td>
+                    <td style="text-align:right;color:var(--green);font-weight:700;">↑ +25%</td>
                     <td><span class="art-bar"><span class="art-bar-fill" style="width:95%;background:var(--green)"></span></span><span class="status-verde">95%</span></td>
                 </tr>
                 <tr>
@@ -144,10 +144,10 @@
                     <td style="font-weight:600;">Dollar Tree Stores Inc.</td>
                     <td style="text-align:right;">155,792</td>
                     <td style="text-align:right;">136,965</td>
-                    <td style="text-align:right;color:var(--red);font-weight:700;">-12%</td>
+                    <td style="text-align:right;color:var(--red);font-weight:700;">↓ -12%</td>
                     <td style="text-align:right;">$1,061,796</td>
                     <td style="text-align:right;font-weight:600;">$949,583</td>
-                    <td style="text-align:right;color:var(--red);font-weight:700;">-11%</td>
+                    <td style="text-align:right;color:var(--red);font-weight:700;">↓ -11%</td>
                     <td><span class="art-bar"><span class="art-bar-fill" style="width:60%;background:var(--amber)"></span></span><span class="status-amarillo">60%</span></td>
                 </tr>
                 <tr>
@@ -155,10 +155,10 @@
                     <td style="font-weight:600;">Dollar General Corp.</td>
                     <td style="text-align:right;">102,900</td>
                     <td style="text-align:right;">134,400</td>
-                    <td style="text-align:right;color:var(--green);font-weight:700;">+31%</td>
+                    <td style="text-align:right;color:var(--green);font-weight:700;">↑ +31%</td>
                     <td style="text-align:right;">$719,092</td>
                     <td style="text-align:right;font-weight:600;">$1,038,643</td>
-                    <td style="text-align:right;color:var(--green);font-weight:700;">+44%</td>
+                    <td style="text-align:right;color:var(--green);font-weight:700;">↑ +44%</td>
                     <td><span class="art-bar"><span class="art-bar-fill" style="width:88%;background:var(--green)"></span></span><span class="status-verde">88%</span></td>
                 </tr>
                 <tr>
@@ -166,10 +166,10 @@
                     <td style="font-weight:600;">Family Dollar Stores</td>
                     <td style="text-align:right;">59,552</td>
                     <td style="text-align:right;">32,550</td>
-                    <td style="text-align:right;color:var(--red);font-weight:700;">-45%</td>
+                    <td style="text-align:right;color:var(--red);font-weight:700;">↓ -45%</td>
                     <td style="text-align:right;">$386,392</td>
                     <td style="text-align:right;font-weight:600;">$210,852</td>
-                    <td style="text-align:right;color:var(--red);font-weight:700;">-45%</td>
+                    <td style="text-align:right;color:var(--red);font-weight:700;">↓ -45%</td>
                     <td><span class="art-bar"><span class="art-bar-fill" style="width:35%;background:var(--red)"></span></span><span class="status-rojo">35%</span></td>
                 </tr>
                 <tr style="background:var(--green-bg);font-weight:700;">
@@ -177,10 +177,10 @@
                     <td>GRAN TOTAL</td>
                     <td style="text-align:right;">996,668</td>
                     <td style="text-align:right;">1,152,664</td>
-                    <td style="text-align:right;color:var(--green);">+16%</td>
+                    <td style="text-align:right;color:var(--green);">↑ +16%</td>
                     <td style="text-align:right;">$9,200,151</td>
                     <td style="text-align:right;">$11,011,640</td>
-                    <td style="text-align:right;color:var(--green);">+20%</td>
+                    <td style="text-align:right;color:var(--green);">↑ +20%</td>
                     <td></td>
                 </tr>
             </tbody>

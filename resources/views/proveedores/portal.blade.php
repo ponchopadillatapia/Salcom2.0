@@ -20,8 +20,8 @@
     .pp-grid-2 {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 20px;
-        margin-bottom: 24px;
+        gap: 14px;
+        margin-bottom: 14px;
     }
 
     /* ── Card base ── */
@@ -309,14 +309,15 @@
     /* ── Quick access grid ── */
     .pp-quick-grid {
         display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 16px;
+        grid-template-columns: repeat(6, 1fr);
+        gap: 10px;
     }
     .pp-quick-card {
         text-decoration: none;
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 10px;
+        padding: 12px !important;
     }
     .pp-quick-icon {
         width: 42px;
@@ -389,14 +390,14 @@
                 <div class="pp-negocio-label">Ventas</div>
                 <div class="pp-negocio-value" style="color:var(--green);font-size:20px;">
                     $2,500,000.25
-                    <span class="pp-variation pp-variation-up" style="font-size:14px;">+15%</span>
+                    <span class="pp-variation pp-variation-up" style="font-size:14px;">↑ +15%</span>
                 </div>
             </div>
             <div class="pp-negocio-row">
                 <div class="pp-negocio-label">Unidades</div>
                 <div class="pp-negocio-value" style="color:var(--red);font-size:20px;">
                     275,343
-                    <span class="pp-variation pp-variation-down" style="font-size:14px;">-2%</span>
+                    <span class="pp-variation pp-variation-down" style="font-size:14px;">↓ -2%</span>
                 </div>
             </div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
@@ -460,22 +461,21 @@
         </a>
     </div>
 
-    {{-- ═══ SECTION 2: Alertas recientes + Onboarding ═══ --}}
-    <div class="pp-grid-2">
-        {{-- Alertas recientes (de la IA) --}}
-        <div class="pp-card">
-            <h4>Alertas recientes</h4>
+    {{-- ═══ SECTION 2: Alertas + Pendientes + Onboarding (3 columnas iguales) ═══ --}}
+    <div class="pp-grid-2" style="grid-template-columns: 1fr 1fr 1fr; align-items: stretch;">
+        {{-- Alertas recientes --}}
+        <div class="pp-card" style="padding:16px;">
+            <h4 style="font-size:13px;margin-bottom:10px;">Alertas recientes</h4>
             @php
                 $alertasPortal = \App\Models\Alerta::where('destinatario_tipo', 'proveedor')
                     ->where('destinatario_id', session('proveedor_id'))
                     ->where('tipo', '!=', 'sugerencia_ia')
                     ->orderByDesc('created_at')
-                    ->limit(5)
+                    ->limit(4)
                     ->get();
             @endphp
             @forelse($alertasPortal as $alerta)
             @php
-                // Determinar la ruta según el módulo/tipo de alerta
                 $alertaRoute = match(true) {
                     str_contains($alerta->tipo, 'oc') => route('proveedores.oc'),
                     str_contains($alerta->tipo, 'documento') || $alerta->modulo === 'fiscal' => route('proveedores.fiscal'),
@@ -484,52 +484,70 @@
                     default => route('proveedores.ia'),
                 };
             @endphp
-            <a href="{{ $alertaRoute }}" class="pp-list-item" style="text-decoration:none;color:inherit;">
+            <a href="{{ $alertaRoute }}" class="pp-list-item" style="text-decoration:none;color:inherit;padding:6px 0;">
                 <div class="pp-dot {{ $alerta->nivel === 'warning' ? 'pp-dot-amber' : ($alerta->nivel === 'critical' ? 'pp-dot-red' : 'pp-dot-green') }}"></div>
-                <div class="pp-list-text">{{ Str::limit($alerta->titulo, 40) }}</div>
-                <div class="pp-list-status" style="font-size:10px;">{{ $alerta->created_at->diffForHumans() }}</div>
+                <div class="pp-list-text" style="font-size:11px;">{{ Str::limit($alerta->titulo, 35) }}</div>
+                <div class="pp-list-status" style="font-size:9px;">{{ $alerta->created_at->diffForHumans() }}</div>
             </a>
             @empty
-            <div style="padding:16px 0;text-align:center;font-size:12px;color:var(--gray-muted);">Sin alertas recientes. Todo en orden.</div>
+            <div style="padding:12px 0;text-align:center;font-size:11px;color:var(--gray-muted);">Sin alertas. Todo en orden.</div>
             @endforelse
         </div>
 
-        {{-- Onboarding --}}
+        {{-- Pendientes --}}
+        <div class="pp-card" style="padding:16px;">
+            <h4 style="font-size:13px;margin-bottom:10px;">Pendientes</h4>
+            <a href="{{ route('proveedores.fiscal') }}" class="pp-list-item" style="padding:6px 0;text-decoration:none;color:inherit;">
+                <div class="pp-dot pp-dot-red"></div>
+                <div class="pp-list-text" style="font-size:11px;">Opinión SAT por renovar</div>
+                <div class="pp-list-status" style="font-size:9px;">5 días</div>
+            </a>
+            <a href="{{ route('proveedores.onboarding') }}" class="pp-list-item" style="padding:6px 0;text-decoration:none;color:inherit;">
+                <div class="pp-dot pp-dot-amber"></div>
+                <div class="pp-list-text" style="font-size:11px;">Completar onboarding</div>
+                <div class="pp-list-status" style="font-size:9px;">33%</div>
+            </a>
+            <a href="{{ route('proveedores.perfil') }}" class="pp-list-item" style="padding:6px 0;text-decoration:none;color:inherit;">
+                <div class="pp-dot pp-dot-amber"></div>
+                <div class="pp-list-text" style="font-size:11px;">Contactos sin registrar</div>
+                <div class="pp-list-status" style="font-size:9px;">Pendiente</div>
+            </a>
+            <a href="{{ route('proveedores.oc') }}" class="pp-list-item" style="padding:6px 0;text-decoration:none;color:inherit;">
+                <div class="pp-dot pp-dot-green"></div>
+                <div class="pp-list-text" style="font-size:11px;">OC por confirmar</div>
+                <div class="pp-list-status" style="font-size:9px;">2 nuevas</div>
+            </a>
+        </div>
+
+        {{-- Onboarding compacto --}}
         <a href="{{ route('proveedores.onboarding') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card" style="cursor:pointer;">
-            <div class="pp-onboarding-header">
-                <h4 style="margin-bottom:0;">Onboarding</h4>
-                <span class="pp-onboarding-progress" style="color: var(--red);">33%</span>
+        <div class="pp-card" style="cursor:pointer;padding:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                <h4 style="font-size:13px;margin:0;">Onboarding</h4>
+                <span style="font-size:16px;font-weight:700;color:var(--red);">33%</span>
             </div>
-            <div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
-                <span style="font-size:18px;">⚠</span>
-                <span style="font-size:12px;font-weight:600;color:var(--red);">Tienes pasos pendientes por completar. Finaliza tu onboarding para operar al 100%.</span>
+            <div style="height:6px;background:var(--border-light);border-radius:3px;margin-bottom:10px;overflow:hidden;">
+                <div style="height:100%;width:33%;background:var(--red);border-radius:3px;"></div>
             </div>
-            <div class="pp-onboarding-steps">2 de 6 pasos completados</div>
-            <div class="pp-list-item">
+            <div class="pp-list-item" style="padding:4px 0;">
                 <div class="pp-dot pp-dot-green"></div>
-                <div class="pp-list-text">Alta de proveedor</div>
-                <div class="pp-list-status">Completado</div>
+                <div class="pp-list-text" style="font-size:11px;">Alta de proveedor</div>
             </div>
-            <div class="pp-list-item">
+            <div class="pp-list-item" style="padding:4px 0;">
                 <div class="pp-dot pp-dot-green"></div>
-                <div class="pp-list-text">Documentos fiscales</div>
-                <div class="pp-list-status">Completado</div>
+                <div class="pp-list-text" style="font-size:11px;">Documentos fiscales</div>
             </div>
-            <div class="pp-list-item">
+            <div class="pp-list-item" style="padding:4px 0;">
                 <div class="pp-dot pp-dot-amber"></div>
-                <div class="pp-list-text">Contactos</div>
-                <div class="pp-list-status">Pendiente</div>
+                <div class="pp-list-text" style="font-size:11px;">Contactos</div>
             </div>
-            <div class="pp-list-item">
+            <div class="pp-list-item" style="padding:4px 0;">
                 <div class="pp-dot pp-dot-amber"></div>
-                <div class="pp-list-text">Validación estándar</div>
-                <div class="pp-list-status">Pendiente</div>
+                <div class="pp-list-text" style="font-size:11px;">Validación estándar</div>
             </div>
-            <div class="pp-list-item">
+            <div class="pp-list-item" style="padding:4px 0;">
                 <div class="pp-dot pp-dot-amber"></div>
-                <div class="pp-list-text">Detalle de inventario</div>
-                <div class="pp-list-status">Pendiente</div>
+                <div class="pp-list-text" style="font-size:11px;">Detalle de inventario</div>
             </div>
         </div>
         </a>
@@ -551,8 +569,8 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
             </div>
             <div>
-                <div class="pp-quick-title">Consultar OC</div>
-                <div class="pp-quick-sub">Órdenes de compra</div>
+                <div class="pp-quick-title">Órdenes de Compra</div>
+                <div class="pp-quick-sub">Historial y nuevas</div>
             </div>
         </a>
         <a href="{{ route('proveedores.payment-history') }}" class="pp-card pp-quick-card">
@@ -579,7 +597,7 @@
             </div>
             <div>
                 <div class="pp-quick-title">Forecast</div>
-                <div class="pp-quick-sub">Tendencias de productos</div>
+                <div class="pp-quick-sub">Tendencias</div>
             </div>
         </a>
         <a href="{{ route('proveedores.alta-producto') }}" class="pp-card pp-quick-card">

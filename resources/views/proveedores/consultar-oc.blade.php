@@ -82,7 +82,12 @@
     </div>
 
     {{-- MÉTRICAS --}}
-    <div class="metrics-row">
+    <div class="metrics-row" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="metric-card">
+            <div class="accent" style="background:var(--amber)"></div>
+            <div class="metric-label">OC En proceso</div>
+            <div class="metric-value">{{ $stats['en_proceso'] }}</div>
+        </div>
         <div class="metric-card">
             <div class="accent" style="background:var(--purple)"></div>
             <div class="metric-label">OC Abiertas</div>
@@ -92,16 +97,6 @@
             <div class="accent" style="background:var(--green)"></div>
             <div class="metric-label">OC Completadas</div>
             <div class="metric-value">{{ $stats['completadas'] }}</div>
-        </div>
-        <div class="metric-card">
-            <div class="accent" style="background:var(--amber)"></div>
-            <div class="metric-label">OC En proceso</div>
-            <div class="metric-value">{{ $stats['en_proceso'] }}</div>
-        </div>
-        <div class="metric-card">
-            <div class="accent" style="background:var(--blue)"></div>
-            <div class="metric-label">Monto total</div>
-            <div class="metric-value">${{ number_format($stats['monto_total'], 0) }}</div>
         </div>
     </div>
 
@@ -119,7 +114,7 @@
         <div style="overflow-x:auto;">
         <table class="tabla" id="tablaOC">
             <thead>
-                <tr><th>OC #</th><th>Fecha</th><th>Productos</th><th>Monto</th><th>Motivo</th><th>Estatus</th></tr>
+                <tr><th>OC #</th><th>Fecha</th><th>Código producto</th><th>Productos</th><th>Cantidad</th><th>Importe</th><th>Fecha vencimiento</th><th>Motivo</th><th>Estatus</th></tr>
             </thead>
             <tbody>
                 @forelse($ordenes as $oc)
@@ -128,10 +123,21 @@
                     <td>{{ $oc->created_at->format('d/m/Y') }}</td>
                     <td style="font-size:12px;">
                         @foreach($oc->productos ?? [] as $prod)
-                            <strong>{{ $prod['codigo'] ?? '' }}</strong> {{ $prod['nombre'] ?? '' }} ({{ $prod['cantidad'] ?? 0 }} {{ $prod['unidad'] ?? '' }})<br>
+                            {{ $prod['codigo'] ?? '' }}<br>
+                        @endforeach
+                    </td>
+                    <td style="font-size:12px;">
+                        @foreach($oc->productos ?? [] as $prod)
+                            {{ $prod['nombre'] ?? '' }}<br>
+                        @endforeach
+                    </td>
+                    <td style="font-size:12px;">
+                        @foreach($oc->productos ?? [] as $prod)
+                            {{ $prod['cantidad'] ?? 0 }} {{ $prod['unidad'] ?? '' }}<br>
                         @endforeach
                     </td>
                     <td style="font-weight:600;">${{ number_format($oc->monto_estimado, 2) }}</td>
+                    <td>{{ $oc->created_at->addDays(30)->format('d/m/Y') }}</td>
                     <td style="font-size:12px;color:var(--gray-muted);">{{ Str::limit($oc->motivo, 40) }}</td>
                     <td>
                         @if($oc->estatus === 'aprobada')
@@ -147,7 +153,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="6" style="text-align:center;padding:32px;color:var(--gray-muted);">
+                    <td colspan="9" style="text-align:center;padding:32px;color:var(--gray-muted);">
                         No hay órdenes de compra. Se generarán automáticamente cuando el inventario lo requiera.
                     </td>
                 </tr>
