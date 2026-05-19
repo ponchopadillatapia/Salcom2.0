@@ -65,99 +65,36 @@
 @endpush
 @section('content')
 
-{{-- ═══ FILA PRINCIPAL ═══ --}}
-<div class="row-3">
-    {{-- Proveedores --}}
-    <a href="{{ route('admin.proveedores') }}" class="card-metric fade" style="animation-delay:.05s">
-        <div class="bar" style="background:var(--green)"></div>
-        <div class="icon" style="background:var(--green-bg)">@include('partials.icons', ['name'=>'factory','size'=>20,'color'=>'var(--green)'])</div>
-        <div class="label">Proveedores</div>
-        <div class="value">{{ $totalProveedores }}</div>
-        <div class="sub">{{ $proveedoresActivos }} activos · Score {{ $scorePromedio }}%</div>
-        <div class="details">
-            <div class="detail"><span>Pedidos</span><span>{{ $totalPedidos }}</span></div>
-            <div class="detail"><span>Productos</span><span>{{ $totalProductos }}</span></div>
-            <div class="detail"><span>Facturas pend.</span><span>{{ $facturasPendientes }}</span></div>
-        </div>
-    </a>
-
-    {{-- Negocio --}}
-    <a href="{{ route('admin.negocio') }}" class="card-metric fade" style="animation-delay:.1s">
+{{-- ═══ FILA: Negocio, Inventario, OTIF, Opinión Positiva ═══ --}}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px">
+    <a href="{{ route('admin.negocio') }}" class="card-metric fade" style="animation-delay:.05s">
         <div class="bar" style="background:var(--blue)"></div>
-        <div class="icon" style="background:var(--blue-bg)">@include('partials.icons', ['name'=>'bar-chart','size'=>20,'color'=>'var(--blue)'])</div>
         <div class="label">Negocio</div>
         <div class="value">${{ number_format($montoPedidos, 0) }}</div>
         <div class="sub">Ventas totales</div>
-        <div class="details">
-            <div class="detail"><span>Entregados</span><span>{{ $pedidosEntregados }}</span></div>
-            <div class="detail"><span>Pendientes</span><span>{{ $pedidosPendientes }}</span></div>
-            <div class="detail"><span>Facturas pend.</span><span>{{ $facturasPendientes }}</span></div>
-        </div>
     </a>
-
-    {{-- OTIF --}}
-    <a href="{{ route('admin.otif') }}" class="card-metric fade" style="animation-delay:.15s">
-        <div class="bar" style="background:var(--green)"></div>
-        <div class="icon" style="background:var(--green-bg)">@include('partials.icons', ['name'=>'package','size'=>20,'color'=>'var(--green)'])</div>
-        <div class="label">OTIF</div>
-        <div class="otif-box">
-            <div class="otif-item">
-                <div class="otif-canvas-wrap">
-                    <canvas id="gaugeOT" width="100" height="100"></canvas>
-                    <div class="otif-center-mini"><div class="otif-pct" id="dashOtPct"></div></div>
-                </div>
-                <div class="lbl">OT (On Time)</div>
-            </div>
-            <div class="otif-item">
-                <div class="otif-canvas-wrap">
-                    <canvas id="gaugeIF" width="100" height="100"></canvas>
-                    <div class="otif-center-mini"><div class="otif-pct" id="dashIfPct"></div></div>
-                </div>
-                <div class="lbl">IF (In Full)</div>
-            </div>
-        </div>
-        <div class="otif-legend">
-            <span><span class="dot" style="background:#34c759"></span>Cumplido</span>
-            <span><span class="dot" style="background:#ff9500"></span>&gt;95%</span>
-            <span><span class="dot" style="background:#ff3b30"></span>≤95%</span>
-        </div>
-        <span class="link-detail">Ver detalle →</span>
-    </a>
-</div>
-
-{{-- ═══ FILA 2 ═══ --}}
-<div class="row-2" style="grid-template-columns:repeat(4,1fr)">
-    {{-- Inventario --}}
-    <a href="{{ route('admin.inventario') }}" class="card-metric fade" style="animation-delay:.2s">
+    <a href="{{ route('admin.inventario') }}" class="card-metric fade" style="animation-delay:.1s">
         <div class="bar" style="background:var(--amber)"></div>
-        <div class="icon" style="background:var(--amber-bg)">@include('partials.icons', ['name'=>'flask','size'=>20,'color'=>'var(--amber)'])</div>
         <div class="label">Inventario</div>
         <div class="value">{{ $totalProductos }}</div>
         <div class="sub">{{ $sinStock }} agotados · {{ $totalProductos - $sinStock }} disponibles</div>
     </a>
-
-    {{-- Docs pendientes --}}
-    <a href="{{ route('admin.documentos', ['estatus'=>'pendiente']) }}" class="card-metric fade" style="animation-delay:.25s">
-        <div class="bar" style="background:var(--red)"></div>
-        <div class="icon" style="background:var(--red-bg)">@include('partials.icons', ['name'=>'file-text','size'=>20,'color'=>'var(--red)'])</div>
-        <div class="label">Docs. pendientes</div>
-        <div class="value">{{ $docsPendientes }}</div>
-        <div class="sub">Documentos por revisar</div>
-    </a>
-
-    {{-- Fiscal --}}
-    <a href="{{ route('admin.fiscal') }}" class="card-metric fade" style="animation-delay:.3s">
-        <div class="bar" style="background:var(--purple)"></div>
-        <div class="icon" style="background:var(--purple-light)">@include('partials.icons', ['name'=>'file-text','size'=>20,'color'=>'var(--purple)'])</div>
-        <div class="label">Fiscal</div>
-        <div class="value">Validación</div>
-        <div class="sub">Estado fiscal de proveedores</div>
-    </a>
-
-    {{-- Opinión Positiva --}}
-    <a href="{{ route('admin.opinion-positiva') }}" class="card-metric fade" style="animation-delay:.35s">
+    <a href="{{ route('admin.otif') }}" class="card-metric fade" style="animation-delay:.15s">
         <div class="bar" style="background:var(--green)"></div>
-        <div class="icon" style="background:var(--green-bg)">@include('partials.icons', ['name'=>'star','size'=>20,'color'=>'var(--green)'])</div>
+        <div class="label">OTIF</div>
+        <div class="otif-box">
+            <div class="otif-item">
+                <div class="otif-canvas-wrap"><canvas id="gaugeOT" width="80" height="80"></canvas></div>
+                <div class="lbl">OT</div>
+            </div>
+            <div class="otif-item">
+                <div class="otif-canvas-wrap"><canvas id="gaugeIF" width="80" height="80"></canvas></div>
+                <div class="lbl">IF</div>
+            </div>
+        </div>
+    </a>
+    <a href="{{ route('admin.opinion-positiva') }}" class="card-metric fade" style="animation-delay:.2s">
+        <div class="bar" style="background:var(--green)"></div>
         <div class="label">Opinión Positiva</div>
         @php
             $opActualizados = \App\Models\DocumentoProveedor::where('tipo','opinion')->where('estatus','aprobado')->count();
@@ -166,17 +103,38 @@
             $opPctAct = $opTotal > 0 ? round(($opActualizados / $opTotal) * 100, 1) : 0;
             $opPctNo = $opTotal > 0 ? round(($opNoActualizados / $opTotal) * 100, 1) : 0;
         @endphp
-        <div style="display:flex;align-items:center;justify-content:center;gap:20px;margin-top:12px">
+        <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-top:10px">
             <div style="text-align:center">
-                <canvas id="gaugeOpAct" width="90" height="90" style="width:90px!important;height:90px!important"></canvas>
+                <canvas id="gaugeOpAct" width="70" height="70" style="width:70px!important;height:70px!important"></canvas>
                 <div style="font-size:10px;color:var(--gray-muted);font-weight:600;margin-top:4px">Actualizados</div>
             </div>
             <div style="text-align:center">
-                <canvas id="gaugeOpNo" width="90" height="90" style="width:90px!important;height:90px!important"></canvas>
+                <canvas id="gaugeOpNo" width="70" height="70" style="width:70px!important;height:70px!important"></canvas>
                 <div style="font-size:10px;color:var(--gray-muted);font-weight:600;margin-top:4px">No actualizados</div>
             </div>
         </div>
-        <span class="link-detail">Ver detalle →</span>
+    </a>
+</div>
+
+{{-- ═══ FILA: Proveedores, Docs, Fiscal ═══ --}}
+<div class="row-3">
+    <a href="{{ route('admin.proveedores') }}" class="card-metric fade" style="animation-delay:.25s">
+        <div class="bar" style="background:var(--green)"></div>
+        <div class="label">Proveedores</div>
+        <div class="value">{{ $totalProveedores }}</div>
+        <div class="sub">{{ $proveedoresActivos }} activos · Score {{ $scorePromedio }}%</div>
+    </a>
+    <a href="{{ route('admin.documentos', ['estatus'=>'pendiente']) }}" class="card-metric fade" style="animation-delay:.3s">
+        <div class="bar" style="background:var(--red)"></div>
+        <div class="label">Docs. pendientes</div>
+        <div class="value">{{ $docsPendientes }}</div>
+        <div class="sub">Documentos por revisar</div>
+    </a>
+    <a href="{{ route('admin.fiscal') }}" class="card-metric fade" style="animation-delay:.35s">
+        <div class="bar" style="background:var(--purple)"></div>
+        <div class="label">Fiscal</div>
+        <div class="value">Validación</div>
+        <div class="sub">Estado fiscal de proveedores</div>
     </a>
 </div>
 
