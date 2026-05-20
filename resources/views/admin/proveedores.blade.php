@@ -284,38 +284,27 @@
 
 {{-- ═══ TAB FACTURAS PENDIENTES ═══ --}}
 <div class="prov-panel {{ ($tabActiva ?? '') === 'facturas' ? 'active' : '' }}" id="panel-facturas">
-    <div class="toolbar">
-        <form method="GET" action="{{ route('admin.proveedores') }}" class="filter-form">
-            <input type="hidden" name="tab" value="facturas">
-            @include('partials.prov-admin-preserve-filters', ['preserve' => $preserveProv])
-            @include('partials.prov-admin-preserve-filters', ['preserve' => $preserveOc])
-            <div class="filter-field"><label>Folio CFDI</label><input type="text" name="f_fact_folio" value="{{ $filtrosFact['folio'] ?? '' }}" placeholder="Folio"></div>
-            <div class="filter-field"><label>Proveedor</label><input type="text" name="f_fact_proveedor" value="{{ $filtrosFact['proveedor'] ?? '' }}" placeholder="Código proveedor"></div>
-            <div class="filter-field"><label>Vencimiento desde</label><input type="date" name="f_fact_vence_desde" value="{{ $filtrosFact['vence_desde'] ?? '' }}"></div>
-            <div class="filter-field"><label>Vencimiento hasta</label><input type="date" name="f_fact_vence_hasta" value="{{ $filtrosFact['vence_hasta'] ?? '' }}"></div>
-            <div class="filter-field"><label>Vencidas</label>
-                <select name="f_fact_vencidas">
-                    <option value="">Todas</option>
-                    <option value="1" {{ ($filtrosFact['vencidas'] ?? '') === '1' ? 'selected' : '' }}>Solo vencidas</option>
-                </select>
-            </div>
-            <div class="filter-actions">
-                <button type="submit" class="btn-filtrar">Filtrar</button>
-                @if($filtrosFactActivos)<a href="{{ route('admin.proveedores', array_merge(['tab' => 'facturas'], $preserveProv, $preserveOc)) }}" class="btn-limpiar">Limpiar</a>@endif
-            </div>
-        </form>
+    <div class="toolbar" style="justify-content:space-between">
         <span class="badge-count">{{ $facturasPendientes->count() }} factura{{ $facturasPendientes->count() !== 1 ? 's' : '' }}</span>
+        <a href="{{ route('admin.facturas-pendientes.excel') }}" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12px;font-weight:600;color:#fff;background:#059669;border-radius:8px;text-decoration:none">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar Excel
+        </a>
     </div>
     <div class="admin-table-wrap">
     @if($facturasPendientes->count())
         <table class="admin-table">
-            <thead><tr><th>Folio CFDI</th><th>Proveedor</th><th>Total</th><th>Estatus</th><th>Vencimiento</th></tr></thead>
+            <thead><tr><th>Proveedor</th><th>Folio CFDI</th><th>Total</th><th>Estatus</th><th>Vencimiento</th></tr></thead>
             <tbody>
             @foreach($facturasPendientes as $f)
-                @php $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast(); @endphp
-                <tr>
-                    <td style="font-weight:700;color:var(--purple)">{{ $f->folio_cfdi }}</td>
-                    <td>{{ $f->codigo_proveedor ?? '—' }}</td>
+                @php
+                    $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
+                    $provF = \App\Models\ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
+                    $nombreProv = $provF->nombre ?? $f->codigo_proveedor;
+                @endphp
+                <tr style="cursor:pointer" onclick="window.location='{{ route('admin.proveedor-facturas', $f->codigo_proveedor) }}'">
+                    <td style="font-weight:700;color:var(--purple)">{{ $nombreProv }}</td>
+                    <td>{{ $f->folio_cfdi }}</td>
                     <td style="font-weight:600;font-variant-numeric:tabular-nums">${{ number_format($f->total, 2) }}</td>
                     <td><span class="badge-estatus pendiente">Pendiente</span>@if($vencida)<span class="badge-vencida">VENCIDA</span>@endif</td>
                     <td style="color:{{ $vencida ? 'var(--red)' : 'var(--gray-muted)' }};font-weight:{{ $vencida ? '700' : '400' }}">{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}</td>
@@ -324,7 +313,7 @@
             </tbody>
         </table>
     @else
-        <div class="empty-state"><p>No hay facturas pendientes{{ $filtrosFactActivos ? ' con esos filtros' : '' }}</p></div>
+        <div class="empty-state"><p>No hay facturas pendientes</p></div>
     @endif
     </div>
 </div>
