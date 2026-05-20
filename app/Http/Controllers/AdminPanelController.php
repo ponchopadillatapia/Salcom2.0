@@ -270,6 +270,63 @@ class AdminPanelController extends Controller
         ));
     }
 
+    // ── Detalle facturas de un proveedor ──
+
+    public function proveedorFacturas(string $codigo)
+    {
+        $proveedor = ProveedorUser::where('codigo_compras', $codigo)->first();
+        $facturas = Factura::where('codigo_proveedor', $codigo)->orderBy('fecha_vencimiento', 'desc')->get();
+
+        return view('admin.proveedor-facturas', compact('proveedor', 'facturas', 'codigo'));
+    }
+
+    // ── Exportar facturas pendientes a Excel ──
+
+    public function facturasPendientesExcel()
+    {
+        $facturas = Factura::where('estatus', 'pendiente')
+            ->whereNotNull('codigo_proveedor')
+            ->orderBy('codigo_proveedor')
+            ->get();
+
+        $filename = 'Facturas_Pendientes_Proveedores_' . now()->format('Y-m-d') . '.csv';
+
+        $lines = [];
+        $lines[] = ['INDUSTRIAS SALCOM S.A. DE C.V.'];
+        $lines[] = ['FACTURAS PENDIENTES DE PROVEEDORES'];
+        $lines[] = ['Generado: ' . now()->format('d/m/Y H:i')];
+        $lines[] = [];
+        $lines[] = ['PROVEEDOR', 'FOLIO CFDI', 'MONTO', 'IVA', 'TOTAL', 'VENCIMIENTO', 'ESTADO'];
+
+        foreach ($facturas as $f) {
+            $prov = ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
+            $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast() ? 'VENCIDA' : 'Vigente';
+            $lines[] = [
+                $prov->nombre ?? $f->codigo_proveedor,
+                $f->folio_cfdi,
+                number_format($f->monto, 2),
+                number_format($f->monto_iva, 2),
+                number_format($f->total, 2),
+                $f->fecha_vencimiento?->format('d/m/Y') ?? '—',
+                $vencida,
+            ];
+        }
+
+        $lines[] = [];
+        $lines[] = ['', '', '', 'TOTAL:', number_format($facturas->sum('total'), 2)];
+
+        $handle = fopen('php://temp', 'r+');
+        fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        foreach ($lines as $line) { fputcsv($handle, $line); }
+        rewind($handle);
+        $output = stream_get_contents($handle);
+        fclose($handle);
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
     private function filtrosAQuery(array $filtros, array $mapa): array
     {
         $query = [];

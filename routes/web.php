@@ -152,6 +152,8 @@ Route::post('/proveedor/aviso-privacidad', [PortalProveedorController::class, 'a
 
 // ── Admin: Proveedores con score ──
 Route::get('/admin/proveedores', [AdminPanelController::class, 'proveedores'])->name('admin.proveedores')->middleware('auth.admin');
+Route::get('/admin/proveedores/{codigo}/facturas', [AdminPanelController::class, 'proveedorFacturas'])->name('admin.proveedor-facturas')->middleware('auth.admin');
+Route::get('/admin/proveedores/facturas-pendientes/excel', [AdminPanelController::class, 'facturasPendientesExcel'])->name('admin.facturas-pendientes.excel')->middleware('auth.admin');
 Route::get('/admin/productos', [AdminPanelController::class, 'productos'])->name('admin.productos')->middleware('auth.admin');
 
 // ── Admin: Alta de Producto (compras + mantenimiento) ──
