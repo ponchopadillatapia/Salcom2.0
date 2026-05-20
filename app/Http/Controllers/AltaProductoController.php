@@ -429,7 +429,14 @@ Si todo está bien, responde: {\"errores_ia\": []}";
         $relativePath = str_replace(storage_path('app/public/'), '', $fullPath);
 
         $errorMsg = "El Excel tiene {$conError} productos con errores. La IA rechazó el archivo.\n\n";
-        $errorMsg .= "Descarga el Excel con correcciones — las celdas con error están marcadas en rojo.";
+        $errorMsg .= "Descarga el Excel con correcciones — las celdas con error están marcadas en rojo.\n\n";
+        $errorMsg .= "Errores encontrados:\n";
+        foreach (array_slice($errores, 0, 15) as $err) {
+            $errorMsg .= "• Fila {$err['fila']}: {$err['campo']} — {$err['error']}\n";
+        }
+        if (count($errores) > 15) {
+            $errorMsg .= "\n... y " . (count($errores) - 15) . " errores más (ver Excel).";
+        }
 
         return back()
             ->with('error', $errorMsg)
@@ -561,7 +568,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'NOMBRE',
-                    'error' => "Debe estar en MAYÚSCULAS. Recibido: '{$nombre}'",
+                    'error' => "Debe estar en MAYÚSCULAS y seguir el orden: [TIPO] + [MARCA] + [MODELO] + [MEDIDA] + [ESPECIFICACIÓN]. Recibido: '{$nombre}'. Ejemplo correcto: IPHONE APPLE 18PRO CELULAR",
                 ];
             }
 
@@ -581,7 +588,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'NOMBRE',
-                    'error' => "Nomenclatura incompleta. Mínimo 3 palabras: [TIPO] [MARCA] [MODELO/MEDIDA]. Ejemplo: RESINA EPOXICA INDUSTRIAL 500ML",
+                    'error' => "Nomenclatura incompleta. Formato obligatorio: [TIPO] + [MARCA] + [MODELO] + [MEDIDA] + [ESPECIFICACIÓN]. Ejemplo: MOTOR WEG 3HP 220/440V TRIFASICO",
                 ];
             }
 
@@ -592,7 +599,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
                     $errores[] = [
                         'fila' => $fila,
                         'campo' => 'NOMBRE',
-                        'error' => "Nombre demasiado genérico ('{$nombre}'). Debe ser específico: [TIPO] [MARCA] [MODELO] [MEDIDA]",
+                        'error' => "Nombre demasiado genérico ('{$nombre}'). Orden obligatorio: [TIPO] + [MARCA] + [MODELO] + [MEDIDA] + [ESPECIFICACIÓN]. Ejemplo: BALERO SKF 6205 2RS",
                     ];
                     break;
                 }

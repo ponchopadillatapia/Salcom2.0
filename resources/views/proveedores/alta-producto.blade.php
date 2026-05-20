@@ -93,14 +93,19 @@
 
         <div class="alta-rules">
             <h4>Reglas para llenar el Excel</h4>
+            <div style="background:var(--purple-subtle);border:1px solid var(--purple-mid);border-radius:8px;padding:10px 14px;margin-bottom:12px;">
+                <strong style="font-size:13px;color:var(--purple);">[TIPO] + [MARCA] + [MODELO] + [MEDIDA] + [ESPECIFICACIÓN]</strong>
+                <div style="font-size:11px;color:var(--gray-muted);margin-top:4px;">Ej: MOTOR WEG 3HP 220/440V TRIFASICO</div>
+            </div>
             <ul>
                 <li>Nombre del producto en MAYUSCULAS</li>
                 <li>Sin acentos ni símbolos raros</li>
-                <li>Mínimo 2 palabras en el nombre</li>
+                <li>Mínimo 3 palabras en el nombre</li>
                 <li>Unidades válidas: KG, LT, PZA, CAJA, ML, GR, GAL, ROLLO, MT</li>
                 <li>Precio con punto decimal (ej: 150.50)</li>
                 <li>No repetir productos que ya existen en el catálogo</li>
                 <li>Clave SAT obligatoria para facturación</li>
+                <li>Máximo 80 caracteres en nombre</li>
             </ul>
         </div>
     </div>
