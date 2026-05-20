@@ -360,21 +360,41 @@ class IaService
     {
         return match ($tipo) {
             'pronostico_demanda' => <<<PROMPT
-Analiza el historial de pedidos del cliente {$datos['codigo_cliente']} y genera un pronóstico de demanda para los próximos 3 meses.
+Eres el analista de demanda de Industrias Salcom. Genera un pronóstico profesional y ejecutivo.
+
+Cliente: {$datos['codigo_cliente']}
 
 HISTORIAL DE PEDIDOS:
 {$datos['historial']}
 
-Responde con formato estructurado:
-1. **Resumen del patrón**: Describe la tendencia y estacionalidad detectada.
-2. **Pronóstico mensual**: Tabla con mes, cantidad estimada y nivel de confianza.
-3. **Productos clave**: Los 3 productos con mayor probabilidad de reorden.
-4. **Recomendaciones**: Acciones concretas para el equipo de ventas y planeación.
-5. **Riesgos**: Factores que podrían alterar el pronóstico.
+INSTRUCCIONES DE FORMATO:
+- NO uses markdown (no uses **, ##, ni tablas con |)
+- Usa texto plano con viñetas simples (-)
+- Sé conciso y directo
+- Si no hay datos suficientes, indica qué información se necesita para mejorar el pronóstico
+
+ESTRUCTURA DE RESPUESTA:
+
+RESUMEN DEL PATRON
+- Describe la tendencia y estacionalidad detectada en 2-3 líneas.
+
+PRONOSTICO MENSUAL
+- Mes 1: cantidad estimada, nivel de confianza
+- Mes 2: cantidad estimada, nivel de confianza
+- Mes 3: cantidad estimada, nivel de confianza
+
+PRODUCTOS CLAVE
+- Los 3 productos con mayor probabilidad de reorden
+
+RECOMENDACIONES
+- 3 acciones concretas para el equipo de ventas
+
+RIESGOS
+- Factores que podrían alterar el pronóstico
 PROMPT,
 
             'optimizacion_inventario' => <<<PROMPT
-Analiza el inventario actual y la demanda proyectada para optimizar los niveles de stock.
+Eres el analista de inventarios de Industrias Salcom. Genera un reporte ejecutivo de optimización.
 
 INVENTARIO ACTUAL:
 {$datos['inventario']}
@@ -382,12 +402,27 @@ INVENTARIO ACTUAL:
 DEMANDA PROYECTADA (próximos 3 meses):
 {$datos['demanda']}
 
-Responde con formato estructurado:
-1. **Alertas críticas**: Productos en riesgo de desabasto (stock < 2 semanas de demanda).
-2. **Punto de reorden**: Para cada producto, cuándo y cuánto reordenar (ROP y EOQ simplificado).
-3. **Sobrestock**: Productos con exceso de inventario y recomendación.
-4. **Ahorro estimado**: Impacto financiero de las optimizaciones propuestas.
-5. **Plan de acción**: Prioridades para las próximas 2 semanas.
+INSTRUCCIONES DE FORMATO:
+- NO uses markdown (no uses **, ##, ni tablas con |)
+- Usa texto plano con viñetas simples (-)
+- Sé conciso y profesional
+
+ESTRUCTURA DE RESPUESTA:
+
+ALERTAS CRITICAS
+- Productos en riesgo de desabasto (stock menor a 2 semanas)
+
+PUNTO DE REORDEN
+- Para cada producto crítico: cuándo y cuánto reordenar
+
+SOBRESTOCK
+- Productos con exceso de inventario y qué hacer
+
+AHORRO ESTIMADO
+- Impacto financiero de las optimizaciones
+
+PLAN DE ACCION
+- Prioridades para las próximas 2 semanas
 PROMPT,
 
             'seleccion_proveedor' => <<<PROMPT

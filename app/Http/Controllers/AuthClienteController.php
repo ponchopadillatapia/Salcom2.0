@@ -174,21 +174,36 @@ class AuthClienteController extends Controller
     private function loginViaLocal(string $usuario, string $pwd): ?array
     {
         $cliente = ClienteUser::where('usuario', $usuario)->first();
-        if (! $cliente || ! Hash::check($pwd, $cliente->password)) {
-            return null;
-        }
-        if (! $cliente->activo) {
-            return ['_inactivo' => true];
+        if ($cliente && Hash::check($pwd, $cliente->password)) {
+            if (! $cliente->activo) {
+                return ['_inactivo' => true];
+            }
+            return [
+                'id' => $cliente->id,
+                'nombre' => $cliente->nombre,
+                'codigo' => $cliente->codigo_cliente,
+                'correo' => $cliente->correo,
+                'tipo' => $cliente->tipo_cliente,
+                'token' => null,
+            ];
         }
 
-        return [
-            'id' => $cliente->id,
-            'nombre' => $cliente->nombre,
-            'codigo' => $cliente->codigo_cliente,
-            'correo' => $cliente->correo,
-            'tipo' => $cliente->tipo_cliente,
-            'token' => null,
-        ];
+        // Super admins (jesus, alex, fred) pueden entrar al portal de clientes
+        $admin = \App\Models\AdminUser::where('usuario', $usuario)
+            ->orWhere('correo', $usuario)
+            ->first();
+        if ($admin && Hash::check($pwd, $admin->password) && $admin->rol === 'admin') {
+            return [
+                'id' => $admin->id,
+                'nombre' => $admin->nombre,
+                'codigo' => 'ADMIN-' . $admin->id,
+                'correo' => $admin->correo,
+                'tipo' => 'admin',
+                'token' => null,
+            ];
+        }
+
+        return null;
     }
 
     private function guardarSesion(array $datos, string $source, ?string $token): void
