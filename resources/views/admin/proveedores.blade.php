@@ -294,20 +294,27 @@
     <div class="admin-table-wrap">
     @if($facturasPendientes->count())
         <table class="admin-table">
-            <thead><tr><th>Proveedor</th><th>Folio CFDI</th><th>Total</th><th>Estatus</th><th>Vencimiento</th></tr></thead>
+            <thead><tr><th>Proveedor</th><th>Código</th><th>Total</th><th>Vencimiento</th><th>Días vencido</th></tr></thead>
             <tbody>
             @foreach($facturasPendientes as $f)
                 @php
                     $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
+                    $diasVencido = $vencida ? $f->fecha_vencimiento->diffInDays(now()) : 0;
                     $provF = \App\Models\ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
                     $nombreProv = $provF->nombre ?? $f->codigo_proveedor;
                 @endphp
                 <tr style="cursor:pointer" onclick="window.location='{{ route('admin.proveedor-facturas', $f->codigo_proveedor) }}'">
                     <td style="font-weight:700;color:var(--purple)">{{ $nombreProv }}</td>
-                    <td>{{ $f->folio_cfdi }}</td>
+                    <td style="color:var(--gray-muted)">{{ $f->codigo_proveedor }}</td>
                     <td style="font-weight:600;font-variant-numeric:tabular-nums">${{ number_format($f->total, 2) }}</td>
-                    <td><span class="badge-estatus pendiente">Pendiente</span>@if($vencida)<span class="badge-vencida">VENCIDA</span>@endif</td>
                     <td style="color:{{ $vencida ? 'var(--red)' : 'var(--gray-muted)' }};font-weight:{{ $vencida ? '700' : '400' }}">{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}</td>
+                    <td>
+                        @if($vencida)
+                            <span style="color:#dc2626;font-weight:700">{{ $diasVencido }} días</span>
+                        @else
+                            <span style="color:var(--gray-muted)">Vigente</span>
+                        @endif
+                    </td>
                 </tr>
             @endforeach
             </tbody>

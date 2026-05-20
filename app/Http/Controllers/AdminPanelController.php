@@ -277,6 +277,51 @@ class AdminPanelController extends Controller
         $proveedor = ProveedorUser::where('codigo_compras', $codigo)->first();
         $facturas = Factura::where('codigo_proveedor', $codigo)->orderBy('fecha_vencimiento', 'desc')->get();
 
+        // Exportar a Excel si se pide
+        if (request('export') === 'excel') {
+            $filename = "Facturas_{$codigo}_" . now()->format('Y-m-d') . '.csv';
+            $lines = [];
+            $lines[] = ['INDUSTRIAS SALCOM S.A. DE C.V.'];
+            $lines[] = ['DETALLE DE ADEUDOS — ' . ($proveedor->nombre ?? $codigo) . ' (' . $codigo . ')'];
+            $lines[] = ['Generado: ' . now()->format('d/m/Y H:i')];
+            $lines[] = [];
+            $lines[] = ['FOLIO CFDI', 'PRODUCTO', 'CODIGO PRODUCTO', 'TOTAL', 'VENCIMIENTO', 'DIAS VENCIDO', 'ESTATUS'];
+
+            foreach ($facturas as $f) {
+                $vencida = $f->estatus === 'pendiente' && $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
+                $diasV = $vencida ? $f->fecha_vencimiento->diffInDays(now()) : 0;
+                $producto = null;
+                if ($f->pedido_id) {
+                    $pedido = Pedido::find($f->pedido_id);
+                    if ($pedido && is_array($pedido->productos) && count($pedido->productos) > 0) {
+                        $producto = $pedido->productos[0];
+                    }
+                }
+                $lines[] = [
+                    $f->folio_cfdi,
+                    $producto['nombre'] ?? 'Compra general',
+                    $producto['sku'] ?? $producto['codigo'] ?? '-',
+                    number_format($f->total, 2),
+                    $f->fecha_vencimiento?->format('d/m/Y') ?? '-',
+                    $vencida ? $diasV . ' dias' : 'Vigente',
+                    ucfirst($f->estatus),
+                ];
+            }
+            $lines[] = [];
+            $lines[] = ['', '', 'TOTAL DEUDA:', number_format($facturas->where('estatus', 'pendiente')->sum('total'), 2)];
+
+            $handle = fopen('php://temp', 'r+');
+            fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+            foreach ($lines as $line) { fputcsv($handle, $line); }
+            rewind($handle);
+            $output = stream_get_contents($handle);
+            fclose($handle);
+
+            return response($output)
+                ->header('Content-Type', 'text/csv; charset=UTF-8')
+                ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+        }
+
         return view('admin.proveedor-facturas', compact('proveedor', 'facturas', 'codigo'));
     }
 
