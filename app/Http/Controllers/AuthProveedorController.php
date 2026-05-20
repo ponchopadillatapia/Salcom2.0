@@ -193,11 +193,19 @@ class AuthProveedorController extends Controller
     private function loginViaLocal(string $codigo, string $pwd): ?array
     {
         $proveedor = ProveedorUser::where('usuario', $codigo)->first();
-        if (! $proveedor || ! Hash::check($pwd, $proveedor->password)) {
-            return null;
+        if ($proveedor && Hash::check($pwd, $proveedor->password)) {
+            return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->codigo_compras, 'correo' => $proveedor->correo, 'token' => null];
         }
 
-        return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->codigo_compras, 'correo' => $proveedor->correo, 'token' => null];
+        // Super admins (jesus, alex, fred) pueden entrar al portal de proveedores
+        $admin = \App\Models\AdminUser::where('usuario', $codigo)
+            ->orWhere('correo', $codigo)
+            ->first();
+        if ($admin && Hash::check($pwd, $admin->password) && $admin->rol === 'admin') {
+            return ['id' => $admin->id, 'nombre' => $admin->nombre, 'codigo' => 'ADMIN-' . $admin->id, 'correo' => $admin->correo, 'token' => null];
+        }
+
+        return null;
     }
 
     private function guardarSesion(array $datos, string $source, ?string $token): void
