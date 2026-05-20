@@ -278,6 +278,15 @@
             </a>
             @endif
 
+            @if(in_array(session('admin_rol'), ['admin', 'compras_nacional', 'compras_importacion', 'mantenimiento']))
+            <a href="{{ route('admin.alta-producto') }}" class="sb-link {{ request()->is('admin/alta-producto*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                </div>
+                <span class="sb-text">Alta de Producto</span>
+            </a>
+            @endif
+
         </nav>
     </aside>
 

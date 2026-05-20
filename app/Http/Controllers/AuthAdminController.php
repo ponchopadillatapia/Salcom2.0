@@ -42,7 +42,9 @@ class AuthAdminController extends Controller
                 ->withInput();
         }
 
-        $admin = AdminUser::where('usuario', $request->usuario)->first();
+        $admin = AdminUser::where('usuario', $request->usuario)
+            ->orWhere('correo', $request->usuario)
+            ->first();
 
         if (! $admin || ! Hash::check($request->password, $admin->password)) {
             RateLimiter::hit($key, $decay);
