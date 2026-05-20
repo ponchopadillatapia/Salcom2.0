@@ -7,6 +7,7 @@ use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
 use App\Models\Factura;
 use App\Models\Muestra;
+use App\Models\OcBorrador;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
@@ -133,24 +134,164 @@ class AdminPanelController extends Controller
 
     public function proveedores(Request $request)
     {
-        $query = ProveedorUser::query();
+        $tabActiva = $request->input('tab', 'proveedores');
 
-        if ($busqueda = $request->input('busqueda')) {
-            $query->where(function ($q) use ($busqueda) {
-                $q->where('nombre', 'like', "%{$busqueda}%")
-                    ->orWhere('correo', 'like', "%{$busqueda}%")
-                    ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
-            });
+        $filtrosProv = [
+            'nombre' => $request->input('f_nombre'),
+            'codigo' => $request->input('f_codigo'),
+            'correo' => $request->input('f_correo'),
+            'activo' => $request->input('f_activo'),
+        ];
+        $filtrosOc = [
+            'proveedor' => $request->input('f_oc_proveedor'),
+            'numero' => $request->input('f_oc_numero'),
+            'producto' => $request->input('f_oc_producto'),
+            'estatus' => $request->input('f_oc_estatus'),
+            'fecha_desde' => $request->input('f_oc_fecha_desde'),
+            'fecha_hasta' => $request->input('f_oc_fecha_hasta'),
+            'vencida' => $request->input('f_oc_vencida'),
+        ];
+        $filtrosFact = [
+            'folio' => $request->input('f_fact_folio'),
+            'proveedor' => $request->input('f_fact_proveedor'),
+            'vencidas' => $request->input('f_fact_vencidas'),
+            'vence_desde' => $request->input('f_fact_vence_desde'),
+            'vence_hasta' => $request->input('f_fact_vence_hasta'),
+        ];
+
+        $preserveProv = $this->filtrosAQuery($filtrosProv, [
+            'nombre' => 'f_nombre',
+            'codigo' => 'f_codigo',
+            'correo' => 'f_correo',
+            'activo' => 'f_activo',
+        ]);
+        $preserveOc = $this->filtrosAQuery($filtrosOc, [
+            'proveedor' => 'f_oc_proveedor',
+            'numero' => 'f_oc_numero',
+            'producto' => 'f_oc_producto',
+            'estatus' => 'f_oc_estatus',
+            'fecha_desde' => 'f_oc_fecha_desde',
+            'fecha_hasta' => 'f_oc_fecha_hasta',
+            'vencida' => 'f_oc_vencida',
+        ]);
+        $preserveFact = $this->filtrosAQuery($filtrosFact, [
+            'folio' => 'f_fact_folio',
+            'proveedor' => 'f_fact_proveedor',
+            'vencidas' => 'f_fact_vencidas',
+            'vence_desde' => 'f_fact_vence_desde',
+            'vence_hasta' => 'f_fact_vence_hasta',
+        ]);
+
+        $query = ProveedorUser::query();
+        if ($filtrosProv['nombre']) {
+            $query->where('nombre', 'like', '%'.$filtrosProv['nombre'].'%');
+        }
+        if ($filtrosProv['codigo']) {
+            $query->where('codigo_compras', 'like', '%'.$filtrosProv['codigo'].'%');
+        }
+        if ($filtrosProv['correo']) {
+            $query->where('correo', 'like', '%'.$filtrosProv['correo'].'%');
+        }
+        if ($filtrosProv['activo'] !== null && $filtrosProv['activo'] !== '') {
+            $query->where('activo', $filtrosProv['activo'] === '1');
         }
 
         $proveedores = $query->orderBy('score_total', 'desc')->paginate(20)->withQueryString();
+        $metricasProveedores = $this->buildProveedoresMetricas($proveedores->getCollection());
 
-        // Datos adicionales para las secciones
-        $ordenes = Factura::whereNotNull('codigo_proveedor')->orderBy('created_at', 'desc')->limit(20)->get();
-        $productos = Producto::where('activo', true)->orderBy('codigo')->limit(10)->get();
-        $facturasPendientes = Factura::where('estatus', 'pendiente')->whereNotNull('codigo_proveedor')->orderBy('fecha_vencimiento')->get();
+        $ordenesQuery = OcBorrador::with('proveedor')->orderByDesc('created_at');
+        if ($filtrosOc['proveedor']) {
+            $ordenesQuery->whereHas('proveedor', function ($pq) use ($filtrosOc) {
+                $pq->where('nombre', 'like', '%'.$filtrosOc['proveedor'].'%')
+                    ->orWhere('usuario', 'like', '%'.$filtrosOc['proveedor'].'%')
+                    ->orWhere('codigo_compras', 'like', '%'.$filtrosOc['proveedor'].'%');
+            });
+        }
+        if ($filtrosOc['numero']) {
+            $ordenesQuery->where('id', ltrim($filtrosOc['numero'], '#'));
+        }
+        if ($filtrosOc['producto']) {
+            $ordenesQuery->where('productos', 'like', '%'.$filtrosOc['producto'].'%');
+        }
+        if ($filtrosOc['estatus']) {
+            $ordenesQuery->where('estatus', $filtrosOc['estatus']);
+        }
+        if ($filtrosOc['fecha_desde']) {
+            $ordenesQuery->whereDate('created_at', '>=', $filtrosOc['fecha_desde']);
+        }
+        if ($filtrosOc['fecha_hasta']) {
+            $ordenesQuery->whereDate('created_at', '<=', $filtrosOc['fecha_hasta']);
+        }
+        if ($filtrosOc['vencida'] === '1') {
+            $ordenesQuery->where('estatus', '!=', 'completada')
+                ->where('created_at', '<=', now()->subDays(30));
+        }
+        $ordenes = $ordenesQuery->limit(50)->get();
 
-        return view('admin.proveedores', compact('proveedores', 'busqueda', 'ordenes', 'productos', 'facturasPendientes'));
+        $facturasQuery = Factura::where('estatus', 'pendiente')->whereNotNull('codigo_proveedor');
+        if ($filtrosFact['folio']) {
+            $facturasQuery->where('folio_cfdi', 'like', '%'.$filtrosFact['folio'].'%');
+        }
+        if ($filtrosFact['proveedor']) {
+            $facturasQuery->where('codigo_proveedor', 'like', '%'.$filtrosFact['proveedor'].'%');
+        }
+        if ($filtrosFact['vencidas'] === '1') {
+            $facturasQuery->where('fecha_vencimiento', '<', now());
+        }
+        if ($filtrosFact['vence_desde']) {
+            $facturasQuery->whereDate('fecha_vencimiento', '>=', $filtrosFact['vence_desde']);
+        }
+        if ($filtrosFact['vence_hasta']) {
+            $facturasQuery->whereDate('fecha_vencimiento', '<=', $filtrosFact['vence_hasta']);
+        }
+        $facturasPendientes = $facturasQuery->orderBy('fecha_vencimiento')->get();
+
+        $estatusOc = ['pendiente', 'aprobada', 'en_proceso', 'completada'];
+        $filtrosProvActivos = $this->filtrosTienenValor($filtrosProv);
+        $filtrosOcActivos = $this->filtrosTienenValor($filtrosOc);
+        $filtrosFactActivos = $this->filtrosTienenValor($filtrosFact);
+
+        return view('admin.proveedores', compact(
+            'proveedores',
+            'filtrosProv',
+            'filtrosOc',
+            'filtrosFact',
+            'preserveProv',
+            'preserveOc',
+            'preserveFact',
+            'filtrosProvActivos',
+            'filtrosOcActivos',
+            'filtrosFactActivos',
+            'estatusOc',
+            'tabActiva',
+            'ordenes',
+            'facturasPendientes',
+            'metricasProveedores'
+        ));
+    }
+
+    private function filtrosAQuery(array $filtros, array $mapa): array
+    {
+        $query = [];
+        foreach ($mapa as $key => $param) {
+            $valor = $filtros[$key] ?? null;
+            if ($valor !== null && $valor !== '') {
+                $query[$param] = $valor;
+            }
+        }
+
+        return $query;
+    }
+
+    private function filtrosTienenValor(array $filtros): bool
+    {
+        foreach ($filtros as $valor) {
+            if ($valor !== null && $valor !== '') {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ── Productos ──
@@ -217,15 +358,11 @@ class AdminPanelController extends Controller
     public function negocio()
     {
         $data = [
-            'ventasTotales'     => Pedido::whereNotIn('estatus', ['cancelado'])->sum('total'),
-            'pedidosEntregados' => Pedido::where('estatus', 'entregado')->count(),
-            'totalPedidos'      => Pedido::count(),
-            'totalEncuestas'    => Encuesta::count(),
-            'calificacionProm'  => round((float) Encuesta::avg('calificacion'), 1),
-            'facturasPagadas'   => Factura::where('estatus', 'pagada')->sum('total'),
-            'facturasPendientes'=> Factura::where('estatus', 'pendiente')->sum('total'),
-            'pedidosPorMes'     => $this->pedidosPorMes(),
-            'encuestas'         => Encuesta::orderBy('created_at', 'desc')->limit(10)->get(),
+            'ventasTotales'          => Pedido::whereNotIn('estatus', ['cancelado'])->sum('total'),
+            'deudasTotal'            => Factura::where('estatus', 'pendiente')->sum('total'),
+            'deudasCount'            => Factura::where('estatus', 'pendiente')->count(),
+            'facturasPagadas'        => Factura::where('estatus', 'pagada')->sum('total'),
+            'pedidosPorMes'          => $this->pedidosPorMes(),
         ];
 
         return view('admin.negocio', $data);
@@ -270,7 +407,15 @@ class AdminPanelController extends Controller
             ];
         }
 
-        return view('admin.otif', compact('total', 'pagadas', 'pendientes', 'vencidas', 'canceladas', 'otPercent', 'ifPercent', 'porcentaje', 'detalleProveedores'));
+        $totalEncuestas   = Encuesta::count();
+        $calificacionProm = round((float) Encuesta::avg('calificacion'), 1);
+        $encuestas        = Encuesta::orderBy('created_at', 'desc')->limit(10)->get();
+
+        return view('admin.otif', compact(
+            'total', 'pagadas', 'pendientes', 'vencidas', 'canceladas',
+            'otPercent', 'ifPercent', 'porcentaje', 'detalleProveedores',
+            'totalEncuestas', 'calificacionProm', 'encuestas'
+        ));
     }
 
     // ── Inventario ──
@@ -743,5 +888,139 @@ class AdminPanelController extends Controller
             ->get();
 
         return view('admin.material-empaque', compact('productos'));
+    }
+
+    private function buildProveedoresMetricas($proveedores): array
+    {
+        $codigos = $proveedores->pluck('codigo_compras')->filter()->values();
+        if ($codigos->isEmpty()) {
+            return [];
+        }
+
+        $trimInicio = now()->subMonths(3);
+        $facturas = Factura::whereIn('codigo_proveedor', $codigos)
+            ->where('created_at', '>=', now()->subMonths(6))
+            ->get()
+            ->groupBy('codigo_proveedor');
+
+        $metricas = [];
+        foreach ($proveedores as $prov) {
+            $codigo = $prov->codigo_compras;
+            if (! $codigo) {
+                $metricas[$prov->id] = $this->metricasProveedorVacias($prov);
+                continue;
+            }
+
+            $grupo = $facturas->get($codigo, collect());
+            $actual = $grupo->filter(fn ($f) => $f->created_at >= $trimInicio);
+            $anterior = $grupo->filter(fn ($f) => $f->created_at < $trimInicio);
+
+            $otifActual = $this->pctOtifFromFacturas($actual);
+            $otifAnterior = $this->pctOtifFromFacturas($anterior);
+            $entregaActual = $this->pctEntregaFromFacturas($actual);
+            $entregaAnterior = $this->pctEntregaFromFacturas($anterior);
+            $puntualidadActual = $this->pctPuntualidadFromFacturas($actual);
+            $puntualidadAnterior = $this->pctPuntualidadFromFacturas($anterior);
+
+            $comprasTrim = (float) $actual->sum('total');
+            $comprasAnterior = (float) $anterior->sum('total');
+            $forecast = min(100, max(0, (float) $prov->score_total * 1.1));
+            $forecastAnterior = min(100, max(0, $otifAnterior * 1.1));
+
+            $metricas[$prov->id] = [
+                'forecast' => $forecast,
+                'compras_trim' => $comprasTrim,
+                'estimado' => $comprasTrim > 0 ? round($comprasTrim / 3, 2) : 0,
+                'score_class' => $this->scoreBarClass((float) $prov->score_total),
+                'forecast_class' => $this->scoreBarClass($forecast),
+                'trend_otif' => $this->deltaTrend($otifActual, $otifAnterior),
+                'trend_entrega' => $this->deltaTrend($entregaActual, $entregaAnterior),
+                'trend_puntualidad' => $this->deltaTrend($puntualidadActual, $puntualidadAnterior),
+                'trend_forecast' => $this->deltaTrend($forecast, $forecastAnterior),
+                'trend_compras' => $this->pctCambio($comprasTrim, $comprasAnterior),
+            ];
+        }
+
+        return $metricas;
+    }
+
+    private function metricasProveedorVacias(ProveedorUser $prov): array
+    {
+        $forecast = min(100, max(0, (float) $prov->score_total * 1.1));
+
+        return [
+            'forecast' => $forecast,
+            'compras_trim' => 0,
+            'estimado' => 0,
+            'score_class' => $this->scoreBarClass((float) $prov->score_total),
+            'forecast_class' => $this->scoreBarClass($forecast),
+            'trend_otif' => 0,
+            'trend_entrega' => 0,
+            'trend_puntualidad' => 0,
+            'trend_forecast' => 0,
+            'trend_compras' => 0,
+        ];
+    }
+
+    private function pctOtifFromFacturas($facturas): float
+    {
+        $total = $facturas->count();
+        if ($total === 0) {
+            return 0;
+        }
+
+        return round($facturas->where('estatus', 'pagada')->count() / $total * 100, 1);
+    }
+
+    private function pctEntregaFromFacturas($facturas): float
+    {
+        $total = $facturas->count();
+        if ($total === 0) {
+            return 0;
+        }
+
+        return round($facturas->where('estatus', '!=', 'cancelada')->count() / $total * 100, 1);
+    }
+
+    private function pctPuntualidadFromFacturas($facturas): float
+    {
+        $total = $facturas->count();
+        if ($total === 0) {
+            return 0;
+        }
+
+        $puntuales = $facturas->filter(function ($f) {
+            if ($f->estatus === 'cancelada') {
+                return false;
+            }
+            if ($f->estatus === 'pagada') {
+                return ! $f->fecha_vencimiento || ! $f->fecha_vencimiento->isPast();
+            }
+
+            return $f->estatus === 'pendiente'
+                && $f->fecha_vencimiento
+                && $f->fecha_vencimiento->isFuture();
+        })->count();
+
+        return round($puntuales / $total * 100, 1);
+    }
+
+    private function deltaTrend(float $actual, float $anterior): int
+    {
+        return (int) round($actual - $anterior);
+    }
+
+    private function pctCambio(float $actual, float $anterior): int
+    {
+        if ($anterior <= 0) {
+            return $actual > 0 ? 100 : 0;
+        }
+
+        return (int) round((($actual - $anterior) / $anterior) * 100);
+    }
+
+    private function scoreBarClass(float $pct): string
+    {
+        return $pct >= 70 ? 'score-high' : ($pct >= 40 ? 'score-mid' : 'score-low');
     }
 }

@@ -40,6 +40,12 @@
     .tbl tr:hover td{background:var(--purple-subtle)}
     .score-bar{width:60px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
 
+    .sat-kpi{background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:22px;position:relative;overflow:hidden;max-width:320px;margin-bottom:28px}
+    .sat-kpi .bar{position:absolute;bottom:0;left:0;right:0;height:4px;background:#7c3aed}
+    .sat-kpi-label{font-size:11px;color:var(--gray-muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+    .sat-kpi-val{font-size:28px;font-weight:800;color:var(--gray-text);line-height:1}
+    .sat-kpi-sub{font-size:12px;color:var(--gray-muted);margin-top:6px}
+
     @media(max-width:900px){
         .adm-otif-grid{grid-template-columns:1fr}
     }
@@ -79,6 +85,35 @@
         <span><span class="dot" style="background:#ff9500"></span>Faltante menor (valor &gt; 95%)</span>
         <span><span class="dot" style="background:#ff3b30"></span>Faltante mayor (valor ≤ 95%)</span>
     </div>
+
+    <div class="sat-kpi anim" style="animation-delay:.06s">
+        <div class="sat-kpi-label">Satisfacción</div>
+        <div class="sat-kpi-val">{{ $calificacionProm ?: '—' }}<span style="font-size:14px;color:var(--gray-muted);font-weight:500">/5</span></div>
+        <div class="sat-kpi-sub">{{ $totalEncuestas }} encuestas</div>
+        <div class="bar"></div>
+    </div>
+</div>
+
+<div class="table-card anim" style="animation-delay:.07s;max-width:1140px;margin:0 auto 28px">
+    <div class="table-head">Encuestas de satisfacción recientes</div>
+    @if($encuestas->count())
+    <table class="tbl">
+        <thead><tr><th>Cliente</th><th>General</th><th>Entrega</th><th>Calidad</th><th>Comentario</th></tr></thead>
+        <tbody>
+        @foreach($encuestas as $e)
+        <tr>
+            <td style="font-weight:600">{{ $e->codigo_cliente }}</td>
+            <td><strong>{{ $e->calificacion }}</strong>/5</td>
+            <td>{{ $e->tiempo_entrega }}/5</td>
+            <td>{{ $e->calidad_producto }}/5</td>
+            <td style="color:var(--gray-muted);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $e->comentarios ?? '—' }}</td>
+        </tr>
+        @endforeach
+        </tbody>
+    </table>
+    @else
+    <p style="text-align:center;padding:24px;color:var(--gray-muted);font-size:13px">Sin encuestas registradas</p>
+    @endif
 </div>
 
 @if(count($detalleProveedores))
