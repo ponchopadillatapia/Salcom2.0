@@ -27,13 +27,14 @@
     /* ── Card base ── */
     .pp-card {
         background: var(--white);
-        border: 1px solid var(--border-light);
+        border: 2px solid var(--purple);
         border-radius: var(--radius-lg);
         padding: 22px;
         transition: var(--transition);
+        box-shadow: var(--shadow-sm);
     }
     .pp-card:hover {
-        border-color: var(--purple-mid);
+        border-color: var(--purple-dark);
         box-shadow: var(--shadow-md);
     }
     .pp-card h4 {
