@@ -61,6 +61,7 @@ class IaOCTrimestral extends Command
 
         if (empty($productosAPedir)) {
             $this->info('✅ No hay productos que requieran reorden trimestral.');
+
             return Command::SUCCESS;
         }
 
@@ -78,9 +79,10 @@ class IaOCTrimestral extends Command
                 'destinatario_tipo' => 'admin',
                 'destinatario_id' => 1,
                 'titulo' => '⚠️ OC Trimestral: No hay proveedores disponibles',
-                'contenido' => 'Se detectaron ' . count($productosAPedir) . ' productos que necesitan reorden pero no hay proveedores activos con score.',
+                'contenido' => 'Se detectaron '.count($productosAPedir).' productos que necesitan reorden pero no hay proveedores activos con score.',
                 'nivel' => 'critical',
             ]);
+
             return Command::SUCCESS;
         }
 
@@ -106,7 +108,7 @@ class IaOCTrimestral extends Command
                 'proveedor_id' => $proveedorId,
                 'productos' => $productos,
                 'monto_estimado' => $montoTotal,
-                'motivo' => 'OC trimestral automática - Reorden basado en fórmula DDI ' . $calcService->getDDI() . ' días',
+                'motivo' => 'OC trimestral automática - Reorden basado en fórmula DDI '.$calcService->getDDI().' días',
                 'estatus' => 'pendiente',
             ]);
             $ocGeneradas++;
@@ -120,7 +122,7 @@ class IaOCTrimestral extends Command
             'destinatario_tipo' => 'admin',
             'destinatario_id' => 1,
             'titulo' => "📋 OC Trimestral generada: {$ocGeneradas} órdenes",
-            'contenido' => "Se generaron {$ocGeneradas} borradores de OC trimestral para " . count($productosAPedir) . " productos. Monto total estimado: $" . number_format($montoTotalGeneral, 2) . ". Requieren tu aprobación.",
+            'contenido' => "Se generaron {$ocGeneradas} borradores de OC trimestral para ".count($productosAPedir).' productos. Monto total estimado: $'.number_format($montoTotalGeneral, 2).'. Requieren tu aprobación.',
             'datos' => [
                 'total_oc' => $ocGeneradas,
                 'total_productos' => count($productosAPedir),
@@ -130,12 +132,12 @@ class IaOCTrimestral extends Command
             'nivel' => 'info',
         ]);
 
-        $this->info("✅ OC Trimestral completada.");
-        $this->info("   Productos a reordenar: " . count($productosAPedir));
+        $this->info('✅ OC Trimestral completada.');
+        $this->info('   Productos a reordenar: '.count($productosAPedir));
         $this->info("   OC generadas: {$ocGeneradas}");
-        $this->info("   Monto total estimado: $" . number_format($montoTotalGeneral, 2));
+        $this->info('   Monto total estimado: $'.number_format($montoTotalGeneral, 2));
 
-        Log::info("[ia:oc-trimestral] Productos: " . count($productosAPedir) . ", OC: {$ocGeneradas}, Monto: $" . number_format($montoTotalGeneral, 2));
+        Log::info('[ia:oc-trimestral] Productos: '.count($productosAPedir).", OC: {$ocGeneradas}, Monto: $".number_format($montoTotalGeneral, 2));
 
         return Command::SUCCESS;
     }

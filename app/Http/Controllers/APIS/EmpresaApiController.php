@@ -489,7 +489,7 @@ class EmpresaApiController extends Controller
         } elseif (preg_match('/VIG(?:ENCIA)?[:\s.]*(\d{2})[\/\-](\d{2})[\/\-](\d{4})/', $texto, $vigM2)) {
             $datos['vigencia'] = $vigM2[3];
             $vigenciaEncontrada = true;
-            $hallazgos[] = 'Fecha vigencia completa: ' . $vigM2[1] . '/' . $vigM2[2] . '/' . $vigM2[3];
+            $hallazgos[] = 'Fecha vigencia completa: '.$vigM2[1].'/'.$vigM2[2].'/'.$vigM2[3];
         } elseif (preg_match('/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/', $texto, $fechaM)) {
             // Buscar cualquier fecha que pueda ser vigencia (año futuro o actual)
             if ((int) $fechaM[3] >= 2020) {
@@ -506,10 +506,10 @@ class EmpresaApiController extends Controller
             $anioVigencia = (int) $datos['vigencia'];
             $anioActual = (int) date('Y');
             if ($anioVigencia < $anioActual) {
-                $errores[] = 'INE vencida — Vigencia: ' . $datos['vigencia'] . ' (año actual: ' . $anioActual . ')';
-                $hallazgos[] = 'Vigencia: ' . $datos['vigencia'] . ' — VENCIDA';
+                $errores[] = 'INE vencida — Vigencia: '.$datos['vigencia'].' (año actual: '.$anioActual.')';
+                $hallazgos[] = 'Vigencia: '.$datos['vigencia'].' — VENCIDA';
             } else {
-                $hallazgos[] = 'Vigencia: ' . $datos['vigencia'] . ' — Vigente';
+                $hallazgos[] = 'Vigencia: '.$datos['vigencia'].' — Vigente';
             }
         } else {
             $hallazgos[] = 'No se detectó año de vigencia en el documento';

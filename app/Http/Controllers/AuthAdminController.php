@@ -62,23 +62,23 @@ class AuthAdminController extends Controller
         RateLimiter::clear($key);
 
         session([
-            'admin_id'      => $admin->id,
-            'admin_nombre'  => $admin->nombre,
-            'admin_correo'  => $admin->correo,
+            'admin_id' => $admin->id,
+            'admin_nombre' => $admin->nombre,
+            'admin_correo' => $admin->correo,
             'admin_usuario' => $admin->usuario,
-            'admin_rol'     => $admin->rol,
+            'admin_rol' => $admin->rol,
         ]);
 
         Log::info('Login admin exitoso', ['usuario' => $admin->usuario, 'rol' => $admin->rol]);
 
         // Redirigir según rol
         $redirect = match ($admin->rol) {
-            'materia_prima'    => '/admin/materia-prima',
+            'materia_prima' => '/admin/materia-prima',
             'material_empaque' => '/admin/material-empaque',
-            default            => '/admin/dashboard',
+            default => '/admin/dashboard',
         };
 
-        return redirect($redirect)->with('mensaje', 'Bienvenido ' . $admin->nombre);
+        return redirect($redirect)->with('mensaje', 'Bienvenido '.$admin->nombre);
     }
 
     public function cerrarSesion()

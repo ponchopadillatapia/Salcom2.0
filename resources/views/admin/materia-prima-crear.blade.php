@@ -1,13 +1,14 @@
-@extends('layouts.area')
+@extends('layouts.admin')
 @section('title', 'Nuevo Producto — Materia Prima')
-@section('area-title', 'Materia Prima')
 @section('hero')
+<div class="hero-band">
     <h1>Nuevo Producto</h1>
     <p>Alta de materia prima en el sistema</p>
+</div>
 @endsection
 @push('styles')
 <style>
-    .form-card{background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:28px;margin-bottom:24px}
+    .form-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:24px}
     .form-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid var(--border-light)}
     .form-header h2{font-size:16px;font-weight:700;color:var(--gray-text)}
     .form-header .date{font-size:12px;color:var(--gray-muted)}
@@ -51,9 +52,12 @@
 @endpush
 @section('content')
 
-<div style="margin-bottom:16px">
-    <a href="{{ route('admin.materia-prima') }}" class="tb-btn">← Regresar a lista</a>
-</div>
+<nav class="admin-back-nav" style="margin:0 0 16px" aria-label="Navegación de materia prima">
+    <a href="{{ route('admin.materia-prima') }}" class="admin-back-link">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        Regresar a inventario
+    </a>
+</nav>
 
 <div class="form-card">
     <div class="form-header">

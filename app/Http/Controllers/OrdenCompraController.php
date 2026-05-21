@@ -104,11 +104,11 @@ class OrdenCompraController extends Controller
             'destinatario_tipo' => 'proveedor',
             'destinatario_id' => $provId,
             'titulo' => "OC #{$oc->id} generada",
-            'contenido' => "Se generó una OC por " . count($productosOC) . " productos. Monto: $" . number_format($montoTotal, 2),
+            'contenido' => 'Se generó una OC por '.count($productosOC).' productos. Monto: $'.number_format($montoTotal, 2),
             'datos' => ['oc_id' => $oc->id, 'monto' => $montoTotal],
             'nivel' => 'info',
         ]);
 
-        return back()->with('mensaje', "OC #{$oc->id} generada exitosamente. Monto: $" . number_format($montoTotal, 2));
+        return back()->with('mensaje', "OC #{$oc->id} generada exitosamente. Monto: $".number_format($montoTotal, 2));
     }
 }

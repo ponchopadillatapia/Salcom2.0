@@ -17,12 +17,12 @@ class AdminRol
     public function handle(Request $request, Closure $next, string ...$roles): mixed
     {
         $adminId = session('admin_id');
-        if (!$adminId) {
+        if (! $adminId) {
             return redirect('/login-admin');
         }
 
         $admin = AdminUser::find($adminId);
-        if (!$admin) {
+        if (! $admin) {
             return redirect('/login-admin');
         }
 

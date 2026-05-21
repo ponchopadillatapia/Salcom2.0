@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('admin_users', function (Blueprint $table) {
-            if (!Schema::hasColumn('admin_users', 'rol')) {
+            if (! Schema::hasColumn('admin_users', 'rol')) {
                 $table->string('rol')->default('admin')->after('activo');
             }
         });

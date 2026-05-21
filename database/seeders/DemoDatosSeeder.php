@@ -175,7 +175,7 @@ class DemoDatosSeeder extends Seeder
                 'destinatario_tipo' => 'proveedor',
                 'destinatario_id' => $prov4->id,
                 'titulo' => 'Tu Opinión de cumplimiento SAT vence en 5 días',
-                'contenido' => 'Recuerda renovar tu documento "Opinión de cumplimiento SAT" antes del ' . now()->addDays(5)->format('d/m/Y') . '. Puedes subirlo desde la sección Fiscal de tu portal.',
+                'contenido' => 'Recuerda renovar tu documento "Opinión de cumplimiento SAT" antes del '.now()->addDays(5)->format('d/m/Y').'. Puedes subirlo desde la sección Fiscal de tu portal.',
                 'datos' => ['proveedor_id' => $prov4->id, 'documento_tipo' => 'opinion', 'dias_restantes' => 5],
                 'nivel' => 'warning',
                 'estatus' => 'enviada',

@@ -34,7 +34,7 @@ class IaGenerarPronosticos extends Command
         $clientes = ClienteUser::where('activo', true)->get();
 
         foreach ($clientes as $cliente) {
-            $codigoCliente = $cliente->codigo_cliente ?? 'CLI-' . $cliente->id;
+            $codigoCliente = $cliente->codigo_cliente ?? 'CLI-'.$cliente->id;
 
             // Generar pronóstico con IA
             try {
@@ -87,7 +87,7 @@ class IaGenerarPronosticos extends Command
                                     'destinatario_tipo' => 'admin',
                                     'destinatario_id' => 1,
                                     'titulo' => "📈 Pico de demanda detectado: {$cliente->nombre}",
-                                    'contenido' => "El cliente {$cliente->nombre} ({$codigoCliente}) incrementó su demanda un " . round($incremento) . "% respecto al mes anterior. Verificar disponibilidad de inventario.",
+                                    'contenido' => "El cliente {$cliente->nombre} ({$codigoCliente}) incrementó su demanda un ".round($incremento).'% respecto al mes anterior. Verificar disponibilidad de inventario.',
                                     'datos' => [
                                         'cliente_id' => $cliente->id,
                                         'cliente_nombre' => $cliente->nombre,
@@ -107,7 +107,7 @@ class IaGenerarPronosticos extends Command
             }
         }
 
-        $this->info("✅ Pronósticos completados.");
+        $this->info('✅ Pronósticos completados.');
         $this->info("   Clientes procesados: {$clientes->count()}");
         $this->info("   Pronósticos generados: {$pronosticosGenerados}");
         $this->info("   Alertas de pico: {$alertasGeneradas}");

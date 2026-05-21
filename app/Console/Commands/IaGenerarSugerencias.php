@@ -6,7 +6,6 @@ use App\Models\ClienteUser;
 use App\Models\Pedido;
 use App\Models\ProveedorUser;
 use App\Services\AlertEngineService;
-use App\Services\IaService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -89,7 +88,7 @@ class IaGenerarSugerencias extends Command
     /**
      * Generar sugerencia para un proveedor.
      */
-    private function generarSugerenciaProveedor(ProveedorUser $proveedor, AlertEngineService $alertEngine): ?string
+    private function generarSugerenciaProveedor(ProveedorUser $proveedor, AlertEngineService $alertEngine): string
     {
         $score = (float) $proveedor->score_total;
 
@@ -100,29 +99,29 @@ class IaGenerarSugerencias extends Command
 
             $peorArea = $scoreEntrega < $scorePuntualidad ? 'entregas a tiempo' : 'puntualidad';
 
-            return "Tu score actual es {$score}%. Para mejorarlo, enfócate en {$peorArea} (actualmente en " .
-                min($scoreEntrega, $scorePuntualidad) . "%). " .
-                "Tip: Confirma fechas de entrega con anticipación y avisa si hay retrasos. " .
-                "Un score arriba de 80% te da prioridad en nuevas OC.";
+            return "Tu score actual es {$score}%. Para mejorarlo, enfócate en {$peorArea} (actualmente en ".
+                min($scoreEntrega, $scorePuntualidad).'%). '.
+                'Tip: Confirma fechas de entrega con anticipación y avisa si hay retrasos. '.
+                'Un score arriba de 80% te da prioridad en nuevas OC.';
         }
 
         // Si score alto, felicitar
         if ($score >= 80) {
-            return "¡Excelente rendimiento! Tu score es {$score}%. Mantén este nivel para seguir siendo proveedor preferente de Salcom. " .
-                "Recuerda revisar tus documentos fiscales en la sección Fiscal para mantenerlos al día.";
+            return "¡Excelente rendimiento! Tu score es {$score}%. Mantén este nivel para seguir siendo proveedor preferente de Salcom. ".
+                'Recuerda revisar tus documentos fiscales en la sección Fiscal para mantenerlos al día.';
         }
 
         // Sin score, sugerir completar onboarding
-        return 'Completa tu onboarding para empezar a recibir órdenes de compra. ' .
+        return 'Completa tu onboarding para empezar a recibir órdenes de compra. '.
             'Asegúrate de tener todos tus documentos fiscales al día en la sección Fiscal.';
     }
 
     /**
      * Generar sugerencia para un cliente.
      */
-    private function generarSugerenciaCliente(ClienteUser $cliente, AlertEngineService $alertEngine): ?string
+    private function generarSugerenciaCliente(ClienteUser $cliente, AlertEngineService $alertEngine): string
     {
-        $codigoCliente = $cliente->codigo_cliente ?? 'CLI-' . $cliente->id;
+        $codigoCliente = $cliente->codigo_cliente ?? 'CLI-'.$cliente->id;
 
         // Verificar si no ha pedido en 30 días
         $ultimoPedido = Pedido::where('codigo_cliente', $codigoCliente)
@@ -132,19 +131,19 @@ class IaGenerarSugerencias extends Command
         if ($ultimoPedido && $ultimoPedido->created_at->diffInDays(now()) > 30) {
             $diasSinPedir = $ultimoPedido->created_at->diffInDays(now());
 
-            return "Han pasado {$diasSinPedir} días desde tu último pedido. " .
-                "Basado en tu historial, normalmente pides cada 20-25 días. " .
-                "¿Necesitas reabastecer? Revisa tu Forecast para ver las tendencias de tus productos.";
+            return "Han pasado {$diasSinPedir} días desde tu último pedido. ".
+                'Basado en tu historial, normalmente pides cada 20-25 días. '.
+                '¿Necesitas reabastecer? Revisa tu Forecast para ver las tendencias de tus productos.';
         }
 
         // Si tiene pedidos recientes, sugerir basado en volumen
         if ($ultimoPedido) {
-            return 'Revisa tu sección de Forecast para ver las tendencias de tus productos más comprados. ' .
+            return 'Revisa tu sección de Forecast para ver las tendencias de tus productos más comprados. '.
                 'Si planeas un pedido grande, contáctanos con anticipación para asegurar disponibilidad.';
         }
 
         // Sin pedidos
-        return '¡Bienvenido! Explora nuestro catálogo de productos y realiza tu primer pedido. ' .
+        return '¡Bienvenido! Explora nuestro catálogo de productos y realiza tu primer pedido. '.
             'Nuestro equipo está disponible para ayudarte con cotizaciones.';
     }
 }

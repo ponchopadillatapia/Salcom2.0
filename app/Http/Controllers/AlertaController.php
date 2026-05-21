@@ -99,7 +99,7 @@ class AlertaController extends Controller
             'destinatario_tipo' => 'proveedor',
             'destinatario_id' => $oc->proveedor_id,
             'titulo' => 'Nueva OC asignada',
-            'contenido' => 'Se aprobó una orden de compra por $' . number_format($oc->monto_estimado, 2) . '. Revisa los detalles en Consultar OC.',
+            'contenido' => 'Se aprobó una orden de compra por $'.number_format($oc->monto_estimado, 2).'. Revisa los detalles en Consultar OC.',
             'datos' => ['oc_id' => $oc->id, 'monto' => $oc->monto_estimado],
             'nivel' => 'info',
         ]);

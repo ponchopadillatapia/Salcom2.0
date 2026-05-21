@@ -2,9 +2,13 @@
 
 namespace App\Services;
 
+use App\Models\AdminUser;
 use App\Models\Alerta;
 use App\Models\AlertaConfiguracion;
+use App\Models\ClienteUser;
+use App\Models\ProveedorUser;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 
 /**
  * Motor de Alertas — Servicio central del sistema de IA proactiva.
@@ -78,23 +82,23 @@ class AlertEngineService
         $correo = null;
 
         if ($alerta->destinatario_tipo === 'proveedor' && $alerta->destinatario_id) {
-            $prov = \App\Models\ProveedorUser::find($alerta->destinatario_id);
+            $prov = ProveedorUser::find($alerta->destinatario_id);
             $correo = $prov?->correo;
         } elseif ($alerta->destinatario_tipo === 'cliente' && $alerta->destinatario_id) {
-            $cliente = \App\Models\ClienteUser::find($alerta->destinatario_id);
+            $cliente = ClienteUser::find($alerta->destinatario_id);
             $correo = $cliente?->correo;
         } elseif ($alerta->destinatario_tipo === 'admin') {
-            $admin = \App\Models\AdminUser::find($alerta->destinatario_id ?? 1);
+            $admin = AdminUser::find($alerta->destinatario_id ?? 1);
             $correo = $admin?->correo;
         }
 
         if ($correo) {
             try {
-                \Illuminate\Support\Facades\Mail::raw(
+                Mail::raw(
                     $alerta->contenido ?? $alerta->titulo,
                     function ($message) use ($alerta, $correo) {
                         $message->to($correo)
-                            ->subject('[Salcom IA] ' . $alerta->titulo);
+                            ->subject('[Salcom IA] '.$alerta->titulo);
                     }
                 );
                 Log::info("[AlertEngine] Email enviado a {$correo}: {$alerta->titulo}");
