@@ -86,6 +86,10 @@ class AdminPanelController extends Controller
             ? round((($agotadosMesActual - $agotadosMesAnterior) / $agotadosMesAnterior) * 100)
             : 0;
 
+        $proveedoresOtif = ProveedorUser::where('activo', true);
+        $otPromedio = round((float) $proveedoresOtif->avg('score_entrega'), 0);
+        $ifPromedio = round((float) $proveedoresOtif->avg('score_puntualidad'), 0);
+
         $data = [
             'totalProveedores' => ProveedorUser::count(),
             'proveedoresActivos' => ProveedorUser::where('activo', true)->count(),
@@ -112,8 +116,8 @@ class AdminPanelController extends Controller
             'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(3)->get(),
             'pedidosPorMes' => $pedidosPorMes,
             'facturasPorEstatus' => $facturasPorEstatus,
-            'totalEncuestas' => Encuesta::count(),
-            'calificacionProm' => round((float) Encuesta::avg('calificacion'), 1),
+            'otPromedio' => $otPromedio,
+            'ifPromedio' => $ifPromedio,
         ];
 
         return view('admin.dashboard', $data);
@@ -1702,11 +1706,6 @@ class AdminPanelController extends Controller
         }
 
         return $f->estatus === 'pendiente' && now()->lte($limite);
-    }
-
-    private function deltaTrend(float $actual, float $anterior): int
-    {
-        return (int) round($actual - $anterior);
     }
 
     private function pctCambio(float $actual, float $anterior): int

@@ -142,16 +142,14 @@
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
-        <a href="{{ route('admin.encuestas') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('admin.reporte-proveedores') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-            <h4>Satisfacción</h4>
-            <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
-                <div style="font-size:28px;font-weight:800;color:var(--gray-text);line-height:1;">
-                    {{ $totalEncuestas ? number_format($calificacionProm, 1) : '—' }}<span style="font-size:14px;color:var(--gray-muted);font-weight:500">/5</span>
-                </div>
-                <div style="font-size:12px;color:var(--gray-muted);margin-top:8px;">{{ $totalEncuestas }} {{ $totalEncuestas === 1 ? 'encuesta' : 'encuestas' }}</div>
+            <h4>OTIF</h4>
+            <div class="pp-kpi-gauges">
+                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOt" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $otPromedio }}%</div></div></div><div class="pp-otif-label">OT</div></div>
+                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeIf" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent" style="color:{{ $ifPromedio >= 80 ? 'var(--green)' : ($ifPromedio >= 50 ? 'var(--amber)' : 'var(--red)') }}">{{ $ifPromedio }}%</div></div></div><div class="pp-otif-label">IF</div></div>
             </div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver encuestas →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
         <a href="{{ route('admin.opinion-positiva') }}" style="text-decoration:none;color:inherit;">
@@ -335,6 +333,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     drawDonut('gaugeOpOk', {{ $opinionPctActualizados }});
     drawDonut('gaugeOpNo', {{ $opinionPctNoActualizados }});
+    drawDonut('gaugeOt', {{ $otPromedio }});
+    drawDonut('gaugeIf', {{ $ifPromedio }});
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
