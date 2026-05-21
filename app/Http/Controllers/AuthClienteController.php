@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\ProveedorApiException;
 use App\Http\Requests\LoginClienteRequest;
+use App\Models\AdminUser;
 use App\Models\ClienteUser;
 use App\Services\ClienteApiService;
 use Illuminate\Support\Facades\Hash;
@@ -178,6 +179,7 @@ class AuthClienteController extends Controller
             if (! $cliente->activo) {
                 return ['_inactivo' => true];
             }
+
             return [
                 'id' => $cliente->id,
                 'nombre' => $cliente->nombre,
@@ -189,14 +191,14 @@ class AuthClienteController extends Controller
         }
 
         // Super admins (jesus, alex, fred) pueden entrar al portal de clientes
-        $admin = \App\Models\AdminUser::where('usuario', $usuario)
+        $admin = AdminUser::where('usuario', $usuario)
             ->orWhere('correo', $usuario)
             ->first();
         if ($admin && Hash::check($pwd, $admin->password) && $admin->rol === 'admin') {
             return [
                 'id' => $admin->id,
                 'nombre' => $admin->nombre,
-                'codigo' => 'ADMIN-' . $admin->id,
+                'codigo' => 'ADMIN-'.$admin->id,
                 'correo' => $admin->correo,
                 'tipo' => 'admin',
                 'token' => null,

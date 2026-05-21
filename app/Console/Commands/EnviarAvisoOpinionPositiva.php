@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Mail;
 class EnviarAvisoOpinionPositiva extends Command
 {
     protected $signature = 'salcom:aviso-opinion';
+
     protected $description = 'Envía correo a proveedores que no tienen opinión positiva vigente';
 
     public function handle(): int
@@ -20,7 +21,9 @@ class EnviarAvisoOpinionPositiva extends Command
         $enviados = 0;
 
         foreach ($proveedores as $prov) {
-            if (empty($prov->correo)) continue;
+            if (empty($prov->correo)) {
+                continue;
+            }
 
             $doc = DocumentoProveedor::where('proveedor_id', $prov->id)
                 ->where('tipo', 'opinion')
@@ -30,7 +33,9 @@ class EnviarAvisoOpinionPositiva extends Command
             $estatus = $doc ? $doc->estatus : 'sin_documento';
 
             // Solo enviar si NO está aprobado
-            if ($estatus === 'aprobado') continue;
+            if ($estatus === 'aprobado') {
+                continue;
+            }
 
             try {
                 Mail::to($prov->correo)->send(
@@ -46,6 +51,7 @@ class EnviarAvisoOpinionPositiva extends Command
         }
 
         $this->info("Total correos enviados: {$enviados}");
+
         return Command::SUCCESS;
     }
 }

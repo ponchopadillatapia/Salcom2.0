@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\ProveedorApiException;
 use App\Http\Requests\LoginProveedorRequest;
 use App\Http\Requests\RegisterProveedorRequest;
+use App\Models\AdminUser;
 use App\Models\ProveedorUser;
 use App\Services\ProveedorApiService;
 use Illuminate\Http\Request;
@@ -198,11 +199,11 @@ class AuthProveedorController extends Controller
         }
 
         // Super admins (jesus, alex, fred) pueden entrar al portal de proveedores
-        $admin = \App\Models\AdminUser::where('usuario', $codigo)
+        $admin = AdminUser::where('usuario', $codigo)
             ->orWhere('correo', $codigo)
             ->first();
         if ($admin && Hash::check($pwd, $admin->password) && $admin->rol === 'admin') {
-            return ['id' => $admin->id, 'nombre' => $admin->nombre, 'codigo' => 'ADMIN-' . $admin->id, 'correo' => $admin->correo, 'token' => null];
+            return ['id' => $admin->id, 'nombre' => $admin->nombre, 'codigo' => 'ADMIN-'.$admin->id, 'correo' => $admin->correo, 'token' => null];
         }
 
         return null;

@@ -46,8 +46,12 @@ Route::post('/alta-producto/subir', [AltaProductoController::class, 'subirExcel'
 Route::post('/alta-producto/manual', [AltaProductoController::class, 'registroManual'])->name('proveedores.alta-producto.manual')->middleware('auth.proveedor');
 
 // ── Inventario y Fiscal ──
-Route::get('/proveedor/inventario', function () { return view('proveedores.inventario'); })->name('proveedores.inventario')->middleware('auth.proveedor');
-Route::get('/proveedor/fiscal', function () { return view('proveedores.fiscal'); })->name('proveedores.fiscal')->middleware('auth.proveedor');
+Route::get('/proveedor/inventario', function () {
+    return view('proveedores.inventario');
+})->name('proveedores.inventario')->middleware('auth.proveedor');
+Route::get('/proveedor/fiscal', function () {
+    return view('proveedores.fiscal');
+})->name('proveedores.fiscal')->middleware('auth.proveedor');
 Route::post('/proveedor/fiscal/subir', [PortalProveedorController::class, 'subirDocumentoFiscal'])->name('proveedores.fiscal.subir')->middleware('auth.proveedor');
 
 // ── Validación de documentos fiscales (Alfonso) ──

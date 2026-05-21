@@ -52,6 +52,7 @@ class ValidarExcelProducto implements ShouldQueue
                 'estatus' => 'con_errores',
                 'errores' => [['fila' => 0, 'campo' => 'archivo', 'error' => 'No se pudieron leer productos del archivo']],
             ]);
+
             return;
         }
 
@@ -68,7 +69,7 @@ class ValidarExcelProducto implements ShouldQueue
                     $erroresFila[] = [
                         'fila' => $fila,
                         'campo' => $campo,
-                        'error' => "Campo obligatorio vacío",
+                        'error' => 'Campo obligatorio vacío',
                         'valor_actual' => '',
                         'valor_esperado' => 'Requerido',
                     ];
@@ -201,6 +202,7 @@ class ValidarExcelProducto implements ShouldQueue
         $nombre = Str::upper($nombre);
         $nombre = Str::ascii($nombre); // Quitar acentos
         $nombre = preg_replace('/\s+/', ' ', $nombre); // Espacios múltiples → uno
+
         return trim($nombre);
     }
 }

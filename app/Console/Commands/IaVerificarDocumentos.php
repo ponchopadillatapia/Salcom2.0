@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use App\Models\DocumentoProveedor;
 use App\Models\ProveedorUser;
 use App\Services\AlertEngineService;
-use App\Services\AuditService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
@@ -61,7 +60,7 @@ class IaVerificarDocumentos extends Command
                             'destinatario_tipo' => 'admin',
                             'destinatario_id' => 1,
                             'titulo' => "Documento vencido: {$proveedor->nombre}",
-                            'contenido' => "El documento '{$this->tipoDocLabel($doc->tipo)}' del proveedor {$proveedor->nombre} venció hace " . abs($diasRestantes) . ' días.',
+                            'contenido' => "El documento '{$this->tipoDocLabel($doc->tipo)}' del proveedor {$proveedor->nombre} venció hace ".abs($diasRestantes).' días.',
                             'datos' => [
                                 'proveedor_id' => $proveedor->id,
                                 'proveedor_nombre' => $proveedor->nombre,
@@ -148,7 +147,7 @@ class IaVerificarDocumentos extends Command
                     'modulo' => 'fiscal',
                     'destinatario_tipo' => 'proveedor',
                     'destinatario_id' => $proveedor->id,
-                    'titulo' => "⚠️ Tienes {$docsPorVencer} documentos por vencer esta semana",
+                    'titulo' => '⚠️ Tienes '.count($docsPorVencer).' documentos por vencer esta semana',
                     'contenido' => "Los siguientes documentos requieren renovación: {$tipos}. Accede a la sección Fiscal para actualizarlos.",
                     'datos' => [
                         'proveedor_id' => $proveedor->id,

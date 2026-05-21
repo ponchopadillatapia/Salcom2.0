@@ -5,10 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\ExcelValidacion;
 use App\Models\Producto;
 use App\Services\AlertEngineService;
+use App\Services\IaService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class AltaProductoController extends Controller
 {
@@ -80,7 +86,7 @@ class AltaProductoController extends Controller
      */
     public function descargarTemplate()
     {
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet;
 
         // ═══ HOJA PRINCIPAL: Productos ═══
         $sheet = $spreadsheet->getActiveSheet();
@@ -90,10 +96,10 @@ class AltaProductoController extends Controller
         $headers = ['CODIGO', 'NOMBRE', 'PRODUCCION', 'FAMILIA', 'TIPO_PRODUCTO', 'SUBFAMILIA', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'MARCA', 'MODELO', 'MEDIDA', 'MATERIAL', 'COLOR', 'VOLTAJE', 'ESPECIFICACIONES', 'OBSERVACIONES'];
         $col = 'A';
         foreach ($headers as $header) {
-            $sheet->setCellValue($col . '1', $header);
-            $sheet->getStyle($col . '1')->getFont()->setBold(true);
-            $sheet->getStyle($col . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
-            $sheet->getStyle($col . '1')->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->setCellValue($col.'1', $header);
+            $sheet->getStyle($col.'1')->getFont()->setBold(true);
+            $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
+            $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
             $sheet->getColumnDimension($col)->setAutoSize(true);
             $col++;
         }
@@ -110,8 +116,8 @@ class AltaProductoController extends Controller
         foreach ($ejemplos as $rowIdx => $ejemplo) {
             $col = 'A';
             foreach ($ejemplo as $val) {
-                $sheet->setCellValue($col . ($rowIdx + 2), $val);
-                $sheet->getStyle($col . ($rowIdx + 2))->getFont()->getColor()->setRGB('888888');
+                $sheet->setCellValue($col.($rowIdx + 2), $val);
+                $sheet->getStyle($col.($rowIdx + 2))->getFont()->getColor()->setRGB('888888');
                 $col++;
             }
         }
@@ -123,17 +129,17 @@ class AltaProductoController extends Controller
         // Familias
         $familias = $this->familiasValidas;
         foreach ($familias as $i => $fam) {
-            $listSheet->setCellValue('A' . ($i + 1), $fam);
+            $listSheet->setCellValue('A'.($i + 1), $fam);
         }
 
         // Unidades
         $unidades = $this->unidadesValidas;
         foreach ($unidades as $i => $uni) {
-            $listSheet->setCellValue('B' . ($i + 1), $uni);
+            $listSheet->setCellValue('B'.($i + 1), $uni);
         }
 
         // Ocultar la hoja de listas
-        $listSheet->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
+        $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
         // ═══ VALIDACIONES en hoja principal ═══
         $spreadsheet->setActiveSheetIndex(0);
@@ -142,29 +148,29 @@ class AltaProductoController extends Controller
         // Dropdown FAMILIA (columna D, filas 2-100)
         $familiaCount = count($familias);
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('D' . $row)->getDataValidation();
-            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+            $validation = $sheet->getCell('D'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
             $validation->setShowDropDown(true);
             $validation->setShowErrorMessage(true);
             $validation->setErrorTitle('Familia no válida');
             $validation->setError('Selecciona una familia del catálogo oficial.');
-            $validation->setFormula1('_Listas!$A$1:$A$' . $familiaCount);
+            $validation->setFormula1('_Listas!$A$1:$A$'.$familiaCount);
         }
 
         // Dropdown UNIDAD_MEDIDA (columna G, filas 2-100)
         $unidadCount = count($unidades);
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('G' . $row)->getDataValidation();
-            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+            $validation = $sheet->getCell('G'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
             $validation->setShowDropDown(true);
             $validation->setShowErrorMessage(true);
             $validation->setErrorTitle('Unidad no válida');
             $validation->setError('Selecciona una unidad de medida oficial.');
-            $validation->setFormula1('_Listas!$B$1:$B$' . $unidadCount);
+            $validation->setFormula1('_Listas!$B$1:$B$'.$unidadCount);
         }
 
         // Dropdown PRODUCCION (columna C, filas 2-100)
@@ -172,9 +178,9 @@ class AltaProductoController extends Controller
         $listSheet->setCellValue('C2', 'ME');
         $listSheet->setCellValue('C3', 'MN');
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('C' . $row)->getDataValidation();
-            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+            $validation = $sheet->getCell('C'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
             $validation->setShowDropDown(true);
             $validation->setShowErrorMessage(true);
@@ -187,9 +193,9 @@ class AltaProductoController extends Controller
         $listSheet->setCellValue('D1', 'SI');
         $listSheet->setCellValue('D2', 'NO');
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('J' . $row)->getDataValidation();
-            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+            $validation = $sheet->getCell('J'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
             $validation->setShowDropDown(true);
             $validation->setShowErrorMessage(true);
@@ -200,67 +206,67 @@ class AltaProductoController extends Controller
 
         // Validación PRECIO (columna H) — solo números > 0
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('H' . $row)->getDataValidation();
-            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_DECIMAL);
-            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_STOP);
+            $validation = $sheet->getCell('H'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_DECIMAL);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
             $validation->setAllowBlank(true);
             $validation->setShowErrorMessage(true);
             $validation->setErrorTitle('Precio inválido');
             $validation->setError('El precio debe ser un número mayor a 0.');
-            $validation->setOperator(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::OPERATOR_GREATERTHAN);
+            $validation->setOperator(DataValidation::OPERATOR_GREATERTHAN);
             $validation->setFormula1('0');
         }
 
         // Validación NOMBRE (columna A) — máximo 80 caracteres
         // Validación NOMBRE (columna B) — máximo 80 caracteres
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('B' . $row)->getDataValidation();
-            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_TEXTLENGTH);
-            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_WARNING);
+            $validation = $sheet->getCell('B'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_TEXTLENGTH);
+            $validation->setErrorStyle(DataValidation::STYLE_WARNING);
             $validation->setAllowBlank(true);
             $validation->setShowErrorMessage(true);
             $validation->setErrorTitle('Nombre muy largo');
             $validation->setError('El nombre no debe exceder 80 caracteres.');
-            $validation->setOperator(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::OPERATOR_LESSTHANOREQUAL);
+            $validation->setOperator(DataValidation::OPERATOR_LESSTHANOREQUAL);
             $validation->setFormula1('80');
         }
 
         // Validación MARCA (columna K) — máximo 30 caracteres
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('K' . $row)->getDataValidation();
-            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_TEXTLENGTH);
-            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_WARNING);
+            $validation = $sheet->getCell('K'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_TEXTLENGTH);
+            $validation->setErrorStyle(DataValidation::STYLE_WARNING);
             $validation->setAllowBlank(true);
             $validation->setShowErrorMessage(true);
             $validation->setErrorTitle('Marca muy larga');
             $validation->setError('La marca no debe exceder 30 caracteres.');
-            $validation->setOperator(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::OPERATOR_LESSTHANOREQUAL);
+            $validation->setOperator(DataValidation::OPERATOR_LESSTHANOREQUAL);
             $validation->setFormula1('30');
         }
 
         // Validación MODELO (columna L) — máximo 30 caracteres
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('L' . $row)->getDataValidation();
-            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_TEXTLENGTH);
-            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_WARNING);
+            $validation = $sheet->getCell('L'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_TEXTLENGTH);
+            $validation->setErrorStyle(DataValidation::STYLE_WARNING);
             $validation->setAllowBlank(true);
             $validation->setShowErrorMessage(true);
             $validation->setErrorTitle('Modelo muy largo');
             $validation->setError('El modelo no debe exceder 30 caracteres.');
-            $validation->setOperator(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::OPERATOR_LESSTHANOREQUAL);
+            $validation->setOperator(DataValidation::OPERATOR_LESSTHANOREQUAL);
             $validation->setFormula1('30');
         }
 
         // Validación ESPECIFICACIONES (columna Q) — máximo 100 caracteres
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('Q' . $row)->getDataValidation();
-            $validation->setType(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::TYPE_TEXTLENGTH);
-            $validation->setErrorStyle(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::STYLE_WARNING);
+            $validation = $sheet->getCell('Q'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_TEXTLENGTH);
+            $validation->setErrorStyle(DataValidation::STYLE_WARNING);
             $validation->setAllowBlank(true);
             $validation->setShowErrorMessage(true);
             $validation->setErrorTitle('Especificaciones muy largas');
             $validation->setError('Las especificaciones no deben exceder 100 caracteres.');
-            $validation->setOperator(\PhpOffice\PhpSpreadsheet\Cell\DataValidation::OPERATOR_LESSTHANOREQUAL);
+            $validation->setOperator(DataValidation::OPERATOR_LESSTHANOREQUAL);
             $validation->setFormula1('100');
         }
 
@@ -293,7 +299,7 @@ class AltaProductoController extends Controller
         ];
 
         foreach ($reglas as $i => $regla) {
-            $instrSheet->setCellValue('A' . ($i + 3), $regla);
+            $instrSheet->setCellValue('A'.($i + 3), $regla);
         }
         $instrSheet->getColumnDimension('A')->setWidth(70);
 
@@ -301,7 +307,7 @@ class AltaProductoController extends Controller
         $spreadsheet->setActiveSheetIndex(0);
 
         // Generar y descargar
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer = new Xlsx($spreadsheet);
 
         $tempFile = tempnam(sys_get_temp_dir(), 'template_');
         $writer->save($tempFile);
@@ -345,8 +351,8 @@ class AltaProductoController extends Controller
         $primeraFila = $productos[0] ?? [];
         $columnasPresentes = array_keys($primeraFila);
         $columnasFaltantes = array_diff($this->columnasObligatorias, $columnasPresentes);
-        if (!empty($columnasFaltantes)) {
-            return back()->with('error', 'El archivo no tiene las columnas correctas. Faltan: ' . implode(', ', $columnasFaltantes) . '. Descarga el template oficial y úsalo como base.');
+        if (! empty($columnasFaltantes)) {
+            return back()->with('error', 'El archivo no tiene las columnas correctas. Faltan: '.implode(', ', $columnasFaltantes).'. Descarga el template oficial y úsalo como base.');
         }
 
         // Validar cada producto
@@ -369,10 +375,10 @@ class AltaProductoController extends Controller
         // ═══ VALIDACIÓN CON IA (Claude) — Capa inteligente ═══
         // Después de las reglas básicas, Claude revisa contexto y coherencia
         try {
-            $iaService = new \App\Services\IaService;
+            $iaService = new IaService;
             $productosParaIA = array_slice($productos, 0, 20); // Máximo 20 para no exceder tokens
 
-            $prompt = "Eres el sistema de validación de productos de Industrias Salcom, una empresa manufacturera mexicana.
+            $prompt = 'Eres el sistema de validación de productos de Industrias Salcom, una empresa manufacturera mexicana.
 
 Revisa estos productos que un proveedor quiere dar de alta. Para cada uno indica si hay problemas de:
 1. Coherencia (ej: un MOTOR en familia QUIMICOS no tiene sentido)
@@ -381,12 +387,12 @@ Revisa estos productos que un proveedor quiere dar de alta. Para cada uno indica
 4. Datos sospechosos (precio muy alto/bajo para el tipo de producto)
 
 Productos a revisar:
-" . json_encode($productosParaIA, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "
+'.json_encode($productosParaIA, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE).'
 
 Responde SOLO en formato JSON así (sin markdown, sin explicaciones extra):
-{\"errores_ia\": [{\"fila\": 2, \"campo\": \"NOMBRE\", \"error\": \"descripción del problema\"}]}
+{"errores_ia": [{"fila": 2, "campo": "NOMBRE", "error": "descripción del problema"}]}
 
-Si todo está bien, responde: {\"errores_ia\": []}";
+Si todo está bien, responde: {"errores_ia": []}';
 
             $resultado = $iaService->llamarClaude($prompt);
 
@@ -399,24 +405,24 @@ Si todo está bien, responde: {\"errores_ia\": []}";
                 $contenido = trim($contenido);
 
                 $iaResult = json_decode($contenido, true);
-                if ($iaResult && !empty($iaResult['errores_ia'])) {
+                if ($iaResult && ! empty($iaResult['errores_ia'])) {
                     foreach ($iaResult['errores_ia'] as $errIA) {
                         $fila = $errIA['fila'] ?? 0;
                         if ($fila >= 2) {
                             $errores[] = [
                                 'fila' => $fila,
                                 'campo' => $errIA['campo'] ?? 'GENERAL',
-                                'error' => '[IA] ' . ($errIA['error'] ?? 'Error detectado por IA'),
+                                'error' => '[IA] '.($errIA['error'] ?? 'Error detectado por IA'),
                             ];
                             // Solo incrementar conError si esta fila no tenía errores antes
                             $yaTeníaError = false;
                             foreach ($errores as $e) {
-                                if ($e['fila'] === $fila && !str_starts_with($e['error'], '[IA]')) {
+                                if ($e['fila'] === $fila && ! str_starts_with($e['error'], '[IA]')) {
                                     $yaTeníaError = true;
                                     break;
                                 }
                             }
-                            if (!$yaTeníaError) {
+                            if (! $yaTeníaError) {
                                 $conError++;
                                 $validos = max(0, $validos - 1);
                             }
@@ -426,7 +432,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
             }
         } catch (\Exception $e) {
             // Si Claude falla, seguimos con las reglas básicas (no bloqueamos el flujo)
-            \Illuminate\Support\Facades\Log::warning("[Alta Producto] IA no disponible: " . $e->getMessage());
+            Log::warning('[Alta Producto] IA no disponible: '.$e->getMessage());
         }
 
         // Guardar resultado
@@ -469,7 +475,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
             $errorMsg .= "• Fila {$err['fila']}: {$err['campo']} — {$err['error']}\n";
         }
         if (count($errores) > 15) {
-            $errorMsg .= "\n... y " . (count($errores) - 15) . " errores más (ver Excel).";
+            $errorMsg .= "\n... y ".(count($errores) - 15).' errores más (ver Excel).';
         }
 
         return back()
@@ -488,7 +494,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
             $erroresPorFila[$err['fila']][] = ['campo' => $err['campo'], 'error' => $err['error']];
         }
 
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Validación IA');
 
@@ -496,10 +502,10 @@ Si todo está bien, responde: {\"errores_ia\": []}";
         $headers = ['CODIGO', 'NOMBRE', 'PRODUCCION', 'FAMILIA', 'TIPO_PRODUCTO', 'SUBFAMILIA', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'MARCA', 'MODELO', 'MEDIDA', 'MATERIAL', 'COLOR', 'VOLTAJE', 'ESPECIFICACIONES', 'OBSERVACIONES', 'ESTATUS_IA', 'ERRORES_IA'];
         $col = 'A';
         foreach ($headers as $header) {
-            $sheet->setCellValue($col . '1', $header);
-            $sheet->getStyle($col . '1')->getFont()->setBold(true);
-            $sheet->getStyle($col . '1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('4A4A4A');
-            $sheet->getStyle($col . '1')->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->setCellValue($col.'1', $header);
+            $sheet->getStyle($col.'1')->getFont()->setBold(true);
+            $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4A4A4A');
+            $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
             $col++;
         }
 
@@ -513,36 +519,36 @@ Si todo está bien, responde: {\"errores_ia\": []}";
 
             $col = 'A';
             foreach (['CODIGO', 'NOMBRE', 'PRODUCCION', 'FAMILIA', 'TIPO_PRODUCTO', 'SUBFAMILIA', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'MARCA', 'MODELO', 'MEDIDA', 'MATERIAL', 'COLOR', 'VOLTAJE', 'ESPECIFICACIONES', 'OBSERVACIONES'] as $campo) {
-                $sheet->setCellValue($col . $excelRow, $producto[$campo] ?? '');
+                $sheet->setCellValue($col.$excelRow, $producto[$campo] ?? '');
                 $col++;
             }
 
             if (isset($erroresPorFila[$fila])) {
                 // RECHAZADO — fila con errores
-                $sheet->setCellValue('S' . $excelRow, 'RECHAZADO');
-                $sheet->getStyle('S' . $excelRow)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FF4444');
-                $sheet->getStyle('S' . $excelRow)->getFont()->getColor()->setRGB('FFFFFF');
-                $sheet->getStyle('S' . $excelRow)->getFont()->setBold(true);
+                $sheet->setCellValue('S'.$excelRow, 'RECHAZADO');
+                $sheet->getStyle('S'.$excelRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FF4444');
+                $sheet->getStyle('S'.$excelRow)->getFont()->getColor()->setRGB('FFFFFF');
+                $sheet->getStyle('S'.$excelRow)->getFont()->setBold(true);
 
-                $mensajesError = array_map(fn($e) => $e['campo'] . ': ' . $e['error'], $erroresPorFila[$fila]);
-                $sheet->setCellValue('T' . $excelRow, implode(' | ', $mensajesError));
-                $sheet->getStyle('T' . $excelRow)->getFont()->getColor()->setRGB('CC0000');
+                $mensajesError = array_map(fn ($e) => $e['campo'].': '.$e['error'], $erroresPorFila[$fila]);
+                $sheet->setCellValue('T'.$excelRow, implode(' | ', $mensajesError));
+                $sheet->getStyle('T'.$excelRow)->getFont()->getColor()->setRGB('CC0000');
 
                 // Colorear las celdas específicas que tienen error
                 foreach ($erroresPorFila[$fila] as $err) {
                     if (isset($colMap[$err['campo']])) {
-                        $cellRef = $colMap[$err['campo']] . $excelRow;
-                        $sheet->getStyle($cellRef)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('FFCCCC');
+                        $cellRef = $colMap[$err['campo']].$excelRow;
+                        $sheet->getStyle($cellRef)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('FFCCCC');
                         $sheet->getStyle($cellRef)->getFont()->getColor()->setRGB('CC0000');
                     }
                 }
             } else {
                 // APROBADO
-                $sheet->setCellValue('S' . $excelRow, 'APROBADO');
-                $sheet->getStyle('S' . $excelRow)->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('44CC44');
-                $sheet->getStyle('S' . $excelRow)->getFont()->getColor()->setRGB('FFFFFF');
-                $sheet->getStyle('S' . $excelRow)->getFont()->setBold(true);
-                $sheet->setCellValue('T' . $excelRow, '');
+                $sheet->setCellValue('S'.$excelRow, 'APROBADO');
+                $sheet->getStyle('S'.$excelRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('44CC44');
+                $sheet->getStyle('S'.$excelRow)->getFont()->getColor()->setRGB('FFFFFF');
+                $sheet->getStyle('S'.$excelRow)->getFont()->setBold(true);
+                $sheet->setCellValue('T'.$excelRow, '');
             }
         }
 
@@ -552,12 +558,12 @@ Si todo está bien, responde: {\"errores_ia\": []}";
         }
 
         // Guardar como XLSX
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
-        $tempPath = storage_path('app/public/excel-correcciones/Correcciones_' . date('Y-m-d_His') . '.xlsx');
+        $writer = new Xlsx($spreadsheet);
+        $tempPath = storage_path('app/public/excel-correcciones/Correcciones_'.date('Y-m-d_His').'.xlsx');
 
         // Crear directorio si no existe
         $dir = dirname($tempPath);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
 
@@ -584,7 +590,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => $campo,
-                    'error' => "Campo obligatorio vacío",
+                    'error' => 'Campo obligatorio vacío',
                 ];
             }
         }
@@ -622,7 +628,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'NOMBRE',
-                    'error' => "Nomenclatura incompleta. Formato obligatorio: [TIPO] + [MARCA] + [MODELO] + [MEDIDA] + [ESPECIFICACIÓN]. Ejemplo: MOTOR WEG 3HP 220/440V TRIFASICO",
+                    'error' => 'Nomenclatura incompleta. Formato obligatorio: [TIPO] + [MARCA] + [MODELO] + [MEDIDA] + [ESPECIFICACIÓN]. Ejemplo: MOTOR WEG 3HP 220/440V TRIFASICO',
                 ];
             }
 
@@ -640,7 +646,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
             }
 
             // No usar abreviaciones no estándar (detectar patrones sospechosos)
-            if (preg_match('/\b[A-Z]{1}\b/', $nombre) && !preg_match('/\b[CXLM]\//', $nombre)) {
+            if (preg_match('/\b[A-Z]{1}\b/', $nombre) && ! preg_match('/\b[CXLM]\//', $nombre)) {
                 // Letras sueltas que no son parte de medidas (C/12, X, L, M)
                 // Solo advertencia si hay muchas letras sueltas
             }
@@ -650,35 +656,35 @@ Si todo está bien, responde: {\"errores_ia\": []}";
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'NOMBRE',
-                    'error' => "Contiene símbolos no permitidos. Solo se aceptan: letras, números, / - . ()",
+                    'error' => 'Contiene símbolos no permitidos. Solo se aceptan: letras, números, / - . ()',
                 ];
             }
         }
 
         // ═══ 3. FAMILIA — Debe ser de la lista oficial ═══
-        if ($familia && !in_array($familia, $this->familiasValidas)) {
+        if ($familia && ! in_array($familia, $this->familiasValidas)) {
             $sugerencia = $this->buscarFamiliaSimilar($familia);
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'FAMILIA',
-                'error' => "Familia '{$familia}' no está en el catálogo oficial." .
-                    ($sugerencia ? " ¿Quisiste decir '{$sugerencia}'?" : " Familias válidas: " . implode(', ', array_slice($this->familiasValidas, 0, 10)) . '...'),
+                'error' => "Familia '{$familia}' no está en el catálogo oficial.".
+                    ($sugerencia ? " ¿Quisiste decir '{$sugerencia}'?" : ' Familias válidas: '.implode(', ', array_slice($this->familiasValidas, 0, 10)).'...'),
             ];
         }
 
         // ═══ 4. UNIDAD DE MEDIDA — Lista oficial ═══
-        if ($unidad && !in_array($unidad, $this->unidadesValidas)) {
+        if ($unidad && ! in_array($unidad, $this->unidadesValidas)) {
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'UNIDAD_MEDIDA',
-                'error' => "Unidad '{$unidad}' no válida. Unidades oficiales: " . implode(', ', $this->unidadesValidas),
+                'error' => "Unidad '{$unidad}' no válida. Unidades oficiales: ".implode(', ', $this->unidadesValidas),
             ];
         }
 
         // ═══ 5. PRECIO — Numérico y razonable ═══
         if ($precio) {
             $precioNum = (float) str_replace([',', '$'], '', $precio);
-            if (!is_numeric(str_replace([',', '$'], '', $precio))) {
+            if (! is_numeric(str_replace([',', '$'], '', $precio))) {
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'PRECIO',
@@ -688,7 +694,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'PRECIO',
-                    'error' => "El precio debe ser mayor a 0",
+                    'error' => 'El precio debe ser mayor a 0',
                 ];
             } elseif ($precioNum > 1000000) {
                 $errores[] = [
@@ -708,13 +714,13 @@ Si todo está bien, responde: {\"errores_ia\": []}";
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'NOMBRE',
-                    'error' => "DUPLICADO: Este producto ya existe en el catálogo",
+                    'error' => 'DUPLICADO: Este producto ya existe en el catálogo',
                 ];
             } else {
                 // Buscar similares (primeras 3 palabras iguales = posible duplicado)
                 $primeras3 = implode(' ', array_slice(explode(' ', strtoupper(Str::ascii($nombre))), 0, 3));
                 if (strlen($primeras3) > 5) {
-                    $similar = Producto::where('nombre', 'LIKE', $primeras3 . '%')->first();
+                    $similar = Producto::where('nombre', 'LIKE', $primeras3.'%')->first();
                     if ($similar) {
                         $errores[] = [
                             'fila' => $fila,
@@ -732,7 +738,7 @@ Si todo está bien, responde: {\"errores_ia\": []}";
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'MARCA',
-                'error' => "La marca debe estar en MAYÚSCULAS sin acentos",
+                'error' => 'La marca debe estar en MAYÚSCULAS sin acentos',
             ];
         }
 

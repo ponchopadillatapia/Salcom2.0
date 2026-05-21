@@ -3,7 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read ProveedorUser|null $proveedor
+ */
 class OcBorrador extends Model
 {
     protected $table = 'oc_borradores';
@@ -18,7 +22,7 @@ class OcBorrador extends Model
         'aprobada_at' => 'datetime',
     ];
 
-    public function proveedor()
+    public function proveedor(): BelongsTo
     {
         return $this->belongsTo(ProveedorUser::class, 'proveedor_id');
     }

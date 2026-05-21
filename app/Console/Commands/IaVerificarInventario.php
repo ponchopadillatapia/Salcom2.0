@@ -110,7 +110,7 @@ class IaVerificarInventario extends Command
                             'destinatario_tipo' => 'proveedor',
                             'destinatario_id' => $mejorProveedor->id,
                             'titulo' => "Nueva OC generada: {$producto->nombre}",
-                            'contenido' => "Se generó una orden de compra por {$cantidadAPedir} {$producto->unidad_venta} de {$producto->nombre}. Monto estimado: $" . number_format($oc->monto_estimado, 2) . ". Revisa los detalles en Consultar OC.",
+                            'contenido' => "Se generó una orden de compra por {$cantidadAPedir} {$producto->unidad_venta} de {$producto->nombre}. Monto estimado: $".number_format($oc->monto_estimado, 2).'. Revisa los detalles en Consultar OC.',
                             'datos' => [
                                 'oc_id' => $oc->id,
                                 'producto_codigo' => $producto->codigo,
@@ -142,13 +142,13 @@ class IaVerificarInventario extends Command
             }
         }
 
-        $this->info("✅ Verificación completada.");
+        $this->info('✅ Verificación completada.');
         $this->info("   Productos evaluados: {$productos->count()}");
-        $this->info("   Productos bajo mínimo: " . count($productosBajos));
+        $this->info('   Productos bajo mínimo: '.count($productosBajos));
         $this->info("   OC generadas: {$ocGeneradas}");
         $this->info("   Alertas: {$alertasGeneradas}");
 
-        Log::info("[ia:verificar-inventario] Evaluados: {$productos->count()}, Bajo mínimo: " . count($productosBajos) . ", OC: {$ocGeneradas}");
+        Log::info("[ia:verificar-inventario] Evaluados: {$productos->count()}, Bajo mínimo: ".count($productosBajos).", OC: {$ocGeneradas}");
 
         return Command::SUCCESS;
     }

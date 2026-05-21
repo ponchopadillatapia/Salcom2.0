@@ -95,9 +95,9 @@ class IaEvaluarProveedores extends Command
         }
 
         $this->info("✅ Evaluación completada. {$proveedores->count()} proveedores evaluados, {$alertasGeneradas} alertas generadas.");
-        $this->info("   Proveedores bajo umbral ({$umbralCritico}%): " . count($proveedoresBajos));
+        $this->info("   Proveedores bajo umbral ({$umbralCritico}%): ".count($proveedoresBajos));
 
-        Log::info("[ia:evaluar-proveedores] Completado. Evaluados: {$proveedores->count()}, Alertas: {$alertasGeneradas}, Bajo umbral: " . count($proveedoresBajos));
+        Log::info("[ia:evaluar-proveedores] Completado. Evaluados: {$proveedores->count()}, Alertas: {$alertasGeneradas}, Bajo umbral: ".count($proveedoresBajos));
 
         return Command::SUCCESS;
     }
