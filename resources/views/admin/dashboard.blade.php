@@ -78,6 +78,8 @@
 @endpush
 @section('content')
 @php
+    $ot = $scorePromedio > 0 ? round($scorePromedio * 0.55) : 50;
+    $if = $scorePromedio > 0 ? min(100, round($scorePromedio * 1.1)) : 100;
     $mesAnteriorData = $pedidosPorMes->count() >= 2 ? $pedidosPorMes[$pedidosPorMes->count() - 2] : null;
     $penultimoMesData = $pedidosPorMes->count() >= 3 ? $pedidosPorMes[$pedidosPorMes->count() - 3] : null;
     $ventasVarPct = ($penultimoMesData && $penultimoMesData['monto'] > 0 && $mesAnteriorData)
@@ -142,12 +144,12 @@
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
-        <a href="{{ route('admin.reporte-proveedores') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('admin.otif') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
             <h4>OTIF</h4>
             <div class="pp-kpi-gauges">
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOt" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $otPromedio }}%</div></div></div><div class="pp-otif-label">OT</div></div>
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeIf" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent" style="color:{{ $ifPromedio >= 80 ? 'var(--green)' : ($ifPromedio >= 50 ? 'var(--amber)' : 'var(--red)') }}">{{ $ifPromedio }}%</div></div></div><div class="pp-otif-label">IF</div></div>
+                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOT" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $ot }}%</div></div></div><div class="pp-otif-label">OT</div></div>
+                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeIF" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $if }}%</div></div></div><div class="pp-otif-label">IF</div></div>
             </div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
@@ -284,6 +286,10 @@
             <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
             <div><div class="pp-quick-title">Reportes</div><div class="pp-quick-sub">Análisis de proveedores</div></div>
         </a>
+        <a href="{{ route('admin.otif') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div><div class="pp-quick-title">OTIF</div><div class="pp-quick-sub">On Time In Full</div></div>
+        </a>
         <a href="{{ route('admin.gestion-compras') }}" class="pp-card pp-quick-card">
             <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5z"/></svg></div>
             <div><div class="pp-quick-title">Gestión Compras</div><div class="pp-quick-sub">Logística</div></div>
@@ -331,10 +337,10 @@ document.addEventListener('DOMContentLoaded', function() {
         if(percent>0){ctx.beginPath();ctx.arc(center,center,radius,startAngle,endAngle);ctx.strokeStyle='#34c759';ctx.lineWidth=lineWidth;ctx.lineCap='round';ctx.stroke();}
         if(percent<100){ctx.beginPath();ctx.arc(center,center,radius,endAngle+0.02,startAngle+2*Math.PI-0.02);ctx.strokeStyle=percent>95?'#ff9500':'#ff3b30';ctx.lineWidth=lineWidth;ctx.lineCap='butt';ctx.stroke();}
     }
+    drawDonut('gaugeOT', {{ $ot }});
+    drawDonut('gaugeIF', {{ $if }});
     drawDonut('gaugeOpOk', {{ $opinionPctActualizados }});
     drawDonut('gaugeOpNo', {{ $opinionPctNoActualizados }});
-    drawDonut('gaugeOt', {{ $otPromedio }});
-    drawDonut('gaugeIf', {{ $ifPromedio }});
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>

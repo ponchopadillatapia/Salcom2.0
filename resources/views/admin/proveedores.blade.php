@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 @section('title', 'Proveedores')
 @section('hero')
 <div class="hero-band">
@@ -152,19 +152,14 @@
                     <td style="font-weight:700;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
                     <td style="font-weight:600">{{ $p->nombre ?? '—' }}</td>
                     <td>{{ $p->correo ?? '—' }}</td>
-                    @php
-                        $entrega = $m['entrega'] ?? $p->score_entrega;
-                        $puntualidad = $m['puntualidad'] ?? $p->score_puntualidad;
-                        $otif = $m['otif'] ?? round(($entrega * 0.5) + ($puntualidad * 0.5), 1);
-                    @endphp
                     <td>
                         <div class="pct-cell">
-                            <div class="score-bar {{ $m['score_class'] ?? 'score-low' }}"><div class="score-fill" style="width:{{ min(100, max(0, $otif)) }}%"></div></div>
-                            <span class="pct-val"><strong>{{ number_format($otif, 0) }}%</strong>@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span>
+                            <div class="score-bar {{ $m['score_class'] ?? 'score-low' }}"><div class="score-fill" style="width:{{ $p->score_total }}%"></div></div>
+                            <span class="pct-val"><strong>{{ number_format($p->score_total, 0) }}%</strong>@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span>
                         </div>
                     </td>
-                    <td><span class="pct-val">{{ number_format($entrega, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_entrega'] ?? 0, 'size' => '11'])</span></td>
-                    <td><span class="pct-val">{{ number_format($puntualidad, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_puntualidad'] ?? 0, 'size' => '11'])</span></td>
+                    <td><span class="pct-val">{{ number_format($p->score_entrega, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_entrega'] ?? 0, 'size' => '11'])</span></td>
+                    <td><span class="pct-val">{{ number_format($p->score_puntualidad, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_puntualidad'] ?? 0, 'size' => '11'])</span></td>
                     <td><span class="badge-est {{ $p->activo ? 'ok' : 'err' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span></td>
                     <td>
                         <form method="POST" action="{{ route('admin.proveedores.eliminar', $p) }}" onsubmit="return confirm('¿Eliminar a {{ addslashes($p->nombre ?? $p->usuario) }}?')">
@@ -220,17 +215,14 @@
             @foreach($proveedores as $p)
                 @php
                     $m = $metricasProveedores[$p->id] ?? [];
-                    $entregaFc = $m['entrega'] ?? $p->score_entrega;
-                    $puntFc = $m['puntualidad'] ?? $p->score_puntualidad;
-                    $otif = $m['otif'] ?? round(($entregaFc * 0.5) + ($puntFc * 0.5), 1);
-                    $forecast = $m['forecast'] ?? min(100, max(0, $otif * 1.1));
+                    $forecast = $m['forecast'] ?? min(100, max(0, $p->score_total * 1.1));
                     $comprasTrim = $m['compras_trim'] ?? 0;
                     $estimado = $m['estimado'] ?? 0;
                 @endphp
                 <tr>
                     <td style="font-weight:700;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
                     <td style="font-weight:600">{{ $p->nombre ?? $p->usuario }}</td>
-                    <td><span class="pct-val">{{ number_format($otif, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span></td>
+                    <td><span class="pct-val">{{ number_format($p->score_total, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span></td>
                     <td>
                         <div class="pct-cell">
                             <div class="score-bar {{ $m['forecast_class'] ?? 'score-low' }}"><div class="score-fill" style="width:{{ $forecast }}%"></div></div>

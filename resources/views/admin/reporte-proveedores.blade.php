@@ -36,7 +36,6 @@
     .score-ok{color:var(--green);font-weight:700}
     .score-mid{color:var(--amber);font-weight:700}
     .score-low{color:var(--red);font-weight:700}
-    .pct-val{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;justify-content:flex-end}
     .monto-up{color:var(--green);font-weight:600}
 
     @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.filters-panel{flex-direction:column;align-items:stretch}}
@@ -71,7 +70,7 @@
             <tr>
                 <th>Código</th>
                 <th>Proveedor</th>
-                <th>OTIF</th>
+                <th>Score</th>
                 <th>Facturas {{ $anioAnterior }}</th>
                 <th>Facturas {{ $anioActual }}</th>
                 <th>Var. %</th>
@@ -85,9 +84,7 @@
             <tr>
                 <td class="code-col">{{ $r['codigo'] ?? '—' }}</td>
                 <td class="name-col">{{ $r['nombre'] }}</td>
-                <td class="{{ $r['otif'] >= 80 ? 'score-ok' : ($r['otif'] >= 50 ? 'score-mid' : 'score-low') }}">
-                    <span class="pct-val"><strong>{{ number_format($r['otif'], 0) }}%</strong>@include('partials.trend-arrow', ['value' => $r['trend_otif'], 'size' => '11'])</span>
-                </td>
+                <td class="{{ $r['score'] >= 80 ? 'score-ok' : ($r['score'] >= 50 ? 'score-mid' : 'score-low') }}">{{ number_format($r['score'], 0) }}%</td>
                 <td>{{ $r['facturas_anterior'] }}</td>
                 <td>{{ $r['facturas_actual'] }}</td>
                 <td>@include('partials.trend-arrow', ['value' => $r['variacion_cant']])</td>
@@ -101,9 +98,7 @@
             <tr>
                 <td></td>
                 <td>Gran total</td>
-                <td>
-                    <span class="pct-val"><strong>{{ number_format($totales['otif'] ?? 0, 0) }}%</strong>@include('partials.trend-arrow', ['value' => $totales['trend_otif'] ?? 0, 'size' => '11'])</span>
-                </td>
+                <td></td>
                 <td>{{ $totales['facturas_anterior'] }}</td>
                 <td>{{ $totales['facturas_actual'] }}</td>
                 <td>@include('partials.trend-arrow', ['value' => $totales['variacion_cant']])</td>

@@ -86,10 +86,6 @@ class AdminPanelController extends Controller
             ? round((($agotadosMesActual - $agotadosMesAnterior) / $agotadosMesAnterior) * 100)
             : 0;
 
-        $proveedoresOtif = ProveedorUser::where('activo', true);
-        $otPromedio = round((float) $proveedoresOtif->avg('score_entrega'), 0);
-        $ifPromedio = round((float) $proveedoresOtif->avg('score_puntualidad'), 0);
-
         $data = [
             'totalProveedores' => ProveedorUser::count(),
             'proveedoresActivos' => ProveedorUser::where('activo', true)->count(),
@@ -116,8 +112,6 @@ class AdminPanelController extends Controller
             'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(3)->get(),
             'pedidosPorMes' => $pedidosPorMes,
             'facturasPorEstatus' => $facturasPorEstatus,
-            'otPromedio' => $otPromedio,
-            'ifPromedio' => $ifPromedio,
         ];
 
         return view('admin.dashboard', $data);
@@ -917,9 +911,51 @@ class AdminPanelController extends Controller
         return view('admin.negocio', $data);
     }
 
+    // ── OTIF ──
+
     public function otif()
     {
-        return redirect()->route('admin.encuestas');
+        // OTIF basado en facturas de proveedores
+        $facturasProveedor = Factura::whereNotNull('codigo_proveedor')->get();
+        $total = $facturasProveedor->count();
+        $pagadas = $facturasProveedor->where('estatus', 'pagada')->count();
+        $pendientes = $facturasProveedor->where('estatus', 'pendiente')->count();
+        $vencidas = $facturasProveedor->where('estatus', 'pendiente')
+            ->filter(fn ($f) => $f->fecha_vencimiento && $f->fecha_vencimiento->isPast())->count();
+        $aTiempo = $pagadas; // pagadas = entregadas a tiempo
+        $canceladas = $facturasProveedor->where('estatus', 'cancelada')->count();
+
+        $otPercent = $total > 0 ? round(($aTiempo / $total) * 100, 1) : 0;
+        $ifPercent = $total > 0 ? round((($total - $canceladas) / $total) * 100, 1) : 0;
+        $porcentaje = $total > 0 ? round(($aTiempo / $total) * 100) : 0;
+
+        // Detalle por proveedor
+        $proveedores = ProveedorUser::where('activo', true)->orderBy('score_total', 'desc')->get();
+        $detalleProveedores = [];
+        foreach ($proveedores as $prov) {
+            $factProv = Factura::where('codigo_proveedor', $prov->codigo_compras)->get();
+            $totalProv = $factProv->count();
+            if ($totalProv === 0) {
+                continue;
+            }
+
+            $pagadasProv = $factProv->where('estatus', 'pagada')->count();
+            $otProv = round(($pagadasProv / $totalProv) * 100, 1);
+
+            $detalleProveedores[] = [
+                'nombre' => $prov->nombre ?? $prov->usuario,
+                'codigo' => $prov->codigo_compras,
+                'total' => $totalProv,
+                'pagadas' => $pagadasProv,
+                'ot' => $otProv,
+                'score' => $prov->score_total,
+            ];
+        }
+
+        return view('admin.otif', compact(
+            'total', 'pagadas', 'pendientes', 'vencidas', 'canceladas',
+            'otPercent', 'ifPercent', 'porcentaje', 'detalleProveedores'
+        ));
     }
 
     // ── Inventario ──
@@ -961,7 +997,6 @@ class AdminPanelController extends Controller
         $anioAnterior = $anioActual - 1;
 
         $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
-        $metricasProveedores = $this->buildProveedoresMetricas($proveedores);
 
         $reporte = [];
         $totales = ['compras_anterior' => 0, 'compras_actual' => 0, 'facturas_anterior' => 0, 'facturas_actual' => 0];
@@ -980,9 +1015,6 @@ class AdminPanelController extends Controller
             $variacionMonto = $montoAnterior > 0 ? round((($montoActual - $montoAnterior) / $montoAnterior) * 100, 1) : ($montoActual > 0 ? 100 : 0);
             $variacionCant = $cantAnterior > 0 ? round((($cantActual - $cantAnterior) / $cantAnterior) * 100, 1) : ($cantActual > 0 ? 100 : 0);
 
-            $otifAnterior = $this->pctOtifFromFacturas($facturasAnterior);
-            $otifActual = $this->pctOtifFromFacturas($facturasActual);
-
             $reporte[] = [
                 'codigo' => $prov->codigo_compras,
                 'nombre' => $prov->nombre ?? $prov->usuario,
@@ -992,15 +1024,7 @@ class AdminPanelController extends Controller
                 'facturas_actual' => $cantActual,
                 'variacion_monto' => $variacionMonto,
                 'variacion_cant' => $variacionCant,
-                'otif' => $this->otifCompuesto((float) $prov->score_entrega, (float) $prov->score_puntualidad),
-                'trend_otif' => $this->trendOtifReporte(
-                    $prov,
-                    $otifActual,
-                    $otifAnterior,
-                    $cantActual,
-                    $cantAnterior,
-                    $metricasProveedores
-                ),
+                'score' => $prov->score_total,
             ];
 
             $totales['compras_anterior'] += $montoAnterior;
@@ -1016,24 +1040,6 @@ class AdminPanelController extends Controller
             ? round((($totales['facturas_actual'] - $totales['facturas_anterior']) / $totales['facturas_anterior']) * 100, 1)
             : ($totales['facturas_actual'] > 0 ? 100 : 0);
 
-        $facturasTotalesAnterior = Factura::whereNotNull('codigo_proveedor')->whereYear('created_at', $anioAnterior)->get();
-        $facturasTotalesActual = Factura::whereNotNull('codigo_proveedor')->whereYear('created_at', $anioActual)->get();
-        $otifTotalAnterior = $this->pctOtifFromFacturas($facturasTotalesAnterior);
-        $otifTotalActual = $this->pctOtifFromFacturas($facturasTotalesActual);
-        $totales['otif'] = round($proveedores->avg(fn ($p) => $this->otifCompuesto(
-            (float) $p->score_entrega,
-            (float) $p->score_puntualidad
-        )), 1);
-        $totales['trend_otif'] = $this->trendOtifReporte(
-            null,
-            $otifTotalActual,
-            $otifTotalAnterior,
-            $facturasTotalesActual->count(),
-            $facturasTotalesAnterior->count(),
-            [],
-            $totales['otif']
-        );
-
         return view('admin.reporte-proveedores', compact('reporte', 'totales', 'anioActual', 'anioAnterior'));
     }
 
@@ -1043,7 +1049,6 @@ class AdminPanelController extends Controller
         $anioAnterior = $anioActual - 1;
 
         $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
-        $metricasProveedores = $this->buildProveedoresMetricas($proveedores);
 
         $filename = 'Reporte_Proveedores_'.$anioActual.'.csv';
 
@@ -1055,7 +1060,7 @@ class AdminPanelController extends Controller
         $lines[] = ['REPORTE DE COMPRAS POR PROVEEDOR - COMPARATIVO ANUAL'];
         $lines[] = ['Generado: '.now()->format('d/m/Y H:i')];
         $lines[] = [];
-        $lines[] = ['CODIGO', 'PROVEEDOR', 'OTIF %', 'VAR OTIF', "FACTURAS {$anioAnterior}", "FACTURAS {$anioActual}", 'VAR FACTURAS %', "COMPRAS {$anioAnterior}", "COMPRAS {$anioActual}", 'VAR COMPRAS %'];
+        $lines[] = ['CODIGO', 'PROVEEDOR', 'SCORE', "FACTURAS {$anioAnterior}", "FACTURAS {$anioActual}", 'VAR FACTURAS %', "COMPRAS {$anioAnterior}", "COMPRAS {$anioActual}", 'VAR COMPRAS %'];
 
         $totalAnterior = 0;
         $totalActual = 0;
@@ -1072,15 +1077,10 @@ class AdminPanelController extends Controller
             $varMonto = $montoAnt > 0 ? round((($montoAct - $montoAnt) / $montoAnt) * 100, 1) : 0;
             $varCant = $cantAnt > 0 ? round((($cantAct - $cantAnt) / $cantAnt) * 100, 1) : 0;
 
-            $otifAnt = $this->pctOtifFromFacturas($facturasAnt);
-            $otifAct = $this->pctOtifFromFacturas($facturasAct);
-            $varOtif = $this->trendOtifReporte($prov, $otifAct, $otifAnt, $cantAct, $cantAnt, $metricasProveedores);
-
             $lines[] = [
                 $prov->codigo_compras,
                 $prov->nombre ?? $prov->usuario,
-                number_format($this->otifCompuesto((float) $prov->score_entrega, (float) $prov->score_puntualidad), 0).'%',
-                ($varOtif > 0 ? '+' : '').$varOtif.'%',
+                $prov->score_total.'%',
                 $cantAnt,
                 $cantAct,
                 $varCant.'%',
@@ -1095,30 +1095,7 @@ class AdminPanelController extends Controller
 
         $lines[] = [];
         $varTotal = $totalAnterior > 0 ? round((($totalActual - $totalAnterior) / $totalAnterior) * 100, 1) : 0;
-        $facturasTotAnt = Factura::whereNotNull('codigo_proveedor')->whereYear('created_at', $anioAnterior)->get();
-        $facturasTotAct = Factura::whereNotNull('codigo_proveedor')->whereYear('created_at', $anioActual)->get();
-        $otifTotAnt = $this->pctOtifFromFacturas($facturasTotAnt);
-        $otifTotAct = $this->pctOtifFromFacturas($facturasTotAct);
-        $avgScore = round($proveedores->avg(fn ($p) => $this->otifCompuesto(
-            (float) $p->score_entrega,
-            (float) $p->score_puntualidad
-        )), 1);
-        $varOtifTotal = $this->trendOtifReporte(
-            null,
-            $otifTotAct,
-            $otifTotAnt,
-            $facturasTotAct->count(),
-            $facturasTotAnt->count(),
-            [],
-            $avgScore
-        );
-
-        $lines[] = [
-            '', 'GRAN TOTAL',
-            number_format($avgScore, 0).'%',
-            ($varOtifTotal > 0 ? '+' : '').$varOtifTotal.'%',
-            '', '', '', number_format($totalAnterior, 2), number_format($totalActual, 2), $varTotal.'%',
-        ];
+        $lines[] = ['', 'GRAN TOTAL', '', '', '', '', number_format($totalAnterior, 2), number_format($totalActual, 2), $varTotal.'%'];
 
         // Convertir a CSV string
         $handle = fopen('php://temp', 'r+');
@@ -1487,42 +1464,28 @@ class AdminPanelController extends Controller
             $actual = $grupo->filter(fn ($f) => $f->created_at >= $trimInicio);
             $anterior = $grupo->filter(fn ($f) => $f->created_at < $trimInicio);
 
-            $otifFactActual = $this->pctOtifFromFacturas($actual);
-            $otifFactAnterior = $this->pctOtifFromFacturas($anterior);
-            $entregaFactActual = $this->pctEntregaFromFacturas($actual);
-            $entregaFactAnterior = $this->pctEntregaFromFacturas($anterior);
-            $puntualidadFactActual = $this->pctPuntualidadFromFacturas($actual);
-            $puntualidadFactAnterior = $this->pctPuntualidadFromFacturas($anterior);
-
-            $cantActual = $actual->count();
-            $cantAnterior = $anterior->count();
-            [$entrega, $puntualidad] = $this->scoresEntregaPuntualidad($prov, $actual);
-            $otif = $this->otifCompuesto($entrega, $puntualidad);
+            $otifActual = $this->pctOtifFromFacturas($actual);
+            $otifAnterior = $this->pctOtifFromFacturas($anterior);
+            $entregaActual = $this->pctEntregaFromFacturas($actual);
+            $entregaAnterior = $this->pctEntregaFromFacturas($anterior);
+            $puntualidadActual = $this->pctPuntualidadFromFacturas($actual);
+            $puntualidadAnterior = $this->pctPuntualidadFromFacturas($anterior);
 
             $comprasTrim = (float) $actual->sum('total');
             $comprasAnterior = (float) $anterior->sum('total');
-            $forecast = min(100, max(0, $otif * 1.1));
-            $forecastAnterior = min(100, max(0, $otifFactAnterior * 1.1));
+            $forecast = min(100, max(0, (float) $prov->score_total * 1.1));
+            $forecastAnterior = min(100, max(0, $otifAnterior * 1.1));
 
             $metricas[$prov->id] = [
-                'otif' => $otif,
-                'entrega' => $entrega,
-                'puntualidad' => $puntualidad,
                 'forecast' => $forecast,
                 'compras_trim' => $comprasTrim,
                 'estimado' => $comprasTrim > 0 ? round($comprasTrim / 3, 2) : 0,
-                'score_class' => $this->scoreBarClass($otif),
+                'score_class' => $this->scoreBarClass((float) $prov->score_total),
                 'forecast_class' => $this->scoreBarClass($forecast),
-                'trend_otif' => $this->trendOtifProveedor(
-                    $otif,
-                    $this->otifCompuesto($entregaFactActual, $puntualidadFactActual),
-                    $this->otifCompuesto($entregaFactAnterior, $puntualidadFactAnterior),
-                    $cantActual,
-                    $cantAnterior
-                ),
-                'trend_entrega' => $this->trendMetricaProveedor($entrega, $entregaFactActual, $entregaFactAnterior, $cantActual, $cantAnterior),
-                'trend_puntualidad' => $this->trendMetricaProveedor($puntualidad, $puntualidadFactActual, $puntualidadFactAnterior, $cantActual, $cantAnterior),
-                'trend_forecast' => $this->variacionPctOtif($forecast, $forecastAnterior),
+                'trend_otif' => $this->deltaTrend($otifActual, $otifAnterior),
+                'trend_entrega' => $this->deltaTrend($entregaActual, $entregaAnterior),
+                'trend_puntualidad' => $this->deltaTrend($puntualidadActual, $puntualidadAnterior),
+                'trend_forecast' => $this->deltaTrend($forecast, $forecastAnterior),
                 'trend_compras' => $this->pctCambio($comprasTrim, $comprasAnterior),
             ];
         }
@@ -1532,83 +1495,20 @@ class AdminPanelController extends Controller
 
     private function metricasProveedorVacias(ProveedorUser $prov): array
     {
-        [$entrega, $puntualidad] = $this->scoresEntregaPuntualidad($prov, collect());
-        $otif = $this->otifCompuesto($entrega, $puntualidad);
-        $forecast = min(100, max(0, $otif * 1.1));
+        $forecast = min(100, max(0, (float) $prov->score_total * 1.1));
 
         return [
-            'otif' => $otif,
-            'entrega' => $entrega,
-            'puntualidad' => $puntualidad,
             'forecast' => $forecast,
             'compras_trim' => 0,
             'estimado' => 0,
-            'score_class' => $this->scoreBarClass($otif),
+            'score_class' => $this->scoreBarClass((float) $prov->score_total),
             'forecast_class' => $this->scoreBarClass($forecast),
-            'trend_otif' => round($otif - 60, 1),
-            'trend_entrega' => round($entrega - 80, 1),
-            'trend_puntualidad' => round($puntualidad - 80, 1),
+            'trend_otif' => 0,
+            'trend_entrega' => 0,
+            'trend_puntualidad' => 0,
             'trend_forecast' => 0,
             'trend_compras' => 0,
         ];
-    }
-
-    /**
-     * Entrega (IF) y puntualidad (OT) del trimestre actual (facturas) o scores guardados.
-     *
-     * @return array{0: float, 1: float}
-     */
-    private function scoresEntregaPuntualidad(ProveedorUser $prov, $facturasTrimestre): array
-    {
-        if ($facturasTrimestre->count() > 0) {
-            return [
-                $this->pctEntregaFromFacturas($facturasTrimestre),
-                $this->pctPuntualidadFromFacturas($facturasTrimestre),
-            ];
-        }
-
-        return [(float) $prov->score_entrega, (float) $prov->score_puntualidad];
-    }
-
-    /** OTIF compuesto: 50% entrega + 50% puntualidad (igual que ProveedorUser::recalcularScore). */
-    private function otifCompuesto(float $entrega, float $puntualidad): float
-    {
-        return round(($entrega * 0.5) + ($puntualidad * 0.5), 1);
-    }
-
-    private function trendOtifProveedor(
-        float $otifDisplay,
-        float $otifFactActual,
-        float $otifFactAnterior,
-        int $cantActual,
-        int $cantAnterior
-    ): float {
-        if ($cantActual > 0 || $cantAnterior > 0) {
-            $variacion = $this->variacionPctOtif($otifFactActual, $otifFactAnterior);
-            if ($variacion != 0.0 || ($otifFactActual > 0 && $otifFactAnterior > 0)) {
-                return $variacion;
-            }
-        }
-
-        return round($otifDisplay - 60, 1);
-    }
-
-    private function trendMetricaProveedor(
-        float $valorDisplay,
-        float $actualFact,
-        float $anteriorFact,
-        int $cantActual,
-        int $cantAnterior,
-        float $meta = 80.0
-    ): float {
-        if ($cantActual > 0 || $cantAnterior > 0) {
-            $variacion = $this->variacionPctOtif($actualFact, $anteriorFact);
-            if ($variacion != 0.0 || ($actualFact > 0 && $anteriorFact > 0)) {
-                return $variacion;
-            }
-        }
-
-        return round($valorDisplay - $meta, 1);
     }
 
     private function pctOtifFromFacturas($facturas): float
@@ -1621,51 +1521,6 @@ class AdminPanelController extends Controller
         return round($facturas->where('estatus', 'pagada')->count() / $total * 100, 1);
     }
 
-    /**
-     * Variación % de OTIF (misma lógica que Var. facturas/compras del reporte).
-     */
-    private function variacionPctOtif(float $actual, float $anterior): float
-    {
-        if ($anterior > 0) {
-            return round((($actual - $anterior) / $anterior) * 100, 1);
-        }
-
-        return $actual > 0 ? 100.0 : 0.0;
-    }
-
-    /**
-     * Tendencia OTIF en reporte anual: año vs año (facturas), trimestre (métricas) o vs meta 60%.
-     */
-    private function trendOtifReporte(
-        ?ProveedorUser $prov,
-        float $otifActual,
-        float $otifAnterior,
-        int $cantActual,
-        int $cantAnterior,
-        array $metricasProveedores,
-        ?float $scoreFallback = null
-    ): float {
-        if ($cantActual > 0 || $cantAnterior > 0) {
-            $variacion = $this->variacionPctOtif($otifActual, $otifAnterior);
-            if ($variacion != 0.0 || ($otifActual > 0 && $otifAnterior > 0)) {
-                return $variacion;
-            }
-        }
-
-        if ($prov !== null) {
-            $entrega = (float) $prov->score_entrega;
-            $puntualidad = (float) $prov->score_puntualidad;
-            $otif = $this->otifCompuesto($entrega, $puntualidad);
-
-            return $this->trendOtifProveedor($otif, $otifActual, $otifAnterior, $cantActual, $cantAnterior);
-        }
-
-        $score = $scoreFallback ?? 0;
-
-        return round($score - 60, 1);
-    }
-
-    /** In Full (IF): facturas pagadas / total (entrega completa facturada). */
     private function pctEntregaFromFacturas($facturas): float
     {
         $total = $facturas->count();
@@ -1673,10 +1528,9 @@ class AdminPanelController extends Controller
             return 0;
         }
 
-        return round($facturas->where('estatus', 'pagada')->count() / $total * 100, 1);
+        return round($facturas->where('estatus', '!=', 'cancelada')->count() / $total * 100, 1);
     }
 
-    /** On Time (OT): facturas a tiempo según fecha de vencimiento. */
     private function pctPuntualidadFromFacturas($facturas): float
     {
         $total = $facturas->count();
@@ -1684,28 +1538,25 @@ class AdminPanelController extends Controller
             return 0;
         }
 
-        $aTiempo = $facturas->filter(fn ($f) => $this->facturaEsPuntual($f))->count();
+        $puntuales = $facturas->filter(function ($f) {
+            if ($f->estatus === 'cancelada') {
+                return false;
+            }
+            if ($f->estatus === 'pagada') {
+                return ! $f->fecha_vencimiento || ! $f->fecha_vencimiento->isPast();
+            }
 
-        return round($aTiempo / $total * 100, 1);
+            return $f->estatus === 'pendiente'
+                && $f->fecha_vencimiento
+                && $f->fecha_vencimiento->isFuture();
+        })->count();
+
+        return round($puntuales / $total * 100, 1);
     }
 
-    private function facturaEsPuntual(Factura $f): bool
+    private function deltaTrend(float $actual, float $anterior): int
     {
-        if ($f->estatus === 'cancelada') {
-            return false;
-        }
-
-        if (! $f->fecha_vencimiento) {
-            return $f->estatus === 'pagada';
-        }
-
-        $limite = $f->fecha_vencimiento->copy()->endOfDay();
-
-        if ($f->estatus === 'pagada') {
-            return $f->updated_at <= $limite;
-        }
-
-        return $f->estatus === 'pendiente' && now()->lte($limite);
+        return (int) round($actual - $anterior);
     }
 
     private function pctCambio(float $actual, float $anterior): int
