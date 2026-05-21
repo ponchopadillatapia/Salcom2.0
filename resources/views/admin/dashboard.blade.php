@@ -28,9 +28,13 @@
     .pp-otif-percent{font-size:14px;font-weight:700;color:var(--green);line-height:1}
     .pp-otif-label{font-size:10px;color:var(--gray-muted);font-weight:600;margin-top:4px}
     .pp-section-title{font-size:15px;font-weight:700;color:var(--gray-text);margin:20px 0 12px}
-    .pp-chart-card{padding:20px;height:100%}
-    .pp-chart-wrap{position:relative;width:100%;height:220px}
-    .pp-chart-wrap-sm{position:relative;width:100%;height:200px;max-width:260px;margin:0 auto}
+    .pp-quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .pp-quick-card{text-decoration:none;display:flex;align-items:center;gap:10px;padding:12px !important;min-height:auto;max-height:none}
+    .pp-quick-icon{width:42px;height:42px;border-radius:12px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:var(--transition)}
+    .pp-quick-card:hover .pp-quick-icon{background:var(--purple);box-shadow:0 2px 8px rgba(107,63,160,0.25)}
+    .pp-quick-card:hover .pp-quick-icon svg{stroke:white}
+    .pp-quick-title{font-weight:600;color:var(--gray-text);font-size:13px}
+    .pp-quick-sub{font-size:11px;color:var(--gray-muted);margin-top:2px}
     .pp-chart-wrap-xs{position:relative;width:72px;height:72px;flex-shrink:0}
     .pp-kpi-section{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}
     .pp-kpi-section>a{display:flex;text-decoration:none;color:inherit;min-height:0}
@@ -59,9 +63,11 @@
         .pp-grid-3{grid-template-columns:1fr !important}
         .pp-kpi-section{grid-template-columns:1fr 1fr !important}
         .pp-kpi-section .pp-card{min-height:170px;max-height:none}
+        .pp-quick-grid{grid-template-columns:1fr 1fr !important}
     }
     @media(max-width:480px){
         .pp-kpi-section{grid-template-columns:1fr !important}
+        .pp-quick-grid{grid-template-columns:1fr !important}
     }
 </style>
 @endpush
@@ -186,13 +192,6 @@
         </div></a>
     </div>
 
-    {{-- Análisis: compras por mes --}}
-    <h3 class="pp-section-title">Análisis</h3>
-    <div class="pp-card pp-chart-card">
-        <h4 style="margin-bottom:12px;">Compras a proveedores por mes</h4>
-        <div class="pp-chart-wrap"><canvas id="chartComprasMes"></canvas></div>
-    </div>
-
     {{-- Actividad reciente --}}
     <h3 class="pp-section-title">Actividad reciente</h3>
     <div class="pp-grid-2" style="align-items:stretch;">
@@ -251,6 +250,49 @@
         </div>
     </div>
 
+    {{-- Accesos directos: solo módulos que no están en los contenedores KPI --}}
+    <h3 class="pp-section-title">Accesos directos</h3>
+    <div class="pp-quick-grid">
+        <a href="{{ route('admin.pedidos') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+            <div><div class="pp-quick-title">Pedidos</div><div class="pp-quick-sub">Órdenes de compra</div></div>
+        </a>
+        <a href="{{ route('admin.reporte-proveedores') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
+            <div><div class="pp-quick-title">Reportes</div><div class="pp-quick-sub">Análisis de proveedores</div></div>
+        </a>
+        <a href="{{ route('admin.gestion-compras') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5z"/></svg></div>
+            <div><div class="pp-quick-title">Gestión Compras</div><div class="pp-quick-sub">Logística</div></div>
+        </a>
+        <a href="{{ route('admin.clientes') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div><div class="pp-quick-title">Clientes</div><div class="pp-quick-sub">Gestión de cuentas</div></div>
+        </a>
+        <a href="{{ route('admin.encuestas') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+            <div><div class="pp-quick-title">Encuestas</div><div class="pp-quick-sub">Satisfacción</div></div>
+        </a>
+        @if(in_array(session('admin_rol'), ['gerente', 'materia_prima']))
+        <a href="{{ route('admin.materia-prima') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M9 3h6v7l4 8H5l4-8V3z"/></svg></div>
+            <div><div class="pp-quick-title">Materia Prima</div><div class="pp-quick-sub">Área MP</div></div>
+        </a>
+        @endif
+        @if(in_array(session('admin_rol'), ['gerente', 'material_empaque']))
+        <a href="{{ route('admin.material-empaque') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+            <div><div class="pp-quick-title">Material Empaque</div><div class="pp-quick-sub">Área ME</div></div>
+        </a>
+        @endif
+        @if(in_array(session('admin_rol'), ['admin', 'compras_nacional', 'compras_importacion', 'mantenimiento']))
+        <a href="{{ route('admin.alta-producto') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+            <div><div class="pp-quick-title">Alta de Producto</div><div class="pp-quick-sub">Nuevo producto</div></div>
+        </a>
+        @endif
+    </div>
+
 </div>
 @endsection
 @push('scripts')
@@ -276,16 +318,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="/js/chart-config.js"></script>
 <script>
 const SC = SALCOM_COLORS;
-const mesesCompras = {!! json_encode($pedidosPorMes->pluck('mes')) !!};
-const montosCompras = {!! json_encode($pedidosPorMes->pluck('monto')) !!};
-
-salcomChart.bar(
-    document.getElementById('chartComprasMes'),
-    mesesCompras,
-    montosCompras,
-    { color: SC.purple, yFormat: v => '$' + Number(v).toLocaleString('es-MX', {maximumFractionDigits:0}) }
-);
-
 salcomChart.doughnut(
     document.getElementById('chartFacturacion'),
     ['Pagadas', 'Pendientes', 'Canceladas'],
