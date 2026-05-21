@@ -33,6 +33,23 @@ class AdminPanelController extends Controller
         $facturasPorEstatus = Factura::selectRaw('estatus, count(*) as total, sum(total) as monto')
             ->groupBy('estatus')->get()->keyBy('estatus');
 
+        $proveedoresActivosList = ProveedorUser::where('activo', true)->get();
+        $opinionActualizados = 0;
+        foreach ($proveedoresActivosList as $prov) {
+            $doc = DocumentoProveedor::where('proveedor_id', $prov->id)
+                ->where('tipo', 'opinion')
+                ->latest()
+                ->first();
+            if ($doc && $doc->estatus === 'aprobado') {
+                $opinionActualizados++;
+            }
+        }
+        $totalOpinionProv = $proveedoresActivosList->count();
+        $opinionPctActualizados = $totalOpinionProv > 0
+            ? round(($opinionActualizados / $totalOpinionProv) * 100, 1) : 0;
+        $opinionPctNoActualizados = $totalOpinionProv > 0
+            ? round((($totalOpinionProv - $opinionActualizados) / $totalOpinionProv) * 100, 1) : 0;
+
         $data = [
             'totalProveedores'   => ProveedorUser::count(),
             'proveedoresActivos' => ProveedorUser::where('activo', true)->count(),
@@ -43,6 +60,9 @@ class AdminPanelController extends Controller
             'montoPedidos'       => Pedido::sum('total'),
             'totalProductos'     => Producto::count(),
             'sinStock'           => Producto::where('stock', '<=', 0)->count(),
+            'conStock'           => Producto::where('stock', '>', 0)->count(),
+            'opinionPctActualizados'    => $opinionPctActualizados,
+            'opinionPctNoActualizados'  => $opinionPctNoActualizados,
             'facturasPendientes' => Factura::where('estatus', 'pendiente')->count(),
             'montoFacturas'      => Factura::where('estatus', 'pendiente')->sum('total'),
             'docsPendientes'     => DocumentoProveedor::where('estatus', 'pendiente')->count(),
