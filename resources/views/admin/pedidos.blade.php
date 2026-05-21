@@ -8,12 +8,32 @@
 @endsection
 @push('styles')
 <style>
-    .toolbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px;flex-wrap:wrap}
-    .filter-box{display:flex;align-items:center;gap:8px}
-    .filter-box label{font-size:12px;font-weight:600;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px}
-    .filter-box select{border:1.5px solid var(--border);border-radius:8px;padding:9px 14px;font-size:13px;font-family:inherit;color:var(--gray-text);outline:none;background:var(--white);cursor:pointer}
-    .filter-box select:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(107,63,160,.1)}
-    .badge-count{font-size:13px;color:var(--gray-muted);font-weight:500}
+    .toolbar{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
+    .toolbar-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+    .filter-group{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+    .filter-btn{padding:8px 14px;font-size:12px;font-weight:600;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--gray-text);cursor:pointer;font-family:inherit;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+    .filter-btn:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-subtle)}
+    .filter-btn.active{background:var(--purple);color:#fff;border-color:var(--purple)}
+    .filter-btn.warn.active{background:var(--amber);border-color:var(--amber)}
+    .filter-btn.ok.active{background:var(--green);border-color:var(--green)}
+    .filter-btn.danger.active{background:var(--red);border-color:var(--red)}
+    .filter-count{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(0,0,0,.08);line-height:1.2}
+    .filter-btn.active .filter-count{background:rgba(255,255,255,.25)}
+    .filters-panel{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+    .filter-form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+    .filter-field{display:flex;flex-direction:column;gap:4px;min-width:140px;flex:1}
+    .filter-field.search-field{flex:2;min-width:200px}
+    .filter-field label{font-size:11px;font-weight:600;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.4px}
+    .filter-field input,.filter-field select{border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;color:var(--gray-text);outline:none;background:var(--white)}
+    .filter-field input:focus,.filter-field select:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(107,63,160,.1)}
+    .filter-actions{display:flex;gap:8px;align-items:center;padding-bottom:1px}
+    .btn-primary{padding:9px 18px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:13px;font-family:inherit;font-weight:600;cursor:pointer}
+    .btn-primary:hover{background:var(--purple-dark)}
+    .btn-outline{padding:9px 16px;background:var(--white);color:var(--gray-text);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;font-weight:600;text-decoration:none}
+    .btn-outline:hover{border-color:var(--purple);color:var(--purple)}
+    .badge-count{font-size:13px;color:var(--gray-muted);font-weight:500;white-space:nowrap}
+    .active-filters{font-size:12px;color:var(--gray-muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+    .active-tag{background:var(--purple-subtle);color:var(--purple);padding:3px 10px;border-radius:999px;font-weight:600;font-size:11px}
 
     .admin-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden}
     .admin-table{width:100%;border-collapse:collapse}
@@ -22,12 +42,14 @@
     .admin-table tr:last-child td{border-bottom:none}
     .admin-table tr:hover td{background:var(--purple-subtle)}
 
-    .badge-estatus{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block;text-transform:capitalize}
+    .badge-estatus{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
     .badge-estatus.validacion{background:var(--amber-bg);color:var(--amber)}
     .badge-estatus.procesando{background:var(--blue-bg);color:var(--blue)}
     .badge-estatus.enviado{background:#ede9fe;color:#7c3aed}
     .badge-estatus.entregado{background:var(--green-bg);color:var(--green)}
     .badge-estatus.cancelado{background:var(--red-bg);color:var(--red)}
+
+    .badge-pago{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--gray-soft);color:var(--gray-muted);text-transform:capitalize}
 
     .pagination-wrap{padding:16px;display:flex;justify-content:center}
     .pagination-wrap nav{display:flex;gap:4px}
@@ -40,22 +62,103 @@
     .empty-state svg{margin-bottom:12px;opacity:.4}
     .empty-state p{font-size:14px;font-weight:500}
 
-    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}}
+    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.filter-field{min-width:100%}.filter-form{flex-direction:column;align-items:stretch}}
 </style>
 @endpush
 @section('content')
+@php
+    $baseQuery = array_filter([
+        'busqueda' => $filtros['busqueda'] ?: null,
+        'tipo_pago' => $filtros['tipo_pago'] ?: null,
+        'fecha_desde' => $filtros['fecha_desde'] ?: null,
+        'fecha_hasta' => $filtros['fecha_hasta'] ?: null,
+    ]);
+    $chipActive = fn ($est = null, $grp = null) => (!$filtros['estatus'] && !$filtros['grupo'] && !$est && !$grp)
+        || ($est && $filtros['estatus'] === $est)
+        || ($grp && $filtros['grupo'] === $grp);
+@endphp
 
 <div class="toolbar">
-    <form method="GET" action="{{ route('admin.pedidos') }}" class="filter-box">
-        <label>Estatus</label>
-        <select name="estatus" onchange="this.form.submit()">
-            <option value="">Todos</option>
-            @foreach($estatusDisponibles as $est)
-                <option value="{{ $est }}" {{ ($estatus ?? '') === $est ? 'selected' : '' }}>{{ ucfirst($est) }}</option>
-            @endforeach
-        </select>
-    </form>
-    <span class="badge-count">{{ $pedidos->total() }} pedido{{ $pedidos->total() !== 1 ? 's' : '' }}</span>
+    <div class="toolbar-top">
+        <div class="filter-group">
+            <a href="{{ route('admin.pedidos', $baseQuery) }}" class="filter-btn {{ $chipActive() ? 'active' : '' }}">
+                Todos <span class="filter-count">{{ $totalGeneral }}</span>
+            </a>
+            <a href="{{ route('admin.pedidos', array_merge($baseQuery, ['grupo' => 'pendientes'])) }}" class="filter-btn warn {{ $chipActive(null, 'pendientes') ? 'active' : '' }}">
+                Pendientes <span class="filter-count">{{ $conteoPendientes }}</span>
+            </a>
+            <a href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'procesando'])) }}" class="filter-btn {{ $chipActive('procesando') ? 'active' : '' }}">
+                En proceso <span class="filter-count">{{ $conteosEstatus['procesando'] ?? 0 }}</span>
+            </a>
+            <a href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'enviado'])) }}" class="filter-btn {{ $chipActive('enviado') ? 'active' : '' }}">
+                Enviados <span class="filter-count">{{ $conteosEstatus['enviado'] ?? 0 }}</span>
+            </a>
+            <a href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'entregado'])) }}" class="filter-btn ok {{ $chipActive('entregado') ? 'active' : '' }}">
+                Entregados <span class="filter-count">{{ $conteosEstatus['entregado'] ?? 0 }}</span>
+            </a>
+            <a href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'cancelado'])) }}" class="filter-btn danger {{ $chipActive('cancelado') ? 'active' : '' }}">
+                Cancelados <span class="filter-count">{{ $conteosEstatus['cancelado'] ?? 0 }}</span>
+            </a>
+        </div>
+        <span class="badge-count">{{ $pedidos->total() }} resultado{{ $pedidos->total() !== 1 ? 's' : '' }}</span>
+    </div>
+
+    <div class="filters-panel">
+        <form method="GET" action="{{ route('admin.pedidos') }}" class="filter-form">
+            @if($filtros['grupo'] && !$filtros['estatus'])
+                <input type="hidden" name="grupo" value="{{ $filtros['grupo'] }}">
+            @endif
+            <div class="filter-field search-field">
+                <label>Buscar</label>
+                <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Folio, cliente o código…">
+            </div>
+            <div class="filter-field">
+                <label>Estatus</label>
+                <select name="estatus">
+                    <option value="">Todos los estatus</option>
+                    @foreach($estatusOpciones as $key => $label)
+                        <option value="{{ $key }}" {{ $filtros['estatus'] === $key ? 'selected' : '' }}>
+                            {{ $label }} ({{ $conteosEstatus[$key] ?? 0 }})
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="filter-field">
+                <label>Tipo de pago</label>
+                <select name="tipo_pago">
+                    <option value="">Todos</option>
+                    <option value="credito" {{ $filtros['tipo_pago'] === 'credito' ? 'selected' : '' }}>Crédito</option>
+                    <option value="contado" {{ $filtros['tipo_pago'] === 'contado' ? 'selected' : '' }}>Contado</option>
+                </select>
+            </div>
+            <div class="filter-field">
+                <label>Desde</label>
+                <input type="date" name="fecha_desde" value="{{ $filtros['fecha_desde'] }}">
+            </div>
+            <div class="filter-field">
+                <label>Hasta</label>
+                <input type="date" name="fecha_hasta" value="{{ $filtros['fecha_hasta'] }}">
+            </div>
+            <div class="filter-actions">
+                <button type="submit" class="btn-primary">Filtrar</button>
+                @if($filtrosActivos)
+                    <a href="{{ route('admin.pedidos') }}" class="btn-outline">Limpiar</a>
+                @endif
+            </div>
+        </form>
+        @if($filtrosActivos)
+        <div class="active-filters" style="margin-top:12px;">
+            <span>Filtros activos:</span>
+            @if($filtros['busqueda'])<span class="active-tag">«{{ $filtros['busqueda'] }}»</span>@endif
+            @if($filtros['grupo'] === 'pendientes')<span class="active-tag">Pendientes</span>@endif
+            @if($filtros['grupo'] === 'activos')<span class="active-tag">Activos</span>@endif
+            @if($filtros['estatus'])<span class="active-tag">{{ $estatusOpciones[$filtros['estatus']] ?? ucfirst($filtros['estatus']) }}</span>@endif
+            @if($filtros['tipo_pago'])<span class="active-tag">{{ $filtros['tipo_pago'] === 'credito' ? 'Crédito' : 'Contado' }}</span>@endif
+            @if($filtros['fecha_desde'])<span class="active-tag">Desde {{ $filtros['fecha_desde'] }}</span>@endif
+            @if($filtros['fecha_hasta'])<span class="active-tag">Hasta {{ $filtros['fecha_hasta'] }}</span>@endif
+        </div>
+        @endif
+    </div>
 </div>
 
 <div class="admin-table-wrap">
@@ -75,11 +178,14 @@
         @foreach($pedidos as $p)
             <tr>
                 <td style="font-weight:600;color:var(--purple)">{{ $p->folio }}</td>
-                <td>{{ $p->nombre_cliente }}</td>
-                <td>${{ number_format($p->total, 2) }}</td>
-                <td>{{ ucfirst($p->tipo_pago) }}</td>
                 <td>
-                    <span class="badge-estatus {{ $p->estatus }}">{{ ucfirst($p->estatus) }}</span>
+                    <div>{{ $p->nombre_cliente }}</div>
+                    @if($p->codigo_cliente)<div style="font-size:11px;color:var(--gray-muted);">{{ $p->codigo_cliente }}</div>@endif
+                </td>
+                <td>${{ number_format($p->total, 2) }}</td>
+                <td><span class="badge-pago">{{ $p->tipo_pago === 'credito' ? 'Crédito' : 'Contado' }}</span></td>
+                <td>
+                    <span class="badge-estatus {{ $p->estatus }}">{{ $estatusOpciones[$p->estatus] ?? ucfirst($p->estatus) }}</span>
                 </td>
                 <td>{{ $p->created_at?->format('d/m/Y H:i') ?? '—' }}</td>
             </tr>
@@ -92,7 +198,10 @@
 @else
     <div class="empty-state">
         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-        <p>No se encontraron pedidos{{ $estatus ? ' con estatus "'.ucfirst($estatus).'"' : '' }}</p>
+        <p>No se encontraron pedidos con los filtros seleccionados.</p>
+        @if($filtrosActivos)
+            <p style="margin-top:8px;"><a href="{{ route('admin.pedidos') }}" style="color:var(--purple);font-weight:600;">Quitar filtros</a></p>
+        @endif
     </div>
 @endif
 </div>

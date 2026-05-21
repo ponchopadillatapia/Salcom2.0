@@ -121,18 +121,77 @@ class AdminPanelController extends Controller
 
     public function clientes(Request $request)
     {
+        $tipoOpciones = [
+            'mayorista' => 'Mayorista',
+            'minorista' => 'Minorista',
+            'distribuidor' => 'Distribuidor',
+        ];
+
         $query = ClienteUser::query();
 
-        if ($busqueda = $request->input('busqueda')) {
+        $busqueda = $request->input('busqueda', '');
+        $activo = $request->input('activo', '');
+        $tipoCliente = $request->input('tipo_cliente', '');
+        $fechaDesde = $request->input('fecha_desde', '');
+        $fechaHasta = $request->input('fecha_hasta', '');
+
+        if ($busqueda) {
             $query->where(function ($q) use ($busqueda) {
                 $q->where('nombre', 'like', "%{$busqueda}%")
-                    ->orWhere('correo', 'like', "%{$busqueda}%");
+                    ->orWhere('correo', 'like', "%{$busqueda}%")
+                    ->orWhere('codigo_cliente', 'like', "%{$busqueda}%")
+                    ->orWhere('usuario', 'like', "%{$busqueda}%");
             });
+        }
+
+        if ($activo !== '') {
+            $query->where('activo', $activo === '1');
+        }
+
+        if ($tipoCliente && array_key_exists($tipoCliente, $tipoOpciones)) {
+            $query->where('tipo_cliente', $tipoCliente);
+        }
+
+        if ($fechaDesde) {
+            $query->whereDate('created_at', '>=', $fechaDesde);
+        }
+
+        if ($fechaHasta) {
+            $query->whereDate('created_at', '<=', $fechaHasta);
         }
 
         $clientes = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
 
-        return view('admin.clientes', compact('clientes', 'busqueda'));
+        $totalGeneral = ClienteUser::count();
+        $conteoActivos = ClienteUser::where('activo', true)->count();
+        $conteoInactivos = ClienteUser::where('activo', false)->count();
+
+        $conteosTipo = ClienteUser::selectRaw('tipo_cliente, count(*) as total')
+            ->whereNotNull('tipo_cliente')
+            ->where('tipo_cliente', '!=', '')
+            ->groupBy('tipo_cliente')
+            ->pluck('total', 'tipo_cliente');
+
+        $filtros = [
+            'busqueda' => $busqueda,
+            'activo' => $activo,
+            'tipo_cliente' => $tipoCliente,
+            'fecha_desde' => $fechaDesde,
+            'fecha_hasta' => $fechaHasta,
+        ];
+
+        $filtrosActivos = $this->filtrosTienenValor($filtros);
+
+        return view('admin.clientes', compact(
+            'clientes',
+            'tipoOpciones',
+            'totalGeneral',
+            'conteoActivos',
+            'conteoInactivos',
+            'conteosTipo',
+            'filtros',
+            'filtrosActivos',
+        ));
     }
 
     public function toggleCliente(ClienteUser $cliente)
@@ -180,16 +239,78 @@ class AdminPanelController extends Controller
 
     public function pedidos(Request $request)
     {
+        $estatusOpciones = [
+            'validacion' => 'En validación',
+            'procesando' => 'En proceso',
+            'enviado' => 'Enviado',
+            'entregado' => 'Entregado',
+            'cancelado' => 'Cancelado',
+        ];
+
         $query = Pedido::query();
 
-        if ($estatus = $request->input('estatus')) {
+        if ($busqueda = $request->input('busqueda')) {
+            $query->where(function ($q) use ($busqueda) {
+                $q->where('folio', 'like', "%{$busqueda}%")
+                    ->orWhere('nombre_cliente', 'like', "%{$busqueda}%")
+                    ->orWhere('codigo_cliente', 'like', "%{$busqueda}%");
+            });
+        }
+
+        $estatus = $request->input('estatus');
+        $grupo = $request->input('grupo');
+
+        if ($grupo === 'pendientes') {
+            $query->whereIn('estatus', ['validacion', 'procesando']);
+        } elseif ($grupo === 'activos') {
+            $query->whereIn('estatus', ['validacion', 'procesando', 'enviado']);
+        } elseif ($estatus && array_key_exists($estatus, $estatusOpciones)) {
             $query->where('estatus', $estatus);
         }
 
-        $pedidos = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
-        $estatusDisponibles = Pedido::select('estatus')->distinct()->pluck('estatus');
+        if ($tipoPago = $request->input('tipo_pago')) {
+            $query->where('tipo_pago', $tipoPago);
+        }
 
-        return view('admin.pedidos', compact('pedidos', 'estatus', 'estatusDisponibles'));
+        if ($fechaDesde = $request->input('fecha_desde')) {
+            $query->whereDate('created_at', '>=', $fechaDesde);
+        }
+
+        if ($fechaHasta = $request->input('fecha_hasta')) {
+            $query->whereDate('created_at', '<=', $fechaHasta);
+        }
+
+        $pedidos = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+
+        $conteosEstatus = Pedido::selectRaw('estatus, count(*) as total')
+            ->groupBy('estatus')
+            ->pluck('total', 'estatus');
+
+        $totalGeneral = Pedido::count();
+        $conteoPendientes = ($conteosEstatus['validacion'] ?? 0) + ($conteosEstatus['procesando'] ?? 0);
+
+        $filtros = [
+            'busqueda' => $busqueda ?? '',
+            'estatus' => $estatus ?? '',
+            'grupo' => $grupo ?? '',
+            'tipo_pago' => $tipoPago ?? '',
+            'fecha_desde' => $fechaDesde ?? '',
+            'fecha_hasta' => $fechaHasta ?? '',
+        ];
+
+        $filtrosActivos = $this->filtrosTienenValor($filtros);
+
+        return view('admin.pedidos', compact(
+            'pedidos',
+            'estatus',
+            'grupo',
+            'estatusOpciones',
+            'conteosEstatus',
+            'conteoPendientes',
+            'totalGeneral',
+            'filtros',
+            'filtrosActivos',
+        ));
     }
 
     // ── Proveedores con Score ──
@@ -466,59 +587,269 @@ class AdminPanelController extends Controller
 
     public function productos(Request $request)
     {
+        $stockOpciones = [
+            'agotado' => 'Agotado',
+            'bajo' => 'Stock bajo',
+            'ok' => 'Stock OK',
+        ];
+
         $query = Producto::query();
 
-        if ($busqueda = $request->input('busqueda')) {
+        $busqueda = $request->input('busqueda', '');
+        $stock = $request->input('stock', '');
+        $grupo = $request->input('grupo', '');
+        $activo = $request->input('activo', '');
+        $categoria = $request->input('categoria', '');
+
+        if ($busqueda) {
             $query->where(function ($q) use ($busqueda) {
                 $q->where('nombre', 'like', "%{$busqueda}%")
-                    ->orWhere('codigo', 'like', "%{$busqueda}%");
+                    ->orWhere('codigo', 'like', "%{$busqueda}%")
+                    ->orWhere('codigo_alterno', 'like', "%{$busqueda}%")
+                    ->orWhere('categoria', 'like', "%{$busqueda}%");
             });
         }
 
         if ($request->input('sin_stock')) {
-            $query->where('stock', '<=', 0);
+            $stock = 'agotado';
+        }
+
+        if ($grupo === 'criticos') {
+            $query->where(function ($q) {
+                $q->where('stock', '<=', 0)
+                    ->orWhere(function ($q2) {
+                        $q2->where('stock', '>', 0)->where('stock', '<', 50);
+                    });
+            });
+        } elseif ($stock && array_key_exists($stock, $stockOpciones)) {
+            if ($stock === 'agotado') {
+                $query->where('stock', '<=', 0);
+            } elseif ($stock === 'bajo') {
+                $query->where('stock', '>', 0)->where('stock', '<', 50);
+            } elseif ($stock === 'ok') {
+                $query->where('stock', '>=', 50);
+            }
+        }
+
+        if ($activo !== '') {
+            $query->where('activo', $activo === '1');
+        }
+
+        if ($categoria) {
+            $query->where('categoria', $categoria);
         }
 
         $productos = $query->orderBy('codigo')->paginate(20)->withQueryString();
-        $busqueda = $request->input('busqueda');
-        $sinStock = $request->input('sin_stock');
 
-        return view('admin.productos', compact('productos', 'busqueda', 'sinStock'));
+        $totalGeneral = Producto::count();
+        $conteoAgotado = Producto::where('stock', '<=', 0)->count();
+        $conteoBajo = Producto::where('stock', '>', 0)->where('stock', '<', 50)->count();
+        $conteoOk = Producto::where('stock', '>=', 50)->count();
+        $conteoCriticos = $conteoAgotado + $conteoBajo;
+        $conteoInactivos = Producto::where('activo', false)->count();
+
+        $categorias = Producto::whereNotNull('categoria')
+            ->where('categoria', '!=', '')
+            ->distinct()
+            ->orderBy('categoria')
+            ->pluck('categoria');
+
+        $filtros = [
+            'busqueda' => $busqueda,
+            'stock' => $stock,
+            'grupo' => $grupo,
+            'activo' => $activo,
+            'categoria' => $categoria,
+        ];
+
+        $filtrosActivos = $this->filtrosTienenValor($filtros);
+
+        return view('admin.productos', compact(
+            'productos',
+            'stockOpciones',
+            'stock',
+            'grupo',
+            'totalGeneral',
+            'conteoAgotado',
+            'conteoBajo',
+            'conteoOk',
+            'conteoCriticos',
+            'conteoInactivos',
+            'categorias',
+            'filtros',
+            'filtrosActivos',
+        ));
     }
 
     // ── Facturas ──
 
     public function facturas(Request $request)
     {
-        $estatus = $request->input('estatus');
-        $vencidas = $request->input('vencidas');
+        $estatusOpciones = [
+            'pendiente' => 'Pendiente',
+            'pagada' => 'Pagada',
+            'cancelada' => 'Cancelada',
+        ];
 
-        $query = Factura::whereNotNull('codigo_proveedor');
-        if ($estatus) {
-            $query->where('estatus', $estatus);
+        $query = Factura::with('proveedor')->whereNotNull('codigo_proveedor');
+
+        $busqueda = $request->input('busqueda', '');
+        $estatus = $request->input('estatus', '');
+        $vencidas = $request->input('vencidas', '');
+        $fechaDesde = $request->input('fecha_desde', '');
+        $fechaHasta = $request->input('fecha_hasta', '');
+
+        if ($busqueda) {
+            $query->where(function ($q) use ($busqueda) {
+                $q->where('folio_cfdi', 'like', "%{$busqueda}%")
+                    ->orWhere('codigo_proveedor', 'like', "%{$busqueda}%")
+                    ->orWhereHas('proveedor', function ($q2) use ($busqueda) {
+                        $q2->where('nombre', 'like', "%{$busqueda}%")
+                            ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
+                    });
+            });
         }
+
         if ($vencidas) {
             $query->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+        } elseif ($estatus && array_key_exists($estatus, $estatusOpciones)) {
+            $query->where('estatus', $estatus);
         }
+
+        if ($fechaDesde) {
+            $query->whereDate('fecha_vencimiento', '>=', $fechaDesde);
+        }
+
+        if ($fechaHasta) {
+            $query->whereDate('fecha_vencimiento', '<=', $fechaHasta);
+        }
+
         $facturas = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
 
-        return view('admin.facturas', compact('facturas', 'estatus', 'vencidas'));
+        $baseProveedor = Factura::whereNotNull('codigo_proveedor');
+        $totalGeneral = (clone $baseProveedor)->count();
+        $conteosEstatus = (clone $baseProveedor)->selectRaw('estatus, count(*) as total')
+            ->groupBy('estatus')
+            ->pluck('total', 'estatus');
+        $conteoVencidas = (clone $baseProveedor)
+            ->where('estatus', 'pendiente')
+            ->where('fecha_vencimiento', '<', now())
+            ->count();
+
+        $filtros = [
+            'busqueda' => $busqueda,
+            'estatus' => $estatus,
+            'vencidas' => $vencidas,
+            'fecha_desde' => $fechaDesde,
+            'fecha_hasta' => $fechaHasta,
+        ];
+
+        $filtrosActivos = $this->filtrosTienenValor($filtros);
+
+        return view('admin.facturas', compact(
+            'facturas',
+            'estatus',
+            'vencidas',
+            'estatusOpciones',
+            'totalGeneral',
+            'conteosEstatus',
+            'conteoVencidas',
+            'filtros',
+            'filtrosActivos',
+        ));
     }
 
     // ── Documentos de proveedores ──
 
     public function documentos(Request $request)
     {
+        $estatusOpciones = [
+            'pendiente' => 'Pendiente',
+            'aprobado' => 'Aprobado',
+            'rechazado' => 'Rechazado',
+        ];
+
+        $tipoLabels = [
+            'cif' => 'CIF',
+            'opinion' => 'Opinión positiva',
+            'caratula_banco' => 'Carátula banco',
+            'acta_constitutiva' => 'Acta constitutiva',
+            'comprobante_domicilio' => 'Comprobante domicilio',
+        ];
+
         $query = DocumentoProveedor::with('proveedor');
 
-        if ($estatus = $request->input('estatus')) {
+        $busqueda = $request->input('busqueda', '');
+        $estatus = $request->input('estatus', '');
+        $tipo = $request->input('tipo', '');
+        $fechaDesde = $request->input('fecha_desde', '');
+        $fechaHasta = $request->input('fecha_hasta', '');
+
+        if ($busqueda) {
+            $query->where(function ($q) use ($busqueda) {
+                $q->where('tipo', 'like', "%{$busqueda}%")
+                    ->orWhere('notas_revision', 'like', "%{$busqueda}%")
+                    ->orWhereHas('proveedor', function ($q2) use ($busqueda) {
+                        $q2->where('nombre', 'like', "%{$busqueda}%")
+                            ->orWhere('codigo_compras', 'like', "%{$busqueda}%")
+                            ->orWhere('usuario', 'like', "%{$busqueda}%");
+                    });
+            });
+        }
+
+        if ($estatus && array_key_exists($estatus, $estatusOpciones)) {
             $query->where('estatus', $estatus);
         }
 
-        $documentos = $query->orderByRaw("CASE estatus WHEN 'pendiente' THEN 1 WHEN 'rechazado' THEN 2 WHEN 'aprobado' THEN 3 ELSE 4 END")->paginate(20)->withQueryString();
-        $estatus = $request->input('estatus');
+        if ($tipo) {
+            $query->where('tipo', $tipo);
+        }
 
-        return view('admin.documentos', compact('documentos', 'estatus'));
+        if ($fechaDesde) {
+            $query->whereDate('created_at', '>=', $fechaDesde);
+        }
+
+        if ($fechaHasta) {
+            $query->whereDate('created_at', '<=', $fechaHasta);
+        }
+
+        $documentos = $query
+            ->orderByRaw("CASE estatus WHEN 'pendiente' THEN 1 WHEN 'rechazado' THEN 2 WHEN 'aprobado' THEN 3 ELSE 4 END")
+            ->orderBy('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        $totalGeneral = DocumentoProveedor::count();
+        $conteosEstatus = DocumentoProveedor::selectRaw('estatus, count(*) as total')
+            ->groupBy('estatus')
+            ->pluck('total', 'estatus');
+
+        $tipos = DocumentoProveedor::select('tipo')
+            ->distinct()
+            ->orderBy('tipo')
+            ->pluck('tipo');
+
+        $filtros = [
+            'busqueda' => $busqueda,
+            'estatus' => $estatus,
+            'tipo' => $tipo,
+            'fecha_desde' => $fechaDesde,
+            'fecha_hasta' => $fechaHasta,
+        ];
+
+        $filtrosActivos = $this->filtrosTienenValor($filtros);
+
+        return view('admin.documentos', compact(
+            'documentos',
+            'estatus',
+            'estatusOpciones',
+            'tipoLabels',
+            'tipos',
+            'totalGeneral',
+            'conteosEstatus',
+            'filtros',
+            'filtrosActivos',
+        ));
     }
 
     // ── Negocio ──
@@ -665,7 +996,10 @@ class AdminPanelController extends Controller
 
         $totales['variacion_monto'] = $totales['compras_anterior'] > 0
             ? round((($totales['compras_actual'] - $totales['compras_anterior']) / $totales['compras_anterior']) * 100, 1)
-            : 0;
+            : ($totales['compras_actual'] > 0 ? 100 : 0);
+        $totales['variacion_cant'] = $totales['facturas_anterior'] > 0
+            ? round((($totales['facturas_actual'] - $totales['facturas_anterior']) / $totales['facturas_anterior']) * 100, 1)
+            : ($totales['facturas_actual'] > 0 ? 100 : 0);
 
         return view('admin.reporte-proveedores', compact('reporte', 'totales', 'anioActual', 'anioAnterior'));
     }

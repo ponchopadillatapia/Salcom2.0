@@ -210,7 +210,7 @@
         <span>Panel Administrativo</span>
     </div>
     <div class="nav-right">
-        <span class="nav-user">Administrador</span>
+        <span class="nav-user" title="{{ session('admin_usuario', '') }}">{{ session('admin_nombre', 'Usuario') }}</span>
         <form method="POST" action="/logout-admin" style="margin:0;">
             @csrf
             <button type="submit" class="btn-logout">Cerrar sesión</button>
