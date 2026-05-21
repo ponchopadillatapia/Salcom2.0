@@ -67,29 +67,8 @@
     <div class="alert-success">{{ session('mensaje') }}</div>
 @endif
 
-@php
-    $baseQuery = array_filter([
-        'busqueda' => $filtros['busqueda'] ?: null,
-        'tipo_cliente' => $filtros['tipo_cliente'] ?: null,
-        'fecha_desde' => $filtros['fecha_desde'] ?: null,
-        'fecha_hasta' => $filtros['fecha_hasta'] ?: null,
-    ]);
-    $chipActive = fn ($act = null) => ($act === null && $filtros['activo'] === '') || ($act !== null && $filtros['activo'] === $act);
-@endphp
-
 <div class="toolbar">
     <div class="toolbar-top">
-        <div class="filter-group">
-            <a href="{{ route('admin.clientes', $baseQuery) }}" class="filter-btn {{ $chipActive() ? 'active' : '' }}">
-                Todos <span class="filter-count">{{ $totalGeneral }}</span>
-            </a>
-            <a href="{{ route('admin.clientes', array_merge($baseQuery, ['activo' => '1'])) }}" class="filter-btn ok {{ $chipActive('1') ? 'active' : '' }}">
-                Activos <span class="filter-count">{{ $conteoActivos }}</span>
-            </a>
-            <a href="{{ route('admin.clientes', array_merge($baseQuery, ['activo' => '0'])) }}" class="filter-btn danger {{ $chipActive('0') ? 'active' : '' }}">
-                Inactivos <span class="filter-count">{{ $conteoInactivos }}</span>
-            </a>
-        </div>
         <span class="badge-count">{{ $clientes->total() }} resultado{{ $clientes->total() !== 1 ? 's' : '' }}</span>
     </div>
 

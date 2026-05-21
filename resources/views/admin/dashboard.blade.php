@@ -78,8 +78,6 @@
 @endpush
 @section('content')
 @php
-    $ot = $scorePromedio > 0 ? round($scorePromedio * 0.55) : 50;
-    $if = $scorePromedio > 0 ? min(100, round($scorePromedio * 1.1)) : 100;
     $mesAnteriorData = $pedidosPorMes->count() >= 2 ? $pedidosPorMes[$pedidosPorMes->count() - 2] : null;
     $penultimoMesData = $pedidosPorMes->count() >= 3 ? $pedidosPorMes[$pedidosPorMes->count() - 3] : null;
     $ventasVarPct = ($penultimoMesData && $penultimoMesData['monto'] > 0 && $mesAnteriorData)
@@ -144,14 +142,16 @@
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
-        <a href="{{ route('admin.otif') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('admin.encuestas') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-            <h4>OTIF</h4>
-            <div class="pp-kpi-gauges">
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOT" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $ot }}%</div></div></div><div class="pp-otif-label">OT</div></div>
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeIF" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $if }}%</div></div></div><div class="pp-otif-label">IF</div></div>
+            <h4>Satisfacción</h4>
+            <div style="flex:1;display:flex;flex-direction:column;justify-content:center;">
+                <div style="font-size:28px;font-weight:800;color:var(--gray-text);line-height:1;">
+                    {{ $totalEncuestas ? number_format($calificacionProm, 1) : '—' }}<span style="font-size:14px;color:var(--gray-muted);font-weight:500">/5</span>
+                </div>
+                <div style="font-size:12px;color:var(--gray-muted);margin-top:8px;">{{ $totalEncuestas }} {{ $totalEncuestas === 1 ? 'encuesta' : 'encuestas' }}</div>
             </div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">Ver encuestas →</span>
         </div></a>
 
         <a href="{{ route('admin.opinion-positiva') }}" style="text-decoration:none;color:inherit;">
@@ -333,8 +333,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if(percent>0){ctx.beginPath();ctx.arc(center,center,radius,startAngle,endAngle);ctx.strokeStyle='#34c759';ctx.lineWidth=lineWidth;ctx.lineCap='round';ctx.stroke();}
         if(percent<100){ctx.beginPath();ctx.arc(center,center,radius,endAngle+0.02,startAngle+2*Math.PI-0.02);ctx.strokeStyle=percent>95?'#ff9500':'#ff3b30';ctx.lineWidth=lineWidth;ctx.lineCap='butt';ctx.stroke();}
     }
-    drawDonut('gaugeOT', {{ $ot }});
-    drawDonut('gaugeIF', {{ $if }});
     drawDonut('gaugeOpOk', {{ $opinionPctActualizados }});
     drawDonut('gaugeOpNo', {{ $opinionPctNoActualizados }});
 });
