@@ -12,6 +12,7 @@ use App\Models\OcBorrador;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
+use App\Services\PedidoProveedorSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -21,6 +22,8 @@ class AdminPanelController extends Controller
 
     public function dashboard()
     {
+        $this->asegurarPedidosConProveedor();
+
         // Pedidos por mes (últimos 6 meses)
         $pedidosPorMes = collect();
         for ($i = 5; $i >= 0; $i--) {
@@ -239,6 +242,8 @@ class AdminPanelController extends Controller
 
     public function pedidos(Request $request)
     {
+        $this->asegurarPedidosConProveedor();
+
         $estatusOpciones = [
             'validacion' => 'En validación',
             'procesando' => 'En proceso',
@@ -618,6 +623,22 @@ class AdminPanelController extends Controller
         }
 
         return $query;
+    }
+
+    private function asegurarPedidosConProveedor(): void
+    {
+        $sync = app(PedidoProveedorSyncService::class);
+        if (! $sync->columnasDisponibles()) {
+            return;
+        }
+
+        $pendientes = Pedido::whereNull('codigo_proveedor')
+            ->orWhereNull('nombre_proveedor')
+            ->exists();
+
+        if ($pendientes) {
+            $sync->sincronizar();
+        }
     }
 
     private function filtrosTienenValor(array $filtros): bool
