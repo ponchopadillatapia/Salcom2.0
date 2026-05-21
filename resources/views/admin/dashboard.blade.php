@@ -27,7 +27,7 @@
     .pp-otif-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center}
     .pp-otif-percent{font-size:14px;font-weight:700;color:var(--green);line-height:1}
     .pp-otif-label{font-size:10px;color:var(--gray-muted);font-weight:600;margin-top:4px}
-    .pp-section-title{font-size:15px;font-weight:700;color:var(--gray-text);margin:20px 0 12px}
+    .pp-section-title{font-size:15px;font-weight:700;color:var(--gray-text);margin:16px 0 10px}
     .pp-quick-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
     .pp-quick-card{text-decoration:none;display:flex;align-items:center;gap:10px;padding:12px !important;min-height:auto;max-height:none}
     .pp-quick-icon{width:42px;height:42px;border-radius:12px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:var(--transition)}
@@ -46,14 +46,19 @@
     .pp-kpi-fact-body{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:1;min-height:0}
     .pp-kpi-fact-stats{flex:1;min-width:0}
     .pp-kpi-fact-stats .pp-negocio-sub{margin:0;font-size:11px;line-height:1.35}
+    .pp-activity-card{padding:0 !important;overflow:hidden}
+    .pp-activity-card .pp-activity-head{padding:12px 16px;border-bottom:1px solid var(--border-light);font-size:13px;font-weight:700}
+    .pp-activity-card .pp-tbl{font-size:11px}
+    .pp-activity-card .pp-tbl th{font-size:9px;padding:6px 10px}
+    .pp-activity-card .pp-tbl td{padding:7px 10px}
     .pp-tbl{width:100%;border-collapse:collapse;font-size:12px}
     .pp-tbl th{font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.4px;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border-light);background:var(--gray-soft)}
     .pp-tbl td{padding:9px 10px;border-bottom:1px solid var(--border-light);color:var(--gray-text)}
     .pp-tbl tr:last-child td{border-bottom:none}
     .pp-tbl tr:hover td{background:var(--purple-subtle)}
-    .pp-score-bar{height:6px;background:#e8e8ed;border-radius:4px;overflow:hidden;min-width:60px}
+    .pp-score-bar{height:5px;background:#e8e8ed;border-radius:4px;overflow:hidden;min-width:50px}
     .pp-score-fill{height:100%;background:var(--green);border-radius:4px}
-    .pp-badge{font-size:10px;font-weight:600;padding:3px 8px;border-radius:999px;text-transform:capitalize}
+    .pp-badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:999px;text-transform:capitalize}
     .pp-badge-validacion{background:#fefce8;color:#d97706}
     .pp-badge-entregado{background:#ecfdf5;color:#059669}
     .pp-badge-procesando,.pp-badge-enviado{background:#eff6ff;color:#2563eb}
@@ -111,11 +116,31 @@
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
-        <a href="{{ route('admin.productos') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('admin.inventario') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
             <h4>Inventario</h4>
-            <div class="pp-negocio-value" style="font-size:26px;">{{ $totalProductos }}</div>
-            <div class="pp-negocio-sub">{{ $sinStock }} agotados · {{ $conStock }} disponibles</div>
+            <div class="pp-negocio-row">
+                <div class="pp-negocio-label">SKUs activos</div>
+                <div class="pp-negocio-value" style="font-size:20px;">
+                    {{ $totalProductos }}
+                    @if($skusVarPct != 0)<span class="pp-variation {{ $skusVarPct > 0 ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $skusVarPct > 0 ? '↑' : '↓' }} {{ $skusVarPct > 0 ? '+' : '' }}{{ $skusVarPct }}%</span>@endif
+                </div>
+            </div>
+            <div class="pp-negocio-row">
+                <div class="pp-negocio-label">Agotados</div>
+                <div class="pp-negocio-value" style="color:{{ $sinStock > 0 ? 'var(--red)' : 'var(--green)' }};font-size:20px;">
+                    {{ $sinStock }}
+                    @if($agotadosVarPct != 0)
+                        @php $agotadosMejora = $agotadosVarPct < 0; @endphp
+                        <span class="pp-variation {{ $agotadosMejora ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $agotadosMejora ? '↓' : '↑' }} {{ $agotadosVarPct > 0 ? '+' : '' }}{{ $agotadosVarPct }}%</span>
+                    @endif
+                </div>
+            </div>
+            <div class="pp-negocio-sub">
+                <span style="color:var(--amber);">●</span> {{ $stockBajo }} bajo &nbsp;
+                <span style="color:var(--green);">●</span> {{ $stockOk }} OK &nbsp;
+                {{ number_format($saludPct, 0) }}% salud
+            </div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
@@ -195,8 +220,8 @@
     {{-- Actividad reciente --}}
     <h3 class="pp-section-title">Actividad reciente</h3>
     <div class="pp-grid-2" style="align-items:stretch;">
-        <div class="pp-card" style="padding:0;overflow:hidden;">
-            <div style="padding:14px 18px;border-bottom:1px solid var(--border-light);font-size:13px;font-weight:700;">Órdenes de compra recientes</div>
+        <div class="pp-card pp-activity-card">
+            <div class="pp-activity-head">Órdenes de compra recientes</div>
             <table class="pp-tbl">
                 <thead>
                     <tr>
@@ -215,13 +240,13 @@
                         <td><span class="pp-badge pp-badge-{{ $p->estatus }}">{{ ucfirst($p->estatus) }}</span></td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" style="text-align:center;color:var(--gray-muted);padding:20px;">Sin órdenes recientes</td></tr>
+                    <tr><td colspan="4" style="text-align:center;color:var(--gray-muted);padding:16px;">Sin órdenes recientes</td></tr>
                 @endforelse
                 </tbody>
             </table>
         </div>
-        <div class="pp-card" style="padding:0;overflow:hidden;">
-            <div style="padding:14px 18px;border-bottom:1px solid var(--border-light);font-size:13px;font-weight:700;">Top proveedores</div>
+        <div class="pp-card pp-activity-card">
+            <div class="pp-activity-head">Top proveedores</div>
             <table class="pp-tbl">
                 <thead>
                     <tr>
@@ -235,22 +260,22 @@
                     <tr>
                         <td style="font-weight:600;">{{ $prov->nombre ?? $prov->usuario }}</td>
                         <td>
-                            <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="display:flex;align-items:center;gap:6px;">
                                 <div class="pp-score-bar"><div class="pp-score-fill" style="width:{{ min(100, $prov->score_total) }}%"></div></div>
-                                <span style="font-weight:700;font-size:11px;">{{ number_format($prov->score_total, 0) }}%</span>
+                                <span style="font-weight:700;font-size:10px;">{{ number_format($prov->score_total, 0) }}%</span>
                             </div>
                         </td>
-                        <td style="font-size:11px;color:var(--gray-muted);">{{ number_format($prov->score_entrega, 0) }}%</td>
+                        <td style="font-size:10px;color:var(--gray-muted);">{{ number_format($prov->score_entrega, 0) }}%</td>
                     </tr>
                 @empty
-                    <tr><td colspan="3" style="text-align:center;color:var(--gray-muted);padding:20px;">Sin proveedores con score</td></tr>
+                    <tr><td colspan="3" style="text-align:center;color:var(--gray-muted);padding:16px;">Sin proveedores con score</td></tr>
                 @endforelse
                 </tbody>
             </table>
         </div>
     </div>
 
-    {{-- Accesos directos: solo módulos que no están en los contenedores KPI --}}
+    {{-- Accesos directos --}}
     <h3 class="pp-section-title">Accesos directos</h3>
     <div class="pp-quick-grid">
         <a href="{{ route('admin.pedidos') }}" class="pp-card pp-quick-card">

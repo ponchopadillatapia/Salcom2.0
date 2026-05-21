@@ -52,6 +52,40 @@ class AdminPanelController extends Controller
         $opinionPctNoActualizados = $totalOpinionProv > 0
             ? round((($totalOpinionProv - $opinionActualizados) / $totalOpinionProv) * 100, 1) : 0;
 
+        $inicioMes = now()->startOfMonth();
+        $inicioMesAnterior = now()->subMonth()->startOfMonth();
+        $finMesAnterior = now()->subMonth()->endOfMonth();
+
+        $productosActivos = Producto::where('activo', true)->count();
+        $sinStock = Producto::where('activo', true)->where('stock', '<=', 0)->count();
+        $stockBajo = Producto::where('activo', true)->where('stock', '>', 0)->where('stock', '<', 50)->count();
+        $stockOk = Producto::where('activo', true)->where('stock', '>=', 50)->count();
+        $conStock = Producto::where('activo', true)->where('stock', '>', 0)->count();
+        $totalStock = (int) Producto::where('activo', true)->sum('stock');
+        // Salud: OK=100%, bajo=50%, agotado=0% (no confundir con "tiene stock > 0")
+        $saludPct = $productosActivos > 0
+            ? round((($stockOk * 100) + ($stockBajo * 50)) / $productosActivos)
+            : 0;
+
+        $activosMesAnterior = Producto::where('activo', true)
+            ->where('created_at', '<', $inicioMes)
+            ->count();
+        $skusVarPct = $activosMesAnterior > 0
+            ? round((($productosActivos - $activosMesAnterior) / $activosMesAnterior) * 100)
+            : 0;
+
+        $agotadosMesActual = Producto::where('activo', true)
+            ->where('stock', '<=', 0)
+            ->where('updated_at', '>=', $inicioMes)
+            ->count();
+        $agotadosMesAnterior = Producto::where('activo', true)
+            ->where('stock', '<=', 0)
+            ->whereBetween('updated_at', [$inicioMesAnterior, $finMesAnterior])
+            ->count();
+        $agotadosVarPct = $agotadosMesAnterior > 0
+            ? round((($agotadosMesActual - $agotadosMesAnterior) / $agotadosMesAnterior) * 100)
+            : 0;
+
         $data = [
             'totalProveedores' => ProveedorUser::count(),
             'proveedoresActivos' => ProveedorUser::where('activo', true)->count(),
@@ -60,16 +94,22 @@ class AdminPanelController extends Controller
             'pedidosPendientes' => Pedido::whereIn('estatus', ['validacion', 'procesando'])->count(),
             'pedidosEntregados' => Pedido::where('estatus', 'entregado')->count(),
             'montoPedidos' => Pedido::sum('total'),
-            'totalProductos' => Producto::count(),
-            'sinStock' => Producto::where('stock', '<=', 0)->count(),
-            'conStock' => Producto::where('stock', '>', 0)->count(),
+            'totalProductos' => $productosActivos,
+            'sinStock' => $sinStock,
+            'stockBajo' => $stockBajo,
+            'stockOk' => $stockOk,
+            'conStock' => $conStock,
+            'totalStock' => $totalStock,
+            'saludPct' => $saludPct,
+            'skusVarPct' => $skusVarPct,
+            'agotadosVarPct' => $agotadosVarPct,
             'opinionPctActualizados' => $opinionPctActualizados,
             'opinionPctNoActualizados' => $opinionPctNoActualizados,
             'facturasPendientes' => Factura::where('estatus', 'pendiente')->count(),
             'montoFacturas' => Factura::where('estatus', 'pendiente')->sum('total'),
             'docsPendientes' => DocumentoProveedor::where('estatus', 'pendiente')->count(),
-            'ultimosPedidos' => Pedido::orderBy('created_at', 'desc')->limit(5)->get(),
-            'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(5)->get(),
+            'ultimosPedidos' => Pedido::orderBy('created_at', 'desc')->limit(3)->get(),
+            'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(3)->get(),
             'pedidosPorMes' => $pedidosPorMes,
             'facturasPorEstatus' => $facturasPorEstatus,
         ];
