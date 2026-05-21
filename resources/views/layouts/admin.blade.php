@@ -106,6 +106,25 @@
         }
         .sidebar.collapsed:hover .sb-text { display: inline; }
         .sidebar.collapsed:hover .sb-link { justify-content: flex-start; padding: 8px 16px; margin: 1px 8px; }
+        .sidebar.collapsed:hover .sb-toggle { justify-content: flex-end; padding: 0 16px; }
+
+        .sb-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            height: 44px;
+            min-height: 44px;
+            padding: 0 16px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-light);
+            transition: background .15s;
+        }
+        .sb-toggle:hover { background: var(--purple-subtle); }
+        .sb-toggle svg { transition: transform .2s ease; flex-shrink: 0; color: var(--gray-muted); }
+        .sidebar.collapsed .sb-toggle { justify-content: center; padding: 0; }
+        .sidebar.collapsed .sb-toggle svg { transform: rotate(180deg); }
 
         .sb-nav { flex: 1; overflow-y: auto; padding: 12px 0; display: flex; flex-direction: column; }
         .sb-link {
@@ -203,6 +222,9 @@
 
 <div class="wrapper">
     <aside class="sidebar collapsed" id="sidebar">
+        <button type="button" class="sb-toggle" id="sbToggleBtn" aria-expanded="false" aria-label="Contraer o expandir menú lateral" onclick="sbToggle(this)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
         <nav class="sb-nav">
             <a href="{{ route('admin.dashboard') }}" class="sb-link {{ request()->is('admin/dashboard*') ? 'active' : '' }}">
                 <div class="sb-icon">
@@ -287,6 +309,41 @@
             </a>
             @endif
 
+            <a href="{{ route('admin.clientes') }}" class="sb-link {{ request()->is('admin/clientes*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <span class="sb-text">Clientes</span>
+            </a>
+
+            <a href="{{ route('admin.encuestas') }}" class="sb-link {{ request()->is('admin/encuestas*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                </div>
+                <span class="sb-text">Encuestas</span>
+            </a>
+
+            <a href="{{ route('admin.otif') }}" class="sb-link {{ request()->is('admin/otif*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                <span class="sb-text">OTIF</span>
+            </a>
+
+            <a href="{{ route('admin.negocio') }}" class="sb-link {{ request()->is('admin/negocio*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                </div>
+                <span class="sb-text">Negocio</span>
+            </a>
+
+            <a href="{{ route('admin.fiscal') }}" class="sb-link {{ request()->is('admin/fiscal*') ? 'active' : '' }}">
+                <div class="sb-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                </div>
+                <span class="sb-text">Fiscal</span>
+            </a>
+
         </nav>
     </aside>
 
@@ -309,5 +366,13 @@
 </footer>
 
 @stack('scripts')
+<script>
+function sbToggle(btn) {
+    var s = document.getElementById('sidebar');
+    s.classList.toggle('collapsed');
+    var el = btn || document.getElementById('sbToggleBtn');
+    if (el) el.setAttribute('aria-expanded', s.classList.contains('collapsed') ? 'false' : 'true');
+}
+</script>
 </body>
 </html>

@@ -82,12 +82,12 @@
                 <td>{{ $r['facturas_anterior'] }}</td>
                 <td>{{ $r['facturas_actual'] }}</td>
                 <td class="{{ $r['variacion_cant'] > 0 ? 'var-positive' : ($r['variacion_cant'] < 0 ? 'var-negative' : 'var-zero') }}">
-                    {{ $r['variacion_cant'] > 0 ? '+' : '' }}{{ $r['variacion_cant'] }}%
+                    @if($r['variacion_cant'] > 0)↑ +{{ $r['variacion_cant'] }}%@elseif($r['variacion_cant'] < 0)↓ {{ $r['variacion_cant'] }}%@else0%@endif
                 </td>
                 <td>${{ number_format($r['compras_anterior'], 2) }}</td>
                 <td>${{ number_format($r['compras_actual'], 2) }}</td>
                 <td class="{{ $r['variacion_monto'] > 0 ? 'var-positive' : ($r['variacion_monto'] < 0 ? 'var-negative' : 'var-zero') }}">
-                    {{ $r['variacion_monto'] > 0 ? '+' : '' }}{{ $r['variacion_monto'] }}%
+                    @if($r['variacion_monto'] > 0)↑ +{{ $r['variacion_monto'] }}%@elseif($r['variacion_monto'] < 0)↓ {{ $r['variacion_monto'] }}%@else0%@endif
                 </td>
             </tr>
         @endforeach
@@ -103,7 +103,7 @@
                 <td>${{ number_format($totales['compras_anterior'], 2) }}</td>
                 <td>${{ number_format($totales['compras_actual'], 2) }}</td>
                 <td class="{{ $totales['variacion_monto'] > 0 ? 'var-positive' : ($totales['variacion_monto'] < 0 ? 'var-negative' : 'var-zero') }}">
-                    {{ $totales['variacion_monto'] > 0 ? '+' : '' }}{{ $totales['variacion_monto'] }}%
+                    @if($totales['variacion_monto'] > 0)↑ +{{ $totales['variacion_monto'] }}%@elseif($totales['variacion_monto'] < 0)↓ {{ $totales['variacion_monto'] }}%@else0%@endif
                 </td>
             </tr>
         </tfoot>
