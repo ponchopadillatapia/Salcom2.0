@@ -69,7 +69,19 @@
     .empty-state p{font-size:14px;font-weight:500}
     .alert-success{border-radius:8px;padding:10px 16px;font-size:13px;margin-bottom:16px;background:var(--green-bg);border:1px solid #a7f3d0;color:var(--green)}
 
-    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.filter-form{width:100%}.filter-field{min-width:100%}.prov-tabs{width:100%;overflow-x:auto}}
+    .productos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+    .producto-card{background:var(--white);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center;transition:box-shadow .2s}
+    .producto-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.06)}
+    .producto-img{width:56px;height:56px;border-radius:10px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+    .producto-img img{width:100%;height:100%;object-fit:cover}
+    .producto-placeholder{font-size:16px;font-weight:800;color:var(--purple)}
+    .producto-info{flex:1;min-width:0}
+    .producto-nombre{font-size:13px;font-weight:700;color:var(--gray-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .producto-codigo{font-size:11px;color:var(--gray-muted);margin-top:2px}
+    .producto-precio{font-size:14px;font-weight:800;color:var(--green);margin-top:4px}
+    .producto-stock{font-size:11px;color:var(--gray-muted);margin-top:2px}
+
+    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.filter-form{width:100%}.filter-field{min-width:100%}.prov-tabs{width:100%;overflow-x:auto}.productos-grid{grid-template-columns:1fr}}
 </style>
 @endpush
 @section('content')
@@ -296,14 +308,16 @@
         <table class="admin-table">
             <thead><tr><th>Proveedor</th><th>Código</th><th>Total</th><th>Vencimiento</th><th>Días vencido</th></tr></thead>
             <tbody>
-            @foreach($facturasPendientes as $f)
+            @foreach($facturasPendientes as $idx => $f)
                 @php
                     $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
-                    $diasVencido = $vencida ? $f->fecha_vencimiento->diffInDays(now()) : 0;
+                    $diasVencido = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
                     $provF = \App\Models\ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
-                    $nombreProv = $provF->nombre ?? $f->codigo_proveedor;
+                    $nombreProv = $provF ? $provF->nombre : $f->codigo_proveedor;
+                    // Productos del proveedor
+                    $productosP = \App\Models\Producto::where('activo', true)->limit(6)->get();
                 @endphp
-                <tr style="cursor:pointer" onclick="window.location='{{ route('admin.proveedor-facturas', $f->codigo_proveedor) }}'">
+                <tr style="cursor:pointer" onclick="toggleProductos('prod-{{ $idx }}')">
                     <td style="font-weight:700;color:var(--purple)">{{ $nombreProv }}</td>
                     <td style="color:var(--gray-muted)">{{ $f->codigo_proveedor }}</td>
                     <td style="font-weight:600;font-variant-numeric:tabular-nums">${{ number_format($f->total, 2) }}</td>
@@ -314,6 +328,34 @@
                         @else
                             <span style="color:var(--gray-muted)">Vigente</span>
                         @endif
+                    </td>
+                </tr>
+                <tr id="prod-{{ $idx }}" class="productos-row" style="display:none">
+                    <td colspan="5" style="padding:16px;background:var(--gray-soft)">
+                        <div style="font-size:13px;font-weight:700;color:var(--gray-text);margin-bottom:12px">Productos de {{ $nombreProv }}</div>
+                        <table style="width:100%;border-collapse:collapse;background:var(--white);border-radius:8px;overflow:hidden;border:1px solid var(--border-light)">
+                            <thead>
+                                <tr style="background:var(--purple-light)">
+                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:left">Código</th>
+                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:left">Producto</th>
+                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:right">Precio</th>
+                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:right">Stock</th>
+                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:left">Unidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @foreach($productosP as $prod)
+                                <tr style="border-bottom:1px solid var(--border-light)">
+                                    <td style="padding:8px 12px;font-size:12px;font-weight:700;color:var(--purple)">{{ $prod->codigo }}</td>
+                                    <td style="padding:8px 12px;font-size:12px;font-weight:600">{{ $prod->nombre }}</td>
+                                    <td style="padding:8px 12px;font-size:12px;font-weight:700;color:var(--green);text-align:right">${{ number_format($prod->precio, 2) }}</td>
+                                    <td style="padding:8px 12px;font-size:12px;font-weight:600;text-align:right">{{ number_format($prod->stock) }}</td>
+                                    <td style="padding:8px 12px;font-size:12px;color:var(--gray-muted)">{{ $prod->unidad_venta }}</td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                        <a href="{{ route('admin.proveedor-facturas', $f->codigo_proveedor) }}" style="display:inline-block;margin-top:12px;font-size:12px;color:var(--purple);font-weight:600;text-decoration:none">Ver detalle completo →</a>
                     </td>
                 </tr>
             @endforeach
@@ -333,6 +375,17 @@ function switchProvTab(tab, btn) {
     document.querySelectorAll('.prov-panel').forEach(p => p.classList.remove('active'));
     document.getElementById('panel-' + tab).classList.add('active');
     (btn || document.querySelector('.prov-tab[data-tab="' + tab + '"]'))?.classList.add('active');
+}
+
+function toggleProductos(id) {
+    const row = document.getElementById(id);
+    if (row.style.display === 'none') {
+        // Cerrar todos los demás
+        document.querySelectorAll('.productos-row').forEach(r => r.style.display = 'none');
+        row.style.display = 'table-row';
+    } else {
+        row.style.display = 'none';
+    }
 }
 document.addEventListener('DOMContentLoaded', function() {
     const tab = @json($tabActiva ?? 'proveedores');

@@ -354,31 +354,38 @@ class AdminPanelController extends Controller
             ->orderBy('codigo_proveedor')
             ->get();
 
+        $productos = Producto::where('activo', true)->get();
         $filename = 'Facturas_Pendientes_Proveedores_' . now()->format('Y-m-d') . '.csv';
 
         $lines = [];
         $lines[] = ['INDUSTRIAS SALCOM S.A. DE C.V.'];
-        $lines[] = ['FACTURAS PENDIENTES DE PROVEEDORES'];
+        $lines[] = ['FACTURAS PENDIENTES DE PROVEEDORES CON PRODUCTOS'];
         $lines[] = ['Generado: ' . now()->format('d/m/Y H:i')];
         $lines[] = [];
-        $lines[] = ['PROVEEDOR', 'FOLIO CFDI', 'MONTO', 'IVA', 'TOTAL', 'VENCIMIENTO', 'ESTADO'];
 
         foreach ($facturas as $f) {
             $prov = ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
-            $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast() ? 'VENCIDA' : 'Vigente';
-            $lines[] = [
-                $prov->nombre ?? $f->codigo_proveedor,
-                $f->folio_cfdi,
-                number_format($f->monto, 2),
-                number_format($f->monto_iva, 2),
-                number_format($f->total, 2),
-                $f->fecha_vencimiento?->format('d/m/Y') ?? '—',
-                $vencida,
-            ];
+            $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
+            $diasV = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
+
+            // Header del proveedor
+            $lines[] = ['PROVEEDOR:', $prov->nombre ?? $f->codigo_proveedor, 'CODIGO:', $f->codigo_proveedor, 'TOTAL ADEUDO:', '$' . number_format($f->total, 2), 'VENCIMIENTO:', $f->fecha_vencimiento?->format('d/m/Y') ?? '-', 'DIAS VENCIDO:', $vencida ? $diasV . ' dias' : 'Vigente'];
+            $lines[] = ['COD. PRODUCTO', 'NOMBRE PRODUCTO', 'PRECIO', 'STOCK', 'UNIDAD'];
+
+            // Productos del proveedor
+            foreach ($productos as $prod) {
+                $lines[] = [
+                    $prod->codigo,
+                    $prod->nombre,
+                    '$' . number_format($prod->precio, 2),
+                    number_format($prod->stock),
+                    $prod->unidad_venta,
+                ];
+            }
+            $lines[] = [];
         }
 
-        $lines[] = [];
-        $lines[] = ['', '', '', 'TOTAL:', number_format($facturas->sum('total'), 2)];
+        $lines[] = ['TOTAL DEUDA GENERAL:', '', '$' . number_format($facturas->sum('total'), 2)];
 
         $handle = fopen('php://temp', 'r+');
         fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
