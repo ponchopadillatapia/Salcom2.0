@@ -469,7 +469,7 @@ class AdminPanelController extends Controller
             $query->where('estatus', $estatus);
         }
 
-        $documentos = $query->orderByRaw("FIELD(estatus, 'pendiente', 'rechazado', 'aprobado')")->paginate(20)->withQueryString();
+        $documentos = $query->orderByRaw("CASE estatus WHEN 'pendiente' THEN 1 WHEN 'rechazado' THEN 2 WHEN 'aprobado' THEN 3 ELSE 4 END")->paginate(20)->withQueryString();
         $estatus = $request->input('estatus');
 
         return view('admin.documentos', compact('documentos', 'estatus'));
