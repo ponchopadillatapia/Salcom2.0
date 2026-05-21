@@ -93,20 +93,37 @@
 
         <div class="alta-rules">
             <h4>Reglas para llenar el Excel</h4>
-            <div style="background:var(--purple-subtle);border:1px solid var(--purple-mid);border-radius:8px;padding:10px 14px;margin-bottom:12px;">
-                <strong style="font-size:13px;color:var(--purple);">[TIPO] + [MARCA] + [MODELO] + [MEDIDA] + [ESPECIFICACIÓN]</strong>
-                <div style="font-size:11px;color:var(--gray-muted);margin-top:4px;">Ej: MOTOR WEG 3HP 220/440V TRIFASICO</div>
+            <div style="background:var(--purple-subtle);border:1px solid var(--purple-mid);border-radius:8px;padding:14px;margin-bottom:12px;">
+                <strong style="font-size:13px;color:var(--purple);">ORDEN OBLIGATORIO DEL NOMBRE (mínimo 5 palabras):</strong>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-top:8px;font-size:12px;">
+                    <span style="font-weight:700;color:var(--purple);">1. TIPO</span><span style="color:var(--gray-text);">¿Qué es? → MOTOR, RESINA, CAJA, PIGMENTO</span>
+                    <span style="font-weight:700;color:var(--purple);">2. MARCA</span><span style="color:var(--gray-text);">¿Quién lo hace? → WEG, SKF, 3M, ALPHA</span>
+                    <span style="font-weight:700;color:var(--purple);">3. MODELO</span><span style="color:var(--gray-text);">Referencia → W22, IND-500, ORG-R180</span>
+                    <span style="font-weight:700;color:var(--purple);">4. MEDIDA</span><span style="color:var(--gray-text);">Tamaño → 3HP, 500ML, 40X30X25</span>
+                    <span style="font-weight:700;color:var(--purple);">5. ESPECIFICACIÓN</span><span style="color:var(--gray-text);">Detalle → TRIFASICO, TRANSPARENTE</span>
+                </div>
+                <div style="font-size:11px;color:var(--green);margin-top:8px;font-weight:600;">
+                    ✓ MOTOR ELECTRICO WEG W22 3HP 220/440V TRIFASICO
+                </div>
+                <div style="font-size:11px;color:var(--red);font-weight:600;">
+                    ✗ WEG MOTOR 3HP (orden incorrecto — TIPO va primero)
+                </div>
             </div>
             <ul>
-                <li>Nombre del producto en MAYUSCULAS</li>
-                <li>Sin acentos ni símbolos raros</li>
-                <li>Mínimo 3 palabras en el nombre</li>
-                <li>Unidades válidas: KG, LT, PZA, CAJA, ML, GR, GAL, ROLLO, MT</li>
-                <li>Precio con punto decimal (ej: 150.50)</li>
+                <li>Todo en MAYÚSCULAS, sin acentos ni símbolos raros</li>
+                <li>PRODUCCION y TIPO_PRODUCTO: usar dropdown (MPI = Materia Prima Importación, ME = Material Empaque, MN = Mantenimiento)</li>
+                <li>Unidades: solo KG, PZA o CAJA (seleccionar del dropdown)</li>
+                <li>Precio con punto decimal (ej: 150.50) — <strong>opcional</strong></li>
+                <li>OBSERVACIONES siempre obligatorio</li>
+                <li><strong style="color:var(--amber);">Si es MPI:</strong> LOTE (SI/NO) y PEDIMENTO (SI/NO) son obligatorios</li>
+                <li>Voltaje solo valores reales: 220V, 110/220V, 3HP</li>
                 <li>No repetir productos que ya existen en el catálogo</li>
-                <li>Clave SAT obligatoria para facturación</li>
-                <li>Máximo 80 caracteres en nombre</li>
             </ul>
+            <div style="background:#fff;border:1px solid var(--border-light);border-radius:6px;padding:10px;margin-top:10px;font-size:11px;">
+                <strong style="color:var(--gray-text);">Colores del header en el Excel:</strong><br>
+                <span style="display:inline-block;width:12px;height:12px;background:#6B3FA0;border-radius:3px;vertical-align:middle;margin-right:4px;"></span> <strong>Morado oscuro</strong> = Obligatorio<br>
+                <span style="display:inline-block;width:12px;height:12px;background:#9B7BC7;border-radius:3px;vertical-align:middle;margin-right:4px;"></span> <strong>Morado claro</strong> = Opcional
+            </div>
         </div>
     </div>
 
@@ -131,24 +148,34 @@
         </form>
 
         <h3 style="margin-top:24px;">Formato del Excel</h3>
-        <p style="font-size:12px;color:var(--gray-muted);margin-bottom:8px;">El template tiene estas columnas:</p>
+        <p style="font-size:12px;color:var(--gray-muted);margin-bottom:8px;">El template tiene estas columnas. <strong style="color:var(--purple);">Morado</strong> = obligatorio, <span style="color:var(--gray-muted);">gris</span> = opcional:</p>
         <table class="format-table">
             <thead><tr><th>Columna</th><th>Ejemplo</th><th>Req.</th></tr></thead>
             <tbody>
-                <tr><td>CODIGO</td><td>NAEIN-02</td><td class="req">*</td></tr>
-                <tr><td>NOMBRE</td><td>INSECTICIDA MT XTERM BIO 180G C/12</td><td class="req">*</td></tr>
-                <tr><td>FAMILIA</td><td>AEROSOLES</td><td class="req">*</td></tr>
-                <tr><td>SUBFAMILIA</td><td>INSECTICIDA METERED</td><td class="req">*</td></tr>
-                <tr><td>UNIDAD_MEDIDA</td><td>CAJA</td><td class="req">*</td></tr>
-                <tr><td>PRECIO</td><td>150.50</td><td class="req">*</td></tr>
-                <tr><td>CLAVE_SAT</td><td>10191509</td><td class="req">*</td></tr>
-                <tr><td>CAJAS_POR_TARIMA</td><td>100</td><td class="opt">—</td></tr>
-                <tr><td>PESO_BRUTO_CAJA</td><td>3.3345</td><td class="opt">—</td></tr>
-                <tr><td>PIEZAS_POR_CAJA</td><td>12</td><td class="opt">—</td></tr>
-                <tr><td>VOLUMEN</td><td>0.0082050</td><td class="opt">—</td></tr>
-                <tr><td>SEGMENTO</td><td>INSTITUCIONAL</td><td class="opt">—</td></tr>
+                <tr><td>CODIGO</td><td>NAEIN-02</td><td class="req">✓</td></tr>
+                <tr><td>NOMBRE</td><td>INSECTICIDA MT XTERM BIO 180G C/12</td><td class="req">✓</td></tr>
+                <tr><td>PRODUCCION</td><td>MPI / ME / MN</td><td class="req">✓</td></tr>
+                <tr><td>FAMILIA</td><td>AEROSOLES</td><td class="req">✓</td></tr>
+                <tr><td>TIPO_PRODUCTO</td><td>MPI</td><td class="req">✓</td></tr>
+                <tr><td>SUBFAMILIA</td><td>INSECTICIDA METERED</td><td class="opt">—</td></tr>
+                <tr><td>UNIDAD_MEDIDA</td><td>KG / PZA / CAJA</td><td class="req">✓</td></tr>
+                <tr><td>PRECIO</td><td>150.50</td><td class="opt">—</td></tr>
+                <tr><td>CLAVE_SAT</td><td>10191509</td><td class="opt">—</td></tr>
+                <tr><td>LOTE</td><td>SI / NO</td><td style="color:var(--amber);font-weight:700;">✓ si MPI</td></tr>
+                <tr><td>PEDIMENTO</td><td>SI / NO</td><td style="color:var(--amber);font-weight:700;">✓ si MPI</td></tr>
+                <tr><td>MARCA</td><td>WEG</td><td class="opt">—</td></tr>
+                <tr><td>MODELO</td><td>W22</td><td class="opt">—</td></tr>
+                <tr><td>MEDIDA</td><td>500ML</td><td class="opt">—</td></tr>
+                <tr><td>MATERIAL</td><td>ACERO</td><td class="opt">—</td></tr>
+                <tr><td>COLOR</td><td>ROJO</td><td class="opt">—</td></tr>
+                <tr><td>VOLTAJE</td><td>220/440V</td><td class="opt">—</td></tr>
+                <tr><td>ESPECIFICACIONES</td><td>TRIFASICO C40</td><td class="opt">—</td></tr>
+                <tr><td>OBSERVACIONES</td><td>PEDIMENTO REQUERIDO</td><td class="req">✓</td></tr>
             </tbody>
         </table>
+        <div style="margin-top:10px;font-size:11px;color:var(--gray-muted);line-height:1.6;">
+            <strong style="color:var(--amber);">Nota:</strong> LOTE y PEDIMENTO son obligatorios solo si PRODUCCION = <strong>MPI</strong> (Materia Prima Importación). El Excel marca con ✓ las columnas requeridas.
+        </div>
     </div>
 </div>
 
