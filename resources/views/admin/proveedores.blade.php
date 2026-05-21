@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+﻿@extends('layouts.admin')
 @section('title', 'Proveedores')
 @section('hero')
 <div class="hero-band">
@@ -70,7 +70,6 @@
     .empty-state p{font-size:14px;font-weight:500}
     .alert-success{border-radius:8px;padding:10px 16px;font-size:13px;margin-bottom:16px;background:var(--green-bg);border:1px solid #a7f3d0;color:var(--green);font-weight:500}
 
-<<<<<<< HEAD
     .productos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
     .producto-card{background:var(--white);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center;transition:box-shadow .2s}
     .producto-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.06)}
@@ -83,10 +82,7 @@
     .producto-precio{font-size:14px;font-weight:800;color:var(--green);margin-top:4px}
     .producto-stock{font-size:11px;color:var(--gray-muted);margin-top:2px}
 
-    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.filter-form{width:100%}.filter-field{min-width:100%}.prov-tabs{width:100%;overflow-x:auto}.productos-grid{grid-template-columns:1fr}}
-=======
-    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.filter-field{min-width:100%}.filter-form{flex-direction:column;align-items:stretch}.filter-group{width:100%}}
->>>>>>> 8cc35db5bbbe51fbcae9b7304bc4ad0a7c843879
+    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.filter-form{width:100%;flex-direction:column;align-items:stretch}.filter-field{min-width:100%}.filter-group{width:100%}.prov-tabs{width:100%;overflow-x:auto}.productos-grid{grid-template-columns:1fr}}
 </style>
 @endpush
 @section('content')
