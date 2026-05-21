@@ -195,6 +195,8 @@ class AdminPanelTest extends TestCase
             'folio' => 'PED-001',
             'codigo_cliente' => 'CLI-001',
             'nombre_cliente' => 'Acme Corp',
+            'codigo_proveedor' => '102003240',
+            'nombre_proveedor' => 'Distribuidora Nacional SA de CV',
             'productos' => [['nombre' => 'Producto A', 'cantidad' => 10]],
             'total' => 15000.50,
             'tipo_pago' => 'credito',
@@ -206,9 +208,9 @@ class AdminPanelTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Pedidos');
         $response->assertSee('PED-001');
-        $response->assertSee('Acme Corp');
+        $response->assertSee('Distribuidora Nacional SA de CV');
         $response->assertSee('$15,000.50');
-        $response->assertSee('Procesando');
+        $response->assertSee('En proceso');
     }
 
     public function test_pedidos_filtro_por_estatus(): void

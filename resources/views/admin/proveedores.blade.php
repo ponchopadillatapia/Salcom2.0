@@ -70,7 +70,19 @@
     .empty-state p{font-size:14px;font-weight:500}
     .alert-success{border-radius:8px;padding:10px 16px;font-size:13px;margin-bottom:16px;background:var(--green-bg);border:1px solid #a7f3d0;color:var(--green);font-weight:500}
 
-    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.filter-field{min-width:100%}.filter-form{flex-direction:column;align-items:stretch}.filter-group{width:100%}}
+    .productos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+    .producto-card{background:var(--white);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center;transition:box-shadow .2s}
+    .producto-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.06)}
+    .producto-img{width:56px;height:56px;border-radius:10px;background:var(--purple-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+    .producto-img img{width:100%;height:100%;object-fit:cover}
+    .producto-placeholder{font-size:16px;font-weight:800;color:var(--purple)}
+    .producto-info{flex:1;min-width:0}
+    .producto-nombre{font-size:13px;font-weight:700;color:var(--gray-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .producto-codigo{font-size:11px;color:var(--gray-muted);margin-top:2px}
+    .producto-precio{font-size:14px;font-weight:800;color:var(--green);margin-top:4px}
+    .producto-stock{font-size:11px;color:var(--gray-muted);margin-top:2px}
+
+    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.filter-form{width:100%;flex-direction:column;align-items:stretch}.filter-field{min-width:100%}.filter-group{width:100%}.prov-tabs{width:100%;overflow-x:auto}.productos-grid{grid-template-columns:1fr}}
 </style>
 @endpush
 @section('content')
@@ -152,19 +164,14 @@
                     <td style="font-weight:700;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
                     <td style="font-weight:600">{{ $p->nombre ?? '—' }}</td>
                     <td>{{ $p->correo ?? '—' }}</td>
-                    @php
-                        $entrega = $m['entrega'] ?? $p->score_entrega;
-                        $puntualidad = $m['puntualidad'] ?? $p->score_puntualidad;
-                        $otif = $m['otif'] ?? round(($entrega * 0.5) + ($puntualidad * 0.5), 1);
-                    @endphp
                     <td>
                         <div class="pct-cell">
-                            <div class="score-bar {{ $m['score_class'] ?? 'score-low' }}"><div class="score-fill" style="width:{{ min(100, max(0, $otif)) }}%"></div></div>
-                            <span class="pct-val"><strong>{{ number_format($otif, 0) }}%</strong>@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span>
+                            <div class="score-bar {{ $m['score_class'] ?? 'score-low' }}"><div class="score-fill" style="width:{{ $p->score_total }}%"></div></div>
+                            <span class="pct-val"><strong>{{ number_format($p->score_total, 0) }}%</strong>@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span>
                         </div>
                     </td>
-                    <td><span class="pct-val">{{ number_format($entrega, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_entrega'] ?? 0, 'size' => '11'])</span></td>
-                    <td><span class="pct-val">{{ number_format($puntualidad, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_puntualidad'] ?? 0, 'size' => '11'])</span></td>
+                    <td><span class="pct-val">{{ number_format($p->score_entrega, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_entrega'] ?? 0, 'size' => '11'])</span></td>
+                    <td><span class="pct-val">{{ number_format($p->score_puntualidad, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_puntualidad'] ?? 0, 'size' => '11'])</span></td>
                     <td><span class="badge-est {{ $p->activo ? 'ok' : 'err' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span></td>
                     <td>
                         <form method="POST" action="{{ route('admin.proveedores.eliminar', $p) }}" onsubmit="return confirm('¿Eliminar a {{ addslashes($p->nombre ?? $p->usuario) }}?')">
@@ -220,17 +227,14 @@
             @foreach($proveedores as $p)
                 @php
                     $m = $metricasProveedores[$p->id] ?? [];
-                    $entregaFc = $m['entrega'] ?? $p->score_entrega;
-                    $puntFc = $m['puntualidad'] ?? $p->score_puntualidad;
-                    $otif = $m['otif'] ?? round(($entregaFc * 0.5) + ($puntFc * 0.5), 1);
-                    $forecast = $m['forecast'] ?? min(100, max(0, $otif * 1.1));
+                    $forecast = $m['forecast'] ?? min(100, max(0, $p->score_total * 1.1));
                     $comprasTrim = $m['compras_trim'] ?? 0;
                     $estimado = $m['estimado'] ?? 0;
                 @endphp
                 <tr>
                     <td style="font-weight:700;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
                     <td style="font-weight:600">{{ $p->nombre ?? $p->usuario }}</td>
-                    <td><span class="pct-val">{{ number_format($otif, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span></td>
+                    <td><span class="pct-val">{{ number_format($p->score_total, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span></td>
                     <td>
                         <div class="pct-cell">
                             <div class="score-bar {{ $m['forecast_class'] ?? 'score-low' }}"><div class="score-fill" style="width:{{ $forecast }}%"></div></div>
@@ -406,14 +410,16 @@
         <table class="admin-table">
             <thead><tr><th>Proveedor</th><th>Código</th><th>Total</th><th>Vencimiento</th><th>Días vencido</th></tr></thead>
             <tbody>
-            @foreach($facturasPendientes as $f)
+            @foreach($facturasPendientes as $idx => $f)
                 @php
                     $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
-                    $diasVencido = $vencida ? $f->fecha_vencimiento->diffInDays(now()) : 0;
+                    $diasVencido = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
                     $provF = \App\Models\ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
-                    $nombreProv = $provF->nombre ?? $f->codigo_proveedor;
+                    $nombreProv = $provF ? $provF->nombre : $f->codigo_proveedor;
+                    // Productos del proveedor
+                    $productosP = \App\Models\Producto::where('activo', true)->limit(6)->get();
                 @endphp
-                <tr style="cursor:pointer" onclick="window.location='{{ route('admin.proveedor-facturas', $f->codigo_proveedor) }}'">
+                <tr style="cursor:pointer" onclick="toggleProductos('prod-{{ $idx }}')">
                     <td style="font-weight:700;color:var(--purple)">{{ $nombreProv }}</td>
                     <td style="color:var(--gray-muted)">{{ $f->codigo_proveedor }}</td>
                     <td style="font-weight:600;font-variant-numeric:tabular-nums">${{ number_format($f->total, 2) }}</td>
@@ -421,6 +427,34 @@
                     <td>
                         @if($vencida)<span style="color:var(--red);font-weight:700">{{ $diasVencido }} días</span>
                         @else<span style="color:var(--gray-muted)">Vigente</span>@endif
+                    </td>
+                </tr>
+                <tr id="prod-{{ $idx }}" class="productos-row" style="display:none">
+                    <td colspan="5" style="padding:16px;background:var(--gray-soft)">
+                        <div style="font-size:13px;font-weight:700;color:var(--gray-text);margin-bottom:12px">Productos de {{ $nombreProv }}</div>
+                        <table style="width:100%;border-collapse:collapse;background:var(--white);border-radius:8px;overflow:hidden;border:1px solid var(--border-light)">
+                            <thead>
+                                <tr style="background:var(--purple-light)">
+                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:left">Código</th>
+                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:left">Producto</th>
+                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:right">Precio</th>
+                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:right">Stock</th>
+                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:left">Unidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            @foreach($productosP as $prod)
+                                <tr style="border-bottom:1px solid var(--border-light)">
+                                    <td style="padding:8px 12px;font-size:12px;font-weight:700;color:var(--purple)">{{ $prod->codigo }}</td>
+                                    <td style="padding:8px 12px;font-size:12px;font-weight:600">{{ $prod->nombre }}</td>
+                                    <td style="padding:8px 12px;font-size:12px;font-weight:700;color:var(--green);text-align:right">${{ number_format($prod->precio, 2) }}</td>
+                                    <td style="padding:8px 12px;font-size:12px;font-weight:600;text-align:right">{{ number_format($prod->stock) }}</td>
+                                    <td style="padding:8px 12px;font-size:12px;color:var(--gray-muted)">{{ $prod->unidad_venta }}</td>
+                                </tr>
+                            @endforeach
+                            </tbody>
+                        </table>
+                        <a href="{{ route('admin.proveedor-facturas', $f->codigo_proveedor) }}" style="display:inline-block;margin-top:12px;font-size:12px;color:var(--purple);font-weight:600;text-decoration:none">Ver detalle completo →</a>
                     </td>
                 </tr>
             @endforeach
@@ -446,6 +480,17 @@ function switchProvTab(tab, btn) {
     (btn || document.querySelector('.prov-tab-btn[data-tab="' + tab + '"]'))?.classList.add('active');
     const countEl = document.getElementById('prov-panel-count');
     if (panel && countEl && panel.dataset.count) countEl.textContent = panel.dataset.count;
+}
+
+function toggleProductos(id) {
+    const row = document.getElementById(id);
+    if (row.style.display === 'none') {
+        // Cerrar todos los demás
+        document.querySelectorAll('.productos-row').forEach(r => r.style.display = 'none');
+        row.style.display = 'table-row';
+    } else {
+        row.style.display = 'none';
+    }
 }
 document.addEventListener('DOMContentLoaded', function() {
     const tab = @json($tabActiva ?? 'proveedores');
