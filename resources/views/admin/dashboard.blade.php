@@ -235,7 +235,7 @@
                 @forelse($ultimosPedidos as $p)
                     <tr>
                         <td style="font-weight:600;">{{ $p->folio }}</td>
-                        <td>{{ $p->nombre_cliente }}</td>
+                        <td>{{ $p->proveedor?->nombre ?? $p->nombre_proveedor ?? ($p->codigo_proveedor ? 'Proveedor '.$p->codigo_proveedor : '—') }}</td>
                         <td>${{ number_format($p->total, 0) }}</td>
                         <td><span class="pp-badge pp-badge-{{ $p->estatus }}">{{ ucfirst($p->estatus) }}</span></td>
                     </tr>

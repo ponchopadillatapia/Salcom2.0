@@ -108,7 +108,7 @@ class AdminPanelController extends Controller
             'facturasPendientes' => Factura::where('estatus', 'pendiente')->count(),
             'montoFacturas' => Factura::where('estatus', 'pendiente')->sum('total'),
             'docsPendientes' => DocumentoProveedor::where('estatus', 'pendiente')->count(),
-            'ultimosPedidos' => Pedido::orderBy('created_at', 'desc')->limit(3)->get(),
+            'ultimosPedidos' => Pedido::with('proveedor')->orderBy('created_at', 'desc')->limit(3)->get(),
             'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(3)->get(),
             'pedidosPorMes' => $pedidosPorMes,
             'facturasPorEstatus' => $facturasPorEstatus,
@@ -247,13 +247,17 @@ class AdminPanelController extends Controller
             'cancelado' => 'Cancelado',
         ];
 
-        $query = Pedido::query();
+        $query = Pedido::with('proveedor');
 
         if ($busqueda = $request->input('busqueda')) {
             $query->where(function ($q) use ($busqueda) {
                 $q->where('folio', 'like', "%{$busqueda}%")
-                    ->orWhere('nombre_cliente', 'like', "%{$busqueda}%")
-                    ->orWhere('codigo_cliente', 'like', "%{$busqueda}%");
+                    ->orWhere('nombre_proveedor', 'like', "%{$busqueda}%")
+                    ->orWhere('codigo_proveedor', 'like', "%{$busqueda}%")
+                    ->orWhereHas('proveedor', function ($p) use ($busqueda) {
+                        $p->where('nombre', 'like', "%{$busqueda}%")
+                            ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
+                    });
             });
         }
 

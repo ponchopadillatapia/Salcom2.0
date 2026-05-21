@@ -10,7 +10,8 @@ class Pedido extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'folio', 'codigo_cliente', 'nombre_cliente', 'productos',
+        'folio', 'codigo_cliente', 'nombre_cliente',
+        'codigo_proveedor', 'nombre_proveedor', 'productos',
         'total', 'tipo_pago', 'estatus', 'notas',
     ];
 
@@ -22,6 +23,11 @@ class Pedido extends Model
     public function cliente()
     {
         return $this->belongsTo(ClienteUser::class, 'codigo_cliente', 'codigo_cliente');
+    }
+
+    public function proveedor()
+    {
+        return $this->belongsTo(ProveedorUser::class, 'codigo_proveedor', 'codigo_compras');
     }
 
     public function tracking()

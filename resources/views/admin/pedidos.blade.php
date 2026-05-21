@@ -110,7 +110,7 @@
             @endif
             <div class="filter-field search-field">
                 <label>Buscar</label>
-                <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Folio, cliente o código…">
+                <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Folio, proveedor o código…">
             </div>
             <div class="filter-field">
                 <label>Estatus</label>
@@ -167,7 +167,7 @@
         <thead>
             <tr>
                 <th>Folio</th>
-                <th>Cliente</th>
+                <th>Proveedor</th>
                 <th>Total</th>
                 <th>Tipo pago</th>
                 <th>Estatus</th>
@@ -179,8 +179,14 @@
             <tr>
                 <td style="font-weight:600;color:var(--purple)">{{ $p->folio }}</td>
                 <td>
-                    <div>{{ $p->nombre_cliente }}</div>
-                    @if($p->codigo_cliente)<div style="font-size:11px;color:var(--gray-muted);">{{ $p->codigo_cliente }}</div>@endif
+                    @php
+                        $nombreProv = $p->proveedor?->nombre ?? $p->nombre_proveedor;
+                        $codigoProv = $p->proveedor?->codigo_compras ?? $p->codigo_proveedor;
+                    @endphp
+                    <div>{{ $nombreProv ?? '—' }}</div>
+                    @if($codigoProv)
+                        <div style="font-size:11px;color:var(--gray-muted);">{{ $codigoProv }}</div>
+                    @endif
                 </td>
                 <td>${{ number_format($p->total, 2) }}</td>
                 <td><span class="badge-pago">{{ $p->tipo_pago === 'credito' ? 'Crédito' : 'Contado' }}</span></td>

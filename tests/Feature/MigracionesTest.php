@@ -19,7 +19,7 @@ class MigracionesTest extends TestCase
     public function test_tabla_pedidos_existe(): void
     {
         $this->assertTrue(Schema::hasTable('pedidos'));
-        $this->assertTrue(Schema::hasColumns('pedidos', ['id', 'folio', 'codigo_cliente', 'nombre_cliente', 'productos', 'total', 'tipo_pago', 'estatus', 'notas', 'deleted_at']));
+        $this->assertTrue(Schema::hasColumns('pedidos', ['id', 'folio', 'codigo_cliente', 'nombre_cliente', 'codigo_proveedor', 'nombre_proveedor', 'productos', 'total', 'tipo_pago', 'estatus', 'notas', 'deleted_at']));
     }
 
     public function test_tabla_productos_existe(): void
