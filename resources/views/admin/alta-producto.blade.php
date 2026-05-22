@@ -29,8 +29,13 @@
     .btn-upload{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--purple);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:var(--transition);margin-top:16px}
     .btn-upload:hover{background:var(--purple-dark)}
     .btn-upload:disabled{opacity:.5;cursor:not-allowed}
+    .format-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
+    .format-table th{text-align:left;padding:8px;background:var(--gray-soft);font-weight:600;color:var(--gray-muted);font-size:11px;text-transform:uppercase;border-bottom:1px solid var(--border-light)}
+    .format-table td{padding:8px;border-bottom:1px solid var(--border-light);color:var(--gray-text)}
+    .format-table .req{color:var(--red);font-weight:700}
+    .format-table .opt{color:var(--gray-muted)}
     .alert-success{background:var(--green-bg);border:1px solid var(--green);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--green);margin-bottom:16px}
-    .alert-error{background:var(--red-bg);border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--red);margin-bottom:16px}
+    .alert-error{background:var(--red-bg);border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--red);margin-bottom:16px;white-space:pre-line}
     @media(max-width:768px){.alta-grid{grid-template-columns:1fr}}
 </style>
 @endpush
@@ -88,19 +93,37 @@
 
         <div class="alta-rules">
             <h4>Reglas para llenar el Excel</h4>
-            <div style="background:var(--purple-subtle);border:1px solid var(--purple-mid);border-radius:8px;padding:10px 14px;margin-bottom:12px;">
-                <strong style="font-size:13px;color:var(--purple);">[TIPO] + [MARCA] + [MODELO] + [MEDIDA] + [ESPECIFICACIÓN]</strong>
-                <div style="font-size:11px;color:var(--gray-muted);margin-top:4px;">Ej: MOTOR WEG 3HP 220/440V TRIFASICO</div>
+            <div style="background:var(--purple-subtle);border:1px solid var(--purple-mid);border-radius:8px;padding:14px;margin-bottom:12px;">
+                <strong style="font-size:13px;color:var(--purple);">ORDEN OBLIGATORIO DEL NOMBRE (mínimo 5 palabras):</strong>
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin-top:8px;font-size:12px;">
+                    <span style="font-weight:700;color:var(--purple);">1. TIPO</span><span style="color:var(--gray-text);">¿Qué es? → MOTOR, RESINA, CAJA, PIGMENTO</span>
+                    <span style="font-weight:700;color:var(--purple);">2. MARCA</span><span style="color:var(--gray-text);">¿Quién lo hace? → WEG, SKF, 3M, ALPHA</span>
+                    <span style="font-weight:700;color:var(--purple);">3. MODELO</span><span style="color:var(--gray-text);">Referencia → W22, IND-500, ORG-R180</span>
+                    <span style="font-weight:700;color:var(--purple);">4. MEDIDA</span><span style="color:var(--gray-text);">Tamaño → 3HP, 500ML, 40X30X25</span>
+                    <span style="font-weight:700;color:var(--purple);">5. ESPECIFICACIÓN</span><span style="color:var(--gray-text);">Detalle → TRIFASICO, TRANSPARENTE</span>
+                </div>
+                <div style="font-size:11px;color:var(--green);margin-top:8px;font-weight:600;">
+                    ✓ MOTOR ELECTRICO WEG W22 3HP 220/440V TRIFASICO
+                </div>
+                <div style="font-size:11px;color:var(--red);font-weight:600;">
+                    ✗ WEG MOTOR 3HP (orden incorrecto — TIPO va primero)
+                </div>
             </div>
             <ul>
-                <li>Nombre del producto en MAYUSCULAS</li>
-                <li>Sin acentos ni símbolos raros</li>
-                <li>Mínimo 3 palabras en el nombre</li>
-                <li>Unidades válidas: KG, LT, PZA, CAJA, ML, GR, GAL, ROLLO, MT</li>
-                <li>Precio con punto decimal (ej: 150.50)</li>
+                <li>Todo en MAYÚSCULAS, sin acentos ni símbolos raros</li>
+                <li>PRODUCCION y TIPO_PRODUCTO: usar dropdown (MPI = Materia Prima Importación, ME = Material Empaque, MN = Mantenimiento)</li>
+                <li>Unidades: solo KG, PZA o CAJA (seleccionar del dropdown)</li>
+                <li>Precio con punto decimal (ej: 150.50) — <strong>opcional</strong></li>
+                <li>OBSERVACIONES siempre obligatorio</li>
+                <li><strong style="color:var(--amber);">Si es MPI:</strong> LOTE (SI/NO) y PEDIMENTO (SI/NO) son obligatorios</li>
+                <li>Voltaje solo valores reales: 220V, 110/220V, 3HP</li>
                 <li>No repetir productos que ya existen en el catálogo</li>
-                <li>Máximo 80 caracteres en nombre</li>
             </ul>
+            <div style="background:#fff;border:1px solid var(--border-light);border-radius:6px;padding:10px;margin-top:10px;font-size:11px;">
+                <strong style="color:var(--gray-text);">Colores del header en el Excel:</strong><br>
+                <span style="display:inline-block;width:12px;height:12px;background:#6B3FA0;border-radius:3px;vertical-align:middle;margin-right:4px;"></span> <strong>Morado oscuro</strong> = Obligatorio<br>
+                <span style="display:inline-block;width:12px;height:12px;background:#9B7BC7;border-radius:3px;vertical-align:middle;margin-right:4px;"></span> <strong>Morado claro</strong> = Opcional
+            </div>
         </div>
     </div>
 
@@ -110,8 +133,8 @@
         <form method="POST" action="{{ route('admin.alta-producto.subir') }}" enctype="multipart/form-data" id="formUpload">
             @csrf
             <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
-                <div>
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div class="upload-icon">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 </div>
                 <div style="font-size:14px;font-weight:600;color:var(--gray-text);margin-top:8px;">Arrastra tu Excel aquí o haz clic</div>
                 <div style="font-size:12px;color:var(--gray-muted);margin-top:4px;">Formatos: .xlsx, .xls, .csv · Máximo 5MB</div>
@@ -123,6 +146,34 @@
                 Subir y validar con IA
             </button>
         </form>
+
+        <h3 style="margin-top:24px;">Formato del Excel</h3>
+        <p style="font-size:12px;color:var(--gray-muted);margin-bottom:8px;">El template tiene estas columnas. <strong style="color:var(--purple);">Morado</strong> = obligatorio, <span style="color:var(--gray-muted);">gris</span> = opcional:</p>
+        <table class="format-table">
+            <thead><tr><th>Columna</th><th>Ejemplo</th><th>Req.</th></tr></thead>
+            <tbody>
+                <tr><td>CODIGO</td><td>NAEIN-02</td><td class="req">✓</td></tr>
+                <tr><td>NOMBRE_TIPO</td><td>RESINA EPOXICA</td><td class="req">✓</td></tr>
+                <tr><td>NOMBRE_MARCA</td><td>SKF</td><td class="req">✓</td></tr>
+                <tr><td>NOMBRE_MODELO</td><td>IND-500</td><td class="req">✓</td></tr>
+                <tr><td>NOMBRE_MEDIDA</td><td>500ML</td><td class="req">✓</td></tr>
+                <tr><td>NOMBRE_ESPECIFICACION</td><td>TRANSPARENTE</td><td class="req">✓</td></tr>
+                <tr><td>PRODUCCION</td><td>MPI / ME / MN</td><td class="req">✓</td></tr>
+                <tr><td>FAMILIA</td><td>MATERIA PRIMA</td><td class="req">✓</td></tr>
+                <tr><td>TIPO_PRODUCTO</td><td>MPI</td><td class="req">✓</td></tr>
+                <tr><td>SUBFAMILIA</td><td>RESINAS</td><td class="opt">—</td></tr>
+                <tr><td>UNIDAD_MEDIDA</td><td>KG / PZA / CAJA</td><td class="req">✓</td></tr>
+                <tr><td>PRECIO</td><td>150.50</td><td class="opt">—</td></tr>
+                <tr><td>CLAVE_SAT</td><td>10191509</td><td class="opt">—</td></tr>
+                <tr><td>LOTE</td><td>SI / NO</td><td style="color:var(--amber);font-weight:700;">✓ si MPI</td></tr>
+                <tr><td>PEDIMENTO</td><td>SI / NO</td><td style="color:var(--amber);font-weight:700;">✓ si MPI</td></tr>
+                <tr><td>VOLTAJE</td><td>220/440V</td><td class="opt">—</td></tr>
+                <tr><td>OBSERVACIONES</td><td>IMPORTACION CHINA</td><td class="req">✓</td></tr>
+            </tbody>
+        </table>
+        <div style="margin-top:10px;font-size:11px;color:var(--gray-muted);line-height:1.6;">
+            <strong style="color:var(--amber);">Nota:</strong> LOTE y PEDIMENTO son obligatorios solo si PRODUCCION = <strong>MPI</strong> (Materia Prima Importación).
+        </div>
     </div>
 </div>
 
@@ -137,22 +188,21 @@ function showFileName(input) {
         document.getElementById('btnUpload').disabled = false;
     }
 }
+
 const zone = document.getElementById('uploadZone');
-if (zone) {
-    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
-    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
-    zone.addEventListener('drop', e => {
-        e.preventDefault();
-        zone.classList.remove('dragover');
-        const file = e.dataTransfer.files[0];
-        if (file) {
-            const input = document.getElementById('fileInput');
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            input.files = dt.files;
-            showFileName(input);
-        }
-    });
-}
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
+        const input = document.getElementById('fileInput');
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        input.files = dt.files;
+        showFileName(input);
+    }
+});
 </script>
 @endpush

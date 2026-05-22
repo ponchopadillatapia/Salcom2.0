@@ -680,12 +680,13 @@ Si todo está bien o tienes duda: {"errores_ia": []}';
                         $errores[] = [
                             'fila' => $filaReal,
                             'campo' => $campoFinal,
-                            'error' => '[IA] '.$errorTexto,
+                            'error' => $errorTexto,
                         ];
 
                         $yaTeníaError = false;
-                        foreach ($errores as $e) {
-                            if ($e['fila'] === $filaReal && ! str_starts_with($e['error'], '[IA]')) {
+                        $erroresAntesDeIA = count($errores) - 1; // -1 porque acabamos de agregar uno
+                        for ($ei = 0; $ei < $erroresAntesDeIA; $ei++) {
+                            if ($errores[$ei]['fila'] === $filaReal) {
                                 $yaTeníaError = true;
                                 break;
                             }
@@ -740,7 +741,25 @@ Si todo está bien o tienes duda: {"errores_ia": []}';
         $errorMsg .= "Corrige los campos señalados y vuelve a subir.\n\n";
         $errorMsg .= "ERRORES ENCONTRADOS:\n";
         foreach (array_slice($errores, 0, 20) as $err) {
-            $errorMsg .= "• Fila {$err['fila']} → {$err['campo']}: {$err['error']}\n";
+            // Separar el error de la solución (CÓMO CORREGIR)
+            $partes = explode('CÓMO CORREGIR:', $err['error']);
+            $problema = trim($partes[0]);
+            $solucion = isset($partes[1]) ? trim($partes[1]) : '';
+
+            if ($solucion) {
+                $errorMsg .= "• Fila {$err['fila']} → {$err['campo']}: {$problema}\n";
+                $errorMsg .= "  ✅ SOLUCIÓN: {$solucion}\n";
+            } else {
+                // Para errores de IA que tienen "Orden correcto sugerido:"
+                $partesIA = explode('Orden correcto sugerido:', $err['error']);
+                $problemaIA = trim($partesIA[0]);
+                $sugerenciaIA = isset($partesIA[1]) ? trim($partesIA[1]) : '';
+
+                $errorMsg .= "• Fila {$err['fila']} → {$err['campo']}: {$problemaIA}\n";
+                if ($sugerenciaIA) {
+                    $errorMsg .= "  ✅ DEBE IR ASÍ: {$sugerenciaIA}\n";
+                }
+            }
         }
         if (count($errores) > 20) {
             $errorMsg .= "\n... y ".(count($errores) - 20)." errores más.\n";
