@@ -10,46 +10,24 @@ class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $admins = [
+        $usuarios = [
             [
-                'usuario' => 'ADMIN001',
-                'password' => Hash::make('salcom2026'),
-                'nombre' => 'Administrador',
-                'correo' => 'admin@salcom.com',
+                'nombre' => 'Aneso Cominu',
+                'correo' => 'aneso.cominu@salcom.mx',
+                'usuario' => 'aneso.cominu',
+                'password' => Hash::make('An.123'),
                 'activo' => true,
-                'rol' => 'gerente',
-            ],
-            [
-                'usuario' => 'BRENDA',
-                'password' => Hash::make('salcom2026'),
-                'nombre' => 'Brenda',
-                'correo' => 'brenda@salcom.com',
-                'activo' => true,
-                'rol' => 'gerente',
-            ],
-            [
-                'usuario' => 'ALEJANDRA',
-                'password' => Hash::make('salcom2026'),
-                'nombre' => 'Alejandra',
-                'correo' => 'alejandra@salcom.com',
-                'activo' => true,
-                'rol' => 'materia_prima',
-            ],
-            [
-                'usuario' => 'ROSY',
-                'password' => Hash::make('salcom2026'),
-                'nombre' => 'Rosy',
-                'correo' => 'rosy@salcom.com',
-                'activo' => true,
-                'rol' => 'material_empaque',
+                'rol' => 'admin',
             ],
         ];
 
-        foreach ($admins as $admin) {
+        foreach ($usuarios as $data) {
             AdminUser::updateOrCreate(
-                ['usuario' => $admin['usuario']],
-                $admin
+                ['usuario' => $data['usuario']],
+                $data
             );
         }
+
+        $this->command->info('✅ Usuarios admin creados/actualizados.');
     }
 }

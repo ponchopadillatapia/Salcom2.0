@@ -145,4 +145,16 @@ class InventarioCalculoService
     {
         return $this->ddi;
     }
+
+    /**
+     * Calcular OC sugerida con la fórmula de Salcom:
+     * OC sugerida = (Consumo promedio 3 meses + Alto mensual del año) / 2
+     *
+     * Ejemplo: Promedio 3 meses = 100, Alto del año = 150
+     * (100 + 150) / 2 = 125 ← cantidad a comprar
+     */
+    public function calcularOCSugerida(float $consumoPromedio3Meses, float $altoMensualAnual): float
+    {
+        return round(($consumoPromedio3Meses + $altoMensualAnual) / 2, 2);
+    }
 }

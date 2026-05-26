@@ -1332,12 +1332,76 @@ class AdminPanelController extends Controller
             $inventarioDias[] = [
                 'producto' => $prod,
                 'dias_inventario' => $diasInventario,
-                'dias_pedido' => 7,  // configurable después
-                'dias_entrega' => 5,  // configurable después
+                'dias_pedido' => 7,
+                'dias_entrega' => 5,
             ];
         }
 
-        return view('admin.gestion-compras', compact('proveedores', 'productos', 'opinionData', 'inventarioDias'));
+        // OC por proveedor — órdenes pendientes y atrasadas
+        $ocProveedores = OcBorrador::with('proveedor')
+            ->whereIn('estatus', ['pendiente', 'aprobada'])
+            ->orderBy('created_at', 'desc')
+            ->get()
+            ->map(function ($oc) {
+                $fechaOC = $oc->created_at;
+                $fechaVencimiento = $oc->aprobada_at ? $oc->aprobada_at->addDays(15) : $fechaOC->addDays(15);
+                $diasAtraso = now()->gt($fechaVencimiento) ? now()->diffInDays($fechaVencimiento) : 0;
+                $productosOC = is_array($oc->productos) ? $oc->productos : [];
+
+                return [
+                    'oc' => $oc,
+                    'proveedor' => $oc->proveedor,
+                    'fecha_oc' => $fechaOC,
+                    'fecha_vencimiento' => $fechaVencimiento,
+                    'dias_atraso' => $diasAtraso,
+                    'productos' => $productosOC,
+                    'atrasada' => $diasAtraso > 0,
+                ];
+            });
+
+        return view('admin.gestion-compras', compact('proveedores', 'productos', 'opinionData', 'inventarioDias', 'ocProveedores'));
+    }
+
+    public function crearOC(Request $request)
+    {
+        $request->validate([
+            'proveedor_id' => 'required|exists:proveedores_users,id',
+            'productos_oc' => 'required|array|min:1',
+            'productos_oc.*.producto_id' => 'required|exists:productos,id',
+            'productos_oc.*.cantidad' => 'required|numeric|min:0.01',
+            'fecha_entrega' => 'required|date|after:today',
+        ]);
+
+        $proveedor = ProveedorUser::find($request->proveedor_id);
+        $productosOC = [];
+        $montoTotal = 0;
+
+        foreach ($request->productos_oc as $item) {
+            $producto = Producto::find($item['producto_id']);
+            if ($producto) {
+                $monto = $producto->precio * $item['cantidad'];
+                $montoTotal += $monto;
+                $productosOC[] = [
+                    'codigo' => $producto->codigo,
+                    'nombre' => $producto->nombre,
+                    'cantidad' => $item['cantidad'],
+                    'precio' => $producto->precio,
+                    'monto' => $monto,
+                ];
+            }
+        }
+
+        OcBorrador::create([
+            'tipo' => 'manual',
+            'proveedor_id' => $request->proveedor_id,
+            'productos' => $productosOC,
+            'monto_estimado' => $montoTotal,
+            'motivo' => 'OC generada manualmente desde Gestión de Compras',
+            'estatus' => 'pendiente',
+            'notas' => 'Fecha entrega esperada: '.$request->fecha_entrega,
+        ]);
+
+        return back()->with('mensaje', "✅ OC creada para {$proveedor->nombre} con ".count($productosOC)." producto(s). Monto: \$".number_format($montoTotal, 2));
     }
 
     public function enviarAvisosOpinion()

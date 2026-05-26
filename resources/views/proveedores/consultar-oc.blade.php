@@ -64,7 +64,7 @@
         <h3 style="font-size: 14px; font-weight: 700; color: var(--gray-text); margin-bottom: 16px;">Generación automática de OC</h3>
         <div style="background: var(--purple-subtle); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px;">
             <div style="font-size: 11px; color: var(--gray-muted); font-weight: 600; margin-bottom: 4px;">Fórmula</div>
-            <div style="font-size: 13px; color: var(--gray-text); font-weight: 600;">OC sugerida = (Consumo promedio anual / 2) + Necesidades adicionales</div>
+            <div style="font-size: 13px; color: var(--gray-text); font-weight: 600;">OC sugerida = (Consumo promedio 3 meses + Alto mensual del año) / 2</div>
         </div>
         <p style="font-size: 12px; color: var(--gray-muted); margin-bottom: 16px;">
             La IA analiza el inventario actual y genera una OC con los productos que están bajo el mínimo. Se auto-aprueba inmediatamente.
