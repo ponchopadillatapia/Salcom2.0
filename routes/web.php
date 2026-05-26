@@ -38,6 +38,7 @@ Route::get('/proveedor/otif', function () {
 // ── Consultar OC ──
 Route::get('/consultar-oc', [OrdenCompraController::class, 'mostrarConsultarOC'])->name('proveedores.oc')->middleware('auth.proveedor');
 Route::post('/consultar-oc/generar', [OrdenCompraController::class, 'generarOC'])->name('proveedores.oc.generar')->middleware('auth.proveedor');
+Route::get('/consultar-oc/generar', fn () => redirect()->route('proveedores.oc'))->middleware('auth.proveedor');
 
 // ── Alta de Producto ──
 Route::get('/alta-producto', [AltaProductoController::class, 'mostrarAltaProducto'])->name('proveedores.alta-producto')->middleware('auth.proveedor');
@@ -182,6 +183,7 @@ Route::get('/admin/gestion-compras', [AdminPanelController::class, 'gestionCompr
 Route::post('/admin/gestion-compras/enviar-avisos-opinion', [AdminPanelController::class, 'enviarAvisosOpinion'])->name('admin.enviar-avisos-opinion')->middleware('auth.admin');
 Route::post('/admin/gestion-compras/autorizar-proveedor', [AdminPanelController::class, 'autorizarProveedor'])->name('admin.autorizar-proveedor')->middleware('auth.admin');
 Route::post('/admin/gestion-compras/autorizar-costo', [AdminPanelController::class, 'autorizarCosto'])->name('admin.autorizar-costo')->middleware('auth.admin');
+Route::post('/admin/gestion-compras/crear-oc', [AdminPanelController::class, 'crearOC'])->name('admin.crear-oc')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores', [AdminPanelController::class, 'reporteProveedores'])->name('admin.reporte-proveedores')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores/excel', [AdminPanelController::class, 'reporteProveedoresExcel'])->name('admin.reporte-proveedores.excel')->middleware('auth.admin');
 Route::get('/admin/reporte-proveedores/corte', [AdminPanelController::class, 'reporteCorte'])->name('admin.reporte-corte')->middleware('auth.admin');

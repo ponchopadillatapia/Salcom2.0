@@ -81,6 +81,9 @@
             <button type="button" class="filter-btn gc-tab-btn" data-tab="costos" onclick="switchGC('costos', this)">
                 Autorizar costos <span class="filter-count">{{ count($productos) }}</span>
             </button>
+            <button type="button" class="filter-btn gc-tab-btn" data-tab="oc-proveedores" onclick="switchGC('oc-proveedores', this)">
+                OC Proveedores <span class="filter-count">{{ count($ocProveedores) }}</span>
+            </button>
         </div>
         <span class="badge-count" id="gc-panel-count">{{ count($opinionData) }} registros</span>
     </div>
@@ -251,6 +254,145 @@
     </div>
 </div>
 
+{{-- ═══ OC PROVEEDORES — Seguimiento de entregas ═══ --}}
+<div class="gc-panel" id="panel-oc-proveedores" data-count="{{ count($ocProveedores) }} órdenes">
+
+    {{-- Formulario para crear nueva OC --}}
+    <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;">
+        <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:14px;">➕ Generar nueva Orden de Compra</h4>
+        <form method="POST" action="{{ route('admin.crear-oc') }}" id="formCrearOC">
+            @csrf
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
+                <div>
+                    <label style="font-size:11px;font-weight:600;color:var(--gray-muted);display:block;margin-bottom:4px;">PROVEEDOR</label>
+                    <select name="proveedor_id" required style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);">
+                        <option value="">Seleccionar proveedor...</option>
+                        @foreach($proveedores as $prov)
+                            <option value="{{ $prov->id }}">{{ $prov->nombre ?? $prov->usuario }} ({{ $prov->codigo_compras ?? '—' }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:600;color:var(--gray-muted);display:block;margin-bottom:4px;">FECHA ENTREGA ESPERADA</label>
+                    <input type="date" name="fecha_entrega" required min="{{ now()->addDay()->format('Y-m-d') }}" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);">
+                </div>
+                <div style="display:flex;align-items:flex-end;">
+                    <button type="button" onclick="agregarProductoOC()" style="padding:9px 16px;background:var(--purple-subtle);color:var(--purple);border:1.5px solid var(--purple-mid);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;">+ Agregar producto</button>
+                </div>
+            </div>
+
+            <div id="productosOCContainer">
+                <div class="oc-producto-row" style="display:grid;grid-template-columns:2fr 80px 1fr 40px;gap:10px;margin-bottom:8px;align-items:center;">
+                    <select name="productos_oc[0][producto_id]" required style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">
+                        <option value="">Producto...</option>
+                        @foreach($productos as $prod)
+                            <option value="{{ $prod->id }}">{{ $prod->codigo }} — {{ $prod->nombre }} (${{ number_format($prod->precio, 2) }})</option>
+                        @endforeach
+                    </select>
+                    <select name="productos_oc[0][unidad]" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">
+                        <option value="KG">KG</option>
+                        <option value="PZA">PZA</option>
+                        <option value="CAJA">CAJA</option>
+                    </select>
+                    <input type="number" name="productos_oc[0][cantidad]" placeholder="Cantidad" step="1" min="1" required style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">
+                    <span></span>
+                </div>
+            </div>
+
+            <div style="margin-top:14px;display:flex;gap:10px;align-items:center;">
+                <button type="submit" class="btn-primary">Generar OC</button>
+                <span style="font-size:11px;color:var(--gray-muted);">La OC se crea como pendiente de entrega</span>
+            </div>
+        </form>
+    </div>
+
+    {{-- Tabla de OC existentes --}}
+    @php
+        $ocAtrasadas = $ocProveedores->where('atrasada', true);
+    @endphp
+
+    @if($ocAtrasadas->count() > 0)
+    <div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:18px;">⚠️</span>
+        <div>
+            <strong style="color:var(--red);font-size:13px;">{{ $ocAtrasadas->count() }} OC atrasadas</strong>
+            <span style="font-size:12px;color:var(--red);margin-left:6px;">— Requieren seguimiento</span>
+        </div>
+    </div>
+    @endif
+
+    <div class="admin-table-wrap">
+        <table class="admin-table">
+            <thead>
+                <tr>
+                    <th>Proveedor</th>
+                    <th>OC</th>
+                    <th>Fecha OC</th>
+                    <th>Productos</th>
+                    <th>Fecha vencimiento</th>
+                    <th>Estatus</th>
+                    <th>Días atraso</th>
+                </tr>
+            </thead>
+            <tbody>
+            @forelse($ocProveedores as $ocData)
+                @php
+                    $oc = $ocData['oc'];
+                    $prov = $ocData['proveedor'];
+                    $prods = $ocData['productos'];
+                    $atrasada = $ocData['atrasada'];
+                    $diasAtraso = $ocData['dias_atraso'];
+                @endphp
+                <tr style="{{ $atrasada ? 'background:rgba(255,59,48,0.04);' : '' }}">
+                    <td>
+                        <div style="font-weight:600;">{{ $prov->nombre ?? $prov->usuario ?? '—' }}</div>
+                        <div style="font-size:10px;color:var(--gray-muted);">{{ $prov->codigo_compras ?? '' }}</div>
+                    </td>
+                    <td style="font-weight:700;color:var(--purple);">OC-{{ str_pad($oc->id, 4, '0', STR_PAD_LEFT) }}</td>
+                    <td>{{ $ocData['fecha_oc']->format('d/m/Y') }}</td>
+                    <td>
+                        @if(!empty($prods))
+                            @foreach($prods as $prodOC)
+                                <div style="font-size:11px;padding:2px 0;{{ !$loop->last ? 'border-bottom:1px solid var(--border-light);' : '' }}">
+                                    <span style="color:var(--purple);font-weight:600;">{{ $prodOC['codigo'] ?? '—' }}</span>
+                                    {{ $prodOC['nombre'] ?? $prodOC['producto'] ?? '' }}
+                                    <strong style="margin-left:4px;">×{{ $prodOC['cantidad'] ?? $prodOC['qty'] ?? '' }}</strong>
+                                </div>
+                            @endforeach
+                        @else
+                            <span style="color:var(--gray-muted);font-size:11px;">Sin detalle</span>
+                        @endif
+                    </td>
+                    <td>{{ $ocData['fecha_vencimiento']->format('d/m/Y') }}</td>
+                    <td>
+                        @if($atrasada)
+                            <span class="badge-est err">Atrasada</span>
+                        @elseif($oc->estatus === 'aprobada')
+                            <span class="badge-est ok">Aprobada</span>
+                        @else
+                            <span class="badge-est warn">Pendiente</span>
+                        @endif
+                    </td>
+                    <td style="text-align:center;">
+                        @if($atrasada)
+                            <span class="dias-badge dias-crit">{{ $diasAtraso }} días</span>
+                        @else
+                            <span class="dias-badge dias-ok">A tiempo</span>
+                        @endif
+                    </td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="7" style="text-align:center;padding:32px;color:var(--gray-muted);">
+                        No hay órdenes de compra pendientes. Usa el formulario de arriba para crear una.
+                    </td>
+                </tr>
+            @endforelse
+            </tbody>
+        </table>
+    </div>
+</div>
+
 @endsection
 @push('scripts')
 <script>
@@ -264,6 +406,23 @@ function switchGC(tab, el) {
     if (panel && countEl && panel.dataset.count) {
         countEl.textContent = panel.dataset.count;
     }
+}
+
+var ocProductoIdx = 1;
+function agregarProductoOC() {
+    var container = document.getElementById('productosOCContainer');
+    var html = '<div class="oc-producto-row" style="display:grid;grid-template-columns:2fr 80px 1fr 40px;gap:10px;margin-bottom:8px;align-items:center;">' +
+        '<select name="productos_oc[' + ocProductoIdx + '][producto_id]" required style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">' +
+        document.querySelector('#productosOCContainer select[name*=producto_id]').innerHTML +
+        '</select>' +
+        '<select name="productos_oc[' + ocProductoIdx + '][unidad]" style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">' +
+        '<option value="KG">KG</option><option value="PZA">PZA</option><option value="CAJA">CAJA</option>' +
+        '</select>' +
+        '<input type="number" name="productos_oc[' + ocProductoIdx + '][cantidad]" placeholder="Cantidad" step="1" min="1" required style="padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;font-family:inherit;">' +
+        '<button type="button" onclick="this.parentElement.remove()" style="width:28px;height:28px;border-radius:6px;border:1px solid var(--red);background:var(--red-bg);color:var(--red);cursor:pointer;font-size:14px;font-weight:700;">×</button>' +
+        '</div>';
+    container.insertAdjacentHTML('beforeend', html);
+    ocProductoIdx++;
 }
 </script>
 @endpush
