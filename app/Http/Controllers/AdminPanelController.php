@@ -240,6 +240,28 @@ class AdminPanelController extends Controller
 
     // ── Pedidos ──
 
+    public function pedidosExcel(Request $request)
+    {
+        $query = Pedido::query();
+        if ($request->input('estatus')) $query->where('estatus', $request->input('estatus'));
+        if ($request->input('grupo') === 'pendientes') $query->whereIn('estatus', ['validacion', 'procesando']);
+        if ($request->input('busqueda')) {
+            $b = $request->input('busqueda');
+            $query->where(function($q) use ($b) { $q->where('folio', 'like', "%{$b}%")->orWhere('nombre_cliente', 'like', "%{$b}%"); });
+        }
+        $pedidos = $query->orderBy('created_at', 'desc')->get();
+
+        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['REPORTE DE PEDIDOS'], ['Generado: ' . now()->format('d/m/Y H:i')], [], ['FOLIO', 'PROVEEDOR', 'TOTAL', 'TIPO PAGO', 'ESTATUS', 'FECHA']];
+
+        foreach ($pedidos as $p) {
+            $lines[] = [$p->folio, $p->nombre_cliente, '$' . number_format($p->total, 2), ucfirst($p->tipo_pago ?? '-'), ucfirst($p->estatus), $p->created_at?->format('d/m/Y')];
+        }
+        $lines[] = [];
+        $lines[] = ['', 'TOTAL:', '$' . number_format($pedidos->sum('total'), 2)];
+
+        return $this->csvResponse($lines, 'Pedidos_' . now()->format('Y-m-d') . '.csv');
+    }
+
     public function pedidos(Request $request)
     {
         $this->asegurarPedidosConProveedor();
@@ -1346,6 +1368,105 @@ class AdminPanelController extends Controller
         }
 
         return back()->with('mensaje', "Se enviaron {$enviados} correos de aviso de opinión positiva.");
+    }
+
+    // ── Exportaciones de Gestión de Compras ──
+
+    public function exportOpinion()
+    {
+        $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
+        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['OPINION POSITIVA SAT - ESTADO POR PROVEEDOR'], ['Generado: ' . now()->format('d/m/Y H:i')], [], ['CODIGO', 'PROVEEDOR', 'CORREO', 'ESTADO OPINION']];
+
+        foreach ($proveedores as $prov) {
+            $doc = DocumentoProveedor::where('proveedor_id', $prov->id)->where('tipo', 'opinion')->latest()->first();
+            $est = $doc ? $doc->estatus : 'Sin documento';
+            $labels = ['aprobado' => 'Positiva', 'pendiente' => 'En revision', 'rechazado' => 'Negativa'];
+            $lines[] = [$prov->codigo_compras, $prov->nombre ?? $prov->usuario, $prov->correo ?? '-', $labels[$est] ?? $est];
+        }
+
+        return $this->csvResponse($lines, 'Opinion_Positiva_' . now()->format('Y-m-d') . '.csv');
+    }
+
+    public function exportAutorizacion()
+    {
+        $proveedores = ProveedorUser::orderBy('nombre')->get();
+        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['AUTORIZACION DE PROVEEDORES'], ['Generado: ' . now()->format('d/m/Y H:i')], [], ['CODIGO', 'PROVEEDOR', 'CORREO', 'ESTADO', 'SCORE']];
+
+        foreach ($proveedores as $prov) {
+            $lines[] = [$prov->codigo_compras, $prov->nombre ?? $prov->usuario, $prov->correo ?? '-', $prov->activo ? 'Activo' : 'Inactivo', $prov->score_total . '%'];
+        }
+
+        return $this->csvResponse($lines, 'Autorizacion_Proveedores_' . now()->format('Y-m-d') . '.csv');
+    }
+
+    public function exportDiasInventario()
+    {
+        $productos = Producto::where('activo', true)->orderBy('nombre')->get();
+        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['DIAS DE INVENTARIO POR ARTICULO'], ['Generado: ' . now()->format('d/m/Y H:i')], [], ['CODIGO', 'PRODUCTO', 'STOCK', 'UNIDAD', 'DIAS INVENTARIO', 'DIAS PEDIDO', 'DIAS ENTREGA', 'ESTADO']];
+
+        foreach ($productos as $prod) {
+            $diasInv = $prod->stock > 0 ? round($prod->stock / max(1, $prod->stock * 0.03)) : 0;
+            $estado = $diasInv < 12 ? 'REORDENAR' : 'OK';
+            $lines[] = [$prod->codigo, $prod->nombre, number_format($prod->stock), $prod->unidad_venta, $diasInv . ' dias', '7 dias', '5 dias', $estado];
+        }
+
+        return $this->csvResponse($lines, 'Dias_Inventario_' . now()->format('Y-m-d') . '.csv');
+    }
+
+    public function exportCostos()
+    {
+        $productos = Producto::where('activo', true)->orderBy('nombre')->get();
+        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['COSTOS DE PRODUCTOS'], ['Generado: ' . now()->format('d/m/Y H:i')], [], ['CODIGO', 'PRODUCTO', 'CATEGORIA', 'PRECIO ACTUAL', 'UNIDAD', 'STOCK']];
+
+        foreach ($productos as $prod) {
+            $lines[] = [$prod->codigo, $prod->nombre, $prod->categoria ?? '-', '$' . number_format($prod->precio, 2), $prod->unidad_venta, number_format($prod->stock)];
+        }
+
+        return $this->csvResponse($lines, 'Costos_Productos_' . now()->format('Y-m-d') . '.csv');
+    }
+
+    private function csvResponse(array $lines, string $filename)
+    {
+        $handle = fopen('php://temp', 'r+');
+        fprintf($handle, chr(0xEF) . chr(0xBB) . chr(0xBF));
+        foreach ($lines as $line) { fputcsv($handle, $line); }
+        rewind($handle);
+        $output = stream_get_contents($handle);
+        fclose($handle);
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
+    public function facturasExcel(Request $request)
+    {
+        $query = Factura::whereNotNull('codigo_proveedor');
+        if ($request->input('estatus')) $query->where('estatus', $request->input('estatus'));
+        if ($request->input('vencidas')) $query->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+        $facturas = $query->orderBy('created_at', 'desc')->get();
+
+        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['REPORTE DE FACTURAS DE PROVEEDORES'], ['Generado: ' . now()->format('d/m/Y H:i')], [], ['FOLIO CFDI', 'PROVEEDOR', 'MONTO', 'IVA', 'TOTAL', 'ESTATUS', 'VENCIMIENTO', 'DIAS VENCIDO']];
+
+        foreach ($facturas as $f) {
+            $prov = ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
+            $vencida = $f->estatus === 'pendiente' && $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
+            $diasV = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
+            $lines[] = [
+                $f->folio_cfdi,
+                $prov->nombre ?? $f->codigo_proveedor,
+                '$' . number_format($f->monto, 2),
+                '$' . number_format($f->monto_iva, 2),
+                '$' . number_format($f->total, 2),
+                ucfirst($f->estatus),
+                $f->fecha_vencimiento?->format('d/m/Y') ?? '-',
+                $vencida ? $diasV . ' dias' : '-',
+            ];
+        }
+        $lines[] = [];
+        $lines[] = ['', '', '', 'TOTAL:', '$' . number_format($facturas->sum('total'), 2)];
+
+        return $this->csvResponse($lines, 'Facturas_Proveedores_' . now()->format('Y-m-d') . '.csv');
     }
 
     public function autorizarProveedor(Request $request)

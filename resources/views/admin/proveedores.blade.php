@@ -322,12 +322,13 @@
                 @php
                     $lineasOc = $o->productos ?? [];
                     $proveedorNombre = $o->proveedor?->nombre ?? $o->proveedor?->usuario ?? '—';
+                    $proveedorCodigo = $o->proveedor?->codigo_compras ?? $o->codigo_proveedor ?? '';
                     $vencimiento = $o->created_at->copy()->addDays(30);
                     $vencida = $o->estatus !== 'completada' && $vencimiento->isPast();
                 @endphp
                 @forelse($lineasOc as $prod)
                 <tr>
-                    <td style="font-weight:600">{{ $proveedorNombre }}</td>
+                    <td><div style="font-weight:600">{{ $proveedorNombre }}</div><div style="font-size:10px;color:var(--gray-muted)">{{ $proveedorCodigo }}</div></td>
                     <td style="font-weight:700;color:var(--purple)">#{{ $o->id }}</td>
                     <td>{{ $o->created_at->format('d/m/Y') }}</td>
                     <td>{{ $prod['nombre'] ?? '—' }}</td>
@@ -337,7 +338,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td style="font-weight:600">{{ $proveedorNombre }}</td>
+                    <td><div style="font-weight:600">{{ $proveedorNombre }}</div><div style="font-size:10px;color:var(--gray-muted)">{{ $proveedorCodigo }}</div></td>
                     <td style="font-weight:700;color:var(--purple)">#{{ $o->id }}</td>
                     <td>{{ $o->created_at->format('d/m/Y') }}</td>
                     <td colspan="2">—</td>

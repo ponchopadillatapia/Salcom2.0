@@ -101,6 +101,7 @@
             </a>
         </div>
         <span class="badge-count">{{ $pedidos->total() }} resultado{{ $pedidos->total() !== 1 ? 's' : '' }}</span>
+        <a href="{{ route('admin.pedidos.excel', request()->query()) }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:11px;font-weight:600;color:#fff;background:#059669;border-radius:6px;text-decoration:none;margin-left:8px">Exportar Excel</a>
     </div>
 
     <div class="filters-panel">

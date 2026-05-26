@@ -88,8 +88,9 @@
 
 {{-- ═══ OPINIÓN POSITIVA ═══ --}}
 <div class="gc-panel active" id="panel-opinion" data-count="{{ count($opinionData) }} registros">
-    <div class="section-meta">
-        <strong>Opinión de cumplimiento SAT</strong> — Pendientes y estado · Correo automático el día 1 de cada mes
+    <div class="section-meta" style="display:flex;justify-content:space-between;align-items:center">
+        <span><strong>Opinión de cumplimiento SAT</strong> — Pendientes y estado · Correo automático el día 1 de cada mes</span>
+        <a href="{{ route('admin.export-opinion') }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:11px;font-weight:600;color:#fff;background:#059669;border-radius:6px;text-decoration:none">Exportar Excel</a>
     </div>
     <div class="admin-table-wrap">
         <table class="admin-table">
@@ -128,8 +129,9 @@
 
 {{-- ═══ AUTORIZACIÓN PROVEEDORES ═══ --}}
 <div class="gc-panel" id="panel-autorizacion" data-count="{{ $totalProveedores }} proveedores">
-    <div class="section-meta">
-        <strong>Autorización de proveedores</strong> — Dirección autoriza alta o baja para compras
+    <div class="section-meta" style="display:flex;justify-content:space-between;align-items:center">
+        <span><strong>Autorización de proveedores</strong> — Dirección autoriza alta o baja para compras</span>
+        <a href="{{ route('admin.export-autorizacion') }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:11px;font-weight:600;color:#fff;background:#059669;border-radius:6px;text-decoration:none">Exportar Excel</a>
     </div>
     <div class="admin-table-wrap">
         <table class="admin-table">
@@ -169,8 +171,9 @@
 
 {{-- ═══ DÍAS DE INVENTARIO ═══ --}}
 <div class="gc-panel" id="panel-dias" data-count="{{ count($inventarioDias) }} productos">
-    <div class="section-meta">
-        <strong>Días de inventario por artículo</strong> — Días de pedido y entrega
+    <div class="section-meta" style="display:flex;justify-content:space-between;align-items:center">
+        <span><strong>Días de inventario por artículo</strong> — Días de pedido y entrega</span>
+        <a href="{{ route('admin.export-dias-inventario') }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:11px;font-weight:600;color:#fff;background:#059669;border-radius:6px;text-decoration:none">Exportar Excel</a>
     </div>
     <div class="admin-table-wrap">
         <table class="admin-table">
@@ -214,8 +217,9 @@
 
 {{-- ═══ AUTORIZAR COSTOS ═══ --}}
 <div class="gc-panel" id="panel-costos" data-count="{{ count($productos) }} productos">
-    <div class="section-meta">
-        <strong>Autorizar actualización de costo</strong> — Aprobación por dirección
+    <div class="section-meta" style="display:flex;justify-content:space-between;align-items:center">
+        <span><strong>Autorizar actualización de costo</strong> — Aprobación por dirección</span>
+        <a href="{{ route('admin.export-costos') }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:11px;font-weight:600;color:#fff;background:#059669;border-radius:6px;text-decoration:none">Exportar Excel</a>
     </div>
     <div class="admin-table-wrap">
         <table class="admin-table">

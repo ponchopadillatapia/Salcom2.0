@@ -84,7 +84,10 @@
                 Vencidas <span class="filter-count">{{ $conteoVencidas }}</span>
             </a>
         </div>
-        <span class="badge-count">{{ $facturas->total() }} resultado{{ $facturas->total() !== 1 ? 's' : '' }}</span>
+        <div style="display:flex;align-items:center;gap:8px">
+            <span class="badge-count">{{ $facturas->total() }} resultado{{ $facturas->total() !== 1 ? 's' : '' }}</span>
+            <a href="{{ route('admin.facturas.excel', request()->query()) }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:11px;font-weight:600;color:#fff;background:#059669;border-radius:6px;text-decoration:none">Exportar Excel</a>
+        </div>
     </div>
 
     <div class="filters-panel">

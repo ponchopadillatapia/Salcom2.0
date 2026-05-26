@@ -115,6 +115,7 @@ Route::delete('/admin/clientes/{cliente}', [AdminPanelController::class, 'elimin
 Route::delete('/admin/proveedores/{proveedor}', [AdminPanelController::class, 'eliminarProveedor'])->name('admin.proveedores.eliminar')->middleware('auth.admin');
 Route::get('/admin/encuestas', [AdminPanelController::class, 'encuestas'])->name('admin.encuestas')->middleware('auth.admin');
 Route::get('/admin/pedidos', [AdminPanelController::class, 'pedidos'])->name('admin.pedidos')->middleware('auth.admin');
+Route::get('/admin/pedidos/excel', [AdminPanelController::class, 'pedidosExcel'])->name('admin.pedidos.excel')->middleware('auth.admin');
 
 // ── Encuesta de satisfacción ──
 Route::get('/cliente/encuesta', [PortalClienteController::class, 'mostrarEncuesta'])->name('clientes.encuesta')->middleware('auth.cliente');
@@ -166,6 +167,7 @@ Route::get('/admin/alta-producto/template', [AltaProductoController::class, 'des
 Route::post('/admin/alta-producto/subir', [AltaProductoController::class, 'subirExcel'])->name('admin.alta-producto.subir')->middleware('auth.admin');
 
 Route::get('/admin/facturas', [AdminPanelController::class, 'facturas'])->name('admin.facturas')->middleware('auth.admin');
+Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel'])->name('admin.facturas.excel')->middleware('auth.admin');
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/negocio', [AdminPanelController::class, 'negocio'])->name('admin.negocio')->middleware('auth.admin');
 Route::get('/admin/otif', [AdminPanelController::class, 'otif'])->name('admin.otif')->middleware('auth.admin');
@@ -179,6 +181,10 @@ Route::get('/admin/material-empaque', [AdminPanelController::class, 'materialEmp
 Route::get('/admin/fiscal', [AdminPanelController::class, 'fiscal'])->name('admin.fiscal')->middleware('auth.admin');
 Route::get('/admin/opinion-positiva', [AdminPanelController::class, 'opinionPositiva'])->name('admin.opinion-positiva')->middleware('auth.admin');
 Route::get('/admin/gestion-compras', [AdminPanelController::class, 'gestionCompras'])->name('admin.gestion-compras')->middleware('auth.admin');
+Route::get('/admin/gestion-compras/excel/opinion', [AdminPanelController::class, 'exportOpinion'])->name('admin.export-opinion')->middleware('auth.admin');
+Route::get('/admin/gestion-compras/excel/autorizacion', [AdminPanelController::class, 'exportAutorizacion'])->name('admin.export-autorizacion')->middleware('auth.admin');
+Route::get('/admin/gestion-compras/excel/dias-inventario', [AdminPanelController::class, 'exportDiasInventario'])->name('admin.export-dias-inventario')->middleware('auth.admin');
+Route::get('/admin/gestion-compras/excel/costos', [AdminPanelController::class, 'exportCostos'])->name('admin.export-costos')->middleware('auth.admin');
 Route::post('/admin/gestion-compras/enviar-avisos-opinion', [AdminPanelController::class, 'enviarAvisosOpinion'])->name('admin.enviar-avisos-opinion')->middleware('auth.admin');
 Route::post('/admin/gestion-compras/autorizar-proveedor', [AdminPanelController::class, 'autorizarProveedor'])->name('admin.autorizar-proveedor')->middleware('auth.admin');
 Route::post('/admin/gestion-compras/autorizar-costo', [AdminPanelController::class, 'autorizarCosto'])->name('admin.autorizar-costo')->middleware('auth.admin');
