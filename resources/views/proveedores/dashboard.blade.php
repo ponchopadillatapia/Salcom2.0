@@ -307,41 +307,92 @@
 @section('content')
 
     {{-- FACTURAS --}}
+    <div style="margin:0 0 24px;display:flex;align-items:center;">
+        <div style="height:3px;flex:1;background:var(--purple);border-radius:2px;"></div>
+    </div>
+
     <div class="section-header">
-        <div class="section-title">Facturas</div>
-        <span class="section-sub">Verde = Aprobada/Pagada · Rojo = Proceso pendiente</span>
+        <div class="section-title" style="font-size:20px;font-weight:800;">Facturas</div>
+        <span class="section-sub">Haz click en cada etapa para ver el detalle</span>
     </div>
 
     <div class="metrics-row" style="grid-template-columns: repeat(5, 1fr);">
-        <div class="metric-card">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="toggleDetalle('det-incomings', this)">
             <div class="accent" style="background:var(--amber)"></div>
             <div class="metric-label">Pendientes de aprobación (Incomings)</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="toggleDetalle('det-fiscal', this)">
             <div class="accent" style="background:var(--red)"></div>
             <div class="metric-label">Cumplimiento fiscal</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="toggleDetalle('det-sat', this)">
             <div class="accent" style="background:var(--purple)"></div>
             <div class="metric-label">Compulsa contra el SAT</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="toggleDetalle('det-revision', this)">
             <div class="accent" style="background:var(--blue)"></div>
             <div class="metric-label">En revisión</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="toggleDetalle('det-pago', this)">
             <div class="accent" style="background:var(--green)"></div>
-            <div class="metric-label">El pago</div>
+            <div class="metric-label">Listas para pago</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
+        </div>
+    </div>
+
+    {{-- Paneles expandibles por cada etapa --}}
+    <div id="det-incomings" class="detalle-panel" style="display:none;">
+        <div class="card" style="margin-bottom:16px;border-left:4px solid var(--amber);">
+            <div style="padding:18px 22px;">
+                <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:8px;">Pendientes de aprobación (Incomings)</h4>
+                <p style="font-size:12px;color:var(--gray-muted);margin-bottom:12px;">Facturas que subiste y están esperando que Salcom las revise y apruebe para continuar el proceso.</p>
+                <div style="background:var(--gray-soft);border-radius:8px;padding:16px;text-align:center;color:var(--gray-muted);font-size:13px;">Sin facturas pendientes — Se mostrarán aquí cuando se conecte la API</div>
+            </div>
+        </div>
+    </div>
+    <div id="det-fiscal" class="detalle-panel" style="display:none;">
+        <div class="card" style="margin-bottom:16px;border-left:4px solid var(--red);">
+            <div style="padding:18px 22px;">
+                <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:8px;">Cumplimiento fiscal</h4>
+                <p style="font-size:12px;color:var(--gray-muted);margin-bottom:12px;">Se verifica que tengas tu opinión SAT positiva, CIF vigente y documentos fiscales al día. Si algo falta, la factura se detiene aquí.</p>
+                <div style="background:var(--gray-soft);border-radius:8px;padding:16px;text-align:center;color:var(--gray-muted);font-size:13px;">Sin facturas en esta etapa — Se mostrarán aquí cuando se conecte la API</div>
+            </div>
+        </div>
+    </div>
+    <div id="det-sat" class="detalle-panel" style="display:none;">
+        <div class="card" style="margin-bottom:16px;border-left:4px solid var(--purple);">
+            <div style="padding:18px 22px;">
+                <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:8px;">Compulsa contra el SAT</h4>
+                <p style="font-size:12px;color:var(--gray-muted);margin-bottom:12px;">Se valida el CFDI directamente con el SAT para confirmar que la factura es auténtica, no está cancelada y los datos coinciden.</p>
+                <div style="background:var(--gray-soft);border-radius:8px;padding:16px;text-align:center;color:var(--gray-muted);font-size:13px;">Sin facturas en compulsa — Se mostrarán aquí cuando se conecte la API</div>
+            </div>
+        </div>
+    </div>
+    <div id="det-revision" class="detalle-panel" style="display:none;">
+        <div class="card" style="margin-bottom:16px;border-left:4px solid var(--blue);">
+            <div style="padding:18px 22px;">
+                <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:8px;">En revisión (Contabilidad)</h4>
+                <p style="font-size:12px;color:var(--gray-muted);margin-bottom:12px;">El área de contabilidad de Salcom revisa montos, conceptos, OC relacionada y da el visto bueno final antes de programar el pago.</p>
+                <div style="background:var(--gray-soft);border-radius:8px;padding:16px;text-align:center;color:var(--gray-muted);font-size:13px;">Sin facturas en revisión — Se mostrarán aquí cuando se conecte la API</div>
+            </div>
+        </div>
+    </div>
+    <div id="det-pago" class="detalle-panel" style="display:none;">
+        <div class="card" style="margin-bottom:16px;border-left:4px solid var(--green);">
+            <div style="padding:18px 22px;">
+                <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:8px;">Listas para pago</h4>
+                <p style="font-size:12px;color:var(--gray-muted);margin-bottom:12px;">Facturas aprobadas en todas las etapas. Finanzas programa la fecha de pago según los días de crédito del proveedor.</p>
+                <div style="background:var(--gray-soft);border-radius:8px;padding:16px;text-align:center;color:var(--gray-muted);font-size:13px;">Sin facturas listas — Se mostrarán aquí cuando se conecte la API</div>
+            </div>
         </div>
     </div>
 
@@ -390,30 +441,64 @@
         </div>
     </div>
 
+    {{-- SEPARADOR VISUAL FACTURAS/PAGOS --}}
+    <div style="margin:36px 0 24px;display:flex;align-items:center;">
+        <div style="height:3px;flex:1;background:var(--purple);border-radius:2px;"></div>
+    </div>
+
     {{-- PAGOS --}}
     <div class="section-header">
-        <div class="section-title">Pagos</div>
+        <div class="section-title" style="font-size:20px;font-weight:800;">Pagos</div>
         <span class="section-sub">Pendiente de API</span>
     </div>
 
     <div class="metrics-row">
-        <div class="metric-card">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="toggleDetalle('det-pagos-prog', this)">
             <div class="accent" style="background:var(--blue)"></div>
             <div class="metric-label">Pagos programados</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="toggleDetalle('det-pagos-real', this)">
             <div class="accent" style="background:var(--green)"></div>
             <div class="metric-label">Pagos realizados</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="toggleDetalle('det-pagos-pend', this)">
             <div class="accent" style="background:var(--amber)"></div>
             <div class="metric-label">Monto pendiente</div>
             <div class="metric-value">—</div>
             <div class="metric-sub">Pendiente de API</div>
+        </div>
+    </div>
+
+    {{-- Paneles expandibles de pagos --}}
+    <div id="det-pagos-prog" class="detalle-panel" style="display:none;">
+        <div class="card" style="margin-bottom:16px;border-left:4px solid var(--blue);">
+            <div style="padding:18px 22px;">
+                <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:8px;">Pagos programados</h4>
+                <p style="font-size:12px;color:var(--gray-muted);margin-bottom:12px;">Facturas aprobadas con fecha de pago asignada. Aquí verás cuándo recibirás cada pago.</p>
+                <div style="background:var(--gray-soft);border-radius:8px;padding:16px;text-align:center;color:var(--gray-muted);font-size:13px;">Sin pagos programados — Se mostrarán aquí cuando se conecte la API</div>
+            </div>
+        </div>
+    </div>
+    <div id="det-pagos-real" class="detalle-panel" style="display:none;">
+        <div class="card" style="margin-bottom:16px;border-left:4px solid var(--green);">
+            <div style="padding:18px 22px;">
+                <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:8px;">Pagos realizados</h4>
+                <p style="font-size:12px;color:var(--gray-muted);margin-bottom:12px;">Transferencias ya ejecutadas. Aquí verás el comprobante de pago y la fecha en que se depositó.</p>
+                <div style="background:var(--gray-soft);border-radius:8px;padding:16px;text-align:center;color:var(--gray-muted);font-size:13px;">Sin pagos realizados — Se mostrarán aquí cuando se conecte la API</div>
+            </div>
+        </div>
+    </div>
+    <div id="det-pagos-pend" class="detalle-panel" style="display:none;">
+        <div class="card" style="margin-bottom:16px;border-left:4px solid var(--amber);">
+            <div style="padding:18px 22px;">
+                <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:8px;">Monto pendiente</h4>
+                <p style="font-size:12px;color:var(--gray-muted);margin-bottom:12px;">Total que Salcom te debe. Incluye facturas aprobadas que aún no se pagan.</p>
+                <div style="background:var(--gray-soft);border-radius:8px;padding:16px;text-align:center;color:var(--gray-muted);font-size:13px;">$0.00 pendiente — Se actualizará cuando se conecte la API</div>
+            </div>
         </div>
     </div>
 
@@ -439,56 +524,29 @@
         </table>
     </div>
 
-    {{-- ESTATUS EN TIEMPO REAL --}}
-    <div class="section-header">
-        <div class="section-title">Estatus en tiempo real</div>
-        <span class="section-sub" style="color:var(--green);font-weight:600;display:flex;align-items:center;gap:6px;">
-            <span style="width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;box-shadow:0 0 8px rgba(52,199,89,0.5);"></span>
-            En vivo
-        </span>
-    </div>
-
-    <div class="card">
-        <div class="estatus-list">
-            <div class="estatus-item">
-                <div class="estatus-dot dot-green"></div>
-                <div class="estatus-info">
-                    <div class="titulo">OC generada</div>
-                    <div class="sub">Salcom generó una orden de compra</div>
-                </div>
-                <div class="estatus-time">Pendiente de API</div>
-            </div>
-            <div class="estatus-item">
-                <div class="estatus-dot dot-amber"></div>
-                <div class="estatus-info">
-                    <div class="titulo">Factura en revisión</div>
-                    <div class="sub">Tu factura está siendo validada</div>
-                </div>
-                <div class="estatus-time">Pendiente de API</div>
-            </div>
-            <div class="estatus-item">
-                <div class="estatus-dot dot-blue"></div>
-                <div class="estatus-info">
-                    <div class="titulo">Pago programado</div>
-                    <div class="sub">Tu pago tiene fecha asignada</div>
-                </div>
-                <div class="estatus-time">Pendiente de API</div>
-            </div>
-            <div class="estatus-item">
-                <div class="estatus-dot dot-gray"></div>
-                <div class="estatus-info">
-                    <div class="titulo">Historial de pagos</div>
-                    <div class="sub">Consulta el historial de todos tus pagos</div>
-                </div>
-                <div class="estatus-time">Pendiente de API</div>
-            </div>
-        </div>
-    </div>
-
 @endsection
 
 @push('scripts')
 <script>
+function toggleDetalle(id, card) {
+    var panel = document.getElementById(id);
+    if (!panel) return;
+    var isVisible = panel.style.display !== 'none';
+
+    // Cerrar todos los paneles
+    document.querySelectorAll('.detalle-panel').forEach(p => p.style.display = 'none');
+    // Quitar resaltado de todas las cards
+    document.querySelectorAll('.metric-card').forEach(c => { c.style.boxShadow = ''; c.style.border = ''; });
+
+    if (!isVisible) {
+        panel.style.display = 'block';
+        if (card) {
+            card.style.boxShadow = '0 0 0 2px var(--purple)';
+            card.style.border = '1.5px solid var(--purple)';
+        }
+    }
+}
+
 function exportarExcel(tablaId, nombre) {
     const tabla = document.getElementById(tablaId);
     if (!tabla) return;
