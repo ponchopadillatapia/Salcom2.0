@@ -8,21 +8,6 @@
 @endsection
 @push('styles')
 <style>
-    .fiscal-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px}
-    .fiscal-card{background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:22px}
-    .fiscal-card h4{font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:16px}
-    .fiscal-status{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-light);font-size:13px}
-    .fiscal-status:last-child{border-bottom:none}
-    .fiscal-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
-    .fiscal-dot.ok{background:var(--green)}
-    .fiscal-dot.pending{background:var(--amber)}
-    .fiscal-dot.expired{background:var(--red)}
-    .fiscal-name{flex:1;font-weight:600;color:var(--gray-text)}
-    .fiscal-badge{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px}
-    .fiscal-badge.ok{background:var(--green-bg);color:var(--green)}
-    .fiscal-badge.pending{background:var(--amber-bg);color:var(--amber)}
-    .fiscal-badge.expired{background:var(--red-bg);color:var(--red)}
-
     .fiscal-form{background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:22px;margin-bottom:24px}
     .fiscal-form h4{font-size:15px;font-weight:700;color:var(--gray-text);margin-bottom:6px}
     .fiscal-form p{font-size:13px;color:var(--gray-muted);margin-bottom:20px}
@@ -39,65 +24,6 @@
 </style>
 @endpush
 @section('content')
-
-{{-- Estado actual de documentos --}}
-<div class="fiscal-grid">
-    <div class="fiscal-card">
-        <h4>Documentos fiscales — Estado actual</h4>
-        <div class="fiscal-status">
-            <div class="fiscal-dot ok"></div>
-            <div class="fiscal-name">Constancia de Situación Fiscal (CIF)</div>
-            <span class="fiscal-badge ok">Vigente</span>
-        </div>
-        <div class="fiscal-status">
-            <div class="fiscal-dot ok"></div>
-            <div class="fiscal-name">Opinión de cumplimiento SAT</div>
-            <span class="fiscal-badge ok" style="font-size:12px;padding:4px 12px;font-weight:700;">POSITIVA</span>
-        </div>
-        <div class="fiscal-status">
-            <div class="fiscal-dot ok"></div>
-            <div class="fiscal-name">Acta constitutiva</div>
-            <span class="fiscal-badge ok">Vigente</span>
-        </div>
-        <div class="fiscal-status">
-            <div class="fiscal-dot pending"></div>
-            <div class="fiscal-name">INE Representante legal</div>
-            <span class="fiscal-badge pending">Por vencer</span>
-        </div>
-        <div class="fiscal-status">
-            <div class="fiscal-dot ok"></div>
-            <div class="fiscal-name">Carátula bancaria</div>
-            <span class="fiscal-badge ok">Vigente</span>
-        </div>
-        <div class="fiscal-status">
-            <div class="fiscal-dot expired"></div>
-            <div class="fiscal-name">Comprobante de domicilio</div>
-            <span class="fiscal-badge expired">Vencido</span>
-        </div>
-    </div>
-
-    <div class="fiscal-card">
-        <h4>Resumen</h4>
-        <div style="text-align:center;padding:20px 0;">
-            <div style="font-size:48px;font-weight:700;color:var(--amber);">5/6</div>
-            <div style="font-size:13px;color:var(--gray-muted);margin-top:8px;">Documentos al día</div>
-        </div>
-        <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border-light);">
-            <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;">
-                <span style="color:var(--gray-muted);">Vigentes</span>
-                <span style="font-weight:700;color:var(--green);">4</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;">
-                <span style="color:var(--gray-muted);">Por vencer (7 días)</span>
-                <span style="font-weight:700;color:var(--amber);">1</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;font-size:13px;padding:6px 0;">
-                <span style="color:var(--gray-muted);">Vencidos</span>
-                <span style="font-weight:700;color:var(--red);">1</span>
-            </div>
-        </div>
-    </div>
-</div>
 
 {{-- Formulario para subir documentos de facturación --}}
 <div class="fiscal-form">

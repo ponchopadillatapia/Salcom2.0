@@ -85,6 +85,28 @@
             <div class="paso-info">
                 <div class="paso-titulo">Listado de documentos fiscales</div>
                 <div class="paso-desc">Subiste tu CIF, Opinión de Cumplimiento del SAT, Acta Constitutiva, INE y Carátula bancaria. Documentos compartidos con Salcom.</div>
+                {{-- Estado actual de documentos --}}
+                <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                    <div style="background:var(--gray-soft);border-radius:10px;padding:14px;">
+                        <div style="font-size:12px;font-weight:700;color:var(--gray-text);margin-bottom:10px;">Estado actual</div>
+                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);"></span><span style="flex:1;">CIF</span><span style="font-size:11px;color:var(--green);font-weight:600;">Vigente</span></div>
+                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);"></span><span style="flex:1;">Opinión SAT</span><span style="font-size:11px;color:var(--green);font-weight:700;">POSITIVA</span></div>
+                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);"></span><span style="flex:1;">Acta constitutiva</span><span style="font-size:11px;color:var(--green);font-weight:600;">Vigente</span></div>
+                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber);"></span><span style="flex:1;">INE Rep. legal</span><span style="font-size:11px;color:var(--amber);font-weight:600;">Por vencer</span></div>
+                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);"></span><span style="flex:1;">Carátula bancaria</span><span style="font-size:11px;color:var(--green);font-weight:600;">Vigente</span></div>
+                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);"></span><span style="flex:1;">Comprobante domicilio</span><span style="font-size:11px;color:var(--red);font-weight:600;">Vencido</span></div>
+                    </div>
+                    <div style="background:var(--gray-soft);border-radius:10px;padding:14px;text-align:center;">
+                        <div style="font-size:12px;font-weight:700;color:var(--gray-text);margin-bottom:10px;">Resumen</div>
+                        <div style="font-size:36px;font-weight:700;color:var(--amber);">5/6</div>
+                        <div style="font-size:11px;color:var(--gray-muted);margin-top:4px;">Documentos al día</div>
+                        <div style="margin-top:12px;text-align:left;font-size:12px;">
+                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Vigentes</span><span style="font-weight:700;color:var(--green);">4</span></div>
+                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Por vencer</span><span style="font-weight:700;color:var(--amber);">1</span></div>
+                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Vencidos</span><span style="font-weight:700;color:var(--red);">1</span></div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <span class="paso-badge badge-completado">Completado</span>
             <a href="/validacion-fiscal" class="btn-ver">Ver</a>
