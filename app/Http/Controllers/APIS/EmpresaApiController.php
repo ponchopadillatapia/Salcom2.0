@@ -168,7 +168,7 @@ class EmpresaApiController extends Controller
         $errores = [];
         $hallazgos = []; // lo que SÍ encontró
 
-        if (strlen($texto) < 50) {
+        if (strlen($texto) < 20) {
             $errores[] = 'No se pudo leer el contenido del PDF — puede ser imagen escaneada';
 
             return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
@@ -288,7 +288,7 @@ class EmpresaApiController extends Controller
         $errores = [];
         $hallazgos = [];
 
-        if (strlen($texto) < 50) {
+        if (strlen($texto) < 20) {
             $errores[] = 'No se pudo leer el contenido del PDF — puede ser imagen escaneada';
 
             return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
@@ -370,7 +370,7 @@ class EmpresaApiController extends Controller
             return ['valida' => true, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
         }
 
-        if (strlen($texto) < 50) {
+        if (strlen($texto) < 20) {
             $errores[] = 'No se pudo leer el contenido del PDF — puede ser imagen escaneada';
 
             return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
@@ -536,7 +536,7 @@ class EmpresaApiController extends Controller
         $errores = [];
         $hallazgos = [];
 
-        if (strlen($texto) < 50) {
+        if (strlen($texto) < 20) {
             $errores[] = 'No se pudo leer el contenido del PDF — puede ser imagen escaneada';
 
             return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
@@ -604,8 +604,21 @@ class EmpresaApiController extends Controller
     {
         $texto = '';
         try {
-            $texto = $parser->parseFile($path)->getText();
-            $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto);
+            $pdf = $parser->parseFile($path);
+            $texto = $pdf->getText();
+
+            if (strlen($texto) < 20) {
+                $pages = $pdf->getPages();
+                $textoPages = '';
+                foreach ($pages as $page) {
+                    $textoPages .= $page->getText() . ' ';
+                }
+                if (strlen($textoPages) > strlen($texto)) {
+                    $texto = $textoPages;
+                }
+            }
+
+            $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
             $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
             $texto = preg_replace('/\s+/', ' ', $texto);
             $texto = strtoupper(trim($texto));
@@ -613,15 +626,74 @@ class EmpresaApiController extends Controller
             $texto = '';
         }
 
-        // Si hay suficiente texto, no necesitamos OCR
-        if (strlen($texto) >= 50) {
+        if (strlen($texto) >= 30) {
             return $texto;
         }
 
-        // Intentar OCR: extraer imágenes del PDF y pasarlas a Tesseract
+        // Intentar Tesseract local
         $textoOcr = $this->ocrDesdePdf($parser, $path);
+        if (strlen($textoOcr) >= 30) {
+            return $textoOcr;
+        }
+
+        // Último recurso: AWS Textract (OCR en la nube)
+        $textoCloud = $this->ocrConTextract($path);
+        if (strlen($textoCloud) > strlen($textoOcr) && strlen($textoCloud) > strlen($texto)) {
+            return $textoCloud;
+        }
 
         return strlen($textoOcr) > strlen($texto) ? $textoOcr : $texto;
+    }
+
+    /**
+     * OCR con AWS Textract — lee PDFs/imágenes escaneadas en la nube.
+     * No requiere Tesseract instalado en el servidor.
+     */
+    private function ocrConTextract(string $path): string
+    {
+        $accessKey = config('services.ia.aws_access_key', '');
+        $secretKey = config('services.ia.aws_secret_key', '');
+        $region    = config('services.ia.bedrock_region', 'us-east-1');
+
+        if (empty($accessKey) || empty($secretKey)) {
+            return '';
+        }
+
+        try {
+            $client = new \Aws\Textract\TextractClient([
+                'region'      => $region,
+                'version'     => 'latest',
+                'credentials' => [
+                    'key'    => $accessKey,
+                    'secret' => $secretKey,
+                ],
+                'http' => ['timeout' => 30],
+            ]);
+
+            $fileBytes = file_get_contents($path);
+
+            $response = $client->detectDocumentText([
+                'Document' => [
+                    'Bytes' => $fileBytes,
+                ],
+            ]);
+
+            $texto = '';
+            foreach ($response['Blocks'] as $block) {
+                if ($block['BlockType'] === 'LINE') {
+                    $texto .= $block['Text'] . ' ';
+                }
+            }
+
+            $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
+            $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
+            $texto = preg_replace('/\s+/', ' ', $texto);
+            return strtoupper(trim($texto));
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Textract OCR falló', ['error' => $e->getMessage(), 'path' => $path]);
+            return '';
+        }
     }
 
     /**
@@ -630,8 +702,10 @@ class EmpresaApiController extends Controller
      */
     private function ocrDesdePdf(Parser $parser, string $pdfPath): string
     {
-        // Buscar Tesseract en rutas comunes de Windows
+        // Buscar Tesseract en rutas comunes (Windows y Linux)
         $rutasPosibles = [
+            '/usr/bin/tesseract',                                                        // Linux estándar
+            '/usr/local/bin/tesseract',                                                  // Linux alternativo
             'C:\\Users\\IT 2\\AppData\\Local\\Programs\\Tesseract-OCR\\tesseract.exe',  // PC Alfonso
             'C:\\Users\\IT\\AppData\\Local\\Programs\\Tesseract-OCR\\tesseract.exe',    // PC Said
             'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
@@ -779,3 +853,5 @@ class EmpresaApiController extends Controller
         ][$mes] ?? '';
     }
 }
+
+
