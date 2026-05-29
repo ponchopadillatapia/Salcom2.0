@@ -36,6 +36,7 @@
     .format-table .opt{color:var(--gray-muted)}
     .alert-success{background:var(--green-bg);border:1px solid var(--green);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--green);margin-bottom:16px}
     .alert-error{background:var(--red-bg);border:1px solid var(--red);border-radius:8px;padding:12px 16px;font-size:13px;color:var(--red);margin-bottom:16px;white-space:pre-line}
+    .correccion-tag{background:#2d0a4e;color:#fff;padding:2px 8px;border-radius:4px;font-weight:700;font-size:12px;display:inline-block;margin-left:4px}
     @media(max-width:768px){.alta-grid{grid-template-columns:1fr}}
 </style>
 @endpush
@@ -46,7 +47,7 @@
 @endif
 @if(session('error'))
 <div class="alert-error" style="white-space:pre-line;">
-    {{ session('error') }}
+    {!! session('error') !!}
     @if(session('archivo_correcciones'))
     <div style="margin-top:12px;">
         <a href="{{ asset('storage/' . session('archivo_correcciones')) }}" download style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--red);color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">
