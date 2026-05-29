@@ -157,6 +157,7 @@ class EmpresaApiController extends Controller
         $datos = [
             'rfc' => null,
             'nombre' => null,
+            'fecha_nacimiento' => null,
             'tipo_persona' => null,
             'es_moral' => false,
             'regimen' => null,
@@ -210,14 +211,28 @@ class EmpresaApiController extends Controller
         if ($esMoral) {
             preg_match('/(?:RAZON SOCIAL|DENOMINACION)[:\s]*([A-Z0-9ÑÁÉÍÓÚü&\s,\.\-]+)/ui', $texto, $nm);
         } else {
-            preg_match('/(?:NOMBRE\s*(?:\(S\))?|CONTRIBUYENTE)[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $nm);
+            // Persona Física: buscar nombre completo (apellidos + nombre)
+            if (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $ap)) {
+                $apellidoP = trim($ap[1]);
+                $apellidoM = '';
+                $nombres = '';
+                if (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $am)) {
+                    $apellidoM = trim($am[1]);
+                }
+                if (preg_match('/NOMBRE\s*\(S\)[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $nms)) {
+                    $nombres = trim($nms[1]);
+                } elseif (preg_match('/NOMBRE[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $nms2)) {
+                    $nombres = trim($nms2[1]);
+                }
+                $nm = [1 => trim("{$apellidoP} {$apellidoM} {$nombres}")];
+            } else {
+                preg_match('/(?:NOMBRE\s*(?:\(S\))?|CONTRIBUYENTE)[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $nm);
+            }
         }
         if (! empty($nm[1]) && strlen(trim($nm[1])) > 2) {
             $nombreRaw = trim($nm[1]);
-            // Quitar palabras sueltas de 1 letra al inicio (residuos del PDF)
             $nombreRaw = preg_replace('/^[A-Z]\s+/', '', $nombreRaw);
-            // Quitar etiquetas que se colaron al final (NOMBRE, RFC, CURP, DOMICILIO, etc.)
-            $palabrasCorte = ['NOMBRE', 'RFC', 'CURP', 'DOMICILIO', 'REGIMEN', 'CODIGO', 'FECHA', 'CLAVE', 'TIPO', 'ESTADO', 'MUNICIPIO', 'COLONIA', 'CALLE', 'NUMERO', 'LOCALIDAD', 'ENTRE', 'TELEFONO', 'CORREO', 'SITUACION', 'OBLIGACIONES'];
+            $palabrasCorte = ['NOMBRE', 'RFC', 'CURP', 'DOMICILIO', 'REGIMEN', 'CODIGO', 'FECHA', 'CLAVE', 'TIPO', 'ESTADO', 'MUNICIPIO', 'COLONIA', 'CALLE', 'NUMERO', 'LOCALIDAD', 'ENTRE', 'TELEFONO', 'CORREO', 'SITUACION', 'OBLIGACIONES', 'APELLIDO'];
             foreach ($palabrasCorte as $pc) {
                 $pos = strpos($nombreRaw, $pc);
                 if ($pos !== false && $pos > 3) {
@@ -228,6 +243,22 @@ class EmpresaApiController extends Controller
             $hallazgos[] = 'Nombre: '.$datos['nombre'];
         } else {
             $datos['nombre'] = 'NO DETECTADO';
+        }
+
+        // Fecha de nacimiento (solo Persona Física)
+        if (!$esMoral) {
+            if (preg_match('/FECHA\s*(?:DE\s*)?NACIMIENTO[:\s]*([\d\/\-]+)/', $texto, $fn)) {
+                $datos['fecha_nacimiento'] = $fn[1];
+                $hallazgos[] = 'Fecha de nacimiento: '.$fn[1];
+            } elseif ($datos['rfc'] && strlen($datos['rfc']) === 13) {
+                // Extraer fecha del RFC (posiciones 5-10: AAMMDD)
+                $rfcFecha = substr($datos['rfc'], 4, 6);
+                if (preg_match('/(\d{2})(\d{2})(\d{2})/', $rfcFecha, $rfcF)) {
+                    $anio = (int)$rfcF[1] > 50 ? '19'.$rfcF[1] : '20'.$rfcF[1];
+                    $datos['fecha_nacimiento'] = $rfcF[3].'/'.$rfcF[2].'/'.$anio;
+                    $hallazgos[] = 'Fecha de nacimiento (del RFC): '.$datos['fecha_nacimiento'];
+                }
+            }
         }
 
         // Régimen fiscal
@@ -426,6 +457,10 @@ class EmpresaApiController extends Controller
     {
         $datos = [
             'nombre' => null,
+            'apellido_paterno' => null,
+            'apellido_materno' => null,
+            'nombres' => null,
+            'fecha_nacimiento' => null,
             'curp' => null,
             'clave_elector' => null,
             'vigencia' => null,
@@ -435,10 +470,8 @@ class EmpresaApiController extends Controller
         $errores = [];
         $hallazgos = [];
 
-        if (strlen($texto) < 30) {
-            $hallazgos[] = 'PDF sin texto extraíble — probablemente es imagen escaneada de INE';
-
-            // No bloquear, las INE escaneadas son normales
+        if (strlen($texto) < 20) {
+            $hallazgos[] = 'PDF escaneado — se requiere validación con OCR';
             return ['valida' => true, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
         }
 
@@ -463,6 +496,56 @@ class EmpresaApiController extends Controller
             $hallazgos[] = 'Se menciona CURP (no se pudo extraer el valor)';
         }
 
+        // Nombre completo — buscar apellidos y nombre por separado
+        $nombreCompleto = '';
+
+        if (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ\s]+?)(?=APELLIDO|NOMBRE|\d|$)/u', $texto, $apP)) {
+            $datos['apellido_paterno'] = trim($apP[1]);
+        }
+        if (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ\s]+?)(?=NOMBRE|CURP|CLAVE|\d|$)/u', $texto, $apM)) {
+            $datos['apellido_materno'] = trim($apM[1]);
+        }
+        if (preg_match('/NOMBRE\s*(?:\(S\))?[:\s]*([A-ZÁÉÍÓÚÑ\s]+?)(?=DOMICILIO|CLAVE|CURP|FECHA|SECCION|\d|$)/u', $texto, $nms)) {
+            $datos['nombres'] = trim($nms[1]);
+        }
+
+        // Construir nombre completo
+        if ($datos['apellido_paterno'] || $datos['nombres']) {
+            $nombreCompleto = trim(($datos['apellido_paterno'] ?? '') . ' ' . ($datos['apellido_materno'] ?? '') . ' ' . ($datos['nombres'] ?? ''));
+        } elseif (preg_match('/NOMBRE[:\s]*([A-ZÁÉÍÓÚÑ\s]{3,})/u', $texto, $nomGeneral)) {
+            $nombreCompleto = trim($nomGeneral[1]);
+        }
+
+        // Limpiar nombre
+        if ($nombreCompleto) {
+            $palabrasCorte = ['DOMICILIO', 'CLAVE', 'CURP', 'FECHA', 'SECCION', 'ESTADO', 'MUNICIPIO', 'LOCALIDAD', 'VIGENCIA', 'INSTITUTO'];
+            foreach ($palabrasCorte as $pc) {
+                $pos = strpos($nombreCompleto, $pc);
+                if ($pos !== false && $pos > 3) {
+                    $nombreCompleto = trim(substr($nombreCompleto, 0, $pos));
+                }
+            }
+            $datos['nombre'] = $nombreCompleto;
+            $hallazgos[] = 'Nombre: ' . $nombreCompleto;
+        }
+
+        // Fecha de nacimiento
+        if (preg_match('/FECHA\s*(?:DE\s*)?NACIMIENTO[:\s]*([\d\/\-\.]+)/', $texto, $fn)) {
+            $datos['fecha_nacimiento'] = $fn[1];
+            $hallazgos[] = 'Fecha de nacimiento: ' . $fn[1];
+        } elseif (preg_match('/NACIMIENTO[:\s]*([\d\/\-\.]+)/', $texto, $fn2)) {
+            $datos['fecha_nacimiento'] = $fn2[1];
+            $hallazgos[] = 'Fecha de nacimiento: ' . $fn2[1];
+        } elseif ($datos['curp'] && strlen($datos['curp']) >= 10) {
+            // Extraer fecha del CURP (posiciones 5-10: AAMMDD)
+            $curpFecha = substr($datos['curp'], 4, 6);
+            if (preg_match('/(\d{2})(\d{2})(\d{2})/', $curpFecha, $cf)) {
+                $anio = (int)$cf[1] > 50 ? '19'.$cf[1] : '20'.$cf[1];
+                $datos['fecha_nacimiento'] = $cf[3].'/'.$cf[2].'/'.$anio;
+                $hallazgos[] = 'Fecha de nacimiento (del CURP): ' . $datos['fecha_nacimiento'];
+            }
+        }
+
         // Clave de elector
         if (preg_match('/CLAVE\s*(?:DE\s*)?ELECTOR[:\s]*([A-Z0-9]+)/', $texto, $ce)) {
             $datos['clave_elector'] = $ce[1];
@@ -472,16 +555,7 @@ class EmpresaApiController extends Controller
             $hallazgos[] = 'Clave de elector: '.$ce2[1];
         }
 
-        // Nombre
-        if (preg_match('/NOMBRE[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $nomM)) {
-            $datos['nombre'] = trim($nomM[1]);
-            $hallazgos[] = 'Nombre: '.$datos['nombre'];
-        } elseif (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $texto, $apM)) {
-            $datos['nombre'] = trim($apM[1]);
-            $hallazgos[] = 'Apellido detectado: '.$datos['nombre'];
-        }
-
-        // Vigencia — buscar en múltiples formatos
+        // Vigencia
         $vigenciaEncontrada = false;
         if (preg_match('/VIGENCIA[:\s]*(\d{4})/', $texto, $vigM)) {
             $datos['vigencia'] = $vigM[1];
@@ -489,15 +563,7 @@ class EmpresaApiController extends Controller
         } elseif (preg_match('/VIG(?:ENCIA)?[:\s.]*(\d{2})[\/\-](\d{2})[\/\-](\d{4})/', $texto, $vigM2)) {
             $datos['vigencia'] = $vigM2[3];
             $vigenciaEncontrada = true;
-            $hallazgos[] = 'Fecha vigencia completa: '.$vigM2[1].'/'.$vigM2[2].'/'.$vigM2[3];
-        } elseif (preg_match('/(\d{2})[\/\-](\d{2})[\/\-](\d{4})/', $texto, $fechaM)) {
-            // Buscar cualquier fecha que pueda ser vigencia (año futuro o actual)
-            if ((int) $fechaM[3] >= 2020) {
-                $datos['vigencia'] = $fechaM[3];
-                $vigenciaEncontrada = true;
-            }
         } elseif (preg_match('/20[2-3]\d/', $texto, $anioM)) {
-            // Último recurso: buscar un año 202X o 203X
             $datos['vigencia'] = $anioM[0];
             $vigenciaEncontrada = true;
         }
@@ -512,7 +578,7 @@ class EmpresaApiController extends Controller
                 $hallazgos[] = 'Vigencia: '.$datos['vigencia'].' — Vigente';
             }
         } else {
-            $hallazgos[] = 'No se detectó año de vigencia en el documento';
+            $hallazgos[] = 'No se detectó año de vigencia';
         }
 
         // Sección
