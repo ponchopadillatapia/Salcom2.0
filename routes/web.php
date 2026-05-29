@@ -100,6 +100,11 @@ use App\Http\Controllers\AuthAdminController;
 Route::get('/login-admin', [AuthAdminController::class, 'mostrarLogin'])->name('admin.login');
 Route::post('/login-admin', [AuthAdminController::class, 'procesarLogin'])->name('admin.login.procesar');
 Route::post('/logout-admin', [AuthAdminController::class, 'cerrarSesion'])->name('admin.logout');
+Route::get('/admin/perfil', [AuthAdminController::class, 'mostrarPerfil'])->name('admin.perfil')->middleware('auth.admin');
+Route::post('/admin/perfil', [AuthAdminController::class, 'actualizarPerfil'])->name('admin.perfil.actualizar')->middleware('auth.admin');
+Route::post('/admin/perfil/password', [AuthAdminController::class, 'cambiarPassword'])->name('admin.perfil.password')->middleware('auth.admin');
+Route::get('/admin/administradores', [AuthAdminController::class, 'mostrarAdministradores'])->name('admin.administradores')->middleware('auth.admin');
+Route::post('/admin/administradores', [AuthAdminController::class, 'guardarAdministrador'])->name('admin.administradores.guardar')->middleware('auth.admin');
 
 // ── Admin: Alta de Clientes (interno Salcom) ──
 use App\Http\Controllers\AdminClienteController;
