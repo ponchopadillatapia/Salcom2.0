@@ -229,7 +229,7 @@
         <span>Panel Administrativo</span>
     </div>
     <div class="nav-right">
-        <span class="nav-user" title="{{ session('admin_usuario', '') }}">{{ session('admin_nombre', 'Usuario') }}</span>
+        <a href="{{ route('admin.perfil') }}" class="nav-user" title="{{ session('admin_usuario', '') }}" style="text-decoration:none;color:inherit;">{{ session('admin_nombre', 'Usuario') }}</a>
         <form method="POST" action="/logout-admin" style="margin:0;">
             @csrf
             <button type="submit" class="btn-logout">Cerrar sesión</button>
@@ -321,6 +321,13 @@
             <a href="{{ route('admin.fiscal') }}" class="sb-link {{ request()->is('admin/fiscal*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
                 <span class="sb-text">Fiscal</span>
+            </a>
+
+            <div class="sb-hr"></div>
+            <div class="sb-section">Cuenta</div>
+            <a href="{{ route('admin.perfil') }}" class="sb-link {{ request()->routeIs('admin.perfil') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+                <span class="sb-text">Mi Perfil</span>
             </a>
         </nav>
     </aside>

@@ -89,4 +89,132 @@ class AuthAdminController extends Controller
 
         return redirect('/login-admin')->with('mensaje', 'Sesión cerrada correctamente');
     }
+
+    public function mostrarPerfil()
+    {
+        $admin = AdminUser::find(session('admin_id'));
+
+        return view('admin.perfil', [
+            'admin' => $admin,
+            'rolEtiqueta' => $this->etiquetaRol($admin?->rol ?? session('admin_rol')),
+        ]);
+    }
+
+    public function mostrarAdministradores()
+    {
+        if (! $this->esRolAdminPrincipal()) {
+            return redirect()->route('admin.perfil')->with('error', 'No tienes permiso para gestionar administradores.');
+        }
+
+        $administradores = AdminUser::orderBy('nombre')->get();
+
+        return view('admin.administradores', [
+            'administradores' => $administradores,
+            'rolesDisponibles' => $this->rolesDisponibles(),
+        ]);
+    }
+
+    public function guardarAdministrador(Request $request)
+    {
+        if (! $this->esRolAdminPrincipal()) {
+            return redirect()->route('admin.perfil')->with('error', 'No tienes permiso para gestionar administradores.');
+        }
+
+        $rolesPermitidos = array_keys($this->rolesDisponibles());
+
+        $request->validate([
+            'nombre' => 'required|string|max:255',
+            'correo' => 'required|email|max:255|unique:admin_users,correo',
+            'usuario' => 'required|string|max:255|unique:admin_users,usuario',
+            'password' => 'required|string|min:8|confirmed',
+            'rol' => 'required|string|in:'.implode(',', $rolesPermitidos),
+        ]);
+
+        AdminUser::create([
+            'nombre' => $request->nombre,
+            'correo' => $request->correo,
+            'usuario' => $request->usuario,
+            'password' => Hash::make($request->password),
+            'rol' => $request->rol,
+            'activo' => true,
+        ]);
+
+        Log::info('Admin creado por administrador principal', [
+            'creado_por' => session('admin_usuario'),
+            'nuevo_usuario' => $request->usuario,
+            'rol' => $request->rol,
+        ]);
+
+        return back()->with('mensaje', 'Administrador dado de alta: '.$request->usuario);
+    }
+
+    public function actualizarPerfil(Request $request)
+    {
+        $admin = AdminUser::find(session('admin_id'));
+        if (! $admin) {
+            abort(404);
+        }
+
+        $request->validate([
+            'nombre' => 'required|string|max:255',
+            'correo' => 'required|email|max:255|unique:admin_users,correo,'.$admin->id,
+        ]);
+
+        $admin->update([
+            'nombre' => $request->nombre,
+            'correo' => $request->correo,
+        ]);
+
+        session([
+            'admin_nombre' => $admin->nombre,
+            'admin_correo' => $admin->correo,
+        ]);
+
+        return back()->with('mensaje', 'Datos actualizados correctamente.');
+    }
+
+    public function cambiarPassword(Request $request)
+    {
+        $admin = AdminUser::find(session('admin_id'));
+        if (! $admin) {
+            abort(404);
+        }
+
+        $request->validate([
+            'password_actual' => 'required|string',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        if (! Hash::check($request->password_actual, $admin->password)) {
+            return back()->with('error_password', 'La contraseña actual no es correcta.');
+        }
+
+        $admin->update([
+            'password' => Hash::make($request->password),
+        ]);
+
+        return back()->with('mensaje', 'Contraseña actualizada correctamente.');
+    }
+
+    private function esRolAdminPrincipal(): bool
+    {
+        return session('admin_rol') === 'admin';
+    }
+
+    /** @return array<string, string> */
+    private function rolesDisponibles(): array
+    {
+        return [
+            'admin' => 'Administrador',
+            'gerente' => 'Gerente',
+            'materia_prima' => 'Materia prima',
+            'material_empaque' => 'Material empaque',
+        ];
+    }
+
+    private function etiquetaRol(?string $rol): string
+    {
+        return $this->rolesDisponibles()[$rol ?? '']
+            ?? ($rol ? ucfirst(str_replace('_', ' ', $rol)) : '—');
+    }
 }
