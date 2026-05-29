@@ -455,10 +455,25 @@ Si todo esta correcto: {"errores_ia": []}';
                         $contenido = preg_replace('/```\s*/', '', $contenido);
                         $iaResult = json_decode(trim($contenido), true);
                         if ($iaResult && !empty($iaResult['errores_ia'])) {
+                            // Lista de tipos aprobados - si la IA rechaza uno de estos, ignorar el error
+                            $tiposAprobados = ['TELEFONO CELULAR', 'TELEFONO MOVIL', 'SMARTPHONE', 'PINTURA VINILICA', 'PINTURA ESMALTE', 'MOTOR ELECTRICO', 'BOMBA AGUA', 'BOMBA CENTRIFUGA', 'ACEITE MOTOR', 'CINTA ADHESIVA', 'CAJA CARTON', 'CAJA CORRUGADA', 'LAPTOP', 'TABLET', 'COMPUTADORA', 'IMPRESORA', 'MONITOR', 'TECLADO', 'MOUSE', 'CABLE ELECTRICO', 'FOCO LED', 'LAMPARA', 'TORNILLO', 'TUERCA', 'RESINA EPOXICA', 'PIGMENTO ORGANICO', 'SOLVENTE INDUSTRIAL', 'ADHESIVO ESTRUCTURAL', 'BOLSA PLASTICO', 'ETIQUETA ADHESIVA', 'FLEJE ACERO', 'TALADRO ROTOMARTILLO', 'INSECTICIDA', 'DETERGENTE INDUSTRIAL', 'CELULAR', 'TELEFONO'];
+
                             foreach ($iaResult['errores_ia'] as $errIA) {
                                 $filaIA = (int) ($errIA['fila'] ?? 0);
                                 if ($filaIA < 2) continue;
                                 $campoIA = $errIA['campo'] ?? 'NOMBRE_TIPO';
+
+                                // Si la IA rechaza NOMBRE_TIPO pero el valor esta en la lista aprobada, ignorar
+                                if ($campoIA === 'NOMBRE_TIPO') {
+                                    $idx = $filaIA - 2;
+                                    if (isset($productos[$idx])) {
+                                        $tipoActual = strtoupper(trim($productos[$idx]['NOMBRE_TIPO'] ?? ''));
+                                        if (in_array($tipoActual, $tiposAprobados)) {
+                                            continue; // Ignorar este error - el tipo es valido
+                                        }
+                                    }
+                                }
+
                                 // No duplicar errores que PHP ya detecto
                                 $yaExiste = false;
                                 foreach ($errores as $eEx) {
