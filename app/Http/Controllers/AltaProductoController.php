@@ -415,24 +415,38 @@ class AltaProductoController extends Controller
                 // Enviar en lotes de 15 para no exceder tokens
                 $lotes = array_chunk($productosParaIA, 15);
                 foreach ($lotes as $lote) {
-                    $prompt = 'Eres un validador estricto de nomenclatura industrial. Valida estos productos verificando que CADA CAMPO tenga el contenido CORRECTO segun su definicion:
+                    $prompt = 'Eres un validador estricto de nomenclatura industrial para productos de Salcom. Valida estos productos verificando que CADA CAMPO tenga el contenido CORRECTO segun su definicion:
 
-- NOMBRE_TIPO = Que ES el producto (ej: PINTURA VINILICA, MOTOR ELECTRICO, CAJA CARTON). NO puede ser una especificacion (BLANCO MATE), ni una marca, ni una medida.
-- NOMBRE_MARCA = Quien lo FABRICA (ej: COMEX, WEG, TRUPER). NO puede ser un tipo de producto ni una medida.
-- NOMBRE_MODELO = Referencia ALFANUMERICA del fabricante (ej: VIN-100, W22, BC-300). NO puede ser una medida pura (19LT, 500ML) ni dimensiones (40X30X25).
-- NOMBRE_MEDIDA = Tamano/capacidad con NUMEROS (ej: 19LT, 500ML, 3HP, 40X30X25). NO puede ser un modelo ni una especificacion.
-- NOMBRE_ESPECIFICACION = Caracteristicas ADICIONALES del producto (ej: BLANCO MATE INTERIOR, CORRUGADA DOBLE PARED, TRIFASICO). NO puede ser una medida repetida, ni un modelo, ni un tipo.
+DEFINICION DE CAMPOS:
+- NOMBRE_TIPO = Que ES el producto de forma especifica (ej: TELEFONO CELULAR, PINTURA VINILICA, MOTOR ELECTRICO, LAPTOP, TABLET, CAJA CARTON). Debe ser el tipo/categoria del producto, NO una marca, NO una especificacion.
+- NOMBRE_MARCA = La EMPRESA/FABRICANTE (ej: APPLE, SAMSUNG, COMEX, WEG, TRUPER). Es quien fabrica o vende el producto. NO confundir con lineas de producto (IPHONE no es marca, es linea de APPLE).
+- NOMBRE_MODELO = Referencia o LINEA del fabricante (ej: IPHONE 15, PRO MAX, VIN-100, W22, GALAXY S24). Puede ser alfanumerico. Incluye nombres de linea de producto.
+- NOMBRE_MEDIDA = Tamano/capacidad con NUMEROS (ej: 6.5 PULGADAS, 19LT, 500ML, 3HP, 256GB). DEBE tener numeros.
+- NOMBRE_ESPECIFICACION = Caracteristicas TECNICAS adicionales que diferencian el producto (ej: COLOR NEGRO TITANIO, 256GB RAM 8GB, TRIFASICO 220V, CORRUGADA DOBLE PARED). Son detalles tecnicos, colores, capacidades, materiales.
+
+TIPOS DE PRODUCTO YA APROBADOS (si NOMBRE_TIPO es alguno de estos, NO lo marques como error):
+TELEFONO CELULAR, TELEFONO MOVIL, SMARTPHONE, PINTURA VINILICA, PINTURA ESMALTE, MOTOR ELECTRICO, BOMBA AGUA, BOMBA CENTRIFUGA, ACEITE MOTOR, CINTA ADHESIVA, CAJA CARTON, CAJA CORRUGADA, LAPTOP, TABLET, COMPUTADORA, IMPRESORA, MONITOR, TECLADO, MOUSE, CABLE ELECTRICO, FOCO LED, LAMPARA, TORNILLO, TUERCA, RESINA EPOXICA, PIGMENTO ORGANICO, SOLVENTE INDUSTRIAL, ADHESIVO ESTRUCTURAL, BOLSA PLASTICO, ETIQUETA ADHESIVA, FLEJE ACERO, TALADRO ROTOMARTILLO, INSECTICIDA, DETERGENTE INDUSTRIAL
 
 REGLAS CRITICAS:
-1. Si NOMBRE_ESPECIFICACION es IGUAL o muy similar a NOMBRE_MEDIDA = ERROR (campo repetido/cruzado)
-2. Si NOMBRE_TIPO contiene adjetivos de color/acabado (BLANCO, MATE, TRANSPARENTE) sin decir QUE ES el producto = ERROR
-3. Si NOMBRE_TIPO es claramente una especificacion y no dice que tipo de producto es = ERROR
-4. Cada campo debe tener informacion DISTINTA y UNICA, no repetir datos de otro campo
-5. NOMBRE_TIPO debe responder "que es?" no "como es?"
+1. Si NOMBRE_ESPECIFICACION es IGUAL o muy similar a NOMBRE_MEDIDA = ERROR
+2. Si NOMBRE_TIPO contiene SOLO adjetivos sin sustantivo (BLANCO, MATE, GRANDE) = ERROR
+3. Si NOMBRE_TIPO es UNA SOLA PALABRA muy generica (CELULAR, PINTURA, MOTOR, CAJA) = ERROR, debe tener al menos 2 palabras
+4. Cada campo debe tener informacion DISTINTA, no repetir datos de otro campo
+5. NOMBRE_MODELO puede contener nombres de linea de producto (IPHONE, GALAXY, COROLLA) - esto NO es marca ni especificacion
+6. NOMBRE_ESPECIFICACION debe ser algo que el producto TIENE (color, capacidad, material, voltaje)
+7. Si NOMBRE_TIPO tiene 2+ palabras y describe QUE ES el producto = VALIDO (TELEFONO MOVIL, PINTURA VINILICA, MOTOR ELECTRICO son CORRECTOS, NO los rechaces)
+8. NO rechaces un NOMBRE_TIPO que esta en la lista de tipos aprobados
+9. MOVIL, ELECTRICO, VINILICA, CENTRIFUGA son calificadores validos del tipo, NO son "adjetivos de acabado"
+
+OBLIGATORIO - SUGERENCIA:
+Para CADA error, SIEMPRE incluye el campo "sugerencia" con el valor EXACTO que deberia ir en esa celda.
+El proveedor va a COPIAR Y PEGAR tu sugerencia directamente, asi que debe ser el valor final correcto en MAYUSCULAS.
+Usa TODA la informacion disponible del producto (los otros campos) para inferir la mejor sugerencia posible.
 
 Productos: '.json_encode($lote, JSON_UNESCAPED_UNICODE).'
 
-Responde SOLO JSON valido sin markdown: {"errores_ia": [{"fila": N, "campo": "NOMBRE_X", "error": "explicacion breve"}]}
+Responde UNICAMENTE JSON valido, sin markdown, sin texto extra:
+{"errores_ia": [{"fila": N, "campo": "NOMBRE_X", "error": "explicacion", "sugerencia": "VALOR EXACTO PARA COPIAR"}]}
 Si todo esta correcto: {"errores_ia": []}';
 
                     $resultado = $iaService->llamarClaude($prompt);
@@ -451,7 +465,12 @@ Si todo esta correcto: {"errores_ia": []}';
                                     if ($eEx['fila'] === $filaIA && $eEx['campo'] === $campoIA) { $yaExiste = true; break; }
                                 }
                                 if (!$yaExiste) {
-                                    $errores[] = ['fila' => $filaIA, 'campo' => $campoIA, 'error' => 'IA: '.($errIA['error'] ?? 'Campo con contenido incorrecto')];
+                                    $mensajeError = 'IA: '.($errIA['error'] ?? 'Campo con contenido incorrecto');
+                                    $sugerencia = $errIA['sugerencia'] ?? null;
+                                    if ($sugerencia) {
+                                        $mensajeError .= " || CORRECCION: {$sugerencia}";
+                                    }
+                                    $errores[] = ['fila' => $filaIA, 'campo' => $campoIA, 'error' => $mensajeError];
                                 }
                             }
                         }
