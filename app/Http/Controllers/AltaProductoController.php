@@ -112,11 +112,11 @@ class AltaProductoController extends Controller
         // Ejemplos (filas 2-6) — CORRECTAMENTE LLENADOS, pasan validación al 100%
         // Columnas: CODIGO, NOMBRE_TIPO, NOMBRE_MARCA, NOMBRE_MODELO, NOMBRE_MEDIDA, NOMBRE_ESPECIFICACION, PRODUCCION, FAMILIA, TIPO_PRODUCTO, SUBFAMILIA, UNIDAD_MEDIDA, PRECIO, CLAVE_SAT, LOTE, PEDIMENTO, MARCA_PRODUCTO, MODELO_PRODUCTO, MEDIDA_PRODUCTO, MATERIAL, COLOR, VOLTAJE, ESPECIFICACIONES, OBSERVACIONES
         $ejemplos = [
-            ['MPI0538', 'RESINA EPOXICA', 'SKF', 'IND-500', '500ML', 'TRANSPARENTE INDUSTRIAL', 'MPI', 'MATERIA PRIMA', 'MPI', 'RESINAS', 'KG', '150.50', '10191509', 'SI', 'SI', 'SKF', 'IND-500', '500ML', 'LIQUIDO', 'TRANSPARENTE', 'N/A', 'USO INDUSTRIAL GRADO ALIMENTICIO', 'IMPORTACION CHINA PEDIMENTO 26 0001 3000001'],
-            ['ME0201', 'CAJA CORRUGADA', 'KRAFT', 'CP-40', '40X30X25', 'DOBLE PARED IMPRESA', 'ME', 'MATERIAL EMPAQUE', 'ME', 'CAJAS', 'PZA', '18.50', '48191500', 'NO', 'NO', 'KRAFT', 'CP-40', '40X30X25', 'CARTON', 'KRAFT', 'N/A', 'IMPRESION 2 TINTAS', 'PROVEEDOR NACIONAL ENTREGA 5 DIAS'],
-            ['MN0045', 'MOTOR ELECTRICO', 'WEG', 'W22', '3HP', 'TRIFASICO 220/440V', 'MN', 'MANTENIMIENTO', 'MN', 'MOTORES', 'PZA', '8500.00', '26101500', 'NO', 'NO', 'WEG', 'W22', '3HP', 'ACERO', '', '220/440V', 'TRIFASICO CLASE F IP55', 'PARA LINEA 3 PRODUCCION'],
-            ['MPI0539', 'PIGMENTO ORGANICO', 'ALPHA', 'ORG-R180', '180G/274ML', 'CONCENTRADO ROJO', 'MPI', 'MATERIA PRIMA', 'MPI', 'PIGMENTOS', 'KG', '320.00', '12161800', 'SI', 'SI', 'ALPHA', 'ORG-R180', '180G', 'POLVO', 'ROJO', 'N/A', 'ALTA RESISTENCIA UV', 'PEDIMENTO REQUERIDO 26 0001 3000045'],
-            ['ME0202', 'ETIQUETA ADHESIVA', '3M', 'T-100', '10X5CM', 'BLANCO MATE TERMICA', 'ME', 'MATERIAL EMPAQUE', 'ME', 'ETIQUETAS', 'CAJA', '85.00', '55121600', 'NO', 'NO', '3M', 'T-100', '10X5CM', 'PAPEL TERMICO', 'BLANCO', 'N/A', '1000 PZA POR ROLLO', 'ENTREGA SEMANAL LUNES Y JUEVES'],
+            ['MPI0538', 'RESINA EPOXICA', 'SKF', 'IND-500', '500ML', 'TRANSPARENTE INDUSTRIAL', 'MPI', 'MATERIA PRIMA', 'MPI', 'RESINAS', 'KG', '$150.50', '10191509', 'SI', 'SI', 'SKF', 'IND-500', '500ML', 'LIQUIDO', 'TRANSPARENTE', 'N/A', 'USO INDUSTRIAL GRADO ALIMENTICIO', 'IMPORTACION CHINA PEDIMENTO 26 0001 3000001'],
+            ['ME0201', 'CAJA CORRUGADA', 'KRAFT', 'CP-40', '40X30X25', 'DOBLE PARED IMPRESA', 'ME', 'MATERIAL EMPAQUE', 'ME', 'CAJAS', 'PZA', '$18.50', '48191500', 'NO', 'NO', 'KRAFT', 'CP-40', '40X30X25', 'CARTON', 'KRAFT', 'N/A', 'IMPRESION 2 TINTAS', 'PROVEEDOR NACIONAL ENTREGA 5 DIAS'],
+            ['MN0045', 'MOTOR ELECTRICO', 'WEG', 'W22', '3HP', 'TRIFASICO 220/440V', 'MN', 'MANTENIMIENTO', 'MN', 'MOTORES', 'PZA', '$8,500.00', '26101500', 'NO', 'NO', 'WEG', 'W22', '3HP', 'ACERO', '', '220/440V', 'TRIFASICO CLASE F IP55', 'PARA LINEA 3 PRODUCCION'],
+            ['MPI0539', 'PIGMENTO ORGANICO', 'ALPHA', 'ORG-R180', '180G/274ML', 'CONCENTRADO ROJO', 'MPI', 'MATERIA PRIMA', 'MPI', 'PIGMENTOS', 'KG', '$320.00', '12161800', 'SI', 'SI', 'ALPHA', 'ORG-R180', '180G', 'POLVO', 'ROJO', 'N/A', 'ALTA RESISTENCIA UV', 'PEDIMENTO REQUERIDO 26 0001 3000045'],
+            ['ME0202', 'ETIQUETA ADHESIVA', '3M', 'T-100', '10X5CM', 'BLANCO MATE TERMICA', 'ME', 'MATERIAL EMPAQUE', 'ME', 'ETIQUETAS', 'CAJA', '$85.00', '55121600', 'NO', 'NO', '3M', 'T-100', '10X5CM', 'PAPEL TERMICO', 'BLANCO', 'N/A', '1000 PZA POR ROLLO', 'ENTREGA SEMANAL LUNES Y JUEVES'],
         ];
 
         foreach ($ejemplos as $rowIdx => $ejemplo) {
@@ -1041,19 +1041,13 @@ Si todo está bien o tienes duda: {"errores_ia": []}';
 
         // ═══ 5. PRECIO — Numérico y razonable (opcional, pero si viene debe ser válido) ═══
         if ($precio !== '' && $precio !== null) {
-            $precioLimpio = str_replace([','], '', $precio);
-            // No permitir signo $ en el valor
-            if (str_contains($precio, '$')) {
+            $precioLimpio = str_replace([',', '$', ' '], '', $precio);
+            // Aceptar signo $ al inicio (se limpia automáticamente)
+            if (! is_numeric($precioLimpio)) {
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'PRECIO',
-                    'error' => "No incluir signo \$. Solo el número. Recibido: '{$precio}'. CÓMO CORREGIR: Escribe solo el número (ej: 150.50)",
-                ];
-            } elseif (! is_numeric($precioLimpio)) {
-                $errores[] = [
-                    'fila' => $fila,
-                    'campo' => 'PRECIO',
-                    'error' => "El precio debe ser numérico (ej: 150.50). Recibido: '{$precio}'",
+                    'error' => "El precio debe ser numérico (ej: \$150.50 o 150.50). Recibido: '{$precio}'",
                 ];
             } else {
                 $precioNum = (float) $precioLimpio;

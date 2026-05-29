@@ -559,14 +559,14 @@ class AdminPanelController extends Controller
                     $f->folio_cfdi,
                     $producto['nombre'] ?? 'Compra general',
                     $producto['sku'] ?? $producto['codigo'] ?? '-',
-                    number_format((float) $f->total, 2),
+                    '$'.number_format((float) $f->total, 2),
                     $f->fecha_vencimiento?->format('d/m/Y') ?? '-',
                     $vencida ? $diasV.' dias' : 'Vigente',
                     ucfirst($f->estatus),
                 ];
             }
             $lines[] = [];
-            $lines[] = ['', '', 'TOTAL DEUDA:', number_format((float) $facturas->where('estatus', 'pendiente')->sum('total'), 2)];
+            $lines[] = ['', '', 'TOTAL DEUDA:', '$'.number_format((float) $facturas->where('estatus', 'pendiente')->sum('total'), 2)];
 
             $handle = fopen('php://temp', 'r+');
             fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
@@ -1136,8 +1136,8 @@ class AdminPanelController extends Controller
                 $cantAnt,
                 $cantAct,
                 $varCant.'%',
-                number_format($montoAnt, 2),
-                number_format($montoAct, 2),
+                '$'.number_format($montoAnt, 2),
+                '$'.number_format($montoAct, 2),
                 $varMonto.'%',
             ];
 
@@ -1147,7 +1147,7 @@ class AdminPanelController extends Controller
 
         $lines[] = [];
         $varTotal = $totalAnterior > 0 ? round((($totalActual - $totalAnterior) / $totalAnterior) * 100, 1) : 0;
-        $lines[] = ['', 'GRAN TOTAL', '', '', '', '', number_format($totalAnterior, 2), number_format($totalActual, 2), $varTotal.'%'];
+        $lines[] = ['', 'GRAN TOTAL', '', '', '', '', '$'.number_format($totalAnterior, 2), '$'.number_format($totalActual, 2), $varTotal.'%'];
 
         // Convertir a CSV string
         $handle = fopen('php://temp', 'r+');
@@ -1239,12 +1239,12 @@ class AdminPanelController extends Controller
                     ->whereYear('created_at', $anio)
                     ->whereMonth('created_at', $m)
                     ->sum('total');
-                $row[] = number_format($monto, 2);
+                $row[] = '$'.number_format($monto, 2);
                 $totalProv += $monto;
                 $totalesMes[$m] += $monto;
             }
 
-            $row[] = number_format($totalProv, 2);
+            $row[] = '$'.number_format($totalProv, 2);
             $granTotal += $totalProv;
             $lines[] = $row;
         }
@@ -1253,9 +1253,9 @@ class AdminPanelController extends Controller
         $lines[] = [];
         $totalRow = ['', 'TOTAL POR MES'];
         for ($m = 1; $m <= $mesActual; $m++) {
-            $totalRow[] = number_format($totalesMes[$m], 2);
+            $totalRow[] = '$'.number_format($totalesMes[$m], 2);
         }
-        $totalRow[] = number_format($granTotal, 2);
+        $totalRow[] = '$'.number_format($granTotal, 2);
         $lines[] = $totalRow;
 
         $handle = fopen('php://temp', 'r+');

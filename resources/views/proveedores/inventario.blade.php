@@ -90,25 +90,25 @@ foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $dia
 @endphp
 
 <div class="inv-metrics">
-    <div class="inv-metric">
+    <div class="inv-metric" style="cursor:pointer;" onclick="filtrarInventario('out', this)">
         <div class="accent" style="background:var(--red)"></div>
         <div class="inv-metric-label">Agotados</div>
         <div class="inv-metric-val">{{ $stockOut }}</div>
         <div class="inv-metric-sub">Sin stock</div>
     </div>
-    <div class="inv-metric">
+    <div class="inv-metric" style="cursor:pointer;" onclick="filtrarInventario('low', this)">
         <div class="accent" style="background:var(--amber)"></div>
         <div class="inv-metric-label">Bajo mínimo</div>
         <div class="inv-metric-val">{{ $stockLow }}</div>
         <div class="inv-metric-sub">Requiere reorden</div>
     </div>
-    <div class="inv-metric">
+    <div class="inv-metric" style="cursor:pointer;" onclick="filtrarInventario('ok', this)">
         <div class="accent" style="background:var(--green)"></div>
         <div class="inv-metric-label">Stock OK</div>
         <div class="inv-metric-val">{{ $stockOk }}</div>
         <div class="inv-metric-sub">Dentro de rango</div>
     </div>
-    <div class="inv-metric">
+    <div class="inv-metric" style="cursor:pointer;" onclick="filtrarInventario('all', this)">
         <div class="accent" style="background:var(--purple)"></div>
         <div class="inv-metric-label">SKUs totales</div>
         <div class="inv-metric-val">{{ $totalSKU }}</div>
@@ -119,10 +119,10 @@ foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $dia
 <div class="inv-card">
     <div class="inv-card-head">
         <h3>Reporte Stock Máximo y Mínimo</h3>
-        <button class="btn-export" onclick="exportTable('tablaInventario', 'Stock_Maximos_Minimos')">
+        <a href="{{ route('proveedores.inventario.excel') }}" class="btn-export">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Exportar Excel
-        </button>
+        </a>
     </div>
     <div style="overflow-x:auto;">
         <table class="inv-table" id="tablaInventario">
@@ -152,8 +152,7 @@ foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $dia
             </thead>
             <tbody>
                 @foreach($rows as $r)
-                <tr style="background:{{ $r['colorFila'] }};">
-                    <td style="font-size:10px;font-weight:600;color:var(--gray-muted);">{{ $r['grupo'] }}</td>
+                <tr style="background:{{ $r['colorFila'] }};" data-estado="{{ $r['estado'] }}">                    <td style="font-size:10px;font-weight:600;color:var(--gray-muted);">{{ $r['grupo'] }}</td>
                     <td style="font-weight:700;color:var(--purple)">{{ $r['codigo'] }}</td>
                     <td>{{ $r['nombre'] }}</td>
                     <td style="font-size:11px;color:var(--gray-muted);">{{ $r['proveedor'] }}</td>
@@ -187,6 +186,23 @@ foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $dia
 @endsection
 @push('scripts')
 <script>
+var filtroInvActivo = null;
+function filtrarInventario(estado, card) {
+    if (filtroInvActivo === estado) {
+        filtroInvActivo = null;
+        document.querySelectorAll('#tablaInventario tbody tr').forEach(f => f.style.display = '');
+        document.querySelectorAll('.inv-metric').forEach(c => { c.style.boxShadow = ''; c.style.border = ''; });
+        return;
+    }
+    filtroInvActivo = estado;
+    document.querySelectorAll('#tablaInventario tbody tr').forEach(fila => {
+        if (estado === 'all') { fila.style.display = ''; return; }
+        fila.style.display = fila.getAttribute('data-estado') === estado ? '' : 'none';
+    });
+    document.querySelectorAll('.inv-metric').forEach(c => { c.style.boxShadow = ''; c.style.border = ''; });
+    if (card) { card.style.boxShadow = '0 0 0 2px var(--purple)'; card.style.border = '1.5px solid var(--purple)'; }
+}
+
 function exportTable(tableId, filename) {
     const table = document.getElementById(tableId);
     if (!table) return;

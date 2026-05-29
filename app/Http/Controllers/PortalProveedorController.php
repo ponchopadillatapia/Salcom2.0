@@ -131,6 +131,92 @@ class PortalProveedorController extends Controller
     }
 
     /**
+     * Exportar inventario a Excel XLSX con colores por familia.
+     */
+    public function exportarInventarioExcel()
+    {
+        $ddi = 90;
+        $items = [
+            ['SAL-001', 'Resina epóxica industrial', 'GUANGZHOU FASHI', 850, 260, 15, 0, 'KG', 85.00, 'Resinas'],
+            ['SAL-003', 'Solvente grado técnico', 'INTERFLEX GROUP', 320, 180, 12, 0, 'LT', 42.50, 'Solventes'],
+            ['SAL-005', 'Pigmento base agua', 'ALPHA AROMATICS', 90, 120, 20, 0, 'KG', 120.00, 'Pigmentos'],
+            ['SAL-007', 'Catalizador rápido', 'QINGDAO GREENO', 45, 60, 18, 30, 'KG', 210.00, 'Aditivos'],
+            ['SAL-009', 'Aditivo antioxidante', 'RECOCHEMIC INC', 0, 40, 25, 0, 'KG', 55.00, 'Aditivos'],
+            ['SAL-011', 'Fibra de refuerzo', 'SALCOM INDUSTRIE', 900, 150, 10, 100, 'KG', 320.00, 'Refuerzos'],
+            ['SAL-015', 'Adhesivo estructural', 'DCC GROUP COMP', 220, 90, 14, 0, 'KG', 180.00, 'Resinas'],
+            ['SAL-018', 'Disolvente especial', 'HANGZHOU HUALIC', 15, 35, 22, 0, 'LT', 65.00, 'Solventes'],
+            ['SAL-020', 'Sellador industrial', 'BOBSON HYGIENE', 0, 45, 16, 0, 'KG', 95.00, 'Selladores'],
+            ['SAL-022', 'Recubrimiento base', 'NINGBO REVIEW T', 0, 30, 30, 0, 'KG', 78.00, 'Pigmentos'],
+        ];
+
+        $coloresGrupo = [
+            'Resinas' => 'E3F2FD', 'Solventes' => 'FFF9C4', 'Pigmentos' => 'F3E5F5',
+            'Aditivos' => 'E8F5E9', 'Refuerzos' => 'FFF3E0', 'Selladores' => 'E0F7FA',
+        ];
+
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Stock Máximos y Mínimos');
+
+        // Headers
+        $headers = ['GRUPO', 'CÓDIGO', 'PRODUCTO', 'PROVEEDOR', 'U.M.', 'PRECIO', 'EXISTENCIA', '%', 'CONSUMO/MES', 'CONSUMO ALTO', 'CONSUMO DIARIO', 'VENTAS/MES', 'STOCK MÍNIMO', 'STOCK MÁXIMO', 'DÍAS INVENTARIO', 'DÍAS ENTREGA', 'PEND. RECIBIR', 'CANTIDAD A PEDIR', 'COBERTURA', 'ESTADO'];
+        $col = 'A';
+        foreach ($headers as $h) {
+            $sheet->setCellValue($col.'1', $h);
+            $sheet->getStyle($col.'1')->getFont()->setBold(true)->setSize(9);
+            $sheet->getStyle($col.'1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('4A4A4A');
+            $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
+            $col++;
+        }
+
+        // Data rows with colors
+        $rowNum = 2;
+        foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $diasEntrega, $pendRecibir, $um, $precio, $grupo]) {
+            $consumoDiario = round($consumoMes / 30, 2);
+            $stockMinimo = round($consumoDiario * $diasEntrega);
+            $stockMaximo = round($consumoDiario * $ddi);
+            $diasInventario = $consumoDiario > 0 ? round($existencia / $consumoDiario) : 0;
+            $totalAPedir = max(0, $stockMaximo - $existencia - $pendRecibir);
+            $cobertura = $consumoDiario > 0 ? round($existencia / $consumoDiario) : 0;
+            $ventasMes = $consumoMes * $precio;
+            $porcentajeUso = $stockMaximo > 0 ? round(($existencia / $stockMaximo) * 100) : 0;
+            $consumoAltoMes = round($consumoMes * 1.3);
+
+            if ($existencia <= 0) { $estado = 'Agotado'; }
+            elseif ($existencia < $stockMinimo) { $estado = 'Bajo mínimo'; }
+            elseif ($existencia > $stockMaximo) { $estado = 'Sobre stock'; }
+            else { $estado = 'OK'; }
+
+            $data = [$grupo, $codigo, $nombre, $proveedor, $um, '$'.number_format($precio, 2), number_format($existencia), $porcentajeUso.'%', number_format($consumoMes), number_format($consumoAltoMes), number_format($consumoDiario, 2), '$'.number_format($ventasMes, 2), number_format($stockMinimo), number_format($stockMaximo), $diasInventario.' días', $diasEntrega.' días', number_format($pendRecibir), number_format($totalAPedir), $cobertura.' días', $estado];
+
+            $col = 'A';
+            foreach ($data as $val) {
+                $sheet->setCellValue($col.$rowNum, $val);
+                $col++;
+            }
+
+            // Aplicar color de fondo por familia
+            $color = $coloresGrupo[$grupo] ?? 'FFFFFF';
+            $sheet->getStyle("A{$rowNum}:T{$rowNum}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB($color);
+
+            $rowNum++;
+        }
+
+        // Auto-size
+        foreach (range('A', 'T') as $c) {
+            $sheet->getColumnDimension($c)->setAutoSize(true);
+        }
+
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), 'inv_');
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, 'Stock_Maximos_Minimos_'.date('Y-m-d').'.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
      * Subir documento fiscal — validación automática por IA.
      */
     public function subirDocumentoFiscal(Request $request)

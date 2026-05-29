@@ -50,6 +50,7 @@ Route::post('/alta-producto/manual', [AltaProductoController::class, 'registroMa
 Route::get('/proveedor/inventario', function () {
     return view('proveedores.inventario');
 })->name('proveedores.inventario')->middleware('auth.proveedor');
+Route::get('/proveedor/inventario/excel', [PortalProveedorController::class, 'exportarInventarioExcel'])->name('proveedores.inventario.excel')->middleware('auth.proveedor');
 Route::get('/proveedor/fiscal', function () {
     return view('proveedores.fiscal');
 })->name('proveedores.fiscal')->middleware('auth.proveedor');

@@ -81,19 +81,24 @@
         <button class="btn-search" onclick="buscarOC()">Buscar</button>
     </div>
 
-    {{-- MÉTRICAS --}}
-    <div class="metrics-row" style="grid-template-columns: repeat(3, 1fr);">
-        <div class="metric-card">
+    {{-- MÉTRICAS — clickeables para filtrar --}}
+    <div class="metrics-row" style="grid-template-columns: repeat(4, 1fr);">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="filtrarOCPorEstatus('atrasada')" id="card-atrasada">
+            <div class="accent" style="background:var(--red)"></div>
+            <div class="metric-label">OC Atrasadas</div>
+            <div class="metric-value" style="color:var(--red);">{{ $ordenes->filter(fn($o) => $o->estatus !== 'completada' && $o->created_at->addDays(30)->isPast())->count() }}</div>
+        </div>
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="filtrarOCPorEstatus('en_proceso')" id="card-en_proceso">
             <div class="accent" style="background:var(--amber)"></div>
             <div class="metric-label">OC En proceso</div>
             <div class="metric-value">{{ $stats['en_proceso'] }}</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="filtrarOCPorEstatus('aprobada')" id="card-aprobada">
             <div class="accent" style="background:var(--purple)"></div>
             <div class="metric-label">OC Abiertas</div>
             <div class="metric-value">{{ $stats['abiertas'] }}</div>
         </div>
-        <div class="metric-card">
+        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="filtrarOCPorEstatus('completada')" id="card-completada">
             <div class="accent" style="background:var(--green)"></div>
             <div class="metric-label">OC Completadas</div>
             <div class="metric-value">{{ $stats['completadas'] }}</div>
@@ -118,7 +123,8 @@
             </thead>
             <tbody>
                 @forelse($ordenes as $oc)
-                <tr>
+                @php $ocAtrasada = $oc->estatus !== 'completada' && $oc->created_at->addDays(30)->isPast(); @endphp
+                <tr data-estatus="{{ $oc->estatus }}" data-atrasada="{{ $ocAtrasada ? '1' : '0' }}" style="{{ $ocAtrasada ? 'background:rgba(255,59,48,0.04);' : '' }}">
                     <td><strong>#{{ $oc->id }}</strong></td>
                     <td>{{ $oc->created_at->format('d/m/Y') }}</td>
                     <td style="font-size:12px;">
@@ -189,5 +195,32 @@ function buscarOC() {
     });
 }
 document.getElementById('buscarFolio').addEventListener('keyup', e => { if (e.key === 'Enter') buscarOC(); });
+
+// Filtrar OC por estatus al hacer click en las cards
+var filtroActivo = null;
+function filtrarOCPorEstatus(estatus) {
+    if (filtroActivo === estatus) {
+        filtroActivo = null;
+        document.querySelectorAll('#tablaOC tbody tr').forEach(fila => { fila.style.display = ''; });
+        document.querySelectorAll('.metric-card').forEach(c => { c.style.boxShadow = ''; c.style.border = ''; });
+        return;
+    }
+
+    filtroActivo = estatus;
+    document.querySelectorAll('#tablaOC tbody tr').forEach(fila => {
+        if (estatus === 'atrasada') {
+            fila.style.display = fila.getAttribute('data-atrasada') === '1' ? '' : 'none';
+        } else {
+            fila.style.display = fila.getAttribute('data-estatus') === estatus ? '' : 'none';
+        }
+    });
+
+    document.querySelectorAll('.metric-card').forEach(c => { c.style.boxShadow = ''; c.style.border = '0.5px solid var(--border)'; });
+    var cardActiva = document.getElementById('card-' + estatus);
+    if (cardActiva) {
+        cardActiva.style.boxShadow = '0 0 0 2px var(--purple)';
+        cardActiva.style.border = '1.5px solid var(--purple)';
+    }
+}
 </script>
 @endpush
