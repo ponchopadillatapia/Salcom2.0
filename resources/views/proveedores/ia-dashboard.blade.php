@@ -78,7 +78,6 @@ Alerta::where('destinatario_tipo', 'proveedor')
     <div style="display:flex;gap:12px;flex-wrap:wrap;">
         <form method="POST" action="{{ route('proveedores.ia.pronostico') }}" style="display:inline;">
             @csrf
-            <input type="hidden" name="codigo_cliente" value="{{ session('proveedor_codigo', 'PROV-'.session('proveedor_id')) }}">
             <button type="submit" class="ia-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
                 Generar pronóstico
@@ -99,8 +98,10 @@ Alerta::where('destinatario_tipo', 'proveedor')
 <div class="ia-section">
     <h3>Resultado — Pronóstico de demanda</h3>
     <div style="background:var(--gray-soft);border-radius:10px;padding:16px;font-size:13px;line-height:1.6;color:var(--gray-text);">
-        @if(!empty($resultadoPronostico['analisis']['content']))
+        @if(!empty($resultadoPronostico['analisis']['success']) && !empty($resultadoPronostico['analisis']['content']))
             {!! nl2br(e($resultadoPronostico['analisis']['content'])) !!}
+        @elseif(!empty($resultadoPronostico['analisis']['error']))
+            <span style="color:var(--red);font-weight:600;">{{ $resultadoPronostico['analisis']['error'] }}</span>
         @else
             <strong>Pronóstico generado para: {{ $resultadoPronostico['cliente'] ?? 'N/A' }}</strong><br><br>
             Basado en el historial de pedidos, se proyecta un consumo estable para los próximos 30 días.<br>
@@ -116,14 +117,17 @@ Alerta::where('destinatario_tipo', 'proveedor')
 <div class="ia-section">
     <h3>Resultado — Optimización de inventario</h3>
     <div style="background:var(--gray-soft);border-radius:10px;padding:16px;font-size:13px;line-height:1.6;color:var(--gray-text);">
-        @if(!empty($resultadoInventario['analisis']['content']))
+        @if(!empty($resultadoInventario['analisis']['success']) && !empty($resultadoInventario['analisis']['content']))
             {!! nl2br(e($resultadoInventario['analisis']['content'])) !!}
+        @elseif(!empty($resultadoInventario['analisis']['error']))
+            <span style="color:var(--red);font-weight:600;">{{ $resultadoInventario['analisis']['error'] }}</span>
         @else
             <strong>Análisis de inventario actual:</strong><br><br>
             @if(!empty($resultadoInventario['inventario']))
                 @foreach(array_slice($resultadoInventario['inventario'], 0, 5) as $item)
-                    • <strong>{{ $item['nombre'] ?? $item['codigo'] ?? 'Producto' }}</strong> — Stock: {{ $item['stock'] ?? 0 }} {{ $item['unidad'] ?? '' }}
-                    @if(($item['stock'] ?? 0) <= 5) <span style="color:var(--red);font-weight:600;">BAJO</span> @endif<br>
+                    @php $stock = (int) ($item['stock_actual'] ?? $item['stock'] ?? 0); @endphp
+                    • <strong>{{ $item['nombre'] ?? $item['sku'] ?? 'Producto' }}</strong> — Stock: {{ $stock }} {{ $item['unidad'] ?? '' }}
+                    @if($stock <= 5) <span style="color:var(--red);font-weight:600;">BAJO</span> @endif<br>
                 @endforeach
             @endif
             <br><em>Nota: Para recomendaciones detalladas con IA, se requiere configurar la API de Claude.</em>

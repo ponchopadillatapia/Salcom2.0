@@ -96,7 +96,7 @@ class AuthAdminController extends Controller
 
         return view('admin.perfil', [
             'admin' => $admin,
-            'rolEtiqueta' => $this->etiquetaRol($admin?->rol ?? session('admin_rol')),
+            'rolEtiqueta' => $this->etiquetaRol($admin !== null ? $admin->rol : session('admin_rol')),
         ]);
     }
 

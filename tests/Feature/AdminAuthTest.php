@@ -210,13 +210,13 @@ class AdminAuthTest extends TestCase
     {
         $this->seed(AdminUserSeeder::class);
 
-        $admin = AdminUser::where('usuario', 'ADMIN001')->first();
+        $admin = AdminUser::where('usuario', 'aneso.cominu')->first();
 
         $this->assertNotNull($admin);
-        $this->assertEquals('Administrador', $admin->nombre);
-        $this->assertEquals('admin@salcom.com', $admin->correo);
+        $this->assertEquals('Aneso Cominu', $admin->nombre);
+        $this->assertEquals('aneso.cominu@salcom.mx', $admin->correo);
         $this->assertTrue($admin->activo);
-        $this->assertTrue(Hash::check('salcom2026', $admin->password));
+        $this->assertTrue(Hash::check('An.123', $admin->password));
     }
 
     // ── Modelo ──

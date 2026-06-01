@@ -99,7 +99,7 @@ class AltaProductoController extends Controller
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
             $sheet->getStyle($col.'1')->getFont()->setBold(true);
-            if ($obligatorios[$header] ?? false) {
+            if ($obligatorios[$header]) {
                 $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
             } else {
                 $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
@@ -432,7 +432,7 @@ class AltaProductoController extends Controller
                 ];
             }
 
-            if (!empty($productosParaIA)) {
+            if (! empty($productosParaIA)) {
                 // Enviar en lotes de 15 para no exceder tokens
                 $lotes = array_chunk($productosParaIA, 15);
                 foreach ($lotes as $lote) {
@@ -481,13 +481,15 @@ Si todo esta correcto: {"errores_ia": []}';
                         $contenido = preg_replace('/```json\s*/', '', $resultado['content']);
                         $contenido = preg_replace('/```\s*/', '', $contenido);
                         $iaResult = json_decode(trim($contenido), true);
-                        if ($iaResult && !empty($iaResult['errores_ia'])) {
+                        if ($iaResult && ! empty($iaResult['errores_ia'])) {
                             // Lista de tipos aprobados - si la IA rechaza uno de estos, ignorar el error
                             $tiposAprobados = ['TELEFONO CELULAR', 'TELEFONO MOVIL', 'SMARTPHONE', 'PINTURA VINILICA', 'PINTURA ESMALTE', 'MOTOR ELECTRICO', 'BOMBA AGUA', 'BOMBA CENTRIFUGA', 'ACEITE MOTOR', 'CINTA ADHESIVA', 'CAJA CARTON', 'CAJA CORRUGADA', 'LAPTOP', 'TABLET', 'COMPUTADORA', 'IMPRESORA', 'MONITOR', 'TECLADO', 'MOUSE', 'CABLE ELECTRICO', 'FOCO LED', 'LAMPARA', 'TORNILLO', 'TUERCA', 'RESINA EPOXICA', 'PIGMENTO ORGANICO', 'SOLVENTE INDUSTRIAL', 'ADHESIVO ESTRUCTURAL', 'BOLSA PLASTICO', 'ETIQUETA ADHESIVA', 'FLEJE ACERO', 'TALADRO ROTOMARTILLO', 'INSECTICIDA', 'DETERGENTE INDUSTRIAL', 'CELULAR', 'TELEFONO'];
 
                             foreach ($iaResult['errores_ia'] as $errIA) {
                                 $filaIA = (int) ($errIA['fila'] ?? 0);
-                                if ($filaIA < 2) continue;
+                                if ($filaIA < 2) {
+                                    continue;
+                                }
                                 $campoIA = $errIA['campo'] ?? 'NOMBRE_TIPO';
 
                                 // Si la IA rechaza NOMBRE_TIPO pero el valor esta en la lista aprobada, ignorar
@@ -523,9 +525,12 @@ Si todo esta correcto: {"errores_ia": []}';
                                 // No duplicar errores que PHP ya detecto
                                 $yaExiste = false;
                                 foreach ($errores as $eEx) {
-                                    if ($eEx['fila'] === $filaIA && $eEx['campo'] === $campoIA) { $yaExiste = true; break; }
+                                    if ($eEx['fila'] === $filaIA && $eEx['campo'] === $campoIA) {
+                                        $yaExiste = true;
+                                        break;
+                                    }
                                 }
-                                if (!$yaExiste) {
+                                if (! $yaExiste) {
                                     // Si la sugerencia es igual al valor actual, descartar (la IA se contradice)
                                     $sugerencia = $errIA['sugerencia'] ?? null;
                                     if ($sugerencia) {
@@ -697,7 +702,7 @@ Si todo esta correcto: {"errores_ia": []}';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
             $sheet->getStyle($col.'1')->getFont()->setBold(true);
-            if ($obligatorios[$header] ?? false) {
+            if ($obligatorios[$header]) {
                 $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
             } else {
                 $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
@@ -827,7 +832,7 @@ Si todo esta correcto: {"errores_ia": []}';
         // â*â*â* 1. CAMPOS OBLIGATORIOS â*â*â*
         foreach ($this->columnasObligatorias as $campo) {
             if (empty(trim($producto[$campo] ?? ''))) {
-                $sugerencia = match($campo) {
+                $sugerencia = match ($campo) {
                     'CODIGO' => 'Escribe un codigo unico (ej: MPI0538, ME0201)',
                     'NOMBRE_TIPO' => 'Escribe QUE ES el producto (ej: RESINA EPOXICA, MOTOR ELECTRICO, CAJA CORRUGADA)',
                     'NOMBRE_MARCA' => 'Escribe QUIEN lo fabrica (ej: WEG, SKF, 3M, ALPHA, KRAFT)',
@@ -940,7 +945,7 @@ Si todo esta correcto: {"errores_ia": []}';
         if ($nombreTipoRaw) {
             $soloAdjetivos = ['BLANCO', 'NEGRO', 'ROJO', 'AZUL', 'VERDE', 'AMARILLO', 'TRANSPARENTE', 'MATE', 'BRILLANTE', 'SATINADO', 'INTERIOR', 'EXTERIOR', 'INDUSTRIAL', 'PROFESIONAL', 'PREMIUM', 'DOBLE', 'TRIPLE', 'GRUESO', 'DELGADO', 'GRANDE', 'CHICO', 'MEDIANO'];
             $palabrasTipo = explode(' ', strtoupper(trim($nombreTipoRaw)));
-            $todasSonAdjetivos = !empty($palabrasTipo) && count(array_diff($palabrasTipo, $soloAdjetivos)) === 0;
+            $todasSonAdjetivos = ! empty($palabrasTipo) && count(array_diff($palabrasTipo, $soloAdjetivos)) === 0;
             if ($todasSonAdjetivos) {
                 $errores[] = [
                     'fila' => $fila,
@@ -993,7 +998,7 @@ Si todo esta correcto: {"errores_ia": []}';
         }
 
         // NOMBRE_MEDIDA no debe ser un codigo de modelo (patron: letras-numeros corto sin unidad)
-        if ($nombreMedidaRaw && preg_match('/^[A-Z]{2,}-\d+$/i', $nombreMedidaRaw) && !preg_match('/\d+(MM|CM|LT|ML|KG|GR|HP|V|W)/i', $nombreMedidaRaw)) {
+        if ($nombreMedidaRaw && preg_match('/^[A-Z]{2,}-\d+$/i', $nombreMedidaRaw) && ! preg_match('/\d+(MM|CM|LT|ML|KG|GR|HP|V|W)/i', $nombreMedidaRaw)) {
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'NOMBRE_MEDIDA',
@@ -1121,7 +1126,7 @@ Si todo esta correcto: {"errores_ia": []}';
         }
 
         // â*â*â* 5. PRECIO â€" Numerico y razonable (opcional, pero si viene debe ser valido) â*â*â*
-        if ($precio !== '' && $precio !== null) {
+        if ($precio !== '') {
             $precioStr = trim((string) $precio);
             // Si esta vacio despues de trim, no validar
             if ($precioStr === '' || $precioStr === '0') {
@@ -1297,7 +1302,7 @@ Si todo esta correcto: {"errores_ia": []}';
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'OBSERVACIONES',
-                    'error' => "Contiene caracteres especiales no permitidos. COMO CORREGIR: Escribe texto normal sin simbolos raros. Ejemplo: PROVEEDOR NACIONAL ENTREGA 5 DIAS",
+                    'error' => 'Contiene caracteres especiales no permitidos. COMO CORREGIR: Escribe texto normal sin simbolos raros. Ejemplo: PROVEEDOR NACIONAL ENTREGA 5 DIAS',
                 ];
             }
 
@@ -1314,7 +1319,7 @@ Si todo esta correcto: {"errores_ia": []}';
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'OBSERVACIONES',
-                    'error' => "Texto ilegible o sin sentido detectado. COMO CORREGIR: Escribe observaciones claras y profesionales. Ejemplo: IMPORTACION CHINA PEDIMENTO 26 0001 3000001",
+                    'error' => 'Texto ilegible o sin sentido detectado. COMO CORREGIR: Escribe observaciones claras y profesionales. Ejemplo: IMPORTACION CHINA PEDIMENTO 26 0001 3000001',
                 ];
             }
 
@@ -1326,7 +1331,7 @@ Si todo esta correcto: {"errores_ia": []}';
                     $errores[] = [
                         'fila' => $fila,
                         'campo' => 'OBSERVACIONES',
-                        'error' => "Contenido inapropiado detectado. COMO CORREGIR: Las observaciones deben ser profesionales y relevantes al producto. Ejemplo: PARA LINEA 3 PRODUCCION",
+                        'error' => 'Contenido inapropiado detectado. COMO CORREGIR: Las observaciones deben ser profesionales y relevantes al producto. Ejemplo: PARA LINEA 3 PRODUCCION',
                     ];
                     break;
                 }
@@ -1337,7 +1342,7 @@ Si todo esta correcto: {"errores_ia": []}';
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'OBSERVACIONES',
-                    'error' => "Observaciones muy cortas. COMO CORREGIR: Escribe al menos 2 palabras descriptivas. Ejemplo: PROVEEDOR NACIONAL",
+                    'error' => 'Observaciones muy cortas. COMO CORREGIR: Escribe al menos 2 palabras descriptivas. Ejemplo: PROVEEDOR NACIONAL',
                 ];
             }
 

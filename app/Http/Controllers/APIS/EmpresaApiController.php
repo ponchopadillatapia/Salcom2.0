@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\APIS;
 
 use App\Http\Controllers\Controller;
+use Aws\Textract\TextractClient;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Smalot\PdfParser\Parser;
 use thiagoalessio\TesseractOCR\TesseractOCR;
@@ -246,7 +248,7 @@ class EmpresaApiController extends Controller
         }
 
         // Fecha de nacimiento (solo Persona Física)
-        if (!$esMoral) {
+        if (! $esMoral) {
             if (preg_match('/FECHA\s*(?:DE\s*)?NACIMIENTO[:\s]*([\d\/\-]+)/', $texto, $fn)) {
                 $datos['fecha_nacimiento'] = $fn[1];
                 $hallazgos[] = 'Fecha de nacimiento: '.$fn[1];
@@ -254,7 +256,7 @@ class EmpresaApiController extends Controller
                 // Extraer fecha del RFC (posiciones 5-10: AAMMDD)
                 $rfcFecha = substr($datos['rfc'], 4, 6);
                 if (preg_match('/(\d{2})(\d{2})(\d{2})/', $rfcFecha, $rfcF)) {
-                    $anio = (int)$rfcF[1] > 50 ? '19'.$rfcF[1] : '20'.$rfcF[1];
+                    $anio = (int) $rfcF[1] > 50 ? '19'.$rfcF[1] : '20'.$rfcF[1];
                     $datos['fecha_nacimiento'] = $rfcF[3].'/'.$rfcF[2].'/'.$anio;
                     $hallazgos[] = 'Fecha de nacimiento (del RFC): '.$datos['fecha_nacimiento'];
                 }
@@ -472,6 +474,7 @@ class EmpresaApiController extends Controller
 
         if (strlen($texto) < 20) {
             $hallazgos[] = 'PDF escaneado — se requiere validación con OCR';
+
             return ['valida' => true, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
         }
 
@@ -511,7 +514,7 @@ class EmpresaApiController extends Controller
 
         // Construir nombre completo
         if ($datos['apellido_paterno'] || $datos['nombres']) {
-            $nombreCompleto = trim(($datos['apellido_paterno'] ?? '') . ' ' . ($datos['apellido_materno'] ?? '') . ' ' . ($datos['nombres'] ?? ''));
+            $nombreCompleto = trim(($datos['apellido_paterno'] ?? '').' '.($datos['apellido_materno'] ?? '').' '.($datos['nombres'] ?? ''));
         } elseif (preg_match('/NOMBRE[:\s]*([A-ZÁÉÍÓÚÑ\s]{3,})/u', $texto, $nomGeneral)) {
             $nombreCompleto = trim($nomGeneral[1]);
         }
@@ -526,23 +529,23 @@ class EmpresaApiController extends Controller
                 }
             }
             $datos['nombre'] = $nombreCompleto;
-            $hallazgos[] = 'Nombre: ' . $nombreCompleto;
+            $hallazgos[] = 'Nombre: '.$nombreCompleto;
         }
 
         // Fecha de nacimiento
         if (preg_match('/FECHA\s*(?:DE\s*)?NACIMIENTO[:\s]*([\d\/\-\.]+)/', $texto, $fn)) {
             $datos['fecha_nacimiento'] = $fn[1];
-            $hallazgos[] = 'Fecha de nacimiento: ' . $fn[1];
+            $hallazgos[] = 'Fecha de nacimiento: '.$fn[1];
         } elseif (preg_match('/NACIMIENTO[:\s]*([\d\/\-\.]+)/', $texto, $fn2)) {
             $datos['fecha_nacimiento'] = $fn2[1];
-            $hallazgos[] = 'Fecha de nacimiento: ' . $fn2[1];
+            $hallazgos[] = 'Fecha de nacimiento: '.$fn2[1];
         } elseif ($datos['curp'] && strlen($datos['curp']) >= 10) {
             // Extraer fecha del CURP (posiciones 5-10: AAMMDD)
             $curpFecha = substr($datos['curp'], 4, 6);
             if (preg_match('/(\d{2})(\d{2})(\d{2})/', $curpFecha, $cf)) {
-                $anio = (int)$cf[1] > 50 ? '19'.$cf[1] : '20'.$cf[1];
+                $anio = (int) $cf[1] > 50 ? '19'.$cf[1] : '20'.$cf[1];
                 $datos['fecha_nacimiento'] = $cf[3].'/'.$cf[2].'/'.$anio;
-                $hallazgos[] = 'Fecha de nacimiento (del CURP): ' . $datos['fecha_nacimiento'];
+                $hallazgos[] = 'Fecha de nacimiento (del CURP): '.$datos['fecha_nacimiento'];
             }
         }
 
@@ -677,7 +680,7 @@ class EmpresaApiController extends Controller
                 $pages = $pdf->getPages();
                 $textoPages = '';
                 foreach ($pages as $page) {
-                    $textoPages .= $page->getText() . ' ';
+                    $textoPages .= $page->getText().' ';
                 }
                 if (strlen($textoPages) > strlen($texto)) {
                     $texto = $textoPages;
@@ -719,18 +722,18 @@ class EmpresaApiController extends Controller
     {
         $accessKey = config('services.ia.aws_access_key', '');
         $secretKey = config('services.ia.aws_secret_key', '');
-        $region    = config('services.ia.bedrock_region', 'us-east-1');
+        $region = config('services.ia.bedrock_region', 'us-east-1');
 
         if (empty($accessKey) || empty($secretKey)) {
             return '';
         }
 
         try {
-            $client = new \Aws\Textract\TextractClient([
-                'region'      => $region,
-                'version'     => 'latest',
+            $client = new TextractClient([
+                'region' => $region,
+                'version' => 'latest',
                 'credentials' => [
-                    'key'    => $accessKey,
+                    'key' => $accessKey,
                     'secret' => $secretKey,
                 ],
                 'http' => ['timeout' => 30],
@@ -747,17 +750,19 @@ class EmpresaApiController extends Controller
             $texto = '';
             foreach ($response['Blocks'] as $block) {
                 if ($block['BlockType'] === 'LINE') {
-                    $texto .= $block['Text'] . ' ';
+                    $texto .= $block['Text'].' ';
                 }
             }
 
             $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
             $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
             $texto = preg_replace('/\s+/', ' ', $texto);
+
             return strtoupper(trim($texto));
 
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Textract OCR falló', ['error' => $e->getMessage(), 'path' => $path]);
+            Log::warning('Textract OCR falló', ['error' => $e->getMessage(), 'path' => $path]);
+
             return '';
         }
     }
@@ -919,5 +924,3 @@ class EmpresaApiController extends Controller
         ][$mes] ?? '';
     }
 }
-
-

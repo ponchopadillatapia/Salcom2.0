@@ -8,6 +8,9 @@ use App\Models\Encuesta;
 use App\Models\ProveedorUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class PortalProveedorController extends Controller
 {
@@ -154,7 +157,7 @@ class PortalProveedorController extends Controller
             'Aditivos' => 'E8F5E9', 'Refuerzos' => 'FFF3E0', 'Selladores' => 'E0F7FA',
         ];
 
-        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Stock Máximos y Mínimos');
 
@@ -164,7 +167,7 @@ class PortalProveedorController extends Controller
         foreach ($headers as $h) {
             $sheet->setCellValue($col.'1', $h);
             $sheet->getStyle($col.'1')->getFont()->setBold(true)->setSize(9);
-            $sheet->getStyle($col.'1')->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB('4A4A4A');
+            $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4A4A4A');
             $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
             $col++;
         }
@@ -182,10 +185,15 @@ class PortalProveedorController extends Controller
             $porcentajeUso = $stockMaximo > 0 ? round(($existencia / $stockMaximo) * 100) : 0;
             $consumoAltoMes = round($consumoMes * 1.3);
 
-            if ($existencia <= 0) { $estado = 'Agotado'; }
-            elseif ($existencia < $stockMinimo) { $estado = 'Bajo mínimo'; }
-            elseif ($existencia > $stockMaximo) { $estado = 'Sobre stock'; }
-            else { $estado = 'OK'; }
+            if ($existencia <= 0) {
+                $estado = 'Agotado';
+            } elseif ($existencia < $stockMinimo) {
+                $estado = 'Bajo mínimo';
+            } elseif ($existencia > $stockMaximo) {
+                $estado = 'Sobre stock';
+            } else {
+                $estado = 'OK';
+            }
 
             $data = [$grupo, $codigo, $nombre, $proveedor, $um, '$'.number_format($precio, 2), number_format($existencia), $porcentajeUso.'%', number_format($consumoMes), number_format($consumoAltoMes), number_format($consumoDiario, 2), '$'.number_format($ventasMes, 2), number_format($stockMinimo), number_format($stockMaximo), $diasInventario.' días', $diasEntrega.' días', number_format($pendRecibir), number_format($totalAPedir), $cobertura.' días', $estado];
 
@@ -196,8 +204,8 @@ class PortalProveedorController extends Controller
             }
 
             // Aplicar color de fondo por familia
-            $color = $coloresGrupo[$grupo] ?? 'FFFFFF';
-            $sheet->getStyle("A{$rowNum}:T{$rowNum}")->getFill()->setFillType(\PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID)->getStartColor()->setRGB($color);
+            $color = array_key_exists($grupo, $coloresGrupo) ? $coloresGrupo[$grupo] : 'FFFFFF';
+            $sheet->getStyle("A{$rowNum}:T{$rowNum}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($color);
 
             $rowNum++;
         }
@@ -207,7 +215,7 @@ class PortalProveedorController extends Controller
             $sheet->getColumnDimension($c)->setAutoSize(true);
         }
 
-        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer = new Xlsx($spreadsheet);
         $tempFile = tempnam(sys_get_temp_dir(), 'inv_');
         $writer->save($tempFile);
 

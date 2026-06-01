@@ -64,7 +64,7 @@ class FlujoCompletoProveedorTest extends TestCase
         $response = $this->get('/portal-proveedor');
         $response->assertStatus(200);
         $response->assertSee('Proveedor Test SA');
-        $response->assertSee('Consultar OC');
+        $response->assertSee('Órdenes de Compra');
         $response->assertSee('Dashboard');
 
         // 3. Dashboard — debe cargar con datos de sesión
@@ -75,11 +75,12 @@ class FlujoCompletoProveedorTest extends TestCase
         $response->assertSee('Facturas');
         $response->assertSee('Pagos');
 
-        // 4. Consultar OC — debe cargar con datos mockeados
+        // 4. Consultar OC — lista órdenes desde BD local (vacía en prueba)
         $response = $this->get('/consultar-oc');
         $response->assertStatus(200);
-        $response->assertSee('Consultar');
-        $response->assertSee('#10045');
+        $response->assertSee('Consultar OC');
+        $response->assertSee('Órdenes de Compra');
+        $response->assertSee('No hay órdenes de compra');
     }
 
     public function test_flujo_completo_api_login_portal_dashboard_oc(): void

@@ -55,7 +55,7 @@ class NuevasFuncionalidadesTest extends TestCase
     {
         $response = $this->withSession($this->adminSession())->get('/admin/dashboard');
         $response->assertStatus(200);
-        $response->assertSee('General');
+        $response->assertSee('Panel Administrativo');
         $response->assertSee('Clientes');
         $response->assertSee('Proveedores');
     }
@@ -99,7 +99,7 @@ class NuevasFuncionalidadesTest extends TestCase
         $response = $this->withSession($this->clienteSession())->get('/cliente/forecast');
         $response->assertStatus(200);
         $response->assertSee('Forecast');
-        $response->assertSee('Productos al alza');
+        $response->assertSee('Categorías al alza');
     }
 
     // ── Contactos del proveedor ──
