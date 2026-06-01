@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\APIS;
 
 use App\Http\Controllers\Controller;
-use Aws\Textract\TextractClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -762,6 +761,11 @@ class EmpresaApiController extends Controller
      */
     private function ocrConTextract(string $path): string
     {
+        // Verificar que AWS SDK esté disponible
+        if (!class_exists('\Aws\Textract\TextractClient')) {
+            return '';
+        }
+
         $accessKey = config('services.ia.aws_access_key', '');
         $secretKey = config('services.ia.aws_secret_key', '');
         $region = config('services.ia.bedrock_region', 'us-east-1');
@@ -771,7 +775,7 @@ class EmpresaApiController extends Controller
         }
 
         try {
-            $client = new TextractClient([
+            $client = new \Aws\Textract\TextractClient([
                 'region' => $region,
                 'version' => 'latest',
                 'credentials' => [
