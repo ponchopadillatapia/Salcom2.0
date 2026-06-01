@@ -542,14 +542,9 @@ class EmpresaApiController extends Controller
 
         // Construir nombre completo
         if ($datos['apellido_paterno'] || $datos['nombres']) {
-<<<<<<< HEAD
             $partes = array_filter([$datos['apellido_paterno'], $datos['apellido_materno'], $datos['nombres']]);
             $nombreCompleto = implode(' ', $partes);
         } elseif (preg_match('/NOMBRE[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+){0,4})/u', $texto, $nomGeneral)) {
-=======
-            $nombreCompleto = trim(($datos['apellido_paterno'] ?? '').' '.($datos['apellido_materno'] ?? '').' '.($datos['nombres'] ?? ''));
-        } elseif (preg_match('/NOMBRE[:\s]*([A-ZÁÉÍÓÚÑ\s]{3,})/u', $texto, $nomGeneral)) {
->>>>>>> 34033b77e6c14fb4a3aa313e5c65b5c31db03a04
             $nombreCompleto = trim($nomGeneral[1]);
         }
 
@@ -562,15 +557,10 @@ class EmpresaApiController extends Controller
                     $nombreCompleto = trim(substr($nombreCompleto, 0, $pos));
                 }
             }
-<<<<<<< HEAD
             if (strlen($nombreCompleto) > 2) {
                 $datos['nombre'] = $nombreCompleto;
                 $hallazgos[] = 'Nombre: ' . $nombreCompleto;
             }
-=======
-            $datos['nombre'] = $nombreCompleto;
-            $hallazgos[] = 'Nombre: '.$nombreCompleto;
->>>>>>> 34033b77e6c14fb4a3aa313e5c65b5c31db03a04
         }
 
         // Fecha de nacimiento
