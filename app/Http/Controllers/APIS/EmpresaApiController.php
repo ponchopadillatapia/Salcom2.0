@@ -538,6 +538,7 @@ class EmpresaApiController extends Controller
         // Nombre completo — buscar apellidos y nombre por separado
         $nombreCompleto = '';
 
+        // Método 1: Buscar por etiquetas separadas
         if (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $texto, $apP)) {
             $datos['apellido_paterno'] = trim($apP[1]);
         }
@@ -548,17 +549,39 @@ class EmpresaApiController extends Controller
             $datos['nombres'] = trim($nms[1]);
         }
 
-        // Construir nombre completo
-        if ($datos['apellido_paterno'] || $datos['nombres']) {
-            $partes = array_filter([$datos['apellido_paterno'], $datos['apellido_materno'], $datos['nombres']]);
-            $nombreCompleto = implode(' ', $partes);
-        } elseif (preg_match('/NOMBRE[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+){0,4})/u', $texto, $nomGeneral)) {
-            $nombreCompleto = trim($nomGeneral[1]);
+        // Método 2: Si Textract devuelve líneas sueltas, buscar patrones de nombre
+        if (!$datos['apellido_paterno'] && !$datos['nombres']) {
+            // Buscar 2-4 palabras en mayúsculas seguidas que parezcan nombre
+            if (preg_match('/\b([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})(?:\s+([A-ZÁÉÍÓÚÑ]{2,}))?\b/', $texto, $nombreLinea)) {
+                // Verificar que no sea una etiqueta conocida
+                $posibleNombre = trim($nombreLinea[0]);
+                $etiquetas = ['INSTITUTO NACIONAL ELECTORAL', 'CREDENCIAL PARA VOTAR', 'CLAVE DE ELECTOR', 'FECHA DE NACIMIENTO', 'APELLIDO PATERNO', 'APELLIDO MATERNO'];
+                $esEtiqueta = false;
+                foreach ($etiquetas as $et) {
+                    if (str_contains($posibleNombre, $et)) { $esEtiqueta = true; break; }
+                }
+                if (!$esEtiqueta && strlen($posibleNombre) > 5) {
+                    $nombreCompleto = $posibleNombre;
+                }
+            }
         }
 
-        // Limpiar nombre — quitar cualquier etiqueta que se haya colado
+        // Construir nombre completo desde partes
+        if (!$nombreCompleto && ($datos['apellido_paterno'] || $datos['nombres'])) {
+            $partes = array_filter([$datos['apellido_paterno'], $datos['apellido_materno'], $datos['nombres']]);
+            $nombreCompleto = implode(' ', $partes);
+        }
+
+        // Método 3: Buscar cualquier línea con NOMBRE:
+        if (!$nombreCompleto) {
+            if (preg_match('/NOMBRE[:\s]+([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+){0,3})/u', $texto, $nomGeneral)) {
+                $nombreCompleto = trim($nomGeneral[1]);
+            }
+        }
+
+        // Limpiar nombre
         if ($nombreCompleto) {
-            $palabrasCorte = ['DOMICILIO', 'CLAVE', 'CURP', 'FECHA', 'SECCION', 'ESTADO', 'MUNICIPIO', 'LOCALIDAD', 'VIGENCIA', 'INSTITUTO', 'NACIMIENTO', 'ELECTORAL', 'CREDENCIAL'];
+            $palabrasCorte = ['DOMICILIO', 'CLAVE', 'CURP', 'FECHA', 'SECCION', 'ESTADO', 'MUNICIPIO', 'LOCALIDAD', 'VIGENCIA', 'INSTITUTO', 'NACIMIENTO', 'ELECTORAL', 'CREDENCIAL', 'NACIONAL'];
             foreach ($palabrasCorte as $pc) {
                 $pos = strpos($nombreCompleto, $pc);
                 if ($pos !== false) {
@@ -571,12 +594,10 @@ class EmpresaApiController extends Controller
             }
         }
 
-        // Si no se encontró nombre, intentar extraerlo del CURP
-        if (empty($datos['nombre']) && $datos['curp'] && strlen($datos['curp']) >= 10) {
-            // Del CURP: pos 0-1 = apellido paterno, pos 2 = apellido materno, pos 3 = nombre
-            $sexo = substr($datos['curp'], 10, 1) === 'H' ? 'Masculino' : 'Femenino';
-            $hallazgos[] = 'Nombre no extraíble (PDF escaneado) — Sexo: ' . $sexo;
-            $hallazgos[] = 'Para ver el nombre completo, suba un PDF con texto seleccionable o instale OCR en el servidor';
+        // Si no se encontró nombre, Textract debería haberlo leído
+        // Si aún así no hay nombre, es que el PDF no tiene texto extraíble
+        if (empty($datos['nombre']) && $datos['curp']) {
+            $datos['nombre'] = 'Ver documento físico';
         }
 
         // Fecha de nacimiento
