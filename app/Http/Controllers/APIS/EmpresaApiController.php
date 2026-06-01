@@ -209,40 +209,56 @@ class EmpresaApiController extends Controller
 
         // Nombre / Razón social
         if ($esMoral) {
-            preg_match('/(?:RAZON SOCIAL|DENOMINACION)[:\s]*([A-Z0-9ÑÁÉÍÓÚü&\s,\.\-]+)/ui', $texto, $nm);
-        } else {
-            // Persona Física: buscar nombre completo (apellidos + nombre)
-            if (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $ap)) {
-                $apellidoP = trim($ap[1]);
-                $apellidoM = '';
-                $nombres = '';
-                if (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $am)) {
-                    $apellidoM = trim($am[1]);
+            // Buscar razón social — solo palabras válidas, cortar en etiquetas
+            if (preg_match('/(?:RAZON\s*SOCIAL|DENOMINACION)[:\s]*([A-Z0-9ÑÁÉÍÓÚü&\s,\.\-]+)/ui', $texto, $nm)) {
+                $nombreRaw = trim($nm[1]);
+                // Cortar en etiquetas comunes del CIF
+                $corteCif = ['IDCIF', 'ID CIF', 'TIPO', 'REGIMEN', 'FECHA', 'DOMICILIO', 'CODIGO', 'RFC', 'CURP', 'CLAVE', 'OBLIGACIONES', 'SITUACION', 'CONSTANCIA'];
+                foreach ($corteCif as $pc) {
+                    $pos = strpos($nombreRaw, $pc);
+                    if ($pos !== false) {
+                        $nombreRaw = trim(substr($nombreRaw, 0, $pos));
+                    }
                 }
-                if (preg_match('/NOMBRE\s*\(S\)[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $nms)) {
-                    $nombres = trim($nms[1]);
-                } elseif (preg_match('/NOMBRE[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $nms2)) {
-                    $nombres = trim($nms2[1]);
+                if (strlen($nombreRaw) > 2) {
+                    $datos['nombre'] = $nombreRaw;
+                    $hallazgos[] = 'Razón Social: ' . $nombreRaw;
+                } else {
+                    $datos['nombre'] = 'NO DETECTADO';
                 }
-                $nm = [1 => trim("{$apellidoP} {$apellidoM} {$nombres}")];
             } else {
-                preg_match('/(?:NOMBRE\s*(?:\(S\))?|CONTRIBUYENTE)[:\s]*([A-ZÁÉÍÓÚÑ\s]+)/u', $texto, $nm);
+                $datos['nombre'] = 'NO DETECTADO';
             }
-        }
-        if (! empty($nm[1]) && strlen(trim($nm[1])) > 2) {
-            $nombreRaw = trim($nm[1]);
-            $nombreRaw = preg_replace('/^[A-Z]\s+/', '', $nombreRaw);
-            $palabrasCorte = ['NOMBRE', 'RFC', 'CURP', 'DOMICILIO', 'REGIMEN', 'CODIGO', 'FECHA', 'CLAVE', 'TIPO', 'ESTADO', 'MUNICIPIO', 'COLONIA', 'CALLE', 'NUMERO', 'LOCALIDAD', 'ENTRE', 'TELEFONO', 'CORREO', 'SITUACION', 'OBLIGACIONES', 'APELLIDO'];
-            foreach ($palabrasCorte as $pc) {
-                $pos = strpos($nombreRaw, $pc);
-                if ($pos !== false && $pos > 3) {
-                    $nombreRaw = trim(substr($nombreRaw, 0, $pos));
+        } else {
+            // Persona Física: buscar nombre completo
+            $nombreFisico = '';
+            if (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $texto, $ap)) {
+                $nombreFisico = trim($ap[1]);
+                if (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $texto, $am)) {
+                    $nombreFisico .= ' ' . trim($am[1]);
+                }
+                if (preg_match('/NOMBRE\s*(?:\(S\))?[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $texto, $nms)) {
+                    $nombreFisico .= ' ' . trim($nms[1]);
+                }
+            } elseif (preg_match('/(?:NOMBRE|CONTRIBUYENTE)[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+){0,4})/u', $texto, $nm)) {
+                $nombreFisico = trim($nm[1]);
+            }
+
+            // Limpiar
+            $corteCif = ['RFC', 'CURP', 'DOMICILIO', 'REGIMEN', 'CODIGO', 'FECHA', 'CLAVE', 'TIPO', 'OBLIGACIONES', 'SITUACION', 'CONSTANCIA'];
+            foreach ($corteCif as $pc) {
+                $pos = strpos($nombreFisico, $pc);
+                if ($pos !== false) {
+                    $nombreFisico = trim(substr($nombreFisico, 0, $pos));
                 }
             }
-            $datos['nombre'] = trim($nombreRaw);
-            $hallazgos[] = 'Nombre: '.$datos['nombre'];
-        } else {
-            $datos['nombre'] = 'NO DETECTADO';
+
+            if (strlen($nombreFisico) > 2) {
+                $datos['nombre'] = $nombreFisico;
+                $hallazgos[] = 'Nombre: ' . $nombreFisico;
+            } else {
+                $datos['nombre'] = 'NO DETECTADO';
+            }
         }
 
         // Fecha de nacimiento (solo Persona Física)
@@ -262,9 +278,22 @@ class EmpresaApiController extends Controller
         }
 
         // Régimen fiscal
-        if (preg_match('/REGIMEN[:\s]*([\w\s,\.]+?)(?:\n|FECHA|DOMICILIO|OBLIGACIONES)/u', $texto, $reg)) {
-            $datos['regimen'] = trim($reg[1]);
-            $hallazgos[] = 'Régimen: '.$datos['regimen'];
+        if (preg_match('/REGIMEN[:\s]*([A-ZÁÉÍÓÚÑ\s,\.]+?)(?=FECHA|DOMICILIO|OBLIGACIONES|CODIGO|\d{2}\/)/u', $texto, $reg)) {
+            $regimenRaw = trim($reg[1]);
+            // Limpiar etiquetas
+            $corteReg = ['FECHA', 'INICIO', 'DOMICILIO', 'OBLIGACIONES', 'CODIGO'];
+            foreach ($corteReg as $pc) {
+                $pos = strpos($regimenRaw, $pc);
+                if ($pos !== false) {
+                    $regimenRaw = trim(substr($regimenRaw, 0, $pos));
+                }
+            }
+            if (strlen($regimenRaw) > 3) {
+                $datos['regimen'] = $regimenRaw;
+                $hallazgos[] = 'Régimen: ' . $regimenRaw;
+            } else {
+                $hallazgos[] = 'Se detectó mención de Régimen Fiscal';
+            }
         } elseif (str_contains($texto, 'REGIMEN')) {
             $hallazgos[] = 'Se detectó mención de Régimen Fiscal';
         } else {
@@ -499,34 +528,37 @@ class EmpresaApiController extends Controller
         // Nombre completo — buscar apellidos y nombre por separado
         $nombreCompleto = '';
 
-        if (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ\s]+?)(?=APELLIDO|NOMBRE|\d|$)/u', $texto, $apP)) {
+        if (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $texto, $apP)) {
             $datos['apellido_paterno'] = trim($apP[1]);
         }
-        if (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ\s]+?)(?=NOMBRE|CURP|CLAVE|\d|$)/u', $texto, $apM)) {
+        if (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $texto, $apM)) {
             $datos['apellido_materno'] = trim($apM[1]);
         }
-        if (preg_match('/NOMBRE\s*(?:\(S\))?[:\s]*([A-ZÁÉÍÓÚÑ\s]+?)(?=DOMICILIO|CLAVE|CURP|FECHA|SECCION|\d|$)/u', $texto, $nms)) {
+        if (preg_match('/NOMBRE\s*(?:\(S\))?[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $texto, $nms)) {
             $datos['nombres'] = trim($nms[1]);
         }
 
         // Construir nombre completo
         if ($datos['apellido_paterno'] || $datos['nombres']) {
-            $nombreCompleto = trim(($datos['apellido_paterno'] ?? '') . ' ' . ($datos['apellido_materno'] ?? '') . ' ' . ($datos['nombres'] ?? ''));
-        } elseif (preg_match('/NOMBRE[:\s]*([A-ZÁÉÍÓÚÑ\s]{3,})/u', $texto, $nomGeneral)) {
+            $partes = array_filter([$datos['apellido_paterno'], $datos['apellido_materno'], $datos['nombres']]);
+            $nombreCompleto = implode(' ', $partes);
+        } elseif (preg_match('/NOMBRE[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+){0,4})/u', $texto, $nomGeneral)) {
             $nombreCompleto = trim($nomGeneral[1]);
         }
 
-        // Limpiar nombre
+        // Limpiar nombre — quitar cualquier etiqueta que se haya colado
         if ($nombreCompleto) {
-            $palabrasCorte = ['DOMICILIO', 'CLAVE', 'CURP', 'FECHA', 'SECCION', 'ESTADO', 'MUNICIPIO', 'LOCALIDAD', 'VIGENCIA', 'INSTITUTO'];
+            $palabrasCorte = ['DOMICILIO', 'CLAVE', 'CURP', 'FECHA', 'SECCION', 'ESTADO', 'MUNICIPIO', 'LOCALIDAD', 'VIGENCIA', 'INSTITUTO', 'NACIMIENTO', 'ELECTORAL', 'CREDENCIAL'];
             foreach ($palabrasCorte as $pc) {
                 $pos = strpos($nombreCompleto, $pc);
-                if ($pos !== false && $pos > 3) {
+                if ($pos !== false) {
                     $nombreCompleto = trim(substr($nombreCompleto, 0, $pos));
                 }
             }
-            $datos['nombre'] = $nombreCompleto;
-            $hallazgos[] = 'Nombre: ' . $nombreCompleto;
+            if (strlen($nombreCompleto) > 2) {
+                $datos['nombre'] = $nombreCompleto;
+                $hallazgos[] = 'Nombre: ' . $nombreCompleto;
+            }
         }
 
         // Fecha de nacimiento
