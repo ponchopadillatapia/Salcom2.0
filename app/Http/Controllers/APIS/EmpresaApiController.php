@@ -210,23 +210,31 @@ class EmpresaApiController extends Controller
 
         // Nombre / Razón social
         if ($esMoral) {
-            // Buscar razón social — solo palabras válidas, cortar en etiquetas
-            if (preg_match('/(?:RAZON\s*SOCIAL|DENOMINACION)[:\s]*([A-Z0-9ÑÁÉÍÓÚü&\s,\.\-]+)/ui', $texto, $nm)) {
+            // Buscar razón social — después de la etiqueta, capturar el valor real
+            $nombreRaw = '';
+            if (preg_match('/(?:DENOMINACION|RAZON\s*SOCIAL)[:\s]+([A-Z0-9ÑÁÉÍÓÚü&][A-Z0-9ÑÁÉÍÓÚü&\s,\.\-]*)/ui', $texto, $nm)) {
                 $nombreRaw = trim($nm[1]);
-                // Cortar en etiquetas comunes del CIF
-                $corteCif = ['IDCIF', 'ID CIF', 'TIPO', 'REGIMEN', 'FECHA', 'DOMICILIO', 'CODIGO', 'RFC', 'CURP', 'CLAVE', 'OBLIGACIONES', 'SITUACION', 'CONSTANCIA'];
-                foreach ($corteCif as $pc) {
-                    $pos = strpos($nombreRaw, $pc);
-                    if ($pos !== false) {
-                        $nombreRaw = trim(substr($nombreRaw, 0, $pos));
-                    }
+            }
+            // Si capturó otra etiqueta como valor, buscar de otra forma
+            if (empty($nombreRaw) || preg_match('/^(O\s+)?RAZON\s*SOCIAL/i', $nombreRaw)) {
+                // Buscar después de "DENOMINACION" o buscar el nombre entre RFC y REGIMEN
+                if (preg_match('/RFC[:\s]*[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}[:\s]*(.+?)(?=REGIMEN|DOMICILIO|FECHA|TIPO)/u', $texto, $nm2)) {
+                    $nombreRaw = trim($nm2[1]);
                 }
-                if (strlen($nombreRaw) > 2) {
-                    $datos['nombre'] = $nombreRaw;
-                    $hallazgos[] = 'Razón Social: ' . $nombreRaw;
-                } else {
-                    $datos['nombre'] = 'NO DETECTADO';
+            }
+            // Cortar en etiquetas comunes del CIF
+            $corteCif = ['IDCIF', 'ID CIF', 'TIPO', 'REGIMEN', 'FECHA', 'DOMICILIO', 'CODIGO', 'RFC', 'CURP', 'CLAVE', 'OBLIGACIONES', 'SITUACION', 'CONSTANCIA', 'RAZON SOCIAL'];
+            foreach ($corteCif as $pc) {
+                $pos = strpos($nombreRaw, $pc);
+                if ($pos !== false && $pos > 0) {
+                    $nombreRaw = trim(substr($nombreRaw, 0, $pos));
                 }
+            }
+            // Quitar prefijos basura
+            $nombreRaw = preg_replace('/^[O\s]+/', '', $nombreRaw);
+            if (strlen($nombreRaw) > 2) {
+                $datos['nombre'] = $nombreRaw;
+                $hallazgos[] = 'Razón Social: ' . $nombreRaw;
             } else {
                 $datos['nombre'] = 'NO DETECTADO';
             }
@@ -565,8 +573,10 @@ class EmpresaApiController extends Controller
 
         // Si no se encontró nombre, intentar extraerlo del CURP
         if (empty($datos['nombre']) && $datos['curp'] && strlen($datos['curp']) >= 10) {
-            $iniciales = substr($datos['curp'], 0, 4);
-            $hallazgos[] = 'Iniciales del nombre (CURP): ' . $iniciales;
+            // Del CURP: pos 0-1 = apellido paterno, pos 2 = apellido materno, pos 3 = nombre
+            $sexo = substr($datos['curp'], 10, 1) === 'H' ? 'Masculino' : 'Femenino';
+            $hallazgos[] = 'Nombre no extraíble (PDF escaneado) — Sexo: ' . $sexo;
+            $hallazgos[] = 'Para ver el nombre completo, suba un PDF con texto seleccionable o instale OCR en el servidor';
         }
 
         // Fecha de nacimiento
