@@ -20,7 +20,7 @@ class AltaProductoController extends Controller
 {
     private array $unidadesValidas = ['KG', 'PZA', 'CAJA'];
 
-    private array $columnasObligatorias = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA'];
+    private array $columnasObligatorias = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO'];
 
     private array $familiasValidas = [
         'QUIMICOS', 'ELECTRICO', 'FERRETERIA', 'MANTENIMIENTO', 'SEGURIDAD',
@@ -94,7 +94,7 @@ class AltaProductoController extends Controller
 
         // Headers â€" sin columnas redundantes
         $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
-        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => true, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false];
+        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
@@ -109,18 +109,9 @@ class AltaProductoController extends Controller
             $col++;
         }
 
-        // Ejemplos (filas 2-11) - 10 productos correctos de referencia
+        // Ejemplo (fila 2) - 1 producto correcto de referencia
         $ejemplos = [
             ['MPI0538', 'PINTURA VINILICA', 'COMEX', 'VIN-100', '19LT', 'BLANCO MATE INTERIOR', 'MATERIA PRIMA', 'MPI', 'KG', 450.00, '10191509', 'SI', 'SI', 'N/A'],
-            ['ME0201', 'CAJA CARTON', 'BIOPAPPEL', 'BC-300', '40X30X25', 'CORRUGADA DOBLE PARED', 'MATERIAL EMPAQUE', 'ME', 'PZA', 22.50, '48191500', 'NO', 'NO', 'N/A'],
-            ['MN0045', 'BOMBA CENTRIFUGA', 'TRUPER', 'BOAG-1HP', '1HP', 'MONOFASICA 127V ACERO INOX', 'MANTENIMIENTO', 'MN', 'PZA', 2800.00, '26101500', 'NO', 'NO', '127V'],
-            ['MPI0539', 'ACEITE MOTOR', 'PEMEX', 'ULTRA-5W30', '5LT', 'SINTETICO GASOLINA ALTO RENDIMIENTO', 'MATERIA PRIMA', 'MPI', 'KG', 380.00, '12161800', 'SI', 'SI', 'N/A'],
-            ['ME0202', 'CINTA ADHESIVA', 'JANEL', 'TR-48', '48MMX150M', 'TRANSPARENTE EMPAQUE INDUSTRIAL', 'MATERIAL EMPAQUE', 'ME', 'CAJA', 95.00, '55121600', 'NO', 'NO', 'N/A'],
-            ['MN0046', 'MOTOR ELECTRICO', 'WEG', 'W22-3HP', '3HP', 'TRIFASICO 220/440V 1750RPM', 'MANTENIMIENTO', 'MN', 'PZA', 8500.00, '26101500', 'NO', 'NO', '220/440V'],
-            ['MPI0540', 'RESINA EPOXICA', 'HUNTSMAN', 'ARALDITE-2011', '1KG', 'BICOMPONENTE TRANSPARENTE INDUSTRIAL', 'MATERIA PRIMA', 'MPI', 'KG', 1200.00, '12161800', 'SI', 'SI', 'N/A'],
-            ['ME0203', 'ETIQUETA ADHESIVA', 'AVERY', 'ET-5160', '100X50MM', 'TERMICA DIRECTA BLANCA ROLLO 1000PZ', 'MATERIAL EMPAQUE', 'ME', 'CAJA', 180.00, '55121600', 'NO', 'NO', 'N/A'],
-            ['MN0047', 'TALADRO ROTOMARTILLO', 'BOSCH', 'GBH-2-26', '800W', 'PERCUTOR SDS PLUS 3 FUNCIONES', 'MANTENIMIENTO', 'MN', 'PZA', 3400.00, '27111500', 'NO', 'NO', '127V'],
-            ['MPI0541', 'SOLVENTE INDUSTRIAL', 'DUPONT', 'SOL-THN', '20LT', 'THINNER ESTANDAR SECADO RAPIDO', 'MATERIA PRIMA', 'MPI', 'KG', 650.00, '12161800', 'SI', 'SI', 'N/A'],
         ];
 
         foreach ($ejemplos as $rowIdx => $ejemplo) {
@@ -290,7 +281,8 @@ class AltaProductoController extends Controller
             '',
             'â*â*â* COLUMNAS DEL EXCEL (en orden) â*â*â*',
             'CODIGO â€" Codigo unico del producto (ej: MPI0538, ME0201)',
-            'NOMBRE_TIPO â€" Que es el producto (ej: MOTOR ELECTRICO, RESINA EPOXICA)',
+            'NOMBRE_TIPO - Que es el producto (ej: MOTOR ELECTRICO, RESINA EPOXICA)',
+            '  IMPORTANTE: Minimo 2 palabras (PINTURA VINILICA, no solo PINTURA)',
             'NOMBRE_MARCA â€" Quien lo fabrica (ej: WEG, SKF, 3M, ALPHA)',
             'NOMBRE_MODELO â€" Referencia del fabricante (ej: W22, IND-500, CP-40)',
             'NOMBRE_MEDIDA â€" Tamano con numeros (ej: 500ML, 3HP, 40X30X25)',
@@ -311,9 +303,12 @@ class AltaProductoController extends Controller
             '',
             'â*â*â* REGLAS GENERALES â*â*â*',
             'Todo en MAYUSCULAS, sin acentos ni caracteres especiales',
+            'NOMBRE_TIPO debe tener MINIMO 2 PALABRAS (ej: PINTURA VINILICA, no solo PINTURA)',
             'NOMBRE_MEDIDA debe tener numeros (500ML, 3HP, 40X30X25)',
+            'NOMBRE_ESPECIFICACION no debe repetir datos de otros campos',
             'NOMBRE_TIPO no puede ser una marca (WEG, SKF van en NOMBRE_MARCA)',
             'NOMBRE_MARCA no puede ser una medida (3HP, 500ML van en NOMBRE_MEDIDA)',
+            'PRECIO debe llevar $ al inicio (ej: $150.50). Si no sabes el precio, dejalo vacio',
             'No repetir productos que ya existen en el catalogo',
             '',
             'â*â*â* SI LA IA RECHAZA TU ARCHIVO â*â*â*',
@@ -483,7 +478,15 @@ Si todo esta correcto: {"errores_ia": []}';
                         $iaResult = json_decode(trim($contenido), true);
                         if ($iaResult && ! empty($iaResult['errores_ia'])) {
                             // Lista de tipos aprobados - si la IA rechaza uno de estos, ignorar el error
-                            $tiposAprobados = ['TELEFONO CELULAR', 'TELEFONO MOVIL', 'SMARTPHONE', 'PINTURA VINILICA', 'PINTURA ESMALTE', 'MOTOR ELECTRICO', 'BOMBA AGUA', 'BOMBA CENTRIFUGA', 'ACEITE MOTOR', 'CINTA ADHESIVA', 'CAJA CARTON', 'CAJA CORRUGADA', 'LAPTOP', 'TABLET', 'COMPUTADORA', 'IMPRESORA', 'MONITOR', 'TECLADO', 'MOUSE', 'CABLE ELECTRICO', 'FOCO LED', 'LAMPARA', 'TORNILLO', 'TUERCA', 'RESINA EPOXICA', 'PIGMENTO ORGANICO', 'SOLVENTE INDUSTRIAL', 'ADHESIVO ESTRUCTURAL', 'BOLSA PLASTICO', 'ETIQUETA ADHESIVA', 'FLEJE ACERO', 'TALADRO ROTOMARTILLO', 'INSECTICIDA', 'DETERGENTE INDUSTRIAL', 'CELULAR', 'TELEFONO'];
+                            $tiposAprobados = ['TELEFONO CELULAR', 'TELEFONO MOVIL', 'SMARTPHONE', 'PINTURA VINILICA', 'PINTURA ESMALTE', 'MOTOR ELECTRICO', 'BOMBA AGUA', 'BOMBA CENTRIFUGA', 'ACEITE MOTOR', 'CINTA ADHESIVA', 'CAJA CARTON', 'CAJA CORRUGADA', 'LAPTOP', 'TABLET', 'COMPUTADORA', 'IMPRESORA', 'MONITOR', 'TECLADO', 'MOUSE', 'CABLE ELECTRICO', 'FOCO LED', 'LAMPARA', 'TORNILLO', 'TUERCA', 'RESINA EPOXICA', 'PIGMENTO ORGANICO', 'SOLVENTE INDUSTRIAL', 'ADHESIVO ESTRUCTURAL', 'BOLSA PLASTICO', 'ETIQUETA ADHESIVA', 'FLEJE ACERO', 'TALADRO ROTOMARTILLO', 'INSECTICIDA', 'DETERGENTE INDUSTRIAL', 'CELULAR', 'TELEFONO', 'CAMISETA DEPORTIVA', 'BALON DE FUTBOL'];
+
+                            // Agregar tipos que ya existen en la BD (si ya se dio de alta, es valido)
+                            $tiposEnBD = Producto::select('nombre')->distinct()->get()->pluck('nombre')->map(function ($nombre) {
+                                // Extraer las primeras 2 palabras como "tipo"
+                                $palabras = explode(' ', strtoupper(trim($nombre)));
+                                return implode(' ', array_slice($palabras, 0, 2));
+                            })->unique()->toArray();
+                            $tiposAprobados = array_unique(array_merge($tiposAprobados, $tiposEnBD));
 
                             foreach ($iaResult['errores_ia'] as $errIA) {
                                 $filaIA = (int) ($errIA['fila'] ?? 0);
@@ -579,7 +582,7 @@ Si todo esta correcto: {"errores_ia": []}';
         ]);
 
         if ($estatus === 'validado') {
-            // Dar de alta automaticamente â€" crear productos en la BD
+            // TODOS validados - dar de alta todos
             foreach ($productos as $prod) {
                 $nombreCompleto = trim(
                     strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.
@@ -606,7 +609,6 @@ Si todo esta correcto: {"errores_ia": []}';
                 );
             }
 
-            // Construir mensaje de exito con detalle de productos
             $listaProductos = [];
             foreach ($productos as $prod) {
                 $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
@@ -634,10 +636,50 @@ Si todo esta correcto: {"errores_ia": []}';
             return back()->with('mensaje', $mensajeExito);
         }
 
+        // Hay errores - dar de alta los validos y mostrar errores de los demas
+        $filasConErrorFinal = array_unique(array_column($errores, 'fila'));
+        $productosAlta = [];
+        foreach ($productos as $index => $prod) {
+            $fila = $index + 2;
+            if (!in_array($fila, $filasConErrorFinal)) {
+                $nombreCompleto = trim(
+                    strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.
+                    strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.
+                    strtoupper(trim($prod['NOMBRE_MODELO'] ?? '')).' '.
+                    strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? '')).' '.
+                    strtoupper(trim($prod['NOMBRE_ESPECIFICACION'] ?? ''))
+                );
+
+                Producto::updateOrCreate(
+                    ['codigo' => strtoupper(trim($prod['CODIGO'] ?? ''))],
+                    [
+                        'nombre' => $nombreCompleto,
+                        'categoria' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
+                        'familia' => strtoupper(trim($prod['FAMILIA'] ?? '')),
+                        'tipo_producto' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
+                        'unidad_venta' => strtoupper(trim($prod['UNIDAD_MEDIDA'] ?? '')),
+                        'precio' => (float) str_replace(['$', ','], '', $prod['PRECIO'] ?? '0'),
+                        'clave_sat' => trim($prod['CLAVE_SAT'] ?? ''),
+                        'maneja_lotes' => strtoupper(trim($prod['LOTE'] ?? '')) === 'SI',
+                        'activo' => true,
+                        'stock' => 0,
+                    ]
+                );
+                $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
+                $nombre = strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
+                $productosAlta[] = "{$codigo} - {$nombre}";
+            }
+        }
+
         // Tiene errores - generar Excel con correcciones (solo celdas en rojo)
 
         $fullPath = $this->generarExcelConErrores($productos, $errores);
         $relativePath = str_replace(storage_path('app/public/'), '', $fullPath);
+
+        // Ordenar errores por numero de fila
+        usort($errores, function ($a, $b) {
+            return $a['fila'] <=> $b['fila'];
+        });
 
         $errorMsg = "ERROR: El Excel tiene {$conError} producto(s) con errores.\n\n";
         $errorMsg .= "Las celdas con error estan marcadas en ROJO en el Excel descargable.\n";
@@ -675,9 +717,24 @@ Si todo esta correcto: {"errores_ia": []}';
             $errorMsg .= "\n... y ".(count($errores) - 20)." errores mas.\n";
         }
 
-        return back()
+        // Si hubo productos que si se dieron de alta, agregar mensaje de exito
+        $mensajeExito = null;
+        if (!empty($productosAlta)) {
+            $mensajeExito = "OK - ".count($productosAlta)." producto(s) SI se dieron de alta:\n";
+            foreach ($productosAlta as $item) {
+                $mensajeExito .= "* {$item}\n";
+            }
+        }
+
+        $response = back()
             ->with('error', $errorMsg)
             ->with('archivo_correcciones', $relativePath);
+
+        if ($mensajeExito) {
+            $response = $response->with('mensaje', $mensajeExito);
+        }
+
+        return $response;
     }
 
     /**
@@ -697,7 +754,7 @@ Si todo esta correcto: {"errores_ia": []}';
 
         // Headers con mismo formato del template (morado)
         $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
-        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => true, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false];
+        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
@@ -729,6 +786,11 @@ Si todo esta correcto: {"errores_ia": []}';
         $listSheet->setCellValue('C3', 'MN');
         $listSheet->setCellValue('D1', 'SI');
         $listSheet->setCellValue('D2', 'NO');
+        // Voltajes
+        $voltajes = ['110V', '127V', '220V', '220/440V', '110/220V', '440V', '480V', '12VDC', '24VDC', '3HP', '5HP', '10HP', '60Hz', 'N/A'];
+        foreach ($voltajes as $i => $volt) {
+            $listSheet->setCellValue('E'.($i + 1), $volt);
+        }
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
         // Volver a hoja principal
@@ -798,6 +860,11 @@ Si todo esta correcto: {"errores_ia": []}';
             $v = $sheet->getCell('M'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
             $v->setFormula1('_Listas!$D$1:$D$2');
+
+            // VOLTAJE
+            $v = $sheet->getCell('N'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$E$1:$E$'.count($voltajes));
         }
 
         // Formato moneda para PRECIO
@@ -1174,7 +1241,7 @@ Si todo esta correcto: {"errores_ia": []}';
 
         // â*â*â* 6. DUPLICADOS INTELIGENTES â*â*â*
         if ($nombre) {
-            // Buscar duplicado exacto
+            // Buscar duplicado exacto (sin espacios)
             $nombreNorm = strtoupper(str_replace(' ', '', Str::ascii($nombre)));
             $existe = Producto::whereRaw("UPPER(REPLACE(nombre, ' ', '')) = ?", [$nombreNorm])->exists();
             if ($existe) {
@@ -1184,16 +1251,42 @@ Si todo esta correcto: {"errores_ia": []}';
                     'error' => 'DUPLICADO: Este producto ya existe en el catalogo',
                 ];
             } else {
-                // Buscar similares (primeras 3 palabras iguales = posible duplicado)
-                $primeras3 = implode(' ', array_slice(explode(' ', strtoupper(Str::ascii($nombre))), 0, 3));
-                if (strlen($primeras3) > 5) {
-                    $similar = Producto::where('nombre', 'LIKE', $primeras3.'%')->first();
-                    if ($similar) {
-                        $errores[] = [
-                            'fila' => $fila,
-                            'campo' => 'NOMBRE',
-                            'error' => "POSIBLE DUPLICADO: Ya existe '{$similar->nombre}' ({$similar->codigo}). Verifica que no sea el mismo producto.",
-                        ];
+                // Buscar duplicado con palabras en diferente orden
+                // "INDUSTRIAL SOLVENTE" = "SOLVENTE INDUSTRIAL"
+                $palabrasNombre = explode(' ', strtoupper(Str::ascii($nombre)));
+                sort($palabrasNombre);
+                $nombreOrdenado = implode(' ', $palabrasNombre);
+
+                $productosExistentes = Producto::select('nombre', 'codigo')->get();
+                $duplicadoOrden = null;
+                foreach ($productosExistentes as $prodExistente) {
+                    $palabrasExistente = explode(' ', strtoupper(Str::ascii($prodExistente->nombre)));
+                    sort($palabrasExistente);
+                    $existenteOrdenado = implode(' ', $palabrasExistente);
+                    if ($nombreOrdenado === $existenteOrdenado) {
+                        $duplicadoOrden = $prodExistente;
+                        break;
+                    }
+                }
+
+                if ($duplicadoOrden) {
+                    $errores[] = [
+                        'fila' => $fila,
+                        'campo' => 'NOMBRE',
+                        'error' => "DUPLICADO: Ya existe '{$duplicadoOrden->nombre}' ({$duplicadoOrden->codigo}) con las mismas palabras en diferente orden.",
+                    ];
+                } else {
+                    // Buscar similares (primeras 3 palabras iguales = posible duplicado)
+                    $primeras3 = implode(' ', array_slice(explode(' ', strtoupper(Str::ascii($nombre))), 0, 3));
+                    if (strlen($primeras3) > 5) {
+                        $similar = Producto::where('nombre', 'LIKE', $primeras3.'%')->first();
+                        if ($similar) {
+                            $errores[] = [
+                                'fila' => $fila,
+                                'campo' => 'NOMBRE',
+                                'error' => "POSIBLE DUPLICADO: Ya existe '{$similar->nombre}' ({$similar->codigo}). Verifica que no sea el mismo producto.",
+                            ];
+                        }
                     }
                 }
             }
