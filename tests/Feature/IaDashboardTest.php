@@ -56,7 +56,7 @@ class IaDashboardTest extends TestCase
     {
         Http::fake(['*' => Http::response(['content' => [['text' => 'Análisis generado']]], 200)]);
         config(['services.ia.provider' => 'anthropic']);
-        config(['services.ia.anthropic_key' => 'test-key']);
+        config(['services.anthropic.api_key' => 'test-key']);
 
         $response = $this->withSession($this->adminSession())->post('/admin/ia/pronostico', [
             'codigo_cliente' => 'CLI-001',
@@ -81,7 +81,7 @@ class IaDashboardTest extends TestCase
     {
         Http::fake(['*' => Http::response(['content' => [['text' => 'Recomendaciones']]], 200)]);
         config(['services.ia.provider' => 'anthropic']);
-        config(['services.ia.anthropic_key' => 'test-key']);
+        config(['services.anthropic.api_key' => 'test-key']);
 
         $response = $this->withSession($this->adminSession())->post('/admin/ia/inventario');
 
@@ -99,7 +99,7 @@ class IaDashboardTest extends TestCase
     {
         Http::fake(['*' => Http::response(['content' => [['text' => 'Proveedor recomendado']]], 200)]);
         config(['services.ia.provider' => 'anthropic']);
-        config(['services.ia.anthropic_key' => 'test-key']);
+        config(['services.anthropic.api_key' => 'test-key']);
 
         $response = $this->withSession($this->adminSession())->post('/admin/ia/proveedor', [
             'producto_id' => 'SAL-001',
@@ -119,7 +119,7 @@ class IaDashboardTest extends TestCase
     {
         Http::fake(['*' => Http::response([], 500)]);
         config(['services.ia.provider' => 'anthropic']);
-        config(['services.ia.anthropic_key' => 'test-key']);
+        config(['services.anthropic.api_key' => 'test-key']);
 
         $response = $this->withSession($this->adminSession())->post('/admin/ia/pronostico', [
             'codigo_cliente' => 'CLI-001',

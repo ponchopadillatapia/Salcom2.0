@@ -99,7 +99,7 @@ class AltaProductoController extends Controller
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
             $sheet->getStyle($col.'1')->getFont()->setBold(true);
-            if ($obligatorios[$header] ?? false) {
+            if ($obligatorios[$header]) {
                 $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
             } else {
                 $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
@@ -109,13 +109,18 @@ class AltaProductoController extends Controller
             $col++;
         }
 
-        // Ejemplos (filas 2-6)
+        // Ejemplos (filas 2-11) - 10 productos correctos de referencia
         $ejemplos = [
-            ['MPI0538', 'PINTURA VINILICA', 'COMEX', 'VIN-100', '19LT', 'BLANCO MATE INTERIOR', 'MATERIA PRIMA', 'MPI', 'KG', '$450.00', '10191509', 'SI', 'SI', 'N/A'],
-            ['ME0201', 'CAJA CARTON', 'BIOPAPPEL', 'BC-300', '40X30X25', 'CORRUGADA DOBLE PARED', 'MATERIAL EMPAQUE', 'ME', 'PZA', '$22.50', '48191500', 'NO', 'NO', 'N/A'],
-            ['MN0045', 'BOMBA AGUA', 'TRUPER', 'BOAG-1HP', '1HP', 'CENTRIFUGA 127V', 'MANTENIMIENTO', 'MN', 'PZA', '$2,800.00', '26101500', 'NO', 'NO', '127V'],
-            ['MPI0539', 'ACEITE MOTOR', 'PEMEX', 'ULTRA-5W30', '5LT', 'SINTETICO GASOLINA', 'MATERIA PRIMA', 'MPI', 'KG', '$380.00', '12161800', 'SI', 'SI', 'N/A'],
-            ['ME0202', 'CINTA ADHESIVA', 'JANEL', 'TR-48', '48MMX150M', 'TRANSPARENTE EMPAQUE', 'MATERIAL EMPAQUE', 'ME', 'CAJA', '$95.00', '55121600', 'NO', 'NO', 'N/A'],
+            ['MPI0538', 'PINTURA VINILICA', 'COMEX', 'VIN-100', '19LT', 'BLANCO MATE INTERIOR', 'MATERIA PRIMA', 'MPI', 'KG', 450.00, '10191509', 'SI', 'SI', 'N/A'],
+            ['ME0201', 'CAJA CARTON', 'BIOPAPPEL', 'BC-300', '40X30X25', 'CORRUGADA DOBLE PARED', 'MATERIAL EMPAQUE', 'ME', 'PZA', 22.50, '48191500', 'NO', 'NO', 'N/A'],
+            ['MN0045', 'BOMBA CENTRIFUGA', 'TRUPER', 'BOAG-1HP', '1HP', 'MONOFASICA 127V ACERO INOX', 'MANTENIMIENTO', 'MN', 'PZA', 2800.00, '26101500', 'NO', 'NO', '127V'],
+            ['MPI0539', 'ACEITE MOTOR', 'PEMEX', 'ULTRA-5W30', '5LT', 'SINTETICO GASOLINA ALTO RENDIMIENTO', 'MATERIA PRIMA', 'MPI', 'KG', 380.00, '12161800', 'SI', 'SI', 'N/A'],
+            ['ME0202', 'CINTA ADHESIVA', 'JANEL', 'TR-48', '48MMX150M', 'TRANSPARENTE EMPAQUE INDUSTRIAL', 'MATERIAL EMPAQUE', 'ME', 'CAJA', 95.00, '55121600', 'NO', 'NO', 'N/A'],
+            ['MN0046', 'MOTOR ELECTRICO', 'WEG', 'W22-3HP', '3HP', 'TRIFASICO 220/440V 1750RPM', 'MANTENIMIENTO', 'MN', 'PZA', 8500.00, '26101500', 'NO', 'NO', '220/440V'],
+            ['MPI0540', 'RESINA EPOXICA', 'HUNTSMAN', 'ARALDITE-2011', '1KG', 'BICOMPONENTE TRANSPARENTE INDUSTRIAL', 'MATERIA PRIMA', 'MPI', 'KG', 1200.00, '12161800', 'SI', 'SI', 'N/A'],
+            ['ME0203', 'ETIQUETA ADHESIVA', 'AVERY', 'ET-5160', '100X50MM', 'TERMICA DIRECTA BLANCA ROLLO 1000PZ', 'MATERIAL EMPAQUE', 'ME', 'CAJA', 180.00, '55121600', 'NO', 'NO', 'N/A'],
+            ['MN0047', 'TALADRO ROTOMARTILLO', 'BOSCH', 'GBH-2-26', '800W', 'PERCUTOR SDS PLUS 3 FUNCIONES', 'MANTENIMIENTO', 'MN', 'PZA', 3400.00, '27111500', 'NO', 'NO', '127V'],
+            ['MPI0541', 'SOLVENTE INDUSTRIAL', 'DUPONT', 'SOL-THN', '20LT', 'THINNER ESTANDAR SECADO RAPIDO', 'MATERIA PRIMA', 'MPI', 'KG', 650.00, '12161800', 'SI', 'SI', 'N/A'],
         ];
 
         foreach ($ejemplos as $rowIdx => $ejemplo) {
@@ -126,6 +131,9 @@ class AltaProductoController extends Controller
                 $col++;
             }
         }
+
+        // Formato moneda ($) para columna PRECIO (J) - se ve el $ pero es numero
+        $sheet->getStyle('J2:J101')->getNumberFormat()->setFormatCode('$#,##0.00');
 
         // â*â*â* HOJA OCULTA: Listas de validacion â*â*â*
         $listSheet = $spreadsheet->createSheet();
@@ -397,8 +405,21 @@ class AltaProductoController extends Controller
         try {
             $iaService = new IaService;
             $productosParaIA = [];
+
+            // Identificar filas con error de DUPLICADO - no enviarlas a la IA
+            $filasDuplicadas = [];
+            foreach ($errores as $err) {
+                if (str_contains($err['error'], 'DUPLICADO')) {
+                    $filasDuplicadas[] = $err['fila'];
+                }
+            }
+
             foreach ($productos as $index => $prod) {
                 $fila = $index + 2;
+                // No enviar duplicados a la IA - ya pasaron validacion antes
+                if (in_array($fila, $filasDuplicadas)) {
+                    continue;
+                }
                 $productosParaIA[] = [
                     'fila_excel' => $fila,
                     'nombre_tipo' => $prod['NOMBRE_TIPO'] ?? '',
@@ -411,7 +432,7 @@ class AltaProductoController extends Controller
                 ];
             }
 
-            if (!empty($productosParaIA)) {
+            if (! empty($productosParaIA)) {
                 // Enviar en lotes de 15 para no exceder tokens
                 $lotes = array_chunk($productosParaIA, 15);
                 foreach ($lotes as $lote) {
@@ -437,11 +458,17 @@ REGLAS CRITICAS:
 7. Si NOMBRE_TIPO tiene 2+ palabras y describe QUE ES el producto = VALIDO (TELEFONO MOVIL, PINTURA VINILICA, MOTOR ELECTRICO son CORRECTOS, NO los rechaces)
 8. NO rechaces un NOMBRE_TIPO que esta en la lista de tipos aprobados
 9. MOVIL, ELECTRICO, VINILICA, CENTRIFUGA son calificadores validos del tipo, NO son "adjetivos de acabado"
+10. NOMBRE_ESPECIFICACION NO debe repetir informacion de NOMBRE_TIPO, NOMBRE_MARCA ni NOMBRE_MEDIDA. Debe ser informacion NUEVA (material, color, acabado, uso, tecnologia).
 
 OBLIGATORIO - SUGERENCIA:
-Para CADA error, SIEMPRE incluye el campo "sugerencia" con el valor EXACTO que deberia ir en esa celda.
-El proveedor va a COPIAR Y PEGAR tu sugerencia directamente, asi que debe ser el valor final correcto en MAYUSCULAS.
-Usa TODA la informacion disponible del producto (los otros campos) para inferir la mejor sugerencia posible.
+Para CADA error, SIEMPRE incluye el campo "sugerencia" con el valor que deberia ir en esa celda.
+- Si puedes inferir el valor correcto con la informacion de los otros campos, pon el valor exacto.
+- Si NO tienes suficiente informacion para saber el valor real, pon un ejemplo entre parentesis con la palabra EJEMPLO: asi el proveedor sabe que debe poner SU dato real.
+  Ejemplo: "(EJEMPLO: 256GB NEGRO TITANIO)" o "(EJEMPLO: CENTRIFUGA 127V)"
+- La sugerencia debe estar en MAYUSCULAS.
+- NO inventes datos especificos del producto si no los conoces.
+- IMPORTANTE: La sugerencia NO debe repetir informacion que ya esta en otros campos del producto. Si sugieres NOMBRE_ESPECIFICACION, NO pongas el nombre del tipo, la marca ni la medida.
+- Si un campo ya tiene un valor correcto, NO lo incluyas como error.
 
 Productos: '.json_encode($lote, JSON_UNESCAPED_UNICODE).'
 
@@ -454,13 +481,15 @@ Si todo esta correcto: {"errores_ia": []}';
                         $contenido = preg_replace('/```json\s*/', '', $resultado['content']);
                         $contenido = preg_replace('/```\s*/', '', $contenido);
                         $iaResult = json_decode(trim($contenido), true);
-                        if ($iaResult && !empty($iaResult['errores_ia'])) {
+                        if ($iaResult && ! empty($iaResult['errores_ia'])) {
                             // Lista de tipos aprobados - si la IA rechaza uno de estos, ignorar el error
                             $tiposAprobados = ['TELEFONO CELULAR', 'TELEFONO MOVIL', 'SMARTPHONE', 'PINTURA VINILICA', 'PINTURA ESMALTE', 'MOTOR ELECTRICO', 'BOMBA AGUA', 'BOMBA CENTRIFUGA', 'ACEITE MOTOR', 'CINTA ADHESIVA', 'CAJA CARTON', 'CAJA CORRUGADA', 'LAPTOP', 'TABLET', 'COMPUTADORA', 'IMPRESORA', 'MONITOR', 'TECLADO', 'MOUSE', 'CABLE ELECTRICO', 'FOCO LED', 'LAMPARA', 'TORNILLO', 'TUERCA', 'RESINA EPOXICA', 'PIGMENTO ORGANICO', 'SOLVENTE INDUSTRIAL', 'ADHESIVO ESTRUCTURAL', 'BOLSA PLASTICO', 'ETIQUETA ADHESIVA', 'FLEJE ACERO', 'TALADRO ROTOMARTILLO', 'INSECTICIDA', 'DETERGENTE INDUSTRIAL', 'CELULAR', 'TELEFONO'];
 
                             foreach ($iaResult['errores_ia'] as $errIA) {
                                 $filaIA = (int) ($errIA['fila'] ?? 0);
-                                if ($filaIA < 2) continue;
+                                if ($filaIA < 2) {
+                                    continue;
+                                }
                                 $campoIA = $errIA['campo'] ?? 'NOMBRE_TIPO';
 
                                 // Si la IA rechaza NOMBRE_TIPO pero el valor esta en la lista aprobada, ignorar
@@ -474,14 +503,49 @@ Si todo esta correcto: {"errores_ia": []}';
                                     }
                                 }
 
+                                // Si la IA dice que ESPECIFICACION es similar a MEDIDA, verificar con PHP
+                                // Solo aceptar el error si realmente son similares (>60% similitud)
+                                if ($campoIA === 'NOMBRE_ESPECIFICACION') {
+                                    $idx = $filaIA - 2;
+                                    if (isset($productos[$idx])) {
+                                        $medida = strtoupper(trim($productos[$idx]['NOMBRE_MEDIDA'] ?? ''));
+                                        $espec = strtoupper(trim($productos[$idx]['NOMBRE_ESPECIFICACION'] ?? ''));
+                                        $errorTexto = strtolower($errIA['error'] ?? '');
+                                        // Si el error menciona "similar a NOMBRE_MEDIDA" o "repetir"
+                                        if ((str_contains($errorTexto, 'medida') || str_contains($errorTexto, 'repetir') || str_contains($errorTexto, 'similar')) && $medida && $espec) {
+                                            // Verificar similitud real
+                                            similar_text($medida, $espec, $porcentaje);
+                                            if ($porcentaje < 50 && $medida !== $espec) {
+                                                continue; // Falso positivo - no son similares
+                                            }
+                                        }
+                                    }
+                                }
+
                                 // No duplicar errores que PHP ya detecto
                                 $yaExiste = false;
                                 foreach ($errores as $eEx) {
-                                    if ($eEx['fila'] === $filaIA && $eEx['campo'] === $campoIA) { $yaExiste = true; break; }
+                                    if ($eEx['fila'] === $filaIA && $eEx['campo'] === $campoIA) {
+                                        $yaExiste = true;
+                                        break;
+                                    }
                                 }
-                                if (!$yaExiste) {
-                                    $mensajeError = 'IA: '.($errIA['error'] ?? 'Campo con contenido incorrecto');
+                                if (! $yaExiste) {
+                                    // Si la sugerencia es igual al valor actual, descartar (la IA se contradice)
                                     $sugerencia = $errIA['sugerencia'] ?? null;
+                                    if ($sugerencia) {
+                                        $idx = $filaIA - 2;
+                                        if (isset($productos[$idx])) {
+                                            $campoKey = $campoIA; // ej: NOMBRE_MEDIDA
+                                            $valorActual = strtoupper(trim($productos[$idx][$campoKey] ?? ''));
+                                            $sugerenciaLimpia = strtoupper(trim($sugerencia));
+                                            if ($valorActual === $sugerenciaLimpia) {
+                                                continue; // La IA sugiere lo mismo que ya tiene - falso positivo
+                                            }
+                                        }
+                                    }
+
+                                    $mensajeError = 'IA: '.($errIA['error'] ?? 'Campo con contenido incorrecto');
                                     if ($sugerencia) {
                                         $mensajeError .= " || CORRECCION: {$sugerencia}";
                                     }
@@ -542,6 +606,14 @@ Si todo esta correcto: {"errores_ia": []}';
                 );
             }
 
+            // Construir mensaje de exito con detalle de productos
+            $listaProductos = [];
+            foreach ($productos as $prod) {
+                $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
+                $nombre = strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
+                $listaProductos[] = "{$codigo} - {$nombre}";
+            }
+
             $alertEngine = new AlertEngineService;
             $alertEngine->alertar([
                 'tipo' => 'productos_alta_automatica',
@@ -554,7 +626,12 @@ Si todo esta correcto: {"errores_ia": []}';
                 'nivel' => 'info',
             ]);
 
-            return back()->with('mensaje', "OK - {$validos} productos validados y dados de alta en el catalogo.");
+            $mensajeExito = "OK - {$validos} producto(s) validados y dados de alta en el catalogo:\n";
+            foreach ($listaProductos as $item) {
+                $mensajeExito .= "* {$item}\n";
+            }
+
+            return back()->with('mensaje', $mensajeExito);
         }
 
         // Tiene errores - generar Excel con correcciones (solo celdas en rojo)
@@ -568,9 +645,31 @@ Si todo esta correcto: {"errores_ia": []}';
         $errorMsg .= "ERRORES ENCONTRADOS:\n";
         foreach (array_slice($errores, 0, 20) as $err) {
             $errorTextoLimpio = $err['error'];
-            // Quitar "COMO CORREGIR:" y dejarlo como una sola linea clara
             $errorTextoLimpio = str_replace('COMO CORREGIR: ', '-> ', $errorTextoLimpio);
-            $errorMsg .= "* Fila {$err['fila']} - {$err['campo']}: {$errorTextoLimpio}\n";
+            // Resaltar la CORRECCION con un tag HTML para que el proveedor la identifique
+            if (str_contains($errorTextoLimpio, '|| CORRECCION:')) {
+                $partes = explode('|| CORRECCION:', $errorTextoLimpio);
+                $explicacion = htmlspecialchars(trim($partes[0]));
+                $correccion = htmlspecialchars(trim($partes[1] ?? ''));
+                $errorMsg .= "* Fila {$err['fila']} - {$err['campo']}: {$explicacion} <span class=\"correccion-tag\">PON: {$correccion}</span>\n";
+            } elseif (str_contains($errorTextoLimpio, '-> ')) {
+                // Errores de PHP con sugerencia despues de ->
+                $partes = explode('-> ', $errorTextoLimpio, 2);
+                $explicacion = htmlspecialchars(trim($partes[0]));
+                $sugerenciaPHP = trim($partes[1] ?? '');
+                // Extraer solo el ejemplo concreto si hay uno entre parentesis o al inicio
+                if (preg_match('/\(ej:\s*([^)]+)\)/', $sugerenciaPHP, $matches)) {
+                    $ejemploConcreto = htmlspecialchars(trim($matches[1]));
+                    $sugerenciaPHP = htmlspecialchars($sugerenciaPHP);
+                    $errorMsg .= "* Fila {$err['fila']} - {$err['campo']}: {$explicacion} <span class=\"correccion-tag\">EJEMPLO: {$ejemploConcreto}</span>\n";
+                } else {
+                    $sugerenciaPHP = htmlspecialchars($sugerenciaPHP);
+                    $errorMsg .= "* Fila {$err['fila']} - {$err['campo']}: {$explicacion} <span class=\"correccion-tag\">PON: {$sugerenciaPHP}</span>\n";
+                }
+            } else {
+                $errorTextoLimpio = htmlspecialchars($errorTextoLimpio);
+                $errorMsg .= "* Fila {$err['fila']} - {$err['campo']}: {$errorTextoLimpio}\n";
+            }
         }
         if (count($errores) > 20) {
             $errorMsg .= "\n... y ".(count($errores) - 20)." errores mas.\n";
@@ -594,26 +693,54 @@ Si todo esta correcto: {"errores_ia": []}';
 
         $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Validacion IA');
+        $sheet->setTitle('Productos');
 
-        // Headers â€" solo los datos del producto, SIN columnas de estatus/errores
+        // Headers con mismo formato del template (morado)
         $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => true, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
             $sheet->getStyle($col.'1')->getFont()->setBold(true);
-            $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('4A4A4A');
+            if ($obligatorios[$header]) {
+                $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
+            } else {
+                $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
+            }
             $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->getColumnDimension($col)->setAutoSize(true);
             $col++;
         }
 
-        // Mapeo de columnas para colorear celdas con error
+        // Hoja oculta con listas de validacion
+        $listSheet = $spreadsheet->createSheet();
+        $listSheet->setTitle('_Listas');
+
+        $familias = $this->familiasValidas;
+        foreach ($familias as $i => $fam) {
+            $listSheet->setCellValue('A'.($i + 1), $fam);
+        }
+        $unidades = $this->unidadesValidas;
+        foreach ($unidades as $i => $uni) {
+            $listSheet->setCellValue('B'.($i + 1), $uni);
+        }
+        $listSheet->setCellValue('C1', 'MPI');
+        $listSheet->setCellValue('C2', 'ME');
+        $listSheet->setCellValue('C3', 'MN');
+        $listSheet->setCellValue('D1', 'SI');
+        $listSheet->setCellValue('D2', 'NO');
+        $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
+
+        // Volver a hoja principal
+        $spreadsheet->setActiveSheetIndex(0);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Mapeo de columnas
         $colMap = [
             'CODIGO' => 'A', 'NOMBRE_TIPO' => 'B', 'NOMBRE_MARCA' => 'C', 'NOMBRE_MODELO' => 'D',
             'NOMBRE_MEDIDA' => 'E', 'NOMBRE_ESPECIFICACION' => 'F', 'FAMILIA' => 'G',
             'TIPO_PRODUCTO' => 'H', 'UNIDAD_MEDIDA' => 'I', 'PRECIO' => 'J', 'CLAVE_SAT' => 'K',
             'LOTE' => 'L', 'PEDIMENTO' => 'M', 'VOLTAJE' => 'N',
-            // Aliases
             'NOMBRE' => 'B', 'MARCA' => 'C', 'MODELO' => 'D', 'MEDIDA' => 'E',
             'ESPECIFICACION' => 'F', 'GENERAL' => 'B', 'PRODUCCION' => 'H',
         ];
@@ -630,7 +757,6 @@ Si todo esta correcto: {"errores_ia": []}';
             }
 
             if (isset($erroresPorFila[$fila])) {
-                // Colorear las celdas especificas que tienen error en ROJO
                 foreach ($erroresPorFila[$fila] as $err) {
                     $campoError = $err['campo'];
                     if (isset($colMap[$campoError])) {
@@ -642,16 +768,45 @@ Si todo esta correcto: {"errores_ia": []}';
             }
         }
 
-        // Auto-size columns
-        foreach (range('A', 'T') as $c) {
-            $sheet->getColumnDimension($c)->setAutoSize(true);
+        // Dropdowns - FAMILIA (G), TIPO_PRODUCTO (H), UNIDAD_MEDIDA (I), LOTE (L), PEDIMENTO (M)
+        $familiaCount = count($familias);
+        $unidadCount = count($unidades);
+        $maxRow = count($productos) + 10;
+
+        for ($row = 2; $row <= $maxRow; $row++) {
+            // FAMILIA
+            $v = $sheet->getCell('G'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$A$1:$A$'.$familiaCount);
+
+            // TIPO_PRODUCTO
+            $v = $sheet->getCell('H'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$C$1:$C$3');
+
+            // UNIDAD_MEDIDA
+            $v = $sheet->getCell('I'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$B$1:$B$'.$unidadCount);
+
+            // LOTE
+            $v = $sheet->getCell('L'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$D$1:$D$2');
+
+            // PEDIMENTO
+            $v = $sheet->getCell('M'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$D$1:$D$2');
         }
+
+        // Formato moneda para PRECIO
+        $sheet->getStyle('J2:J'.$maxRow)->getNumberFormat()->setFormatCode('$#,##0.00');
 
         // Guardar como XLSX
         $writer = new Xlsx($spreadsheet);
         $tempPath = storage_path('app/public/excel-correcciones/Correcciones_'.date('Y-m-d_His').'.xlsx');
 
-        // Crear directorio si no existe
         $dir = dirname($tempPath);
         if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
@@ -677,7 +832,7 @@ Si todo esta correcto: {"errores_ia": []}';
         // â*â*â* 1. CAMPOS OBLIGATORIOS â*â*â*
         foreach ($this->columnasObligatorias as $campo) {
             if (empty(trim($producto[$campo] ?? ''))) {
-                $sugerencia = match($campo) {
+                $sugerencia = match ($campo) {
                     'CODIGO' => 'Escribe un codigo unico (ej: MPI0538, ME0201)',
                     'NOMBRE_TIPO' => 'Escribe QUE ES el producto (ej: RESINA EPOXICA, MOTOR ELECTRICO, CAJA CORRUGADA)',
                     'NOMBRE_MARCA' => 'Escribe QUIEN lo fabrica (ej: WEG, SKF, 3M, ALPHA, KRAFT)',
@@ -790,7 +945,7 @@ Si todo esta correcto: {"errores_ia": []}';
         if ($nombreTipoRaw) {
             $soloAdjetivos = ['BLANCO', 'NEGRO', 'ROJO', 'AZUL', 'VERDE', 'AMARILLO', 'TRANSPARENTE', 'MATE', 'BRILLANTE', 'SATINADO', 'INTERIOR', 'EXTERIOR', 'INDUSTRIAL', 'PROFESIONAL', 'PREMIUM', 'DOBLE', 'TRIPLE', 'GRUESO', 'DELGADO', 'GRANDE', 'CHICO', 'MEDIANO'];
             $palabrasTipo = explode(' ', strtoupper(trim($nombreTipoRaw)));
-            $todasSonAdjetivos = !empty($palabrasTipo) && count(array_diff($palabrasTipo, $soloAdjetivos)) === 0;
+            $todasSonAdjetivos = ! empty($palabrasTipo) && count(array_diff($palabrasTipo, $soloAdjetivos)) === 0;
             if ($todasSonAdjetivos) {
                 $errores[] = [
                     'fila' => $fila,
@@ -843,7 +998,7 @@ Si todo esta correcto: {"errores_ia": []}';
         }
 
         // NOMBRE_MEDIDA no debe ser un codigo de modelo (patron: letras-numeros corto sin unidad)
-        if ($nombreMedidaRaw && preg_match('/^[A-Z]{2,}-\d+$/i', $nombreMedidaRaw) && !preg_match('/\d+(MM|CM|LT|ML|KG|GR|HP|V|W)/i', $nombreMedidaRaw)) {
+        if ($nombreMedidaRaw && preg_match('/^[A-Z]{2,}-\d+$/i', $nombreMedidaRaw) && ! preg_match('/\d+(MM|CM|LT|ML|KG|GR|HP|V|W)/i', $nombreMedidaRaw)) {
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'NOMBRE_MEDIDA',
@@ -971,30 +1126,49 @@ Si todo esta correcto: {"errores_ia": []}';
         }
 
         // â*â*â* 5. PRECIO â€" Numerico y razonable (opcional, pero si viene debe ser valido) â*â*â*
-        if ($precio !== '' && $precio !== null) {
-            $precioLimpio = str_replace([',', '$', ' '], '', $precio);
-            // Aceptar signo $ al inicio (se limpia automaticamente)
-            if (! is_numeric($precioLimpio)) {
+        if ($precio !== '') {
+            $precioStr = trim((string) $precio);
+            // Si esta vacio despues de trim, no validar
+            if ($precioStr === '' || $precioStr === '0') {
+                // Precio vacio o 0 - no es error, es opcional
+            } elseif (str_starts_with($precioStr, '$')) {
+                // Tiene $ - validar que el resto sea numerico
+                $precioLimpio = str_replace([',', '$', ' '], '', $precioStr);
+                if (! is_numeric($precioLimpio)) {
+                    $errores[] = [
+                        'fila' => $fila,
+                        'campo' => 'PRECIO',
+                        'error' => "El precio no es valido. Debe ser un numero con \$ (ej: \$150.50). Recibido: '{$precioStr}'",
+                    ];
+                } else {
+                    $precioNum = (float) $precioLimpio;
+                    if ($precioNum <= 0) {
+                        $errores[] = [
+                            'fila' => $fila,
+                            'campo' => 'PRECIO',
+                            'error' => "El precio debe ser mayor a \$0. Recibido: '{$precioStr}'",
+                        ];
+                    } elseif ($precioNum > 5000000) {
+                        $errores[] = [
+                            'fila' => $fila,
+                            'campo' => 'PRECIO',
+                            'error' => "Precio extremadamente alto ({$precioStr}). Verifica que sea correcto.",
+                        ];
+                    }
+                }
+            } elseif (is_numeric(str_replace([',', ' '], '', $precioStr))) {
+                // Es un numero sin $ - marcar error
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'PRECIO',
-                    'error' => "El precio debe ser numerico (ej: \$150.50 o 150.50). Recibido: '{$precio}'",
+                    'error' => "El precio debe llevar el signo \$ al inicio (ej: \$150.50, \$2,800.00). Recibido: '{$precioStr}'. -> Pon: \${$precioStr}",
                 ];
             } else {
-                $precioNum = (float) $precioLimpio;
-                if ($precioNum <= 0) {
-                    $errores[] = [
-                        'fila' => $fila,
-                        'campo' => 'PRECIO',
-                        'error' => "El precio debe ser mayor a 0. Recibido: '{$precio}'",
-                    ];
-                } elseif ($precioNum > 5000000) {
-                    $errores[] = [
-                        'fila' => $fila,
-                        'campo' => 'PRECIO',
-                        'error' => "Precio extremadamente alto (\${$precioNum}). Verifica que sea correcto.",
-                    ];
-                }
+                $errores[] = [
+                    'fila' => $fila,
+                    'campo' => 'PRECIO',
+                    'error' => "Precio invalido. Debe llevar \$ al inicio (ej: \$150.50, \$2,800.00). Recibido: '{$precioStr}'",
+                ];
             }
         }
 
@@ -1128,7 +1302,7 @@ Si todo esta correcto: {"errores_ia": []}';
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'OBSERVACIONES',
-                    'error' => "Contiene caracteres especiales no permitidos. COMO CORREGIR: Escribe texto normal sin simbolos raros. Ejemplo: PROVEEDOR NACIONAL ENTREGA 5 DIAS",
+                    'error' => 'Contiene caracteres especiales no permitidos. COMO CORREGIR: Escribe texto normal sin simbolos raros. Ejemplo: PROVEEDOR NACIONAL ENTREGA 5 DIAS',
                 ];
             }
 
@@ -1145,7 +1319,7 @@ Si todo esta correcto: {"errores_ia": []}';
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'OBSERVACIONES',
-                    'error' => "Texto ilegible o sin sentido detectado. COMO CORREGIR: Escribe observaciones claras y profesionales. Ejemplo: IMPORTACION CHINA PEDIMENTO 26 0001 3000001",
+                    'error' => 'Texto ilegible o sin sentido detectado. COMO CORREGIR: Escribe observaciones claras y profesionales. Ejemplo: IMPORTACION CHINA PEDIMENTO 26 0001 3000001',
                 ];
             }
 
@@ -1157,7 +1331,7 @@ Si todo esta correcto: {"errores_ia": []}';
                     $errores[] = [
                         'fila' => $fila,
                         'campo' => 'OBSERVACIONES',
-                        'error' => "Contenido inapropiado detectado. COMO CORREGIR: Las observaciones deben ser profesionales y relevantes al producto. Ejemplo: PARA LINEA 3 PRODUCCION",
+                        'error' => 'Contenido inapropiado detectado. COMO CORREGIR: Las observaciones deben ser profesionales y relevantes al producto. Ejemplo: PARA LINEA 3 PRODUCCION',
                     ];
                     break;
                 }
@@ -1168,7 +1342,7 @@ Si todo esta correcto: {"errores_ia": []}';
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'OBSERVACIONES',
-                    'error' => "Observaciones muy cortas. COMO CORREGIR: Escribe al menos 2 palabras descriptivas. Ejemplo: PROVEEDOR NACIONAL",
+                    'error' => 'Observaciones muy cortas. COMO CORREGIR: Escribe al menos 2 palabras descriptivas. Ejemplo: PROVEEDOR NACIONAL',
                 ];
             }
 
