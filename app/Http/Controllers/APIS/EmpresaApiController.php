@@ -563,6 +563,12 @@ class EmpresaApiController extends Controller
             }
         }
 
+        // Si no se encontró nombre, intentar extraerlo del CURP
+        if (empty($datos['nombre']) && $datos['curp'] && strlen($datos['curp']) >= 10) {
+            $iniciales = substr($datos['curp'], 0, 4);
+            $hallazgos[] = 'Iniciales del nombre (CURP): ' . $iniciales;
+        }
+
         // Fecha de nacimiento
         if (preg_match('/FECHA\s*(?:DE\s*)?NACIMIENTO[:\s]*([\d\/\-\.]+)/', $texto, $fn)) {
             $datos['fecha_nacimiento'] = $fn[1];
