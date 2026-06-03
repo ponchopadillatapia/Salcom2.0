@@ -135,6 +135,14 @@
                     <option value="0" {{ $filtros['activo'] === '0' ? 'selected' : '' }}>Solo inactivos ({{ $conteoInactivos }})</option>
                 </select>
             </div>
+            <div class="filter-field">
+                <label>Fecha desde</label>
+                <input type="date" name="fecha_desde" value="{{ $filtros['fecha_desde'] ?? '' }}">
+            </div>
+            <div class="filter-field">
+                <label>Fecha hasta</label>
+                <input type="date" name="fecha_hasta" value="{{ $filtros['fecha_hasta'] ?? '' }}">
+            </div>
             <div class="filter-actions">
                 <button type="submit" class="btn-primary">Filtrar</button>
                 @if($filtrosActivos)
@@ -151,6 +159,8 @@
             @if($filtros['categoria'])<span class="active-tag">{{ $filtros['categoria'] }}</span>@endif
             @if($filtros['activo'] === '1')<span class="active-tag">Solo activos</span>@endif
             @if($filtros['activo'] === '0')<span class="active-tag">Solo inactivos</span>@endif
+            @if($filtros['fecha_desde'] ?? false)<span class="active-tag">Desde: {{ $filtros['fecha_desde'] }}</span>@endif
+            @if($filtros['fecha_hasta'] ?? false)<span class="active-tag">Hasta: {{ $filtros['fecha_hasta'] }}</span>@endif
         </div>
         @endif
     </div>
@@ -169,16 +179,27 @@
                 <th>Stock</th>
                 <th>Tendencia</th>
                 <th>Nivel</th>
+                <th>Proveedor</th>
                 <th>Catálogo</th>
             </tr>
         </thead>
         <tbody>
+        @php $lastDate = null; @endphp
         @foreach($productos as $p)
             @php
+                $currentDate = $p->created_at ? $p->created_at->format('Y-m-d') : null;
                 $stockClass = $p->stock <= 0 ? 'out' : ($p->stock < 50 ? 'low' : 'ok');
                 $stockLabel = $p->stock <= 0 ? 'Agotado' : ($p->stock < 50 ? 'Bajo' : 'OK');
                 $trendVal = rand(-15, 12);
             @endphp
+            @if($currentDate !== $lastDate)
+                <tr>
+                    <td colspan="10" style="background:var(--purple-subtle);font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple);">
+                        {{ $p->created_at ? $p->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}
+                    </td>
+                </tr>
+                @php $lastDate = $currentDate; @endphp
+            @endif
             <tr>
                 <td style="font-weight:700;color:var(--purple)">{{ $p->codigo }}</td>
                 <td>{{ $p->nombre }}</td>
@@ -188,6 +209,7 @@
                 <td style="font-weight:600;font-variant-numeric:tabular-nums">{{ number_format($p->stock) }}</td>
                 <td>@include('partials.trend-arrow', ['value' => $trendVal])</td>
                 <td><span class="badge-stock {{ $stockClass }}">{{ $stockLabel }}</span></td>
+                <td style="font-size:11px;color:var(--gray-muted)">{{ $p->proveedor_nombre ?: '—' }}</td>
                 <td>
                     <span class="badge-activo {{ $p->activo ? 'on' : 'off' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span>
                 </td>

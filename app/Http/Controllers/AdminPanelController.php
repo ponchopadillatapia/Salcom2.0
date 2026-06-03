@@ -702,6 +702,8 @@ class AdminPanelController extends Controller
         $grupo = $request->input('grupo', '');
         $activo = $request->input('activo', '');
         $categoria = $request->input('categoria', '');
+        $fechaDesde = $request->input('fecha_desde', '');
+        $fechaHasta = $request->input('fecha_hasta', '');
 
         if ($busqueda) {
             $query->where(function ($q) use ($busqueda) {
@@ -741,7 +743,14 @@ class AdminPanelController extends Controller
             $query->where('categoria', $categoria);
         }
 
-        $productos = $query->orderBy('codigo')->paginate(20)->withQueryString();
+        if ($fechaDesde) {
+            $query->whereDate('created_at', '>=', $fechaDesde);
+        }
+        if ($fechaHasta) {
+            $query->whereDate('created_at', '<=', $fechaHasta);
+        }
+
+        $productos = $query->orderBy('created_at', 'desc')->paginate(50)->withQueryString();
 
         $totalGeneral = Producto::count();
         $conteoAgotado = Producto::where('stock', '<=', 0)->count();
@@ -762,6 +771,8 @@ class AdminPanelController extends Controller
             'grupo' => $grupo,
             'activo' => $activo,
             'categoria' => $categoria,
+            'fecha_desde' => $fechaDesde,
+            'fecha_hasta' => $fechaHasta,
         ];
 
         $filtrosActivos = $this->filtrosTienenValor($filtros);

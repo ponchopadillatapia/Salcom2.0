@@ -611,6 +611,7 @@ Si todo esta correcto: {"errores_ia": []}';
                         'maneja_lotes' => strtoupper(trim($prod['LOTE'] ?? '')) === 'SI',
                         'activo' => true,
                         'stock' => 0,
+                        'proveedor_nombre' => session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
                     ]
                 );
             }
@@ -669,6 +670,7 @@ Si todo esta correcto: {"errores_ia": []}';
                         'maneja_lotes' => strtoupper(trim($prod['LOTE'] ?? '')) === 'SI',
                         'activo' => true,
                         'stock' => 0,
+                        'proveedor_nombre' => session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
                     ]
                 );
                 $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
