@@ -315,6 +315,12 @@ class AltaProductoController extends Controller
             '1. Las celdas con error se marcan en ROJO en el Excel descargable',
             '2. En la pagina web te dice exactamente que corregir',
             '3. Corrige los campos marcados y vuelve a subir',
+            '',
+            '=== LA FILA 2 (EN GRIS) ES SOLO UN EJEMPLO ===',
+            'BORRA EL CONTENIDO DEL EJEMPLO antes de llenar tus productos.',
+            'Selecciona las celdas de la fila 2, presiona SUPRIMIR (Delete).',
+            'NO borres la fila completa (Eliminar fila) porque pierdes los dropdowns.',
+            'Empieza a llenar tus productos desde la fila 2.',
         ];
 
         foreach ($reglas as $texto) {
@@ -1276,18 +1282,8 @@ Si todo esta correcto: {"errores_ia": []}';
                         'error' => "DUPLICADO: Ya existe '{$duplicadoOrden->nombre}' ({$duplicadoOrden->codigo}) con las mismas palabras en diferente orden.",
                     ];
                 } else {
-                    // Buscar similares (primeras 3 palabras iguales = posible duplicado)
-                    $primeras3 = implode(' ', array_slice(explode(' ', strtoupper(Str::ascii($nombre))), 0, 3));
-                    if (strlen($primeras3) > 5) {
-                        $similar = Producto::where('nombre', 'LIKE', $primeras3.'%')->first();
-                        if ($similar) {
-                            $errores[] = [
-                                'fila' => $fila,
-                                'campo' => 'NOMBRE',
-                                'error' => "POSIBLE DUPLICADO: Ya existe '{$similar->nombre}' ({$similar->codigo}). Verifica que no sea el mismo producto.",
-                            ];
-                        }
-                    }
+                    // Solo bloquea duplicados exactos o con palabras en diferente orden
+                    // No bloquea "posibles" duplicados por similitud parcial
                 }
             }
         }

@@ -115,9 +115,21 @@
             </div>
             <ul>
                 <li>Todo en MAYUSCULAS, sin acentos ni caracteres especiales</li>
+                <li><strong>NOMBRE_TIPO debe tener MINIMO 2 palabras</strong> (PINTURA VINILICA, no solo PINTURA)</li>
+                <li>NOMBRE_ESPECIFICACION no debe repetir datos de otros campos</li>
+                <li>PRECIO debe llevar $ al inicio (ej: $150.50). Si no sabes, dejalo vacio</li>
                 <li>No repetir productos que ya existen en el catálogo</li>
             </ul>
-            <div style="background:#fff;border:1px solid var(--border-light);border-radius:6px;padding:10px;margin-top:10px;font-size:11px;">
+            <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:10px;margin-top:10px;font-size:11px;color:#92400e;">
+                <strong style="display:block;margin-bottom:4px;">⚠️ IMPORTANTE:</strong>
+                La fila 2 del template es solo un EJEMPLO (en gris). Borra el contenido con SUPRIMIR (Delete) y llena tus productos desde ahi. NO elimines la fila completa o pierdes los dropdowns.<br>
+                <strong>Revisa la hoja "Instrucciones" del Excel para mas detalles.</strong>
+            </div>
+            <div style="background:#f0fdf4;border:1px solid #22c55e;border-radius:6px;padding:10px;margin-top:10px;font-size:11px;color:#166534;">
+                <strong style="display:block;margin-bottom:4px;">EJEMPLO CORRECTO:</strong>
+                <code style="font-size:11px;background:#dcfce7;padding:2px 4px;border-radius:3px;">MPI0538 | PINTURA VINILICA | COMEX | VIN-100 | 19LT | BLANCO MATE INTERIOR | MATERIA PRIMA | MPI | KG</code>
+            </div>
+            <div style="background:var(--white);border:1px solid var(--border-light);border-radius:6px;padding:10px;margin-top:10px;font-size:11px;">
                 <strong>Colores del header:</strong> Morado oscuro = Obligatorio | Morado claro = Opcional
             </div>
         </div>
@@ -156,7 +168,7 @@
                 <tr><td>NOMBRE_ESPECIFICACION</td><td>TRANSPARENTE</td><td class="req">✓</td></tr>
                 <tr><td>FAMILIA</td><td>MATERIA PRIMA</td><td class="req">✓</td></tr>
                 <tr><td>TIPO_PRODUCTO</td><td>MPI / ME / MN</td><td class="req">✓</td></tr>
-                <tr><td>UNIDAD_MEDIDA</td><td>KG / PZA / CAJA</td><td class="req">✓</td></tr>
+                <tr><td>UNIDAD_MEDIDA</td><td>KG / PZA / CAJA</td><td class="opt">—</td></tr>
                 <tr><td>PRECIO</td><td>$150.50</td><td class="opt">—</td></tr>
                 <tr><td>CLAVE_SAT</td><td>10191509</td><td class="opt">—</td></tr>
                 <tr><td>LOTE</td><td>SI / NO</td><td style="color:var(--amber);font-weight:700;">si MPI</td></tr>
