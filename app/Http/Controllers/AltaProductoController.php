@@ -109,19 +109,7 @@ class AltaProductoController extends Controller
             $col++;
         }
 
-        // Ejemplo (fila 2) - 1 producto correcto de referencia
-        $ejemplos = [
-            ['MPI0538', 'PINTURA VINILICA', 'COMEX', 'VIN-100', '19LT', 'BLANCO MATE INTERIOR', 'MATERIA PRIMA', 'MPI', 'KG', 450.00, '10191509', 'SI', 'SI', 'N/A'],
-        ];
-
-        foreach ($ejemplos as $rowIdx => $ejemplo) {
-            $col = 'A';
-            foreach ($ejemplo as $val) {
-                $sheet->setCellValue($col.($rowIdx + 2), $val);
-                $sheet->getStyle($col.($rowIdx + 2))->getFont()->getColor()->setRGB('888888');
-                $col++;
-            }
-        }
+        // Template limpio - sin ejemplo en fila 2
 
         // Formato moneda ($) para columna PRECIO (J) - se ve el $ pero es numero
         $sheet->getStyle('J2:J101')->getNumberFormat()->setFormatCode('$#,##0.00');
@@ -285,7 +273,7 @@ class AltaProductoController extends Controller
             '  IMPORTANTE: Minimo 2 palabras (PINTURA VINILICA, no solo PINTURA)',
             'NOMBRE_MARCA â€" Quien lo fabrica (ej: WEG, SKF, 3M, ALPHA)',
             'NOMBRE_MODELO â€" Referencia del fabricante (ej: W22, IND-500, CP-40)',
-            'NOMBRE_MEDIDA â€" Tamano con numeros (ej: 500ML, 3HP, 40X30X25)',
+            'NOMBRE_MEDIDA â€" Tamano con numeros (ej: 500ML, 3HP, 30CMX30CM, 40X30X25)',
             'NOMBRE_ESPECIFICACION â€" Detalle adicional (ej: TRIFASICO, TRANSPARENTE)',
             'FAMILIA â€" Seleccionar del dropdown (ej: MATERIA PRIMA, MANTENIMIENTO)',
             'TIPO_PRODUCTO â€" MPI (Materia Prima), ME (Empaque), MN (Mantenimiento)',
@@ -304,7 +292,7 @@ class AltaProductoController extends Controller
             'â*â*â* REGLAS GENERALES â*â*â*',
             'Todo en MAYUSCULAS, sin acentos ni caracteres especiales',
             'NOMBRE_TIPO debe tener MINIMO 2 PALABRAS (ej: PINTURA VINILICA, no solo PINTURA)',
-            'NOMBRE_MEDIDA debe tener numeros (500ML, 3HP, 40X30X25)',
+            'NOMBRE_MEDIDA debe tener numeros (500ML, 3HP, 30CMX30CM, 40X30X25). Para dimensiones usa X sin espacios: 30CMX30CM',
             'NOMBRE_ESPECIFICACION no debe repetir datos de otros campos',
             'NOMBRE_TIPO no puede ser una marca (WEG, SKF van en NOMBRE_MARCA)',
             'NOMBRE_MARCA no puede ser una medida (3HP, 500ML van en NOMBRE_MEDIDA)',
@@ -316,11 +304,10 @@ class AltaProductoController extends Controller
             '2. En la pagina web te dice exactamente que corregir',
             '3. Corrige los campos marcados y vuelve a subir',
             '',
-            '=== LA FILA 2 (EN GRIS) ES SOLO UN EJEMPLO ===',
-            'BORRA EL CONTENIDO DEL EJEMPLO antes de llenar tus productos.',
-            'Selecciona las celdas de la fila 2, presiona SUPRIMIR (Delete).',
-            'NO borres la fila completa (Eliminar fila) porque pierdes los dropdowns.',
+            '=== COMO EMPEZAR ===',
             'Empieza a llenar tus productos desde la fila 2.',
+            'NO borres ni insertes filas porque pierdes los dropdowns.',
+            'Usa los dropdowns para FAMILIA, TIPO_PRODUCTO, UNIDAD_MEDIDA, LOTE, PEDIMENTO y VOLTAJE.',
         ];
 
         foreach ($reglas as $texto) {
@@ -927,7 +914,7 @@ Si todo correcto: {"errores_ia": []}';
                     'NOMBRE_TIPO' => 'Escribe QUE ES el producto (ej: RESINA EPOXICA, MOTOR ELECTRICO, CAJA CORRUGADA)',
                     'NOMBRE_MARCA' => 'Escribe QUIEN lo fabrica (ej: WEG, SKF, 3M, ALPHA, KRAFT)',
                     'NOMBRE_MODELO' => 'Escribe la REFERENCIA del fabricante (ej: W22, IND-500, CP-40, T-100)',
-                    'NOMBRE_MEDIDA' => 'Escribe el TAMANO o capacidad con numeros (ej: 500ML, 3HP, 40X30X25, 180G)',
+                    'NOMBRE_MEDIDA' => 'Escribe el TAMANO o capacidad con numeros (ej: 500ML, 3HP, 30CMX30CM, 40X30X25)',
                     'NOMBRE_ESPECIFICACION' => 'Escribe CARACTERISTICAS adicionales (ej: TRIFASICO, TRANSPARENTE, DOBLE PARED)',
                     'FAMILIA' => 'Selecciona del dropdown una familia del catalogo oficial',
                     'TIPO_PRODUCTO' => 'Selecciona del dropdown: MPI (Materia Prima), ME (Empaque) o MN (Mantenimiento)',
@@ -1008,13 +995,45 @@ Si todo correcto: {"errores_ia": []}';
                     ];
                 }
                 // Detectar texto basura (consonantes sin vocales)
-                $letras = preg_replace('/[\d\-\/\.\s]/', '', $info['valor']);
-                if (strlen($letras) >= 5 && ! preg_match('/[AEIOU]/i', $letras)) {
-                    $errores[] = [
-                        'fila' => $fila,
-                        'campo' => $campo,
-                        'error' => "Texto ilegible detectado: '{$info['valor']}'. COMO CORREGIR: {$info['desc']}",
-                    ];
+                // Excluir medidas con formato de dimensiones (30CMX30CM, 40X30X25, etc.)
+                $esFormatoDimensiones = preg_match('/\d+\s*(CM|MM|MT|LT|ML|KG|GR|PZA)?\s*X\s*\d+/i', $info['valor']);
+                if (!$esFormatoDimensiones) {
+                    // Intentar limpiar espacios - si sin espacios es un formato valido, sugerir correccion
+                    $valorSinEspacios = strtoupper(str_replace(' ', '', $info['valor']));
+                    $esFormatoDimensionesLimpio = preg_match('/^\d+(CM|MM|MT|LT|ML|KG|GR|PZA)?X\d+(CM|MM|MT|LT|ML|KG|GR|PZA)?$/i', $valorSinEspacios);
+
+                    if ($esFormatoDimensionesLimpio && $campo === 'NOMBRE_MEDIDA') {
+                        // Es una medida con dimensiones pero MAL escrita (con espacios de mas)
+                        $errores[] = [
+                            'fila' => $fila,
+                            'campo' => $campo,
+                            'error' => "Medida con formato incorrecto: '{$info['valor']}'. Las dimensiones van sin espacios. -> Pon: {$valorSinEspacios}",
+                        ];
+                    } else {
+                        $letras = preg_replace('/[\d\-\/\.\s]/', '', $info['valor']);
+                        if (strlen($letras) >= 5 && ! preg_match('/[AEIOU]/i', $letras)) {
+                            // Intentar sugerir correccion para NOMBRE_MEDIDA
+                            $sugerenciaLimpia = '';
+                            if ($campo === 'NOMBRE_MEDIDA') {
+                                // Quitar espacios y ver si tiene numeros+unidad
+                                $limpio = strtoupper(str_replace(' ', '', $info['valor']));
+                                if (preg_match('/\d/', $limpio)) {
+                                    $sugerenciaLimpia = $limpio;
+                                }
+                            }
+                            $mensajeError = "Texto ilegible detectado: '{$info['valor']}'.";
+                            if ($sugerenciaLimpia) {
+                                $mensajeError .= " -> Pon: {$sugerenciaLimpia}";
+                            } else {
+                                $mensajeError .= " COMO CORREGIR: {$info['desc']}";
+                            }
+                            $errores[] = [
+                                'fila' => $fila,
+                                'campo' => $campo,
+                                'error' => $mensajeError,
+                            ];
+                        }
+                    }
                 }
             }
         }
@@ -1058,7 +1077,7 @@ Si todo correcto: {"errores_ia": []}';
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'NOMBRE_MEDIDA',
-                'error' => "La medida debe contener un valor numerico. Recibido: '{$nombreMedidaRaw}'. ->  Escribe tamano con numeros (ej: 500ML, 3HP, 40X30X25)",
+                'error' => "La medida debe contener un valor numerico. Recibido: '{$nombreMedidaRaw}'. ->  Escribe tamano con numeros (ej: 500ML, 3HP, 30CMX30CM, 40X30X25)",
             ];
         }
 

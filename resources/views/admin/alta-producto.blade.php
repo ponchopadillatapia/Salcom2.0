@@ -93,50 +93,10 @@
         </div>
 
         <div class="alta-rules">
-            <h4>Reglas para llenar el Excel</h4>
-            <div style="background:var(--purple-subtle);border:1px solid var(--purple-mid);border-radius:8px;padding:14px;margin-bottom:12px;font-size:12px;">
-                <strong style="font-size:13px;color:var(--purple);display:block;margin-bottom:10px;">Llena cada columna en este orden:</strong>
-                <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;">
-                    <span style="font-weight:700;color:var(--purple);">CODIGO</span><span>Código único del producto (ej: MPI0538, ME0201)</span>
-                    <span style="font-weight:700;color:var(--purple);">NOMBRE_TIPO</span><span>Qué es el producto (ej: PINTURA VINILICA, BOMBA AGUA, CAJA CARTON)</span>
-                    <span style="font-weight:700;color:var(--purple);">NOMBRE_MARCA</span><span>Quién lo fabrica (ej: COMEX, TRUPER, PEMEX, BIOPAPPEL)</span>
-                    <span style="font-weight:700;color:var(--purple);">NOMBRE_MODELO</span><span>Nombre o numero de modelo del producto (ej: IPHONE 15, GALAXY S24, COROLLA 2024, VIN-100, W22-3HP)</span>
-                    <span style="font-weight:700;color:var(--purple);">NOMBRE_MEDIDA</span><span>Tamaño con números (ej: 19LT, 1HP, 48MMX150M)</span>
-                    <span style="font-weight:700;color:var(--purple);">NOMBRE_ESPECIFICACION</span><span>Detalle adicional (ej: BLANCO MATE, CENTRIFUGA 127V)</span>
-                    <span style="font-weight:700;color:var(--purple);">FAMILIA</span><span>Seleccionar del dropdown (ej: MATERIA PRIMA, MANTENIMIENTO)</span>
-                    <span style="font-weight:700;color:var(--purple);">TIPO_PRODUCTO</span><span>MPI = Materia Prima, ME = Empaque, MN = Mantenimiento</span>
-                    <span style="font-weight:700;color:var(--purple);">UNIDAD_MEDIDA</span><span>Solo KG, PZA o CAJA (dropdown)</span>
-                    <span style="font-weight:700;color:var(--gray-muted);">PRECIO</span><span style="color:var(--gray-muted);">Opcional. Con $ y decimales (ej: $150.50)</span>
-                    <span style="font-weight:700;color:var(--gray-muted);">CLAVE_SAT</span><span style="color:var(--gray-muted);">Opcional. Código SAT para facturación (ej: 10191509)</span>
-                    <span style="font-weight:700;color:var(--amber);">LOTE</span><span>SI o NO. Obligatorio solo si TIPO_PRODUCTO = MPI</span>
-                    <span style="font-weight:700;color:var(--amber);">PEDIMENTO</span><span>SI o NO. Obligatorio solo si TIPO_PRODUCTO = MPI</span>
-                    <span style="font-weight:700;color:var(--gray-muted);">VOLTAJE</span><span style="color:var(--gray-muted);">Opcional. Seleccionar del dropdown (ej: 220V, 220/440V)</span>
-                </div>
-            </div>
-
-            <div style="margin-top:14px;padding:10px;background:#fff;border-radius:6px;border:1px solid #e5e0ee;font-size:11px;line-height:2;">
-                <strong style="color:var(--gray-text);display:block;margin-bottom:4px;">Colores de la tabla:</strong>
-                <span style="color:var(--purple);font-weight:700;">● Morado</span> = Obligatorio (siempre llenar)<br>
-                <span style="color:var(--gray-muted);font-weight:700;">● Gris</span> = Opcional (puedes dejarlo vacío)<br>
-                <span style="color:var(--amber);font-weight:700;">● Amarillo</span> = Obligatorio SOLO si TIPO_PRODUCTO = MPI (Materia Prima)
-            </div>
-
-            <div style="margin-top:12px;padding:10px;background:#fff0f0;border:1px solid #fca5a5;border-radius:6px;font-size:11px;color:#991b1b;line-height:1.7;">
-                <strong style="display:block;margin-bottom:4px;color:#7f1d1d;">REGLAS IMPORTANTES:</strong>
-                • Todo en MAYUSCULAS, sin acentos ni caracteres especiales<br>
-                • NOMBRE_TIPO debe tener MINIMO 2 palabras (PINTURA VINILICA, no solo PINTURA)<br>
-                • NOMBRE_ESPECIFICACION no debe repetir datos de otros campos<br>
-                • PRECIO debe llevar $ al inicio (ej: $150.50). Si no sabes, dejalo vacio<br>
-                • No repetir productos que ya existen en el catalogo
-            </div>
-
-            <div style="margin-top:12px;padding:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:11px;color:#166534;">
-                <strong>EJEMPLO CORRECTO:</strong><br>
-                <code style="font-size:10px;background:#dcfce7;padding:2px 4px;border-radius:3px;">MPI0538 | PINTURA VINILICA | COMEX | VIN-100 | 19LT | BLANCO MATE INTERIOR | MATERIA PRIMA | MPI | KG</code>
-            </div>
-
-            <div style="margin-top:12px;padding:10px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:11px;color:#92400e;">
-                <strong>⚠️ IMPORTANTE:</strong> La fila 2 del template es solo un EJEMPLO (en gris). Borra el contenido con SUPRIMIR (Delete). NO elimines la fila o pierdes los dropdowns. Revisa la hoja "Instrucciones" del Excel.
+            <h4>Instrucciones</h4>
+            <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:14px;font-size:13px;color:#92400e;">
+                <strong>📋 Lee la hoja "Instrucciones" dentro del Excel template.</strong><br>
+                <span style="font-size:12px;margin-top:6px;display:block;">Ahí se explica cada columna, cómo llenarla correctamente y qué formatos son válidos. El template ya viene vacío listo para que llenes tus productos desde la fila 2.</span>
             </div>
         </div>
     </div>
