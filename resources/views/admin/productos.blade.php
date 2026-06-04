@@ -209,7 +209,15 @@
                 <td style="font-weight:600;font-variant-numeric:tabular-nums">{{ number_format($p->stock) }}</td>
                 <td>@include('partials.trend-arrow', ['value' => $trendVal])</td>
                 <td><span class="badge-stock {{ $stockClass }}">{{ $stockLabel }}</span></td>
-                <td style="font-size:11px;color:var(--gray-muted)">{{ $p->proveedor_nombre ?: '—' }}</td>
+                <td style="font-size:11px;">
+                    @if($p->proveedor_tipo === 'admin')
+                        <span style="color:var(--purple);font-weight:600;">{{ $p->proveedor_nombre }}</span>
+                    @elseif($p->proveedor_nombre)
+                        <span style="color:var(--gray-muted);">{{ $p->proveedor_nombre }}</span>
+                    @else
+                        —
+                    @endif
+                </td>
                 <td>
                     <span class="badge-activo {{ $p->activo ? 'on' : 'off' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span>
                 </td>

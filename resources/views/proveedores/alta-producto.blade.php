@@ -100,7 +100,7 @@
                     <span style="font-weight:700;color:var(--purple);">CODIGO</span><span>Código único del producto (ej: MPI0538, ME0201)</span>
                     <span style="font-weight:700;color:var(--purple);">NOMBRE_TIPO</span><span>Qué es el producto (ej: PINTURA VINILICA, BOMBA AGUA, CAJA CARTON)</span>
                     <span style="font-weight:700;color:var(--purple);">NOMBRE_MARCA</span><span>Quién lo fabrica (ej: COMEX, TRUPER, PEMEX, BIOPAPPEL)</span>
-                    <span style="font-weight:700;color:var(--purple);">NOMBRE_MODELO</span><span>Referencia del fabricante (ej: VIN-100, BOAG-1HP, TR-48)</span>
+                    <span style="font-weight:700;color:var(--purple);">NOMBRE_MODELO</span><span>Nombre o numero de modelo del producto (ej: IPHONE 15, GALAXY S24, COROLLA 2024, VIN-100, W22-3HP)</span>
                     <span style="font-weight:700;color:var(--purple);">NOMBRE_MEDIDA</span><span>Tamaño con números (ej: 19LT, 1HP, 48MMX150M)</span>
                     <span style="font-weight:700;color:var(--purple);">NOMBRE_ESPECIFICACION</span><span>Detalle adicional (ej: BLANCO MATE, CENTRIFUGA 127V)</span>
                     <span style="font-weight:700;color:var(--purple);">FAMILIA</span><span>Seleccionar del dropdown (ej: MATERIA PRIMA, MANTENIMIENTO)</span>
@@ -113,24 +113,30 @@
                     <span style="font-weight:700;color:var(--gray-muted);">VOLTAJE</span><span style="color:var(--gray-muted);">Opcional. Seleccionar del dropdown (ej: 220V, 220/440V)</span>
                 </div>
             </div>
-            <ul>
-                <li>Todo en MAYUSCULAS, sin acentos ni caracteres especiales</li>
-                <li><strong>NOMBRE_TIPO debe tener MINIMO 2 palabras</strong> (PINTURA VINILICA, no solo PINTURA)</li>
-                <li>NOMBRE_ESPECIFICACION no debe repetir datos de otros campos</li>
-                <li>PRECIO debe llevar $ al inicio (ej: $150.50). Si no sabes, dejalo vacio</li>
-                <li>No repetir productos que ya existen en el catálogo</li>
-            </ul>
-            <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:10px;margin-top:10px;font-size:11px;color:#92400e;">
-                <strong style="display:block;margin-bottom:4px;">⚠️ IMPORTANTE:</strong>
-                La fila 2 del template es solo un EJEMPLO (en gris). Borra el contenido con SUPRIMIR (Delete) y llena tus productos desde ahi. NO elimines la fila completa o pierdes los dropdowns.<br>
-                <strong>Revisa la hoja "Instrucciones" del Excel para mas detalles.</strong>
+
+            <div style="margin-top:14px;padding:10px;background:#fff;border-radius:6px;border:1px solid #e5e0ee;font-size:11px;line-height:2;">
+                <strong style="color:var(--gray-text);display:block;margin-bottom:4px;">Colores de la tabla:</strong>
+                <span style="color:var(--purple);font-weight:700;">● Morado</span> = Obligatorio (siempre llenar)<br>
+                <span style="color:var(--gray-muted);font-weight:700;">● Gris</span> = Opcional (puedes dejarlo vacío)<br>
+                <span style="color:var(--amber);font-weight:700;">● Amarillo</span> = Obligatorio SOLO si TIPO_PRODUCTO = MPI (Materia Prima)
             </div>
-            <div style="background:#f0fdf4;border:1px solid #22c55e;border-radius:6px;padding:10px;margin-top:10px;font-size:11px;color:#166534;">
-                <strong style="display:block;margin-bottom:4px;">EJEMPLO CORRECTO:</strong>
-                <code style="font-size:11px;background:#dcfce7;padding:2px 4px;border-radius:3px;">MPI0538 | PINTURA VINILICA | COMEX | VIN-100 | 19LT | BLANCO MATE INTERIOR | MATERIA PRIMA | MPI | KG</code>
+
+            <div style="margin-top:12px;padding:10px;background:#fff0f0;border:1px solid #fca5a5;border-radius:6px;font-size:11px;color:#991b1b;line-height:1.7;">
+                <strong style="display:block;margin-bottom:4px;color:#7f1d1d;">REGLAS IMPORTANTES:</strong>
+                • Todo en MAYUSCULAS, sin acentos ni caracteres especiales<br>
+                • NOMBRE_TIPO debe tener MINIMO 2 palabras (PINTURA VINILICA, no solo PINTURA)<br>
+                • NOMBRE_ESPECIFICACION no debe repetir datos de otros campos<br>
+                • PRECIO debe llevar $ al inicio (ej: $150.50). Si no sabes, dejalo vacio<br>
+                • No repetir productos que ya existen en el catalogo
             </div>
-            <div style="background:var(--white);border:1px solid var(--border-light);border-radius:6px;padding:10px;margin-top:10px;font-size:11px;">
-                <strong>Colores del header:</strong> Morado oscuro = Obligatorio | Morado claro = Opcional
+
+            <div style="margin-top:12px;padding:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:6px;font-size:11px;color:#166534;">
+                <strong>EJEMPLO CORRECTO:</strong><br>
+                <code style="font-size:10px;background:#dcfce7;padding:2px 4px;border-radius:3px;">MPI0538 | PINTURA VINILICA | COMEX | VIN-100 | 19LT | BLANCO MATE INTERIOR | MATERIA PRIMA | MPI | KG</code>
+            </div>
+
+            <div style="margin-top:12px;padding:10px;background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;font-size:11px;color:#92400e;">
+                <strong>⚠️ IMPORTANTE:</strong> La fila 2 del template es solo un EJEMPLO (en gris). Borra el contenido con SUPRIMIR (Delete). NO elimines la fila o pierdes los dropdowns. Revisa la hoja "Instrucciones" del Excel.
             </div>
         </div>
     </div>
@@ -156,31 +162,26 @@
         </form>
 
         <h3 style="margin-top:24px;">Formato del Excel</h3>
-        <p style="font-size:12px;color:var(--gray-muted);margin-bottom:8px;">Morado oscuro = obligatorio, morado claro = opcional</p>
-        <table class="format-table">
-            <thead><tr><th>Columna</th><th>Ejemplo</th><th>Req.</th></tr></thead>
-            <tbody>
-                <tr><td>CODIGO</td><td>MPI0538</td><td class="req">✓</td></tr>
-                <tr><td>NOMBRE_TIPO</td><td>RESINA EPOXICA</td><td class="req">✓</td></tr>
-                <tr><td>NOMBRE_MARCA</td><td>SKF</td><td class="req">✓</td></tr>
-                <tr><td>NOMBRE_MODELO</td><td>IND-500</td><td class="req">✓</td></tr>
-                <tr><td>NOMBRE_MEDIDA</td><td>500ML</td><td class="req">✓</td></tr>
-                <tr><td>NOMBRE_ESPECIFICACION</td><td>TRANSPARENTE</td><td class="req">✓</td></tr>
-                <tr><td>FAMILIA</td><td>MATERIA PRIMA</td><td class="req">✓</td></tr>
-                <tr><td>TIPO_PRODUCTO</td><td>MPI / ME / MN</td><td class="req">✓</td></tr>
-                <tr><td>UNIDAD_MEDIDA</td><td>KG / PZA / CAJA</td><td class="opt">—</td></tr>
-                <tr><td>PRECIO</td><td>$150.50</td><td class="opt">—</td></tr>
-                <tr><td>CLAVE_SAT</td><td>10191509</td><td class="opt">—</td></tr>
-                <tr><td>LOTE</td><td>SI / NO</td><td style="color:var(--amber);font-weight:700;">si MPI</td></tr>
-                <tr><td>PEDIMENTO</td><td>SI / NO</td><td style="color:var(--amber);font-weight:700;">si MPI</td></tr>
-                <tr><td>VOLTAJE</td><td>220/440V</td><td class="opt">—</td></tr>
-            </tbody>
-        </table>
-        <div style="margin-top:10px;font-size:11px;color:var(--gray-muted);line-height:1.8;">
-            <strong style="color:var(--gray-text);">Significado de la columna REQ.:</strong><br>
-            <span style="color:var(--red);font-weight:700;">✓</span> = Obligatorio (siempre llenar)<br>
-            <span style="color:var(--gray-muted);font-weight:700;">—</span> = Opcional (puedes dejarlo vacío)<br>
-            <span style="color:var(--amber);font-weight:700;">si MPI</span> = Obligatorio solo si TIPO_PRODUCTO = MPI (Materia Prima Importación)
+        <div style="background:#f8f5ff;border:1px solid #d4c4e8;border-radius:10px;padding:16px;font-size:12px;">
+            <table class="format-table" style="margin-top:0;">
+                <thead><tr><th>Columna</th><th>Ejemplo</th><th>Req.</th></tr></thead>
+                <tbody>
+                    <tr><td style="color:var(--purple);font-weight:700;">CODIGO</td><td>MPI0538</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_TIPO</td><td>RESINA EPOXICA</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_MARCA</td><td>SKF</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_MODELO</td><td>IPHONE 15 / VIN-100</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_MEDIDA</td><td>500ML</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_ESPECIFICACION</td><td>TRANSPARENTE</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">FAMILIA</td><td>MATERIA PRIMA</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">TIPO_PRODUCTO</td><td>MPI / ME / MN</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--gray-muted);">UNIDAD_MEDIDA</td><td style="color:var(--gray-muted);">KG / PZA / CAJA</td><td class="opt">—</td></tr>
+                    <tr><td style="color:var(--gray-muted);">PRECIO</td><td style="color:var(--gray-muted);">$150.50</td><td class="opt">—</td></tr>
+                    <tr><td style="color:var(--gray-muted);">CLAVE_SAT</td><td style="color:var(--gray-muted);">10191509</td><td class="opt">—</td></tr>
+                    <tr><td style="color:var(--amber);font-weight:600;">LOTE</td><td>SI / NO</td><td style="color:var(--amber);font-weight:700;">si MPI</td></tr>
+                    <tr><td style="color:var(--amber);font-weight:600;">PEDIMENTO</td><td>SI / NO</td><td style="color:var(--amber);font-weight:700;">si MPI</td></tr>
+                    <tr><td style="color:var(--gray-muted);">VOLTAJE</td><td style="color:var(--gray-muted);">220/440V</td><td class="opt">—</td></tr>
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

@@ -437,45 +437,36 @@ class AltaProductoController extends Controller
                 // Enviar en lotes de 15 para no exceder tokens
                 $lotes = array_chunk($productosParaIA, 15);
                 foreach ($lotes as $lote) {
-                    $prompt = 'Eres un validador estricto de nomenclatura industrial para productos de Salcom. Valida estos productos verificando que CADA CAMPO tenga el contenido CORRECTO segun su definicion:
+                    $prompt = 'Eres un detector de CAMPOS CRUZADOS en productos industriales. Tu UNICO trabajo es detectar si un dato esta en el campo INCORRECTO (puesto donde no va).
 
 DEFINICION DE CAMPOS:
-- NOMBRE_TIPO = Que ES el producto de forma especifica (ej: TELEFONO CELULAR, PINTURA VINILICA, MOTOR ELECTRICO, LAPTOP, TABLET, CAJA CARTON). Debe ser el tipo/categoria del producto, NO una marca, NO una especificacion.
-- NOMBRE_MARCA = La EMPRESA/FABRICANTE (ej: APPLE, SAMSUNG, COMEX, WEG, TRUPER). Es quien fabrica o vende el producto. NO confundir con lineas de producto (IPHONE no es marca, es linea de APPLE).
-- NOMBRE_MODELO = Referencia o LINEA del fabricante (ej: IPHONE 15, PRO MAX, VIN-100, W22, GALAXY S24). Puede ser alfanumerico. Incluye nombres de linea de producto.
-- NOMBRE_MEDIDA = Tamano/capacidad con NUMEROS (ej: 6.5 PULGADAS, 19LT, 500ML, 3HP, 256GB). DEBE tener numeros.
-- NOMBRE_ESPECIFICACION = Caracteristicas TECNICAS adicionales que diferencian el producto (ej: COLOR NEGRO TITANIO, 256GB RAM 8GB, TRIFASICO 220V, CORRUGADA DOBLE PARED). Son detalles tecnicos, colores, capacidades, materiales.
+- NOMBRE_TIPO = Que ES el producto (ej: MOTOR ELECTRICO, PINTURA VINILICA, CAJA CARTON)
+- NOMBRE_MARCA = EMPRESA que lo fabrica (ej: WEG, COMEX, 3M, APPLE, SAMSUNG)
+- NOMBRE_MODELO = Referencia/linea del fabricante (ej: W22, VIN-100, IPHONE 15)
+- NOMBRE_MEDIDA = Tamano/capacidad con NUMEROS (ej: 19LT, 500ML, 3HP, 220V)
+- NOMBRE_ESPECIFICACION = Caracteristicas adicionales (ej: TRIFASICO, BLANCO MATE, DOBLE PARED)
 
-TIPOS DE PRODUCTO YA APROBADOS (si NOMBRE_TIPO es alguno de estos, NO lo marques como error):
-TELEFONO CELULAR, TELEFONO MOVIL, SMARTPHONE, PINTURA VINILICA, PINTURA ESMALTE, MOTOR ELECTRICO, BOMBA AGUA, BOMBA CENTRIFUGA, ACEITE MOTOR, CINTA ADHESIVA, CAJA CARTON, CAJA CORRUGADA, LAPTOP, TABLET, COMPUTADORA, IMPRESORA, MONITOR, TECLADO, MOUSE, CABLE ELECTRICO, FOCO LED, LAMPARA, TORNILLO, TUERCA, RESINA EPOXICA, PIGMENTO ORGANICO, SOLVENTE INDUSTRIAL, ADHESIVO ESTRUCTURAL, BOLSA PLASTICO, ETIQUETA ADHESIVA, FLEJE ACERO, TALADRO ROTOMARTILLO, INSECTICIDA, DETERGENTE INDUSTRIAL
+SOLO marca error si detectas alguno de estos casos:
+1. Una MARCA conocida esta en NOMBRE_TIPO (ej: "WEG" en tipo, deberia estar en marca)
+2. Una MEDIDA con numeros esta en NOMBRE_MARCA o NOMBRE_TIPO (ej: "19LT" en marca)
+3. Un TIPO DE PRODUCTO esta en NOMBRE_MARCA (ej: "PINTURA VINILICA" en marca)
+4. NOMBRE_ESPECIFICACION tiene el MISMO texto EXACTO que NOMBRE_MEDIDA (dato duplicado)
+5. Una MARCA conocida esta en NOMBRE_MODELO (ej: "COMEX" en modelo, deberia ser marca)
 
-REGLAS CRITICAS:
-1. Si NOMBRE_ESPECIFICACION es IGUAL o muy similar a NOMBRE_MEDIDA = ERROR
-2. Si NOMBRE_TIPO contiene SOLO adjetivos sin sustantivo (BLANCO, MATE, GRANDE) = ERROR
-3. Si NOMBRE_TIPO es UNA SOLA PALABRA muy generica (CELULAR, PINTURA, MOTOR, CAJA) = ERROR, debe tener al menos 2 palabras
-4. Cada campo debe tener informacion DISTINTA, no repetir datos de otro campo
-5. NOMBRE_MODELO puede contener nombres de linea de producto (IPHONE, GALAXY, COROLLA) - esto NO es marca ni especificacion
-6. NOMBRE_ESPECIFICACION debe ser algo que el producto TIENE (color, capacidad, material, voltaje)
-7. Si NOMBRE_TIPO tiene 2+ palabras y describe QUE ES el producto = VALIDO (TELEFONO MOVIL, PINTURA VINILICA, MOTOR ELECTRICO son CORRECTOS, NO los rechaces)
-8. NO rechaces un NOMBRE_TIPO que esta en la lista de tipos aprobados
-9. MOVIL, ELECTRICO, VINILICA, CENTRIFUGA son calificadores validos del tipo, NO son "adjetivos de acabado"
-10. NOMBRE_ESPECIFICACION NO debe repetir informacion de NOMBRE_TIPO, NOMBRE_MARCA ni NOMBRE_MEDIDA. Debe ser informacion NUEVA (material, color, acabado, uso, tecnologia).
+NO marques error por:
+- Que el nombre del tipo sea corto o generico (eso ya lo valida PHP)
+- Que la especificacion sea parecida pero no identica a otro campo
+- Opinion sobre si un nombre es "suficientemente descriptivo"
+- Formato, mayusculas, caracteres (eso ya lo valida PHP)
 
-OBLIGATORIO - SUGERENCIA:
-Para CADA error, SIEMPRE incluye el campo "sugerencia" con el valor que deberia ir en esa celda.
-- Si puedes inferir el valor correcto con la informacion de los otros campos, pon el valor exacto.
-- Si NO tienes suficiente informacion para saber el valor real, pon un ejemplo entre parentesis con la palabra EJEMPLO: asi el proveedor sabe que debe poner SU dato real.
-  Ejemplo: "(EJEMPLO: 256GB NEGRO TITANIO)" o "(EJEMPLO: CENTRIFUGA 127V)"
-- La sugerencia debe estar en MAYUSCULAS.
-- NO inventes datos especificos del producto si no los conoces.
-- IMPORTANTE: La sugerencia NO debe repetir informacion que ya esta en otros campos del producto. Si sugieres NOMBRE_ESPECIFICACION, NO pongas el nombre del tipo, la marca ni la medida.
-- Si un campo ya tiene un valor correcto, NO lo incluyas como error.
+Para cada error incluye "sugerencia" con el valor correcto en MAYUSCULAS.
+Si NO sabes el valor real, pon ejemplo: "(EJEMPLO: VALOR)"
 
 Productos: '.json_encode($lote, JSON_UNESCAPED_UNICODE).'
 
-Responde UNICAMENTE JSON valido, sin markdown, sin texto extra:
-{"errores_ia": [{"fila": N, "campo": "NOMBRE_X", "error": "explicacion", "sugerencia": "VALOR EXACTO PARA COPIAR"}]}
-Si todo esta correcto: {"errores_ia": []}';
+Responde UNICAMENTE JSON valido, sin markdown:
+{"errores_ia": [{"fila": N, "campo": "NOMBRE_X", "error": "explicacion corta", "sugerencia": "VALOR"}]}
+Si todo correcto: {"errores_ia": []}';
 
                     $resultado = $iaService->llamarClaude($prompt);
                     if ($resultado['success'] && $resultado['content']) {
@@ -483,53 +474,12 @@ Si todo esta correcto: {"errores_ia": []}';
                         $contenido = preg_replace('/```\s*/', '', $contenido);
                         $iaResult = json_decode(trim($contenido), true);
                         if ($iaResult && ! empty($iaResult['errores_ia'])) {
-                            // Lista de tipos aprobados - si la IA rechaza uno de estos, ignorar el error
-                            $tiposAprobados = ['TELEFONO CELULAR', 'TELEFONO MOVIL', 'SMARTPHONE', 'PINTURA VINILICA', 'PINTURA ESMALTE', 'MOTOR ELECTRICO', 'BOMBA AGUA', 'BOMBA CENTRIFUGA', 'ACEITE MOTOR', 'CINTA ADHESIVA', 'CAJA CARTON', 'CAJA CORRUGADA', 'LAPTOP', 'TABLET', 'COMPUTADORA', 'IMPRESORA', 'MONITOR', 'TECLADO', 'MOUSE', 'CABLE ELECTRICO', 'FOCO LED', 'LAMPARA', 'TORNILLO', 'TUERCA', 'RESINA EPOXICA', 'PIGMENTO ORGANICO', 'SOLVENTE INDUSTRIAL', 'ADHESIVO ESTRUCTURAL', 'BOLSA PLASTICO', 'ETIQUETA ADHESIVA', 'FLEJE ACERO', 'TALADRO ROTOMARTILLO', 'INSECTICIDA', 'DETERGENTE INDUSTRIAL', 'CELULAR', 'TELEFONO', 'CAMISETA DEPORTIVA', 'BALON DE FUTBOL'];
-
-                            // Agregar tipos que ya existen en la BD (si ya se dio de alta, es valido)
-                            $tiposEnBD = Producto::select('nombre')->distinct()->get()->pluck('nombre')->map(function ($nombre) {
-                                // Extraer las primeras 2 palabras como "tipo"
-                                $palabras = explode(' ', strtoupper(trim($nombre)));
-                                return implode(' ', array_slice($palabras, 0, 2));
-                            })->unique()->toArray();
-                            $tiposAprobados = array_unique(array_merge($tiposAprobados, $tiposEnBD));
-
                             foreach ($iaResult['errores_ia'] as $errIA) {
                                 $filaIA = (int) ($errIA['fila'] ?? 0);
                                 if ($filaIA < 2) {
                                     continue;
                                 }
                                 $campoIA = $errIA['campo'] ?? 'NOMBRE_TIPO';
-
-                                // Si la IA rechaza NOMBRE_TIPO pero el valor esta en la lista aprobada, ignorar
-                                if ($campoIA === 'NOMBRE_TIPO') {
-                                    $idx = $filaIA - 2;
-                                    if (isset($productos[$idx])) {
-                                        $tipoActual = strtoupper(trim($productos[$idx]['NOMBRE_TIPO'] ?? ''));
-                                        if (in_array($tipoActual, $tiposAprobados)) {
-                                            continue; // Ignorar este error - el tipo es valido
-                                        }
-                                    }
-                                }
-
-                                // Si la IA dice que ESPECIFICACION es similar a MEDIDA, verificar con PHP
-                                // Solo aceptar el error si realmente son similares (>60% similitud)
-                                if ($campoIA === 'NOMBRE_ESPECIFICACION') {
-                                    $idx = $filaIA - 2;
-                                    if (isset($productos[$idx])) {
-                                        $medida = strtoupper(trim($productos[$idx]['NOMBRE_MEDIDA'] ?? ''));
-                                        $espec = strtoupper(trim($productos[$idx]['NOMBRE_ESPECIFICACION'] ?? ''));
-                                        $errorTexto = strtolower($errIA['error'] ?? '');
-                                        // Si el error menciona "similar a NOMBRE_MEDIDA" o "repetir"
-                                        if ((str_contains($errorTexto, 'medida') || str_contains($errorTexto, 'repetir') || str_contains($errorTexto, 'similar')) && $medida && $espec) {
-                                            // Verificar similitud real
-                                            similar_text($medida, $espec, $porcentaje);
-                                            if ($porcentaje < 50 && $medida !== $espec) {
-                                                continue; // Falso positivo - no son similares
-                                            }
-                                        }
-                                    }
-                                }
 
                                 // No duplicar errores que PHP ya detecto
                                 $yaExiste = false;
@@ -540,12 +490,38 @@ Si todo esta correcto: {"errores_ia": []}';
                                     }
                                 }
                                 if (! $yaExiste) {
-                                    // Si la sugerencia es igual al valor actual, descartar (la IA se contradice)
+                                    $idx = $filaIA - 2;
+
+                                    // VERIFICAR con PHP que el error de la IA sea real
+                                    // La IA puede alucinar - confirmar los datos reales del Excel
+                                    if (isset($productos[$idx])) {
+                                        $errorTexto = strtolower($errIA['error'] ?? '');
+                                        $prod = $productos[$idx];
+
+                                        // Si dice "identico" o "duplicado" entre especificacion y medida, verificar
+                                        if (str_contains($errorTexto, 'identic') || str_contains($errorTexto, 'duplica') || str_contains($errorTexto, 'mismo texto')) {
+                                            $medida = strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? ''));
+                                            $espec = strtoupper(trim($prod['NOMBRE_ESPECIFICACION'] ?? ''));
+                                            if ($medida !== $espec) {
+                                                continue; // Falso positivo - NO son identicos
+                                            }
+                                        }
+
+                                        // Si dice que hay una marca en NOMBRE_TIPO, verificar que realmente sea una marca conocida
+                                        if ($campoIA === 'NOMBRE_TIPO' && str_contains($errorTexto, 'marca')) {
+                                            $valorTipo = strtoupper(trim($prod['NOMBRE_TIPO'] ?? ''));
+                                            $marcasTop = ['WEG', 'SKF', '3M', 'ALPHA', 'SIEMENS', 'ABB', 'SCHNEIDER', 'BOSCH', 'SAMSUNG', 'APPLE', 'LG', 'SONY', 'COMEX', 'TRUPER', 'PEMEX', 'DUPONT', 'HENKEL', 'DE LA ROSA', 'BIMBO', 'NESTLE'];
+                                            if (!in_array($valorTipo, $marcasTop)) {
+                                                continue; // No es una marca conocida - falso positivo
+                                            }
+                                        }
+                                    }
+
+                                    // Si la sugerencia es igual al valor actual, descartar (falso positivo)
                                     $sugerencia = $errIA['sugerencia'] ?? null;
                                     if ($sugerencia) {
-                                        $idx = $filaIA - 2;
                                         if (isset($productos[$idx])) {
-                                            $campoKey = $campoIA; // ej: NOMBRE_MEDIDA
+                                            $campoKey = $campoIA;
                                             $valorActual = strtoupper(trim($productos[$idx][$campoKey] ?? ''));
                                             $sugerenciaLimpia = strtoupper(trim($sugerencia));
                                             if ($valorActual === $sugerenciaLimpia) {
@@ -554,7 +530,7 @@ Si todo esta correcto: {"errores_ia": []}';
                                         }
                                     }
 
-                                    $mensajeError = 'IA: '.($errIA['error'] ?? 'Campo con contenido incorrecto');
+                                    $mensajeError = 'IA: '.($errIA['error'] ?? 'Campo con dato incorrecto');
                                     if ($sugerencia) {
                                         $mensajeError .= " || CORRECCION: {$sugerencia}";
                                     }
@@ -612,6 +588,7 @@ Si todo esta correcto: {"errores_ia": []}';
                         'activo' => true,
                         'stock' => 0,
                         'proveedor_nombre' => session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
+                        'proveedor_tipo' => session('proveedor_id') ? 'proveedor' : 'admin',
                     ]
                 );
             }
@@ -671,6 +648,7 @@ Si todo esta correcto: {"errores_ia": []}';
                         'activo' => true,
                         'stock' => 0,
                         'proveedor_nombre' => session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
+                        'proveedor_tipo' => session('proveedor_id') ? 'proveedor' : 'admin',
                     ]
                 );
                 $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
@@ -1100,6 +1078,16 @@ Si todo esta correcto: {"errores_ia": []}';
             ];
         }
 
+        // NOMBRE_MARCA no debe ser una palabra suelta que describe un tipo de producto
+        $palabrasTipo = ['PINTURA', 'MOTOR', 'BOMBA', 'CAJA', 'CINTA', 'BOLSA', 'ACEITE', 'RESINA', 'PIGMENTO', 'ETIQUETA', 'TALADRO', 'FLEJE', 'SOLVENTE', 'ADHESIVO', 'CEMENTO', 'INSECTICIDA', 'DETERGENTE', 'TORNILLO', 'TUERCA', 'CABLE', 'FOCO', 'LAMPARA', 'VALVULA', 'TUBERIA', 'BALERO', 'RODAMIENTO'];
+        if ($nombreMarcaRaw && in_array(strtoupper(trim($nombreMarcaRaw)), $palabrasTipo)) {
+            $errores[] = [
+                'fila' => $fila,
+                'campo' => 'NOMBRE_MARCA',
+                'error' => "'{$nombreMarcaRaw}' es un TIPO DE PRODUCTO, no una marca. ->  NOMBRE_MARCA debe ser QUIEN fabrica el producto (ej: COMEX, TRUPER, WEG). El tipo va en NOMBRE_TIPO.",
+            ];
+        }
+
         // NOMBRE_MARCA no debe ser una medida (ampliar regex para detectar mas formatos)
         if ($nombreMarcaRaw && preg_match('/^\d+\s*(ML|KG|LT|HP|CM|MM|GR|GAL|PZA|G|V|W|HZ|MT)$/i', $nombreMarcaRaw)) {
             $errores[] = [
@@ -1124,6 +1112,29 @@ Si todo esta correcto: {"errores_ia": []}';
                 'campo' => 'NOMBRE_TIPO',
                 'error' => "'{$nombreTipoRaw}' es una MARCA, no un tipo de producto. ->  NOMBRE_TIPO debe decir QUE ES (ej: PINTURA VINILICA, BOMBA AGUA). La marca va en NOMBRE_MARCA.",
             ];
+        }
+
+        // NOMBRE_TIPO - Detectar orden incorrecto (adjetivo antes de sustantivo)
+        // Ejemplo: "INDUSTRIAL SOLVENTE" deberia ser "SOLVENTE INDUSTRIAL"
+        if ($nombreTipoRaw) {
+            $adjetivosIndustriales = ['INDUSTRIAL', 'ELECTRICO', 'ELECTRICA', 'VINILICA', 'VINILICO', 'CENTRIFUGA', 'CENTRIFUGO', 'ADHESIVA', 'ADHESIVO', 'CORRUGADA', 'CORRUGADO', 'EPOXICA', 'EPOXICÓ', 'ORGANICO', 'ORGANICA', 'ESTRUCTURAL', 'HIDRAULICA', 'HIDRAULICO', 'NEUMATICA', 'NEUMATICO', 'TERMICO', 'TERMICA', 'INOXIDABLE', 'GALVANIZADO', 'GALVANIZADA'];
+            $palabrasTipoArr = explode(' ', strtoupper(trim($nombreTipoRaw)));
+            if (count($palabrasTipoArr) >= 2) {
+                $primeraPalabra = $palabrasTipoArr[0];
+                $segundaPalabra = $palabrasTipoArr[1];
+                // Si la primera palabra es un adjetivo y la segunda es un sustantivo, esta volteado
+                if (in_array($primeraPalabra, $adjetivosIndustriales) && !in_array($segundaPalabra, $adjetivosIndustriales)) {
+                    $sugerenciaOrden = $segundaPalabra.' '.$primeraPalabra;
+                    if (count($palabrasTipoArr) > 2) {
+                        $sugerenciaOrden .= ' '.implode(' ', array_slice($palabrasTipoArr, 2));
+                    }
+                    $errores[] = [
+                        'fila' => $fila,
+                        'campo' => 'NOMBRE_TIPO',
+                        'error' => "'{$nombreTipoRaw}' tiene las palabras en orden incorrecto. El sustantivo va primero. -> Pon: {$sugerenciaOrden}",
+                    ];
+                }
+            }
         }
 
         // NOMBRE_ESPECIFICACION validaciones
