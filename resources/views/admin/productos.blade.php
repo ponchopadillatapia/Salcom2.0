@@ -180,6 +180,7 @@
                 <th>Tendencia</th>
                 <th>Nivel</th>
                 <th>Proveedor</th>
+                <th>Hora alta</th>
                 <th>Catálogo</th>
             </tr>
         </thead>
@@ -194,7 +195,7 @@
             @endphp
             @if($currentDate !== $lastDate)
                 <tr>
-                    <td colspan="10" style="background:var(--purple-subtle);font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple);">
+                    <td colspan="11" style="background:var(--purple-subtle);font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple);">
                         {{ $p->created_at ? $p->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}
                     </td>
                 </tr>
@@ -217,6 +218,9 @@
                     @else
                         —
                     @endif
+                </td>
+                <td style="font-size:11px;color:var(--gray-muted);white-space:nowrap;">
+                    {{ $p->created_at ? $p->created_at->format('h:i a') : '—' }}
                 </td>
                 <td>
                     <span class="badge-activo {{ $p->activo ? 'on' : 'off' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span>

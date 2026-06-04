@@ -507,6 +507,43 @@ Si todo correcto: {"errores_ia": []}';
                                             }
                                         }
 
+                                        // Si dice que hay una medida (numeros) en NOMBRE_MARCA, verificar que NOMBRE_MARCA realmente tenga numeros
+                                        if ($campoIA === 'NOMBRE_MARCA' && (str_contains($errorTexto, 'medida') || str_contains($errorTexto, 'numero'))) {
+                                            $valorMarca = trim($prod['NOMBRE_MARCA'] ?? '');
+                                            if (!preg_match('/\d/', $valorMarca)) {
+                                                continue; // Falso positivo - NOMBRE_MARCA no tiene numeros
+                                            }
+                                        }
+
+                                        // Si dice que hay una medida en NOMBRE_TIPO, verificar que NOMBRE_TIPO realmente tenga numeros
+                                        if ($campoIA === 'NOMBRE_TIPO' && (str_contains($errorTexto, 'medida') || str_contains($errorTexto, 'numero'))) {
+                                            $valorTipo = trim($prod['NOMBRE_TIPO'] ?? '');
+                                            if (!preg_match('/\d/', $valorTipo)) {
+                                                continue; // Falso positivo - NOMBRE_TIPO no tiene numeros
+                                            }
+                                        }
+
+                                        // Si dice que hay una medida en NOMBRE_MEDIDA pero el error reporta un valor que NO es el real, descartar
+                                        if ($campoIA === 'NOMBRE_MEDIDA' && (str_contains($errorTexto, 'marca') || str_contains($errorTexto, 'campo'))) {
+                                            // Verificar que la sugerencia de la IA no sea el valor de OTRA fila
+                                            $sugerenciaIA = strtoupper(trim($errIA['sugerencia'] ?? ''));
+                                            $medidaReal = strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? ''));
+                                            // Si la IA dice "pon X" pero X no tiene relacion con esta fila, descartar
+                                            if ($sugerenciaIA && $sugerenciaIA !== $medidaReal && !str_contains($medidaReal, $sugerenciaIA)) {
+                                                // Verificar si la sugerencia es el valor de NOMBRE_MEDIDA de otra fila (confusion)
+                                                $esDeOtraFila = false;
+                                                foreach ($productos as $otroProd) {
+                                                    if (strtoupper(trim($otroProd['NOMBRE_MEDIDA'] ?? '')) === $sugerenciaIA && $otroProd !== $prod) {
+                                                        $esDeOtraFila = true;
+                                                        break;
+                                                    }
+                                                }
+                                                if ($esDeOtraFila) {
+                                                    continue; // La IA confundio filas
+                                                }
+                                            }
+                                        }
+
                                         // Si dice que hay una marca en NOMBRE_TIPO, verificar que realmente sea una marca conocida
                                         if ($campoIA === 'NOMBRE_TIPO' && str_contains($errorTexto, 'marca')) {
                                             $valorTipo = strtoupper(trim($prod['NOMBRE_TIPO'] ?? ''));
