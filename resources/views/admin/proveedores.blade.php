@@ -227,14 +227,15 @@
             @foreach($proveedores as $p)
                 @php
                     $m = $metricasProveedores[$p->id] ?? [];
-                    $forecast = $m['forecast'] ?? min(100, max(0, $p->score_total * 1.1));
+                    $otifActual = $m['otif_actual'] ?? 0;
+                    $forecast = $m['forecast'] ?? $otifActual;
                     $comprasTrim = $m['compras_trim'] ?? 0;
                     $estimado = $m['estimado'] ?? 0;
                 @endphp
                 <tr>
                     <td style="font-weight:700;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
                     <td style="font-weight:600">{{ $p->nombre ?? $p->usuario }}</td>
-                    <td><span class="pct-val">{{ number_format($p->score_total, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span></td>
+                    <td><span class="pct-val">{{ number_format($otifActual, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span></td>
                     <td>
                         <div class="pct-cell">
                             <div class="score-bar {{ $m['forecast_class'] ?? 'score-low' }}"><div class="score-fill" style="width:{{ $forecast }}%"></div></div>

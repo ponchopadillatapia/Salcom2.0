@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\OpinionPositivaAviso;
+use App\Models\AlertaConfiguracion;
 use App\Models\ClienteUser;
 use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
@@ -12,6 +13,7 @@ use App\Models\OcBorrador;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
+use App\Services\InventarioCalculoService;
 use App\Services\PedidoProveedorSyncService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -35,8 +37,25 @@ class AdminPanelController extends Controller
             ]);
         }
 
-        $facturasPorEstatus = Factura::selectRaw('estatus, count(*) as total, sum(total) as monto')
+        $facturasPorEstatus = Factura::selectRaw('estatus, count(*) as cantidad, sum(total) as monto')
             ->groupBy('estatus')->get()->keyBy('estatus');
+
+        $mesActualData = $pedidosPorMes->last();
+        $mesAnteriorData = $pedidosPorMes->count() >= 2
+            ? $pedidosPorMes[$pedidosPorMes->count() - 2]
+            : null;
+        $ventasVarPct = $this->calcularVariacionPct(
+            (float) ($mesActualData['monto'] ?? 0),
+            (float) ($mesAnteriorData['monto'] ?? 0)
+        );
+        $pedidosVarPct = $this->calcularVariacionPct(
+            (float) ($mesActualData['total'] ?? 0),
+            (float) ($mesAnteriorData['total'] ?? 0)
+        );
+
+        $facturasPagadasCount = (int) ($facturasPorEstatus->get('pagada')?->cantidad ?? 0);
+        $facturasPendientesCount = (int) ($facturasPorEstatus->get('pendiente')?->cantidad ?? 0);
+        $facturasCanceladasCount = (int) ($facturasPorEstatus->get('cancelada')?->cantidad ?? 0);
 
         $proveedoresActivosList = ProveedorUser::where('activo', true)->get();
         $opinionActualizados = 0;
@@ -56,8 +75,6 @@ class AdminPanelController extends Controller
             ? round((($totalOpinionProv - $opinionActualizados) / $totalOpinionProv) * 100, 1) : 0;
 
         $inicioMes = now()->startOfMonth();
-        $inicioMesAnterior = now()->subMonth()->startOfMonth();
-        $finMesAnterior = now()->subMonth()->endOfMonth();
 
         $productosActivos = Producto::where('activo', true)->count();
         $sinStock = Producto::where('activo', true)->where('stock', '<=', 0)->count();
@@ -77,17 +94,14 @@ class AdminPanelController extends Controller
             ? round((($productosActivos - $activosMesAnterior) / $activosMesAnterior) * 100)
             : 0;
 
-        $agotadosMesActual = Producto::where('activo', true)
+        $agotadosInicioMes = Producto::where('activo', true)
             ->where('stock', '<=', 0)
-            ->where('updated_at', '>=', $inicioMes)
+            ->where('updated_at', '<', $inicioMes)
             ->count();
-        $agotadosMesAnterior = Producto::where('activo', true)
-            ->where('stock', '<=', 0)
-            ->whereBetween('updated_at', [$inicioMesAnterior, $finMesAnterior])
-            ->count();
-        $agotadosVarPct = $agotadosMesAnterior > 0
-            ? round((($agotadosMesActual - $agotadosMesAnterior) / $agotadosMesAnterior) * 100)
-            : 0;
+        $agotadosVarPct = $this->calcularVariacionPct((float) $sinStock, (float) $agotadosInicioMes);
+
+        $otifResumen = $this->calcularOtifResumen();
+        $fiscalResumen = $this->calcularResumenFiscal();
 
         $data = [
             'totalProveedores' => ProveedorUser::count(),
@@ -97,6 +111,10 @@ class AdminPanelController extends Controller
             'pedidosPendientes' => Pedido::whereIn('estatus', ['validacion', 'procesando'])->count(),
             'pedidosEntregados' => Pedido::where('estatus', 'entregado')->count(),
             'montoPedidos' => Pedido::sum('total'),
+            'ventasMesActual' => (float) ($mesActualData['monto'] ?? 0),
+            'pedidosMesActual' => (int) ($mesActualData['total'] ?? 0),
+            'ventasVarPct' => $ventasVarPct,
+            'pedidosVarPct' => $pedidosVarPct,
             'totalProductos' => $productosActivos,
             'sinStock' => $sinStock,
             'stockBajo' => $stockBajo,
@@ -115,6 +133,16 @@ class AdminPanelController extends Controller
             'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(3)->get(),
             'pedidosPorMes' => $pedidosPorMes,
             'facturasPorEstatus' => $facturasPorEstatus,
+            'facturasPagadasCount' => $facturasPagadasCount,
+            'facturasPendientesCount' => $facturasPendientesCount,
+            'facturasCanceladasCount' => $facturasCanceladasCount,
+            'otPercent' => $otifResumen['otPercent'],
+            'ifPercent' => $otifResumen['ifPercent'],
+            'fiscalVerde' => $fiscalResumen['verde'],
+            'fiscalAmarillo' => $fiscalResumen['amarillo'],
+            'fiscalRojo' => $fiscalResumen['rojo'],
+            'fiscalGris' => $fiscalResumen['gris'],
+            'fiscalPctCumple' => $fiscalResumen['pctCumple'],
         ];
 
         return view('admin.dashboard', $data);
@@ -841,9 +869,9 @@ class AdminPanelController extends Controller
 
         $baseProveedor = Factura::whereNotNull('codigo_proveedor');
         $totalGeneral = (clone $baseProveedor)->count();
-        $conteosEstatus = (clone $baseProveedor)->selectRaw('estatus, count(*) as total')
+        $conteosEstatus = (clone $baseProveedor)->selectRaw('estatus, count(*) as cantidad')
             ->groupBy('estatus')
-            ->pluck('total', 'estatus');
+            ->pluck('cantidad', 'estatus');
         $conteoVencidas = (clone $baseProveedor)
             ->where('estatus', 'pendiente')
             ->where('fecha_vencimiento', '<', now())
@@ -984,19 +1012,18 @@ class AdminPanelController extends Controller
 
     public function otif()
     {
-        // OTIF basado en facturas de proveedores
         $facturasProveedor = Factura::whereNotNull('codigo_proveedor')->get();
         $total = $facturasProveedor->count();
         $pagadas = $facturasProveedor->where('estatus', 'pagada')->count();
         $pendientes = $facturasProveedor->where('estatus', 'pendiente')->count();
         $vencidas = $facturasProveedor->where('estatus', 'pendiente')
             ->filter(fn ($f) => $f->fecha_vencimiento && $f->fecha_vencimiento->isPast())->count();
-        $aTiempo = $pagadas; // pagadas = entregadas a tiempo
         $canceladas = $facturasProveedor->where('estatus', 'cancelada')->count();
 
-        $otPercent = $total > 0 ? round(($aTiempo / $total) * 100, 1) : 0;
-        $ifPercent = $total > 0 ? round((($total - $canceladas) / $total) * 100, 1) : 0;
-        $porcentaje = $total > 0 ? round(($aTiempo / $total) * 100) : 0;
+        $otifResumen = $this->calcularOtifResumen($facturasProveedor);
+        $otPercent = $otifResumen['otPercent'];
+        $ifPercent = $otifResumen['ifPercent'];
+        $porcentaje = (int) round($otPercent);
 
         // Detalle por proveedor
         $proveedores = ProveedorUser::where('activo', true)->orderBy('score_total', 'desc')->get();
@@ -1336,21 +1363,17 @@ class AdminPanelController extends Controller
             $opinionData[] = ['proveedor' => $prov, 'estatus' => $doc ? $doc->estatus : 'sin_documento'];
         }
 
-        // Días de inventario por producto
+        $inventarioService = app(InventarioCalculoService::class);
+        $diasPedido = (int) AlertaConfiguracion::get('dias_alerta_documento', 7);
+        $reporteInventario = collect($inventarioService->generarReporteCompleto())->keyBy('codigo');
         $inventarioDias = [];
         foreach ($productos as $prod) {
-            $ventaMensual = Factura::whereNotNull('codigo_proveedor')
-                ->where('created_at', '>=', now()->subMonths(3))
-                ->count();
-            $diasInventario = $prod->stock > 0 && $ventaMensual > 0
-                ? round(($prod->stock / ($ventaMensual / 90)) * 1, 0)
-                : 0;
-
+            $row = $reporteInventario->get($prod->codigo);
             $inventarioDias[] = [
                 'producto' => $prod,
-                'dias_inventario' => $diasInventario,
-                'dias_pedido' => 7,
-                'dias_entrega' => 5,
+                'dias_inventario' => $row['dias_inventario'] ?? 0,
+                'dias_pedido' => $diasPedido,
+                'dias_entrega' => $row['dias_entrega'] ?? 15,
             ];
         }
 
@@ -1482,13 +1505,30 @@ class AdminPanelController extends Controller
 
     public function exportDiasInventario()
     {
-        $productos = Producto::where('activo', true)->orderBy('nombre')->get();
+        $inventarioService = app(InventarioCalculoService::class);
+        $diasPedido = (int) AlertaConfiguracion::get('dias_alerta_documento', 7);
+        $reporte = $inventarioService->generarReporteCompleto();
         $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['DIAS DE INVENTARIO POR ARTICULO'], ['Generado: '.now()->format('d/m/Y H:i')], [], ['CODIGO', 'PRODUCTO', 'STOCK', 'UNIDAD', 'DIAS INVENTARIO', 'DIAS PEDIDO', 'DIAS ENTREGA', 'ESTADO']];
 
-        foreach ($productos as $prod) {
-            $diasInv = $prod->stock > 0 ? round($prod->stock / max(1, $prod->stock * 0.03)) : 0;
-            $estado = $diasInv < 12 ? 'REORDENAR' : 'OK';
-            $lines[] = [$prod->codigo, $prod->nombre, number_format((int) $prod->stock), $prod->unidad_venta, $diasInv.' dias', '7 dias', '5 dias', $estado];
+        foreach ($reporte as $row) {
+            $umbralReorden = $diasPedido + $row['dias_entrega'];
+            $estadoLabels = [
+                'agotado' => 'AGOTADO',
+                'bajo_minimo' => 'REORDENAR',
+                'sobre_stock' => 'EXCESO',
+                'ok' => 'OK',
+            ];
+            $estado = $estadoLabels[$row['estado']] ?? ($row['dias_inventario'] < $umbralReorden ? 'REORDENAR' : 'OK');
+            $lines[] = [
+                $row['codigo'],
+                $row['nombre'],
+                number_format((int) $row['existencia']),
+                $row['unidad'],
+                $row['dias_inventario'].' dias',
+                $diasPedido.' dias',
+                $row['dias_entrega'].' dias',
+                $estado,
+            ];
         }
 
         return $this->csvResponse($lines, 'Dias_Inventario_'.now()->format('Y-m-d').'.csv');
@@ -1711,14 +1751,15 @@ class AdminPanelController extends Controller
 
             $comprasTrim = (float) $actual->sum('total');
             $comprasAnterior = (float) $anterior->sum('total');
-            $forecast = min(100, max(0, (float) $prov->score_total * 1.1));
-            $forecastAnterior = min(100, max(0, $otifAnterior * 1.1));
+            $forecast = $otifActual > 0 ? $otifActual : (float) $prov->score_total;
+            $forecastAnterior = $otifAnterior;
 
             $metricas[$prov->id] = [
+                'otif_actual' => $otifActual,
                 'forecast' => $forecast,
                 'compras_trim' => $comprasTrim,
                 'estimado' => $comprasTrim > 0 ? round($comprasTrim / 3, 2) : 0,
-                'score_class' => $this->scoreBarClass((float) $prov->score_total),
+                'score_class' => $this->scoreBarClass($otifActual > 0 ? $otifActual : (float) $prov->score_total),
                 'forecast_class' => $this->scoreBarClass($forecast),
                 'trend_otif' => $this->deltaTrend($otifActual, $otifAnterior),
                 'trend_entrega' => $this->deltaTrend($entregaActual, $entregaAnterior),
@@ -1733,14 +1774,13 @@ class AdminPanelController extends Controller
 
     private function metricasProveedorVacias(ProveedorUser $prov): array
     {
-        $forecast = min(100, max(0, (float) $prov->score_total * 1.1));
-
         return [
-            'forecast' => $forecast,
+            'otif_actual' => 0,
+            'forecast' => (float) $prov->score_total,
             'compras_trim' => 0,
             'estimado' => 0,
             'score_class' => $this->scoreBarClass((float) $prov->score_total),
-            'forecast_class' => $this->scoreBarClass($forecast),
+            'forecast_class' => $this->scoreBarClass((float) $prov->score_total),
             'trend_otif' => 0,
             'trend_entrega' => 0,
             'trend_puntualidad' => 0,
@@ -1809,5 +1849,61 @@ class AdminPanelController extends Controller
     private function scoreBarClass(float $pct): string
     {
         return $pct >= 70 ? 'score-high' : ($pct >= 40 ? 'score-mid' : 'score-low');
+    }
+
+    private function calcularVariacionPct(float $actual, float $anterior): ?int
+    {
+        if ($anterior <= 0) {
+            return $actual > 0 ? 100 : null;
+        }
+
+        return (int) round((($actual - $anterior) / $anterior) * 100);
+    }
+
+    private function calcularOtifResumen($facturasProveedor = null): array
+    {
+        $facturas = $facturasProveedor ?? Factura::whereNotNull('codigo_proveedor')->get();
+        $total = $facturas->count();
+        $pagadas = $facturas->where('estatus', 'pagada')->count();
+        $canceladas = $facturas->where('estatus', 'cancelada')->count();
+
+        return [
+            'otPercent' => $total > 0 ? round(($pagadas / $total) * 100, 1) : 0,
+            'ifPercent' => $total > 0 ? round((($total - $canceladas) / $total) * 100, 1) : 0,
+        ];
+    }
+
+    private function calcularResumenFiscal(): array
+    {
+        $proveedores = ProveedorUser::where('activo', true)->get();
+        $verde = $amarillo = $rojo = $gris = 0;
+
+        foreach ($proveedores as $prov) {
+            $docs = DocumentoProveedor::where('proveedor_id', $prov->id)->get();
+            $aprobados = $docs->where('estatus', 'aprobado')->count();
+            $rechazados = $docs->where('estatus', 'rechazado')->count();
+            $totalSubidos = $docs->count();
+
+            if ($aprobados >= 3 && $rechazados === 0) {
+                $verde++;
+            } elseif ($totalSubidos > 0 && $rechazados === 0) {
+                $amarillo++;
+            } elseif ($totalSubidos === 0) {
+                $gris++;
+            } else {
+                $rojo++;
+            }
+        }
+
+        $total = $proveedores->count();
+
+        return [
+            'verde' => $verde,
+            'amarillo' => $amarillo,
+            'rojo' => $rojo,
+            'gris' => $gris,
+            'total' => $total,
+            'pctCumple' => $total > 0 ? round(($verde / $total) * 100) : 0,
+        ];
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\AlertaConfiguracion;
+use App\Models\Pedido;
 use App\Models\Producto;
 
 /**
@@ -98,7 +99,7 @@ class InventarioCalculoService
             // TODO: Obtener consumo mensual real de pedidos (por ahora usar stock como proxy)
             $consumoMensual = $this->estimarConsumoMensual($producto);
             $consumoDiario = $this->calcularConsumoDiario($consumoMensual);
-            $diasEntrega = 15; // TODO: Obtener de la relación producto-proveedor
+            $diasEntrega = (int) AlertaConfiguracion::get('dias_entrega_proveedor', 15);
             $pendienteRecibir = 0; // TODO: Obtener de OC pendientes
 
             $minimo = $this->calcularMinimo($consumoDiario, $diasEntrega);
@@ -129,13 +130,32 @@ class InventarioCalculoService
 
     /**
      * Estimar consumo mensual basado en pedidos de los últimos 3 meses.
-     * TODO: Implementar con datos reales cuando Alan tenga la API.
      */
     private function estimarConsumoMensual(Producto $producto): float
     {
-        // Por ahora retornar un estimado basado en el stock
-        // En producción: sumar cantidades de pedidos de últimos 3 meses / 3
-        return max(1, round($producto->stock * 0.3));
+        $tresMesesAtras = now()->subMonths(3);
+        $pedidos = Pedido::where('created_at', '>=', $tresMesesAtras)
+            ->whereNotIn('estatus', ['cancelado'])
+            ->get();
+
+        $cantidadTotal = 0;
+        $mesesConPedido = [];
+
+        foreach ($pedidos as $pedido) {
+            $item = collect($pedido->productos ?? [])->first(function ($p) use ($producto) {
+                return ($p['sku'] ?? $p['codigo'] ?? '') === $producto->codigo;
+            });
+
+            if ($item) {
+                $mes = $pedido->created_at->format('Y-m');
+                $mesesConPedido[$mes] = true;
+                $cantidadTotal += (float) ($item['cantidad'] ?? 0);
+            }
+        }
+
+        $meses = count($mesesConPedido);
+
+        return $meses > 0 ? round($cantidadTotal / $meses, 2) : 0;
     }
 
     /**

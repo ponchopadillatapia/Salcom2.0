@@ -77,21 +77,6 @@
 </style>
 @endpush
 @section('content')
-@php
-    $ot = $scorePromedio > 0 ? round($scorePromedio * 0.55) : 50;
-    $if = $scorePromedio > 0 ? min(100, round($scorePromedio * 1.1)) : 100;
-    $mesAnteriorData = $pedidosPorMes->count() >= 2 ? $pedidosPorMes[$pedidosPorMes->count() - 2] : null;
-    $penultimoMesData = $pedidosPorMes->count() >= 3 ? $pedidosPorMes[$pedidosPorMes->count() - 3] : null;
-    $ventasVarPct = ($penultimoMesData && $penultimoMesData['monto'] > 0 && $mesAnteriorData)
-        ? round((($mesAnteriorData['monto'] - $penultimoMesData['monto']) / $penultimoMesData['monto']) * 100)
-        : 0;
-    $pedidosVarPct = ($penultimoMesData && $penultimoMesData['total'] > 0 && $mesAnteriorData)
-        ? round((($mesAnteriorData['total'] - $penultimoMesData['total']) / $penultimoMesData['total']) * 100)
-        : 0;
-    $facturasPagadas = $facturasPorEstatus->get('pagada')?->total ?? 0;
-    $facturasPendientesCount = $facturasPorEstatus->get('pendiente')?->total ?? 0;
-    $facturasCanceladas = $facturasPorEstatus->get('cancelada')?->total ?? 0;
-@endphp
 <div class="pp-wrap">
 
     {{-- KPIs: 2 filas × 4 columnas, misma altura --}}
@@ -100,19 +85,20 @@
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
             <h4>Negocio</h4>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Ventas totales</div>
+                <div class="pp-negocio-label">Ventas del mes</div>
                 <div class="pp-negocio-value" style="color:var(--green);font-size:20px;">
-                    ${{ number_format($montoPedidos, 0) }}
-                    @if($ventasVarPct != 0)<span class="pp-variation {{ $ventasVarPct > 0 ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $ventasVarPct > 0 ? '↑' : '↓' }} {{ $ventasVarPct > 0 ? '+' : '' }}{{ $ventasVarPct }}%</span>@endif
+                    ${{ number_format($ventasMesActual, 0) }}
+                    @if($ventasVarPct !== null)<span class="pp-variation {{ $ventasVarPct > 0 ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $ventasVarPct > 0 ? '↑' : '↓' }} {{ $ventasVarPct > 0 ? '+' : '' }}{{ $ventasVarPct }}%</span>@endif
                 </div>
             </div>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Pedidos</div>
+                <div class="pp-negocio-label">Pedidos del mes</div>
                 <div class="pp-negocio-value" style="font-size:20px;">
-                    {{ $totalPedidos }}
-                    @if($pedidosVarPct != 0)<span class="pp-variation {{ $pedidosVarPct > 0 ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $pedidosVarPct > 0 ? '↑' : '↓' }} {{ $pedidosVarPct > 0 ? '+' : '' }}{{ $pedidosVarPct }}%</span>@endif
+                    {{ $pedidosMesActual }}
+                    @if($pedidosVarPct !== null)<span class="pp-variation {{ $pedidosVarPct > 0 ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $pedidosVarPct > 0 ? '↑' : '↓' }} {{ $pedidosVarPct > 0 ? '+' : '' }}{{ $pedidosVarPct }}%</span>@endif
                 </div>
             </div>
+            <div class="pp-negocio-sub">Acumulado histórico: ${{ number_format($montoPedidos, 0) }} · {{ $totalPedidos }} pedidos</div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
@@ -130,7 +116,7 @@
                 <div class="pp-negocio-label">Agotados</div>
                 <div class="pp-negocio-value" style="color:{{ $sinStock > 0 ? 'var(--red)' : 'var(--green)' }};font-size:20px;">
                     {{ $sinStock }}
-                    @if($agotadosVarPct != 0)
+                    @if($agotadosVarPct !== null)
                         @php $agotadosMejora = $agotadosVarPct < 0; @endphp
                         <span class="pp-variation {{ $agotadosMejora ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $agotadosMejora ? '↓' : '↑' }} {{ $agotadosVarPct > 0 ? '+' : '' }}{{ $agotadosVarPct }}%</span>
                     @endif
@@ -148,8 +134,8 @@
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
             <h4>OTIF</h4>
             <div class="pp-kpi-gauges">
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOT" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $ot }}%</div></div></div><div class="pp-otif-label">OT</div></div>
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeIF" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $if }}%</div></div></div><div class="pp-otif-label">IF</div></div>
+                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOT" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ number_format($otPercent, 1) }}%</div></div></div><div class="pp-otif-label">OT</div></div>
+                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeIF" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ number_format($ifPercent, 1) }}%</div></div></div><div class="pp-otif-label">IF</div></div>
             </div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
@@ -192,8 +178,13 @@
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
             <h4>Fiscal</h4>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Estado fiscal de proveedores</div>
-                <div class="pp-negocio-value" style="font-size:20px;">Validación</div>
+                <div class="pp-negocio-label">Cumplimiento SAT</div>
+                <div class="pp-negocio-value" style="font-size:20px;">{{ $fiscalPctCumple }}%</div>
+            </div>
+            <div class="pp-negocio-sub">
+                <span style="color:var(--green);">●</span> {{ $fiscalVerde }} al día &nbsp;
+                <span style="color:var(--amber);">●</span> {{ $fiscalAmarillo }} en revisión &nbsp;
+                <span style="color:var(--red);">●</span> {{ $fiscalRojo }} pendientes
             </div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
@@ -203,12 +194,12 @@
             <h4>Facturación</h4>
             <div class="pp-kpi-fact-body">
                 <div class="pp-kpi-fact-stats">
-                    <div class="pp-negocio-sub">{{ $facturasPendientesCount }} pendientes</div>
+                    <div class="pp-negocio-sub">{{ $facturasPendientesCount }} {{ $facturasPendientesCount === 1 ? 'pendiente' : 'pendientes' }}</div>
                     <div class="pp-negocio-sub">${{ number_format($montoFacturas, 0) }} por cobrar</div>
                     <div class="pp-negocio-sub" style="margin-top:4px;">
-                        <span style="color:var(--green);">●</span> {{ $facturasPagadas }} &nbsp;
-                        <span style="color:var(--amber);">●</span> {{ $facturasPendientesCount }} &nbsp;
-                        <span style="color:var(--red);">●</span> {{ $facturasCanceladas }}
+                        <span style="color:var(--green);">●</span> {{ $facturasPagadasCount }} pagadas &nbsp;
+                        <span style="color:var(--amber);">●</span> {{ $facturasPendientesCount }} pendientes &nbsp;
+                        <span style="color:var(--red);">●</span> {{ $facturasCanceladasCount }} canceladas
                     </div>
                 </div>
                 <div class="pp-chart-wrap-xs"><canvas id="chartFacturacion"></canvas></div>
@@ -340,8 +331,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if(percent>0){ctx.beginPath();ctx.arc(center,center,radius,startAngle,endAngle);ctx.strokeStyle='#34c759';ctx.lineWidth=lineWidth;ctx.lineCap='round';ctx.stroke();}
         if(percent<100){ctx.beginPath();ctx.arc(center,center,radius,endAngle+0.02,startAngle+2*Math.PI-0.02);ctx.strokeStyle=percent>95?'#ff9500':'#ff3b30';ctx.lineWidth=lineWidth;ctx.lineCap='butt';ctx.stroke();}
     }
-    drawDonut('gaugeOT', {{ $ot }});
-    drawDonut('gaugeIF', {{ $if }});
+    drawDonut('gaugeOT', {{ $otPercent }});
+    drawDonut('gaugeIF', {{ $ifPercent }});
     drawDonut('gaugeOpOk', {{ $opinionPctActualizados }});
     drawDonut('gaugeOpNo', {{ $opinionPctNoActualizados }});
 });
@@ -353,7 +344,7 @@ const SC = SALCOM_COLORS;
 salcomChart.doughnut(
     document.getElementById('chartFacturacion'),
     ['Pagadas', 'Pendientes', 'Canceladas'],
-    [{{ $facturasPagadas }}, {{ $facturasPendientesCount }}, {{ $facturasCanceladas }}],
+    [{{ $facturasPagadasCount }}, {{ $facturasPendientesCount }}, {{ $facturasCanceladasCount }}],
     [SC.green, SC.amber, SC.red],
     { legend: false, cutout: '62%' }
 );

@@ -1,4 +1,4 @@
-﻿﻿@extends('layouts.admin')
+﻿@extends('layouts.admin')
 @section('title', 'Módulo de IA')
 @section('hero')
 <div class="hero-band">
@@ -79,8 +79,6 @@
 </style>
 @endpush
 @section('content')
-
-<span class="badge-mock">Powered by Claude (Anthropic) — Datos de prueba</span>
 
 {{-- TABS --}}
 <div class="tabs">
