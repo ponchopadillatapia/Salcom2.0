@@ -92,13 +92,13 @@
                 </div>
             </div>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Pedidos del mes</div>
+                <div class="pp-negocio-label">Facturas proveedor</div>
                 <div class="pp-negocio-value" style="font-size:20px;">
-                    {{ $pedidosMesActual }}
-                    @if($pedidosVarPct !== null)<span class="pp-variation {{ $pedidosVarPct > 0 ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $pedidosVarPct > 0 ? '↑' : '↓' }} {{ $pedidosVarPct > 0 ? '+' : '' }}{{ $pedidosVarPct }}%</span>@endif
+                    {{ $facturasProvMesActual }}
+                    @if($facturasProvVarPct !== null)<span class="pp-variation {{ $facturasProvVarPct > 0 ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $facturasProvVarPct > 0 ? '↑' : '↓' }} {{ $facturasProvVarPct > 0 ? '+' : '' }}{{ $facturasProvVarPct }}%</span>@endif
                 </div>
             </div>
-            <div class="pp-negocio-sub">Acumulado histórico: ${{ number_format($montoPedidos, 0) }} · {{ $totalPedidos }} pedidos</div>
+            <div class="pp-negocio-sub">Acumulado proveedores: ${{ number_format($ventasTotales, 0) }}</div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
