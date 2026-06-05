@@ -1151,6 +1151,8 @@ class AdminPanelController extends Controller
             return [
                 'codigo' => $row->codigo_proveedor,
                 'nombre' => $prov->nombre ?? $prov->usuario ?? $row->codigo_proveedor,
+                'correo' => $prov->correo ?? null,
+                'telefono' => $prov->telefono ?? null,
                 'facturas' => (int) $row->num_facturas,
                 'monto' => (float) $row->monto_total,
                 'score' => (float) ($prov->score_total ?? 0),

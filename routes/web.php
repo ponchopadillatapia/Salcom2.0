@@ -28,6 +28,7 @@ Route::get('/onboarding', [PortalProveedorController::class, 'mostrarOnboarding'
 Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->name('proveedores.business')->middleware('auth.proveedor');
 Route::get('/payment-history', [PortalProveedorController::class, 'mostrarPaymentHistory'])->name('proveedores.payment-history')->middleware('auth.proveedor');
 Route::get('/perfil', [PortalProveedorController::class, 'mostrarPerfil'])->name('proveedores.perfil')->middleware('auth.proveedor');
+Route::post('/perfil/foto', [PortalProveedorController::class, 'subirFoto'])->name('proveedores.perfil.foto')->middleware('auth.proveedor');
 Route::get('/forecast', function () {
     return view('proveedores.forecast');
 })->name('proveedores.forecast')->middleware('auth.proveedor');
@@ -103,6 +104,7 @@ Route::post('/logout-admin', [AuthAdminController::class, 'cerrarSesion'])->name
 Route::get('/admin/perfil', [AuthAdminController::class, 'mostrarPerfil'])->name('admin.perfil')->middleware('auth.admin');
 Route::post('/admin/perfil', [AuthAdminController::class, 'actualizarPerfil'])->name('admin.perfil.actualizar')->middleware('auth.admin');
 Route::post('/admin/perfil/password', [AuthAdminController::class, 'cambiarPassword'])->name('admin.perfil.password')->middleware('auth.admin');
+Route::post('/admin/perfil/foto', [AuthAdminController::class, 'subirFoto'])->name('admin.perfil.foto')->middleware('auth.admin');
 Route::get('/admin/administradores', [AuthAdminController::class, 'mostrarAdministradores'])->name('admin.administradores')->middleware('auth.admin');
 Route::post('/admin/administradores', [AuthAdminController::class, 'guardarAdministrador'])->name('admin.administradores.guardar')->middleware('auth.admin');
 

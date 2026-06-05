@@ -63,7 +63,20 @@
     @endif
 
     <div class="perfil-header">
-        <div class="perfil-avatar">{{ strtoupper(substr($admin->nombre ?? session('admin_nombre', 'A'), 0, 1)) }}</div>
+        <form id="fotoForm" method="POST" action="{{ route('admin.perfil.foto') }}" enctype="multipart/form-data" style="display:inline;">
+            @csrf
+            <div class="perfil-avatar" onclick="document.getElementById('fotoInput').click()" title="Cambiar foto" style="cursor:pointer;position:relative;overflow:hidden;">
+                @if($admin && $admin->foto)
+                    <img src="{{ asset('storage/' . $admin->foto) }}" alt="Foto" style="width:100%;height:100%;object-fit:cover;">
+                @else
+                    {{ strtoupper(substr($admin->nombre ?? session('admin_nombre', 'A'), 0, 1)) }}
+                @endif
+                <div style="position:absolute;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .15s;border-radius:50%;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </div>
+            </div>
+            <input type="file" id="fotoInput" name="foto" accept="image/*" style="display:none;" onchange="document.getElementById('fotoForm').submit()">
+        </form>
         <div>
             <div class="perfil-name">{{ $admin->nombre ?? session('admin_nombre', '—') }}</div>
             <div class="perfil-meta">
@@ -100,38 +113,14 @@
                 <span class="info-label">Rol</span>
                 <span class="info-value"><span class="rol-badge">{{ $rolEtiqueta }}</span></span>
             </div>
-        </div>
-
-        <div class="perfil-card">
-            <h3>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                Estado de Cuenta
-            </h3>
-            <div class="info-row">
-                <span class="info-label">Estado</span>
-                <span class="info-value">
-                    @if($admin && $admin->activo)
-                        <span class="status-badge status-active">● Activo</span>
-                    @else
-                        <span class="status-badge status-inactive">● Inactivo</span>
-                    @endif
-                </span>
-            </div>
             <div class="info-row">
                 <span class="info-label">Miembro desde</span>
                 <span class="info-value">{{ $admin && $admin->created_at ? $admin->created_at->format('d/m/Y') : '—' }}</span>
             </div>
-            <div class="info-row">
-                <span class="info-label">Última actualización</span>
-                <span class="info-value">{{ $admin && $admin->updated_at ? $admin->updated_at->format('d/m/Y H:i') : '—' }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">ID interno</span>
-                <span class="info-value">#{{ $admin->id ?? session('admin_id', '—') }}</span>
-            </div>
         </div>
     </div>
 
+    @if(session('admin_rol') === 'admin')
     <div class="perfil-forms">
         <div class="perfil-form-card" id="editar-datos">
             <h3>Actualizar datos</h3>
@@ -180,4 +169,5 @@
             </form>
         </div>
     </div>
+    @endif
 @endsection

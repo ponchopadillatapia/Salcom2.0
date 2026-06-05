@@ -76,6 +76,28 @@ class PortalProveedorController extends Controller
         return view('proveedores.perfil', compact('proveedor', 'contactos'));
     }
 
+    public function subirFoto(Request $request)
+    {
+        $request->validate([
+            'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (!$proveedor) {
+            return back()->with('error', 'Proveedor no encontrado.');
+        }
+
+        // Eliminar foto anterior si existe
+        if ($proveedor->foto && \Storage::disk('public')->exists($proveedor->foto)) {
+            \Storage::disk('public')->delete($proveedor->foto);
+        }
+
+        $path = $request->file('foto')->store('proveedores-fotos', 'public');
+        $proveedor->update(['foto' => $path]);
+
+        return back()->with('mensaje', 'Foto actualizada correctamente.');
+    }
+
     // ── Contactos ──
 
     public function guardarContacto(Request $request)

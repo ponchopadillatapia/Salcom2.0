@@ -196,6 +196,28 @@ class AuthAdminController extends Controller
         return back()->with('mensaje', 'Contraseña actualizada correctamente.');
     }
 
+    public function subirFoto(Request $request)
+    {
+        $request->validate([
+            'foto' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        $admin = AdminUser::find(session('admin_id'));
+        if (!$admin) {
+            abort(404);
+        }
+
+        // Eliminar foto anterior si existe
+        if ($admin->foto && \Storage::disk('public')->exists($admin->foto)) {
+            \Storage::disk('public')->delete($admin->foto);
+        }
+
+        $path = $request->file('foto')->store('admin-fotos', 'public');
+        $admin->update(['foto' => $path]);
+
+        return back()->with('mensaje', 'Foto actualizada correctamente.');
+    }
+
     private function esRolAdminPrincipal(): bool
     {
         return session('admin_rol') === 'admin';

@@ -13,7 +13,7 @@ class ProveedorUser extends Authenticatable
 
     protected $fillable = [
         'usuario', 'password', 'codigo_compras', 'nombre',
-        'tipo_persona', 'telefono', 'correo', 'activo',
+        'tipo_persona', 'telefono', 'correo', 'foto', 'activo',
         'score_entrega', 'score_puntualidad', 'score_total',
         'aviso_privacidad_aceptado', 'aviso_privacidad_fecha',
     ];
