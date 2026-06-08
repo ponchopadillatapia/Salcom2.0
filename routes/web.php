@@ -162,6 +162,7 @@ Route::get('/admin/proveedores', [AdminPanelController::class, 'proveedores'])->
 Route::get('/admin/proveedores/{codigo}/facturas', [AdminPanelController::class, 'proveedorFacturas'])->name('admin.proveedor-facturas')->middleware('auth.admin');
 Route::get('/admin/proveedores/facturas-pendientes/excel', [AdminPanelController::class, 'facturasPendientesExcel'])->name('admin.facturas-pendientes.excel')->middleware('auth.admin');
 Route::get('/admin/productos', [AdminPanelController::class, 'productos'])->name('admin.productos')->middleware('auth.admin');
+Route::get('/admin/productos/excel', [AdminPanelController::class, 'productosExcel'])->name('admin.productos.excel')->middleware('auth.admin');
 
 // ── Admin: Alta de Producto (compras + mantenimiento) ──
 Route::get('/admin/alta-producto', [AltaProductoController::class, 'mostrarAltaProductoAdmin'])->name('admin.alta-producto')->middleware('auth.admin');
@@ -171,6 +172,7 @@ Route::post('/admin/alta-producto/subir', [AltaProductoController::class, 'subir
 Route::get('/admin/facturas', [AdminPanelController::class, 'facturas'])->name('admin.facturas')->middleware('auth.admin');
 Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel'])->name('admin.facturas.excel')->middleware('auth.admin');
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
+Route::get('/admin/documentos/excel', [AdminPanelController::class, 'documentosExcel'])->name('admin.documentos.excel')->middleware('auth.admin');
 Route::get('/admin/negocio', [AdminPanelController::class, 'negocio'])->name('admin.negocio')->middleware('auth.admin');
 Route::get('/admin/otif', [AdminPanelController::class, 'otif'])->name('admin.otif')->middleware('auth.admin');
 Route::get('/admin/inventario', [AdminPanelController::class, 'inventario'])->name('admin.inventario')->middleware('auth.admin');

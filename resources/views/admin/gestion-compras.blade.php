@@ -8,6 +8,25 @@
 @endsection
 @push('styles')
 <style>
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    .anim{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
+    .adm-summary{background:var(--white);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:22px 26px;margin-bottom:20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;box-shadow:var(--shadow-sm)}
+    .adm-summary-main{text-align:center;min-width:100px}
+    .adm-summary-pct{font-size:42px;font-weight:800;line-height:1;color:var(--purple)}
+    .adm-summary-label{font-size:12px;color:var(--gray-muted);margin-top:6px}
+    .adm-summary-metrics{flex:1;display:flex;gap:24px;flex-wrap:wrap}
+    .adm-metric-label{font-size:12px;color:var(--gray-muted);margin-bottom:4px}
+    .adm-metric-val{font-size:22px;font-weight:700;display:flex;align-items:center;gap:8px}
+    .adm-summary-badge{padding:10px 16px;border-radius:10px;font-size:12px;font-weight:600;line-height:1.4;text-decoration:none;transition:var(--transition)}
+    .adm-summary-badge:hover{opacity:.85}
+    .adm-section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 22px;background:var(--gray-soft);border-bottom:1px solid var(--border-light)}
+    .adm-section-head h4{font-size:14px;font-weight:700;color:var(--gray-text);margin:0}
+    .adm-section-meta{font-size:12px;color:var(--gray-muted)}
+    .adm-section-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .btn-export{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12px;font-weight:600;color:var(--green);background:var(--green-bg);border:1px solid var(--green);border-radius:8px;cursor:pointer;text-decoration:none;font-family:inherit;transition:var(--transition)}
+    .btn-export:hover{background:var(--green);color:#fff}
+    .oc-form-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px}
+    .oc-alert{background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px}
     .toolbar{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
     .toolbar-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
     .filter-group{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -17,9 +36,6 @@
     .filter-count{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(0,0,0,.08);line-height:1.2}
     .filter-btn.active .filter-count{background:rgba(255,255,255,.25)}
     .badge-count{font-size:13px;color:var(--gray-muted);font-weight:500;white-space:nowrap}
-    .section-meta{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:12px 18px;margin-bottom:14px;font-size:13px;color:var(--gray-muted)}
-    .section-meta strong{color:var(--gray-text);font-weight:600}
-
     .gc-panel{display:none}.gc-panel.active{display:block}
 
     .admin-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
@@ -53,7 +69,7 @@
 
     .alert-success{border-radius:8px;padding:10px 16px;font-size:13px;margin-bottom:16px;background:var(--green-bg);border:1px solid #a7f3d0;color:var(--green);font-weight:500}
 
-    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.filter-group{width:100%}}
+    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.filter-group{width:100%}.adm-summary{flex-direction:column;align-items:flex-start}}
 </style>
 @endpush
 @section('content')
@@ -62,11 +78,38 @@
     <div class="alert-success">{{ session('mensaje') }}</div>
 @endif
 
-@php
-    $totalProveedores = \App\Models\ProveedorUser::count();
-@endphp
+<div class="adm-summary anim">
+    <div class="adm-summary-main">
+        <div class="adm-summary-pct">{{ $conteoProveedoresActivos }}</div>
+        <div class="adm-summary-label">Proveedores activos</div>
+    </div>
+    <div class="adm-summary-metrics">
+        <div>
+            <div class="adm-metric-label">Opinión positiva al día</div>
+            <div class="adm-metric-val" style="color:var(--green)">{{ $conteoOpinionOk }}</div>
+        </div>
+        <div>
+            <div class="adm-metric-label">Opinión pendiente</div>
+            <div class="adm-metric-val" style="color:{{ $conteoOpinionPendiente > 0 ? 'var(--amber)' : 'var(--green)' }}">{{ $conteoOpinionPendiente }}</div>
+        </div>
+        <div>
+            <div class="adm-metric-label">Inventario crítico</div>
+            <div class="adm-metric-val" style="color:{{ $conteoInventarioCritico > 0 ? 'var(--red)' : 'var(--green)' }}">{{ $conteoInventarioCritico }}</div>
+        </div>
+        <div>
+            <div class="adm-metric-label">OC atrasadas</div>
+            <div class="adm-metric-val" style="color:{{ $conteoOcAtrasadas > 0 ? 'var(--red)' : 'var(--green)' }}">{{ $conteoOcAtrasadas }}</div>
+        </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="adm-summary-badge" style="background:var(--purple-subtle);color:var(--purple)">
+            {{ count($productos) }} productos · {{ count($ocProveedores) }} OC en seguimiento
+        </div>
+        <a href="{{ route('admin.proveedores', ['tab' => 'ordenes']) }}" class="adm-summary-badge" style="background:var(--green-bg);color:var(--green)">Ver órdenes en Proveedores →</a>
+    </div>
+</div>
 
-<div class="toolbar">
+<div class="toolbar anim" style="animation-delay:.04s">
     <div class="toolbar-top">
         <div class="filter-group">
             <button type="button" class="filter-btn gc-tab-btn active" data-tab="opinion" onclick="switchGC('opinion', this)">
@@ -91,11 +134,19 @@
 
 {{-- ═══ OPINIÓN POSITIVA ═══ --}}
 <div class="gc-panel active" id="panel-opinion" data-count="{{ count($opinionData) }} registros">
-    <div class="section-meta" style="display:flex;justify-content:space-between;align-items:center">
-        <span><strong>Opinión de cumplimiento SAT</strong> — Pendientes y estado · Correo automático el día 1 de cada mes</span>
-        <a href="{{ route('admin.export-opinion') }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:11px;font-weight:600;color:#fff;background:#059669;border-radius:6px;text-decoration:none">Exportar Excel</a>
-    </div>
     <div class="admin-table-wrap">
+        <div class="adm-section-head">
+            <div>
+                <h4>Opinión de cumplimiento SAT</h4>
+                <div class="adm-section-meta">Pendientes y estado · correo automático el día 1 de cada mes</div>
+            </div>
+            <div class="adm-section-toolbar">
+                <a href="{{ route('admin.export-opinion') }}" class="btn-export">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Exportar Excel
+                </a>
+            </div>
+        </div>
         <table class="admin-table">
             <thead>
                 <tr>
@@ -132,11 +183,19 @@
 
 {{-- ═══ AUTORIZACIÓN PROVEEDORES ═══ --}}
 <div class="gc-panel" id="panel-autorizacion" data-count="{{ $totalProveedores }} proveedores">
-    <div class="section-meta" style="display:flex;justify-content:space-between;align-items:center">
-        <span><strong>Autorización de proveedores</strong> — Dirección autoriza alta o baja para compras</span>
-        <a href="{{ route('admin.export-autorizacion') }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:11px;font-weight:600;color:#fff;background:#059669;border-radius:6px;text-decoration:none">Exportar Excel</a>
-    </div>
     <div class="admin-table-wrap">
+        <div class="adm-section-head">
+            <div>
+                <h4>Autorización de proveedores</h4>
+                <div class="adm-section-meta">Dirección autoriza alta o baja para compras</div>
+            </div>
+            <div class="adm-section-toolbar">
+                <a href="{{ route('admin.export-autorizacion') }}" class="btn-export">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Exportar Excel
+                </a>
+            </div>
+        </div>
         <table class="admin-table">
             <thead>
                 <tr>
@@ -174,11 +233,19 @@
 
 {{-- ═══ DÍAS DE INVENTARIO ═══ --}}
 <div class="gc-panel" id="panel-dias" data-count="{{ count($inventarioDias) }} productos">
-    <div class="section-meta" style="display:flex;justify-content:space-between;align-items:center">
-        <span><strong>Días de inventario por artículo</strong> — Días de pedido y entrega</span>
-        <a href="{{ route('admin.export-dias-inventario') }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:11px;font-weight:600;color:#fff;background:#059669;border-radius:6px;text-decoration:none">Exportar Excel</a>
-    </div>
     <div class="admin-table-wrap">
+        <div class="adm-section-head">
+            <div>
+                <h4>Días de inventario por artículo</h4>
+                <div class="adm-section-meta">Días de pedido y entrega · {{ $conteoInventarioCritico }} requieren reorden</div>
+            </div>
+            <div class="adm-section-toolbar">
+                <a href="{{ route('admin.export-dias-inventario') }}" class="btn-export">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Exportar Excel
+                </a>
+            </div>
+        </div>
         <table class="admin-table">
             <thead>
                 <tr>
@@ -220,11 +287,19 @@
 
 {{-- ═══ AUTORIZAR COSTOS ═══ --}}
 <div class="gc-panel" id="panel-costos" data-count="{{ count($productos) }} productos">
-    <div class="section-meta" style="display:flex;justify-content:space-between;align-items:center">
-        <span><strong>Autorizar actualización de costo</strong> — Aprobación por dirección</span>
-        <a href="{{ route('admin.export-costos') }}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 14px;font-size:11px;font-weight:600;color:#fff;background:#059669;border-radius:6px;text-decoration:none">Exportar Excel</a>
-    </div>
     <div class="admin-table-wrap">
+        <div class="adm-section-head">
+            <div>
+                <h4>Autorizar actualización de costo</h4>
+                <div class="adm-section-meta">Aprobación de nuevos precios por dirección</div>
+            </div>
+            <div class="adm-section-toolbar">
+                <a href="{{ route('admin.export-costos') }}" class="btn-export">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Exportar Excel
+                </a>
+            </div>
+        </div>
         <table class="admin-table">
             <thead>
                 <tr>
@@ -261,9 +336,8 @@
 {{-- ═══ OC PROVEEDORES — Seguimiento de entregas ═══ --}}
 <div class="gc-panel" id="panel-oc-proveedores" data-count="{{ count($ocProveedores) }} órdenes">
 
-    {{-- Formulario para crear nueva OC --}}
-    <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:20px;">
-        <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:14px;">➕ Generar nueva Orden de Compra</h4>
+    <div class="oc-form-card">
+        <h4 style="font-size:14px;font-weight:700;color:var(--gray-text);margin-bottom:14px;">Generar nueva Orden de Compra</h4>
         <form method="POST" action="{{ route('admin.crear-oc') }}" id="formCrearOC">
             @csrf
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px;">
@@ -316,8 +390,7 @@
     @endphp
 
     @if($ocAtrasadas->count() > 0)
-    <div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:12px 16px;margin-bottom:14px;display:flex;align-items:center;gap:10px;">
-        <span style="font-size:18px;">⚠️</span>
+    <div class="oc-alert">
         <div>
             <strong style="color:var(--red);font-size:13px;">{{ $ocAtrasadas->count() }} OC atrasadas</strong>
             <span style="font-size:12px;color:var(--red);margin-left:6px;">— Requieren seguimiento</span>
@@ -326,6 +399,12 @@
     @endif
 
     <div class="admin-table-wrap">
+        <div class="adm-section-head">
+            <div>
+                <h4>Seguimiento de órdenes de compra</h4>
+                <div class="adm-section-meta">{{ count($ocProveedores) }} órdenes en seguimiento · {{ $conteoOcAtrasadas }} atrasadas</div>
+            </div>
+        </div>
         <table class="admin-table">
             <thead>
                 <tr>

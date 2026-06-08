@@ -754,14 +754,123 @@ class AdminPanelController extends Controller
 
     // ── Productos ──
 
+    public function productosExcel(Request $request)
+    {
+        $productos = $this->queryProductosFiltrados($request)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $lines = [
+            ['INDUSTRIAS SALCOM S.A. DE C.V.'],
+            ['CATÁLOGO DE PRODUCTOS'],
+            ['Generado: '.now()->format('d/m/Y H:i')],
+            [],
+            ['CÓDIGO', 'NOMBRE', 'CATEGORÍA', 'PRECIO', 'UNIDAD', 'STOCK', 'NIVEL', 'PROVEEDOR', 'CATÁLOGO', 'FECHA ALTA'],
+        ];
+
+        foreach ($productos as $p) {
+            $stockLabel = $p->stock <= 0 ? 'Agotado' : ($p->stock < 50 ? 'Bajo' : 'OK');
+            $lines[] = [
+                $p->codigo,
+                $p->nombre,
+                $p->categoria ?: '—',
+                '$'.number_format((float) $p->precio, 2),
+                $p->unidad_venta,
+                $p->stock,
+                $stockLabel,
+                $p->proveedor_nombre ?: '—',
+                $p->activo ? 'Activo' : 'Inactivo',
+                $p->created_at?->format('d/m/Y H:i') ?? '—',
+            ];
+        }
+
+        return $this->csvResponse($lines, 'Productos_'.now()->format('Y-m-d').'.csv');
+    }
+
     public function productos(Request $request)
     {
-        $stockOpciones = [
+        $stockOpciones = $this->stockOpcionesProductos();
+
+        $busqueda = $request->input('busqueda', '');
+        $stock = $request->input('stock', '');
+        $grupo = $request->input('grupo', '');
+        $activo = $request->input('activo', '');
+        $categoria = $request->input('categoria', '');
+        $fechaDesde = $request->input('fecha_desde', '');
+        $fechaHasta = $request->input('fecha_hasta', '');
+
+        if ($request->input('sin_stock')) {
+            $stock = 'agotado';
+        }
+
+        $productos = $this->queryProductosFiltrados($request)
+            ->orderBy('created_at', 'desc')
+            ->paginate(50)
+            ->withQueryString();
+
+        $totalGeneral = Producto::count();
+        $conteoAgotado = Producto::where('stock', '<=', 0)->count();
+        $conteoBajo = Producto::where('stock', '>', 0)->where('stock', '<', 50)->count();
+        $conteoOk = Producto::where('stock', '>=', 50)->count();
+        $conteoCriticos = $conteoAgotado + $conteoBajo;
+        $conteoInactivos = Producto::where('activo', false)->count();
+        $conteoActivos = Producto::where('activo', true)->count();
+        $saludPct = $totalGeneral > 0 ? round(($conteoOk / $totalGeneral) * 100, 1) : 0;
+        $valorInventario = (float) Producto::where('activo', true)
+            ->get()
+            ->sum(fn ($p) => (float) $p->stock * (float) $p->precio);
+        $categorias = Producto::whereNotNull('categoria')
+            ->where('categoria', '!=', '')
+            ->distinct()
+            ->orderBy('categoria')
+            ->pluck('categoria');
+        $totalCategorias = $categorias->count();
+
+        $filtros = [
+            'busqueda' => $busqueda,
+            'stock' => $stock,
+            'grupo' => $grupo,
+            'activo' => $activo,
+            'categoria' => $categoria,
+            'fecha_desde' => $fechaDesde,
+            'fecha_hasta' => $fechaHasta,
+        ];
+
+        $filtrosActivos = $this->filtrosTienenValor($filtros);
+
+        return view('admin.productos', compact(
+            'productos',
+            'stockOpciones',
+            'stock',
+            'grupo',
+            'totalGeneral',
+            'conteoAgotado',
+            'conteoBajo',
+            'conteoOk',
+            'conteoCriticos',
+            'conteoInactivos',
+            'conteoActivos',
+            'saludPct',
+            'valorInventario',
+            'totalCategorias',
+            'categorias',
+            'filtros',
+            'filtrosActivos',
+        ));
+    }
+
+    private function stockOpcionesProductos(): array
+    {
+        return [
             'agotado' => 'Agotado',
             'bajo' => 'Stock bajo',
             'ok' => 'Stock OK',
         ];
+    }
 
+    private function queryProductosFiltrados(Request $request)
+    {
+        $stockOpciones = $this->stockOpcionesProductos();
         $query = Producto::query();
 
         $busqueda = $request->input('busqueda', '');
@@ -817,60 +926,86 @@ class AdminPanelController extends Controller
             $query->whereDate('created_at', '<=', $fechaHasta);
         }
 
-        $productos = $query->orderBy('created_at', 'desc')->paginate(50)->withQueryString();
-
-        $totalGeneral = Producto::count();
-        $conteoAgotado = Producto::where('stock', '<=', 0)->count();
-        $conteoBajo = Producto::where('stock', '>', 0)->where('stock', '<', 50)->count();
-        $conteoOk = Producto::where('stock', '>=', 50)->count();
-        $conteoCriticos = $conteoAgotado + $conteoBajo;
-        $conteoInactivos = Producto::where('activo', false)->count();
-
-        $categorias = Producto::whereNotNull('categoria')
-            ->where('categoria', '!=', '')
-            ->distinct()
-            ->orderBy('categoria')
-            ->pluck('categoria');
-
-        $filtros = [
-            'busqueda' => $busqueda,
-            'stock' => $stock,
-            'grupo' => $grupo,
-            'activo' => $activo,
-            'categoria' => $categoria,
-            'fecha_desde' => $fechaDesde,
-            'fecha_hasta' => $fechaHasta,
-        ];
-
-        $filtrosActivos = $this->filtrosTienenValor($filtros);
-
-        return view('admin.productos', compact(
-            'productos',
-            'stockOpciones',
-            'stock',
-            'grupo',
-            'totalGeneral',
-            'conteoAgotado',
-            'conteoBajo',
-            'conteoOk',
-            'conteoCriticos',
-            'conteoInactivos',
-            'categorias',
-            'filtros',
-            'filtrosActivos',
-        ));
+        return $query;
     }
 
     // ── Facturas ──
 
     public function facturas(Request $request)
     {
-        $estatusOpciones = [
+        $estatusOpciones = $this->estatusOpcionesFacturas();
+
+        $busqueda = $request->input('busqueda', '');
+        $estatus = $request->input('estatus', '');
+        $vencidas = $request->input('vencidas', '');
+        $fechaDesde = $request->input('fecha_desde', '');
+        $fechaHasta = $request->input('fecha_hasta', '');
+
+        $query = $this->queryFacturasFiltradas($request);
+        $montoFiltrado = (float) (clone $query)->sum('total');
+        $facturas = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+
+        $baseProveedor = Factura::whereNotNull('codigo_proveedor');
+        $totalGeneral = (clone $baseProveedor)->count();
+        $conteosEstatus = (clone $baseProveedor)->selectRaw('estatus, count(*) as cantidad')
+            ->groupBy('estatus')
+            ->pluck('cantidad', 'estatus');
+        $conteoVencidas = (clone $baseProveedor)
+            ->where('estatus', 'pendiente')
+            ->where('fecha_vencimiento', '<', now())
+            ->count();
+        $conteoPendientes = $conteosEstatus['pendiente'] ?? 0;
+        $conteoPagadas = $conteosEstatus['pagada'] ?? 0;
+        $montoPendiente = (float) (clone $baseProveedor)->where('estatus', 'pendiente')->sum('total');
+        $montoPagado = (float) (clone $baseProveedor)->where('estatus', 'pagada')->sum('total');
+        $montoVencidas = (float) (clone $baseProveedor)
+            ->where('estatus', 'pendiente')
+            ->where('fecha_vencimiento', '<', now())
+            ->sum('total');
+        $pctPagadas = $totalGeneral > 0 ? round(($conteoPagadas / $totalGeneral) * 100, 1) : 0;
+
+        $filtros = [
+            'busqueda' => $busqueda,
+            'estatus' => $estatus,
+            'vencidas' => $vencidas,
+            'fecha_desde' => $fechaDesde,
+            'fecha_hasta' => $fechaHasta,
+        ];
+
+        $filtrosActivos = $this->filtrosTienenValor($filtros);
+
+        return view('admin.facturas', compact(
+            'facturas',
+            'estatus',
+            'vencidas',
+            'estatusOpciones',
+            'totalGeneral',
+            'conteosEstatus',
+            'conteoVencidas',
+            'conteoPendientes',
+            'conteoPagadas',
+            'montoPendiente',
+            'montoPagado',
+            'montoVencidas',
+            'montoFiltrado',
+            'pctPagadas',
+            'filtros',
+            'filtrosActivos',
+        ));
+    }
+
+    private function estatusOpcionesFacturas(): array
+    {
+        return [
             'pendiente' => 'Pendiente',
             'pagada' => 'Pagada',
             'cancelada' => 'Cancelada',
         ];
+    }
 
+    private function queryFacturasFiltradas(Request $request)
+    {
+        $estatusOpciones = $this->estatusOpcionesFacturas();
         $query = Factura::with('proveedor')->whereNotNull('codigo_proveedor');
 
         $busqueda = $request->input('busqueda', '');
@@ -904,59 +1039,126 @@ class AdminPanelController extends Controller
             $query->whereDate('fecha_vencimiento', '<=', $fechaHasta);
         }
 
-        $facturas = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+        return $query;
+    }
 
-        $baseProveedor = Factura::whereNotNull('codigo_proveedor');
-        $totalGeneral = (clone $baseProveedor)->count();
-        $conteosEstatus = (clone $baseProveedor)->selectRaw('estatus, count(*) as cantidad')
+    // ── Documentos de proveedores ──
+
+    public function documentosExcel(Request $request)
+    {
+        $estatusOpciones = $this->estatusOpcionesDocumentos();
+        $tipoLabels = $this->tipoLabelsDocumentos();
+        $documentos = $this->queryDocumentosFiltrados($request)
+            ->orderByRaw("CASE estatus WHEN 'pendiente' THEN 1 WHEN 'rechazado' THEN 2 WHEN 'aprobado' THEN 3 ELSE 4 END")
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $lines = [
+            ['INDUSTRIAS SALCOM S.A. DE C.V.'],
+            ['DOCUMENTOS FISCALES DE PROVEEDORES'],
+            ['Generado: '.now()->format('d/m/Y H:i')],
+            [],
+            ['PROVEEDOR', 'CÓDIGO', 'TIPO', 'ESTATUS', 'NOTAS', 'FECHA REVISIÓN', 'SUBIDO'],
+        ];
+
+        foreach ($documentos as $d) {
+            $lines[] = [
+                $d->proveedor?->nombre ?? $d->proveedor?->usuario ?? 'ID: '.$d->proveedor_id,
+                $d->proveedor?->codigo_compras ?? '—',
+                $tipoLabels[$d->tipo] ?? $d->tipo,
+                $estatusOpciones[$d->estatus] ?? ucfirst($d->estatus),
+                $d->notas_revision ?? '—',
+                $d->revisado_at?->format('d/m/Y') ?? '—',
+                $d->created_at?->format('d/m/Y') ?? '—',
+            ];
+        }
+
+        return $this->csvResponse($lines, 'Documentos_Proveedores_'.now()->format('Y-m-d').'.csv');
+    }
+
+    public function documentos(Request $request)
+    {
+        $estatusOpciones = $this->estatusOpcionesDocumentos();
+        $tipoLabels = $this->tipoLabelsDocumentos();
+
+        $busqueda = $request->input('busqueda', '');
+        $estatus = $request->input('estatus', '');
+        $tipo = $request->input('tipo', '');
+        $fechaDesde = $request->input('fecha_desde', '');
+        $fechaHasta = $request->input('fecha_hasta', '');
+
+        $documentos = $this->queryDocumentosFiltrados($request)
+            ->orderByRaw("CASE estatus WHEN 'pendiente' THEN 1 WHEN 'rechazado' THEN 2 WHEN 'aprobado' THEN 3 ELSE 4 END")
+            ->orderBy('created_at', 'desc')
+            ->paginate(20)
+            ->withQueryString();
+
+        $totalGeneral = DocumentoProveedor::count();
+        $conteosEstatus = DocumentoProveedor::selectRaw('estatus, count(*) as total')
             ->groupBy('estatus')
-            ->pluck('cantidad', 'estatus');
-        $conteoVencidas = (clone $baseProveedor)
-            ->where('estatus', 'pendiente')
-            ->where('fecha_vencimiento', '<', now())
-            ->count();
+            ->pluck('total', 'estatus');
+        $conteoPendientes = $conteosEstatus['pendiente'] ?? 0;
+        $conteoAprobados = $conteosEstatus['aprobado'] ?? 0;
+        $conteoRechazados = $conteosEstatus['rechazado'] ?? 0;
+        $pctAprobados = $totalGeneral > 0 ? round(($conteoAprobados / $totalGeneral) * 100, 1) : 0;
+        $proveedoresConPendientes = DocumentoProveedor::where('estatus', 'pendiente')->distinct('proveedor_id')->count('proveedor_id');
+
+        $tipos = DocumentoProveedor::select('tipo')
+            ->distinct()
+            ->orderBy('tipo')
+            ->pluck('tipo');
 
         $filtros = [
             'busqueda' => $busqueda,
             'estatus' => $estatus,
-            'vencidas' => $vencidas,
+            'tipo' => $tipo,
             'fecha_desde' => $fechaDesde,
             'fecha_hasta' => $fechaHasta,
         ];
 
         $filtrosActivos = $this->filtrosTienenValor($filtros);
 
-        return view('admin.facturas', compact(
-            'facturas',
+        return view('admin.documentos', compact(
+            'documentos',
             'estatus',
-            'vencidas',
             'estatusOpciones',
+            'tipoLabels',
+            'tipos',
             'totalGeneral',
             'conteosEstatus',
-            'conteoVencidas',
+            'conteoPendientes',
+            'conteoAprobados',
+            'conteoRechazados',
+            'pctAprobados',
+            'proveedoresConPendientes',
             'filtros',
             'filtrosActivos',
         ));
     }
 
-    // ── Documentos de proveedores ──
-
-    public function documentos(Request $request)
+    private function estatusOpcionesDocumentos(): array
     {
-        $estatusOpciones = [
+        return [
             'pendiente' => 'Pendiente',
             'aprobado' => 'Aprobado',
             'rechazado' => 'Rechazado',
         ];
+    }
 
-        $tipoLabels = [
+    private function tipoLabelsDocumentos(): array
+    {
+        return [
             'cif' => 'CIF',
             'opinion' => 'Opinión positiva',
             'caratula_banco' => 'Carátula banco',
             'acta_constitutiva' => 'Acta constitutiva',
             'comprobante_domicilio' => 'Comprobante domicilio',
         ];
+    }
 
+    private function queryDocumentosFiltrados(Request $request)
+    {
+        $estatusOpciones = $this->estatusOpcionesDocumentos();
         $query = DocumentoProveedor::with('proveedor');
 
         $busqueda = $request->input('busqueda', '');
@@ -993,43 +1195,7 @@ class AdminPanelController extends Controller
             $query->whereDate('created_at', '<=', $fechaHasta);
         }
 
-        $documentos = $query
-            ->orderByRaw("CASE estatus WHEN 'pendiente' THEN 1 WHEN 'rechazado' THEN 2 WHEN 'aprobado' THEN 3 ELSE 4 END")
-            ->orderBy('created_at', 'desc')
-            ->paginate(20)
-            ->withQueryString();
-
-        $totalGeneral = DocumentoProveedor::count();
-        $conteosEstatus = DocumentoProveedor::selectRaw('estatus, count(*) as total')
-            ->groupBy('estatus')
-            ->pluck('total', 'estatus');
-
-        $tipos = DocumentoProveedor::select('tipo')
-            ->distinct()
-            ->orderBy('tipo')
-            ->pluck('tipo');
-
-        $filtros = [
-            'busqueda' => $busqueda,
-            'estatus' => $estatus,
-            'tipo' => $tipo,
-            'fecha_desde' => $fechaDesde,
-            'fecha_hasta' => $fechaHasta,
-        ];
-
-        $filtrosActivos = $this->filtrosTienenValor($filtros);
-
-        return view('admin.documentos', compact(
-            'documentos',
-            'estatus',
-            'estatusOpciones',
-            'tipoLabels',
-            'tipos',
-            'totalGeneral',
-            'conteosEstatus',
-            'filtros',
-            'filtrosActivos',
-        ));
+        return $query;
     }
 
     // ── Negocio ──
@@ -1552,7 +1718,28 @@ class AdminPanelController extends Controller
                 ];
             });
 
-        return view('admin.gestion-compras', compact('proveedores', 'productos', 'opinionData', 'inventarioDias', 'ocProveedores'));
+        $conteoOpinionPendiente = collect($opinionData)->whereIn('estatus', ['pendiente', 'sin_documento'])->count();
+        $conteoOpinionOk = collect($opinionData)->where('estatus', 'aprobado')->count();
+        $totalProveedores = ProveedorUser::count();
+        $conteoProveedoresActivos = ProveedorUser::where('activo', true)->count();
+        $conteoInventarioCritico = collect($inventarioDias)
+            ->filter(fn ($i) => ($i['dias_inventario'] ?? 0) < (($i['dias_pedido'] ?? 0) + ($i['dias_entrega'] ?? 0)))
+            ->count();
+        $conteoOcAtrasadas = $ocProveedores->where('atrasada', true)->count();
+
+        return view('admin.gestion-compras', compact(
+            'proveedores',
+            'productos',
+            'opinionData',
+            'inventarioDias',
+            'ocProveedores',
+            'conteoOpinionPendiente',
+            'conteoOpinionOk',
+            'totalProveedores',
+            'conteoProveedoresActivos',
+            'conteoInventarioCritico',
+            'conteoOcAtrasadas',
+        ));
     }
 
     public function crearOC(Request $request)
@@ -1717,34 +1904,29 @@ class AdminPanelController extends Controller
 
     public function facturasExcel(Request $request)
     {
-        $query = Factura::whereNotNull('codigo_proveedor');
-        if ($request->input('estatus')) {
-            $query->where('estatus', $request->input('estatus'));
-        }
-        if ($request->input('vencidas')) {
-            $query->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
-        }
-        $facturas = $query->orderBy('created_at', 'desc')->get();
+        $facturas = $this->queryFacturasFiltradas($request)
+            ->orderBy('created_at', 'desc')
+            ->get();
 
-        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['REPORTE DE FACTURAS DE PROVEEDORES'], ['Generado: '.now()->format('d/m/Y H:i')], [], ['FOLIO CFDI', 'PROVEEDOR', 'MONTO', 'IVA', 'TOTAL', 'ESTATUS', 'VENCIMIENTO', 'DIAS VENCIDO']];
+        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['REPORTE DE FACTURAS DE PROVEEDORES'], ['Generado: '.now()->format('d/m/Y H:i')], [], ['FOLIO CFDI', 'PROVEEDOR', 'CÓDIGO', 'MONTO', 'IVA', 'TOTAL', 'ESTATUS', 'VENCIMIENTO', 'DÍAS VENCIDO']];
 
         foreach ($facturas as $f) {
-            $prov = ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
             $vencida = $f->estatus === 'pendiente' && $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
             $diasV = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
             $lines[] = [
                 $f->folio_cfdi,
-                $prov->nombre ?? $f->codigo_proveedor,
+                $f->proveedor?->nombre ?? $f->codigo_proveedor,
+                $f->codigo_proveedor,
                 '$'.number_format((float) $f->monto, 2),
                 '$'.number_format((float) $f->monto_iva, 2),
                 '$'.number_format((float) $f->total, 2),
                 ucfirst($f->estatus),
                 $f->fecha_vencimiento?->format('d/m/Y') ?? '-',
-                $vencida ? $diasV.' dias' : '-',
+                $vencida ? $diasV.' días' : '-',
             ];
         }
         $lines[] = [];
-        $lines[] = ['', '', '', 'TOTAL:', '$'.number_format((float) $facturas->sum('total'), 2)];
+        $lines[] = ['', '', '', '', '', 'TOTAL:', '$'.number_format((float) $facturas->sum('total'), 2)];
 
         return $this->csvResponse($lines, 'Facturas_Proveedores_'.now()->format('Y-m-d').'.csv');
     }
