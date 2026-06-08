@@ -38,19 +38,21 @@ class AdminPanelController extends Controller
         }
 
         $facturasPorEstatus = Factura::selectRaw('estatus, count(*) as cantidad, sum(total) as monto')
+            ->whereNotNull('codigo_proveedor')
             ->groupBy('estatus')->get()->keyBy('estatus');
 
-        $mesActualData = $pedidosPorMes->last();
-        $mesAnteriorData = $pedidosPorMes->count() >= 2
-            ? $pedidosPorMes[$pedidosPorMes->count() - 2]
+        $comprasPorMes = $this->ventasPorMesProveedores();
+        $mesActualCompras = $comprasPorMes->last();
+        $mesAnteriorCompras = $comprasPorMes->count() >= 2
+            ? $comprasPorMes[$comprasPorMes->count() - 2]
             : null;
-        $ventasVarPct = $this->calcularVariacionPct(
-            (float) ($mesActualData['monto'] ?? 0),
-            (float) ($mesAnteriorData['monto'] ?? 0)
+        $comprasVarPct = $this->calcularVariacionPct(
+            (float) ($mesActualCompras['monto'] ?? 0),
+            (float) ($mesAnteriorCompras['monto'] ?? 0)
         );
-        $pedidosVarPct = $this->calcularVariacionPct(
-            (float) ($mesActualData['total'] ?? 0),
-            (float) ($mesAnteriorData['total'] ?? 0)
+        $facturasProvVarPct = $this->calcularVariacionPct(
+            (float) ($mesActualCompras['facturas'] ?? 0),
+            (float) ($mesAnteriorCompras['facturas'] ?? 0)
         );
 
         $facturasPagadasCount = (int) ($facturasPorEstatus->get('pagada')?->cantidad ?? 0);
@@ -111,10 +113,11 @@ class AdminPanelController extends Controller
             'pedidosPendientes' => Pedido::whereIn('estatus', ['validacion', 'procesando'])->count(),
             'pedidosEntregados' => Pedido::where('estatus', 'entregado')->count(),
             'montoPedidos' => Pedido::sum('total'),
-            'ventasMesActual' => (float) ($mesActualData['monto'] ?? 0),
-            'pedidosMesActual' => (int) ($mesActualData['total'] ?? 0),
-            'ventasVarPct' => $ventasVarPct,
-            'pedidosVarPct' => $pedidosVarPct,
+            'ventasTotales' => (float) Factura::whereNotNull('codigo_proveedor')->where('estatus', '!=', 'cancelada')->sum('total'),
+            'ventasMesActual' => (float) ($mesActualCompras['monto'] ?? 0),
+            'facturasProvMesActual' => (int) ($mesActualCompras['facturas'] ?? 0),
+            'ventasVarPct' => $comprasVarPct,
+            'facturasProvVarPct' => $facturasProvVarPct,
             'totalProductos' => $productosActivos,
             'sinStock' => $sinStock,
             'stockBajo' => $stockBajo,
@@ -997,12 +1000,23 @@ class AdminPanelController extends Controller
 
     public function negocio()
     {
+        $baseFacturas = Factura::whereNotNull('codigo_proveedor');
+        $ventasPorMes = $this->ventasPorMesProveedores();
+
         $data = [
-            'ventasTotales' => Pedido::whereNotIn('estatus', ['cancelado'])->sum('total'),
-            'deudasTotal' => Factura::where('estatus', 'pendiente')->sum('total'),
-            'deudasCount' => Factura::where('estatus', 'pendiente')->count(),
-            'facturasPagadas' => Factura::where('estatus', 'pagada')->sum('total'),
-            'pedidosPorMes' => $this->pedidosPorMes(),
+            'ventasTotales' => (float) (clone $baseFacturas)->where('estatus', '!=', 'cancelada')->sum('total'),
+            'ventasCount' => (int) (clone $baseFacturas)->where('estatus', '!=', 'cancelada')->count(),
+            'deudasTotal' => (float) (clone $baseFacturas)->where('estatus', 'pendiente')->sum('total'),
+            'deudasCount' => (int) (clone $baseFacturas)->where('estatus', 'pendiente')->count(),
+            'cobradoTotal' => (float) (clone $baseFacturas)->where('estatus', 'pagada')->sum('total'),
+            'cobradoCount' => (int) (clone $baseFacturas)->where('estatus', 'pagada')->count(),
+            'proveedoresVentas' => $this->resumenNegocioProveedores('ventas'),
+            'proveedoresDeudas' => $this->resumenNegocioProveedores('deudas'),
+            'proveedoresCobrado' => $this->resumenNegocioProveedores('cobrado'),
+            'ventasPorMes' => $ventasPorMes,
+            'chartTotal6m' => (float) $ventasPorMes->sum('monto'),
+            'chartPromedio6m' => round($ventasPorMes->avg('monto') ?: 0),
+            'chartMesPico' => $ventasPorMes->sortByDesc('monto')->first(),
         ];
 
         return view('admin.negocio', $data);
@@ -1020,37 +1034,79 @@ class AdminPanelController extends Controller
             ->filter(fn ($f) => $f->fecha_vencimiento && $f->fecha_vencimiento->isPast())->count();
         $canceladas = $facturasProveedor->where('estatus', 'cancelada')->count();
 
-        $otifResumen = $this->calcularOtifResumen($facturasProveedor);
-        $otPercent = $otifResumen['otPercent'];
-        $ifPercent = $otifResumen['ifPercent'];
-        $porcentaje = (int) round($otPercent);
+        $otPercent = $this->pctPuntualidadFromFacturas($facturasProveedor);
+        $ifPercent = $this->pctEntregaFromFacturas($facturasProveedor);
+        $scoreGeneral = round(($otPercent + $ifPercent) / 2, 1);
 
-        // Detalle por proveedor
+        $trimInicio = now()->subMonths(3);
+        $trimAnterior = now()->subMonths(6);
+        $facturasTrim = $facturasProveedor->filter(fn ($f) => $f->created_at >= $trimInicio);
+        $facturasTrimAnterior = $facturasProveedor->filter(
+            fn ($f) => $f->created_at >= $trimAnterior && $f->created_at < $trimInicio
+        );
+        $trendOt = $this->deltaTrend(
+            $this->pctPuntualidadFromFacturas($facturasTrim),
+            $this->pctPuntualidadFromFacturas($facturasTrimAnterior)
+        );
+        $trendIf = $this->deltaTrend(
+            $this->pctEntregaFromFacturas($facturasTrim),
+            $this->pctEntregaFromFacturas($facturasTrimAnterior)
+        );
+
         $proveedores = ProveedorUser::where('activo', true)->orderBy('score_total', 'desc')->get();
+        $metricasProveedores = $this->buildProveedoresMetricas($proveedores);
+
         $detalleProveedores = [];
         foreach ($proveedores as $prov) {
-            $factProv = Factura::where('codigo_proveedor', $prov->codigo_compras)->get();
+            if (! $prov->codigo_compras) {
+                continue;
+            }
+
+            $factProv = $facturasProveedor->where('codigo_proveedor', $prov->codigo_compras);
             $totalProv = $factProv->count();
             if ($totalProv === 0) {
                 continue;
             }
 
-            $pagadasProv = $factProv->where('estatus', 'pagada')->count();
-            $otProv = round(($pagadasProv / $totalProv) * 100, 1);
+            $m = $metricasProveedores[$prov->id] ?? [];
+            $otProv = $this->pctPuntualidadFromFacturas($factProv);
+            $ifProv = $this->pctEntregaFromFacturas($factProv);
 
             $detalleProveedores[] = [
                 'nombre' => $prov->nombre ?? $prov->usuario,
                 'codigo' => $prov->codigo_compras,
                 'total' => $totalProv,
-                'pagadas' => $pagadasProv,
+                'pagadas' => $factProv->where('estatus', 'pagada')->count(),
+                'pendientes' => $factProv->where('estatus', 'pendiente')->count(),
                 'ot' => $otProv,
-                'score' => $prov->score_total,
+                'if' => $ifProv,
+                'score' => (float) $prov->score_total,
+                'trend_ot' => $m['trend_puntualidad'] ?? 0,
+                'trend_if' => $m['trend_entrega'] ?? 0,
+                'trend_score' => $m['trend_otif'] ?? 0,
+                'score_class' => $m['score_class'] ?? $this->scoreBarClass((float) $prov->score_total),
             ];
         }
 
+        usort($detalleProveedores, fn ($a, $b) => $b['score'] <=> $a['score']);
+
+        $facturasVencidas = Factura::whereNotNull('codigo_proveedor')
+            ->where('estatus', 'pendiente')
+            ->whereNotNull('fecha_vencimiento')
+            ->where('fecha_vencimiento', '<', now())
+            ->with('proveedor')
+            ->orderBy('fecha_vencimiento')
+            ->limit(25)
+            ->get();
+
+        $proveedoresConFacturas = count($detalleProveedores);
+        $proveedoresActivos = $proveedores->count();
+
         return view('admin.otif', compact(
             'total', 'pagadas', 'pendientes', 'vencidas', 'canceladas',
-            'otPercent', 'ifPercent', 'porcentaje', 'detalleProveedores'
+            'otPercent', 'ifPercent', 'scoreGeneral', 'trendOt', 'trendIf',
+            'detalleProveedores', 'facturasVencidas',
+            'proveedoresConFacturas', 'proveedoresActivos'
         ));
     }
 
@@ -1083,6 +1139,67 @@ class AdminPanelController extends Controller
         }
 
         return $data;
+    }
+
+    private function ventasPorMesProveedores()
+    {
+        $mesesNombres = ['', 'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+        $data = collect();
+        for ($i = 5; $i >= 0; $i--) {
+            $fecha = now()->subMonths($i);
+            $base = Factura::whereNotNull('codigo_proveedor')
+                ->where('estatus', '!=', 'cancelada')
+                ->whereYear('created_at', $fecha->year)
+                ->whereMonth('created_at', $fecha->month);
+            $montoPagado = (float) (clone $base)->where('estatus', 'pagada')->sum('total');
+            $montoPendiente = (float) (clone $base)->where('estatus', 'pendiente')->sum('total');
+            $data->push([
+                'mes' => $mesesNombres[(int) $fecha->format('n')].' '.$fecha->format('Y'),
+                'mes_corto' => $mesesNombres[(int) $fecha->format('n')],
+                'facturas' => (clone $base)->count(),
+                'monto' => $montoPagado + $montoPendiente,
+                'monto_pagado' => $montoPagado,
+                'monto_pendiente' => $montoPendiente,
+            ]);
+        }
+
+        return $data;
+    }
+
+    private function resumenNegocioProveedores(string $tipo): array
+    {
+        $query = Factura::whereNotNull('codigo_proveedor');
+
+        if ($tipo === 'ventas' || $tipo === 'compras') {
+            $query->where('estatus', '!=', 'cancelada');
+        } elseif ($tipo === 'deudas') {
+            $query->where('estatus', 'pendiente');
+        } elseif ($tipo === 'cobrado') {
+            $query->where('estatus', 'pagada');
+        }
+
+        $agrupado = $query
+            ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(total) as monto_total')
+            ->groupBy('codigo_proveedor')
+            ->orderByDesc('monto_total')
+            ->get();
+
+        $codigos = $agrupado->pluck('codigo_proveedor')->filter()->values();
+        $proveedores = ProveedorUser::whereIn('codigo_compras', $codigos)->get()->keyBy('codigo_compras');
+
+        return $agrupado->map(function ($row) use ($proveedores) {
+            $prov = $proveedores->get($row->codigo_proveedor);
+
+            return [
+                'codigo' => $row->codigo_proveedor,
+                'nombre' => $prov->nombre ?? $prov->usuario ?? $row->codigo_proveedor,
+                'correo' => $prov->correo ?? null,
+                'telefono' => $prov->telefono ?? null,
+                'facturas' => (int) $row->num_facturas,
+                'monto' => (float) $row->monto_total,
+                'score' => (float) ($prov->score_total ?? 0),
+            ];
+        })->values()->all();
     }
 
     // ── Reporte de Proveedores (comparativo anual) ──

@@ -12,7 +12,11 @@
 @push('styles')
 <style>
     .perfil-header { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px; }
-    .perfil-avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--purple); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: var(--white); flex-shrink: 0; }
+    .perfil-avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--purple); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: var(--white); flex-shrink: 0; position: relative; cursor: pointer; overflow: hidden; transition: all .15s; }
+    .perfil-avatar:hover { opacity: .85; }
+    .perfil-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .perfil-avatar .avatar-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; border-radius: 50%; }
+    .perfil-avatar:hover .avatar-overlay { opacity: 1; }
     .perfil-name { font-size: 18px; font-weight: 700; color: var(--gray-text); }
     .perfil-meta { font-size: 13px; color: var(--gray-muted); margin-top: 2px; }
     .perfil-actions { margin-left: auto; }
@@ -63,7 +67,20 @@
 
 @section('content')
     <div class="perfil-header">
-        <div class="perfil-avatar">{{ strtoupper(substr($proveedor->nombre ?? session('proveedor_nombre', 'P'), 0, 1)) }}</div>
+        <form id="fotoForm" method="POST" action="{{ route('proveedores.perfil.foto') }}" enctype="multipart/form-data" style="display:inline;">
+            @csrf
+            <div class="perfil-avatar" onclick="document.getElementById('fotoInput').click()" title="Cambiar foto">
+                @if($proveedor && $proveedor->foto)
+                    <img src="{{ asset('storage/' . $proveedor->foto) }}" alt="Foto">
+                @else
+                    {{ strtoupper(substr($proveedor->nombre ?? session('proveedor_nombre', 'P'), 0, 1)) }}
+                @endif
+                <div class="avatar-overlay">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                </div>
+            </div>
+            <input type="file" id="fotoInput" name="foto" accept="image/*" style="display:none;" onchange="document.getElementById('fotoForm').submit()">
+        </form>
         <div>
             <div class="perfil-name">{{ $proveedor->nombre ?? session('proveedor_nombre', '—') }}</div>
             <div class="perfil-meta">

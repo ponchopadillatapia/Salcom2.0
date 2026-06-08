@@ -16,6 +16,7 @@ class AdminUser extends Authenticatable
         'correo',
         'usuario',
         'password',
+        'foto',
         'activo',
         'rol',
     ];
