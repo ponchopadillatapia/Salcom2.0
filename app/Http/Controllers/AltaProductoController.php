@@ -90,11 +90,11 @@ class AltaProductoController extends Controller
     {
         $spreadsheet = new Spreadsheet;
 
-        // â*â*â* HOJA PRINCIPAL: Productos â*â*â*
+        // === HOJA PRINCIPAL: Productos ===
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Productos');
 
-        // Headers â€" sin columnas redundantes
+        // Headers - sin columnas redundantes
         $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
         $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false];
         $col = 'A';
@@ -116,7 +116,7 @@ class AltaProductoController extends Controller
         // Formato moneda ($) para columna PRECIO (J) - se ve el $ pero es numero
         $sheet->getStyle('J2:J101')->getNumberFormat()->setFormatCode('$#,##0.00');
 
-        // â*â*â* HOJA OCULTA: Listas de validacion â*â*â*
+        // === HOJA OCULTA: Listas de validacion ===
         $listSheet = $spreadsheet->createSheet();
         $listSheet->setTitle('_Listas');
 
@@ -135,7 +135,7 @@ class AltaProductoController extends Controller
         // Ocultar la hoja de listas
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
-        // â*â*â* VALIDACIONES en hoja principal â*â*â*
+        // === VALIDACIONES en hoja principal ===
         // Columnas: A=CODIGO, B=NOMBRE_TIPO, C=NOMBRE_MARCA, D=NOMBRE_MODELO, E=NOMBRE_MEDIDA,
         //           F=NOMBRE_ESPECIFICACION, G=FAMILIA, H=TIPO_PRODUCTO, I=UNIDAD_MEDIDA,
         //           J=PRECIO, K=CLAVE_SAT, L=LOTE, M=PEDIMENTO, N=VOLTAJE
@@ -254,44 +254,44 @@ class AltaProductoController extends Controller
             $validation->setFormula1('0');
         }
 
-        // â*â*â* HOJA DE INSTRUCCIONES â*â*â*
+        // === HOJA DE INSTRUCCIONES ===
         $instrSheet = $spreadsheet->createSheet();
         $instrSheet->setTitle('Instrucciones');
         $instrSheet->getColumnDimension('A')->setWidth(90);
 
-        $instrSheet->setCellValue('A1', 'INSTRUCCIONES â€" ALTA DE PRODUCTO');
+        $instrSheet->setCellValue('A1', 'INSTRUCCIONES - ALTA DE PRODUCTO');
         $instrSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
         $instrSheet->getStyle('A1')->getFont()->getColor()->setRGB('6B3FA0');
 
         $row = 3;
         $reglas = [
-            'â*â*â* COLORES DEL HEADER â*â*â*',
+            '=== COLORES DEL HEADER ===',
             'Morado oscuro = Obligatorio (siempre llenar)',
             'Morado claro = Opcional (puedes dejarlo vacio)',
             '',
-            'â*â*â* COLUMNAS DEL EXCEL (en orden) â*â*â*',
-            'CODIGO â€" Codigo unico del producto (ej: MPI0538, ME0201)',
+            '=== COLUMNAS DEL EXCEL (en orden) ===',
+            'CODIGO - Codigo unico del producto (ej: MPI0538, ME0201)',
             'NOMBRE_TIPO - Que es el producto (ej: MOTOR ELECTRICO, RESINA EPOXICA)',
             '  IMPORTANTE: Minimo 2 palabras (PINTURA VINILICA, no solo PINTURA)',
-            'NOMBRE_MARCA â€" Quien lo fabrica (ej: WEG, SKF, 3M, ALPHA)',
-            'NOMBRE_MODELO â€" Referencia del fabricante (ej: W22, IND-500, CP-40)',
-            'NOMBRE_MEDIDA â€" Tamano con numeros (ej: 500ML, 3HP, 30CMX30CM, 40X30X25)',
-            'NOMBRE_ESPECIFICACION â€" Detalle adicional (ej: TRIFASICO, TRANSPARENTE)',
-            'FAMILIA â€" Seleccionar del dropdown (ej: MATERIA PRIMA, MANTENIMIENTO)',
-            'TIPO_PRODUCTO â€" MPI (Materia Prima), ME (Empaque), MN (Mantenimiento)',
-            'UNIDAD_MEDIDA â€" Solo KG, PZA o CAJA',
-            'PRECIO â€" Opcional. Con $ y decimales (ej: $150.50)',
-            'CLAVE_SAT â€" Opcional. Codigo SAT (ej: 10191509)',
-            'LOTE â€" SI o NO. Obligatorio solo si TIPO_PRODUCTO = MPI',
-            'PEDIMENTO â€" SI o NO. Obligatorio solo si TIPO_PRODUCTO = MPI',
-            'VOLTAJE â€" Opcional. Seleccionar del dropdown (ej: 220V, 220/440V)',
+            'NOMBRE_MARCA - Quien lo fabrica (ej: WEG, SKF, 3M, ALPHA)',
+            'NOMBRE_MODELO - Referencia del fabricante (ej: W22, IND-500, CP-40)',
+            'NOMBRE_MEDIDA - Tamano con numeros (ej: 500ML, 3HP, 30CMX30CM, 40X30X25)',
+            'NOMBRE_ESPECIFICACION - Detalle adicional (ej: TRIFASICO, TRANSPARENTE)',
+            'FAMILIA - Seleccionar del dropdown (ej: MATERIA PRIMA, MANTENIMIENTO)',
+            'TIPO_PRODUCTO - MPI (Materia Prima), ME (Empaque), MN (Mantenimiento)',
+            'UNIDAD_MEDIDA - Solo KG, PZA o CAJA',
+            'PRECIO - Opcional. Con $ y decimales (ej: $150.50)',
+            'CLAVE_SAT - Opcional. Codigo SAT (ej: 10191509)',
+            'LOTE - SI o NO. Obligatorio solo si TIPO_PRODUCTO = MPI',
+            'PEDIMENTO - SI o NO. Obligatorio solo si TIPO_PRODUCTO = MPI',
+            'VOLTAJE - Opcional. Seleccionar del dropdown (ej: 220V, 220/440V)',
             '',
-            'â*â*â* QUE SIGNIFICAN MPI, ME Y MN â*â*â*',
-            'MPI = Materia Prima Importacion â€" Requiere LOTE y PEDIMENTO',
-            'ME = Material de Empaque â€" Cajas, etiquetas, bolsas',
-            'MN = Mantenimiento â€" Motores, refacciones, herramientas',
+            '=== QUE SIGNIFICAN MPI, ME Y MN ===',
+            'MPI = Materia Prima Importacion - Requiere LOTE y PEDIMENTO',
+            'ME = Material de Empaque - Cajas, etiquetas, bolsas',
+            'MN = Mantenimiento - Motores, refacciones, herramientas',
             '',
-            'â*â*â* REGLAS GENERALES â*â*â*',
+            '=== REGLAS GENERALES ===',
             'Todo en MAYUSCULAS, sin acentos ni caracteres especiales',
             'NOMBRE_TIPO debe tener MINIMO 2 PALABRAS (ej: PINTURA VINILICA, no solo PINTURA)',
             'NOMBRE_MEDIDA debe tener numeros (500ML, 3HP, 30CMX30CM, 40X30X25). Para dimensiones usa X sin espacios: 30CMX30CM',
@@ -301,7 +301,7 @@ class AltaProductoController extends Controller
             'PRECIO debe llevar $ al inicio (ej: $150.50). Si no sabes el precio, dejalo vacio',
             'No repetir productos que ya existen en el catalogo',
             '',
-            'â*â*â* SI LA IA RECHAZA TU ARCHIVO â*â*â*',
+            '=== SI LA IA RECHAZA TU ARCHIVO ===',
             '1. Las celdas con error se marcan en ROJO en el Excel descargable',
             '2. En la pagina web te dice exactamente que corregir',
             '3. Corrige los campos marcados y vuelve a subir',
@@ -314,7 +314,7 @@ class AltaProductoController extends Controller
 
         foreach ($reglas as $texto) {
             $instrSheet->setCellValue('A'.$row, $texto);
-            if (str_starts_with($texto, 'â*â*â*')) {
+            if (str_starts_with($texto, '===')) {
                 $instrSheet->getStyle('A'.$row)->getFont()->setBold(true)->setSize(11);
             }
             $row++;
@@ -750,7 +750,7 @@ Si todo correcto: {"errores_ia": []}';
     }
 
     /**
-     * Generar Excel XLSX con colores â€" celdas con error en rojo, aprobadas en verde.
+     * Generar Excel XLSX con colores - celdas con error en rojo, aprobadas en verde.
      */
     private function generarExcelConErrores(array $productos, array $errores): string
     {
@@ -897,7 +897,7 @@ Si todo correcto: {"errores_ia": []}';
     }
 
     /**
-     * Validar un producto individual â€" Reglas de estandarizacion industrial.
+     * Validar un producto individual - Reglas de estandarizacion industrial.
      *
      * Nomenclatura: [TIPO] + [MARCA] + [MODELO/MEDIDA] + [ESPECIFICACIÃ"N]
      * Ejemplo correcto: BALERO SKF 6205 2RS
@@ -908,7 +908,7 @@ Si todo correcto: {"errores_ia": []}';
     {
         $errores = [];
 
-        // â*â*â* 1. CAMPOS OBLIGATORIOS â*â*â*
+        // === 1. CAMPOS OBLIGATORIOS ===
         foreach ($this->columnasObligatorias as $campo) {
             if (empty(trim($producto[$campo] ?? ''))) {
                 $sugerencia = match ($campo) {
@@ -938,7 +938,7 @@ Si todo correcto: {"errores_ia": []}';
         $unidad = strtoupper(trim($producto['UNIDAD_MEDIDA'] ?? ''));
         $precio = $producto['PRECIO'] ?? '';
 
-        // â*â*â* 1.5 CODIGO â€" Solo alfanumerico y guiones â*â*â*
+        // === 1.5 CODIGO - Solo alfanumerico y guiones ===
         $codigo = trim($producto['CODIGO'] ?? '');
         if ($codigo) {
             if (! preg_match('/^[A-Za-z0-9\-_]+$/', $codigo)) {
@@ -950,10 +950,10 @@ Si todo correcto: {"errores_ia": []}';
             }
         }
 
-        // â*â*â* 2. NOMENCLATURA â€" Construir NOMBRE desde las 5 partes â*â*â*
+        // === 2. NOMENCLATURA - Construir NOMBRE desde las 5 partes ===
 
-        // â*â*â* 2. NOMENCLATURA â€" Construir NOMBRE desde las 5 partes â*â*â*
-        // Las 5 partes â€" validar con valor ORIGINAL, luego convertir
+        // === 2. NOMENCLATURA - Construir NOMBRE desde las 5 partes ===
+        // Las 5 partes - validar con valor ORIGINAL, luego convertir
         $nombreTipoRaw = trim($producto['NOMBRE_TIPO'] ?? '');
         $nombreMarcaRaw = trim($producto['NOMBRE_MARCA'] ?? '');
         $nombreModeloRaw = trim($producto['NOMBRE_MODELO'] ?? '');
@@ -1224,7 +1224,7 @@ Si todo correcto: {"errores_ia": []}';
         $precio = trim($producto['PRECIO'] ?? '');
         $tipoProductoRaw = trim($producto['TIPO_PRODUCTO'] ?? '');
 
-        // â*â*â* 2.5 TIPO_PRODUCTO â€" Debe ser exactamente MPI, ME o MN en MAYUSCULAS â*â*â*
+        // === 2.5 TIPO_PRODUCTO - Debe ser exactamente MPI, ME o MN en MAYUSCULAS ===
         if ($tipoProductoRaw && $tipoProductoRaw !== strtoupper($tipoProductoRaw)) {
             $errores[] = [
                 'fila' => $fila,
@@ -1240,7 +1240,7 @@ Si todo correcto: {"errores_ia": []}';
             ];
         }
 
-        // â*â*â* 2.7 UNIDAD_MEDIDA â€" Debe estar en MAYUSCULAS y ser valida â*â*â*
+        // === 2.7 UNIDAD_MEDIDA - Debe estar en MAYUSCULAS y ser valida ===
         if ($unidadRaw && $unidadRaw !== strtoupper($unidadRaw)) {
             $errores[] = [
                 'fila' => $fila,
@@ -1249,7 +1249,7 @@ Si todo correcto: {"errores_ia": []}';
             ];
         }
 
-        // â*â*â* 3. FAMILIA â€" Debe ser de la lista oficial â*â*â*
+        // === 3. FAMILIA - Debe ser de la lista oficial ===
         if ($familia && ! in_array($familia, $this->familiasValidas)) {
             $sugerencia = $this->buscarFamiliaSimilar($familia);
             $errores[] = [
@@ -1260,7 +1260,7 @@ Si todo correcto: {"errores_ia": []}';
             ];
         }
 
-        // â*â*â* 4. UNIDAD DE MEDIDA â€" Lista oficial â*â*â*
+        // === 4. UNIDAD DE MEDIDA - Lista oficial ===
         if ($unidad && ! in_array($unidad, $this->unidadesValidas)) {
             $errores[] = [
                 'fila' => $fila,
@@ -1269,7 +1269,7 @@ Si todo correcto: {"errores_ia": []}';
             ];
         }
 
-        // â*â*â* 5. PRECIO â€" Numerico y razonable (opcional, pero si viene debe ser valido) â*â*â*
+        // === 5. PRECIO - Numerico y razonable (opcional, pero si viene debe ser valido) ===
         if ($precio !== '') {
             $precioStr = trim((string) $precio);
             // Si esta vacio despues de trim, no validar
@@ -1316,7 +1316,7 @@ Si todo correcto: {"errores_ia": []}';
             }
         }
 
-        // â*â*â* 6. DUPLICADOS INTELIGENTES â*â*â*
+        // === 6. DUPLICADOS INTELIGENTES ===
         if ($nombre) {
             // Buscar duplicado exacto (sin espacios)
             $nombreNorm = strtoupper(str_replace(' ', '', Str::ascii($nombre)));
@@ -1359,7 +1359,7 @@ Si todo correcto: {"errores_ia": []}';
             }
         }
 
-        // â*â*â* 7. CAMPOS OPCIONALES â€" Validar formato si vienen â*â*â*
+        // === 7. CAMPOS OPCIONALES - Validar formato si vienen ===
         $marca = trim($producto['MARCA'] ?? '');
         if ($marca && $marca !== strtoupper(Str::ascii($marca))) {
             $errores[] = [
@@ -1369,7 +1369,7 @@ Si todo correcto: {"errores_ia": []}';
             ];
         }
 
-        // Validar VOLTAJE â€" si viene, debe ser del dropdown o un valor electrico valido
+        // Validar VOLTAJE - si viene, debe ser del dropdown o un valor electrico valido
         $voltaje = trim($producto['VOLTAJE'] ?? '');
         if ($voltaje) {
             $voltajesValidos = ['110V', '127V', '220V', '220/440V', '110/220V', '440V', '480V', '12VDC', '24VDC', '3HP', '5HP', '10HP', '60Hz', 'N/A'];
@@ -1383,7 +1383,7 @@ Si todo correcto: {"errores_ia": []}';
             }
         }
 
-        // Validar MODELO â€" no debe tener caracteres especiales raros ni ser texto basura
+        // Validar MODELO - no debe tener caracteres especiales raros ni ser texto basura
         $modelo = trim($producto['MODELO'] ?? $producto['MODELO_PRODUCTO'] ?? '');
         if ($modelo) {
             if (preg_match('/[#$%&*=+{}\[\]|\\\\<>~`"\'?@^!]/', $modelo)) {
@@ -1412,7 +1412,7 @@ Si todo correcto: {"errores_ia": []}';
             }
         }
 
-        // Validar COLOR â€" si viene, no debe ser un numero ni texto sin sentido
+        // Validar COLOR - si viene, no debe ser un numero ni texto sin sentido
         $color = trim($producto['COLOR'] ?? '');
         if ($color && preg_match('/^\d+$/', $color)) {
             $errores[] = [
@@ -1422,7 +1422,7 @@ Si todo correcto: {"errores_ia": []}';
             ];
         }
 
-        // Validar MEDIDA â€" si viene, debe tener numeros o unidades
+        // Validar MEDIDA - si viene, debe tener numeros o unidades
         $medida = trim($producto['MEDIDA'] ?? '');
         if ($medida && ! preg_match('/\d|MM|CM|MT|ML|LT|KG|GR|GAL|IN|PZA|HP/i', $medida)) {
             $errores[] = [
@@ -1432,7 +1432,7 @@ Si todo correcto: {"errores_ia": []}';
             ];
         }
 
-        // â*â*â* 8. LOTE y PEDIMENTO â€" Obligatorios solo si TIPO_PRODUCTO = MPI â*â*â*
+        // === 8. LOTE y PEDIMENTO - Obligatorios solo si TIPO_PRODUCTO = MPI ===
         $tipoProducto = strtoupper(trim($producto['TIPO_PRODUCTO'] ?? ''));
         if ($tipoProducto === 'MPI') {
             $lote = strtoupper(trim($producto['LOTE'] ?? ''));
@@ -1454,7 +1454,7 @@ Si todo correcto: {"errores_ia": []}';
             }
         }
 
-        // â*â*â* 9. OBSERVACIONES â€" Debe ser texto legible, profesional, no basura â*â*â*
+        // === 9. OBSERVACIONES - Debe ser texto legible, profesional, no basura ===
         $observaciones = trim($producto['OBSERVACIONES'] ?? '');
         if ($observaciones) {
             // Rechazar caracteres especiales raros
