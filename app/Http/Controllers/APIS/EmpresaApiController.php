@@ -212,26 +212,41 @@ class EmpresaApiController extends Controller
         if ($esMoral) {
             // Buscar razón social — después de la etiqueta, capturar el valor real
             $nombreRaw = '';
-            if (preg_match('/(?:DENOMINACION|RAZON\s*SOCIAL)[:\s]+([A-Z0-9ÑÁÉÍÓÚü&][A-Z0-9ÑÁÉÍÓÚü&\s,\.\-]*)/ui', $texto, $nm)) {
+            // Intentar varios patrones
+            if (preg_match('/DENOMINACION\s*(?:\/\s*)?(?:RAZON\s*SOCIAL)?[:\s]+(.+?)(?=REGIMEN|DOMICILIO|FECHA|TIPO|CODIGO|OBLIGACIONES|$)/ui', $texto, $nm)) {
+                $nombreRaw = trim($nm[1]);
+            } elseif (preg_match('/RAZON\s*SOCIAL[:\s]+(.+?)(?=REGIMEN|DOMICILIO|FECHA|TIPO|CODIGO|OBLIGACIONES|$)/ui', $texto, $nm)) {
                 $nombreRaw = trim($nm[1]);
             }
-            // Si capturó otra etiqueta como valor, buscar de otra forma
-            if (empty($nombreRaw) || preg_match('/^(O\s+)?RAZON\s*SOCIAL/i', $nombreRaw)) {
-                // Buscar después de "DENOMINACION" o buscar el nombre entre RFC y REGIMEN
-                if (preg_match('/RFC[:\s]*[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}[:\s]*(.+?)(?=REGIMEN|DOMICILIO|FECHA|TIPO)/u', $texto, $nm2)) {
-                    $nombreRaw = trim($nm2[1]);
-                }
-            }
-            // Cortar en etiquetas comunes del CIF
-            $corteCif = ['IDCIF', 'ID CIF', 'TIPO', 'REGIMEN', 'FECHA', 'DOMICILIO', 'CODIGO', 'RFC', 'CURP', 'CLAVE', 'OBLIGACIONES', 'SITUACION', 'CONSTANCIA', 'RAZON SOCIAL'];
+
+            // Limpiar: quitar etiquetas que se colaron al inicio
+            $nombreRaw = preg_replace('/^(DENOMINACION|RAZON\s*SOCIAL|DENOMINACION\s*\/\s*RAZON\s*SOCIAL)[:\s]*/i', '', $nombreRaw);
+
+            // Separar palabras pegadas (insertar espacio entre minúscula/mayúscula o entre letras pegadas conocidas)
+            // Ejemplo: "VERTICALEPLATAFORMAS" -> detectar si hay palabras pegadas
+            // Buscar patrón de palabras en mayúsculas sin espacio
+            $nombreRaw = preg_replace('/([A-Z])([A-Z]{2,})/', '$1$2', $nombreRaw);
+
+            // Cortar en etiquetas
+            $corteCif = ['IDCIF', 'ID CIF', 'TIPO', 'REGIMEN', 'FECHA', 'DOMICILIO', 'CODIGO', 'RFC', 'CURP', 'CLAVE', 'OBLIGACIONES', 'SITUACION', 'CONSTANCIA', 'PERSONA'];
             foreach ($corteCif as $pc) {
                 $pos = strpos($nombreRaw, $pc);
                 if ($pos !== false && $pos > 0) {
                     $nombreRaw = trim(substr($nombreRaw, 0, $pos));
                 }
             }
+
             // Quitar prefijos basura
-            $nombreRaw = preg_replace('/^[O\s]+/', '', $nombreRaw);
+            $nombreRaw = preg_replace('/^[O\s:]+/', '', $nombreRaw);
+            $nombreRaw = trim($nombreRaw);
+
+            // Agregar espacios entre palabras pegadas si se detecta patrón camelCase en mayúsculas
+            // VERTICALEPLATAFORMAS -> VERTICALE PLATAFORMAS (si no hay espacio y hay más de 15 chars)
+            if (strlen($nombreRaw) > 15 && !str_contains($nombreRaw, ' ')) {
+                // Intentar separar por vocales seguidas de consonantes
+                $nombreRaw = preg_replace('/([AEIOU])([BCDFGHJKLMNPQRSTVWXYZ]{2,})/u', '$1 $2', $nombreRaw);
+            }
+
             if (strlen($nombreRaw) > 2) {
                 $datos['nombre'] = $nombreRaw;
                 $hallazgos[] = 'Razón Social: ' . $nombreRaw;
