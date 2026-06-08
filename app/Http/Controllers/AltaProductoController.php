@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\ProcesarMigracionLote;
 use App\Models\ExcelValidacion;
+use App\Models\MigracionMasiva;
 use App\Models\Producto;
 use App\Services\AlertEngineService;
 use App\Services\IaService;
@@ -1607,5 +1609,117 @@ Si todo correcto: {"errores_ia": []}';
         }
 
         return $productos;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // ═══ MIGRACIÓN MASIVA ═══
+    // Métodos para la migración de ~3,000 productos del sistema viejo al nuevo.
+    // La IA procesa cada producto en lotes de 50 en background.
+    // ════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Mostrar la página de migración masiva con historial y progreso.
+     */
+    public function mostrarMigracionMasiva()
+    {
+        // Migración activa (pendiente o procesando)
+        $migracionActiva = MigracionMasiva::whereIn('estatus', ['pendiente', 'procesando'])
+            ->latest()
+            ->first();
+
+        // Historial de migraciones
+        $migraciones = MigracionMasiva::latest()->limit(20)->get();
+
+        return view('admin.migracion-masiva', compact('migracionActiva', 'migraciones'));
+    }
+
+    /**
+     * Subir Excel del sistema viejo e iniciar migración masiva en background.
+     * Divide los productos en lotes de 50 y despacha jobs a la queue 'migraciones'.
+     */
+    public function subirMigracion(Request $request)
+    {
+        $request->validate([
+            'excel' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+        ]);
+
+        // Verificar que no haya una migración en curso
+        $enCurso = MigracionMasiva::whereIn('estatus', ['pendiente', 'procesando'])->exists();
+        if ($enCurso) {
+            return back()->with('error', 'Ya hay una migración en curso. Espera a que termine antes de iniciar otra.');
+        }
+
+        $file = $request->file('excel');
+        $path = $file->store('migraciones-masivas', 'public');
+
+        // Leer el Excel
+        try {
+            $fullPath = storage_path('app/public/' . $path);
+
+            if (Str::endsWith($file->getClientOriginalName(), '.csv')) {
+                $productos = $this->leerCSV($fullPath);
+            } else {
+                $spreadsheet = IOFactory::load($fullPath);
+                $productos = $this->leerSpreadsheet($spreadsheet);
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'No se pudo leer el archivo. Asegúrate de que sea un Excel (.xlsx) o CSV válido. Error: ' . $e->getMessage());
+        }
+
+        if (empty($productos)) {
+            return back()->with('error', 'El archivo está vacío o no tiene productos.');
+        }
+
+        // Obtener admin_id de la sesión
+        $adminId = session('admin_id', 1);
+
+        // Dividir en lotes de 50
+        $lotes = array_chunk($productos, 50);
+        $totalLotes = count($lotes);
+
+        // Crear registro de migración
+        $migracion = MigracionMasiva::create([
+            'admin_id' => $adminId,
+            'archivo_path' => $path,
+            'total_productos' => count($productos),
+            'productos_procesados' => 0,
+            'productos_error' => 0,
+            'lotes_total' => $totalLotes,
+            'lotes_completados' => 0,
+            'estatus' => 'pendiente',
+        ]);
+
+        // Despachar un job por cada lote
+        foreach ($lotes as $index => $lote) {
+            ProcesarMigracionLote::dispatch(
+                $migracion->id,
+                $index + 1,
+                $lote
+            );
+        }
+
+        Log::info("[MigracionMasiva] Iniciada migración #{$migracion->id}: {$migracion->total_productos} productos en {$totalLotes} lotes");
+
+        return back()->with('mensaje', "Migración iniciada: {$migracion->total_productos} productos se procesarán en {$totalLotes} lotes. El progreso se actualizará automáticamente.");
+    }
+
+    /**
+     * Devolver estado actual de una migración (para AJAX polling).
+     */
+    public function estadoMigracion($id)
+    {
+        $migracion = MigracionMasiva::findOrFail($id);
+
+        return response()->json([
+            'id' => $migracion->id,
+            'estatus' => $migracion->estatus,
+            'total_productos' => $migracion->total_productos,
+            'productos_procesados' => $migracion->productos_procesados,
+            'productos_error' => $migracion->productos_error,
+            'lotes_total' => $migracion->lotes_total,
+            'lotes_completados' => $migracion->lotes_completados,
+            'porcentaje' => $migracion->porcentaje,
+            'resultado_path' => $migracion->resultado_path,
+        ]);
     }
 }

@@ -94,9 +94,9 @@
 
         <div class="alta-rules">
             <h4>Instrucciones</h4>
-            <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:14px;font-size:13px;color:#92400e;">
-                <strong>📋 Lee la hoja "Instrucciones" dentro del Excel template.</strong><br>
-                <span style="font-size:12px;margin-top:6px;display:block;">Ahí se explica cada columna, cómo llenarla correctamente y qué formatos son válidos. El template ya viene vacío listo para que llenes tus productos desde la fila 2.</span>
+            <div style="background:var(--purple-subtle);border:1px solid var(--purple-mid, #d4c4e8);border-radius:10px;padding:14px;font-size:13px;color:var(--gray-text);">
+                <strong>Lee la hoja "Instrucciones" dentro del Excel template.</strong><br>
+                <span style="font-size:12px;margin-top:6px;display:block;color:var(--gray-muted);">Ahí se explica cada columna, cómo llenarla correctamente y qué formatos son válidos. El template ya viene vacío listo para que llenes tus productos desde la fila 2.</span>
             </div>
         </div>
     </div>
@@ -144,6 +144,23 @@
             </table>
         </div>
     </div>
+</div>
+
+{{-- ═══ CARD: Migración Masiva ═══ --}}
+<div style="background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:24px;margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:16px;box-shadow:0 2px 8px rgba(0,0,0,.04);">
+    <div style="display:flex;align-items:center;gap:16px;">
+        <div style="width:44px;height:44px;border-radius:12px;background:var(--purple-subtle);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 12 15 15"/></svg>
+        </div>
+        <div>
+            <h3 style="font-size:15px;font-weight:700;color:var(--gray-text);margin:0 0 4px 0;">Migración</h3>
+            <p style="font-size:13px;color:var(--gray-muted);margin:0;">Migra productos del sistema anterior.</p>
+        </div>
+    </div>
+    <a href="{{ route('admin.migracion-masiva') }}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--purple);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;transition:all .15s;">
+        Ir a Migración
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+    </a>
 </div>
 
 @endsection

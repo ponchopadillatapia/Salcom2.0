@@ -94,9 +94,9 @@
 
         <div class="alta-rules">
             <h4>Instrucciones</h4>
-            <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:14px;font-size:13px;color:#92400e;">
-                <strong>📋 Lee la hoja "Instrucciones" dentro del Excel template.</strong><br>
-                <span style="font-size:12px;margin-top:6px;display:block;">Ahí se explica cada columna, cómo llenarla correctamente y qué formatos son válidos. El template ya viene vacío listo para que llenes tus productos desde la fila 2.</span>
+            <div style="background:var(--purple-subtle);border:1px solid var(--purple-mid, #d4c4e8);border-radius:10px;padding:14px;font-size:13px;color:var(--gray-text);">
+                <strong>Lee la hoja "Instrucciones" dentro del Excel template.</strong><br>
+                <span style="font-size:12px;margin-top:6px;display:block;color:var(--gray-muted);">Ahí se explica cada columna, cómo llenarla correctamente y qué formatos son válidos. El template ya viene vacío listo para que llenes tus productos desde la fila 2.</span>
             </div>
         </div>
     </div>

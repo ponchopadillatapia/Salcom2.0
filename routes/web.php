@@ -168,6 +168,11 @@ Route::get('/admin/alta-producto', [AltaProductoController::class, 'mostrarAltaP
 Route::get('/admin/alta-producto/template', [AltaProductoController::class, 'descargarTemplate'])->name('admin.alta-producto.template')->middleware('auth.admin');
 Route::post('/admin/alta-producto/subir', [AltaProductoController::class, 'subirExcel'])->name('admin.alta-producto.subir')->middleware('auth.admin');
 
+// ── Admin: Migración Masiva (productos del sistema viejo → formato nuevo con IA) ──
+Route::get('/admin/migracion-masiva', [AltaProductoController::class, 'mostrarMigracionMasiva'])->name('admin.migracion-masiva')->middleware('auth.admin');
+Route::post('/admin/migracion-masiva/subir', [AltaProductoController::class, 'subirMigracion'])->name('admin.migracion-masiva.subir')->middleware('auth.admin');
+Route::get('/admin/migracion-masiva/{id}/estado', [AltaProductoController::class, 'estadoMigracion'])->name('admin.migracion-masiva.estado')->middleware('auth.admin');
+
 Route::get('/admin/facturas', [AdminPanelController::class, 'facturas'])->name('admin.facturas')->middleware('auth.admin');
 Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel'])->name('admin.facturas.excel')->middleware('auth.admin');
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
