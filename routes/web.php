@@ -56,13 +56,6 @@ Route::get('/proveedor/fiscal', function () {
 })->name('proveedores.fiscal')->middleware('auth.proveedor');
 Route::post('/proveedor/fiscal/subir', [PortalProveedorController::class, 'subirDocumentoFiscal'])->name('proveedores.fiscal.subir')->middleware('auth.proveedor');
 
-// ── Validación de documentos fiscales (Alfonso) ──
-Route::get('/validacion-fiscal', function () {
-    return view('APIS.empresa');
-})->name('empresa.form');
-
-Route::post('/api/empresa', [EmpresaApiController::class, 'validar'])->name('empresa.validar');
-
 // ── Envío de Muestras (Alfonso) ──
 Route::get('/muestras/nueva', [MuestraController::class, 'crear'])->name('muestras.crear');
 Route::post('/muestras', [MuestraController::class, 'guardar'])->name('muestras.guardar');
