@@ -1034,37 +1034,79 @@ class AdminPanelController extends Controller
             ->filter(fn ($f) => $f->fecha_vencimiento && $f->fecha_vencimiento->isPast())->count();
         $canceladas = $facturasProveedor->where('estatus', 'cancelada')->count();
 
-        $otifResumen = $this->calcularOtifResumen($facturasProveedor);
-        $otPercent = $otifResumen['otPercent'];
-        $ifPercent = $otifResumen['ifPercent'];
-        $porcentaje = (int) round($otPercent);
+        $otPercent = $this->pctPuntualidadFromFacturas($facturasProveedor);
+        $ifPercent = $this->pctEntregaFromFacturas($facturasProveedor);
+        $scoreGeneral = round(($otPercent + $ifPercent) / 2, 1);
 
-        // Detalle por proveedor
+        $trimInicio = now()->subMonths(3);
+        $trimAnterior = now()->subMonths(6);
+        $facturasTrim = $facturasProveedor->filter(fn ($f) => $f->created_at >= $trimInicio);
+        $facturasTrimAnterior = $facturasProveedor->filter(
+            fn ($f) => $f->created_at >= $trimAnterior && $f->created_at < $trimInicio
+        );
+        $trendOt = $this->deltaTrend(
+            $this->pctPuntualidadFromFacturas($facturasTrim),
+            $this->pctPuntualidadFromFacturas($facturasTrimAnterior)
+        );
+        $trendIf = $this->deltaTrend(
+            $this->pctEntregaFromFacturas($facturasTrim),
+            $this->pctEntregaFromFacturas($facturasTrimAnterior)
+        );
+
         $proveedores = ProveedorUser::where('activo', true)->orderBy('score_total', 'desc')->get();
+        $metricasProveedores = $this->buildProveedoresMetricas($proveedores);
+
         $detalleProveedores = [];
         foreach ($proveedores as $prov) {
-            $factProv = Factura::where('codigo_proveedor', $prov->codigo_compras)->get();
+            if (! $prov->codigo_compras) {
+                continue;
+            }
+
+            $factProv = $facturasProveedor->where('codigo_proveedor', $prov->codigo_compras);
             $totalProv = $factProv->count();
             if ($totalProv === 0) {
                 continue;
             }
 
-            $pagadasProv = $factProv->where('estatus', 'pagada')->count();
-            $otProv = round(($pagadasProv / $totalProv) * 100, 1);
+            $m = $metricasProveedores[$prov->id] ?? [];
+            $otProv = $this->pctPuntualidadFromFacturas($factProv);
+            $ifProv = $this->pctEntregaFromFacturas($factProv);
 
             $detalleProveedores[] = [
                 'nombre' => $prov->nombre ?? $prov->usuario,
                 'codigo' => $prov->codigo_compras,
                 'total' => $totalProv,
-                'pagadas' => $pagadasProv,
+                'pagadas' => $factProv->where('estatus', 'pagada')->count(),
+                'pendientes' => $factProv->where('estatus', 'pendiente')->count(),
                 'ot' => $otProv,
-                'score' => $prov->score_total,
+                'if' => $ifProv,
+                'score' => (float) $prov->score_total,
+                'trend_ot' => $m['trend_puntualidad'] ?? 0,
+                'trend_if' => $m['trend_entrega'] ?? 0,
+                'trend_score' => $m['trend_otif'] ?? 0,
+                'score_class' => $m['score_class'] ?? $this->scoreBarClass((float) $prov->score_total),
             ];
         }
 
+        usort($detalleProveedores, fn ($a, $b) => $b['score'] <=> $a['score']);
+
+        $facturasVencidas = Factura::whereNotNull('codigo_proveedor')
+            ->where('estatus', 'pendiente')
+            ->whereNotNull('fecha_vencimiento')
+            ->where('fecha_vencimiento', '<', now())
+            ->with('proveedor')
+            ->orderBy('fecha_vencimiento')
+            ->limit(25)
+            ->get();
+
+        $proveedoresConFacturas = count($detalleProveedores);
+        $proveedoresActivos = $proveedores->count();
+
         return view('admin.otif', compact(
             'total', 'pagadas', 'pendientes', 'vencidas', 'canceladas',
-            'otPercent', 'ifPercent', 'porcentaje', 'detalleProveedores'
+            'otPercent', 'ifPercent', 'scoreGeneral', 'trendOt', 'trendIf',
+            'detalleProveedores', 'facturasVencidas',
+            'proveedoresConFacturas', 'proveedoresActivos'
         ));
     }
 
