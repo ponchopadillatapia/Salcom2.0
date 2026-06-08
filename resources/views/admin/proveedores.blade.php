@@ -8,6 +8,24 @@
 @endsection
 @push('styles')
 <style>
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    .anim{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
+
+    .adm-summary{background:var(--white);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:22px 26px;margin-bottom:20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;box-shadow:var(--shadow-sm)}
+    .adm-summary-main{text-align:center;min-width:100px}
+    .adm-summary-pct{font-size:42px;font-weight:800;line-height:1;color:var(--purple)}
+    .adm-summary-label{font-size:12px;color:var(--gray-muted);margin-top:6px}
+    .adm-summary-metrics{flex:1;display:flex;gap:24px;flex-wrap:wrap}
+    .adm-metric-label{font-size:12px;color:var(--gray-muted);margin-bottom:4px}
+    .adm-metric-val{font-size:22px;font-weight:700;display:flex;align-items:center;gap:8px}
+    .adm-summary-badge{padding:10px 16px;border-radius:10px;font-size:12px;font-weight:600;line-height:1.4;text-decoration:none;transition:var(--transition)}
+    .adm-summary-badge:hover{opacity:.85}
+
+    .adm-section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 22px;background:var(--gray-soft);border-bottom:1px solid var(--border-light)}
+    .adm-section-head h4{font-size:14px;font-weight:700;color:var(--gray-text);margin:0}
+    .adm-section-meta{font-size:12px;color:var(--gray-muted)}
+    .adm-section-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+
     .toolbar{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
     .toolbar-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
     .filter-group{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -31,8 +49,8 @@
     .btn-primary:hover{background:var(--purple-dark)}
     .btn-outline{padding:9px 16px;background:var(--white);color:var(--gray-text);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;font-weight:600;text-decoration:none;display:inline-flex;align-items:center}
     .btn-outline:hover{border-color:var(--purple);color:var(--purple)}
-    .btn-export{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;font-size:12px;font-weight:600;color:#fff;background:#059669;border-radius:8px;text-decoration:none}
-    .btn-export:hover{background:#047857}
+    .btn-export{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12px;font-weight:600;color:var(--green);background:var(--green-bg);border:1px solid var(--green);border-radius:8px;text-decoration:none;cursor:pointer;font-family:inherit;transition:var(--transition)}
+    .btn-export:hover{background:var(--green);color:#fff}
     .badge-count{font-size:13px;color:var(--gray-muted);font-weight:500;white-space:nowrap}
     .active-filters{font-size:12px;color:var(--gray-muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
     .active-tag{background:var(--purple-subtle);color:var(--purple);padding:3px 10px;border-radius:999px;font-weight:600;font-size:11px}
@@ -82,7 +100,13 @@
     .producto-precio{font-size:14px;font-weight:800;color:var(--green);margin-top:4px}
     .producto-stock{font-size:11px;color:var(--gray-muted);margin-top:2px}
 
-    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.filter-form{width:100%;flex-direction:column;align-items:stretch}.filter-field{min-width:100%}.filter-group{width:100%}.prov-tabs{width:100%;overflow-x:auto}.productos-grid{grid-template-columns:1fr}}
+    .score-val-high{color:var(--green);font-weight:700}
+    .score-val-mid{color:var(--amber);font-weight:700}
+    .score-val-low{color:var(--red);font-weight:700}
+    .fact-link{font-size:12px;font-weight:600;color:var(--purple);text-decoration:none}
+    .fact-link:hover{text-decoration:underline}
+
+    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.filter-form{width:100%;flex-direction:column;align-items:stretch}.filter-field{min-width:100%}.filter-group{width:100%}.prov-tabs{width:100%;overflow-x:auto}.productos-grid{grid-template-columns:1fr}.adm-summary{flex-direction:column;align-items:flex-start}}
 </style>
 @endpush
 @section('content')
@@ -91,9 +115,49 @@
     <div class="alert-success">{{ session('mensaje') }}</div>
 @endif
 
-@php $tab = $tabActiva ?? 'proveedores'; @endphp
+@php
+    $tab = $tabActiva ?? 'proveedores';
+    $scoreColor = $scorePromedio >= 80 ? 'var(--green)' : ($scorePromedio >= 60 ? 'var(--amber)' : 'var(--red)');
+    $scoreBg = $scorePromedio >= 80 ? 'var(--green-bg)' : ($scorePromedio >= 60 ? 'var(--amber-bg)' : 'var(--red-bg)');
+@endphp
 
-<div class="toolbar" style="margin-bottom:14px;">
+<div class="adm-summary anim">
+    <div class="adm-summary-main">
+        <div class="adm-summary-pct">{{ $conteoActivos }}</div>
+        <div class="adm-summary-label">Proveedores activos</div>
+    </div>
+    <div class="adm-summary-metrics">
+        <div>
+            <div class="adm-metric-label">Score OTIF promedio</div>
+            <div class="adm-metric-val" style="color:{{ $scoreColor }}">{{ number_format($scorePromedio, 1) }}%</div>
+        </div>
+        <div>
+            <div class="adm-metric-label">Facturas pendientes</div>
+            <div class="adm-metric-val" style="color:{{ $conteoFacturasVencidas > 0 ? 'var(--red)' : 'var(--gray-text)' }}">
+                {{ $conteoFacturasPendientes }}
+                @if($conteoFacturasVencidas > 0)
+                    <span style="font-size:13px;font-weight:600;color:var(--red)">({{ $conteoFacturasVencidas }} vencidas)</span>
+                @endif
+            </div>
+        </div>
+        <div>
+            <div class="adm-metric-label">OCs vencidas</div>
+            <div class="adm-metric-val" style="color:{{ $conteoOcVencidas > 0 ? 'var(--red)' : 'var(--green)' }}">{{ $conteoOcVencidas }}</div>
+        </div>
+        <div>
+            <div class="adm-metric-label">Compras último trimestre</div>
+            <div class="adm-metric-val" style="color:var(--green);font-size:20px">${{ number_format($comprasTrimTotal, 0) }}</div>
+        </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+        <div class="adm-summary-badge" style="background:{{ $scoreBg }};color:{{ $scoreColor }}">
+            {{ $proveedoresAltoScore }} alto rendimiento · {{ $proveedoresBajoScore }} bajo rendimiento
+        </div>
+        <a href="{{ route('admin.otif') }}" class="adm-summary-badge" style="background:var(--purple-subtle);color:var(--purple)">Ver dashboard OTIF →</a>
+    </div>
+</div>
+
+<div class="toolbar anim" style="margin-bottom:14px;animation-delay:.04s">
     <div class="toolbar-top">
         <div class="filter-group">
             <button type="button" class="filter-btn prov-tab-btn {{ $tab === 'proveedores' ? 'active' : '' }}" data-tab="proveedores" onclick="switchProvTab('proveedores', this)">
@@ -154,20 +218,36 @@
         @endif
     </div>
     <div class="admin-table-wrap">
+    <div class="adm-section-head">
+        <div>
+            <h4>Directorio de proveedores</h4>
+            <div class="adm-section-meta">{{ $proveedores->total() }} resultado{{ $proveedores->total() !== 1 ? 's' : '' }} · ordenados por score OTIF</div>
+        </div>
+        <div class="adm-section-toolbar">
+            <button type="button" class="btn-export" onclick="exportProvTable('tableProveedores', 'Admin_Proveedores')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar Excel
+            </button>
+        </div>
+    </div>
     @if($proveedores->count())
-        <table class="admin-table">
+        <table class="admin-table" id="tableProveedores">
             <thead><tr><th>Código</th><th>Nombre</th><th>Correo</th><th>OTIF</th><th>Entrega</th><th>Puntualidad</th><th>Estado</th><th>Acción</th></tr></thead>
             <tbody>
             @foreach($proveedores as $p)
-                @php $m = $metricasProveedores[$p->id] ?? []; @endphp
+                @php
+                    $m = $metricasProveedores[$p->id] ?? [];
+                    $sc = (float) $p->score_total;
+                    $scClass = $sc >= 80 ? 'score-val-high' : ($sc >= 60 ? 'score-val-mid' : 'score-val-low');
+                @endphp
                 <tr>
                     <td style="font-weight:700;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
                     <td style="font-weight:600">{{ $p->nombre ?? '—' }}</td>
                     <td>{{ $p->correo ?? '—' }}</td>
                     <td>
                         <div class="pct-cell">
-                            <div class="score-bar {{ $m['score_class'] ?? 'score-low' }}"><div class="score-fill" style="width:{{ $p->score_total }}%"></div></div>
-                            <span class="pct-val"><strong>{{ number_format($p->score_total, 0) }}%</strong>@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span>
+                            <div class="score-bar {{ $m['score_class'] ?? 'score-low' }}"><div class="score-fill" style="width:{{ min(100, $sc) }}%"></div></div>
+                            <span class="pct-val {{ $scClass }}"><strong>{{ number_format($sc, 0) }}%</strong>@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span>
                         </div>
                     </td>
                     <td><span class="pct-val">{{ number_format($p->score_entrega, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_entrega'] ?? 0, 'size' => '11'])</span></td>
@@ -220,8 +300,20 @@
         </form>
     </div>
     <div class="admin-table-wrap">
+    <div class="adm-section-head">
+        <div>
+            <h4>Forecast de compras</h4>
+            <div class="adm-section-meta">Proyección basada en compras del último trimestre</div>
+        </div>
+        <div class="adm-section-toolbar">
+            <button type="button" class="btn-export" onclick="exportProvTable('tableForecast', 'Admin_Forecast_Proveedores')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar Excel
+            </button>
+        </div>
+    </div>
     @if($proveedores->count())
-        <table class="admin-table">
+        <table class="admin-table" id="tableForecast">
             <thead><tr><th>Código</th><th>Proveedor</th><th>OTIF</th><th>Forecast %</th><th>Compras último trimestre</th><th>Estimado próximo mes</th></tr></thead>
             <tbody>
             @foreach($proveedores as $p)
@@ -315,8 +407,20 @@
         @endif
     </div>
     <div class="admin-table-wrap">
+    <div class="adm-section-head">
+        <div>
+            <h4>Órdenes de compra</h4>
+            <div class="adm-section-meta">{{ $ordenes->count() }} resultados · {{ $conteoOcVencidas }} vencida{{ $conteoOcVencidas !== 1 ? 's' : '' }}</div>
+        </div>
+        <div class="adm-section-toolbar">
+            <button type="button" class="btn-export" onclick="exportProvTable('tableOrdenes', 'Admin_Ordenes_Compra')">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar Excel
+            </button>
+        </div>
+    </div>
     @if($ordenes->count())
-        <table class="admin-table">
+        <table class="admin-table" id="tableOrdenes">
             <thead><tr><th>Proveedor</th><th>Orden</th><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>Estatus</th><th>Vencimiento</th></tr></thead>
             <tbody>
             @foreach($ordenes as $o)
@@ -392,10 +496,6 @@
             <div class="filter-actions">
                 <button type="submit" class="btn-primary">Filtrar</button>
                 @if($filtrosFactActivos)<a href="{{ route('admin.proveedores', ['tab' => 'facturas']) }}" class="btn-outline">Limpiar</a>@endif
-                <a href="{{ route('admin.facturas-pendientes.excel') }}" class="btn-export">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Exportar Excel
-                </a>
             </div>
         </form>
         @if($filtrosFactActivos)
@@ -408,55 +508,46 @@
         @endif
     </div>
     <div class="admin-table-wrap">
+    <div class="adm-section-head">
+        <div>
+            <h4>Facturas pendientes de pago</h4>
+            <div class="adm-section-meta">
+                Adeudo total: <strong style="color:var(--red)">${{ number_format($montoFacturasPendientes, 2) }}</strong>
+                · {{ $conteoFacturasVencidas }} vencida{{ $conteoFacturasVencidas !== 1 ? 's' : '' }}
+            </div>
+        </div>
+        <div class="adm-section-toolbar">
+            <a href="{{ route('admin.facturas-pendientes.excel') }}" class="btn-export">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar Excel
+            </a>
+        </div>
+    </div>
     @if($facturasPendientes->count())
-        <table class="admin-table">
-            <thead><tr><th>Proveedor</th><th>Código</th><th>Total</th><th>Vencimiento</th><th>Días vencido</th></tr></thead>
+        <table class="admin-table" id="tableFacturas">
+            <thead><tr><th>Folio CFDI</th><th>Proveedor</th><th>Código</th><th>Total</th><th>Vencimiento</th><th>Días vencido</th><th></th></tr></thead>
             <tbody>
-            @foreach($facturasPendientes as $idx => $f)
+            @foreach($facturasPendientes as $f)
                 @php
                     $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
                     $diasVencido = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
-                    $provF = \App\Models\ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
-                    $nombreProv = $provF ? $provF->nombre : $f->codigo_proveedor;
-                    // Productos del proveedor
-                    $productosP = \App\Models\Producto::where('activo', true)->limit(6)->get();
+                    $nombreProv = $f->proveedor?->nombre ?? $f->proveedor?->usuario ?? $f->codigo_proveedor;
                 @endphp
-                <tr style="cursor:pointer" onclick="toggleProductos('prod-{{ $idx }}')">
-                    <td style="font-weight:700;color:var(--purple)">{{ $nombreProv }}</td>
+                <tr>
+                    <td style="font-weight:600;color:var(--purple)">{{ $f->folio_cfdi ?? '—' }}</td>
+                    <td style="font-weight:600">{{ $nombreProv }}</td>
                     <td style="color:var(--gray-muted)">{{ $f->codigo_proveedor }}</td>
-                    <td style="font-weight:600;font-variant-numeric:tabular-nums">${{ number_format($f->total, 2) }}</td>
+                    <td style="font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">${{ number_format($f->total, 2) }}</td>
                     <td style="color:{{ $vencida ? 'var(--red)' : 'var(--gray-muted)' }};font-weight:{{ $vencida ? '700' : '400' }}">{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}</td>
                     <td>
-                        @if($vencida)<span style="color:var(--red);font-weight:700">{{ $diasVencido }} días</span>
-                        @else<span style="color:var(--gray-muted)">Vigente</span>@endif
+                        @if($vencida)
+                            <span class="badge-vencida">{{ $diasVencido }} día{{ $diasVencido === 1 ? '' : 's' }}</span>
+                        @else
+                            <span style="color:var(--green);font-weight:600;font-size:12px">Vigente</span>
+                        @endif
                     </td>
-                </tr>
-                <tr id="prod-{{ $idx }}" class="productos-row" style="display:none">
-                    <td colspan="5" style="padding:16px;background:var(--gray-soft)">
-                        <div style="font-size:13px;font-weight:700;color:var(--gray-text);margin-bottom:12px">Productos de {{ $nombreProv }}</div>
-                        <table style="width:100%;border-collapse:collapse;background:var(--white);border-radius:8px;overflow:hidden;border:1px solid var(--border-light)">
-                            <thead>
-                                <tr style="background:var(--purple-light)">
-                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:left">Código</th>
-                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:left">Producto</th>
-                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:right">Precio</th>
-                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:right">Stock</th>
-                                    <th style="padding:8px 12px;font-size:10px;font-weight:700;color:var(--purple);text-transform:uppercase;text-align:left">Unidad</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                            @foreach($productosP as $prod)
-                                <tr style="border-bottom:1px solid var(--border-light)">
-                                    <td style="padding:8px 12px;font-size:12px;font-weight:700;color:var(--purple)">{{ $prod->codigo }}</td>
-                                    <td style="padding:8px 12px;font-size:12px;font-weight:600">{{ $prod->nombre }}</td>
-                                    <td style="padding:8px 12px;font-size:12px;font-weight:700;color:var(--green);text-align:right">${{ number_format($prod->precio, 2) }}</td>
-                                    <td style="padding:8px 12px;font-size:12px;font-weight:600;text-align:right">{{ number_format($prod->stock) }}</td>
-                                    <td style="padding:8px 12px;font-size:12px;color:var(--gray-muted)">{{ $prod->unidad_venta }}</td>
-                                </tr>
-                            @endforeach
-                            </tbody>
-                        </table>
-                        <a href="{{ route('admin.proveedor-facturas', $f->codigo_proveedor) }}" style="display:inline-block;margin-top:12px;font-size:12px;color:var(--purple);font-weight:600;text-decoration:none">Ver detalle completo →</a>
+                    <td>
+                        <a href="{{ route('admin.proveedor-facturas', $f->codigo_proveedor) }}" class="fact-link">Detalle →</a>
                     </td>
                 </tr>
             @endforeach
@@ -484,16 +575,26 @@ function switchProvTab(tab, btn) {
     if (panel && countEl && panel.dataset.count) countEl.textContent = panel.dataset.count;
 }
 
-function toggleProductos(id) {
-    const row = document.getElementById(id);
-    if (row.style.display === 'none') {
-        // Cerrar todos los demás
-        document.querySelectorAll('.productos-row').forEach(r => r.style.display = 'none');
-        row.style.display = 'table-row';
-    } else {
-        row.style.display = 'none';
-    }
+function exportProvTable(tableId, filename) {
+    var table = document.getElementById(tableId);
+    if (!table) return;
+    var csv = [];
+    table.querySelectorAll('tr').forEach(function (row) {
+        var cols = row.querySelectorAll('th, td');
+        var rowData = [];
+        cols.forEach(function (col) {
+            var text = col.innerText.replace(/"/g, '""').trim();
+            rowData.push('"' + text + '"');
+        });
+        csv.push(rowData.join(','));
+    });
+    var blob = new Blob(['\uFEFF' + csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename + '_' + new Date().toISOString().slice(0, 10) + '.csv';
+    link.click();
 }
+
 document.addEventListener('DOMContentLoaded', function() {
     const tab = @json($tabActiva ?? 'proveedores');
     if (tab && tab !== 'proveedores') switchProvTab(tab);

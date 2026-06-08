@@ -348,6 +348,7 @@ class AdminPanelController extends Controller
             $query->whereDate('created_at', '<=', $fechaHasta);
         }
 
+        $montoFiltrado = (float) (clone $query)->sum('total');
         $pedidos = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
 
         $conteosEstatus = Pedido::selectRaw('estatus, count(*) as total')
@@ -356,6 +357,18 @@ class AdminPanelController extends Controller
 
         $totalGeneral = Pedido::count();
         $conteoPendientes = ($conteosEstatus['validacion'] ?? 0) + ($conteosEstatus['procesando'] ?? 0);
+        $conteoEntregados = $conteosEstatus['entregado'] ?? 0;
+        $pctEntregados = $totalGeneral > 0 ? round(($conteoEntregados / $totalGeneral) * 100, 1) : 0;
+
+        $inicioMes = now()->startOfMonth();
+        $inicioMesAnterior = now()->subMonth()->startOfMonth();
+        $finMesAnterior = now()->subMonth()->endOfMonth();
+        $pedidosMes = Pedido::where('created_at', '>=', $inicioMes)->count();
+        $pedidosMesAnterior = Pedido::whereBetween('created_at', [$inicioMesAnterior, $finMesAnterior])->count();
+        $montoMes = (float) Pedido::where('created_at', '>=', $inicioMes)->sum('total');
+        $montoMesAnterior = (float) Pedido::whereBetween('created_at', [$inicioMesAnterior, $finMesAnterior])->sum('total');
+        $trendPedidosMes = $this->calcularVariacionPct((float) $pedidosMes, (float) $pedidosMesAnterior) ?? 0;
+        $trendMontoMes = $this->calcularVariacionPct($montoMes, $montoMesAnterior) ?? 0;
 
         $filtros = [
             'busqueda' => $busqueda ?? '',
@@ -375,7 +388,14 @@ class AdminPanelController extends Controller
             'estatusOpciones',
             'conteosEstatus',
             'conteoPendientes',
+            'conteoEntregados',
+            'pctEntregados',
             'totalGeneral',
+            'montoFiltrado',
+            'pedidosMes',
+            'montoMes',
+            'trendPedidosMes',
+            'trendMontoMes',
             'filtros',
             'filtrosActivos',
         ));
@@ -507,7 +527,7 @@ class AdminPanelController extends Controller
         if ($filtrosFact['vence_hasta']) {
             $facturasQuery->whereDate('fecha_vencimiento', '<=', $filtrosFact['vence_hasta']);
         }
-        $facturasPendientes = $facturasQuery->orderBy('fecha_vencimiento')->get();
+        $facturasPendientes = $facturasQuery->with('proveedor')->orderBy('fecha_vencimiento')->get();
 
         $estatusOc = ['pendiente', 'aprobada', 'en_proceso', 'completada'];
         $estatusOcLabels = [
@@ -532,6 +552,17 @@ class AdminPanelController extends Controller
             ->whereNotNull('codigo_proveedor')
             ->where('fecha_vencimiento', '<', now())
             ->count();
+
+        $scorePromedio = round((float) ProveedorUser::where('activo', true)->avg('score_total'), 1);
+        $montoFacturasPendientes = (float) Factura::where('estatus', 'pendiente')
+            ->whereNotNull('codigo_proveedor')
+            ->sum('total');
+        $proveedoresAltoScore = ProveedorUser::where('activo', true)->where('score_total', '>=', 80)->count();
+        $proveedoresBajoScore = ProveedorUser::where('activo', true)->where('score_total', '<', 60)->count();
+        $comprasTrimTotal = (float) Factura::whereNotNull('codigo_proveedor')
+            ->where('estatus', '!=', 'cancelada')
+            ->where('created_at', '>=', now()->subMonths(3))
+            ->sum('total');
 
         $filtrosProvActivos = $this->filtrosTienenValor($filtrosProv);
         $filtrosOcActivos = $this->filtrosTienenValor($filtrosOc);
@@ -562,6 +593,11 @@ class AdminPanelController extends Controller
             'conteoOcVencidas',
             'conteoFacturasPendientes',
             'conteoFacturasVencidas',
+            'scorePromedio',
+            'montoFacturasPendientes',
+            'proveedoresAltoScore',
+            'proveedoresBajoScore',
+            'comprasTrimTotal',
         ));
     }
 
