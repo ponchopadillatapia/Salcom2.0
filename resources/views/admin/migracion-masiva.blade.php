@@ -102,7 +102,17 @@
                 <div style="width:28px;height:28px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">3</div>
                 <div style="padding-top:4px;color:var(--gray-text);"><strong style="display:block;margin-bottom:2px;">Descarga el resultado</strong>Un Excel con todos los productos ya en el formato nuevo, listo para revisión.</div>
             </div>
+            <div style="display:flex;align-items:flex-start;gap:12px;font-size:13px;">
+                <div style="width:28px;height:28px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">4</div>
+                <div style="padding-top:4px;color:var(--gray-text);"><strong style="display:block;margin-bottom:2px;">Sube al Alta de Producto</strong>El Excel resultado lo subes en Alta de Producto para darlo de alta en la base de datos.</div>
+            </div>
         </div>
+
+        {{-- Botón directo a Alta de Producto --}}
+        <a href="{{ route('admin.alta-producto') }}" style="display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;margin-top:20px;transition:var(--transition);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+            Ir a Alta de Producto (subir resultado)
+        </a>
 
         <div style="background:var(--gray-soft);border-radius:10px;padding:16px;margin-top:20px;">
             <h4 style="font-size:12px;font-weight:700;color:var(--gray-text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Notas importantes</h4>
@@ -110,7 +120,7 @@
                 <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> El proceso corre en segundo plano — puedes cerrar la pestaña</li>
                 <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> Los lotes con error se pueden reprocesar</li>
                 <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> El Excel de resultados estará disponible al terminar</li>
-                <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> Formatos aceptados: .xlsx, .xls, .csv (máx 10MB)</li>
+                <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> Formatos aceptados: .xlsx, .xls, .csv (máx 20MB)</li>
             </ul>
         </div>
     </div>
@@ -125,7 +135,7 @@
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 </div>
                 <div style="font-size:14px;font-weight:600;color:var(--gray-text);margin-top:8px;">Arrastra tu Excel aquí o haz clic</div>
-                <div style="font-size:12px;color:var(--gray-muted);margin-top:4px;">Formatos: .xlsx, .xls, .csv · Máximo 10MB</div>
+                <div style="font-size:12px;color:var(--gray-muted);margin-top:4px;">Formatos: .xlsx, .xls, .csv · Máximo 20MB</div>
                 <div id="fileName" style="margin-top:8px;font-size:12px;color:var(--purple);font-weight:600;display:none;"></div>
             </div>
             <input type="file" name="excel" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="showFileName(this)">
@@ -166,7 +176,7 @@
                     <td><span class="badge badge-{{ $mig->estatus }}">{{ ucfirst($mig->estatus) }}</span></td>
                     <td>
                         @if($mig->resultado_path)
-                            <a href="{{ asset('storage/' . $mig->resultado_path) }}" download class="btn-download">
+                            <a href="{{ route('admin.migracion.descargar', $mig->id) }}" class="btn-download">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                                 Descargar
                             </a>
@@ -235,7 +245,11 @@ zone.addEventListener('drop', e => {
                 // Si terminó, detener polling y recargar
                 if (data.estatus === 'completado' || data.estatus === 'error') {
                     clearInterval(polling);
-                    setTimeout(() => location.reload(), 1500);
+                    // Actualizar texto de progreso
+                    document.getElementById('progresoTexto').innerHTML = data.estatus === 'completado'
+                        ? '<strong style="color:var(--green);">Migración completada</strong>'
+                        : '<strong style="color:var(--red);">Migración finalizada con errores</strong>';
+                    setTimeout(() => location.reload(), 2000);
                 }
             })
             .catch(err => console.error('Error polling:', err));

@@ -697,7 +697,7 @@ Si todo correcto: {"errores_ia": []}';
         $errorMsg .= "Las celdas con error estan marcadas en ROJO en el Excel descargable.\n";
         $errorMsg .= "Corrige los campos senalados y vuelve a subir.\n\n";
         $errorMsg .= "ERRORES ENCONTRADOS:\n";
-        foreach (array_slice($errores, 0, 20) as $err) {
+        foreach ($errores as $err) {
             $errorTextoLimpio = $err['error'];
             $errorTextoLimpio = str_replace('COMO CORREGIR: ', '-> ', $errorTextoLimpio);
             // Resaltar la CORRECCION con un tag HTML para que el proveedor la identifique
@@ -724,9 +724,6 @@ Si todo correcto: {"errores_ia": []}';
                 $errorTextoLimpio = htmlspecialchars($errorTextoLimpio);
                 $errorMsg .= "* Fila {$err['fila']} - {$err['campo']}: {$errorTextoLimpio}\n";
             }
-        }
-        if (count($errores) > 20) {
-            $errorMsg .= "\n... y ".(count($errores) - 20)." errores mas.\n";
         }
 
         // Si hubo productos que si se dieron de alta, agregar mensaje de exito
@@ -1634,13 +1631,14 @@ Si todo correcto: {"errores_ia": []}';
     }
 
     /**
-     * Subir Excel del sistema viejo e iniciar migración masiva en background.
+     * Subir Excel del sistema viejo (SAP) e iniciar migración masiva en background.
+     * Acepta columnas del sistema viejo: ItemCode, ItemName, RefCodigoGrupoArticulos, etc.
      * Divide los productos en lotes de 50 y despacha jobs a la queue 'migraciones'.
      */
     public function subirMigracion(Request $request)
     {
         $request->validate([
-            'excel' => 'required|file|mimes:xlsx,xls,csv|max:10240',
+            'excel' => 'required|file|mimes:xlsx,xls,csv|max:20480',
         ]);
 
         // Verificar que no haya una migración en curso
@@ -1670,24 +1668,36 @@ Si todo correcto: {"errores_ia": []}';
             return back()->with('error', 'El archivo está vacío o no tiene productos.');
         }
 
+        // Detectar formato del Excel y extraer datos relevantes
+        $productosParaMigrar = $this->extraerProductosMigracion($productos);
+
+        if (empty($productosParaMigrar)) {
+            return back()->with('error', 'No se encontraron columnas reconocibles. El Excel debe tener al menos una columna de código (ItemCode/CODIGO) y una de nombre (ItemName/NOMBRE).');
+        }
+
         // Obtener admin_id de la sesión
         $adminId = session('admin_id', 1);
 
         // Dividir en lotes de 50
-        $lotes = array_chunk($productos, 50);
+        $lotes = array_chunk($productosParaMigrar, 50);
         $totalLotes = count($lotes);
 
         // Crear registro de migración
         $migracion = MigracionMasiva::create([
             'admin_id' => $adminId,
             'archivo_path' => $path,
-            'total_productos' => count($productos),
+            'total_productos' => count($productosParaMigrar),
             'productos_procesados' => 0,
             'productos_error' => 0,
             'lotes_total' => $totalLotes,
             'lotes_completados' => 0,
             'estatus' => 'pendiente',
         ]);
+
+        // Crear archivo JSON vacío para acumular resultados de cada lote
+        $resultadoJsonPath = 'migraciones-masivas/resultado_' . $migracion->id . '.json';
+        $resultadoFullPath = storage_path('app/public/' . $resultadoJsonPath);
+        file_put_contents($resultadoFullPath, json_encode([], JSON_UNESCAPED_UNICODE));
 
         // Despachar un job por cada lote
         foreach ($lotes as $index => $lote) {
@@ -1701,6 +1711,118 @@ Si todo correcto: {"errores_ia": []}';
         Log::info("[MigracionMasiva] Iniciada migración #{$migracion->id}: {$migracion->total_productos} productos en {$totalLotes} lotes");
 
         return back()->with('mensaje', "Migración iniciada: {$migracion->total_productos} productos se procesarán en {$totalLotes} lotes. El progreso se actualizará automáticamente.");
+    }
+
+    /**
+     * Detectar formato del Excel (SAP o genérico) y extraer código + nombre + grupo de cada producto.
+     */
+    private function extraerProductosMigracion(array $productos): array
+    {
+        if (empty($productos)) {
+            return [];
+        }
+
+        $primera = $productos[0];
+        $headers = array_keys($primera);
+
+        // Detectar columna de CÓDIGO
+        $colCodigo = null;
+        foreach (['ITEMCODE', 'CODIGO', 'SKU', 'COD', 'CLAVE', 'CODE'] as $posible) {
+            if (in_array($posible, $headers)) {
+                $colCodigo = $posible;
+                break;
+            }
+        }
+
+        // Detectar columna de NOMBRE
+        $colNombre = null;
+        foreach (['ITEMNAME', 'NOMBRE', 'DESCRIPCION', 'NAME', 'PRODUCTO', 'ARTICULO'] as $posible) {
+            if (in_array($posible, $headers)) {
+                $colNombre = $posible;
+                break;
+            }
+        }
+
+        // Detectar columna de GRUPO/FAMILIA
+        $colGrupo = null;
+        foreach (['REFCODIGOGRUPOARTICULOS', 'ITEMSGROUPCODE', 'GRUPO', 'FAMILIA', 'CATEGORIA', 'GROUP'] as $posible) {
+            if (in_array($posible, $headers)) {
+                $colGrupo = $posible;
+                break;
+            }
+        }
+
+        // Detectar columna de CLAVE SAT
+        $colClaveSat = null;
+        foreach (['REFE_CODIGO_ARTICULOS_SAT', 'NCMCODE', 'CLAVE_SAT', 'SAT', 'CLAVESAT'] as $posible) {
+            if (in_array($posible, $headers)) {
+                $colClaveSat = $posible;
+                break;
+            }
+        }
+
+        // Detectar columna de LOTE (ManageBatchNumbers)
+        $colLote = null;
+        foreach (['MANAGEBATCHNUMBERS', 'LOTE', 'MANEJA_LOTES'] as $posible) {
+            if (in_array($posible, $headers)) {
+                $colLote = $posible;
+                break;
+            }
+        }
+
+        // Detectar columna de UNIDAD (PurchaseUnit o SalesUnit)
+        $colUnidad = null;
+        foreach (['PURCHASEUNIT', 'SALESUNIT', 'UNIDAD', 'UNIDAD_MEDIDA', 'UOM'] as $posible) {
+            if (in_array($posible, $headers)) {
+                $colUnidad = $posible;
+                break;
+            }
+        }
+
+        if (!$colCodigo || !$colNombre) {
+            return [];
+        }
+
+        $resultado = [];
+        foreach ($productos as $prod) {
+            $codigo = trim($prod[$colCodigo] ?? '');
+            $nombre = trim($prod[$colNombre] ?? '');
+
+            if (empty($codigo) && empty($nombre)) {
+                continue;
+            }
+
+            // Convertir LOTE: tYES -> SI, tNO -> NO
+            $loteRaw = strtoupper(trim($prod[$colLote] ?? ''));
+            $lote = '';
+            if ($loteRaw === 'TYES' || $loteRaw === 'SI') {
+                $lote = 'SI';
+            } elseif ($loteRaw === 'TNO' || $loteRaw === 'NO') {
+                $lote = 'NO';
+            }
+
+            // Convertir UNIDAD: XBX -> CAJA, etc.
+            $unidadRaw = strtoupper(trim($prod[$colUnidad] ?? ''));
+            $unidad = 'CAJA'; // default
+            if ($unidadRaw === 'XBX' || $unidadRaw === 'CJ' || $unidadRaw === 'CAJA') {
+                $unidad = 'CAJA';
+            } elseif ($unidadRaw === 'KG' || $unidadRaw === 'KGM') {
+                $unidad = 'KG';
+            } elseif ($unidadRaw === 'PZA' || $unidadRaw === 'EA' || $unidadRaw === 'PZ' || $unidadRaw === 'UNI') {
+                $unidad = 'PZA';
+            }
+
+            $resultado[] = [
+                'codigo' => $codigo,
+                'nombre' => $nombre,
+                'grupo' => trim($prod[$colGrupo] ?? ''),
+                'clave_sat' => trim($prod[$colClaveSat] ?? ''),
+                'lote' => $lote,
+                'unidad_medida' => $unidad,
+            ];
+        }
+
+        return $resultado;
     }
 
     /**
@@ -1720,6 +1842,31 @@ Si todo correcto: {"errores_ia": []}';
             'lotes_completados' => $migracion->lotes_completados,
             'porcentaje' => $migracion->porcentaje,
             'resultado_path' => $migracion->resultado_path,
+            'descarga_url' => $migracion->resultado_path
+                ? route('admin.migracion.descargar', $migracion->id)
+                : null,
+        ]);
+    }
+
+    /**
+     * Descargar el Excel de resultado de una migración completada.
+     */
+    public function descargarResultado($id)
+    {
+        $migracion = MigracionMasiva::findOrFail($id);
+
+        if (!$migracion->resultado_path) {
+            return back()->with('error', 'Esta migración aún no tiene un archivo de resultado.');
+        }
+
+        $fullPath = storage_path('app/public/' . $migracion->resultado_path);
+
+        if (!file_exists($fullPath)) {
+            return back()->with('error', 'El archivo de resultado no se encontró en el servidor.');
+        }
+
+        return response()->download($fullPath, 'Migracion_Resultado_' . $migracion->id . '.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
 }
