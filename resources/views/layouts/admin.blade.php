@@ -290,6 +290,13 @@
                 <span class="sb-text">Gestión Compras</span>
             </a>
 
+            <div class="sb-hr"></div>
+            <div class="sb-section">Inteligencia Artificial</div>
+            <a href="{{ route('admin.ia') }}" class="sb-link {{ request()->is('admin/ia*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V12h1a7 7 0 0 1 7 7h-2a5 5 0 0 0-5-5h-2a5 5 0 0 0-5 5H3a7 7 0 0 1 7-7h1V9.5A4 4 0 0 1 12 2z"/></svg></div>
+                <span class="sb-text">Dashboard IA</span>
+            </a>
+
             @if(in_array(session('admin_rol'), ['gerente', 'materia_prima']))
             <a href="{{ route('admin.materia-prima') }}" class="sb-link {{ request()->is('admin/materia-prima*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v7l4 8H5l4-8V3z"/><path d="M9 3h6"/></svg></div>

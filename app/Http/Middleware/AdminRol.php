@@ -26,8 +26,8 @@ class AdminRol
             return redirect('/login-admin');
         }
 
-        // Gerente tiene acceso a todo
-        if ($admin->rol === 'gerente') {
+        // Gerente y administrador principal tienen acceso a todo
+        if (in_array($admin->rol, ['gerente', 'admin'], true)) {
             return $next($request);
         }
 

@@ -205,7 +205,7 @@ Route::get('/admin/reporte-proveedores/corte', [AdminPanelController::class, 're
 Route::get('/admin/reporte-proveedores/corte/excel', [AdminPanelController::class, 'reporteCorteExcel'])->name('admin.reporte-corte.excel')->middleware('auth.admin');
 
 // ── Validación RFC (AJAX) ──
-Route::post('/admin/cliente/validar-rfc', [AdminClienteController::class, 'validarRfc'])->name('admin.cliente.validar-rfc');
+Route::post('/admin/cliente/validar-rfc', [AdminClienteController::class, 'validarRfc'])->name('admin.cliente.validar-rfc')->middleware('auth.admin');
 
 // ── Gestión de Pedidos (estatus + notificaciones) ──
 use App\Http\Controllers\PedidoController;
