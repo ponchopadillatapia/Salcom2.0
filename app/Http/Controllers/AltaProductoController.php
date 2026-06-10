@@ -69,6 +69,8 @@ class AltaProductoController extends Controller
         $data['maneja_lotes'] = $request->has('maneja_lotes');
         $data['activo'] = true;
         $data['stock'] = $data['stock'] ?? 0;
+        $data['proveedor_nombre'] = session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema';
+        $data['proveedor_tipo'] = session('proveedor_id') ? 'proveedor' : 'admin';
 
         // Foto
         if ($request->hasFile('foto')) {
@@ -556,6 +558,30 @@ Si todo correcto: {"errores_ia": []}';
                                         }
                                     }
 
+                                    // Si la IA dice que una marca está en NOMBRE_MODELO, pero NOMBRE_MARCA ya tiene esa marca, es falso positivo
+                                    if ($campoIA === 'NOMBRE_MODELO' && str_contains($errorTexto, 'marca')) {
+                                        $valorModelo = strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
+                                        $valorMarca = strtoupper(trim($prod['NOMBRE_MARCA'] ?? ''));
+                                        // Si NOMBRE_MODELO tiene un código numérico, es válido (ej: "20012420 ABRILLANTADOR 400ML")
+                                        if (preg_match('/\d{4,}/', $valorModelo)) {
+                                            continue; // Tiene código numérico - es válido
+                                        }
+                                        // Si la marca que sugiere ya está en NOMBRE_MARCA, falso positivo
+                                        $sugerenciaIA2 = strtoupper(trim($errIA['sugerencia'] ?? ''));
+                                        if ($sugerenciaIA2 && str_contains($valorMarca, $sugerenciaIA2)) {
+                                            continue; // Ya está en NOMBRE_MARCA
+                                        }
+                                    }
+
+                                    // Si la IA dice que hay una medida en NOMBRE_MARCA, verificar que NOMBRE_MARCA realmente tenga números
+                                    // Excluir marcas como "SURE SCENTS", "ANGEL OF MINE" que no tienen números
+                                    if ($campoIA === 'NOMBRE_MEDIDA' && str_contains($errorTexto, 'NOMBRE_MARCA')) {
+                                        $valorMarcaReal = trim($prod['NOMBRE_MARCA'] ?? '');
+                                        if (!preg_match('/\d/', $valorMarcaReal)) {
+                                            continue; // NOMBRE_MARCA no tiene números - falso positivo
+                                        }
+                                    }
+
                                     $mensajeError = 'IA: '.($errIA['error'] ?? 'Campo con dato incorrecto');
                                     if ($sugerencia) {
                                         $mensajeError .= " || CORRECCION: {$sugerencia}";
@@ -679,7 +705,7 @@ Si todo correcto: {"errores_ia": []}';
                 );
                 $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
                 $nombre = strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
-                $productosAlta[] = "{$codigo} - {$nombre}";
+                $productosAlta[] = ['fila' => $fila, 'texto' => "{$codigo} - {$nombre}"];
             }
         }
 
@@ -731,7 +757,7 @@ Si todo correcto: {"errores_ia": []}';
         if (!empty($productosAlta)) {
             $mensajeExito = "OK - ".count($productosAlta)." producto(s) SI se dieron de alta:\n";
             foreach ($productosAlta as $item) {
-                $mensajeExito .= "* {$item}\n";
+                $mensajeExito .= "* Fila {$item['fila']} - {$item['texto']}\n";
             }
         }
 
@@ -836,6 +862,10 @@ Si todo correcto: {"errores_ia": []}';
                         $sheet->getStyle($cellRef)->getFont()->getColor()->setRGB('CC0000');
                     }
                 }
+            } else {
+                // Fila sin error = se dio de alta. Marcar toda la fila en verde claro.
+                $sheet->getStyle("A{$excelRow}:N{$excelRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D1FAE5');
+                $sheet->getStyle("A{$excelRow}:N{$excelRow}")->getFont()->getColor()->setRGB('065F46');
             }
         }
 
@@ -1011,6 +1041,15 @@ Si todo correcto: {"errores_ia": []}';
                     } else {
                         $letras = preg_replace('/[\d\-\/\.\s]/', '', $info['valor']);
                         if (strlen($letras) >= 5 && ! preg_match('/[AEIOU]/i', $letras)) {
+                            // Si es NOMBRE_MEDIDA, verificar que no sea una abreviación válida de presentación
+                            if ($campo === 'NOMBRE_MEDIDA') {
+                                // Patrones válidos: C/12PZS, C/6PCS, C/12, PZS, PZ, etc.
+                                $esPresentacionValida = preg_match('/C\/\d+(PZS|PZ|PCS)?\.?/i', $info['valor']);
+                                if ($esPresentacionValida) {
+                                    continue; // Es válido, no marcar error
+                                }
+                            }
+
                             // Intentar sugerir correccion para NOMBRE_MEDIDA
                             $sugerenciaLimpia = '';
                             if ($campo === 'NOMBRE_MEDIDA') {

@@ -101,17 +101,17 @@ Tu trabajo: Tomar el NOMBRE completo de cada producto (que viene del sistema vie
 CAMPOS A LLENAR:
 - NOMBRE_TIPO: Que ES el producto (ej: ABRILLANTADOR DE MUEBLES, LUSTRADOR DE MUEBLES, AIR FRESHENER, LIMPIADOR MULTIUSOS)
 - NOMBRE_MARCA: La MARCA (ej: WIESE, SELECTO, GREAT VALUE, JAZZEE, SURE SCENTS, GV, GLAMOUROSO, VECTAIR, ANGEL OF MINE)
-- NOMBRE_MODELO: Numero de referencia/SKU interno si lo tiene (ej: 20012420, 257162, 3004450990NS). Si no hay, dejar vacio.
-- NOMBRE_MEDIDA: Peso/volumen/tamano con NUMEROS (ej: 323G, 226G, 400ML, 10OZ, 355G, 102.9G). Incluir C/12, C/6 si es presentacion.
+- NOMBRE_MODELO: Se llena con el GRUPO del sistema viejo (la parte despues del guion, en mayusculas). Ejemplos: Si GRUPO es '32-Abrillantador 8oz' -> NOMBRE_MODELO = 'ABRILLANTADOR 8OZ'. Si GRUPO es '59-Accesorios Plásticos' -> NOMBRE_MODELO = 'ACCESORIOS PLASTICOS'. Si GRUPO es '53-Aerosol 10oz' -> NOMBRE_MODELO = 'AEROSOL 10OZ'. Si ademas el nombre tiene un codigo numerico (ej: 20012420), ponerlo ANTES: '20012420 ABRILLANTADOR 8OZ'. Si el nombre tiene codigo pero no hay grupo, solo el codigo: '20012420'.
+- NOMBRE_MEDIDA: Peso/volumen/tamano con NUMEROS (ej: 323G, 226G, 400ML, 10OZ, 355G, 102.9G). Incluir C/12, C/6 si es presentacion. Si dice 12pieces o 12pcs, convertir a C/12. Si dice 6 pcs, convertir a C/6.
 - NOMBRE_ESPECIFICACION: Aroma, color o detalle adicional (ej: NARANJA, LIMON, COTTON BREEZE, BABY, LIGHT GREY)
-- FAMILIA: Se toma del campo GRUPO que ya viene (tomar solo la descripcion despues del guion, ej: '20-Abrillantador 400ml' -> 'AEROSOLES'). Si no hay grupo, inferir del tipo de producto.
-- TIPO_PRODUCTO: MPI (Materia Prima Importacion), ME (Material Empaque), MN (Mantenimiento). Si es limpieza/aerosol/quimico = MN, si es empaque = ME, si es materia prima = MPI. Por default MN.
+- FAMILIA: DEBE ser una de estas opciones EXACTAS: QUIMICOS, ELECTRICO, FERRETERIA, MANTENIMIENTO, SEGURIDAD, EMPAQUE, MATERIA PRIMA, CONSUMIBLE, LUBRICANTES, ADHESIVOS, PINTURAS, SOLVENTES, RESINAS, PIGMENTOS, ADITIVOS, AEROSOLES, INSECTICIDAS, LIMPIEZA, HERRAMIENTAS, REFACCIONES, MOTORES, BOMBAS, VALVULAS, TUBERIAS, TORNILLERIA, MATERIAL EMPAQUE, PRODUCTO TERMINADO, INSUMOS. Elige la mas cercana al producto. Para aerosoles/abrillantadores/air freshener usa AEROSOLES. Para accesorios plasticos/envases usa EMPAQUE. NO copiar el grupo viejo tal cual.
+- TIPO_PRODUCTO: MPI (Materia Prima Importacion), ME (Material Empaque), MN (Mantenimiento). Si es limpieza/aerosol/quimico = MN, si es empaque/envase/accesorio = ME, si es materia prima = MPI. Por default MN.
 
 REGLAS:
 - Todo en MAYUSCULAS
-- Si el nombre empieza con un numero largo (ej: 20012420), eso va en NOMBRE_MODELO
+- Si el nombre empieza con un numero largo (ej: 20012420), ese codigo va al INICIO de NOMBRE_MODELO seguido del grupo
 - C/12, C/6 Pzas, etc. van en NOMBRE_MEDIDA (es la presentacion)
-- Si no hay modelo claro, dejar NOMBRE_MODELO vacio
+- NOMBRE_MODELO SIEMPRE se llena con el grupo del sistema viejo. Nunca dejarlo vacio.
 - Si no hay especificacion clara, dejar NOMBRE_ESPECIFICACION vacio
 - NO incluir UNIDAD_MEDIDA, CLAVE_SAT ni LOTE en tu respuesta (el sistema los llena automaticamente)
 - Solo responde: codigo, NOMBRE_TIPO, NOMBRE_MARCA, NOMBRE_MODELO, NOMBRE_MEDIDA, NOMBRE_ESPECIFICACION, FAMILIA, TIPO_PRODUCTO
@@ -120,7 +120,7 @@ PRODUCTOS A PROCESAR:
 {$productosTexto}
 
 Responde UNICAMENTE JSON valido sin markdown:
-{\"productos\": [{\"codigo\": \"MAEHO17\", \"NOMBRE_TIPO\": \"PROTECTOR DE MUEBLES\", \"NOMBRE_MARCA\": \"SELECTO\", \"NOMBRE_MODELO\": \"\", \"NOMBRE_MEDIDA\": \"323G C/12\", \"NOMBRE_ESPECIFICACION\": \"NARANJA\", \"FAMILIA\": \"AEROSOLES\", \"TIPO_PRODUCTO\": \"MN\"}]}";
+{\"productos\": [{\"codigo\": \"MAEHO17\", \"NOMBRE_TIPO\": \"PROTECTOR DE MUEBLES\", \"NOMBRE_MARCA\": \"SELECTO\", \"NOMBRE_MODELO\": \"ABRILLANTADOR 400ML\", \"NOMBRE_MEDIDA\": \"323G C/12\", \"NOMBRE_ESPECIFICACION\": \"NARANJA\", \"FAMILIA\": \"AEROSOLES\", \"TIPO_PRODUCTO\": \"MN\"}, {\"codigo\": \"EAEHO237\", \"NOMBRE_TIPO\": \"FURNITURE POLISHER\", \"NOMBRE_MARCA\": \"JAZZEE\", \"NOMBRE_MODELO\": \"20012420 ABRILLANTADOR 400ML\", \"NOMBRE_MEDIDA\": \"323G C/12\", \"NOMBRE_ESPECIFICACION\": \"LEMON\", \"FAMILIA\": \"AEROSOLES\", \"TIPO_PRODUCTO\": \"MN\"}]}";
     }
 
     /**

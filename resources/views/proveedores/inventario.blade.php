@@ -58,14 +58,14 @@ $items = [
     ['SAL-022', 'Recubrimiento base', 'NINGBO REVIEW T', 0, 30, 30, 0, 'KG', 78.00, 'Pigmentos'],
 ];
 
-// Colores por grupo/familia
+// Colores por familia (pastel bien diferenciados)
 $coloresGrupo = [
-    'Resinas' => '#E3F2FD',     // Azul cielo
-    'Solventes' => '#FFF9C4',   // Amarillo pastel
-    'Pigmentos' => '#F3E5F5',   // Lila pastel
-    'Aditivos' => '#E8F5E9',    // Verde pastel
-    'Refuerzos' => '#FFF3E0',   // Naranja pastel
-    'Selladores' => '#E0F7FA',  // Cyan pastel
+    'Resinas' => '#DBEAFE',     // Azul pastel
+    'Solventes' => '#FEF3C7',   // Amarillo pastel
+    'Pigmentos' => '#F3E8FF',   // Violeta pastel
+    'Aditivos' => '#D1FAE5',    // Verde menta pastel
+    'Refuerzos' => '#FFEDD5',   // Naranja/durazno pastel
+    'Selladores' => '#FCE7F3',  // Rosa pastel
 ];
 $totalSKU = count($items);
 $stockOk = 0; $stockLow = 0; $stockOut = 0; $stockOver = 0;
@@ -128,10 +128,9 @@ foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $dia
         <table class="inv-table" id="tablaInventario">
             <thead>
                 <tr>
-                    <th>Grupo</th>
+                    <th>Familia</th>
                     <th>Código</th>
                     <th>Producto</th>
-                    <th>Proveedor</th>
                     <th>U.M.</th>
                     <th>Precio</th>
                     <th>Existencia</th>
@@ -155,7 +154,6 @@ foreach ($items as [$codigo, $nombre, $proveedor, $existencia, $consumoMes, $dia
                 <tr style="background:{{ $r['colorFila'] }};" data-estado="{{ $r['estado'] }}">                    <td style="font-size:10px;font-weight:600;color:var(--gray-muted);">{{ $r['grupo'] }}</td>
                     <td style="font-weight:700;color:var(--purple)">{{ $r['codigo'] }}</td>
                     <td>{{ $r['nombre'] }}</td>
-                    <td style="font-size:11px;color:var(--gray-muted);">{{ $r['proveedor'] }}</td>
                     <td>{{ $r['um'] }}</td>
                     <td class="num">${{ number_format($r['precio'], 2) }}</td>
                     <td class="num" style="font-weight:600;">{{ number_format($r['existencia'], 3) }}</td>

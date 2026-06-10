@@ -118,14 +118,14 @@
                     {{ $sinStock }}
                     @if($agotadosVarPct !== null)
                         @php $agotadosMejora = $agotadosVarPct < 0; @endphp
-                        <span class="pp-variation {{ $agotadosMejora ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $agotadosMejora ? '↓' : '↑' }} {{ $agotadosVarPct > 0 ? '+' : '' }}{{ $agotadosVarPct }}%</span>
+                        <span class="pp-variation {{ $agotadosMejora ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $agotadosVarPct > 0 ? '↓' : ($agotadosVarPct < 0 ? '↑' : '') }} {{ $agotadosVarPct > 0 ? '+' : '' }}{{ $agotadosVarPct }}%</span>
                     @endif
                 </div>
             </div>
             <div class="pp-negocio-sub">
                 <span style="color:var(--amber);">●</span> {{ $stockBajo }} bajo &nbsp;
                 <span style="color:var(--green);">●</span> {{ $stockOk }} OK &nbsp;
-                {{ number_format($saludPct, 0) }}% salud
+                Salud: {{ number_format($saludPct, 0) }}%
             </div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
@@ -208,112 +208,57 @@
         </div></a>
     </div>
 
-    {{-- Actividad reciente --}}
-    <h3 class="pp-section-title">Actividad reciente</h3>
-    <div class="pp-grid-2" style="align-items:stretch;">
-        <div class="pp-card pp-activity-card">
-            <div class="pp-activity-head">Órdenes de compra recientes</div>
-            <table class="pp-tbl">
-                <thead>
-                    <tr>
-                        <th>Folio</th>
-                        <th>Proveedor</th>
-                        <th>Total</th>
-                        <th>Estatus</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @forelse($ultimosPedidos as $p)
-                    <tr>
-                        <td style="font-weight:600;">{{ $p->folio }}</td>
-                        <td>
-                            <div>{{ $p->proveedor?->nombre ?? $p->nombre_proveedor ?? '—' }}</div>
-                            @if($p->codigo_proveedor)<div style="font-size:10px;color:var(--gray-muted)">{{ $p->codigo_proveedor }}</div>@endif
-                        </td>
-                        <td>${{ number_format($p->total, 0) }}</td>
-                        <td><span class="pp-badge pp-badge-{{ $p->estatus }}">{{ ucfirst($p->estatus) }}</span></td>
-                    </tr>
-                @empty
-                    <tr><td colspan="4" style="text-align:center;color:var(--gray-muted);padding:16px;">Sin órdenes recientes</td></tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-        <div class="pp-card pp-activity-card">
-            <div class="pp-activity-head">Top proveedores</div>
-            <table class="pp-tbl">
-                <thead>
-                    <tr>
-                        <th>Proveedor</th>
-                        <th>Score</th>
-                        <th>Entrega</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @forelse($topProveedores as $prov)
-                    <tr>
-                        <td style="font-weight:600;">{{ $prov->nombre ?? $prov->usuario }}</td>
-                        <td>
-                            <div style="display:flex;align-items:center;gap:6px;">
-                                <div class="pp-score-bar"><div class="pp-score-fill" style="width:{{ min(100, $prov->score_total) }}%"></div></div>
-                                <span style="font-weight:700;font-size:10px;">{{ number_format($prov->score_total, 0) }}%</span>
-                            </div>
-                        </td>
-                        <td style="font-size:10px;color:var(--gray-muted);">{{ number_format($prov->score_entrega, 0) }}%</td>
-                    </tr>
-                @empty
-                    <tr><td colspan="3" style="text-align:center;color:var(--gray-muted);padding:16px;">Sin proveedores con score</td></tr>
-                @endforelse
-                </tbody>
-            </table>
-        </div>
-    </div>
-
     {{-- Accesos directos --}}
-    <h3 class="pp-section-title">Accesos directos</h3>
+    <div class="pp-section-title">Accesos directos</div>
     <div class="pp-quick-grid">
         <a href="{{ route('admin.pedidos') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
+            <div class="pp-quick-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+            </div>
             <div><div class="pp-quick-title">Pedidos</div><div class="pp-quick-sub">Órdenes de compra</div></div>
         </a>
         <a href="{{ route('admin.reporte-proveedores') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
+            <div class="pp-quick-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
+            </div>
             <div><div class="pp-quick-title">Reportes</div><div class="pp-quick-sub">Análisis de proveedores</div></div>
         </a>
         <a href="{{ route('admin.otif') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="pp-quick-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
             <div><div class="pp-quick-title">OTIF</div><div class="pp-quick-sub">On Time In Full</div></div>
         </a>
         <a href="{{ route('admin.gestion-compras') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5z"/></svg></div>
+            <div class="pp-quick-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5z"/><path d="M6 9.01V9"/></svg>
+            </div>
             <div><div class="pp-quick-title">Gestión Compras</div><div class="pp-quick-sub">Logística</div></div>
         </a>
         <a href="{{ route('admin.clientes') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div class="pp-quick-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
             <div><div class="pp-quick-title">Clientes</div><div class="pp-quick-sub">Gestión de cuentas</div></div>
         </a>
         <a href="{{ route('admin.encuestas') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
+            <div class="pp-quick-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </div>
             <div><div class="pp-quick-title">Encuestas</div><div class="pp-quick-sub">Satisfacción</div></div>
         </a>
-        @if(in_array(session('admin_rol'), ['gerente', 'materia_prima']))
-        <a href="{{ route('admin.materia-prima') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M9 3h6v7l4 8H5l4-8V3z"/></svg></div>
-            <div><div class="pp-quick-title">Materia Prima</div><div class="pp-quick-sub">Área MP</div></div>
-        </a>
-        @endif
-        @if(in_array(session('admin_rol'), ['gerente', 'material_empaque']))
-        <a href="{{ route('admin.material-empaque') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
-            <div><div class="pp-quick-title">Material Empaque</div><div class="pp-quick-sub">Área ME</div></div>
-        </a>
-        @endif
-        @if(in_array(session('admin_rol'), ['admin', 'compras_nacional', 'compras_importacion', 'mantenimiento']))
         <a href="{{ route('admin.alta-producto') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+            <div class="pp-quick-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            </div>
             <div><div class="pp-quick-title">Alta de Producto</div><div class="pp-quick-sub">Nuevo producto</div></div>
         </a>
-        @endif
+        <a href="{{ route('admin.productos') }}" class="pp-card pp-quick-card">
+            <div class="pp-quick-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+            </div>
+            <div><div class="pp-quick-title">Productos</div><div class="pp-quick-sub">Catálogo completo</div></div>
+        </a>
     </div>
 
 </div>

@@ -796,6 +796,7 @@ class AdminPanelController extends Controller
         $grupo = $request->input('grupo', '');
         $activo = $request->input('activo', '');
         $categoria = $request->input('categoria', '');
+        $proveedor = $request->input('proveedor', '');
         $fechaDesde = $request->input('fecha_desde', '');
         $fechaHasta = $request->input('fecha_hasta', '');
 
@@ -826,12 +827,27 @@ class AdminPanelController extends Controller
             ->pluck('categoria');
         $totalCategorias = $categorias->count();
 
+        $proveedores = Producto::whereNotNull('proveedor_nombre')
+            ->where('proveedor_nombre', '!=', '')
+            ->distinct()
+            ->orderBy('proveedor_nombre')
+            ->pluck('proveedor_nombre');
+
+        $admins = Producto::whereNotNull('proveedor_nombre')
+            ->where('proveedor_nombre', '!=', '')
+            ->where('proveedor_tipo', 'admin')
+            ->distinct()
+            ->orderBy('proveedor_nombre')
+            ->pluck('proveedor_nombre');
+
         $filtros = [
             'busqueda' => $busqueda,
             'stock' => $stock,
             'grupo' => $grupo,
             'activo' => $activo,
             'categoria' => $categoria,
+            'proveedor' => $proveedor,
+            'admin' => $request->input('admin', ''),
             'fecha_desde' => $fechaDesde,
             'fecha_hasta' => $fechaHasta,
         ];
@@ -854,6 +870,8 @@ class AdminPanelController extends Controller
             'valorInventario',
             'totalCategorias',
             'categorias',
+            'proveedores',
+            'admins',
             'filtros',
             'filtrosActivos',
         ));
@@ -878,6 +896,7 @@ class AdminPanelController extends Controller
         $grupo = $request->input('grupo', '');
         $activo = $request->input('activo', '');
         $categoria = $request->input('categoria', '');
+        $proveedor = $request->input('proveedor', '');
         $fechaDesde = $request->input('fecha_desde', '');
         $fechaHasta = $request->input('fecha_hasta', '');
 
@@ -886,7 +905,8 @@ class AdminPanelController extends Controller
                 $q->where('nombre', 'like', "%{$busqueda}%")
                     ->orWhere('codigo', 'like', "%{$busqueda}%")
                     ->orWhere('codigo_alterno', 'like', "%{$busqueda}%")
-                    ->orWhere('categoria', 'like', "%{$busqueda}%");
+                    ->orWhere('categoria', 'like', "%{$busqueda}%")
+                    ->orWhere('proveedor_nombre', 'like', "%{$busqueda}%");
             });
         }
 
@@ -917,6 +937,15 @@ class AdminPanelController extends Controller
 
         if ($categoria) {
             $query->where('categoria', $categoria);
+        }
+
+        if ($proveedor) {
+            $query->where('proveedor_nombre', $proveedor)->where('proveedor_tipo', 'proveedor');
+        }
+
+        $admin = $request->input('admin', '');
+        if ($admin) {
+            $query->where('proveedor_nombre', $admin)->where('proveedor_tipo', 'admin');
         }
 
         if ($fechaDesde) {

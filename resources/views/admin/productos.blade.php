@@ -155,9 +155,6 @@
             <a href="{{ route('admin.productos', array_merge($baseQuery, ['stock' => 'ok'])) }}" class="filter-btn ok {{ $chipActive('ok') ? 'active' : '' }}">
                 Stock OK <span class="filter-count">{{ $conteoOk }}</span>
             </a>
-            <a href="{{ route('admin.productos', array_merge($baseQuery, ['activo' => '0'])) }}" class="filter-btn {{ $filtros['activo'] === '0' && !$filtros['stock'] && !$filtros['grupo'] ? 'active' : '' }}">
-                Inactivos <span class="filter-count">{{ $conteoInactivos }}</span>
-            </a>
         </div>
         <span class="badge-count">{{ $productos->total() }} resultado{{ $productos->total() !== 1 ? 's' : '' }}</span>
     </div>
@@ -172,17 +169,6 @@
                 <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Código, nombre o categoría…">
             </div>
             <div class="filter-field">
-                <label>Nivel de stock</label>
-                <select name="stock">
-                    <option value="">Todos los niveles</option>
-                    @foreach($stockOpciones as $key => $label)
-                        <option value="{{ $key }}" {{ $filtros['stock'] === $key ? 'selected' : '' }}>
-                            {{ $label }} ({{ $key === 'agotado' ? $conteoAgotado : ($key === 'bajo' ? $conteoBajo : $conteoOk) }})
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="filter-field">
                 <label>Categoría</label>
                 <select name="categoria">
                     <option value="">Todas</option>
@@ -192,11 +178,21 @@
                 </select>
             </div>
             <div class="filter-field">
-                <label>Estado</label>
-                <select name="activo">
-                    <option value="">Activos e inactivos</option>
-                    <option value="1" {{ $filtros['activo'] === '1' ? 'selected' : '' }}>Solo activos</option>
-                    <option value="0" {{ $filtros['activo'] === '0' ? 'selected' : '' }}>Solo inactivos ({{ $conteoInactivos }})</option>
+                <label>Proveedor</label>
+                <select name="proveedor">
+                    <option value="">Todos</option>
+                    @foreach($proveedores->filter(fn($p) => \App\Models\Producto::where('proveedor_nombre', $p)->where('proveedor_tipo', 'proveedor')->exists()) as $prov)
+                        <option value="{{ $prov }}" {{ ($filtros['proveedor'] ?? '') === $prov ? 'selected' : '' }}>{{ $prov }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="filter-field">
+                <label>Admin</label>
+                <select name="admin">
+                    <option value="">Todos</option>
+                    @foreach($admins as $adm)
+                        <option value="{{ $adm }}" {{ ($filtros['admin'] ?? '') === $adm ? 'selected' : '' }}>{{ $adm }}</option>
+                    @endforeach
                 </select>
             </div>
             <div class="filter-field">
@@ -221,8 +217,8 @@
             @if($filtros['grupo'] === 'criticos')<span class="active-tag">Críticos</span>@endif
             @if($filtros['stock'])<span class="active-tag">{{ $stockOpciones[$filtros['stock']] ?? ucfirst($filtros['stock']) }}</span>@endif
             @if($filtros['categoria'])<span class="active-tag">{{ $filtros['categoria'] }}</span>@endif
-            @if($filtros['activo'] === '1')<span class="active-tag">Solo activos</span>@endif
-            @if($filtros['activo'] === '0')<span class="active-tag">Solo inactivos</span>@endif
+            @if($filtros['proveedor'] ?? false)<span class="active-tag">Prov: {{ $filtros['proveedor'] }}</span>@endif
+            @if($filtros['admin'] ?? false)<span class="active-tag">Admin: {{ $filtros['admin'] }}</span>@endif
             @if($filtros['fecha_desde'] ?? false)<span class="active-tag">Desde: {{ $filtros['fecha_desde'] }}</span>@endif
             @if($filtros['fecha_hasta'] ?? false)<span class="active-tag">Hasta: {{ $filtros['fecha_hasta'] }}</span>@endif
         </div>
@@ -257,7 +253,6 @@
                     <th>Nivel</th>
                     <th>Proveedor</th>
                     <th>Hora alta</th>
-                    <th>Catálogo</th>
                 </tr>
             </thead>
             <tbody>
@@ -272,7 +267,7 @@
                 @endphp
                 @if($currentDate !== $lastDate)
                     <tr class="date-row">
-                        <td colspan="10">{{ $p->created_at ? $p->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}</td>
+                        <td colspan="9">{{ $p->created_at ? $p->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}</td>
                     </tr>
                     @php $lastDate = $currentDate; @endphp
                 @endif
@@ -297,7 +292,6 @@
                         @endif
                     </td>
                     <td style="font-size:11px;color:var(--gray-muted);white-space:nowrap">{{ $p->created_at ? $p->created_at->format('h:i a') : '—' }}</td>
-                    <td><span class="badge-activo {{ $p->activo ? 'on' : 'off' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span></td>
                 </tr>
             @endforeach
             </tbody>
@@ -317,3 +311,32 @@
     @endif
 </div>
 @endsection
+@push('scripts')
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.querySelector('input[name="busqueda"]');
+    const form = searchInput.closest('form');
+    let debounceTimer = null;
+
+    // Búsqueda automática: al escribir 3+ caracteres, envía el formulario
+    searchInput.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        const val = this.value.trim();
+
+        if (val.length >= 3 || val.length === 0) {
+            debounceTimer = setTimeout(function() {
+                form.submit();
+            }, 500);
+        }
+    });
+
+    // Los selects también filtran automáticamente al cambiar
+    const selects = form.querySelectorAll('select');
+    selects.forEach(function(sel) {
+        sel.addEventListener('change', function() {
+            form.submit();
+        });
+    });
+});
+</script>
+@endpush
