@@ -8,8 +8,9 @@
 @endsection
 @push('styles')
 <style>
-    .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-    .kpi{background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:20px;text-align:center}
+    .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:16px;margin-bottom:24px}
+    .kpi{background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:20px;text-align:center;transition:all .15s;position:relative;overflow:hidden}
+    .kpi:hover{border-color:var(--purple);box-shadow:0 2px 8px rgba(107,63,160,.12);transform:translateY(-2px)}
     .kpi-val{font-size:28px;font-weight:800;line-height:1;margin-bottom:6px}
     .kpi-label{font-size:11px;color:var(--gray-muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
 
@@ -35,15 +36,39 @@
 @section('content')
 
 <div class="kpis">
-    <div class="kpi"><div class="kpi-val" style="color:#059669">{{ $aprobados }}</div><div class="kpi-label">Opinión positiva</div></div>
-    <div class="kpi"><div class="kpi-val" style="color:#d97706">{{ $pendientes }}</div><div class="kpi-label">En revisión</div></div>
-    <div class="kpi"><div class="kpi-val" style="color:#dc2626">{{ $rechazados }}</div><div class="kpi-label">Rechazada</div></div>
-    <div class="kpi"><div class="kpi-val" style="color:#6b7280">{{ $sinDoc }}</div><div class="kpi-label">Sin documento</div></div>
+    <div class="kpi" style="cursor:pointer;position:relative;overflow:hidden;" onclick="filtrarOpinion('rechazado', this)">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:#dc2626;"></div>
+        <div class="kpi-val" style="color:#dc2626">{{ $rechazados }}</div>
+        <div class="kpi-label">Rechazada</div>
+    </div>
+    <div class="kpi" style="cursor:pointer;position:relative;overflow:hidden;" onclick="filtrarOpinion('pendiente', this)">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:#d97706;"></div>
+        <div class="kpi-val" style="color:#d97706">{{ $pendientes }}</div>
+        <div class="kpi-label">En revisión</div>
+    </div>
+    <div class="kpi" style="cursor:pointer;position:relative;overflow:hidden;" onclick="filtrarOpinion('aprobado', this)">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:#059669;"></div>
+        <div class="kpi-val" style="color:#059669">{{ $aprobados }}</div>
+        <div class="kpi-label">Opinión positiva</div>
+    </div>
+    <div class="kpi" style="cursor:pointer;position:relative;overflow:hidden;" onclick="filtrarOpinion('sin_documento', this)">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:#6b7280;"></div>
+        <div class="kpi-val" style="color:#6b7280">{{ $sinDoc }}</div>
+        <div class="kpi-label">Sin documento</div>
+    </div>
+    <div class="kpi" style="cursor:pointer;position:relative;overflow:hidden;" onclick="filtrarOpinion('todos', this)">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--purple);"></div>
+        <div class="kpi-val" style="color:var(--purple)">{{ count($opiniones) }}</div>
+        <div class="kpi-label">Total</div>
+    </div>
 </div>
 
 <div class="table-card">
-    <div class="table-head">Opinión de Cumplimiento SAT por Proveedor</div>
-    <table class="tbl">
+    <div class="table-head" style="display:flex;align-items:center;justify-content:space-between;">
+        <span id="opinionTitulo">Opinión de Cumplimiento SAT por Proveedor</span>
+        <span style="font-size:12px;color:var(--purple);font-weight:600;" id="opinionFiltroLabel">Mostrando: Todos</span>
+    </div>
+    <table class="tbl" id="tablaOpinion">
         <thead>
             <tr>
                 <th>Código</th>
@@ -61,7 +86,7 @@
                 $est = $op['estatus'];
                 $labels = ['aprobado' => 'Positiva', 'pendiente' => 'En revisión', 'rechazado' => 'Negativa/Rechazada', 'sin_documento' => 'Sin documento'];
             @endphp
-            <tr>
+            <tr data-estatus="{{ $est }}">
                 <td style="font-weight:700;color:var(--purple)">{{ $prov->codigo_compras ?? '—' }}</td>
                 <td style="font-weight:600">{{ $prov->nombre ?? $prov->usuario }}</td>
                 <td><span class="badge-op {{ $est }}">{{ $labels[$est] ?? $est }}</span></td>
@@ -74,3 +99,36 @@
 </div>
 
 @endsection
+@push('scripts')
+<script>
+var filtroOpinionActual = null;
+function filtrarOpinion(estatus, card) {
+    var filas = document.querySelectorAll('#tablaOpinion tbody tr');
+    var labels = { rechazado: 'Rechazadas', pendiente: 'En revisión', aprobado: 'Opinión positiva', sin_documento: 'Sin documento', todos: 'Todos' };
+
+    document.querySelectorAll('.kpi').forEach(function(k) { k.style.boxShadow = ''; k.style.border = '1px solid var(--border-light)'; });
+
+    if (filtroOpinionActual === estatus || estatus === 'todos') {
+        filtroOpinionActual = null;
+        filas.forEach(function(f) { f.style.display = ''; });
+        document.getElementById('opinionFiltroLabel').textContent = 'Mostrando: Todos';
+        if (card) { card.style.boxShadow = '0 0 0 2px var(--purple)'; card.style.border = '1.5px solid var(--purple)'; }
+        return;
+    }
+
+    filtroOpinionActual = estatus;
+    var visibles = 0;
+    filas.forEach(function(fila) {
+        if (fila.getAttribute('data-estatus') === estatus) {
+            fila.style.display = '';
+            visibles++;
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+
+    document.getElementById('opinionFiltroLabel').textContent = 'Mostrando: ' + labels[estatus] + ' (' + visibles + ')';
+    if (card) { card.style.boxShadow = '0 0 0 2px var(--purple)'; card.style.border = '1.5px solid var(--purple)'; }
+}
+</script>
+@endpush

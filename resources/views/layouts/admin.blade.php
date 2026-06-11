@@ -299,35 +299,10 @@
             </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Inteligencia Artificial</div>
-            <a href="{{ route('admin.ia') }}" class="sb-link {{ request()->is('admin/ia*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 1.5-.8 2.8-2 3.5V12h1a7 7 0 0 1 7 7h-2a5 5 0 0 0-5-5h-2a5 5 0 0 0-5 5H3a7 7 0 0 1 7-7h1V9.5A4 4 0 0 1 12 2z"/></svg></div>
-                <span class="sb-text">Dashboard IA</span>
-            </a>
-
-            @if(in_array(session('admin_rol'), ['gerente', 'materia_prima']))
-            <a href="{{ route('admin.materia-prima') }}" class="sb-link {{ request()->is('admin/materia-prima*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v7l4 8H5l4-8V3z"/><path d="M9 3h6"/></svg></div>
-                <span class="sb-text">Materia Prima</span>
-            </a>
-            @endif
-
-            @if(in_array(session('admin_rol'), ['gerente', 'material_empaque']))
-            <a href="{{ route('admin.material-empaque') }}" class="sb-link {{ request()->is('admin/material-empaque*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg></div>
-                <span class="sb-text">Material Empaque</span>
-            </a>
-            @endif
-
-            <div class="sb-hr"></div>
             <div class="sb-section">Gestión</div>
             <a href="{{ route('admin.clientes') }}" class="sb-link {{ request()->is('admin/clientes*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
                 <span class="sb-text">Clientes</span>
-            </a>
-            <a href="{{ route('admin.encuestas') }}" class="sb-link {{ request()->is('admin/encuestas*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></div>
-                <span class="sb-text">Encuestas</span>
             </a>
             <a href="{{ route('admin.negocio') }}" class="sb-link {{ request()->is('admin/negocio*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>

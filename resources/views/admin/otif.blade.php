@@ -34,7 +34,8 @@
     .stats-card{background:var(--white);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:28px 32px;box-shadow:var(--shadow-sm);display:flex;flex-direction:column;justify-content:center;min-width:0}
     .stats-card-title{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:14px}
     .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-    .stat{border:1px solid var(--border-light);border-radius:12px;padding:14px;text-align:center}
+    .stat{border:1px solid var(--border-light);border-radius:12px;padding:14px;text-align:center;cursor:pointer;transition:all .15s}
+    .stat:hover{border-color:var(--purple);box-shadow:0 2px 8px rgba(107,63,160,.12);transform:translateY(-1px)}
     .stat-val{font-size:24px;font-weight:800;line-height:1;margin-bottom:6px}
     .stat-label{font-size:10px;color:var(--gray-muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
 
@@ -112,12 +113,13 @@
             <div>
                 <div class="otif-metric-label">Proveedores con facturas</div>
                 <div class="otif-metric-val" style="font-size:20px;color:var(--gray-text)">{{ $proveedoresConFacturas }} <span style="font-size:13px;font-weight:500;color:var(--gray-muted)">/ {{ $proveedoresActivos }} activos</span></div>
+                <a href="{{ route('admin.proveedores') }}" style="font-size:12px;font-weight:600;color:var(--purple);text-decoration:none;display:inline-block;margin-top:6px;padding:5px 12px;background:var(--purple-subtle);border-radius:6px;transition:background .15s;">Ver proveedores →</a>
             </div>
         </div>
         <div class="otif-summary-badge" style="background:{{ $scoreBg }};color:{{ $scoreColor }}">{{ $scoreMsg }}</div>
     </div>
 
-    <div class="adm-otif-grid">
+    <div class="adm-otif-grid" style="grid-template-columns:1fr 1fr;">
         <div class="otif-chart-card">
             <div class="otif-canvas-wrap">
                 <canvas id="gaugeOT" width="180" height="180"></canvas>
@@ -134,23 +136,100 @@
             <span class="otif-chart-label">IF — facturas no canceladas vs. total emitidas</span>
             <div class="otif-trend">@include('partials.trend-arrow', ['value' => $trendIf, 'size' => '12']) <span style="color:var(--gray-muted);font-weight:500">vs. trim. anterior</span></div>
         </div>
-
-        <div class="stats-card">
-            <div class="stats-card-title">Resumen de facturas proveedor</div>
-            <div class="stat-grid">
-                <div class="stat"><div class="stat-val" style="color:#34c759">{{ $pagadas }}</div><div class="stat-label">Pagadas</div></div>
-                <div class="stat"><div class="stat-val" style="color:#ff9500">{{ $pendientes }}</div><div class="stat-label">Pendientes</div></div>
-                <div class="stat"><div class="stat-val" style="color:#ff3b30">{{ $vencidas }}</div><div class="stat-label">Vencidas</div></div>
-                <div class="stat"><div class="stat-val" style="color:var(--gray-muted)">{{ $canceladas }}</div><div class="stat-label">Canceladas</div></div>
-            </div>
-            <div style="margin-top:14px;text-align:center;font-size:12px;color:var(--gray-muted)"><strong style="color:var(--gray-text)">{{ $total }}</strong> facturas en total</div>
-        </div>
     </div>
 
     <div class="otif-legend-row anim" style="animation-delay:.05s">
-        <span><span class="dot" style="background:#34c759"></span>Cumplido</span>
-        <span><span class="dot" style="background:#ff9500"></span>Faltante menor (valor &gt; 95%)</span>
         <span><span class="dot" style="background:#ff3b30"></span>Faltante mayor (valor ≤ 95%)</span>
+        <span><span class="dot" style="background:#ff9500"></span>Faltante menor (valor &gt; 95%)</span>
+        <span><span class="dot" style="background:#34c759"></span>Cumplido</span>
+    </div>
+</div>
+
+{{-- Resumen de facturas: 4 cuadros en fila tipo inventario + tabla debajo --}}
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;max-width:1140px;margin:0 auto 16px;" class="anim" style="animation-delay:.06s">
+    <div class="stat" style="cursor:pointer;position:relative;overflow:hidden;background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:22px;text-align:center;" onclick="filtrarFacturasOtif('vencida', this)">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--red);"></div>
+        <div class="stat-val" style="color:#ff3b30;font-size:30px;">{{ $vencidas }}</div>
+        <div class="stat-label">Vencidas</div>
+    </div>
+    <div class="stat" style="cursor:pointer;position:relative;overflow:hidden;background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:22px;text-align:center;" onclick="filtrarFacturasOtif('pendiente', this)">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--amber);"></div>
+        <div class="stat-val" style="color:#ff9500;font-size:30px;">{{ $pendientes }}</div>
+        <div class="stat-label">Pendientes</div>
+    </div>
+    <div class="stat" style="cursor:pointer;position:relative;overflow:hidden;background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:22px;text-align:center;" onclick="filtrarFacturasOtif('pagada', this)">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--green);"></div>
+        <div class="stat-val" style="color:#34c759;font-size:30px;">{{ $pagadas }}</div>
+        <div class="stat-label">Pagadas</div>
+    </div>
+    <div class="stat" style="cursor:pointer;position:relative;overflow:hidden;background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:22px;text-align:center;" onclick="filtrarFacturasOtif('cancelada', this)">
+        <div style="position:absolute;top:0;left:0;right:0;height:4px;background:var(--gray-muted);"></div>
+        <div class="stat-val" style="color:var(--gray-muted);font-size:30px;">{{ $canceladas }}</div>
+        <div class="stat-label">Canceladas</div>
+    </div>
+</div>
+
+{{-- Tabla de TODAS las facturas (se filtra con los 4 cuadros) --}}
+<div class="otif-section anim" style="animation-delay:.06s;max-width:1140px;margin:0 auto 24px" id="seccionTodasFacturas">
+    <div class="otif-section-head">
+        <div>
+            <h4 id="tituloFacturasFiltro">Todas las facturas</h4>
+            <div class="otif-section-meta" id="metaFacturasFiltro">{{ $facturasProveedor->count() }} facturas registradas</div>
+        </div>
+        <button type="button" class="btn-export" onclick="exportOtifTable('tableTodasFacturas', 'OTIF_Facturas')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar Excel
+        </button>
+    </div>
+    <div class="tbl-wrap">
+        <table class="tbl" id="tableTodasFacturas">
+            <thead>
+                <tr>
+                    <th>Folio CFDI</th>
+                    <th>Proveedor</th>
+                    <th>Código</th>
+                    <th>Total</th>
+                    <th>Vencimiento</th>
+                    <th>Estatus</th>
+                </tr>
+            </thead>
+            <tbody>
+            @php
+                $ordenEstatus = ['pendiente' => 1, 'pagada' => 2, 'cancelada' => 3];
+                $facturasOrdenadas = $facturasProveedor->sortBy(function($f) use ($ordenEstatus) {
+                    $esVencida = ($f->estatus === 'pendiente' && $f->fecha_vencimiento && $f->fecha_vencimiento->isPast());
+                    if ($esVencida) return 0;
+                    return $ordenEstatus[$f->estatus] ?? 4;
+                });
+            @endphp
+            @foreach($facturasOrdenadas as $f)
+                @php
+                    $esVencida = ($f->estatus === 'pendiente' && $f->fecha_vencimiento && $f->fecha_vencimiento->isPast());
+                    $estatusMostrar = $esVencida ? 'vencida' : $f->estatus;
+                    $provF = \App\Models\ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
+                    $nombreProvF = $provF->nombre ?? $provF->usuario ?? $f->codigo_proveedor ?? '—';
+                @endphp
+                <tr data-estatus="{{ $estatusMostrar }}">
+                    <td style="font-weight:600;color:var(--purple)">{{ $f->folio_cfdi ?? '—' }}</td>
+                    <td>{{ $nombreProvF }}</td>
+                    <td>{{ $f->codigo_proveedor ?? '—' }}</td>
+                    <td style="font-variant-numeric:tabular-nums">${{ number_format($f->total, 2) }}</td>
+                    <td>{{ $f->fecha_vencimiento ? $f->fecha_vencimiento->format('d/m/Y') : '—' }}</td>
+                    <td>
+                        @if($estatusMostrar === 'vencida')
+                            <span class="badge-late">Vencida</span>
+                        @elseif($estatusMostrar === 'pendiente')
+                            <span class="badge-warn">Pendiente</span>
+                        @elseif($estatusMostrar === 'pagada')
+                            <span class="badge-ok">Pagada</span>
+                        @else
+                            <span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--gray-soft);color:var(--gray-muted)">Cancelada</span>
+                        @endif
+                    </td>
+                </tr>
+            @endforeach
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -311,6 +390,50 @@ function exportOtifTable(tableId, filename) {
     link.href = URL.createObjectURL(blob);
     link.download = filename + '_' + new Date().toISOString().slice(0, 10) + '.csv';
     link.click();
+}
+
+var filtroActualFacturas = null;
+function filtrarFacturasOtif(estatus, card) {
+    var tabla = document.getElementById('tableTodasFacturas');
+    var filas = tabla.querySelectorAll('tbody tr');
+    var titulo = document.getElementById('tituloFacturasFiltro');
+    var meta = document.getElementById('metaFacturasFiltro');
+    var labels = { pagada: 'Facturas pagadas', pendiente: 'Facturas pendientes', vencida: 'Facturas vencidas', cancelada: 'Facturas canceladas', todas: 'Todas las facturas' };
+
+    // Quitar estilo activo de todos los stats
+    document.querySelectorAll('.stat').forEach(function(s) { s.style.boxShadow = ''; s.style.border = ''; });
+
+    if (filtroActualFacturas === estatus || estatus === 'todas') {
+        filtroActualFacturas = null;
+        filas.forEach(function(f) { f.style.display = ''; });
+        titulo.textContent = 'Todas las facturas';
+        meta.textContent = filas.length + ' facturas registradas';
+        // Scroll a la tabla
+        document.getElementById('seccionTodasFacturas').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+    }
+
+    filtroActualFacturas = estatus;
+    var visibles = 0;
+    filas.forEach(function(fila) {
+        if (fila.getAttribute('data-estatus') === estatus) {
+            fila.style.display = '';
+            visibles++;
+        } else {
+            fila.style.display = 'none';
+        }
+    });
+
+    titulo.textContent = labels[estatus] || 'Facturas';
+    meta.textContent = visibles + ' factura' + (visibles !== 1 ? 's' : '');
+
+    if (card) {
+        card.style.boxShadow = '0 0 0 2px var(--purple)';
+        card.style.border = '1.5px solid var(--purple)';
+    }
+
+    // Scroll a la tabla
+    document.getElementById('seccionTodasFacturas').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 </script>
 @endpush

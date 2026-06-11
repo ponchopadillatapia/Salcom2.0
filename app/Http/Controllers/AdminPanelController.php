@@ -1336,7 +1336,7 @@ class AdminPanelController extends Controller
         return view('admin.otif', compact(
             'total', 'pagadas', 'pendientes', 'vencidas', 'canceladas',
             'otPercent', 'ifPercent', 'scoreGeneral', 'trendOt', 'trendIf',
-            'detalleProveedores', 'facturasVencidas',
+            'detalleProveedores', 'facturasVencidas', 'facturasProveedor',
             'proveedoresConFacturas', 'proveedoresActivos'
         ));
     }
@@ -1410,7 +1410,7 @@ class AdminPanelController extends Controller
         }
 
         $agrupado = $query
-            ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(total) as monto_total')
+            ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(total) as monto_total, max(created_at) as ultima_factura')
             ->groupBy('codigo_proveedor')
             ->orderByDesc('monto_total')
             ->get();
@@ -1418,17 +1418,31 @@ class AdminPanelController extends Controller
         $codigos = $agrupado->pluck('codigo_proveedor')->filter()->values();
         $proveedores = ProveedorUser::whereIn('codigo_compras', $codigos)->get()->keyBy('codigo_compras');
 
-        return $agrupado->map(function ($row) use ($proveedores) {
+        // Obtener categoría principal de productos por proveedor
+        $categoriasProv = Producto::whereIn('proveedor_nombre', $proveedores->pluck('nombre')->filter())
+            ->whereNotNull('categoria')
+            ->where('categoria', '!=', '')
+            ->selectRaw('proveedor_nombre, categoria, count(*) as total')
+            ->groupBy('proveedor_nombre', 'categoria')
+            ->orderByDesc('total')
+            ->get()
+            ->groupBy('proveedor_nombre')
+            ->map(fn($g) => $g->first()->categoria);
+
+        return $agrupado->map(function ($row) use ($proveedores, $categoriasProv) {
             $prov = $proveedores->get($row->codigo_proveedor);
+            $nombreProv = $prov->nombre ?? $prov->usuario ?? $row->codigo_proveedor;
 
             return [
                 'codigo' => $row->codigo_proveedor,
-                'nombre' => $prov->nombre ?? $prov->usuario ?? $row->codigo_proveedor,
+                'nombre' => $nombreProv,
                 'correo' => $prov->correo ?? null,
                 'telefono' => $prov->telefono ?? null,
                 'facturas' => (int) $row->num_facturas,
                 'monto' => (float) $row->monto_total,
                 'score' => (float) ($prov->score_total ?? 0),
+                'categoria' => $categoriasProv->get($nombreProv, '—'),
+                'ultima_hora' => $row->ultima_factura ? \Carbon\Carbon::parse($row->ultima_factura)->format('h:i a') : '—',
             ];
         })->values()->all();
     }

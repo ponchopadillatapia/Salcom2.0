@@ -90,7 +90,7 @@
         <span class="filter-label" id="filterLabel">Mostrando: Todos</span>
     </div>
     <table class="tbl">
-        <thead><tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Proveedor</th><th>Precio</th><th>Stock</th><th>Nivel</th><th>Estado</th></tr></thead>
+        <thead><tr><th>Código</th><th>Nombre</th><th>Categoría</th><th>Proveedor</th><th>Precio</th><th>Stock</th><th>Estado</th></tr></thead>
         <tbody>
         @php $maxStock = $productos->max('stock') ?: 1; @endphp
         @foreach($productos as $p)
@@ -116,7 +116,6 @@
                 </td>
                 <td style="font-variant-numeric:tabular-nums">${{ number_format($p->precio, 2) }}</td>
                 <td style="font-weight:700">{{ number_format($p->stock) }}</td>
-                <td><div class="stock-bar"><div class="stock-fill" style="width:{{ $pct }}%;background:{{ $barColor }}"></div></div></td>
                 <td><span class="badge-stock {{ $cls }}">{{ $lbl }}</span></td>
             </tr>
         @endforeach

@@ -3,7 +3,7 @@
 @section('hero')
 <div class="hero-band">
     <h1>Negocio</h1>
-    <p>Ventas y facturación por proveedor</p>
+    <p>Compras y adeudos con proveedores</p>
 </div>
 @endsection
 @push('styles')
@@ -24,19 +24,20 @@
 
     .neg-detail{display:none;margin-bottom:20px}
     .neg-detail.active{display:block}
-    .section-meta{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:12px 18px;margin-bottom:14px;font-size:13px;color:var(--gray-muted)}
-    .section-meta strong{color:var(--gray-text);font-weight:600}
+    .section-meta{background:var(--white);border:1px solid var(--border-light);border-radius:12px;padding:14px 20px;margin-bottom:14px;font-size:13px;color:var(--gray-muted);display:flex;align-items:center;gap:8px}
+    .section-meta strong{color:var(--purple);font-weight:700}
 
-    .admin-table-wrap{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .admin-table-wrap{background:var(--white);border:1px solid var(--border-light);border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.03)}
     .admin-table{width:100%;border-collapse:collapse}
-    .admin-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px;padding:12px 16px;text-align:left;background:var(--gray-soft);border-bottom:1px solid var(--border)}
+    .admin-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px;padding:14px 18px;text-align:left;border-bottom:2px solid var(--purple-light);background:var(--white)}
     .admin-table th.num{text-align:right}
-    .admin-table td{padding:12px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border)}
+    .admin-table td{padding:14px 18px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border-light)}
     .admin-table td.num{text-align:right;font-variant-numeric:tabular-nums}
     .admin-table tr:last-child td{border-bottom:none}
+    .admin-table tbody tr{transition:background .12s}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
-    .admin-table tfoot td{font-weight:700;background:var(--gray-soft);border-top:2px solid var(--border)}
-    .code-col{font-weight:700;color:var(--purple)}
+    .admin-table tfoot td{font-weight:700;background:var(--purple-subtle);border-top:2px solid var(--purple-light);color:var(--purple);font-size:13px}
+    .code-col{font-weight:700;color:var(--purple);font-size:12px}
     .name-col{font-weight:600}
     .empty-state{text-align:center;padding:40px 20px;color:var(--gray-muted);font-size:14px;background:var(--white);border:1px solid var(--border);border-radius:12px}
 
@@ -62,19 +63,19 @@
 <div class="kpi-grid anim">
     <button type="button" class="kpi neg-tab-btn" data-tab="deudas" onclick="switchNegocio('deudas', this)">
         <div class="bar" style="background:var(--red)"></div>
-        <div class="kpi-label">Deudas <span class="kpi-count">{{ $deudasCount }}</span></div>
+        <div class="kpi-label">Adeudos <span class="kpi-count">{{ $deudasCount }}</span></div>
         <div class="kpi-val">${{ number_format($deudasTotal, 0) }}</div>
         <div class="kpi-sub">{{ count($proveedoresDeudas) }} proveedor{{ count($proveedoresDeudas) !== 1 ? 'es' : '' }} con adeudo</div>
     </button>
     <button type="button" class="kpi neg-tab-btn" data-tab="ventas" onclick="switchNegocio('ventas', this)">
         <div class="bar" style="background:var(--green)"></div>
-        <div class="kpi-label">Ventas totales <span class="kpi-count">{{ $ventasCount }}</span></div>
+        <div class="kpi-label">Compras totales <span class="kpi-count">{{ $ventasCount }}</span></div>
         <div class="kpi-val">${{ number_format($ventasTotales, 0) }}</div>
         <div class="kpi-sub">{{ count($proveedoresVentas) }} proveedor{{ count($proveedoresVentas) !== 1 ? 'es' : '' }}</div>
     </button>
     <button type="button" class="kpi neg-tab-btn" data-tab="cobrado" onclick="switchNegocio('cobrado', this)">
         <div class="bar" style="background:var(--purple)"></div>
-        <div class="kpi-label">Cobrado <span class="kpi-count">{{ $cobradoCount }}</span></div>
+        <div class="kpi-label">Pagado <span class="kpi-count">{{ $cobradoCount }}</span></div>
         <div class="kpi-val">${{ number_format($cobradoTotal, 0) }}</div>
         <div class="kpi-sub">{{ count($proveedoresCobrado) }} proveedor{{ count($proveedoresCobrado) !== 1 ? 'es' : '' }} pagados</div>
     </button>
@@ -82,9 +83,9 @@
 
 @php
     $paneles = [
-        'ventas' => ['label' => 'Ventas totales', 'lista' => $proveedoresVentas, 'desc' => 'Ventas por proveedor (facturas sin cancelar)'],
-        'deudas' => ['label' => 'Deudas', 'lista' => $proveedoresDeudas, 'desc' => 'Facturas pendientes de pago a proveedores'],
-        'cobrado' => ['label' => 'Cobrado', 'lista' => $proveedoresCobrado, 'desc' => 'Facturas pagadas a proveedores'],
+        'ventas' => ['label' => 'Compras totales', 'lista' => $proveedoresVentas, 'desc' => 'Compras a proveedores (facturas sin cancelar)'],
+        'deudas' => ['label' => 'Adeudos', 'lista' => $proveedoresDeudas, 'desc' => 'Facturas pendientes de pago a proveedores'],
+        'cobrado' => ['label' => 'Pagado', 'lista' => $proveedoresCobrado, 'desc' => 'Facturas ya pagadas a proveedores'],
     ];
 @endphp
 
@@ -100,9 +101,11 @@
                 <tr>
                     <th>Código</th>
                     <th>Proveedor</th>
+                    <th>Categoría</th>
                     <th class="num">Score</th>
                     <th class="num">Facturas</th>
                     <th class="num">Monto</th>
+                    <th>Hora</th>
                     <th></th>
                 </tr>
             </thead>
@@ -117,6 +120,7 @@
                            data-telefono="{{ $prov['telefono'] ?? '' }}" 
                            data-codigo="{{ $prov['codigo'] ?? '' }}">{{ $prov['nombre'] }}</a>
                     </td>
+                    <td style="font-size:12px;color:var(--gray-muted);font-weight:600;">{{ $prov['categoria'] ?? '—' }}</td>
                     <td class="num">
                         @php
                             $scoreVal = $prov['score'] > 0 ? number_format($prov['score'], 0) : 0;
@@ -130,6 +134,7 @@
                     </td>
                     <td class="num">{{ $prov['facturas'] }}</td>
                     <td class="num">${{ number_format($prov['monto'], 2) }}</td>
+                    <td style="font-size:11px;color:var(--gray-muted);white-space:nowrap;">{{ $prov['ultima_hora'] ?? '—' }}</td>
                     <td>
                         @if($prov['codigo'])
                         <a href="{{ route('admin.proveedor-facturas', $prov['codigo']) }}" style="font-size:12px;font-weight:600;color:var(--purple);text-decoration:none;">Ver facturas →</a>
@@ -140,9 +145,10 @@
             </tbody>
             <tfoot>
                 <tr>
-                    <td colspan="3">Total ({{ count($panel['lista']) }} proveedores)</td>
+                    <td colspan="4">Total ({{ count($panel['lista']) }} proveedores)</td>
                     <td class="num">{{ collect($panel['lista'])->sum('facturas') }}</td>
                     <td class="num">${{ number_format(collect($panel['lista'])->sum('monto'), 2) }}</td>
+                    <td></td>
                     <td></td>
                 </tr>
             </tfoot>

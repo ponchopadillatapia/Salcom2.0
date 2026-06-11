@@ -85,20 +85,18 @@
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
             <h4>Negocio</h4>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Ventas del mes</div>
+                <div class="pp-negocio-label">Compras del mes</div>
                 <div class="pp-negocio-value" style="color:var(--green);font-size:20px;">
                     ${{ number_format($ventasMesActual, 0) }}
-                    @if($ventasVarPct !== null)<span class="pp-variation {{ $ventasVarPct > 0 ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $ventasVarPct > 0 ? '↑' : '↓' }} {{ $ventasVarPct > 0 ? '+' : '' }}{{ $ventasVarPct }}%</span>@endif
                 </div>
             </div>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Facturas proveedor</div>
+                <div class="pp-negocio-label">Facturas recibidas</div>
                 <div class="pp-negocio-value" style="font-size:20px;">
                     {{ $facturasProvMesActual }}
-                    @if($facturasProvVarPct !== null)<span class="pp-variation {{ $facturasProvVarPct > 0 ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $facturasProvVarPct > 0 ? '↑' : '↓' }} {{ $facturasProvVarPct > 0 ? '+' : '' }}{{ $facturasProvVarPct }}%</span>@endif
                 </div>
             </div>
-            <div class="pp-negocio-sub">Acumulado proveedores: ${{ number_format($ventasTotales, 0) }}</div>
+            <div class="pp-negocio-sub">Adeudo total proveedores: ${{ number_format($ventasTotales, 0) }}</div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
@@ -124,8 +122,7 @@
             </div>
             <div class="pp-negocio-sub">
                 <span style="color:var(--amber);">●</span> {{ $stockBajo }} bajo &nbsp;
-                <span style="color:var(--green);">●</span> {{ $stockOk }} OK &nbsp;
-                Salud: {{ number_format($saludPct, 0) }}%
+                <span style="color:var(--green);">●</span> {{ $stockOk }} OK
             </div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
@@ -223,12 +220,6 @@
             </div>
             <div><div class="pp-quick-title">Reportes</div><div class="pp-quick-sub">Análisis de proveedores</div></div>
         </a>
-        <a href="{{ route('admin.otif') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </div>
-            <div><div class="pp-quick-title">OTIF</div><div class="pp-quick-sub">On Time In Full</div></div>
-        </a>
         <a href="{{ route('admin.gestion-compras') }}" class="pp-card pp-quick-card">
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5z"/><path d="M6 9.01V9"/></svg>
@@ -240,12 +231,6 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <div><div class="pp-quick-title">Clientes</div><div class="pp-quick-sub">Gestión de cuentas</div></div>
-        </a>
-        <a href="{{ route('admin.encuestas') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-            </div>
-            <div><div class="pp-quick-title">Encuestas</div><div class="pp-quick-sub">Satisfacción</div></div>
         </a>
         <a href="{{ route('admin.alta-producto') }}" class="pp-card pp-quick-card">
             <div class="pp-quick-icon">

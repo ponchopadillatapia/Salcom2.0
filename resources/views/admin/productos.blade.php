@@ -250,7 +250,6 @@
                     <th>Precio</th>
                     <th>Unidad</th>
                     <th>Stock</th>
-                    <th>Nivel</th>
                     <th>Proveedor</th>
                     <th>Hora alta</th>
                 </tr>
@@ -267,7 +266,7 @@
                 @endphp
                 @if($currentDate !== $lastDate)
                     <tr class="date-row">
-                        <td colspan="9">{{ $p->created_at ? $p->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}</td>
+                    <td colspan="8">{{ $p->created_at ? $p->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}</td>
                     </tr>
                     @php $lastDate = $currentDate; @endphp
                 @endif
@@ -277,11 +276,7 @@
                     <td style="color:var(--gray-muted)">{{ $p->categoria ?: '—' }}</td>
                     <td style="font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">${{ number_format($p->precio, 2) }}</td>
                     <td>{{ $p->unidad_venta }}</td>
-                    <td>
-                        <div class="stock-bar"><div class="stock-fill" style="width:{{ $stockPct }}%;background:{{ $barColor }}"></div></div>
-                        <span style="font-weight:700;font-variant-numeric:tabular-nums">{{ number_format($p->stock) }}</span>
-                    </td>
-                    <td><span class="badge-stock {{ $stockClass }}">{{ $stockLabel }}</span></td>
+                    <td style="font-weight:700;font-variant-numeric:tabular-nums">{{ number_format($p->stock) }}</td>
                     <td style="font-size:12px;">
                         @if($p->proveedor_tipo === 'admin')
                             <span style="color:var(--purple);font-weight:600;">{{ $p->proveedor_nombre }}</span>
