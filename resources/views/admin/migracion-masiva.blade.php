@@ -92,7 +92,7 @@
         <div style="display:flex;flex-direction:column;gap:12px;">
             <div style="display:flex;align-items:flex-start;gap:12px;font-size:13px;">
                 <div style="width:28px;height:28px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">1</div>
-                <div style="padding-top:4px;color:var(--gray-text);"><strong style="display:block;margin-bottom:2px;">Sube el Excel del sistema viejo</strong>El archivo con los ~3,000 productos tal cual están hoy.</div>
+                <div style="padding-top:4px;color:var(--gray-text);"><strong style="display:block;margin-bottom:2px;">Sube el Excel del sistema viejo</strong>Copia las filas del Excel bruto de la BD a un Excel en blanco y súbelo aquí (máx 500 filas).</div>
             </div>
             <div style="display:flex;align-items:flex-start;gap:12px;font-size:13px;">
                 <div style="width:28px;height:28px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">2</div>
@@ -117,9 +117,10 @@
         <div style="background:var(--gray-soft);border-radius:10px;padding:16px;margin-top:20px;">
             <h4 style="font-size:12px;font-weight:700;color:var(--gray-text);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;">Notas importantes</h4>
             <ul style="list-style:none;padding:0;margin:0;font-size:12px;color:var(--gray-muted);">
-                <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> El proceso corre en segundo plano — puedes cerrar la pestaña</li>
-                <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> Los lotes con error se pueden reprocesar</li>
-                <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> El Excel de resultados estará disponible al terminar</li>
+                <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> Copia filas del Excel bruto de la BD a un Excel en blanco y súbelo</li>
+                <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> Incluye la fila de headers (ItemCode, ItemName, etc.) como primera fila</li>
+                <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> No dejes filas vacías entre los datos</li>
+                <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> Máximo 500 filas por archivo</li>
                 <li style="padding:4px 0;display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--purple);flex-shrink:0;"></span> Formatos aceptados: .xlsx, .xls, .csv (máx 20MB)</li>
             </ul>
         </div>
@@ -128,6 +129,9 @@
     {{-- Upload --}}
     <div class="migracion-card">
         <h3>Subir Excel del sistema viejo</h3>
+
+        {{-- Botón descargar template eliminado - el admin copia directo del Excel bruto --}}
+
         <form method="POST" action="{{ route('admin.migracion-masiva.subir') }}" enctype="multipart/form-data" id="formMigracion">
             @csrf
             <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
@@ -135,11 +139,13 @@
                     <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 </div>
                 <div style="font-size:14px;font-weight:600;color:var(--gray-text);margin-top:8px;">Arrastra tu Excel aquí o haz clic</div>
-                <div style="font-size:12px;color:var(--gray-muted);margin-top:4px;">Formatos: .xlsx, .xls, .csv · Máximo 20MB</div>
+                <div style="font-size:12px;color:var(--gray-muted);margin-top:4px;">Formatos: .xlsx, .xls, .csv · Máximo 20MB · Máximo 500 filas</div>
                 <div id="fileName" style="margin-top:8px;font-size:12px;color:var(--purple);font-weight:600;display:none;"></div>
             </div>
             <input type="file" name="excel" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="showFileName(this)">
-            <button type="submit" class="btn-upload" id="btnUpload" disabled>
+            <input type="hidden" name="modo" id="modoInput" value="completo">
+
+            <button type="submit" class="btn-upload" id="btnPrueba" disabled>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 Iniciar Migración
             </button>
@@ -200,7 +206,8 @@ function showFileName(input) {
     if (name) {
         document.getElementById('fileName').textContent = name;
         document.getElementById('fileName').style.display = 'block';
-        document.getElementById('btnUpload').disabled = false;
+        document.getElementById('btnPrueba').disabled = false;
+        document.getElementById('btnCompleto').disabled = false;
     }
 }
 

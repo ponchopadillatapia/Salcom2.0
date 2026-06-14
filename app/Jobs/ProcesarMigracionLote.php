@@ -70,6 +70,7 @@ class ProcesarMigracionLote implements ShouldQueue
 
                     Log::info("[MigracionMasiva] Lote {$this->loteNumero} completado: {$procesados} productos procesados");
                 } else {
+                    Log::error("[MigracionMasiva] Respuesta no parseable. Primeros 500 chars: " . substr($resultado['content'] ?? '', 0, 500));
                     $this->marcarLoteConError($migracion, 'Respuesta de IA no parseable');
                 }
             } else {

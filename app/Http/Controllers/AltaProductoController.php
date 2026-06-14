@@ -1676,6 +1676,9 @@ Si todo correcto: {"errores_ia": []}';
      */
     public function subirMigracion(Request $request)
     {
+        // El Excel puede ser muy grande (23,000+ filas) - dar tiempo suficiente para leerlo
+        set_time_limit(300);
+
         $request->validate([
             'excel' => 'required|file|mimes:xlsx,xls,csv|max:20480',
         ]);
@@ -1711,14 +1714,21 @@ Si todo correcto: {"errores_ia": []}';
         $productosParaMigrar = $this->extraerProductosMigracion($productos);
 
         if (empty($productosParaMigrar)) {
-            return back()->with('error', 'No se encontraron columnas reconocibles. El Excel debe tener al menos una columna de código (ItemCode/CODIGO) y una de nombre (ItemName/NOMBRE).');
+            return back()->with('error', 'No se encontraron columnas reconocibles. El Excel debe tener al menos una columna de código (ItemCode/CODIGO) y una de nombre (ItemName/NOMBRE). Descarga el template de migración y pega tus datos ahí.');
+        }
+
+        // Determinar modo: completo (todos los productos del Excel)
+        $totalProductos = count($productosParaMigrar);
+
+        if ($totalProductos > 500) {
+            return back()->with('error', 'El Excel tiene ' . $totalProductos . ' productos. El máximo por archivo es 500. Copia solo 50-500 filas del Excel bruto a un Excel en blanco y sube ese.');
         }
 
         // Obtener admin_id de la sesión
         $adminId = session('admin_id', 1);
 
-        // Dividir en lotes de 50
-        $lotes = array_chunk($productosParaMigrar, 50);
+        // Dividir en lotes de 20 (menos productos por lote = mejor respuesta de la IA)
+        $lotes = array_chunk($productosParaMigrar, 20);
         $totalLotes = count($lotes);
 
         // Crear registro de migración
@@ -1747,9 +1757,9 @@ Si todo correcto: {"errores_ia": []}';
             );
         }
 
-        Log::info("[MigracionMasiva] Iniciada migración #{$migracion->id}: {$migracion->total_productos} productos en {$totalLotes} lotes");
+        Log::info("[MigracionMasiva] Iniciada migración #{$migracion->id}: " . count($productosParaMigrar) . " productos en {$totalLotes} lotes");
 
-        return back()->with('mensaje', "Migración iniciada: {$migracion->total_productos} productos se procesarán en {$totalLotes} lotes. El progreso se actualizará automáticamente.");
+        return back()->with('mensaje', "Migración iniciada: " . count($productosParaMigrar) . " productos se procesarán en {$totalLotes} lotes. El progreso se actualizará automáticamente.");
     }
 
     /**
@@ -1907,5 +1917,81 @@ Si todo correcto: {"errores_ia": []}';
         return response()->download($fullPath, 'Migracion_Resultado_' . $migracion->id . '.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
+    }
+
+    /**
+     * Descargar template de migración con headers del sistema viejo.
+     * Máximo 500 filas para control de la IA.
+     */
+    public function descargarTemplateMigracion()
+    {
+        $spreadsheet = new Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Productos');
+
+        // Headers completos del Excel bruto de SAP (para que solo copien filas sin filtrar columnas)
+        $headers = ['ItemCode', 'ItemName', 'ItemsGroupCode', 'RefCodigoGrupoArticulos', 'NCMCode', 'Refe_Codigo_Articulos_SAT', 'ManageBatchNumbers', 'ManageSerialNumbers', 'PurchaseItem', 'SalesItem', 'InventoryItem', 'BarCode', 'IndirectTax', 'WTLiable', 'VatLiable', 'Mainsupplier', 'PurchaseUnit'];
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col . '1', $header);
+            $sheet->getStyle($col . '1')->getFont()->setBold(true);
+            $sheet->getStyle($col . '1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
+            $sheet->getStyle($col . '1')->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $col++;
+        }
+
+        // Hoja de instrucciones
+        $instrSheet = $spreadsheet->createSheet();
+        $instrSheet->setTitle('Instrucciones');
+        $instrSheet->getColumnDimension('A')->setWidth(80);
+
+        $instrSheet->setCellValue('A1', 'INSTRUCCIONES - MIGRACION MASIVA');
+        $instrSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $instrSheet->getStyle('A1')->getFont()->getColor()->setRGB('6B3FA0');
+
+        $row = 3;
+        $instrucciones = [
+            '=== COMO USAR ESTE TEMPLATE ===',
+            '1. Abre el Excel del sistema viejo (SAP) con los productos',
+            '2. Selecciona de 50 a 500 filas de datos (sin contar el header)',
+            '3. Copia las filas completas (todas las columnas) y pegalas aqui desde la fila 2',
+            '4. Si el Excel bruto tiene mas columnas que este template, no importa: el sistema solo lee las que necesita',
+            '5. Guarda y sube este archivo en la pagina de Migracion Masiva',
+            '6. Espera a que la IA procese y descarga el resultado',
+            '',
+            '=== QUE LEE EL SISTEMA ===',
+            'Solo usa estas columnas (las demas las ignora):',
+            '- ItemCode = Codigo del producto',
+            '- ItemName = Nombre completo (la IA lo separa en tipo, marca, modelo, medida, especificacion)',
+            '- RefCodigoGrupoArticulos = Grupo/categoria (se usa para NOMBRE_MODELO)',
+            '- Refe_Codigo_Articulos_SAT o NCMCode = Clave SAT',
+            '- ManageBatchNumbers = Lote (tYES=SI, tNO=NO)',
+            '- PurchaseUnit = Unidad (XBX=CAJA)',
+            '',
+            '=== IMPORTANTE ===',
+            'NO borres los headers de la fila 1.',
+            'NO dejes filas vacias entre los datos.',
+            'Puedes pegar filas con TODAS las columnas del Excel bruto - el sistema ignora las que no necesita.',
+            'Maximo recomendado: 500 filas por archivo para no saturar la IA.',
+        ];
+
+        foreach ($instrucciones as $texto) {
+            $instrSheet->setCellValue('A' . $row, $texto);
+            if (str_starts_with($texto, '===')) {
+                $instrSheet->getStyle('A' . $row)->getFont()->setBold(true);
+            }
+            $row++;
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), 'migracion_template_');
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, 'Template_Migracion_Masiva.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
     }
 }

@@ -174,6 +174,7 @@ Route::get('/admin/migracion-masiva', [AltaProductoController::class, 'mostrarMi
 Route::post('/admin/migracion-masiva/subir', [AltaProductoController::class, 'subirMigracion'])->name('admin.migracion-masiva.subir')->middleware('auth.admin');
 Route::get('/admin/migracion-masiva/{id}/estado', [AltaProductoController::class, 'estadoMigracion'])->name('admin.migracion-masiva.estado')->middleware('auth.admin');
 Route::get('/admin/migracion-masiva/{id}/descargar', [AltaProductoController::class, 'descargarResultado'])->name('admin.migracion.descargar')->middleware('auth.admin');
+Route::get('/admin/migracion-masiva/template', [AltaProductoController::class, 'descargarTemplateMigracion'])->name('admin.migracion.template')->middleware('auth.admin');
 
 Route::get('/admin/facturas', [AdminPanelController::class, 'facturas'])->name('admin.facturas')->middleware('auth.admin');
 Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel'])->name('admin.facturas.excel')->middleware('auth.admin');
