@@ -20,11 +20,13 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class AltaProductoController extends Controller
 {
-    private array $unidadesValidas = ['KG', 'PZA', 'CAJA'];
+    private array $unidadesValidas = ['SET', 'KG', 'PZA', 'CAJA'];
 
     private array $columnasObligatorias = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO'];
 
     private array $familiasValidas = [
+        'MPI', 'MN', 'ME', 'MP', 'PT',
+        'MATERIA PRIMA DE IMPORTACION', 'MAQUINARIA',
         'QUIMICOS', 'ELECTRICO', 'FERRETERIA', 'MANTENIMIENTO', 'SEGURIDAD',
         'EMPAQUE', 'MATERIA PRIMA', 'CONSUMIBLE', 'LUBRICANTES', 'ADHESIVOS',
         'PINTURAS', 'SOLVENTES', 'RESINAS', 'PIGMENTOS', 'ADITIVOS',
@@ -176,6 +178,8 @@ class AltaProductoController extends Controller
         $listSheet->setCellValue('C1', 'MPI');
         $listSheet->setCellValue('C2', 'ME');
         $listSheet->setCellValue('C3', 'MN');
+        $listSheet->setCellValue('C4', 'MP');
+        $listSheet->setCellValue('C5', 'PT');
         for ($row = 2; $row <= 100; $row++) {
             $validation = $sheet->getCell('H'.$row)->getDataValidation();
             $validation->setType(DataValidation::TYPE_LIST);
@@ -184,8 +188,8 @@ class AltaProductoController extends Controller
             $validation->setShowDropDown(true);
             $validation->setShowErrorMessage(true);
             $validation->setErrorTitle('Tipo de producto no valido');
-            $validation->setError('Valores validos: MPI (Materia Prima Importacion), ME (Material Empaque), MN (Mantenimiento)');
-            $validation->setFormula1('_Listas!$C$1:$C$3');
+            $validation->setError('Valores validos: MPI, ME, MN, MP, PT');
+            $validation->setFormula1('_Listas!$C$1:$C$5');
         }
 
         // Dropdown LOTE (columna L)
@@ -819,6 +823,8 @@ Si todo correcto: {"errores_ia": []}';
         $listSheet->setCellValue('C1', 'MPI');
         $listSheet->setCellValue('C2', 'ME');
         $listSheet->setCellValue('C3', 'MN');
+        $listSheet->setCellValue('C4', 'MP');
+        $listSheet->setCellValue('C5', 'PT');
         $listSheet->setCellValue('D1', 'SI');
         $listSheet->setCellValue('D2', 'NO');
         // Voltajes
@@ -1268,7 +1274,7 @@ Si todo correcto: {"errores_ia": []}';
                 'error' => "Debe estar en MAYUSCULAS. Recibido: '{$tipoProductoRaw}'. COMO CORREGIR: Selecciona del dropdown: MPI, ME o MN",
             ];
         }
-        if ($tipoProductoRaw && ! in_array(strtoupper($tipoProductoRaw), ['MPI', 'ME', 'MN'])) {
+        if ($tipoProductoRaw && ! in_array(strtoupper($tipoProductoRaw), ['MPI', 'ME', 'MN', 'MP', 'PT'])) {
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'TIPO_PRODUCTO',
