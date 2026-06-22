@@ -270,7 +270,7 @@
                     </tr>
                     @php $lastDate = $currentDate; @endphp
                 @endif
-                <tr>
+                <tr data-id="{{ $p->id }}" data-categoria="{{ $p->categoria }}" data-precio="{{ $p->precio }}" data-unidad="{{ $p->unidad_venta }}" data-stock="{{ $p->stock }}" style="cursor:pointer" onclick="abrirEditor(this)">
                     <td style="font-weight:700;color:var(--purple)">{{ $p->codigo }}</td>
                     <td style="font-weight:600">{{ $p->nombre }}</td>
                     <td style="color:var(--gray-muted)">{{ $p->categoria ?: '—' }}</td>
@@ -305,33 +305,126 @@
     </div>
     @endif
 </div>
+
+{{-- Modal de edición rápida --}}
+<div class="edit-modal-overlay" id="editModal" onclick="if(event.target===this)cerrarEditor()">
+    <div class="edit-modal">
+        <h3>Editar producto</h3>
+        <div class="edit-subtitle"><span id="editCodigo"></span> — <span id="editNombre"></span></div>
+        <input type="hidden" id="editId">
+        <div class="edit-field">
+            <label>Categoría</label>
+            <select id="editCategoria">
+                <option value="">Sin categoría</option>
+                <option value="MPI">MPI</option>
+                <option value="ME">ME</option>
+                <option value="MN">MN</option>
+            </select>
+        </div>
+        <div class="edit-field">
+            <label>Precio</label>
+            <input type="number" id="editPrecio" step="0.01" min="0" placeholder="0.00">
+        </div>
+        <div class="edit-field">
+            <label>Unidad de medida</label>
+            <select id="editUnidad">
+                <option value="">—</option>
+                <option value="KG">KG</option>
+                <option value="PZA">PZA</option>
+                <option value="CAJA">CAJA</option>
+            </select>
+        </div>
+        <div class="edit-field">
+            <label>Stock</label>
+            <input type="number" id="editStock" min="0" placeholder="0">
+        </div>
+        <div class="edit-actions">
+            <button class="btn-cancel" onclick="cerrarEditor()">Cancelar</button>
+            <button class="btn-save" onclick="guardarProducto()">Guardar</button>
+        </div>
+    </div>
+</div>
 @endsection
+@push('styles')
+<style>
+    .edit-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+    .edit-modal{background:#fff;border-radius:16px;padding:28px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+    .edit-modal h3{font-size:16px;font-weight:700;color:var(--gray-text);margin-bottom:4px}
+    .edit-modal .edit-subtitle{font-size:12px;color:var(--gray-muted);margin-bottom:20px}
+    .edit-field{margin-bottom:14px}
+    .edit-field label{display:block;font-size:11px;font-weight:600;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+    .edit-field input,.edit-field select{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;color:var(--gray-text);outline:none}
+    .edit-field input:focus,.edit-field select:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(107,63,160,.1)}
+    .edit-actions{display:flex;gap:10px;margin-top:20px}
+    .edit-actions .btn-save{flex:1;padding:10px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+    .edit-actions .btn-save:hover{background:var(--purple-dark)}
+    .edit-actions .btn-cancel{flex:1;padding:10px;background:var(--gray-soft);color:var(--gray-text);border:1px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+</style>
+@endpush
 @push('scripts')
 <script>
+function abrirEditor(row) {
+    const modal = document.getElementById('editModal');
+    document.getElementById('editId').value = row.dataset.id;
+    document.getElementById('editCategoria').value = row.dataset.categoria || '';
+    document.getElementById('editPrecio').value = row.dataset.precio || '0';
+    document.getElementById('editUnidad').value = row.dataset.unidad || '';
+    document.getElementById('editStock').value = row.dataset.stock || '0';
+    document.getElementById('editCodigo').textContent = row.cells[0].textContent;
+    document.getElementById('editNombre').textContent = row.cells[1].textContent;
+    modal.style.display = 'flex';
+}
+
+function cerrarEditor() {
+    document.getElementById('editModal').style.display = 'none';
+}
+
+function guardarProducto() {
+    const id = document.getElementById('editId').value;
+    const data = {
+        categoria: document.getElementById('editCategoria').value,
+        precio: document.getElementById('editPrecio').value,
+        unidad_venta: document.getElementById('editUnidad').value,
+        stock: document.getElementById('editStock').value,
+    };
+
+    fetch(`/admin/productos/${id}/actualizar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            cerrarEditor();
+            location.reload();
+        }
+    })
+    .catch(err => alert('Error al guardar'));
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.querySelector('input[name="busqueda"]');
     const form = searchInput.closest('form');
     let debounceTimer = null;
 
-    // Búsqueda automática: al escribir 3+ caracteres, envía el formulario
     searchInput.addEventListener('input', function() {
         clearTimeout(debounceTimer);
         const val = this.value.trim();
-
         if (val.length >= 3 || val.length === 0) {
-            debounceTimer = setTimeout(function() {
-                form.submit();
-            }, 500);
+            debounceTimer = setTimeout(function() { form.submit(); }, 500);
         }
     });
 
-    // Los selects también filtran automáticamente al cambiar
     const selects = form.querySelectorAll('select');
     selects.forEach(function(sel) {
-        sel.addEventListener('change', function() {
-            form.submit();
-        });
+        sel.addEventListener('change', function() { form.submit(); });
     });
+
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarEditor(); });
 });
 </script>
 @endpush

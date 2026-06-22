@@ -787,6 +787,27 @@ class AdminPanelController extends Controller
         return $this->csvResponse($lines, 'Productos_'.now()->format('Y-m-d').'.csv');
     }
 
+    /**
+     * Actualizar producto (categoría, precio, unidad, stock) via AJAX.
+     */
+    public function actualizarProducto(Request $request, $id)
+    {
+        $producto = \App\Models\Producto::findOrFail($id);
+
+        $campos = $request->only(['categoria', 'precio', 'unidad_venta', 'stock']);
+
+        if (isset($campos['precio'])) {
+            $campos['precio'] = (float) str_replace(['$', ','], '', $campos['precio']);
+        }
+        if (isset($campos['stock'])) {
+            $campos['stock'] = (int) $campos['stock'];
+        }
+
+        $producto->update($campos);
+
+        return response()->json(['success' => true, 'mensaje' => 'Producto actualizado']);
+    }
+
     public function productos(Request $request)
     {
         $stockOpciones = $this->stockOpcionesProductos();
