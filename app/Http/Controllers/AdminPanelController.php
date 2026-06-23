@@ -808,6 +808,26 @@ class AdminPanelController extends Controller
         return response()->json(['success' => true, 'mensaje' => 'Producto actualizado']);
     }
 
+    /**
+     * Borrar producto via AJAX.
+     */
+    public function borrarProducto($id)
+    {
+        $producto = \App\Models\Producto::findOrFail($id);
+        $producto->delete();
+
+        return response()->json(['success' => true, 'mensaje' => 'Producto eliminado']);
+    }
+
+    /**
+     * Vista detalle de un producto con todas sus especificaciones.
+     */
+    public function productoDetalle($id)
+    {
+        $producto = \App\Models\Producto::findOrFail($id);
+        return view('admin.producto-detalle', compact('producto'));
+    }
+
     public function productos(Request $request)
     {
         $stockOpciones = $this->stockOpcionesProductos();

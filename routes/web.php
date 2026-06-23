@@ -164,6 +164,8 @@ Route::get('/admin/proveedores/facturas-pendientes/excel', [AdminPanelController
 Route::get('/admin/productos', [AdminPanelController::class, 'productos'])->name('admin.productos')->middleware('auth.admin');
 Route::get('/admin/productos/excel', [AdminPanelController::class, 'productosExcel'])->name('admin.productos.excel')->middleware('auth.admin');
 Route::post('/admin/productos/{id}/actualizar', [AdminPanelController::class, 'actualizarProducto'])->name('admin.productos.actualizar')->middleware('auth.admin');
+Route::post('/admin/productos/{id}/borrar', [AdminPanelController::class, 'borrarProducto'])->name('admin.productos.borrar')->middleware('auth.admin');
+Route::get('/admin/productos/{id}/detalle', [AdminPanelController::class, 'productoDetalle'])->name('admin.productos.detalle')->middleware('auth.admin');
 
 // ── Admin: Alta de Producto (compras + mantenimiento) ──
 Route::get('/admin/alta-producto', [AltaProductoController::class, 'mostrarAltaProductoAdmin'])->name('admin.alta-producto')->middleware('auth.admin');

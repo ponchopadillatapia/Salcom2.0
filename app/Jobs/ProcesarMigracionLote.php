@@ -102,9 +102,9 @@ Tu trabajo: Tomar el NOMBRE completo de cada producto (que viene del sistema vie
 CAMPOS A LLENAR:
 - NOMBRE_TIPO: Que ES el producto (ej: ABRILLANTADOR DE MUEBLES, LUSTRADOR DE MUEBLES, AIR FRESHENER, LIMPIADOR MULTIUSOS)
 - NOMBRE_MARCA: La MARCA (ej: WIESE, SELECTO, GREAT VALUE, JAZZEE, SURE SCENTS, GV, GLAMOUROSO, VECTAIR, ANGEL OF MINE)
-- NOMBRE_MODELO: Se llena con el GRUPO del sistema viejo (la parte despues del guion, en mayusculas). Ejemplos: Si GRUPO es '32-Abrillantador 8oz' -> NOMBRE_MODELO = 'ABRILLANTADOR 8OZ'. Si GRUPO es '59-Accesorios Plásticos' -> NOMBRE_MODELO = 'ACCESORIOS PLASTICOS'. Si GRUPO es '53-Aerosol 10oz' -> NOMBRE_MODELO = 'AEROSOL 10OZ'. Si ademas el nombre tiene un codigo numerico (ej: 20012420), ponerlo ANTES: '20012420 ABRILLANTADOR 8OZ'. Si el nombre tiene codigo pero no hay grupo, solo el codigo: '20012420'.
-- NOMBRE_MEDIDA: Peso/volumen/tamano con NUMEROS (ej: 323G, 226G, 400ML, 10OZ, 355G, 102.9G). Incluir C/12, C/6 si es presentacion. Si dice 12pieces o 12pcs, convertir a C/12. Si dice 6 pcs, convertir a C/6.
-- NOMBRE_ESPECIFICACION: Aroma, color o detalle adicional (ej: NARANJA, LIMON, COTTON BREEZE, BABY, LIGHT GREY)
+- NOMBRE_MODELO: Se llena con el GRUPO del sistema viejo (la parte despues del guion, en mayusculas). Ejemplos: Si GRUPO es '32-Abrillantador 8oz' -> NOMBRE_MODELO = 'ABRILLANTADOR 8OZ'. Si GRUPO es '59-Accesorios Plásticos' -> NOMBRE_MODELO = 'ACCESORIOS PLASTICOS'. Si GRUPO es '53-Aerosol 10oz' -> NOMBRE_MODELO = 'AEROSOL 10OZ'. Si ademas el nombre tiene un codigo numerico (ej: 20012420), ponerlo ANTES: '20012420 ABRILLANTADOR 8OZ'. Si el nombre tiene codigo pero no hay grupo, solo el codigo: '20012420'. Si no hay grupo NI codigo, dejar VACIO.
+- NOMBRE_MEDIDA: Peso/volumen/tamano con NUMEROS (ej: 323G, 226G, 400ML, 10OZ, 355G, 102.9G). Incluir C/12, C/6 si es presentacion. Si dice 12pieces o 12pcs, convertir a C/12. Si dice 6 pcs, convertir a C/6. Si NO hay medida clara en el nombre, dejar VACIO. NO inventar medidas.
+- NOMBRE_ESPECIFICACION: Aroma, color o detalle adicional (ej: NARANJA, LIMON, COTTON BREEZE, BABY, LIGHT GREY). Si no hay especificacion clara, dejar VACIO. NO inventar.
 - FAMILIA: DEBE ser una de estas opciones EXACTAS: QUIMICOS, ELECTRICO, FERRETERIA, MANTENIMIENTO, SEGURIDAD, EMPAQUE, MATERIA PRIMA, CONSUMIBLE, LUBRICANTES, ADHESIVOS, PINTURAS, SOLVENTES, RESINAS, PIGMENTOS, ADITIVOS, AEROSOLES, INSECTICIDAS, LIMPIEZA, HERRAMIENTAS, REFACCIONES, MOTORES, BOMBAS, VALVULAS, TUBERIAS, TORNILLERIA, MATERIAL EMPAQUE, PRODUCTO TERMINADO, INSUMOS. Elige la mas cercana al producto. Para aerosoles/abrillantadores/air freshener usa AEROSOLES. Para accesorios plasticos/envases usa EMPAQUE. NO copiar el grupo viejo tal cual.
 - TIPO_PRODUCTO: MPI (Materia Prima Importacion), ME (Material Empaque), MN (Mantenimiento). Si es limpieza/aerosol/quimico = MN, si es empaque/envase/accesorio = ME, si es materia prima = MPI. Por default MN.
 
@@ -112,8 +112,10 @@ REGLAS:
 - Todo en MAYUSCULAS
 - Si el nombre empieza con un numero largo (ej: 20012420), ese codigo va al INICIO de NOMBRE_MODELO seguido del grupo
 - C/12, C/6 Pzas, etc. van en NOMBRE_MEDIDA (es la presentacion)
-- NOMBRE_MODELO SIEMPRE se llena con el grupo del sistema viejo. Nunca dejarlo vacio.
+- NOMBRE_MODELO SIEMPRE se llena con el grupo del sistema viejo. Si no hay grupo, dejarlo vacio.
+- NUNCA INVENTAR DATOS. Si no encuentras un dato claro en el nombre original, deja el campo VACIO
 - Si no hay especificacion clara, dejar NOMBRE_ESPECIFICACION vacio
+- Si no hay medida con numeros, dejar NOMBRE_MEDIDA vacio
 - NO incluir UNIDAD_MEDIDA, CLAVE_SAT ni LOTE en tu respuesta (el sistema los llena automaticamente)
 - Solo responde: codigo, NOMBRE_TIPO, NOMBRE_MARCA, NOMBRE_MODELO, NOMBRE_MEDIDA, NOMBRE_ESPECIFICACION, FAMILIA, TIPO_PRODUCTO
 

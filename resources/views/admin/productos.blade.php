@@ -252,6 +252,7 @@
                     <th>Stock</th>
                     <th>Proveedor</th>
                     <th>Hora alta</th>
+                    <th style="width:40px"></th>
                 </tr>
             </thead>
             <tbody>
@@ -266,12 +267,12 @@
                 @endphp
                 @if($currentDate !== $lastDate)
                     <tr class="date-row">
-                    <td colspan="8">{{ $p->created_at ? $p->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}</td>
+                    <td colspan="9">{{ $p->created_at ? $p->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}</td>
                     </tr>
                     @php $lastDate = $currentDate; @endphp
                 @endif
                 <tr data-id="{{ $p->id }}" data-categoria="{{ $p->categoria }}" data-precio="{{ $p->precio }}" data-unidad="{{ $p->unidad_venta }}" data-stock="{{ $p->stock }}" style="cursor:pointer" onclick="abrirEditor(this)">
-                    <td style="font-weight:700;color:var(--purple)">{{ $p->codigo }}</td>
+                    <td onclick="event.stopPropagation()"><a href="{{ route('admin.productos.detalle', $p->id) }}" style="font-weight:700;color:var(--purple);text-decoration:none;">{{ $p->codigo }}</a></td>
                     <td style="font-weight:600">{{ $p->nombre }}</td>
                     <td style="color:var(--gray-muted)">{{ $p->categoria ?: '—' }}</td>
                     <td style="font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">${{ number_format($p->precio, 2) }}</td>
@@ -287,6 +288,11 @@
                         @endif
                     </td>
                     <td style="font-size:11px;color:var(--gray-muted);white-space:nowrap">{{ $p->created_at ? $p->created_at->format('h:i a') : '—' }}</td>
+                    <td style="text-align:center" onclick="event.stopPropagation()">
+                        <button onclick="borrarProducto({{ $p->id }}, '{{ $p->codigo }}')" style="background:none;border:none;cursor:pointer;color:var(--red);opacity:.6;transition:.15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        </button>
+                    </td>
                 </tr>
             @endforeach
             </tbody>
@@ -404,6 +410,24 @@ function guardarProducto() {
         }
     })
     .catch(err => alert('Error al guardar'));
+}
+
+function borrarProducto(id, codigo) {
+    if (!confirm('¿Eliminar producto ' + codigo + '? Esta acción no se puede deshacer.')) return;
+
+    fetch(`/admin/productos/${id}/borrar`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        }
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) location.reload();
+        else alert(res.mensaje || 'Error al borrar');
+    })
+    .catch(err => alert('Error al borrar'));
 }
 
 document.addEventListener('DOMContentLoaded', function() {
