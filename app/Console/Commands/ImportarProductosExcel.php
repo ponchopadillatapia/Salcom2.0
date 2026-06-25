@@ -123,27 +123,33 @@ class ImportarProductosExcel extends Command
                 $familia = $this->extraerFamilia($grupo);
 
                 if (!$dryRun) {
-                    $producto = Producto::updateOrCreate(
-                        ['codigo' => $codigo],
-                        [
-                            'nombre' => $nombre,
-                            'categoria' => $tipoProducto,
-                            'familia' => $familia,
-                            'tipo_producto' => $tipoProducto,
-                            'unidad_venta' => $unidad,
-                            'clave_sat' => $claveSat,
-                            'maneja_lotes' => $lote,
-                            'precio' => 0,
-                            'stock' => 0,
-                            'activo' => true,
-                            'proveedor_nombre' => 'Sistema (migración)',
-                            'proveedor_tipo' => 'admin',
-                        ]
-                    );
+                    try {
+                        $producto = Producto::withTrashed()->updateOrCreate(
+                            ['codigo' => $codigo],
+                            [
+                                'nombre' => $nombre,
+                                'categoria' => $tipoProducto,
+                                'familia' => $familia,
+                                'tipo_producto' => $tipoProducto,
+                                'unidad_venta' => $unidad,
+                                'clave_sat' => $claveSat,
+                                'maneja_lotes' => $lote,
+                                'precio' => 0,
+                                'stock' => 0,
+                                'activo' => true,
+                                'deleted_at' => null,
+                                'proveedor_nombre' => 'Sistema (migración)',
+                                'proveedor_tipo' => 'admin',
+                            ]
+                        );
 
-                    if ($producto->wasRecentlyCreated) {
-                        $insertados++;
-                    } else {
+                        if ($producto->wasRecentlyCreated) {
+                            $insertados++;
+                        } else {
+                            $actualizados++;
+                        }
+                    } catch (\Exception $e) {
+                        // Skip duplicates
                         $actualizados++;
                     }
                 } else {
