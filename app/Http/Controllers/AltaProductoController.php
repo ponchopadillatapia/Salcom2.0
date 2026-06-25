@@ -20,7 +20,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class AltaProductoController extends Controller
 {
-    private array $unidadesValidas = ['SET', 'KG', 'PZA', 'CAJA'];
+    private array $unidadesValidas = ['PZA', 'CAJA', 'SET', 'KG', 'TONELADA', 'METRO', 'LITRO', 'PAR', 'PACK', 'CUBETA', 'TIRA', 'NA'];
 
     private array $columnasObligatorias = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO'];
 

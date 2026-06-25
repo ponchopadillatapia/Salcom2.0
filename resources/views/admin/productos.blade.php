@@ -106,34 +106,10 @@
     $saludBg = $saludPct >= 70 ? 'var(--green-bg)' : ($saludPct >= 40 ? 'var(--amber-bg)' : 'var(--red-bg)');
 @endphp
 
-<div class="adm-summary anim">
+<div class="adm-summary anim" style="padding:16px 26px;">
     <div class="adm-summary-main">
         <div class="adm-summary-pct">{{ $totalGeneral }}</div>
         <div class="adm-summary-label">Productos en catálogo</div>
-    </div>
-    <div class="adm-summary-metrics">
-        <div>
-            <div class="adm-metric-label">Activos</div>
-            <div class="adm-metric-val" style="color:var(--green)">{{ $conteoActivos }}</div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Críticos (agotado + bajo)</div>
-            <div class="adm-metric-val" style="color:{{ $conteoCriticos > 0 ? 'var(--red)' : 'var(--green)' }}">{{ $conteoCriticos }}</div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Salud de inventario</div>
-            <div class="adm-metric-val" style="color:{{ $saludColor }}">{{ $saludPct }}%</div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Valor inventario activo</div>
-            <div class="adm-metric-val" style="color:var(--green);font-size:20px">${{ number_format($valorInventario, 0) }}</div>
-        </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-        <div class="adm-summary-badge" style="background:{{ $saludBg }};color:{{ $saludColor }}">
-            {{ $conteoOk }} OK · {{ $conteoBajo }} bajo · {{ $conteoAgotado }} agotados · {{ $totalCategorias }} categorías
-        </div>
-        <a href="{{ route('admin.inventario') }}" class="adm-summary-badge" style="background:var(--purple-subtle);color:var(--purple)">Ver inventario →</a>
     </div>
 </div>
 
@@ -196,6 +172,15 @@
                 </select>
             </div>
             <div class="filter-field">
+                <label>Unidad</label>
+                <select name="unidad">
+                    <option value="">Todas</option>
+                    @foreach(\App\Models\Producto::whereNotNull('unidad_venta')->where('unidad_venta', '!=', '')->distinct()->pluck('unidad_venta')->sort() as $uni)
+                        <option value="{{ $uni }}" {{ ($filtros['unidad'] ?? '') === $uni ? 'selected' : '' }}>{{ $uni }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="filter-field">
                 <label>Fecha desde</label>
                 <input type="date" name="fecha_desde" value="{{ $filtros['fecha_desde'] ?? '' }}">
             </div>
@@ -249,7 +234,6 @@
                     <th>Categoría</th>
                     <th>Precio</th>
                     <th>Unidad</th>
-                    <th>Stock</th>
                     <th>Proveedor</th>
                     <th>Hora alta</th>
                     <th style="width:40px"></th>
@@ -267,7 +251,7 @@
                 @endphp
                 @if($currentDate !== $lastDate)
                     <tr class="date-row">
-                    <td colspan="9">{{ $p->created_at ? $p->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}</td>
+                    <td colspan="7">{{ $p->created_at ? $p->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}</td>
                     </tr>
                     @php $lastDate = $currentDate; @endphp
                 @endif
@@ -277,7 +261,6 @@
                     <td style="color:var(--gray-muted)">{{ $p->categoria ?: '—' }}</td>
                     <td style="font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">${{ number_format($p->precio, 2) }}</td>
                     <td>{{ $p->unidad_venta }}</td>
-                    <td style="font-weight:700;font-variant-numeric:tabular-nums">{{ number_format($p->stock) }}</td>
                     <td style="font-size:12px;">
                         @if($p->proveedor_tipo === 'admin')
                             <span style="color:var(--purple);font-weight:600;">{{ $p->proveedor_nombre }}</span>
@@ -335,14 +318,19 @@
             <label>Unidad de medida</label>
             <select id="editUnidad">
                 <option value="">—</option>
-                <option value="KG">KG</option>
                 <option value="PZA">PZA</option>
                 <option value="CAJA">CAJA</option>
+                <option value="SET">SET</option>
+                <option value="KG">KG</option>
+                <option value="TONELADA">TONELADA</option>
+                <option value="METRO">METRO</option>
+                <option value="LITRO">LITRO</option>
+                <option value="PAR">PAR</option>
+                <option value="PACK">PACK</option>
+                <option value="CUBETA">CUBETA</option>
+                <option value="TIRA">TIRA</option>
+                <option value="NA">NA</option>
             </select>
-        </div>
-        <div class="edit-field">
-            <label>Stock</label>
-            <input type="number" id="editStock" min="0" placeholder="0">
         </div>
         <div class="edit-actions">
             <button class="btn-cancel" onclick="cerrarEditor()">Cancelar</button>
@@ -375,7 +363,6 @@ function abrirEditor(row) {
     document.getElementById('editCategoria').value = row.dataset.categoria || '';
     document.getElementById('editPrecio').value = row.dataset.precio || '0';
     document.getElementById('editUnidad').value = row.dataset.unidad || '';
-    document.getElementById('editStock').value = row.dataset.stock || '0';
     document.getElementById('editCodigo').textContent = row.cells[0].textContent;
     document.getElementById('editNombre').textContent = row.cells[1].textContent;
     modal.style.display = 'flex';
@@ -391,7 +378,6 @@ function guardarProducto() {
         categoria: document.getElementById('editCategoria').value,
         precio: document.getElementById('editPrecio').value,
         unidad_venta: document.getElementById('editUnidad').value,
-        stock: document.getElementById('editStock').value,
     };
 
     fetch(`/admin/productos/${id}/actualizar`, {
@@ -433,20 +419,15 @@ function borrarProducto(id, codigo) {
 document.addEventListener('DOMContentLoaded', function() {
     const searchInput = document.querySelector('input[name="busqueda"]');
     const form = searchInput.closest('form');
-    let debounceTimer = null;
 
-    searchInput.addEventListener('input', function() {
-        clearTimeout(debounceTimer);
-        const val = this.value.trim();
-        if (val.length >= 3 || val.length === 0) {
-            debounceTimer = setTimeout(function() { form.submit(); }, 500);
+    // Solo buscar al presionar Enter en el campo de búsqueda
+    searchInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+            form.submit();
         }
     });
 
-    const selects = form.querySelectorAll('select');
-    selects.forEach(function(sel) {
-        sel.addEventListener('change', function() { form.submit(); });
-    });
+    // Los selects NO filtran automáticamente - solo al presionar "Filtrar"
 
     document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarEditor(); });
 });

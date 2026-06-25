@@ -889,6 +889,7 @@ class AdminPanelController extends Controller
             'categoria' => $categoria,
             'proveedor' => $proveedor,
             'admin' => $request->input('admin', ''),
+            'unidad' => $request->input('unidad', ''),
             'fecha_desde' => $fechaDesde,
             'fecha_hasta' => $fechaHasta,
         ];
@@ -994,6 +995,11 @@ class AdminPanelController extends Controller
         }
         if ($fechaHasta) {
             $query->whereDate('created_at', '<=', $fechaHasta);
+        }
+
+        $unidad = $request->input('unidad', '');
+        if ($unidad) {
+            $query->where('unidad_venta', $unidad);
         }
 
         return $query;
