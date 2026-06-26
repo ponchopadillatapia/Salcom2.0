@@ -222,7 +222,7 @@ class ImportarProductosExcel extends Command
 
         // Inferir del código
         $codigoUpper = strtoupper($codigo);
-        if (str_starts_with($codigoUpper, 'MPI') || str_starts_with($codigoUpper, 'FMPI')) return 'MPI';
+        if (str_starts_with($codigoUpper, 'MPI') || str_starts_with($codigoUpper, 'FMPI') || str_starts_with($codigoUpper, 'EMPI') || str_starts_with($codigoUpper, 'NMPI') || str_starts_with($codigoUpper, 'MPIDA') || str_starts_with($codigoUpper, 'MPIVA')) return 'MPI';
         if (str_starts_with($codigoUpper, 'ME')) return 'ME';
         if (str_starts_with($codigoUpper, 'MP')) return 'MP';
         if (str_starts_with($codigoUpper, 'MS')) return 'MN';

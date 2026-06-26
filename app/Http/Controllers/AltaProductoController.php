@@ -25,14 +25,13 @@ class AltaProductoController extends Controller
     private array $columnasObligatorias = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO'];
 
     private array $familiasValidas = [
-        'MPI', 'MN', 'ME', 'MP', 'PT',
-        'MATERIA PRIMA DE IMPORTACION', 'MAQUINARIA',
-        'QUIMICOS', 'ELECTRICO', 'FERRETERIA', 'MANTENIMIENTO', 'SEGURIDAD',
+        'AEROSOLES', 'LIMPIEZA', 'INSECTICIDAS', 'HERRAMIENTAS', 'REFACCIONES',
         'EMPAQUE', 'MATERIA PRIMA', 'CONSUMIBLE', 'LUBRICANTES', 'ADHESIVOS',
         'PINTURAS', 'SOLVENTES', 'RESINAS', 'PIGMENTOS', 'ADITIVOS',
-        'AEROSOLES', 'INSECTICIDAS', 'LIMPIEZA', 'HERRAMIENTAS', 'REFACCIONES',
         'MOTORES', 'BOMBAS', 'VALVULAS', 'TUBERIAS', 'TORNILLERIA',
         'MATERIAL EMPAQUE', 'PRODUCTO TERMINADO', 'INSUMOS',
+        'QUIMICOS', 'ELECTRICO', 'FERRETERIA', 'MANTENIMIENTO', 'SEGURIDAD',
+        'MAQUINARIA', 'MATERIA PRIMA DE IMPORTACION',
     ];
 
     public function mostrarAltaProducto()
@@ -175,11 +174,11 @@ class AltaProductoController extends Controller
         }
 
         // Dropdown TIPO_PRODUCTO (columna H)
-        $listSheet->setCellValue('C1', 'MPI');
-        $listSheet->setCellValue('C2', 'ME');
-        $listSheet->setCellValue('C3', 'MN');
-        $listSheet->setCellValue('C4', 'MP');
-        $listSheet->setCellValue('C5', 'PT');
+        $tiposProducto = ['MPI', 'ME', 'MN', 'MP', 'PT', 'RP', 'CONTABLE', 'GASTOS', 'REFACCIONES', 'HERRAMIENTAS', 'MAQUINARIA', 'MUESTRAS', 'INSUMOS', 'EQUIPO', 'SEGURIDAD', 'VEHICULOS', 'MOLDES', 'SERVICIOS'];
+        foreach ($tiposProducto as $i => $tipo) {
+            $listSheet->setCellValue('C' . ($i + 1), $tipo);
+        }
+        $tipoCount = count($tiposProducto);
         for ($row = 2; $row <= 100; $row++) {
             $validation = $sheet->getCell('H'.$row)->getDataValidation();
             $validation->setType(DataValidation::TYPE_LIST);
@@ -188,8 +187,8 @@ class AltaProductoController extends Controller
             $validation->setShowDropDown(true);
             $validation->setShowErrorMessage(true);
             $validation->setErrorTitle('Tipo de producto no valido');
-            $validation->setError('Valores validos: MPI, ME, MN, MP, PT');
-            $validation->setFormula1('_Listas!$C$1:$C$5');
+            $validation->setError('Selecciona un tipo de producto del listado');
+            $validation->setFormula1('_Listas!$C$1:$C$' . $tipoCount);
         }
 
         // Dropdown LOTE (columna L)
@@ -820,11 +819,10 @@ Si todo correcto: {"errores_ia": []}';
         foreach ($unidades as $i => $uni) {
             $listSheet->setCellValue('B'.($i + 1), $uni);
         }
-        $listSheet->setCellValue('C1', 'MPI');
-        $listSheet->setCellValue('C2', 'ME');
-        $listSheet->setCellValue('C3', 'MN');
-        $listSheet->setCellValue('C4', 'MP');
-        $listSheet->setCellValue('C5', 'PT');
+        $tiposProducto2 = ['MPI', 'ME', 'MN', 'MP', 'PT', 'RP', 'CONTABLE', 'GASTOS', 'REFACCIONES', 'HERRAMIENTAS', 'MAQUINARIA', 'MUESTRAS', 'INSUMOS', 'EQUIPO', 'SEGURIDAD', 'VEHICULOS', 'MOLDES', 'SERVICIOS'];
+        foreach ($tiposProducto2 as $i => $tipo) {
+            $listSheet->setCellValue('C' . ($i + 1), $tipo);
+        }
         $listSheet->setCellValue('D1', 'SI');
         $listSheet->setCellValue('D2', 'NO');
         // Voltajes
@@ -1274,7 +1272,7 @@ Si todo correcto: {"errores_ia": []}';
                 'error' => "Debe estar en MAYUSCULAS. Recibido: '{$tipoProductoRaw}'. COMO CORREGIR: Selecciona del dropdown: MPI, ME o MN",
             ];
         }
-        if ($tipoProductoRaw && ! in_array(strtoupper($tipoProductoRaw), ['MPI', 'ME', 'MN', 'MP', 'PT'])) {
+        if ($tipoProductoRaw && ! in_array(strtoupper($tipoProductoRaw), ['MPI', 'ME', 'MN', 'MP', 'PT', 'RP', 'CONTABLE', 'GASTOS', 'REFACCIONES', 'HERRAMIENTAS', 'MAQUINARIA', 'MUESTRAS', 'INSUMOS', 'EQUIPO', 'SEGURIDAD', 'VEHICULOS', 'MOLDES', 'SERVICIOS'])) {
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'TIPO_PRODUCTO',

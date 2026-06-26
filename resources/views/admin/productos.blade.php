@@ -308,6 +308,21 @@
                 <option value="MPI">MPI</option>
                 <option value="ME">ME</option>
                 <option value="MN">MN</option>
+                <option value="MP">MP</option>
+                <option value="PT">PT</option>
+                <option value="RP">RP</option>
+                <option value="CONTABLE">CONTABLE</option>
+                <option value="GASTOS">GASTOS</option>
+                <option value="REFACCIONES">REFACCIONES</option>
+                <option value="HERRAMIENTAS">HERRAMIENTAS</option>
+                <option value="MAQUINARIA">MAQUINARIA</option>
+                <option value="MUESTRAS">MUESTRAS</option>
+                <option value="INSUMOS">INSUMOS</option>
+                <option value="EQUIPO">EQUIPO</option>
+                <option value="SEGURIDAD">SEGURIDAD</option>
+                <option value="VEHICULOS">VEHICULOS</option>
+                <option value="MOLDES">MOLDES</option>
+                <option value="SERVICIOS">SERVICIOS</option>
             </select>
         </div>
         <div class="edit-field">
