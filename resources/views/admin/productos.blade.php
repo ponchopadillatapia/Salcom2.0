@@ -145,7 +145,7 @@
                 <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Código, nombre o categoría…">
             </div>
             <div class="filter-field">
-                <label>Categoría</label>
+                <label>Tipo Producto</label>
                 <select name="categoria">
                     <option value="">Todas</option>
                     @foreach($categorias as $cat)
@@ -231,9 +231,9 @@
                 <tr>
                     <th>Código</th>
                     <th>Nombre</th>
-                    <th>Categoría</th>
+                    <th>Tipo Producto</th>
                     <th>Precio</th>
-                    <th>Unidad</th>
+                    <th>Unidad de Medida</th>
                     <th>Proveedor</th>
                     <th>Hora alta</th>
                     <th style="width:40px"></th>
@@ -302,7 +302,7 @@
         <div class="edit-subtitle"><span id="editCodigo"></span> — <span id="editNombre"></span></div>
         <input type="hidden" id="editId">
         <div class="edit-field">
-            <label>Categoría</label>
+            <label>Tipo Producto</label>
             <select id="editCategoria">
                 <option value="">Sin categoría</option>
                 <option value="MPI">MPI</option>
