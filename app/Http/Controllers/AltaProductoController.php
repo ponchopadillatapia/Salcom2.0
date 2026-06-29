@@ -1095,13 +1095,17 @@ Si todo correcto: {"errores_ia": []}';
 
         foreach ($partesNombre as $campo => $info) {
             if (! empty($info['valor'])) {
-                // Debe ser MAYUSCULAS
+                // Debe ser MAYUSCULAS (en compras, NOMBRE_MEDIDA acepta minúsculas)
                 if ($info['valor'] !== strtoupper($info['valor'])) {
-                    $errores[] = [
-                        'fila' => $fila,
-                        'campo' => $campo,
-                        'error' => "Debe estar en MAYUSCULAS sin acentos. Recibido: '{$info['valor']}'. COMO CORREGIR: {$info['desc']}",
-                    ];
+                    if ($esModuloCompras && $campo === 'NOMBRE_MEDIDA') {
+                        // En compras se acepta minúsculas en medida (kg, lt, etc.) - se convierte automáticamente
+                    } else {
+                        $errores[] = [
+                            'fila' => $fila,
+                            'campo' => $campo,
+                            'error' => "Debe estar en MAYUSCULAS sin acentos. Recibido: '{$info['valor']}'. COMO CORREGIR: {$info['desc']}",
+                        ];
+                    }
                 }
                 // No caracteres especiales
                 if (preg_match('/[#$%&*=+{}\[\]|\\\\<>~`"\'?_@^!]/', $info['valor'])) {
