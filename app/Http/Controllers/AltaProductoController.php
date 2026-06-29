@@ -1598,27 +1598,8 @@ Si todo correcto: {"errores_ia": []}';
             ];
         }
 
-        // === 8. LOTE y PEDIMENTO - Obligatorios solo si TIPO_PRODUCTO = MPI ===
-        $tipoProducto = strtoupper(trim($producto['TIPO_PRODUCTO'] ?? ''));
-        if ($tipoProducto === 'MPI') {
-            $lote = strtoupper(trim($producto['LOTE'] ?? ''));
-            if (empty($lote)) {
-                $errores[] = [
-                    'fila' => $fila,
-                    'campo' => 'LOTE',
-                    'error' => 'LOTE es obligatorio para productos MPI (Materia Prima Importacion). Selecciona SI o NO.',
-                ];
-            }
-
-            $pedimento = strtoupper(trim($producto['PEDIMENTO'] ?? ''));
-            if (empty($pedimento)) {
-                $errores[] = [
-                    'fila' => $fila,
-                    'campo' => 'PEDIMENTO',
-                    'error' => 'PEDIMENTO es obligatorio para productos MPI. Selecciona SI o NO.',
-                ];
-            }
-        }
+        // === 8. LOTE y PEDIMENTO - Opcionales para todos (ya no obligatorios para MPI) ===
+        // Se dejaron como opcionales por decisión del equipo.
 
         // === 9. OBSERVACIONES - Debe ser texto legible, profesional, no basura ===
         $observaciones = trim($producto['OBSERVACIONES'] ?? '');
