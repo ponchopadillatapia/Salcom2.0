@@ -16,6 +16,7 @@ class Producto extends Model
         'precio', 'unidad_venta', 'stock',
         'cajas_por_tarima', 'peso_bruto_caja', 'peso_bruto', 'piezas_por_caja', 'volumen',
         'maneja_lotes', 'unidad_xml', 'iva', 'ieps', 'foto', 'activo', 'proveedor_nombre', 'proveedor_tipo',
+        'departamento', 'linea', 'subfamilia_pt', 'canal', 'vendedor', 'modulo',
     ];
 
     protected $casts = [

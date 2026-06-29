@@ -22,7 +22,17 @@ class AltaProductoController extends Controller
 {
     private array $unidadesValidas = ['PZA', 'CAJA', 'SET', 'KG', 'TONELADA', 'METRO', 'LITRO', 'PAR', 'PACK', 'CUBETA', 'TIRA', 'NA'];
 
-    private array $columnasObligatorias = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO'];
+    private array $columnasObligatorias = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'TIPO_PRODUCTO'];
+
+    /**
+     * Campos obligatorios adicionales según TIPO_PRODUCTO.
+     */
+    private array $obligatoriosPorTipo = [
+        'MPI' => ['UNIDAD_MEDIDA'],
+        'ME' => [],
+        'MP' => [],
+        'PT' => ['FAMILIA'],
+    ];
 
     private array $familiasValidas = [
         'AEROSOLES', 'LIMPIEZA', 'INSECTICIDAS', 'HERRAMIENTAS', 'REFACCIONES',
@@ -98,8 +108,8 @@ class AltaProductoController extends Controller
         $sheet->setTitle('Productos');
 
         // Headers - sin columnas redundantes
-        $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
-        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false];
+        $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE', 'DEPARTAMENTO', 'LINEA', 'SUBFAMILIA', 'CANAL', 'VENDEDOR', 'MODULO'];
+        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false, 'DEPARTAMENTO' => false, 'LINEA' => false, 'SUBFAMILIA' => false, 'CANAL' => false, 'VENDEDOR' => false, 'MODULO' => false];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
@@ -244,6 +254,79 @@ class AltaProductoController extends Controller
             $validation->setErrorTitle('Voltaje no valido');
             $validation->setError('Selecciona un voltaje del listado');
             $validation->setFormula1('_Listas!$E$1:$E$14');
+        }
+
+        // Dropdowns para las 6 clasificaciones (columnas O-T)
+        // DEPARTAMENTO (O) - Clasif1
+        $deptos = ['GASTOS','HERRAMIENTAS','INSUMOS','MANO DE OBRA','MAQUINARIA Y EQUIPO','MATERIALES','ME','MI','MN','MO','MP','MPI','MS','PAPELERIA','PT','REFACCIONES','RP','SEGURIDAD','SERVICIOS','VEHICULOS'];
+        foreach ($deptos as $i => $v) { $listSheet->setCellValue('F'.($i+1), $v); }
+        $deptoCount = count($deptos);
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('O'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('_Listas!$F$1:$F$'.$deptoCount);
+        }
+
+        // LINEA (P) - Clasif2
+        $lineas = ['Aerosoles','Aromatizante Solido','Breeze Matic','Canastilla','Clip On','Cono Gel','Desinfectante','Difusor Electrico','Dispensador','Gel Aromatizante','Hang Air','Insecticida','Lavatrastes','Limpiador','Liquido Goteador','Metered','Micro Can','Mini Spray','Pastilla','Tapete'];
+        foreach ($lineas as $i => $v) { $listSheet->setCellValue('G'.($i+1), $v); }
+        $lineaCount = count($lineas);
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('P'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('_Listas!$G$1:$G$'.$lineaCount);
+        }
+
+        // SUBFAMILIA (Q) - Clasif3
+        $subfamilias = ['Abrillantador 400ml','Abrillantador 8oz','Accesorios Plasticos','Aerosol 10oz','Aerosol 19oz','Aerosol 8oz','Aerosol Hogar 400ml','Aerosol Metered Institucional','Breeze Matic','Canastilla','Clip On','Cono Gel 170g','Difusor Electrico','Dispensador','Gel 70g','Hang Air','Insecticida','Lavatrastes','Limpiador Sanitario','Liquido Goteador','Metered 180g','Micro Can','Mini Spray','Pastilla Alambre','Pastilla Azul','Pastilla Barra','Pastilla Cloro','Tapete Anti-Salpicadura','Tapete Con Pastilla','Tapete Liso','Tapete Storm'];
+        foreach ($subfamilias as $i => $v) { $listSheet->setCellValue('H'.($i+1), $v); }
+        $subCount = count($subfamilias);
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('Q'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('_Listas!$H$1:$H$'.$subCount);
+        }
+
+        // CANAL (R) - Clasif4
+        $canales = ['Autoservicio','Abarrotera','Exportacion','Ferretero','Institucional','Mayoreo'];
+        foreach ($canales as $i => $v) { $listSheet->setCellValue('I'.($i+1), $v); }
+        $canalCount = count($canales);
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('R'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('_Listas!$I$1:$I$'.$canalCount);
+        }
+
+        // VENDEDOR (S) - Clasif5
+        $vendedores = ['Alexandre Cominu','Ana Barrera','Directo Exportacion','Directo Mexico','Francisco Alvarez','Guillermo Quiroz','Imelda Lopez INST','Jesus Sesma','Jorge Ornelas','Luis Ibarra','Marco Vargas','Omar Garcia'];
+        foreach ($vendedores as $i => $v) { $listSheet->setCellValue('J'.($i+1), $v); }
+        $vendCount = count($vendedores);
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('S'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('_Listas!$J$1:$J$'.$vendCount);
+        }
+
+        // MODULO (T) - Clasif6
+        $modulos = ['AEROSOL','AROMATIZANTE','BREEZE MATIC','CANASTILLA','DISPENSADOR','ENSAMBLES','HERRAMIENTAS','INSECTICIDA','LAVATRASTES','LIMPIADOR','LIQUIDO','MAQUINARIA','PASTILLA','REFACCIONES','TAPETE'];
+        foreach ($modulos as $i => $v) { $listSheet->setCellValue('K'.($i+1), $v); }
+        $modCount = count($modulos);
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('T'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setFormula1('_Listas!$K$1:$K$'.$modCount);
         }
 
         // Validacion PRECIO (columna J)
@@ -644,6 +727,12 @@ Si todo correcto: {"errores_ia": []}';
                         'stock' => 0,
                         'proveedor_nombre' => session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
                         'proveedor_tipo' => session('proveedor_id') ? 'proveedor' : 'admin',
+                        'departamento' => strtoupper(trim($prod['DEPARTAMENTO'] ?? '')),
+                        'linea' => trim($prod['LINEA'] ?? ''),
+                        'subfamilia_pt' => trim($prod['SUBFAMILIA'] ?? ''),
+                        'canal' => trim($prod['CANAL'] ?? ''),
+                        'vendedor' => trim($prod['VENDEDOR'] ?? ''),
+                        'modulo' => strtoupper(trim($prod['MODULO'] ?? '')),
                     ]
                 );
             }
@@ -704,6 +793,12 @@ Si todo correcto: {"errores_ia": []}';
                         'stock' => 0,
                         'proveedor_nombre' => session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
                         'proveedor_tipo' => session('proveedor_id') ? 'proveedor' : 'admin',
+                        'departamento' => strtoupper(trim($prod['DEPARTAMENTO'] ?? '')),
+                        'linea' => trim($prod['LINEA'] ?? ''),
+                        'subfamilia_pt' => trim($prod['SUBFAMILIA'] ?? ''),
+                        'canal' => trim($prod['CANAL'] ?? ''),
+                        'vendedor' => trim($prod['VENDEDOR'] ?? ''),
+                        'modulo' => strtoupper(trim($prod['MODULO'] ?? '')),
                     ]
                 );
                 $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
@@ -791,8 +886,8 @@ Si todo correcto: {"errores_ia": []}';
         $sheet->setTitle('Productos');
 
         // Headers con mismo formato del template (morado)
-        $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
-        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false];
+        $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE', 'DEPARTAMENTO', 'LINEA', 'SUBFAMILIA', 'CANAL', 'VENDEDOR', 'MODULO'];
+        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false, 'DEPARTAMENTO' => false, 'LINEA' => false, 'SUBFAMILIA' => false, 'CANAL' => false, 'VENDEDOR' => false, 'MODULO' => false];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
@@ -939,7 +1034,7 @@ Si todo correcto: {"errores_ia": []}';
     {
         $errores = [];
 
-        // === 1. CAMPOS OBLIGATORIOS ===
+        // === 1. CAMPOS OBLIGATORIOS BASE ===
         foreach ($this->columnasObligatorias as $campo) {
             if (empty(trim($producto[$campo] ?? ''))) {
                 $sugerencia = match ($campo) {
@@ -950,9 +1045,8 @@ Si todo correcto: {"errores_ia": []}';
                     'NOMBRE_MEDIDA' => 'Escribe el TAMANO o capacidad con numeros (ej: 500ML, 3HP, 30CMX30CM, 40X30X25)',
                     'NOMBRE_ESPECIFICACION' => 'Escribe CARACTERISTICAS adicionales (ej: TRIFASICO, TRANSPARENTE, DOBLE PARED)',
                     'FAMILIA' => 'Selecciona del dropdown una familia del catalogo oficial',
-                    'TIPO_PRODUCTO' => 'Selecciona del dropdown: MPI (Materia Prima), ME (Empaque) o MN (Mantenimiento)',
-                    'UNIDAD_MEDIDA' => 'Selecciona del dropdown: KG, PZA o CAJA',
-                    'OBSERVACIONES' => 'Escribe notas relevantes del producto en MAYUSCULAS (ej: PROVEEDOR NACIONAL ENTREGA 5 DIAS)',
+                    'TIPO_PRODUCTO' => 'Selecciona del dropdown: MPI, ME, MN, MP, PT, etc.',
+                    'UNIDAD_MEDIDA' => 'Selecciona del dropdown: KG, PZA, CAJA, etc.',
                     default => 'Este campo es obligatorio, no puede estar vacio',
                 };
                 $errores[] = [
@@ -963,11 +1057,43 @@ Si todo correcto: {"errores_ia": []}';
             }
         }
 
+        // === 1b. CAMPOS OBLIGATORIOS ADICIONALES POR TIPO_PRODUCTO ===
+        $tipoProductoParaOblig = strtoupper(trim($producto['TIPO_PRODUCTO'] ?? ''));
+        $camposExtra = $this->obligatoriosPorTipo[$tipoProductoParaOblig] ?? [];
+        foreach ($camposExtra as $campo) {
+            if (empty(trim($producto[$campo] ?? ''))) {
+                $sugerencia = match ($campo) {
+                    'FAMILIA' => 'Para PT es obligatorio. Selecciona del dropdown.',
+                    'UNIDAD_MEDIDA' => 'Para MPI es obligatorio. Selecciona: KG, PZA, CAJA, etc.',
+                    default => 'Este campo es obligatorio para ' . $tipoProductoParaOblig,
+                };
+                $errores[] = [
+                    'fila' => $fila,
+                    'campo' => $campo,
+                    'error' => "Campo obligatorio para {$tipoProductoParaOblig}. COMO CORREGIR: {$sugerencia}",
+                ];
+            }
+        }
+
         $nombre = trim($producto['NOMBRE'] ?? '');
         $familia = strtoupper(trim($producto['FAMILIA'] ?? ''));
         $subfamilia = strtoupper(trim($producto['SUBFAMILIA'] ?? ''));
         $unidad = strtoupper(trim($producto['UNIDAD_MEDIDA'] ?? ''));
         $precio = $producto['PRECIO'] ?? '';
+
+        // === VALIDAR CÓDIGO VS TIPO_PRODUCTO ===
+        $codigoRaw = strtoupper(trim($producto['CODIGO'] ?? ''));
+        $tipoProductoVal = strtoupper(trim($producto['TIPO_PRODUCTO'] ?? ''));
+        if ($codigoRaw && $tipoProductoVal) {
+            $tipoEsperado = $this->inferirTipoPorCodigo($codigoRaw);
+            if ($tipoEsperado && $tipoEsperado !== $tipoProductoVal) {
+                $errores[] = [
+                    'fila' => $fila,
+                    'campo' => 'TIPO_PRODUCTO',
+                    'error' => "El codigo '{$codigoRaw}' corresponde a '{$tipoEsperado}' pero pusiste '{$tipoProductoVal}'. -> Pon: {$tipoEsperado}",
+                ];
+            }
+        }
 
         // === 1.5 CODIGO - Solo alfanumerico y guiones ===
         $codigo = trim($producto['CODIGO'] ?? '');
@@ -1997,5 +2123,82 @@ Si todo correcto: {"errores_ia": []}';
         return response()->download($tempFile, 'Template_Migracion_Masiva.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Inferir el TIPO_PRODUCTO esperado según el prefijo del código.
+     * Retorna null si no se puede determinar (no marca error).
+     */
+    private function inferirTipoPorCodigo(string $codigo): ?string
+    {
+        $codigo = strtoupper($codigo);
+
+        // MPI y variantes
+        if (str_starts_with($codigo, 'MPI') || str_starts_with($codigo, 'FMPI') || str_starts_with($codigo, 'EMPI') || str_starts_with($codigo, 'NMPI') || str_starts_with($codigo, 'MPIDA') || str_starts_with($codigo, 'MPIVA')) {
+            return 'MPI';
+        }
+
+        // ME (Material Empaque) — antes de MP para que no lo agarre MP
+        if (str_starts_with($codigo, 'ME')) {
+            return 'ME';
+        }
+
+        // MP (Materia Prima) — solo si después de MP viene un número
+        if (preg_match('/^MP\d/', $codigo)) {
+            return 'MP';
+        }
+
+        // MUE (Muestras) — antes de PT para que no lo agarre el regex de E/M/N
+        if (str_starts_with($codigo, 'MUE')) {
+            return 'MUESTRAS';
+        }
+
+        // MS (Servicios)
+        if (str_starts_with($codigo, 'MS')) {
+            return 'SERVICIOS';
+        }
+
+        // PT (Producto Terminado) — códigos que empiezan con E/M/N + letras
+        if (preg_match('/^[EMN][A-Z]{2}/', $codigo)) {
+            return 'PT';
+        }
+
+        // RP
+        if (str_starts_with($codigo, 'RP')) {
+            return 'RP';
+        }
+
+        // Herramientas
+        if (str_starts_with($codigo, 'HER') || str_starts_with($codigo, 'HET') || str_starts_with($codigo, 'CM')) {
+            return 'HERRAMIENTAS';
+        }
+
+        // Refacciones
+        if (str_starts_with($codigo, 'BL') || str_starts_with($codigo, 'CN') || str_starts_with($codigo, 'RI') || str_starts_with($codigo, '500') || str_starts_with($codigo, '101')) {
+            return 'REFACCIONES';
+        }
+
+        // Maquinaria
+        if (str_starts_with($codigo, '123') || str_starts_with($codigo, 'MI')) {
+            return 'MAQUINARIA';
+        }
+
+        // Contable
+        if (str_starts_with($codigo, '550')) {
+            return 'CONTABLE';
+        }
+
+        // Gastos
+        if (preg_match('/^6[2-3][0-9]/', $codigo)) {
+            return 'GASTOS';
+        }
+
+        // Seguridad
+        if (str_starts_with($codigo, 'SEGG')) {
+            return 'SEGURIDAD';
+        }
+
+        // No se puede determinar — no marcar error
+        return null;
     }
 }
