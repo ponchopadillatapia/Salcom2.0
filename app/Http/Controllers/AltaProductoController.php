@@ -350,6 +350,208 @@ class AltaProductoController extends Controller
     }
 
     /**
+     * Descargar template Excel MPI (Internacional - Cinthya).
+     */
+    public function descargarTemplateMPI()
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Productos MPI');
+
+        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_generico', 'codigo_proveedor', 'NOMBRE_ESPECIFICACION_adicional', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_generico', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'LOTE', 'PEDIMENTO'];
+
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col.'1', $header);
+            $sheet->getStyle($col.'1')->getFont()->setBold(true);
+            if (in_array($header, $obligatorios)) {
+                $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
+            } else {
+                $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
+            }
+            $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $col++;
+        }
+
+        // Formato moneda para PRECIO (I)
+        $sheet->getStyle('I2:I101')->getNumberFormat()->setFormatCode('$#,##0.00');
+
+        // Hoja listas
+        $listSheet = $spreadsheet->createSheet();
+        $listSheet->setTitle('_Listas');
+        foreach ($this->familiasValidas as $i => $fam) { $listSheet->setCellValue('A'.($i+1), $fam); }
+        foreach ($this->unidadesValidas as $i => $uni) { $listSheet->setCellValue('B'.($i+1), $uni); }
+        $listSheet->setCellValue('C1', 'MPI');
+        $listSheet->setCellValue('D1', 'SI'); $listSheet->setCellValue('D2', 'NO');
+        // Prefijos MPI
+        $listSheet->setCellValue('E1', 'MPI'); $listSheet->setCellValue('E2', 'MPIVA'); $listSheet->setCellValue('E3', 'MPIDA');
+        $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Pre-llenar TIPO_PRODUCTO = MPI (col G)
+        for ($row = 2; $row <= 100; $row++) { $sheet->setCellValue('G'.$row, 'MPI'); }
+
+        // Dropdown PREFIJO (A)
+        for ($row = 2; $row <= 100; $row++) {
+            $v = $sheet->getCell('A'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
+            $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
+            $v->setErrorTitle('Prefijo no valido')->setError('Selecciona: MPI, MPIVA o MPIDA');
+            $v->setFormula1('_Listas!$E$1:$E$3');
+        }
+
+        // Dropdown FAMILIA (F)
+        $fc = count($this->familiasValidas);
+        for ($row = 2; $row <= 100; $row++) {
+            $v = $sheet->getCell('F'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$A$1:$A$'.$fc);
+        }
+        // Dropdown UNIDAD_MEDIDA (H)
+        $uc = count($this->unidadesValidas);
+        for ($row = 2; $row <= 100; $row++) {
+            $v = $sheet->getCell('H'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$B$1:$B$'.$uc);
+        }
+        // Dropdown LOTE (K) y PEDIMENTO (L)
+        for ($row = 2; $row <= 100; $row++) {
+            $v = $sheet->getCell('K'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$D$1:$D$2');
+            $v2 = $sheet->getCell('L'.$row)->getDataValidation();
+            $v2->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v2->setFormula1('_Listas!$D$1:$D$2');
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), 'template_mpi_');
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, 'Template_Alta_MPI_Internacional_Salcom.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Subir Excel MPI (Internacional).
+     */
+    public function subirExcelMPI(Request $request)
+    {
+        $request->validate(['excel' => 'required|file|mimes:xlsx,xls,csv|max:5120']);
+
+        $file = $request->file('excel');
+        $path = $file->store('excel-productos-mpi', 'public');
+
+        try {
+            $fullPath = storage_path('app/public/'.$path);
+            if (Str::endsWith($file->getClientOriginalName(), '.csv')) {
+                $productos = $this->leerCSV($fullPath);
+            } else {
+                $spreadsheet = IOFactory::load($fullPath);
+                $productos = $this->leerSpreadsheet($spreadsheet);
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'No se pudo leer el archivo: '.$e->getMessage());
+        }
+
+        if (empty($productos)) {
+            return back()->with('error', 'El archivo está vacío.');
+        }
+
+        $errores = [];
+        $validos = 0;
+        $conError = 0;
+        $obligatoriosMPI = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_GENERICO', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'LOTE', 'PEDIMENTO'];
+
+        foreach ($productos as $index => $producto) {
+            $fila = $index + 2;
+            $erroresFila = [];
+
+            foreach ($obligatoriosMPI as $campo) {
+                if (empty(trim($producto[$campo] ?? ''))) {
+                    $erroresFila[] = ['fila' => $fila, 'campo' => $campo, 'error' => "{$campo} es obligatorio para MPI"];
+                }
+            }
+
+            // Validar prefijo válido
+            $prefijo = strtoupper(trim($producto['PREFIJO'] ?? ''));
+            if ($prefijo && !in_array($prefijo, ['MPI', 'MPIVA', 'MPIDA'])) {
+                $erroresFila[] = ['fila' => $fila, 'campo' => 'PREFIJO', 'error' => "PREFIJO '{$prefijo}' no valido. Solo: MPI, MPIVA, MPIDA"];
+            }
+
+            // Formar código y validar único
+            $consecutivo = trim($producto['CONSECUTIVO'] ?? '');
+            $codigo = strtoupper($prefijo . $consecutivo);
+            if ($codigo && Producto::where('codigo', $codigo)->exists()) {
+                $erroresFila[] = ['fila' => $fila, 'campo' => 'CODIGO', 'error' => "DUPLICADO: '{$codigo}' ya existe."];
+            }
+
+            if (!empty($erroresFila)) {
+                $errores = array_merge($errores, $erroresFila);
+                $conError++;
+            } else {
+                $validos++;
+            }
+        }
+
+        if (!empty($errores)) {
+            $msg = "Se encontraron errores en {$conError} producto(s):\n\n";
+            $porFila = [];
+            foreach ($errores as $err) { $porFila[$err['fila']][] = $err['error']; }
+            foreach ($porFila as $fila => $errs) { $msg .= "Fila {$fila}: ".implode(' | ', $errs)."\n"; }
+            return back()->with('error', $msg);
+        }
+
+        // Guardar productos MPI
+        $creados = 0;
+        foreach ($productos as $prod) {
+            $prefijo = strtoupper(trim($prod['PREFIJO'] ?? ''));
+            $consecutivo = trim($prod['CONSECUTIVO'] ?? '');
+            $codigo = strtoupper($prefijo . $consecutivo);
+            if (empty($codigo)) continue;
+
+            $nombreGenerico = trim($prod['NOMBRE_GENERICO'] ?? $prod['NOMBRE_generico'] ?? '');
+            $codigoProv = trim($prod['CODIGO_PROVEEDOR'] ?? $prod['codigo_proveedor'] ?? '');
+            $espec = trim($prod['NOMBRE_ESPECIFICACION_ADICIONAL'] ?? $prod['NOMBRE_ESPECIFICACION_adicional'] ?? '');
+
+            $nombre = trim(strtoupper($nombreGenerico).' '.strtoupper($espec));
+            $precio = $prod['PRECIO'] ?? null;
+            if ($precio) { $precio = (float) str_replace(['$', ',', ' '], '', $precio); }
+
+            Producto::updateOrCreate(
+                ['codigo' => $codigo],
+                [
+                    'nombre' => $nombre,
+                    'nombre_tipo' => strtoupper($nombreGenerico),
+                    'nombre_especificacion' => strtoupper($espec),
+                    'codigo_alterno' => $codigoProv,
+                    'familia' => strtoupper(trim($prod['FAMILIA'] ?? '')),
+                    'tipo_producto' => 'MPI',
+                    'categoria' => 'MPI',
+                    'unidad_venta' => strtoupper(trim($prod['UNIDAD_MEDIDA'] ?? '')),
+                    'precio' => $precio,
+                    'clave_sat' => trim($prod['CLAVE_SAT'] ?? ''),
+                    'maneja_lotes' => strtoupper(trim($prod['LOTE'] ?? '')) === 'SI',
+                    'activo' => true,
+                    'proveedor_nombre' => session('admin_nombre') ?? 'Admin',
+                    'proveedor_tipo' => 'admin',
+                ]
+            );
+            $creados++;
+        }
+
+        try { app(AlertEngineService::class)->verificarTodo(); } catch (\Exception $e) {}
+
+        return back()->with('mensaje', "Se dieron de alta {$creados} producto(s) MPI exitosamente.");
+    }
+
+    /**
      * Subir Excel y validar INMEDIATAMENTE.
      */
     public function subirExcel(Request $request)
@@ -421,6 +623,8 @@ class AltaProductoController extends Controller
         // === VALIDACION CON IA - TODAS LAS FILAS ===
         // La IA valida TODAS las filas para detectar campos cruzados
         // (ej: una especificacion en NOMBRE_TIPO, una medida repetida en NOMBRE_ESPECIFICACION)
+        // En módulo compras NO se ejecuta validación IA (los datos internos son más flexibles)
+        if (!$esModuloCompras) {
         try {
             $iaService = new IaService;
             $productosParaIA = [];
@@ -629,6 +833,7 @@ Si todo correcto: {"errores_ia": []}';
         } catch (\Exception $e) {
             Log::warning('[Alta Producto] IA validacion: '.$e->getMessage());
         }
+        } // fin if (!$esModuloCompras) - validación IA
 
         // Guardar resultado
         $estatus = $conError === 0 ? 'validado' : 'con_errores';
@@ -1203,7 +1408,7 @@ Si todo correcto: {"errores_ia": []}';
             ];
         }
 
-        if ($nombreMedidaRaw && ! preg_match('/\d/', $nombreMedidaRaw)) {
+        if ($nombreMedidaRaw && ! preg_match('/\d/', $nombreMedidaRaw) && !$esModuloCompras) {
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'NOMBRE_MEDIDA',
