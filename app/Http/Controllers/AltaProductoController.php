@@ -981,8 +981,8 @@ Si todo correcto: {"errores_ia": []}';
         if ($esModuloCompras) {
             // Módulo Compras (admin): reglas diferenciadas por tipo
             if ($tipoProductoActual === 'MPI') {
-                // MPI (Internacional - Cinthya): todos los campos core + UNIDAD_MEDIDA
-                $camposObligatorios = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA'];
+                // MPI (Internacional - Cinthya): código, tipo, modelo, medida + UNIDAD_MEDIDA
+                $camposObligatorios = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA'];
             } else {
                 // ME y MP (Nacional - Brenda): solo código, tipo y medida
                 $camposObligatorios = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO'];
