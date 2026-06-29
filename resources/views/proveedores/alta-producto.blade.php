@@ -126,7 +126,7 @@
             <table class="format-table" style="margin-top:0;">
                 <thead><tr><th>Columna</th><th>Ejemplo</th><th>Req.</th></tr></thead>
                 <tbody>
-                    <tr><td style="color:var(--purple);font-weight:700;">CODIGO</td><td>MPI0538</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--gray-muted);">CODIGO</td><td style="color:var(--gray-muted);">MPI0538 (o dejar vacío, se auto-genera)</td><td class="opt">auto</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_TIPO</td><td>RESINA EPOXICA</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_MARCA</td><td>SKF</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_MODELO</td><td>IPHONE 15 / VIN-100</td><td class="req">✓</td></tr>
