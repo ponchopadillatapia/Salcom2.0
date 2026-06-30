@@ -69,12 +69,12 @@
 
 {{-- TABS --}}
 <div class="tabs-bar">
-    <button class="tab-btn active" onclick="switchTab('nacional')">Compras Nacional (ME/MP)</button>
-    <button class="tab-btn" onclick="switchTab('internacional')">Compras Internacional (MPI)</button>
+    <button class="tab-btn {{ session('tab', 'nacional') === 'nacional' ? 'active' : '' }}" onclick="switchTab('nacional')">Compras Nacional (ME/MP)</button>
+    <button class="tab-btn {{ session('tab') === 'internacional' ? 'active' : '' }}" onclick="switchTab('internacional')">Compras Internacional (MPI)</button>
 </div>
 
 {{-- ═══ TAB: NACIONAL (ME/MP - Brenda) ═══ --}}
-<div class="tab-content active" id="tab-nacional">
+<div class="tab-content {{ session('tab', 'nacional') === 'nacional' ? 'active' : '' }}" id="tab-nacional">
 <div class="alta-grid">
     <div class="alta-card">
         <h3>Nacional — ME / MP (Brenda)</h3>
@@ -125,7 +125,7 @@
 </div>
 
 {{-- ═══ TAB: INTERNACIONAL (MPI - Cinthya) ═══ --}}
-<div class="tab-content" id="tab-internacional">
+<div class="tab-content {{ session('tab') === 'internacional' ? 'active' : '' }}" id="tab-internacional">
 <div class="alta-grid">
     <div class="alta-card">
         <h3>Internacional — MPI (Cinthya)</h3>

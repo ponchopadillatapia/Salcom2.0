@@ -392,8 +392,12 @@ class AltaProductoController extends Controller
         $spreadsheet->setActiveSheetIndex(0);
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Pre-llenar TIPO_PRODUCTO = MPI (col G)
-        for ($row = 2; $row <= 100; $row++) { $sheet->setCellValue('G'.$row, 'MPI'); }
+        // Pre-llenar TIPO_PRODUCTO = MPI (col G) - solo dropdown, sin pre-llenar
+        for ($row = 2; $row <= 100; $row++) {
+            $v = $sheet->getCell('G'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$C$1:$C$1');
+        }
 
         // Dropdown PREFIJO (A)
         for ($row = 2; $row <= 100; $row++) {
@@ -467,7 +471,16 @@ class AltaProductoController extends Controller
         $errores = [];
         $validos = 0;
         $conError = 0;
-        $obligatoriosMPI = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_GENERICO', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'LOTE', 'PEDIMENTO'];
+        $obligatoriosMPI = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_GENERICO', 'FAMILIA', 'UNIDAD_MEDIDA', 'LOTE', 'PEDIMENTO'];
+
+        // Filtrar filas vacías (solo tienen el pre-fill de TIPO_PRODUCTO)
+        $productos = array_filter($productos, function ($prod) {
+            $prefijo = trim($prod['PREFIJO'] ?? '');
+            $consecutivo = trim($prod['CONSECUTIVO'] ?? '');
+            $nombre = trim($prod['NOMBRE_GENERICO'] ?? $prod['NOMBRE_generico'] ?? '');
+            return !empty($prefijo) || !empty($consecutivo) || !empty($nombre);
+        });
+        $productos = array_values($productos);
 
         foreach ($productos as $index => $producto) {
             $fila = $index + 2;
@@ -505,7 +518,7 @@ class AltaProductoController extends Controller
             $porFila = [];
             foreach ($errores as $err) { $porFila[$err['fila']][] = $err['error']; }
             foreach ($porFila as $fila => $errs) { $msg .= "Fila {$fila}: ".implode(' | ', $errs)."\n"; }
-            return back()->with('error', $msg);
+            return back()->with('error', $msg)->with('tab', 'internacional');
         }
 
         // Guardar productos MPI
@@ -522,7 +535,13 @@ class AltaProductoController extends Controller
 
             $nombre = trim(strtoupper($nombreGenerico).' '.strtoupper($espec));
             $precio = $prod['PRECIO'] ?? null;
-            if ($precio) { $precio = (float) str_replace(['$', ',', ' '], '', $precio); }
+            if ($precio) {
+                $precio = (float) str_replace(['$', ',', ' '], '', $precio);
+            } else {
+                $precio = 0;
+            }
+
+            $claveSat = trim($prod['CLAVE_SAT'] ?? '') ?: null;
 
             Producto::updateOrCreate(
                 ['codigo' => $codigo],
@@ -536,7 +555,7 @@ class AltaProductoController extends Controller
                     'categoria' => 'MPI',
                     'unidad_venta' => strtoupper(trim($prod['UNIDAD_MEDIDA'] ?? '')),
                     'precio' => $precio,
-                    'clave_sat' => trim($prod['CLAVE_SAT'] ?? ''),
+                    'clave_sat' => $claveSat ?? '',
                     'maneja_lotes' => strtoupper(trim($prod['LOTE'] ?? '')) === 'SI',
                     'activo' => true,
                     'proveedor_nombre' => session('admin_nombre') ?? 'Admin',
@@ -546,9 +565,18 @@ class AltaProductoController extends Controller
             $creados++;
         }
 
-        try { app(AlertEngineService::class)->verificarTodo(); } catch (\Exception $e) {}
+        try { app(AlertEngineService::class)->alertar([
+            'tipo' => 'productos_alta_automatica',
+            'modulo' => 'productos',
+            'destinatario_tipo' => 'admin',
+            'destinatario_id' => 1,
+            'titulo' => "Alta MPI: {$creados} producto(s)",
+            'contenido' => "Se dieron de alta {$creados} producto(s) MPI Internacional.",
+            'datos' => ['total' => $creados],
+            'nivel' => 'info',
+        ]); } catch (\Exception $e) {}
 
-        return back()->with('mensaje', "Se dieron de alta {$creados} producto(s) MPI exitosamente.");
+        return back()->with('mensaje', "Se dieron de alta {$creados} producto(s) MPI exitosamente.")->with('tab', 'internacional');
     }
 
     /**
