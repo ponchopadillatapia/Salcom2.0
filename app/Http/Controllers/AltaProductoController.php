@@ -498,10 +498,11 @@ class AltaProductoController extends Controller
                 $erroresFila[] = ['fila' => $fila, 'campo' => 'PREFIJO', 'error' => "PREFIJO '{$prefijo}' no valido. Solo: MPI, MPIVA, MPIDA"];
             }
 
-            // Formar código y validar único
+            // Formar código y validar único (ignorar soft-deleted, se restaurarán)
             $consecutivo = trim($producto['CONSECUTIVO'] ?? '');
             $codigo = strtoupper($prefijo . $consecutivo);
-            if ($codigo && Producto::where('codigo', $codigo)->exists()) {
+            $existente = Producto::where('codigo', $codigo)->first();
+            if ($existente) {
                 $erroresFila[] = ['fila' => $fila, 'campo' => 'CODIGO', 'error' => "DUPLICADO: '{$codigo}' ya existe."];
             }
 
@@ -543,7 +544,13 @@ class AltaProductoController extends Controller
 
             $claveSat = trim($prod['CLAVE_SAT'] ?? '') ?: null;
 
-            Producto::updateOrCreate(
+            // Restaurar si fue soft-deleted
+            $existente = Producto::withTrashed()->where('codigo', $codigo)->first();
+            if ($existente && $existente->trashed()) {
+                $existente->restore();
+            }
+
+            Producto::withTrashed()->updateOrCreate(
                 ['codigo' => $codigo],
                 [
                     'nombre' => $nombre,
@@ -560,6 +567,7 @@ class AltaProductoController extends Controller
                     'activo' => true,
                     'proveedor_nombre' => session('admin_nombre') ?? 'Admin',
                     'proveedor_tipo' => 'admin',
+                    'deleted_at' => null,
                 ]
             );
             $creados++;
