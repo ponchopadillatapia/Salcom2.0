@@ -174,6 +174,11 @@ Route::get('/admin/alta-producto/template-mpi', [AltaProductoController::class, 
 Route::post('/admin/alta-producto/subir', [AltaProductoController::class, 'subirExcel'])->name('admin.alta-producto.subir')->middleware('auth.admin');
 Route::post('/admin/alta-producto/subir-mpi', [AltaProductoController::class, 'subirExcelMPI'])->name('admin.alta-producto.subir-mpi')->middleware('auth.admin');
 
+// ── Admin: Alta de Producto Mantenimiento (CM/BL/CIL/CN) ──
+Route::get('/admin/alta-producto-mto', [AltaProductoController::class, 'mostrarAltaProductoMTO'])->name('admin.alta-producto-mto')->middleware('auth.admin');
+Route::get('/admin/alta-producto-mto/template', [AltaProductoController::class, 'descargarTemplateMTO'])->name('admin.alta-producto-mto.template')->middleware('auth.admin');
+Route::post('/admin/alta-producto-mto/subir', [AltaProductoController::class, 'subirExcelMTO'])->name('admin.alta-producto-mto.subir')->middleware('auth.admin');
+
 // ── Admin: Alta de Producto Terminado (PT) ──
 Route::get('/admin/alta-producto-pt', [\App\Http\Controllers\AltaProductoPTController::class, 'mostrar'])->name('admin.alta-producto-pt')->middleware('auth.admin');
 Route::get('/admin/alta-producto-pt/template', [\App\Http\Controllers\AltaProductoPTController::class, 'descargarTemplate'])->name('admin.alta-producto-pt.template')->middleware('auth.admin');

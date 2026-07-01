@@ -579,6 +579,221 @@ class AltaProductoController extends Controller
         return back()->with('mensaje', "Se dieron de alta {$creados} producto(s) MPI exitosamente.")->with('tab', 'internacional');
     }
 
+    // ══════════════════════════════════════════════════════════════════════════
+    // MANTENIMIENTO (CM / BL / CIL / CN)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    public function mostrarAltaProductoMTO()
+    {
+        return view('admin.alta-producto-mto');
+    }
+
+    public function descargarTemplateMTO()
+    {
+        $spreadsheet = new Spreadsheet;
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Productos Mantenimiento');
+
+        // Columnas en orden: obligatorios = CODIGO, NOMBRE_TIPO, NOMBRE_MODELO, NOMBRE_MEDIDA / opcionales (lila) = el resto
+        $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $obligatorios = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA'];
+
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col.'1', $header);
+            $sheet->getStyle($col.'1')->getFont()->setBold(true);
+            if (in_array($header, $obligatorios)) {
+                $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
+            } else {
+                $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
+            }
+            $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $col++;
+        }
+
+        // Formato moneda para PRECIO (columna J)
+        $sheet->getStyle('J2:J101')->getNumberFormat()->setFormatCode('$#,##0.00');
+
+        // Hoja de listas oculta
+        $listSheet = $spreadsheet->createSheet();
+        $listSheet->setTitle('_Listas');
+        // Familias
+        foreach ($this->familiasValidas as $i => $fam) { $listSheet->setCellValue('A'.($i+1), $fam); }
+        // Unidades
+        foreach ($this->unidadesValidas as $i => $uni) { $listSheet->setCellValue('B'.($i+1), $uni); }
+        // SI/NO para LOTE y PEDIMENTO
+        $listSheet->setCellValue('C1', 'SI'); $listSheet->setCellValue('C2', 'NO');
+        $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        // Dropdown FAMILIA (G)
+        $fc = count($this->familiasValidas);
+        for ($row = 2; $row <= 100; $row++) {
+            $v = $sheet->getCell('G'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$A$1:$A$'.$fc);
+        }
+        // Dropdown UNIDAD_MEDIDA (I)
+        $uc = count($this->unidadesValidas);
+        for ($row = 2; $row <= 100; $row++) {
+            $v = $sheet->getCell('I'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$B$1:$B$'.$uc);
+        }
+        // Dropdown LOTE (K) y PEDIMENTO (L)
+        for ($row = 2; $row <= 100; $row++) {
+            $v = $sheet->getCell('K'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$C$1:$C$2');
+            $v2 = $sheet->getCell('L'.$row)->getDataValidation();
+            $v2->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v2->setFormula1('_Listas!$C$1:$C$2');
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), 'template_mto_');
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, 'Template_Alta_Mantenimiento_Salcom.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    public function subirExcelMTO(Request $request)
+    {
+        $request->validate(['excel' => 'required|file|mimes:xlsx,xls,csv|max:5120']);
+
+        $file = $request->file('excel');
+        $path = $file->store('excel-productos-mto', 'public');
+
+        try {
+            $fullPath = storage_path('app/public/'.$path);
+            if (Str::endsWith($file->getClientOriginalName(), '.csv')) {
+                $productos = $this->leerCSV($fullPath);
+            } else {
+                $spreadsheet = IOFactory::load($fullPath);
+                $productos = $this->leerSpreadsheet($spreadsheet);
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'No se pudo leer el archivo: '.$e->getMessage());
+        }
+
+        if (empty($productos)) {
+            return back()->with('error', 'El archivo está vacío.');
+        }
+
+        $errores = [];
+        $validos = 0;
+        $conError = 0;
+        $obligatoriosMTO = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA'];
+
+        // Filtrar filas vacías
+        $productos = array_filter($productos, function ($prod) {
+            $codigo = trim($prod['CODIGO'] ?? '');
+            $nombre = trim($prod['NOMBRE_TIPO'] ?? '');
+            return !empty($codigo) || !empty($nombre);
+        });
+        $productos = array_values($productos);
+
+        foreach ($productos as $index => $producto) {
+            $fila = $index + 2;
+            $erroresFila = [];
+
+            foreach ($obligatoriosMTO as $campo) {
+                if (empty(trim($producto[$campo] ?? ''))) {
+                    $erroresFila[] = ['fila' => $fila, 'campo' => $campo, 'error' => "{$campo} es obligatorio"];
+                }
+            }
+
+            // Validar duplicado
+            $codigo = strtoupper(trim($producto['CODIGO'] ?? ''));
+            if ($codigo && Producto::where('codigo', $codigo)->exists()) {
+                $erroresFila[] = ['fila' => $fila, 'campo' => 'CODIGO', 'error' => "DUPLICADO: '{$codigo}' ya existe en el sistema."];
+            }
+
+            if (!empty($erroresFila)) {
+                $errores = array_merge($errores, $erroresFila);
+                $conError++;
+            } else {
+                $validos++;
+            }
+        }
+
+        if (!empty($errores)) {
+            $msg = "Se encontraron errores en {$conError} producto(s):\n\n";
+            $porFila = [];
+            foreach ($errores as $err) { $porFila[$err['fila']][] = $err['error']; }
+            foreach ($porFila as $fila => $errs) { $msg .= "Fila {$fila}: ".implode(' | ', $errs)."\n"; }
+            return back()->with('error', $msg);
+        }
+
+        // Guardar productos de mantenimiento
+        $creados = 0;
+        foreach ($productos as $prod) {
+            $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
+            if (empty($codigo)) continue;
+
+            $nombreTipo = strtoupper(trim($prod['NOMBRE_TIPO'] ?? ''));
+            $nombreModelo = strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
+            $nombreMedida = strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? ''));
+            $nombreMarca = strtoupper(trim($prod['NOMBRE_MARCA'] ?? ''));
+            $nombreEspec = strtoupper(trim($prod['NOMBRE_ESPECIFICACION'] ?? ''));
+
+            // Construir nombre completo
+            $partes = array_filter([$nombreTipo, $nombreMarca, $nombreModelo, $nombreMedida, $nombreEspec]);
+            $nombre = implode(' ', $partes);
+
+            // Tipo producto: si viene en el Excel lo usa, si no default MTO
+            $tipoProducto = strtoupper(trim($prod['TIPO_PRODUCTO'] ?? 'MTO'));
+
+            $precio = $prod['PRECIO'] ?? null;
+            if ($precio) {
+                $precio = (float) str_replace(['$', ',', ' '], '', $precio);
+            } else {
+                $precio = 0;
+            }
+
+            Producto::updateOrCreate(
+                ['codigo' => $codigo],
+                [
+                    'nombre' => $nombre,
+                    'nombre_tipo' => $nombreTipo,
+                    'nombre_marca' => $nombreMarca,
+                    'nombre_modelo' => $nombreModelo,
+                    'nombre_medida' => $nombreMedida,
+                    'nombre_especificacion' => $nombreEspec,
+                    'familia' => strtoupper(trim($prod['FAMILIA'] ?? 'MANTENIMIENTO')),
+                    'tipo_producto' => $tipoProducto,
+                    'categoria' => 'MANTENIMIENTO',
+                    'unidad_venta' => strtoupper(trim($prod['UNIDAD_MEDIDA'] ?? 'PZA')),
+                    'precio' => $precio,
+                    'maneja_lotes' => strtoupper(trim($prod['LOTE'] ?? '')) === 'SI',
+                    'activo' => true,
+                    'proveedor_nombre' => session('admin_nombre') ?? 'Admin',
+                    'proveedor_tipo' => 'admin',
+                ]
+            );
+            $creados++;
+        }
+
+        try { app(AlertEngineService::class)->alertar([
+            'tipo' => 'productos_alta_automatica',
+            'modulo' => 'productos',
+            'destinatario_tipo' => 'admin',
+            'destinatario_id' => 1,
+            'titulo' => "Alta Mantenimiento: {$creados} producto(s)",
+            'contenido' => "Se dieron de alta {$creados} producto(s) de Mantenimiento (CM/BL/CIL/CN).",
+            'datos' => ['total' => $creados],
+            'nivel' => 'info',
+        ]); } catch (\Exception $e) {}
+
+        return back()->with('mensaje', "Se dieron de alta {$creados} producto(s) de Mantenimiento exitosamente.");
+    }
+
     /**
      * Subir Excel y validar INMEDIATAMENTE.
      */

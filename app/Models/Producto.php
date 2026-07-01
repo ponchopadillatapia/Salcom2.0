@@ -11,6 +11,7 @@ class Producto extends Model
 
     protected $fillable = [
         'codigo', 'codigo_alterno', 'nombre', 'nombre_alterno',
+        'nombre_tipo', 'nombre_marca', 'nombre_modelo', 'nombre_medida', 'nombre_especificacion',
         'clave_sat', 'descripcion_corta', 'descripcion',
         'categoria', 'familia', 'subfamilia', 'segmento_mercado', 'tipo_producto',
         'precio', 'unidad_venta', 'stock',
