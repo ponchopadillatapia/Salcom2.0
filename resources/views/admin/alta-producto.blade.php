@@ -73,11 +73,11 @@
     <button class="tab-btn {{ session('tab') === 'internacional' ? 'active' : '' }}" onclick="switchTab('internacional')">Compras Internacional (MPI)</button>
 </div>
 
-{{-- ═══ TAB: NACIONAL (ME/MP - Brenda) ═══ --}}
+{{-- ═══ TAB: NACIONAL (ME/MP) ═══ --}}
 <div class="tab-content {{ session('tab', 'nacional') === 'nacional' ? 'active' : '' }}" id="tab-nacional">
 <div class="alta-grid">
     <div class="alta-card">
-        <h3>Nacional — ME / MP (Brenda)</h3>
+        <h3>Nacional — ME / MP</h3>
         <div class="alta-steps">
             <div class="alta-step"><div class="alta-step-num">1</div><div class="alta-step-text"><strong>Descarga el template Nacional</strong>Excel para Material de Empaque (ME) y Materia Prima (MP).</div></div>
             <div class="alta-step"><div class="alta-step-num">2</div><div class="alta-step-text"><strong>Llena tus productos</strong>Solo código, nombre tipo y medida son obligatorios.</div></div>
@@ -124,11 +124,11 @@
 </div>
 </div>
 
-{{-- ═══ TAB: INTERNACIONAL (MPI - Cinthya) ═══ --}}
+{{-- ═══ TAB: INTERNACIONAL (MPI) ═══ --}}
 <div class="tab-content {{ session('tab') === 'internacional' ? 'active' : '' }}" id="tab-internacional">
 <div class="alta-grid">
     <div class="alta-card">
-        <h3>Internacional — MPI (Cinthya)</h3>
+        <h3>Internacional — MPI</h3>
         <div class="alta-steps">
             <div class="alta-step"><div class="alta-step-num">1</div><div class="alta-step-text"><strong>Descarga el template MPI</strong>Excel exclusivo para Materia Prima de Importación.</div></div>
             <div class="alta-step"><div class="alta-step-num">2</div><div class="alta-step-text"><strong>Llena tus productos</strong>Código, nombre genérico, medida, familia, unidad, lote y pedimento obligatorios.</div></div>
