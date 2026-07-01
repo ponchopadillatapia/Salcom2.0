@@ -824,6 +824,19 @@ class AltaProductoController extends Controller
             return back()->with('error', 'El archivo esta vacio o no tiene productos. Descarga el template, borra los ejemplos en gris y llena tus productos. Columnas obligatorias: CODIGO, NOMBRE_TIPO, NOMBRE_MARCA, NOMBRE_MODELO, NOMBRE_MEDIDA, NOMBRE_ESPECIFICACION, PRODUCCION, FAMILIA, TIPO_PRODUCTO, UNIDAD_MEDIDA, OBSERVACIONES.');
         }
 
+        // Filtrar filas realmente vacías (solo tienen dropdowns pre-llenados pero sin datos)
+        $productos = array_filter($productos, function ($prod) {
+            $codigo = trim($prod['CODIGO'] ?? '');
+            $nombre = trim($prod['NOMBRE_TIPO'] ?? '');
+            $medida = trim($prod['NOMBRE_MEDIDA'] ?? '');
+            return !empty($codigo) || !empty($nombre) || !empty($medida);
+        });
+        $productos = array_values($productos);
+
+        if (empty($productos)) {
+            return back()->with('error', 'El archivo no tiene productos con datos. Llena al menos CODIGO, NOMBRE_TIPO o NOMBRE_MEDIDA.');
+        }
+
         // Verificar que el archivo tenga las columnas correctas
         $primeraFila = $productos[0] ?? [];
         $columnasPresentes = array_keys($primeraFila);
@@ -2530,26 +2543,24 @@ Si todo correcto: {"errores_ia": []}';
         $prefijo = strtoupper($tipoProducto);
         $prefijoLen = strlen($prefijo);
 
-        // Buscar todos los códigos con ese prefijo + números
-        $ultimoCodigo = Producto::where('codigo', 'LIKE', $prefijo.'%')
-            ->get(['codigo'])
-            ->filter(function ($p) use ($prefijo, $prefijoLen) {
-                $sufijo = substr($p->codigo, $prefijoLen);
-                return ctype_digit($sufijo) && strlen($sufijo) > 0;
-            })
-            ->sortByDesc(function ($p) use ($prefijoLen) {
-                return (int) substr($p->codigo, $prefijoLen);
-            })
-            ->first();
+        // Query optimizada: buscar el máximo número con LIKE + CAST en MySQL
+        $ultimo = Producto::where('codigo', 'LIKE', $prefijo.'%')
+            ->whereRaw('LENGTH(codigo) > ?', [$prefijoLen])
+            ->orderByRaw('CAST(SUBSTRING(codigo, ?) AS UNSIGNED) DESC', [$prefijoLen + 1])
+            ->limit(1)
+            ->value('codigo');
 
-        if ($ultimoCodigo) {
-            $numero = (int) substr($ultimoCodigo->codigo, $prefijoLen);
-            $siguiente = $numero + 1;
+        if ($ultimo) {
+            $sufijo = substr($ultimo, $prefijoLen);
+            if (ctype_digit($sufijo)) {
+                $siguiente = (int) $sufijo + 1;
+            } else {
+                $siguiente = 1;
+            }
         } else {
             $siguiente = 1;
         }
 
-        // Formatear con padding de 4 dígitos mínimo
         $digitos = max(4, strlen((string) $siguiente));
         return $prefijo . str_pad($siguiente, $digitos, '0', STR_PAD_LEFT);
     }
