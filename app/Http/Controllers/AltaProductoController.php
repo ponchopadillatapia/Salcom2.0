@@ -717,9 +717,10 @@ class AltaProductoController extends Controller
                 }
             }
 
-            // Validar duplicado
+            // Validar duplicado (ignorar soft-deleted, se restaurarán)
             $codigo = strtoupper(trim($producto['CODIGO'] ?? ''));
-            if ($codigo && Producto::where('codigo', $codigo)->exists()) {
+            $existente = Producto::where('codigo', $codigo)->first();
+            if ($existente) {
                 $erroresFila[] = ['fila' => $fila, 'campo' => 'CODIGO', 'error' => "DUPLICADO: '{$codigo}' ya existe en el sistema."];
             }
 
@@ -765,7 +766,13 @@ class AltaProductoController extends Controller
                 $precio = 0;
             }
 
-            Producto::updateOrCreate(
+            // Restaurar si fue soft-deleted
+            $existenteMTO = Producto::withTrashed()->where('codigo', $codigo)->first();
+            if ($existenteMTO && $existenteMTO->trashed()) {
+                $existenteMTO->restore();
+            }
+
+            Producto::withTrashed()->updateOrCreate(
                 ['codigo' => $codigo],
                 [
                     'nombre' => $nombre,
@@ -783,6 +790,7 @@ class AltaProductoController extends Controller
                     'activo' => true,
                     'proveedor_nombre' => session('admin_nombre') ?? 'Admin',
                     'proveedor_tipo' => 'admin',
+                    'deleted_at' => null,
                 ]
             );
             $creados++;
@@ -2612,13 +2620,18 @@ Si todo correcto: {"errores_ia": []}';
             return 'RP';
         }
 
+        // Mantenimiento (Pagagoni): CM=Consumibles, BL=Baleros, CIL=Cilindros, CN=Conexiones, MN=Mantenimiento
+        if (str_starts_with($codigo, 'CM') || str_starts_with($codigo, 'BL') || str_starts_with($codigo, 'CIL') || str_starts_with($codigo, 'CN') || str_starts_with($codigo, 'MN')) {
+            return 'MN';
+        }
+
         // Herramientas
-        if (str_starts_with($codigo, 'HER') || str_starts_with($codigo, 'HET') || str_starts_with($codigo, 'CM')) {
+        if (str_starts_with($codigo, 'HER') || str_starts_with($codigo, 'HET')) {
             return 'HERRAMIENTAS';
         }
 
         // Refacciones
-        if (str_starts_with($codigo, 'BL') || str_starts_with($codigo, 'CN') || str_starts_with($codigo, 'RI') || str_starts_with($codigo, '500') || str_starts_with($codigo, '101')) {
+        if (str_starts_with($codigo, 'RI') || str_starts_with($codigo, '500') || str_starts_with($codigo, '101')) {
             return 'REFACCIONES';
         }
 
