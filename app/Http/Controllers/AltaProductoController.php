@@ -568,6 +568,7 @@ class AltaProductoController extends Controller
                     'proveedor_nombre' => session('admin_nombre') ?? 'Admin',
                     'proveedor_tipo' => 'admin',
                     'deleted_at' => null,
+                    'created_at' => now(),
                 ]
             );
             $creados++;
@@ -791,6 +792,7 @@ class AltaProductoController extends Controller
                     'proveedor_nombre' => session('admin_nombre') ?? 'Admin',
                     'proveedor_tipo' => 'admin',
                     'deleted_at' => null,
+                    'created_at' => now(),
                 ]
             );
             $creados++;
