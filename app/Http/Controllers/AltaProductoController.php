@@ -550,7 +550,7 @@ class AltaProductoController extends Controller
                 $existente->restore();
             }
 
-            Producto::withTrashed()->updateOrCreate(
+            $productoMPI = Producto::withTrashed()->updateOrCreate(
                 ['codigo' => $codigo],
                 [
                     'nombre' => $nombre,
@@ -568,9 +568,12 @@ class AltaProductoController extends Controller
                     'proveedor_nombre' => session('admin_nombre') ?? 'Admin',
                     'proveedor_tipo' => 'admin',
                     'deleted_at' => null,
-                    'created_at' => now(),
                 ]
             );
+            // Forzar fecha de alta a ahora
+            $productoMPI->timestamps = false;
+            $productoMPI->created_at = now();
+            $productoMPI->save();
             $creados++;
         }
 
