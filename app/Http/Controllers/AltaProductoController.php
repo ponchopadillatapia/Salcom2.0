@@ -358,7 +358,7 @@ class AltaProductoController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Productos MPI');
 
-        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_generico', 'codigo_proveedor', 'NOMBRE_ESPECIFICACION_adicional', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_generico', 'codigo_proveedor', 'NOMBRE_ESPECIFICACION_adicional', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO'];
         $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_generico', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'LOTE', 'PEDIMENTO'];
 
         $col = 'A';
@@ -374,6 +374,9 @@ class AltaProductoController extends Controller
             $sheet->getColumnDimension($col)->setAutoSize(true);
             $col++;
         }
+
+        // Columna B (CONSECUTIVO) como texto para conservar ceros a la izquierda
+        $sheet->getStyle('B2:B101')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
 
         // Formato moneda para PRECIO (I)
         $sheet->getStyle('I2:I101')->getNumberFormat()->setFormatCode('$#,##0.00');
@@ -534,7 +537,7 @@ class AltaProductoController extends Controller
             $codigoProv = trim($prod['CODIGO_PROVEEDOR'] ?? $prod['codigo_proveedor'] ?? '');
             $espec = trim($prod['NOMBRE_ESPECIFICACION_ADICIONAL'] ?? $prod['NOMBRE_ESPECIFICACION_adicional'] ?? '');
 
-            $nombre = trim(strtoupper($nombreGenerico).' '.strtoupper($espec));
+            $nombre = trim(strtoupper($nombreGenerico).' '.strtoupper($codigoProv).' '.strtoupper($espec));
             $precio = $prod['PRECIO'] ?? null;
             if ($precio) {
                 $precio = (float) str_replace(['$', ',', ' '], '', $precio);

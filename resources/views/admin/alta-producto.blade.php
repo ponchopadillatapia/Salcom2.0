@@ -171,7 +171,6 @@
                     <tr><td style="color:var(--gray-muted);">CLAVE_SAT</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">LOTE</td><td>SI</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">PEDIMENTO</td><td>SI</td><td class="req">✓</td></tr>
-                    <tr><td style="color:var(--gray-muted);">VOLTAJE</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
                 </tbody>
             </table>
         </div>
