@@ -861,11 +861,11 @@ class AdminPanelController extends Controller
         $valorInventario = (float) Producto::where('activo', true)
             ->get()
             ->sum(fn ($p) => (float) $p->stock * (float) $p->precio);
-        $categorias = Producto::whereNotNull('categoria')
-            ->where('categoria', '!=', '')
+        $categorias = Producto::whereNotNull('tipo_producto')
+            ->where('tipo_producto', '!=', '')
             ->distinct()
-            ->orderBy('categoria')
-            ->pluck('categoria');
+            ->orderBy('tipo_producto')
+            ->pluck('tipo_producto');
         $totalCategorias = $categorias->count();
 
         $proveedores = Producto::whereNotNull('proveedor_nombre')
@@ -890,6 +890,7 @@ class AdminPanelController extends Controller
             'proveedor' => $proveedor,
             'admin' => $request->input('admin', ''),
             'unidad' => $request->input('unidad', ''),
+            'codigo' => $request->input('codigo', ''),
             'fecha_desde' => $fechaDesde,
             'fecha_hasta' => $fechaHasta,
         ];
@@ -945,11 +946,15 @@ class AdminPanelController extends Controller
         if ($busqueda) {
             $query->where(function ($q) use ($busqueda) {
                 $q->where('nombre', 'like', "%{$busqueda}%")
-                    ->orWhere('codigo', 'like', "%{$busqueda}%")
                     ->orWhere('codigo_alterno', 'like', "%{$busqueda}%")
                     ->orWhere('categoria', 'like', "%{$busqueda}%")
                     ->orWhere('proveedor_nombre', 'like', "%{$busqueda}%");
             });
+        }
+
+        $codigo = $request->input('codigo', '');
+        if ($codigo) {
+            $query->where('codigo', 'like', "%{$codigo}%");
         }
 
         if ($request->input('sin_stock')) {
@@ -978,7 +983,7 @@ class AdminPanelController extends Controller
         }
 
         if ($categoria) {
-            $query->where('categoria', $categoria);
+            $query->where('tipo_producto', $categoria);
         }
 
         if ($proveedor) {

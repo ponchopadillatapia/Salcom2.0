@@ -142,7 +142,11 @@
             @endif
             <div class="filter-field search-field">
                 <label>Buscar</label>
-                <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Código, nombre o categoría…">
+                <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Nombre, categoría o proveedor…">
+            </div>
+            <div class="filter-field">
+                <label>Código</label>
+                <input type="text" name="codigo" value="{{ $filtros['codigo'] ?? '' }}" placeholder="Buscar por código…">
             </div>
             <div class="filter-field">
                 <label>Tipo Producto</label>
