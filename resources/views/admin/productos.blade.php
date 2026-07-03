@@ -119,18 +119,6 @@
             <a href="{{ route('admin.productos', $baseQuery) }}" class="filter-btn {{ $chipActive() ? 'active' : '' }}">
                 Todos <span class="filter-count">{{ $totalGeneral }}</span>
             </a>
-            <a href="{{ route('admin.productos', array_merge($baseQuery, ['grupo' => 'criticos'])) }}" class="filter-btn warn {{ $chipActive(null, 'criticos') ? 'active' : '' }}">
-                Críticos <span class="filter-count">{{ $conteoCriticos }}</span>
-            </a>
-            <a href="{{ route('admin.productos', array_merge($baseQuery, ['stock' => 'agotado'])) }}" class="filter-btn danger {{ $chipActive('agotado') ? 'active' : '' }}">
-                Agotados <span class="filter-count">{{ $conteoAgotado }}</span>
-            </a>
-            <a href="{{ route('admin.productos', array_merge($baseQuery, ['stock' => 'bajo'])) }}" class="filter-btn warn {{ $chipActive('bajo') ? 'active' : '' }}">
-                Stock bajo <span class="filter-count">{{ $conteoBajo }}</span>
-            </a>
-            <a href="{{ route('admin.productos', array_merge($baseQuery, ['stock' => 'ok'])) }}" class="filter-btn ok {{ $chipActive('ok') ? 'active' : '' }}">
-                Stock OK <span class="filter-count">{{ $conteoOk }}</span>
-            </a>
         </div>
         <span class="badge-count">{{ $productos->total() }} resultado{{ $productos->total() !== 1 ? 's' : '' }}</span>
     </div>

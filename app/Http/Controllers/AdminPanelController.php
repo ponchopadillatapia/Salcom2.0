@@ -765,22 +765,25 @@ class AdminPanelController extends Controller
             ['CATÁLOGO DE PRODUCTOS'],
             ['Generado: '.now()->format('d/m/Y H:i')],
             [],
-            ['CÓDIGO', 'NOMBRE', 'CATEGORÍA', 'PRECIO', 'UNIDAD', 'STOCK', 'NIVEL', 'PROVEEDOR', 'CATÁLOGO', 'FECHA ALTA'],
+            ['CÓDIGO', 'NOMBRE', 'TIPO PRODUCTO', 'UNIDAD', 'PROVEEDOR', 'FECHA ALTA'],
         ];
 
         foreach ($productos as $p) {
-            $stockLabel = $p->stock <= 0 ? 'Agotado' : ($p->stock < 50 ? 'Bajo' : 'OK');
+            $fecha = '—';
+            if ($p->created_at) {
+                try {
+                    $fecha = \Carbon\Carbon::parse($p->created_at)->format('d/m/Y H:i');
+                } catch (\Exception $e) {
+                    $fecha = '—';
+                }
+            }
             $lines[] = [
                 $p->codigo,
                 $p->nombre,
-                $p->categoria ?: '—',
-                '$'.number_format((float) $p->precio, 2),
-                $p->unidad_venta,
-                $p->stock,
-                $stockLabel,
+                $p->tipo_producto ?: ($p->categoria ?: '—'),
+                $p->unidad_venta ?: '—',
                 $p->proveedor_nombre ?: '—',
-                $p->activo ? 'Activo' : 'Inactivo',
-                $p->created_at?->format('d/m/Y H:i') ?? '—',
+                $fecha,
             ];
         }
 
