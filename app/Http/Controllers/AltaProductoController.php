@@ -102,19 +102,20 @@ class AltaProductoController extends Controller
     public function descargarTemplate()
     {
         $spreadsheet = new Spreadsheet;
-
-        // === HOJA PRINCIPAL: Productos ===
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Productos');
+        $sheet->setTitle('Productos Nacional');
 
-        // Headers - sin columnas redundantes
-        $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
-        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false];
+        // Columnas: A=PREFIJO, B=CONSECUTIVO, C=NOMBRE_TIPO, D=NOMBRE_MAQUILA, E=NOMBRE_PRESENTACION,
+        //           F=NOMBRE_MEDIDA, G=NOMBRE_ESPECIFICACION, H=FAMILIA, I=TIPO_PRODUCTO,
+        //           J=UNIDAD_MEDIDA, K=PRECIO, L=CLAVE_SAT, M=LOTE, N=PEDIMENTO, O=VOLTAJE
+        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MAQUILA', 'NOMBRE_PRESENTACION', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO'];
+
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
             $sheet->getStyle($col.'1')->getFont()->setBold(true);
-            if ($obligatorios[$header]) {
+            if (in_array($header, $obligatorios)) {
                 $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
             } else {
                 $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
@@ -124,227 +125,86 @@ class AltaProductoController extends Controller
             $col++;
         }
 
-        // Template limpio - sin ejemplo en fila 2
+        // Consecutivo como texto (conservar ceros a la izquierda)
+        $sheet->getStyle('B2:B101')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
 
-        // Formato moneda ($) para columna PRECIO (J) - se ve el $ pero es numero
-        $sheet->getStyle('J2:J101')->getNumberFormat()->setFormatCode('$#,##0.00');
+        // Formato moneda para PRECIO (K)
+        $sheet->getStyle('K2:K101')->getNumberFormat()->setFormatCode('$#,##0.00');
 
-        // === HOJA OCULTA: Listas de validacion ===
+        // === HOJA OCULTA: Listas ===
         $listSheet = $spreadsheet->createSheet();
         $listSheet->setTitle('_Listas');
-
-        // Familias
-        $familias = $this->familiasValidas;
-        foreach ($familias as $i => $fam) {
-            $listSheet->setCellValue('A'.($i + 1), $fam);
-        }
-
-        // Unidades
-        $unidades = $this->unidadesValidas;
-        foreach ($unidades as $i => $uni) {
-            $listSheet->setCellValue('B'.($i + 1), $uni);
-        }
-
-        // Ocultar la hoja de listas
+        foreach ($this->familiasValidas as $i => $fam) { $listSheet->setCellValue('A'.($i+1), $fam); }
+        foreach ($this->unidadesValidas as $i => $uni) { $listSheet->setCellValue('B'.($i+1), $uni); }
+        // Prefijos Nacional
+        $listSheet->setCellValue('C1', 'ME'); $listSheet->setCellValue('C2', 'MP');
+        // SI/NO
+        $listSheet->setCellValue('D1', 'SI'); $listSheet->setCellValue('D2', 'NO');
+        // Voltaje
+        $voltajes = ['110V','127V','220V','220/440V','110/220V','440V','480V','12VDC','24VDC','N/A'];
+        foreach ($voltajes as $i => $v) { $listSheet->setCellValue('E'.($i+1), $v); }
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
-        // === VALIDACIONES en hoja principal ===
-        // Columnas: A=CODIGO, B=NOMBRE_TIPO, C=NOMBRE_MARCA, D=NOMBRE_MODELO, E=NOMBRE_MEDIDA,
-        //           F=NOMBRE_ESPECIFICACION, G=FAMILIA, H=TIPO_PRODUCTO, I=UNIDAD_MEDIDA,
-        //           J=PRECIO, K=CLAVE_SAT, L=LOTE, M=PEDIMENTO, N=VOLTAJE
+        // === VALIDACIONES ===
         $spreadsheet->setActiveSheetIndex(0);
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Dropdown FAMILIA (columna G)
-        $familiaCount = count($familias);
+        // Dropdown PREFIJO (A) - solo ME y MP
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('G'.$row)->getDataValidation();
-            $validation->setType(DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(DataValidation::STYLE_STOP);
-            $validation->setAllowBlank(true);
-            $validation->setShowDropDown(true);
-            $validation->setShowErrorMessage(true);
-            $validation->setErrorTitle('Familia no valida');
-            $validation->setError('Selecciona una familia del catalogo oficial.');
-            $validation->setFormula1('_Listas!$A$1:$A$'.$familiaCount);
+            $v = $sheet->getCell('A'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
+            $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
+            $v->setErrorTitle('Prefijo no valido')->setError('Selecciona: ME o MP');
+            $v->setFormula1('_Listas!$C$1:$C$2');
         }
 
-        // Dropdown UNIDAD_MEDIDA (columna I)
-        $unidadCount = count($unidades);
+        // Dropdown FAMILIA (H)
+        $fc = count($this->familiasValidas);
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('I'.$row)->getDataValidation();
-            $validation->setType(DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(DataValidation::STYLE_STOP);
-            $validation->setAllowBlank(true);
-            $validation->setShowDropDown(true);
-            $validation->setShowErrorMessage(true);
-            $validation->setErrorTitle('Unidad no valida');
-            $validation->setError('Solo: KG, PZA o CAJA');
-            $validation->setFormula1('_Listas!$B$1:$B$'.$unidadCount);
+            $v = $sheet->getCell('H'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$A$1:$A$'.$fc);
         }
 
-        // Dropdown TIPO_PRODUCTO (columna H)
-        $tiposProducto = ['MPI', 'ME', 'MN', 'MP', 'PT', 'RP', 'CONTABLE', 'GASTOS', 'REFACCIONES', 'HERRAMIENTAS', 'MAQUINARIA', 'MUESTRAS', 'INSUMOS', 'EQUIPO', 'SEGURIDAD', 'VEHICULOS', 'MOLDES', 'SERVICIOS'];
-        foreach ($tiposProducto as $i => $tipo) {
-            $listSheet->setCellValue('C' . ($i + 1), $tipo);
-        }
-        $tipoCount = count($tiposProducto);
+        // Dropdown TIPO_PRODUCTO (I) - solo ME y MP
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('H'.$row)->getDataValidation();
-            $validation->setType(DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(DataValidation::STYLE_STOP);
-            $validation->setAllowBlank(true);
-            $validation->setShowDropDown(true);
-            $validation->setShowErrorMessage(true);
-            $validation->setErrorTitle('Tipo de producto no valido');
-            $validation->setError('Selecciona un tipo de producto del listado');
-            $validation->setFormula1('_Listas!$C$1:$C$' . $tipoCount);
+            $v = $sheet->getCell('I'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$C$1:$C$2');
         }
 
-        // Dropdown LOTE (columna L)
-        $listSheet->setCellValue('D1', 'SI');
-        $listSheet->setCellValue('D2', 'NO');
+        // Dropdown UNIDAD_MEDIDA (J)
+        $uc = count($this->unidadesValidas);
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('L'.$row)->getDataValidation();
-            $validation->setType(DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(DataValidation::STYLE_STOP);
-            $validation->setAllowBlank(true);
-            $validation->setShowDropDown(true);
-            $validation->setShowErrorMessage(true);
-            $validation->setErrorTitle('Valor no valido');
-            $validation->setError('Solo SI o NO');
-            $validation->setFormula1('_Listas!$D$1:$D$2');
+            $v = $sheet->getCell('J'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$B$1:$B$'.$uc);
         }
 
-        // Dropdown PEDIMENTO (columna M)
+        // Dropdown LOTE (M) y PEDIMENTO (N)
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('M'.$row)->getDataValidation();
-            $validation->setType(DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(DataValidation::STYLE_STOP);
-            $validation->setAllowBlank(true);
-            $validation->setShowDropDown(true);
-            $validation->setShowErrorMessage(true);
-            $validation->setErrorTitle('Valor no valido');
-            $validation->setError('Solo SI o NO');
-            $validation->setFormula1('_Listas!$D$1:$D$2');
+            $v = $sheet->getCell('M'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$D$1:$D$2');
+            $v2 = $sheet->getCell('N'.$row)->getDataValidation();
+            $v2->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v2->setFormula1('_Listas!$D$1:$D$2');
         }
 
-        // Dropdown VOLTAJE (columna N)
-        $listSheet->setCellValue('E1', '110V');
-        $listSheet->setCellValue('E2', '127V');
-        $listSheet->setCellValue('E3', '220V');
-        $listSheet->setCellValue('E4', '220/440V');
-        $listSheet->setCellValue('E5', '110/220V');
-        $listSheet->setCellValue('E6', '440V');
-        $listSheet->setCellValue('E7', '480V');
-        $listSheet->setCellValue('E8', '12VDC');
-        $listSheet->setCellValue('E9', '24VDC');
-        $listSheet->setCellValue('E10', '3HP');
-        $listSheet->setCellValue('E11', '5HP');
-        $listSheet->setCellValue('E12', '10HP');
-        $listSheet->setCellValue('E13', '60Hz');
-        $listSheet->setCellValue('E14', 'N/A');
+        // Dropdown VOLTAJE (O)
+        $vc = count($voltajes);
         for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('N'.$row)->getDataValidation();
-            $validation->setType(DataValidation::TYPE_LIST);
-            $validation->setErrorStyle(DataValidation::STYLE_STOP);
-            $validation->setAllowBlank(true);
-            $validation->setShowDropDown(true);
-            $validation->setShowErrorMessage(true);
-            $validation->setErrorTitle('Voltaje no valido');
-            $validation->setError('Selecciona un voltaje del listado');
-            $validation->setFormula1('_Listas!$E$1:$E$14');
+            $v = $sheet->getCell('O'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$E$1:$E$'.$vc);
         }
 
-        // Validacion PRECIO (columna J)
-        for ($row = 2; $row <= 100; $row++) {
-            $validation = $sheet->getCell('J'.$row)->getDataValidation();
-            $validation->setType(DataValidation::TYPE_DECIMAL);
-            $validation->setErrorStyle(DataValidation::STYLE_WARNING);
-            $validation->setAllowBlank(true);
-            $validation->setShowErrorMessage(true);
-            $validation->setErrorTitle('Precio invalido');
-            $validation->setError('El precio debe ser un numero mayor a 0.');
-            $validation->setOperator(DataValidation::OPERATOR_GREATERTHAN);
-            $validation->setFormula1('0');
-        }
-
-        // === HOJA DE INSTRUCCIONES ===
-        $instrSheet = $spreadsheet->createSheet();
-        $instrSheet->setTitle('Instrucciones');
-        $instrSheet->getColumnDimension('A')->setWidth(90);
-
-        $instrSheet->setCellValue('A1', 'INSTRUCCIONES - ALTA DE PRODUCTO');
-        $instrSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
-        $instrSheet->getStyle('A1')->getFont()->getColor()->setRGB('6B3FA0');
-
-        $row = 3;
-        $reglas = [
-            '=== COLORES DEL HEADER ===',
-            'Morado oscuro = Obligatorio (siempre llenar)',
-            'Morado claro = Opcional (puedes dejarlo vacio)',
-            '',
-            '=== COLUMNAS DEL EXCEL (en orden) ===',
-            'CODIGO - Codigo unico del producto (ej: MPI0538, ME0201)',
-            'NOMBRE_TIPO - Que es el producto (ej: MOTOR ELECTRICO, RESINA EPOXICA)',
-            '  IMPORTANTE: Minimo 2 palabras (PINTURA VINILICA, no solo PINTURA)',
-            'NOMBRE_MARCA - Quien lo fabrica (ej: WEG, SKF, 3M, ALPHA)',
-            'NOMBRE_MODELO - Referencia del fabricante (ej: W22, IND-500, CP-40)',
-            'NOMBRE_MEDIDA - Tamano con numeros (ej: 500ML, 3HP, 30CMX30CM, 40X30X25)',
-            'NOMBRE_ESPECIFICACION - Detalle adicional (ej: TRIFASICO, TRANSPARENTE)',
-            'FAMILIA - Seleccionar del dropdown (ej: MATERIA PRIMA, MANTENIMIENTO)',
-            'TIPO_PRODUCTO - MPI (Materia Prima), ME (Empaque), MN (Mantenimiento)',
-            'UNIDAD_MEDIDA - Solo KG, PZA o CAJA',
-            'PRECIO - Opcional. Con $ y decimales (ej: $150.50)',
-            'CLAVE_SAT - Opcional. Codigo SAT (ej: 10191509)',
-            'LOTE - SI o NO. Obligatorio solo si TIPO_PRODUCTO = MPI',
-            'PEDIMENTO - SI o NO. Obligatorio solo si TIPO_PRODUCTO = MPI',
-            'VOLTAJE - Opcional. Seleccionar del dropdown (ej: 220V, 220/440V)',
-            '',
-            '=== QUE SIGNIFICAN MPI, ME Y MN ===',
-            'MPI = Materia Prima Importacion - Requiere LOTE y PEDIMENTO',
-            'ME = Material de Empaque - Cajas, etiquetas, bolsas',
-            'MN = Mantenimiento - Motores, refacciones, herramientas',
-            '',
-            '=== REGLAS GENERALES ===',
-            'Todo en MAYUSCULAS, sin acentos ni caracteres especiales',
-            'NOMBRE_TIPO debe tener MINIMO 2 PALABRAS (ej: PINTURA VINILICA, no solo PINTURA)',
-            'NOMBRE_MEDIDA debe tener numeros (500ML, 3HP, 30CMX30CM, 40X30X25). Para dimensiones usa X sin espacios: 30CMX30CM',
-            'NOMBRE_ESPECIFICACION no debe repetir datos de otros campos',
-            'NOMBRE_TIPO no puede ser una marca (WEG, SKF van en NOMBRE_MARCA)',
-            'NOMBRE_MARCA no puede ser una medida (3HP, 500ML van en NOMBRE_MEDIDA)',
-            'PRECIO debe llevar $ al inicio (ej: $150.50). Si no sabes el precio, dejalo vacio',
-            'No repetir productos que ya existen en el catalogo',
-            '',
-            '=== SI LA IA RECHAZA TU ARCHIVO ===',
-            '1. Las celdas con error se marcan en ROJO en el Excel descargable',
-            '2. En la pagina web te dice exactamente que corregir',
-            '3. Corrige los campos marcados y vuelve a subir',
-            '',
-            '=== COMO EMPEZAR ===',
-            'Empieza a llenar tus productos desde la fila 2.',
-            'NO borres ni insertes filas porque pierdes los dropdowns.',
-            'Usa los dropdowns para FAMILIA, TIPO_PRODUCTO, UNIDAD_MEDIDA, LOTE, PEDIMENTO y VOLTAJE.',
-        ];
-
-        foreach ($reglas as $texto) {
-            $instrSheet->setCellValue('A'.$row, $texto);
-            if (str_starts_with($texto, '===')) {
-                $instrSheet->getStyle('A'.$row)->getFont()->setBold(true)->setSize(11);
-            }
-            $row++;
-        }
-
-        // Volver a la hoja principal
         $spreadsheet->setActiveSheetIndex(0);
-
-        // Generar y descargar
         $writer = new Xlsx($spreadsheet);
-
-        $tempFile = tempnam(sys_get_temp_dir(), 'template_');
+        $tempFile = tempnam(sys_get_temp_dir(), 'template_nac_');
         $writer->save($tempFile);
 
-        return response()->download($tempFile, 'Template_Alta_Producto_Salcom.xlsx', [
+        return response()->download($tempFile, 'Template_Alta_Nacional_ME_MP_Salcom.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ])->deleteFileAfterSend(true);
     }
@@ -850,31 +710,50 @@ class AltaProductoController extends Controller
 
         // Filtrar filas realmente vacías (solo tienen dropdowns pre-llenados pero sin datos)
         $productos = array_filter($productos, function ($prod) {
+            $prefijo = trim($prod['PREFIJO'] ?? '');
             $codigo = trim($prod['CODIGO'] ?? '');
             $nombre = trim($prod['NOMBRE_TIPO'] ?? '');
             $medida = trim($prod['NOMBRE_MEDIDA'] ?? '');
-            return !empty($codigo) || !empty($nombre) || !empty($medida);
+            return !empty($prefijo) || !empty($codigo) || !empty($nombre) || !empty($medida);
         });
         $productos = array_values($productos);
 
         if (empty($productos)) {
-            return back()->with('error', 'El archivo no tiene productos con datos. Llena al menos CODIGO, NOMBRE_TIPO o NOMBRE_MEDIDA.');
+            return back()->with('error', 'El archivo no tiene productos con datos.');
         }
 
-        // Verificar que el archivo tenga las columnas correctas
-        $primeraFila = $productos[0] ?? [];
-        $columnasPresentes = array_keys($primeraFila);
-        $columnasFaltantes = array_diff($this->columnasObligatorias, $columnasPresentes);
-        if (! empty($columnasFaltantes)) {
-            return back()->with('error', 'El archivo no tiene las columnas correctas. Faltan: '.implode(', ', $columnasFaltantes).'. Descarga el template oficial y usalo como base.');
+        // Si es admin (Nacional), concatenar PREFIJO + CONSECUTIVO para formar CODIGO
+        $esModuloCompras = request()->is('admin/*');
+        $esModuloProveedor = !$esModuloCompras;
+
+        if ($esModuloCompras) {
+            foreach ($productos as &$prod) {
+                $prefijo = strtoupper(trim($prod['PREFIJO'] ?? ''));
+                $consecutivo = trim($prod['CONSECUTIVO'] ?? '');
+                if (!empty($prefijo) && !empty($consecutivo)) {
+                    $prod['CODIGO'] = $prefijo . $consecutivo;
+                }
+                // Mapear NOMBRE_MAQUILA -> NOMBRE_MARCA y NOMBRE_PRESENTACION -> NOMBRE_MODELO
+                if (isset($prod['NOMBRE_MAQUILA'])) { $prod['NOMBRE_MARCA'] = $prod['NOMBRE_MAQUILA']; }
+                if (isset($prod['NOMBRE_PRESENTACION'])) { $prod['NOMBRE_MODELO'] = $prod['NOMBRE_PRESENTACION']; }
+            }
+            unset($prod);
+        }
+
+        // Verificar columnas (solo para proveedores, admin usa formato diferente)
+        if ($esModuloProveedor) {
+            $primeraFila = $productos[0] ?? [];
+            $columnasPresentes = array_keys($primeraFila);
+            $columnasFaltantes = array_diff($this->columnasObligatorias, $columnasPresentes);
+            if (! empty($columnasFaltantes)) {
+                return back()->with('error', 'El archivo no tiene las columnas correctas. Faltan: '.implode(', ', $columnasFaltantes).'. Descarga el template oficial y usalo como base.');
+            }
         }
 
         // Validar cada producto
         $errores = [];
         $validos = 0;
         $conError = 0;
-        $esModuloCompras = request()->is('admin/*');
-        $esModuloProveedor = !$esModuloCompras;
 
         // Auto-generar códigos para proveedores si vienen vacíos
         if ($esModuloProveedor) {
