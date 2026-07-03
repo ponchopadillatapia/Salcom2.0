@@ -1398,15 +1398,49 @@ class AdminPanelController extends Controller
 
     // ── Inventario ──
 
-    public function inventario()
+    public function inventario(Request $request)
     {
-        $productos = Producto::where('activo', true)->orderBy('stock', 'asc')->get();
-        $totalStock = Producto::where('activo', true)->sum('stock');
-        $sinStock = Producto::where('activo', true)->where('stock', '<=', 0)->count();
-        $stockBajo = Producto::where('activo', true)->where('stock', '>', 0)->where('stock', '<', 50)->count();
-        $stockOk = Producto::where('activo', true)->where('stock', '>=', 50)->count();
+        $filtro = $request->input('stock', 'all');
+        $baseQuery = Producto::where('activo', true);
 
-        return view('admin.inventario', compact('productos', 'totalStock', 'sinStock', 'stockBajo', 'stockOk'));
+        $totalProductos = (clone $baseQuery)->count();
+        $totalStock = (clone $baseQuery)->sum('stock');
+        $sinStock = (clone $baseQuery)->where('stock', '<=', 0)->count();
+        $stockBajo = (clone $baseQuery)->where('stock', '>', 0)->where('stock', '<', 50)->count();
+        $stockOk = (clone $baseQuery)->where('stock', '>=', 50)->count();
+
+        $query = Producto::where('activo', true);
+        match ($filtro) {
+            'out' => $query->where('stock', '<=', 0),
+            'low' => $query->where('stock', '>', 0)->where('stock', '<', 50),
+            'ok' => $query->where('stock', '>=', 50),
+            default => null,
+        };
+
+        $productos = $query->orderBy('stock', 'asc')->paginate(10)->withQueryString();
+
+        $proveedoresUsers = ProveedorUser::select('nombre', 'telefono', 'correo')->get();
+        $proveedoresContacto = [];
+        foreach ($productos as $producto) {
+            $nombre = $producto->proveedor_nombre;
+            if (! $nombre || isset($proveedoresContacto[$nombre])) {
+                continue;
+            }
+            $proveedoresContacto[$nombre] = $proveedoresUsers->first(
+                fn ($u) => str_contains(mb_strtolower($u->nombre), mb_strtolower($nombre))
+            );
+        }
+
+        return view('admin.inventario', compact(
+            'productos',
+            'totalStock',
+            'sinStock',
+            'stockBajo',
+            'stockOk',
+            'totalProductos',
+            'filtro',
+            'proveedoresContacto'
+        ));
     }
 
     // ── Helper: pedidos por mes ──
