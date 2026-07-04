@@ -158,12 +158,11 @@ class AltaProductoController extends Controller
             $v->setFormula1('_Listas!$C$1:$C$2');
         }
 
-        // Dropdown FAMILIA (H)
-        $fc = count($this->familiasValidas);
+        // Dropdown FAMILIA (H) - solo ME y MP
         for ($row = 2; $row <= 100; $row++) {
             $v = $sheet->getCell('H'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
-            $v->setFormula1('_Listas!$A$1:$A$'.$fc);
+            $v->setFormula1('_Listas!$C$1:$C$2');
         }
 
         // Dropdown TIPO_PRODUCTO (I) - solo ME y MP
