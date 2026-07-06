@@ -102,20 +102,19 @@ class AltaProductoController extends Controller
     public function descargarTemplate()
     {
         $spreadsheet = new Spreadsheet;
+
+        // === HOJA PRINCIPAL: Productos ===
         $sheet = $spreadsheet->getActiveSheet();
-        $sheet->setTitle('Productos Nacional');
+        $sheet->setTitle('Productos');
 
-        // Columnas: A=PREFIJO, B=CONSECUTIVO, C=NOMBRE_TIPO, D=NOMBRE_MAQUILA, E=NOMBRE_PRESENTACION,
-        //           F=NOMBRE_MEDIDA, G=NOMBRE_ESPECIFICACION, H=FAMILIA, I=TIPO_PRODUCTO,
-        //           J=UNIDAD_MEDIDA, K=PRECIO, L=CLAVE_SAT, M=LOTE, N=PEDIMENTO, O=VOLTAJE
-        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MAQUILA', 'NOMBRE_PRESENTACION', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
-        $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO'];
-
+        // Headers - sin columnas redundantes
+        $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false];
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
             $sheet->getStyle($col.'1')->getFont()->setBold(true);
-            if (in_array($header, $obligatorios)) {
+            if ($obligatorios[$header]) {
                 $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
             } else {
                 $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
@@ -125,63 +124,303 @@ class AltaProductoController extends Controller
             $col++;
         }
 
-        // Consecutivo como texto (conservar ceros a la izquierda)
-        $sheet->getStyle('B2:B101')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+        // Template limpio - sin ejemplo en fila 2
 
-        // Formato moneda para PRECIO (K)
-        $sheet->getStyle('K2:K101')->getNumberFormat()->setFormatCode('$#,##0.00');
+        // Formato moneda ($) para columna PRECIO (J) - se ve el $ pero es numero
+        $sheet->getStyle('J2:J101')->getNumberFormat()->setFormatCode('$#,##0.00');
 
-        // === HOJA OCULTA: Listas ===
+        // === HOJA OCULTA: Listas de validacion ===
         $listSheet = $spreadsheet->createSheet();
         $listSheet->setTitle('_Listas');
-        foreach ($this->familiasValidas as $i => $fam) { $listSheet->setCellValue('A'.($i+1), $fam); }
-        foreach ($this->unidadesValidas as $i => $uni) { $listSheet->setCellValue('B'.($i+1), $uni); }
-        // Prefijos Nacional
-        $listSheet->setCellValue('C1', 'ME'); $listSheet->setCellValue('C2', 'MP');
-        // SI/NO
-        $listSheet->setCellValue('D1', 'SI'); $listSheet->setCellValue('D2', 'NO');
-        // Voltaje
-        $voltajes = ['110V','127V','220V','220/440V','110/220V','440V','480V','12VDC','24VDC','N/A'];
-        foreach ($voltajes as $i => $v) { $listSheet->setCellValue('E'.($i+1), $v); }
+
+        // Familias
+        $familias = $this->familiasValidas;
+        foreach ($familias as $i => $fam) {
+            $listSheet->setCellValue('A'.($i + 1), $fam);
+        }
+
+        // Unidades
+        $unidades = $this->unidadesValidas;
+        foreach ($unidades as $i => $uni) {
+            $listSheet->setCellValue('B'.($i + 1), $uni);
+        }
+
+        // Ocultar la hoja de listas
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
-        // === VALIDACIONES ===
+        // === VALIDACIONES en hoja principal ===
+        // Columnas: A=CODIGO, B=NOMBRE_TIPO, C=NOMBRE_MARCA, D=NOMBRE_MODELO, E=NOMBRE_MEDIDA,
+        //           F=NOMBRE_ESPECIFICACION, G=FAMILIA, H=TIPO_PRODUCTO, I=UNIDAD_MEDIDA,
+        //           J=PRECIO, K=CLAVE_SAT, L=LOTE, M=PEDIMENTO, N=VOLTAJE
         $spreadsheet->setActiveSheetIndex(0);
         $sheet = $spreadsheet->getActiveSheet();
 
-        // Dropdown PREFIJO (A) - solo ME y MP
+        // Dropdown FAMILIA (columna G)
+        $familiaCount = count($familias);
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('G'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setErrorTitle('Familia no valida');
+            $validation->setError('Selecciona una familia del catalogo oficial.');
+            $validation->setFormula1('_Listas!$A$1:$A$'.$familiaCount);
+        }
+
+        // Dropdown UNIDAD_MEDIDA (columna I)
+        $unidadCount = count($unidades);
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('I'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setErrorTitle('Unidad no valida');
+            $validation->setError('Solo: KG, PZA o CAJA');
+            $validation->setFormula1('_Listas!$B$1:$B$'.$unidadCount);
+        }
+
+        // Dropdown TIPO_PRODUCTO (columna H)
+        $tiposProducto = ['MPI', 'ME', 'MN', 'MP', 'PT', 'RP', 'CONTABLE', 'GASTOS', 'REFACCIONES', 'HERRAMIENTAS', 'MAQUINARIA', 'MUESTRAS', 'INSUMOS', 'EQUIPO', 'SEGURIDAD', 'VEHICULOS', 'MOLDES', 'SERVICIOS'];
+        foreach ($tiposProducto as $i => $tipo) {
+            $listSheet->setCellValue('C' . ($i + 1), $tipo);
+        }
+        $tipoCount = count($tiposProducto);
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('H'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setErrorTitle('Tipo de producto no valido');
+            $validation->setError('Selecciona un tipo de producto del listado');
+            $validation->setFormula1('_Listas!$C$1:$C$' . $tipoCount);
+        }
+
+        // Dropdown LOTE (columna L)
+        $listSheet->setCellValue('D1', 'SI');
+        $listSheet->setCellValue('D2', 'NO');
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('L'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setErrorTitle('Valor no valido');
+            $validation->setError('Solo SI o NO');
+            $validation->setFormula1('_Listas!$D$1:$D$2');
+        }
+
+        // Dropdown PEDIMENTO (columna M)
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('M'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setErrorTitle('Valor no valido');
+            $validation->setError('Solo SI o NO');
+            $validation->setFormula1('_Listas!$D$1:$D$2');
+        }
+
+        // Dropdown VOLTAJE (columna N)
+        $listSheet->setCellValue('E1', '110V');
+        $listSheet->setCellValue('E2', '127V');
+        $listSheet->setCellValue('E3', '220V');
+        $listSheet->setCellValue('E4', '220/440V');
+        $listSheet->setCellValue('E5', '110/220V');
+        $listSheet->setCellValue('E6', '440V');
+        $listSheet->setCellValue('E7', '480V');
+        $listSheet->setCellValue('E8', '12VDC');
+        $listSheet->setCellValue('E9', '24VDC');
+        $listSheet->setCellValue('E10', '3HP');
+        $listSheet->setCellValue('E11', '5HP');
+        $listSheet->setCellValue('E12', '10HP');
+        $listSheet->setCellValue('E13', '60Hz');
+        $listSheet->setCellValue('E14', 'N/A');
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('N'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_LIST);
+            $validation->setErrorStyle(DataValidation::STYLE_STOP);
+            $validation->setAllowBlank(true);
+            $validation->setShowDropDown(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setErrorTitle('Voltaje no valido');
+            $validation->setError('Selecciona un voltaje del listado');
+            $validation->setFormula1('_Listas!$E$1:$E$14');
+        }
+
+        // Validacion PRECIO (columna J)
+        for ($row = 2; $row <= 100; $row++) {
+            $validation = $sheet->getCell('J'.$row)->getDataValidation();
+            $validation->setType(DataValidation::TYPE_DECIMAL);
+            $validation->setErrorStyle(DataValidation::STYLE_WARNING);
+            $validation->setAllowBlank(true);
+            $validation->setShowErrorMessage(true);
+            $validation->setErrorTitle('Precio invalido');
+            $validation->setError('El precio debe ser un numero mayor a 0.');
+            $validation->setOperator(DataValidation::OPERATOR_GREATERTHAN);
+            $validation->setFormula1('0');
+        }
+
+        // === HOJA DE INSTRUCCIONES ===
+        $instrSheet = $spreadsheet->createSheet();
+        $instrSheet->setTitle('Instrucciones');
+        $instrSheet->getColumnDimension('A')->setWidth(90);
+
+        $instrSheet->setCellValue('A1', 'INSTRUCCIONES - ALTA DE PRODUCTO');
+        $instrSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+        $instrSheet->getStyle('A1')->getFont()->getColor()->setRGB('6B3FA0');
+
+        $row = 3;
+        $reglas = [
+            '=== COLORES DEL HEADER ===',
+            'Morado oscuro = Obligatorio (siempre llenar)',
+            'Morado claro = Opcional (puedes dejarlo vacio)',
+            '',
+            '=== COLUMNAS DEL EXCEL (en orden) ===',
+            'CODIGO - Codigo unico del producto (ej: MPI0538, ME0201)',
+            'NOMBRE_TIPO - Que es el producto (ej: MOTOR ELECTRICO, RESINA EPOXICA)',
+            '  IMPORTANTE: Minimo 2 palabras (PINTURA VINILICA, no solo PINTURA)',
+            'NOMBRE_MARCA - Quien lo fabrica (ej: WEG, SKF, 3M, ALPHA)',
+            'NOMBRE_MODELO - Referencia del fabricante (ej: W22, IND-500, CP-40)',
+            'NOMBRE_MEDIDA - Tamano con numeros (ej: 500ML, 3HP, 30CMX30CM, 40X30X25)',
+            'NOMBRE_ESPECIFICACION - Detalle adicional (ej: TRIFASICO, TRANSPARENTE)',
+            'FAMILIA - Seleccionar del dropdown (ej: MATERIA PRIMA, MANTENIMIENTO)',
+            'TIPO_PRODUCTO - MPI (Materia Prima), ME (Empaque), MN (Mantenimiento)',
+            'UNIDAD_MEDIDA - Solo KG, PZA o CAJA',
+            'PRECIO - Opcional. Con $ y decimales (ej: $150.50)',
+            'CLAVE_SAT - Opcional. Codigo SAT (ej: 10191509)',
+            'LOTE - SI o NO. Obligatorio solo si TIPO_PRODUCTO = MPI',
+            'PEDIMENTO - SI o NO. Obligatorio solo si TIPO_PRODUCTO = MPI',
+            'VOLTAJE - Opcional. Seleccionar del dropdown (ej: 220V, 220/440V)',
+            '',
+            '=== QUE SIGNIFICAN MPI, ME Y MN ===',
+            'MPI = Materia Prima Importacion - Requiere LOTE y PEDIMENTO',
+            'ME = Material de Empaque - Cajas, etiquetas, bolsas',
+            'MN = Mantenimiento - Motores, refacciones, herramientas',
+            '',
+            '=== REGLAS GENERALES ===',
+            'Todo en MAYUSCULAS, sin acentos ni caracteres especiales',
+            'NOMBRE_TIPO debe tener MINIMO 2 PALABRAS (ej: PINTURA VINILICA, no solo PINTURA)',
+            'NOMBRE_MEDIDA debe tener numeros (500ML, 3HP, 30CMX30CM, 40X30X25). Para dimensiones usa X sin espacios: 30CMX30CM',
+            'NOMBRE_ESPECIFICACION no debe repetir datos de otros campos',
+            'NOMBRE_TIPO no puede ser una marca (WEG, SKF van en NOMBRE_MARCA)',
+            'NOMBRE_MARCA no puede ser una medida (3HP, 500ML van en NOMBRE_MEDIDA)',
+            'PRECIO debe llevar $ al inicio (ej: $150.50). Si no sabes el precio, dejalo vacio',
+            'No repetir productos que ya existen en el catalogo',
+            '',
+            '=== SI LA IA RECHAZA TU ARCHIVO ===',
+            '1. Las celdas con error se marcan en ROJO en el Excel descargable',
+            '2. En la pagina web te dice exactamente que corregir',
+            '3. Corrige los campos marcados y vuelve a subir',
+            '',
+            '=== COMO EMPEZAR ===',
+            'Empieza a llenar tus productos desde la fila 2.',
+            'NO borres ni insertes filas porque pierdes los dropdowns.',
+            'Usa los dropdowns para FAMILIA, TIPO_PRODUCTO, UNIDAD_MEDIDA, LOTE, PEDIMENTO y VOLTAJE.',
+        ];
+
+        foreach ($reglas as $texto) {
+            $instrSheet->setCellValue('A'.$row, $texto);
+            if (str_starts_with($texto, '===')) {
+                $instrSheet->getStyle('A'.$row)->getFont()->setBold(true)->setSize(11);
+            }
+            $row++;
+        }
+
+        // Volver a la hoja principal
+        $spreadsheet->setActiveSheetIndex(0);
+
+        // Generar y descargar
+        $writer = new Xlsx($spreadsheet);
+
+        $tempFile = tempnam(sys_get_temp_dir(), 'template_');
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, 'Template_Alta_Producto_Salcom.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Template Excel Nacional (ME/MP) con PREFIJO + CONSECUTIVO y hoja de consulta.
+     */
+    public function descargarTemplateNacional()
+    {
+        $spreadsheet = new Spreadsheet;
+
+        // === HOJA PRINCIPAL: Productos ===
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Productos');
+
+        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO'];
+
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col.'1', $header);
+            $sheet->getStyle($col.'1')->getFont()->setBold(true);
+            $color = in_array($header, $obligatorios) ? '6B3FA0' : '9B7BC7';
+            $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($color);
+            $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $col++;
+        }
+
+        $sheet->getStyle('B2:B101')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+        $sheet->getStyle('K2:K101')->getNumberFormat()->setFormatCode('$#,##0.00');
+
+        // Hoja listas oculta
+        $listSheet = $spreadsheet->createSheet();
+        $listSheet->setTitle('_Listas');
+        foreach ($this->familiasValidas as $i => $fam) {
+            $listSheet->setCellValue('A'.($i + 1), $fam);
+        }
+        foreach ($this->unidadesValidas as $i => $uni) {
+            $listSheet->setCellValue('B'.($i + 1), $uni);
+        }
+        $listSheet->setCellValue('C1', 'ME');
+        $listSheet->setCellValue('C2', 'MP');
+        $listSheet->setCellValue('D1', 'SI');
+        $listSheet->setCellValue('D2', 'NO');
+        $listSheet->setCellValue('E1', 'Solo activos');
+        $listSheet->setCellValue('E2', 'Activos e inactivos');
+        $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $sheet = $spreadsheet->getActiveSheet();
+
         for ($row = 2; $row <= 100; $row++) {
             $v = $sheet->getCell('A'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
             $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
-            $v->setErrorTitle('Prefijo no valido')->setError('Selecciona: ME o MP');
+            $v->setErrorTitle('Prefijo no valido')->setError('Selecciona ME o MP');
+            $v->setFormula1('_Listas!$C$1:$C$2');
+
+            $v = $sheet->getCell('I'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
+            $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
+            $v->setErrorTitle('Tipo no valido')->setError('Selecciona ME o MP');
             $v->setFormula1('_Listas!$C$1:$C$2');
         }
 
-        // Dropdown FAMILIA (H) - solo ME y MP
+        $fc = count($this->familiasValidas);
         for ($row = 2; $row <= 100; $row++) {
             $v = $sheet->getCell('H'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
-            $v->setFormula1('_Listas!$C$1:$C$2');
-        }
+            $v->setFormula1('_Listas!$A$1:$A$'.$fc);
 
-        // Dropdown TIPO_PRODUCTO (I) - solo ME y MP
-        for ($row = 2; $row <= 100; $row++) {
-            $v = $sheet->getCell('I'.$row)->getDataValidation();
-            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
-            $v->setFormula1('_Listas!$C$1:$C$2');
-        }
-
-        // Dropdown UNIDAD_MEDIDA (J)
-        $uc = count($this->unidadesValidas);
-        for ($row = 2; $row <= 100; $row++) {
             $v = $sheet->getCell('J'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
-            $v->setFormula1('_Listas!$B$1:$B$'.$uc);
-        }
+            $v->setFormula1('_Listas!$B$1:$B$'.count($this->unidadesValidas));
 
-        // Dropdown LOTE (M) y PEDIMENTO (N)
-        for ($row = 2; $row <= 100; $row++) {
             $v = $sheet->getCell('M'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
             $v->setFormula1('_Listas!$D$1:$D$2');
@@ -190,17 +429,187 @@ class AltaProductoController extends Controller
             $v2->setFormula1('_Listas!$D$1:$D$2');
         }
 
-        // Dropdown VOLTAJE (O)
-        $vc = count($voltajes);
-        for ($row = 2; $row <= 100; $row++) {
-            $v = $sheet->getCell('O'.$row)->getDataValidation();
-            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
-            $v->setFormula1('_Listas!$E$1:$E$'.$vc);
+        // === HOJA: Consecutivos (consulta ME/MP) ===
+        $consSheet = $spreadsheet->createSheet();
+        $consSheet->setTitle('Consecutivos');
+        $consSheet->getColumnDimension('A')->setWidth(10);
+        $consSheet->getColumnDimension('B')->setWidth(14);
+        $consSheet->getColumnDimension('C')->setWidth(14);
+        $consSheet->getColumnDimension('D')->setWidth(12);
+        $consSheet->getColumnDimension('E')->setWidth(50);
+        $consSheet->getColumnDimension('F')->setWidth(18);
+
+        $consSheet->setCellValue('A1', 'CONSULTA DE CONSECUTIVOS ME / MP');
+        $consSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setRGB('6B3FA0');
+        $consSheet->setCellValue('A2', 'Filtro:');
+        $consSheet->getStyle('A2')->getFont()->setBold(true);
+        $consSheet->setCellValue('B2', 'Solo activos');
+        $filtroVal = $consSheet->getCell('B2')->getDataValidation();
+        $filtroVal->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
+        $filtroVal->setFormula1('_Listas!$E$1:$E$2');
+
+        $consSheet->setCellValue('A3', 'El codigo completo = PREFIJO + CONSECUTIVO (ej: ME + 0305 = ME0305). Usa Ctrl+F para buscar un consecutivo.');
+        $consSheet->mergeCells('A3:F3');
+        $consSheet->getStyle('A3')->getFont()->setItalic(true)->getColor()->setRGB('666666');
+
+        $catalogo = $this->obtenerCatalogoConsecutivosMeMp();
+        $activos = array_values(array_filter($catalogo, fn ($r) => $r['activo']));
+        $todos = $catalogo;
+
+        $consSheet->setCellValue('A5', 'CODIGOS ACTIVOS EN EL SISTEMA (vista por defecto)');
+        $consSheet->getStyle('A5')->getFont()->setBold(true)->getColor()->setRGB('15803D');
+        $consSheet->mergeCells('A5:F5');
+
+        $headerRow = 6;
+        foreach (['PREFIJO', 'CONSECUTIVO', 'CODIGO', 'ESTADO', 'NOMBRE', 'TIPO'] as $i => $h) {
+            $colLetter = chr(65 + $i);
+            $consSheet->setCellValue($colLetter.$headerRow, $h);
+            $consSheet->getStyle($colLetter.$headerRow)->getFont()->setBold(true);
+            $consSheet->getStyle($colLetter.$headerRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
+            $consSheet->getStyle($colLetter.$headerRow)->getFont()->getColor()->setRGB('FFFFFF');
+        }
+
+        $row = $headerRow + 1;
+        foreach ($activos as $item) {
+            $consSheet->setCellValue('A'.$row, $item['prefijo']);
+            $consSheet->setCellValueExplicit('B'.$row, $item['consecutivo'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $consSheet->setCellValue('C'.$row, $item['codigo']);
+            $consSheet->setCellValue('D'.$row, 'Activo');
+            $consSheet->setCellValue('E'.$row, $item['nombre']);
+            $consSheet->setCellValue('F'.$row, $item['tipo']);
+            $row++;
+        }
+        if ($row === $headerRow + 1) {
+            $consSheet->setCellValue('A'.$row, '(Sin codigos activos ME/MP registrados)');
+            $consSheet->mergeCells('A'.$row.':F'.$row);
+            $row++;
+        }
+
+        $row += 2;
+        $consSheet->setCellValue('A'.$row, 'TODOS LOS CODIGOS (ACTIVOS E INACTIVOS) — selecciona "Activos e inactivos" en el filtro');
+        $consSheet->getStyle('A'.$row)->getFont()->setBold(true)->getColor()->setRGB('6B3FA0');
+        $consSheet->mergeCells('A'.$row.':F'.$row);
+        $row++;
+
+        $headerTodos = $row;
+        foreach (['PREFIJO', 'CONSECUTIVO', 'CODIGO', 'ESTADO', 'NOMBRE', 'TIPO'] as $i => $h) {
+            $colLetter = chr(65 + $i);
+            $consSheet->setCellValue($colLetter.$headerTodos, $h);
+            $consSheet->getStyle($colLetter.$headerTodos)->getFont()->setBold(true);
+            $consSheet->getStyle($colLetter.$headerTodos)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
+            $consSheet->getStyle($colLetter.$headerTodos)->getFont()->getColor()->setRGB('FFFFFF');
+        }
+        $row = $headerTodos + 1;
+        $inicioDatosTodos = $row;
+        foreach ($todos as $item) {
+            $consSheet->setCellValue('A'.$row, $item['prefijo']);
+            $consSheet->setCellValueExplicit('B'.$row, $item['consecutivo'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            $consSheet->setCellValue('C'.$row, $item['codigo']);
+            $consSheet->setCellValue('D'.$row, $item['activo'] ? 'Activo' : 'Inactivo');
+            $consSheet->setCellValue('E'.$row, $item['nombre']);
+            $consSheet->setCellValue('F'.$row, $item['tipo']);
+            if (! $item['activo']) {
+                $consSheet->getStyle('A'.$row.':F'.$row)->getFont()->getColor()->setRGB('999999');
+            }
+            $row++;
+        }
+        if ($row === $inicioDatosTodos) {
+            $consSheet->setCellValue('A'.$row, '(Sin codigos ME/MP registrados)');
+            $consSheet->mergeCells('A'.$row.':F'.$row);
+            $row++;
+        }
+        $finDatosTodos = $row - 1;
+        if ($finDatosTodos >= $inicioDatosTodos) {
+            $consSheet->setAutoFilter('A'.$headerTodos.':F'.$finDatosTodos);
+        }
+
+        $row += 2;
+        $consSheet->setCellValue('A'.$row, 'RANGOS DE CONSECUTIVOS DISPONIBLES (huecos sin codigo asignado)');
+        $consSheet->getStyle('A'.$row)->getFont()->setBold(true)->getColor()->setRGB('15803D');
+        $consSheet->mergeCells('A'.$row.':F'.$row);
+        $row++;
+        $consSheet->setCellValue('A'.$row, 'Estos rangos consideran TODOS los codigos existentes (activos e inactivos) para evitar duplicados.');
+        $consSheet->mergeCells('A'.$row.':F'.$row);
+        $consSheet->getStyle('A'.$row)->getFont()->setItalic(true)->getColor()->setRGB('666666');
+        $row++;
+
+        $headerRangos = $row;
+        foreach (['PREFIJO', 'DESDE', 'HASTA', 'CANTIDAD', 'EJEMPLO CODIGO', 'NOTA'] as $i => $h) {
+            $colLetter = chr(65 + $i);
+            $consSheet->setCellValue($colLetter.$headerRangos, $h);
+            $consSheet->getStyle($colLetter.$headerRangos)->getFont()->setBold(true);
+            $consSheet->getStyle($colLetter.$headerRangos)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('15803D');
+            $consSheet->getStyle($colLetter.$headerRangos)->getFont()->getColor()->setRGB('FFFFFF');
+        }
+        $row++;
+        $rangos = $this->calcularRangosDisponiblesMeMp($catalogo);
+        if (empty($rangos)) {
+            $consSheet->setCellValue('A'.$row, 'No hay huecos detectados. El siguiente consecutivo sugerido esta al final de cada prefijo.');
+            $consSheet->mergeCells('A'.$row.':F'.$row);
+            $row++;
+        } else {
+            foreach ($rangos as $rango) {
+                $consSheet->setCellValue('A'.$row, $rango['prefijo']);
+                $consSheet->setCellValueExplicit('B'.$row, $rango['desde_fmt'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $consSheet->setCellValueExplicit('C'.$row, $rango['hasta_fmt'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $consSheet->setCellValue('D'.$row, $rango['cantidad']);
+                $consSheet->setCellValue('E'.$row, $rango['ejemplo']);
+                $consSheet->setCellValue('F'.$row, $rango['nota']);
+                $row++;
+            }
+        }
+
+        foreach (['ME', 'MP'] as $prefijo) {
+            $siguiente = $this->generarSiguienteCodigo($prefijo);
+            $consSheet->setCellValue('A'.$row, $prefijo);
+            $consSheet->setCellValue('B'.$row, '—');
+            $consSheet->setCellValue('C'.$row, '—');
+            $consSheet->setCellValue('D'.$row, 1);
+            $consSheet->setCellValue('E'.$row, $siguiente);
+            $consSheet->setCellValue('F'.$row, 'Siguiente consecutivo libre al final');
+            $consSheet->getStyle('A'.$row.':F'.$row)->getFont()->setItalic(true);
+            $row++;
+        }
+
+        // === HOJA: Instrucciones ===
+        $instrSheet = $spreadsheet->createSheet();
+        $instrSheet->setTitle('Instrucciones');
+        $instrSheet->getColumnDimension('A')->setWidth(90);
+        $instrSheet->setCellValue('A1', 'INSTRUCCIONES - ALTA NACIONAL ME / MP');
+        $instrSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setRGB('6B3FA0');
+
+        $reglas = [
+            '=== CODIGO DEL PRODUCTO ===',
+            'PREFIJO: ME (Material de Empaque) o MP (Materia Prima)',
+            'CONSECUTIVO: numero con ceros a la izquierda (ej: 0305). El codigo completo es PREFIJO + CONSECUTIVO',
+            'Consulta la hoja "Consecutivos" antes de asignar numeros para evitar duplicados',
+            '',
+            '=== HOJA CONSECUTIVOS ===',
+            'Filtro "Solo activos": revisa la tabla superior con codigos activos',
+            'Filtro "Activos e inactivos": baja a la segunda tabla y usa el filtro automatico de Excel',
+            'Rangos disponibles: muestra huecos libres entre codigos ya ocupados',
+            '',
+            '=== COLUMNAS OBLIGATORIAS (morado oscuro) ===',
+            'PREFIJO, CONSECUTIVO, NOMBRE_TIPO, NOMBRE_MEDIDA, TIPO_PRODUCTO',
+            '',
+            '=== REGLAS ===',
+            'Todo en MAYUSCULAS. NOMBRE_MEDIDA con numeros (40X30X25CM)',
+            'No repetir codigos que ya existen en el catalogo',
+            'Empieza a llenar desde la fila 2 de la hoja Productos',
+        ];
+        $r = 3;
+        foreach ($reglas as $texto) {
+            $instrSheet->setCellValue('A'.$r, $texto);
+            if (str_starts_with($texto, '===')) {
+                $instrSheet->getStyle('A'.$r)->getFont()->setBold(true)->setSize(11);
+            }
+            $r++;
         }
 
         $spreadsheet->setActiveSheetIndex(0);
+
         $writer = new Xlsx($spreadsheet);
-        $tempFile = tempnam(sys_get_temp_dir(), 'template_nac_');
+        $tempFile = tempnam(sys_get_temp_dir(), 'template_nacional_');
         $writer->save($tempFile);
 
         return response()->download($tempFile, 'Template_Alta_Nacional_ME_MP_Salcom.xlsx', [
@@ -708,51 +1117,53 @@ class AltaProductoController extends Controller
         }
 
         // Filtrar filas realmente vacías (solo tienen dropdowns pre-llenados pero sin datos)
-        $productos = array_filter($productos, function ($prod) {
-            $prefijo = trim($prod['PREFIJO'] ?? '');
+        $primeraFila = $productos[0] ?? [];
+        $columnasPresentes = array_keys($primeraFila);
+        $esFormatoNacional = $this->esFormatoNacionalMeMp($columnasPresentes);
+
+        $productos = array_map(fn ($prod) => $this->normalizarProductoNacional($prod), $productos);
+
+        $productos = array_filter($productos, function ($prod) use ($esFormatoNacional) {
+            if ($esFormatoNacional) {
+                $prefijo = trim($prod['PREFIJO'] ?? '');
+                $consecutivo = trim((string) ($prod['CONSECUTIVO'] ?? ''));
+                $nombre = trim($prod['NOMBRE_TIPO'] ?? '');
+                $medida = trim($prod['NOMBRE_MEDIDA'] ?? '');
+
+                return ! empty($prefijo) || $consecutivo !== '' || ! empty($nombre) || ! empty($medida);
+            }
+
             $codigo = trim($prod['CODIGO'] ?? '');
             $nombre = trim($prod['NOMBRE_TIPO'] ?? '');
             $medida = trim($prod['NOMBRE_MEDIDA'] ?? '');
-            return !empty($prefijo) || !empty($codigo) || !empty($nombre) || !empty($medida);
+
+            return ! empty($codigo) || ! empty($nombre) || ! empty($medida);
         });
         $productos = array_values($productos);
 
         if (empty($productos)) {
-            return back()->with('error', 'El archivo no tiene productos con datos.');
+            $mensajeVacio = $esFormatoNacional
+                ? 'El archivo no tiene productos con datos. Llena al menos PREFIJO, CONSECUTIVO, NOMBRE_TIPO o NOMBRE_MEDIDA.'
+                : 'El archivo no tiene productos con datos. Llena al menos CODIGO, NOMBRE_TIPO o NOMBRE_MEDIDA.';
+
+            return back()->with('error', $mensajeVacio);
         }
 
-        // Si es admin (Nacional), concatenar PREFIJO + CONSECUTIVO para formar CODIGO
-        $esModuloCompras = request()->is('admin/*');
-        $esModuloProveedor = !$esModuloCompras;
-
-        if ($esModuloCompras) {
-            foreach ($productos as &$prod) {
-                $prefijo = strtoupper(trim($prod['PREFIJO'] ?? ''));
-                $consecutivo = trim($prod['CONSECUTIVO'] ?? '');
-                if (!empty($prefijo) && !empty($consecutivo)) {
-                    $prod['CODIGO'] = $prefijo . $consecutivo;
-                }
-                // Mapear NOMBRE_MAQUILA -> NOMBRE_MARCA y NOMBRE_PRESENTACION -> NOMBRE_MODELO
-                if (isset($prod['NOMBRE_MAQUILA'])) { $prod['NOMBRE_MARCA'] = $prod['NOMBRE_MAQUILA']; }
-                if (isset($prod['NOMBRE_PRESENTACION'])) { $prod['NOMBRE_MODELO'] = $prod['NOMBRE_PRESENTACION']; }
-            }
-            unset($prod);
-        }
-
-        // Verificar columnas (solo para proveedores, admin usa formato diferente)
-        if ($esModuloProveedor) {
-            $primeraFila = $productos[0] ?? [];
-            $columnasPresentes = array_keys($primeraFila);
-            $columnasFaltantes = array_diff($this->columnasObligatorias, $columnasPresentes);
-            if (! empty($columnasFaltantes)) {
-                return back()->with('error', 'El archivo no tiene las columnas correctas. Faltan: '.implode(', ', $columnasFaltantes).'. Descarga el template oficial y usalo como base.');
-            }
+        // Verificar que el archivo tenga las columnas correctas
+        $columnasRequeridas = $esFormatoNacional
+            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO']
+            : $this->columnasObligatorias;
+        $columnasFaltantes = array_diff($columnasRequeridas, $columnasPresentes);
+        if (! empty($columnasFaltantes)) {
+            return back()->with('error', 'El archivo no tiene las columnas correctas. Faltan: '.implode(', ', $columnasFaltantes).'. Descarga el template oficial y usalo como base.');
         }
 
         // Validar cada producto
         $errores = [];
         $validos = 0;
         $conError = 0;
+        $esModuloCompras = request()->is('admin/*');
+        $esModuloProveedor = !$esModuloCompras;
 
         // Auto-generar códigos para proveedores si vienen vacíos
         if ($esModuloProveedor) {
@@ -1346,6 +1757,8 @@ Si todo correcto: {"errores_ia": []}';
             if ($tipoProductoActual === 'MPI') {
                 // MPI (Internacional - Cinthya): código, tipo, modelo, medida + UNIDAD_MEDIDA
                 $camposObligatorios = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA'];
+            } elseif (in_array($tipoProductoActual, ['ME', 'MP'], true) && ! empty(trim($producto['PREFIJO'] ?? ''))) {
+                $camposObligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO'];
             } else {
                 // ME y MP (Nacional - Brenda): solo código, tipo y medida
                 $camposObligatorios = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO'];
@@ -1358,6 +1771,8 @@ Si todo correcto: {"errores_ia": []}';
         foreach ($camposObligatorios as $campo) {
             if (empty(trim($producto[$campo] ?? ''))) {
                 $sugerencia = match ($campo) {
+                    'PREFIJO' => 'Selecciona ME o MP del dropdown',
+                    'CONSECUTIVO' => 'Escribe el consecutivo numerico (ej: 0305). Revisa la hoja Consecutivos del template',
                     'CODIGO' => 'Escribe un codigo unico (ej: MPI0538, ME0201)',
                     'NOMBRE_TIPO' => 'Escribe QUE ES el producto (ej: RESINA EPOXICA, MOTOR ELECTRICO, CAJA CORRUGADA)',
                     'NOMBRE_MARCA' => 'Escribe QUIEN lo fabrica (ej: WEG, SKF, 3M, ALPHA, KRAFT)',
@@ -1401,6 +1816,45 @@ Si todo correcto: {"errores_ia": []}';
         $subfamilia = strtoupper(trim($producto['SUBFAMILIA'] ?? ''));
         $unidad = strtoupper(trim($producto['UNIDAD_MEDIDA'] ?? ''));
         $precio = $producto['PRECIO'] ?? '';
+
+        // === VALIDAR PREFIJO + CONSECUTIVO (formato nacional ME/MP) ===
+        $prefijoRaw = strtoupper(trim($producto['PREFIJO'] ?? ''));
+        $consecutivoRaw = trim((string) ($producto['CONSECUTIVO'] ?? ''));
+        if ($prefijoRaw || $consecutivoRaw !== '') {
+            if (! in_array($prefijoRaw, ['ME', 'MP'], true)) {
+                $errores[] = [
+                    'fila' => $fila,
+                    'campo' => 'PREFIJO',
+                    'error' => "PREFIJO '{$prefijoRaw}' no valido. Solo: ME o MP",
+                ];
+            }
+            if ($consecutivoRaw === '' || ! preg_match('/^\d+$/', $consecutivoRaw)) {
+                $errores[] = [
+                    'fila' => $fila,
+                    'campo' => 'CONSECUTIVO',
+                    'error' => "CONSECUTIVO invalido. Solo numeros (ej: 0305). Recibido: '{$consecutivoRaw}'",
+                ];
+            }
+            if ($prefijoRaw && $consecutivoRaw !== '' && preg_match('/^\d+$/', $consecutivoRaw)) {
+                $codigoFormado = $prefijoRaw.$consecutivoRaw;
+                if ($tipoProductoActual && $tipoProductoActual !== $prefijoRaw) {
+                    $errores[] = [
+                        'fila' => $fila,
+                        'campo' => 'TIPO_PRODUCTO',
+                        'error' => "El prefijo '{$prefijoRaw}' no coincide con TIPO_PRODUCTO '{$tipoProductoActual}'. -> Pon: {$prefijoRaw}",
+                    ];
+                }
+                $existenteCodigo = Producto::withTrashed()->where('codigo', $codigoFormado)->first();
+                if ($existenteCodigo) {
+                    $estado = ($existenteCodigo->activo && ! $existenteCodigo->trashed()) ? 'activo' : 'inactivo';
+                    $errores[] = [
+                        'fila' => $fila,
+                        'campo' => 'CONSECUTIVO',
+                        'error' => "DUPLICADO: '{$codigoFormado}' ya existe en el sistema ({$estado}). Consulta la hoja Consecutivos del template.",
+                    ];
+                }
+            }
+        }
 
         // === VALIDAR CÓDIGO VS TIPO_PRODUCTO ===
         $codigoRaw = strtoupper(trim($producto['CODIGO'] ?? ''));
@@ -2429,6 +2883,141 @@ Si todo correcto: {"errores_ia": []}';
         return response()->download($tempFile, 'Template_Migracion_Masiva.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ])->deleteFileAfterSend(true);
+    }
+
+    /**
+     * Catalogo de consecutivos ME/MP existentes en el sistema.
+     */
+    private function obtenerCatalogoConsecutivosMeMp(): array
+    {
+        $productos = Producto::withTrashed()
+            ->where(function ($q) {
+                $q->where('codigo', 'REGEXP', '^ME[0-9]')
+                    ->orWhere('codigo', 'REGEXP', '^MP[0-9]');
+            })
+            ->orderBy('codigo')
+            ->get(['codigo', 'nombre', 'activo', 'tipo_producto']);
+
+        $catalogo = [];
+        foreach ($productos as $producto) {
+            $parsed = $this->parseCodigoMeMp($producto->codigo);
+            if (! $parsed) {
+                continue;
+            }
+            $catalogo[] = [
+                'prefijo' => $parsed['prefijo'],
+                'consecutivo' => $parsed['consecutivo'],
+                'consecutivo_num' => $parsed['consecutivo_num'],
+                'codigo' => $parsed['codigo'],
+                'nombre' => $producto->nombre,
+                'activo' => (bool) $producto->activo && ! $producto->trashed(),
+                'tipo' => strtoupper($producto->tipo_producto ?? $parsed['prefijo']),
+            ];
+        }
+
+        usort($catalogo, function ($a, $b) {
+            return [$a['prefijo'], $a['consecutivo_num']] <=> [$b['prefijo'], $b['consecutivo_num']];
+        });
+
+        return $catalogo;
+    }
+
+    /**
+     * Rangos de consecutivos libres por prefijo ME/MP.
+     */
+    private function calcularRangosDisponiblesMeMp(array $catalogo): array
+    {
+        $porPrefijo = ['ME' => [], 'MP' => []];
+        $digitos = ['ME' => 4, 'MP' => 4];
+
+        foreach ($catalogo as $item) {
+            $prefijo = $item['prefijo'];
+            if (! isset($porPrefijo[$prefijo])) {
+                continue;
+            }
+            $porPrefijo[$prefijo][] = $item['consecutivo_num'];
+            $digitos[$prefijo] = max($digitos[$prefijo], strlen($item['consecutivo']));
+        }
+
+        $rangos = [];
+        foreach (['ME', 'MP'] as $prefijo) {
+            $ocupados = array_values(array_unique($porPrefijo[$prefijo]));
+            sort($ocupados);
+            $pad = $digitos[$prefijo];
+
+            if (empty($ocupados)) {
+                continue;
+            }
+
+            if ($ocupados[0] > 1) {
+                $desde = 1;
+                $hasta = $ocupados[0] - 1;
+                $rangos[] = $this->formatearRangoDisponible($prefijo, $desde, $hasta, $pad, 'Hueco al inicio del prefijo');
+            }
+
+            for ($i = 0; $i < count($ocupados) - 1; $i++) {
+                if ($ocupados[$i + 1] - $ocupados[$i] > 1) {
+                    $desde = $ocupados[$i] + 1;
+                    $hasta = $ocupados[$i + 1] - 1;
+                    $codAnt = $prefijo.str_pad((string) $ocupados[$i], $pad, '0', STR_PAD_LEFT);
+                    $codSig = $prefijo.str_pad((string) $ocupados[$i + 1], $pad, '0', STR_PAD_LEFT);
+                    $rangos[] = $this->formatearRangoDisponible($prefijo, $desde, $hasta, $pad, "Entre {$codAnt} y {$codSig}");
+                }
+            }
+        }
+
+        return $rangos;
+    }
+
+    private function formatearRangoDisponible(string $prefijo, int $desde, int $hasta, int $pad, string $nota): array
+    {
+        $desdeFmt = str_pad((string) $desde, $pad, '0', STR_PAD_LEFT);
+        $hastaFmt = str_pad((string) $hasta, $pad, '0', STR_PAD_LEFT);
+
+        return [
+            'prefijo' => $prefijo,
+            'desde_fmt' => $desdeFmt,
+            'hasta_fmt' => $hastaFmt,
+            'cantidad' => $hasta - $desde + 1,
+            'ejemplo' => $prefijo.$desdeFmt.($desde !== $hasta ? ' … '.$prefijo.$hastaFmt : ''),
+            'nota' => $nota,
+        ];
+    }
+
+    private function parseCodigoMeMp(string $codigo): ?array
+    {
+        $codigo = strtoupper(trim($codigo));
+        if (! preg_match('/^(ME|MP)(\d+)$/', $codigo, $matches)) {
+            return null;
+        }
+
+        return [
+            'prefijo' => $matches[1],
+            'consecutivo' => $matches[2],
+            'consecutivo_num' => (int) $matches[2],
+            'codigo' => $codigo,
+        ];
+    }
+
+    private function normalizarProductoNacional(array $producto): array
+    {
+        if (! empty(trim($producto['CODIGO'] ?? ''))) {
+            return $producto;
+        }
+
+        $prefijo = strtoupper(trim($producto['PREFIJO'] ?? ''));
+        $consecutivo = trim((string) ($producto['CONSECUTIVO'] ?? ''));
+        if ($prefijo && $consecutivo !== '') {
+            $producto['CODIGO'] = $prefijo.$consecutivo;
+        }
+
+        return $producto;
+    }
+
+    private function esFormatoNacionalMeMp(array $columnasPresentes): bool
+    {
+        return in_array('PREFIJO', $columnasPresentes, true)
+            && in_array('CONSECUTIVO', $columnasPresentes, true);
     }
 
     /**
