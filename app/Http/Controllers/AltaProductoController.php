@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\NamedRange;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -350,32 +351,46 @@ class AltaProductoController extends Controller
     }
 
     /**
-     * Template Excel Nacional (ME/MP) con PREFIJO + CONSECUTIVO y hoja de consulta.
+     * Template Excel Nacional (ME/MP) con PREFIJO + CONSECUTIVO y dropdown de disponibles.
      */
     public function descargarTemplateNacional()
     {
         $spreadsheet = new Spreadsheet;
+        $catalogo = $this->obtenerCatalogoConsecutivosMeMp();
 
         // === HOJA PRINCIPAL: Productos ===
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Productos');
+
+        $headerRow = 2;
+        $dataStartRow = 3;
+        $dataEndRow = 102;
+
+        // Fila 1: filtro sobre el campo CONSECUTIVO (columna B)
+        $sheet->setCellValue('A1', 'Filtro consecutivos (col. B):');
+        $sheet->getStyle('A1')->getFont()->setBold(true);
+        $sheet->setCellValue('B1', 'Solo activos');
+        $sheet->setCellValue('C1', 'El dropdown de CONSECUTIVO muestra solo numeros disponibles segun PREFIJO y este filtro.');
+        $sheet->mergeCells('C1:F1');
+        $sheet->getStyle('C1')->getFont()->setItalic(true)->getColor()->setRGB('666666');
 
         $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
         $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO'];
 
         $col = 'A';
         foreach ($headers as $header) {
-            $sheet->setCellValue($col.'1', $header);
-            $sheet->getStyle($col.'1')->getFont()->setBold(true);
+            $sheet->setCellValue($col.$headerRow, $header);
+            $sheet->getStyle($col.$headerRow)->getFont()->setBold(true);
             $color = in_array($header, $obligatorios) ? '6B3FA0' : '9B7BC7';
-            $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($color);
-            $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->getStyle($col.$headerRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($color);
+            $sheet->getStyle($col.$headerRow)->getFont()->getColor()->setRGB('FFFFFF');
             $sheet->getColumnDimension($col)->setAutoSize(true);
             $col++;
         }
 
-        $sheet->getStyle('B2:B101')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
-        $sheet->getStyle('K2:K101')->getNumberFormat()->setFormatCode('$#,##0.00');
+        $sheet->getStyle('B'.$dataStartRow.':B'.$dataEndRow)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+        $sheet->getStyle('K'.$dataStartRow.':K'.$dataEndRow)->getNumberFormat()->setFormatCode('$#,##0.00');
+        $sheet->freezePane('A'.$dataStartRow);
 
         // Hoja listas oculta
         $listSheet = $spreadsheet->createSheet();
@@ -394,15 +409,53 @@ class AltaProductoController extends Controller
         $listSheet->setCellValue('E2', 'Activos e inactivos');
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
+        // Hoja datos oculta: consecutivos DISPONIBLES por prefijo y filtro
+        $datosSheet = $spreadsheet->createSheet();
+        $datosSheet->setTitle('_Datos');
+        $listasDisponibles = [
+            'ME_SA' => $this->generarConsecutivosDisponibles('ME', $catalogo, true),
+            'ME_TI' => $this->generarConsecutivosDisponibles('ME', $catalogo, false),
+            'MP_SA' => $this->generarConsecutivosDisponibles('MP', $catalogo, true),
+            'MP_TI' => $this->generarConsecutivosDisponibles('MP', $catalogo, false),
+        ];
+        $columnasDatos = ['A' => 'ME_SA', 'B' => 'ME_TI', 'C' => 'MP_SA', 'D' => 'MP_TI'];
+        foreach ($columnasDatos as $colLetter => $key) {
+            $items = $listasDisponibles[$key];
+            foreach ($items as $i => $consecutivo) {
+                $datosSheet->setCellValueExplicit($colLetter.($i + 1), $consecutivo, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            }
+        }
+        $datosSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
+
+        foreach ($columnasDatos as $colLetter => $key) {
+            $count = max(1, count($listasDisponibles[$key]));
+            $range = "'_Datos'!\${$colLetter}\$1:\${$colLetter}\$".$count;
+            $spreadsheet->addNamedRange(new NamedRange($key, $datosSheet, $range));
+        }
+
         $spreadsheet->setActiveSheetIndex(0);
         $sheet = $spreadsheet->getActiveSheet();
 
-        for ($row = 2; $row <= 100; $row++) {
+        $filtroVal = $sheet->getCell('B1')->getDataValidation();
+        $filtroVal->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
+        $filtroVal->setFormula1('_Listas!$E$1:$E$2');
+
+        $formulaConsecutivo = 'IF($AROW="","",INDIRECT(IF($B$1="Solo activos",IF($AROW="ME","ME_SA",IF($AROW="MP","MP_SA","")),IF($AROW="ME","ME_TI",IF($AROW="MP","MP_TI","")))))';
+
+        for ($row = $dataStartRow; $row <= $dataEndRow; $row++) {
+            $formula = str_replace('$AROW', '$A'.$row, $formulaConsecutivo);
+
             $v = $sheet->getCell('A'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
             $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
             $v->setErrorTitle('Prefijo no valido')->setError('Selecciona ME o MP');
             $v->setFormula1('_Listas!$C$1:$C$2');
+
+            $v = $sheet->getCell('B'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
+            $v->setErrorTitle('Consecutivo no disponible')->setError('Selecciona un consecutivo del listado. Primero elige PREFIJO y revisa el filtro en B1.');
+            $v->setFormula1($formula);
 
             $v = $sheet->getCell('I'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
@@ -412,7 +465,7 @@ class AltaProductoController extends Controller
         }
 
         $fc = count($this->familiasValidas);
-        for ($row = 2; $row <= 100; $row++) {
+        for ($row = $dataStartRow; $row <= $dataEndRow; $row++) {
             $v = $sheet->getCell('H'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
             $v->setFormula1('_Listas!$A$1:$A$'.$fc);
@@ -429,148 +482,6 @@ class AltaProductoController extends Controller
             $v2->setFormula1('_Listas!$D$1:$D$2');
         }
 
-        // === HOJA: Consecutivos (consulta ME/MP) ===
-        $consSheet = $spreadsheet->createSheet();
-        $consSheet->setTitle('Consecutivos');
-        $consSheet->getColumnDimension('A')->setWidth(10);
-        $consSheet->getColumnDimension('B')->setWidth(14);
-        $consSheet->getColumnDimension('C')->setWidth(14);
-        $consSheet->getColumnDimension('D')->setWidth(12);
-        $consSheet->getColumnDimension('E')->setWidth(50);
-        $consSheet->getColumnDimension('F')->setWidth(18);
-
-        $consSheet->setCellValue('A1', 'CONSULTA DE CONSECUTIVOS ME / MP');
-        $consSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setRGB('6B3FA0');
-        $consSheet->setCellValue('A2', 'Filtro:');
-        $consSheet->getStyle('A2')->getFont()->setBold(true);
-        $consSheet->setCellValue('B2', 'Solo activos');
-        $filtroVal = $consSheet->getCell('B2')->getDataValidation();
-        $filtroVal->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
-        $filtroVal->setFormula1('_Listas!$E$1:$E$2');
-
-        $consSheet->setCellValue('A3', 'El codigo completo = PREFIJO + CONSECUTIVO (ej: ME + 0305 = ME0305). Usa Ctrl+F para buscar un consecutivo.');
-        $consSheet->mergeCells('A3:F3');
-        $consSheet->getStyle('A3')->getFont()->setItalic(true)->getColor()->setRGB('666666');
-
-        $catalogo = $this->obtenerCatalogoConsecutivosMeMp();
-        $activos = array_values(array_filter($catalogo, fn ($r) => $r['activo']));
-        $todos = $catalogo;
-
-        $consSheet->setCellValue('A5', 'CODIGOS ACTIVOS EN EL SISTEMA (vista por defecto)');
-        $consSheet->getStyle('A5')->getFont()->setBold(true)->getColor()->setRGB('15803D');
-        $consSheet->mergeCells('A5:F5');
-
-        $headerRow = 6;
-        foreach (['PREFIJO', 'CONSECUTIVO', 'CODIGO', 'ESTADO', 'NOMBRE', 'TIPO'] as $i => $h) {
-            $colLetter = chr(65 + $i);
-            $consSheet->setCellValue($colLetter.$headerRow, $h);
-            $consSheet->getStyle($colLetter.$headerRow)->getFont()->setBold(true);
-            $consSheet->getStyle($colLetter.$headerRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
-            $consSheet->getStyle($colLetter.$headerRow)->getFont()->getColor()->setRGB('FFFFFF');
-        }
-
-        $row = $headerRow + 1;
-        foreach ($activos as $item) {
-            $consSheet->setCellValue('A'.$row, $item['prefijo']);
-            $consSheet->setCellValueExplicit('B'.$row, $item['consecutivo'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-            $consSheet->setCellValue('C'.$row, $item['codigo']);
-            $consSheet->setCellValue('D'.$row, 'Activo');
-            $consSheet->setCellValue('E'.$row, $item['nombre']);
-            $consSheet->setCellValue('F'.$row, $item['tipo']);
-            $row++;
-        }
-        if ($row === $headerRow + 1) {
-            $consSheet->setCellValue('A'.$row, '(Sin codigos activos ME/MP registrados)');
-            $consSheet->mergeCells('A'.$row.':F'.$row);
-            $row++;
-        }
-
-        $row += 2;
-        $consSheet->setCellValue('A'.$row, 'TODOS LOS CODIGOS (ACTIVOS E INACTIVOS) — selecciona "Activos e inactivos" en el filtro');
-        $consSheet->getStyle('A'.$row)->getFont()->setBold(true)->getColor()->setRGB('6B3FA0');
-        $consSheet->mergeCells('A'.$row.':F'.$row);
-        $row++;
-
-        $headerTodos = $row;
-        foreach (['PREFIJO', 'CONSECUTIVO', 'CODIGO', 'ESTADO', 'NOMBRE', 'TIPO'] as $i => $h) {
-            $colLetter = chr(65 + $i);
-            $consSheet->setCellValue($colLetter.$headerTodos, $h);
-            $consSheet->getStyle($colLetter.$headerTodos)->getFont()->setBold(true);
-            $consSheet->getStyle($colLetter.$headerTodos)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
-            $consSheet->getStyle($colLetter.$headerTodos)->getFont()->getColor()->setRGB('FFFFFF');
-        }
-        $row = $headerTodos + 1;
-        $inicioDatosTodos = $row;
-        foreach ($todos as $item) {
-            $consSheet->setCellValue('A'.$row, $item['prefijo']);
-            $consSheet->setCellValueExplicit('B'.$row, $item['consecutivo'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-            $consSheet->setCellValue('C'.$row, $item['codigo']);
-            $consSheet->setCellValue('D'.$row, $item['activo'] ? 'Activo' : 'Inactivo');
-            $consSheet->setCellValue('E'.$row, $item['nombre']);
-            $consSheet->setCellValue('F'.$row, $item['tipo']);
-            if (! $item['activo']) {
-                $consSheet->getStyle('A'.$row.':F'.$row)->getFont()->getColor()->setRGB('999999');
-            }
-            $row++;
-        }
-        if ($row === $inicioDatosTodos) {
-            $consSheet->setCellValue('A'.$row, '(Sin codigos ME/MP registrados)');
-            $consSheet->mergeCells('A'.$row.':F'.$row);
-            $row++;
-        }
-        $finDatosTodos = $row - 1;
-        if ($finDatosTodos >= $inicioDatosTodos) {
-            $consSheet->setAutoFilter('A'.$headerTodos.':F'.$finDatosTodos);
-        }
-
-        $row += 2;
-        $consSheet->setCellValue('A'.$row, 'RANGOS DE CONSECUTIVOS DISPONIBLES (huecos sin codigo asignado)');
-        $consSheet->getStyle('A'.$row)->getFont()->setBold(true)->getColor()->setRGB('15803D');
-        $consSheet->mergeCells('A'.$row.':F'.$row);
-        $row++;
-        $consSheet->setCellValue('A'.$row, 'Estos rangos consideran TODOS los codigos existentes (activos e inactivos) para evitar duplicados.');
-        $consSheet->mergeCells('A'.$row.':F'.$row);
-        $consSheet->getStyle('A'.$row)->getFont()->setItalic(true)->getColor()->setRGB('666666');
-        $row++;
-
-        $headerRangos = $row;
-        foreach (['PREFIJO', 'DESDE', 'HASTA', 'CANTIDAD', 'EJEMPLO CODIGO', 'NOTA'] as $i => $h) {
-            $colLetter = chr(65 + $i);
-            $consSheet->setCellValue($colLetter.$headerRangos, $h);
-            $consSheet->getStyle($colLetter.$headerRangos)->getFont()->setBold(true);
-            $consSheet->getStyle($colLetter.$headerRangos)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('15803D');
-            $consSheet->getStyle($colLetter.$headerRangos)->getFont()->getColor()->setRGB('FFFFFF');
-        }
-        $row++;
-        $rangos = $this->calcularRangosDisponiblesMeMp($catalogo);
-        if (empty($rangos)) {
-            $consSheet->setCellValue('A'.$row, 'No hay huecos detectados. El siguiente consecutivo sugerido esta al final de cada prefijo.');
-            $consSheet->mergeCells('A'.$row.':F'.$row);
-            $row++;
-        } else {
-            foreach ($rangos as $rango) {
-                $consSheet->setCellValue('A'.$row, $rango['prefijo']);
-                $consSheet->setCellValueExplicit('B'.$row, $rango['desde_fmt'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-                $consSheet->setCellValueExplicit('C'.$row, $rango['hasta_fmt'], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
-                $consSheet->setCellValue('D'.$row, $rango['cantidad']);
-                $consSheet->setCellValue('E'.$row, $rango['ejemplo']);
-                $consSheet->setCellValue('F'.$row, $rango['nota']);
-                $row++;
-            }
-        }
-
-        foreach (['ME', 'MP'] as $prefijo) {
-            $siguiente = $this->generarSiguienteCodigo($prefijo);
-            $consSheet->setCellValue('A'.$row, $prefijo);
-            $consSheet->setCellValue('B'.$row, '—');
-            $consSheet->setCellValue('C'.$row, '—');
-            $consSheet->setCellValue('D'.$row, 1);
-            $consSheet->setCellValue('E'.$row, $siguiente);
-            $consSheet->setCellValue('F'.$row, 'Siguiente consecutivo libre al final');
-            $consSheet->getStyle('A'.$row.':F'.$row)->getFont()->setItalic(true);
-            $row++;
-        }
-
         // === HOJA: Instrucciones ===
         $instrSheet = $spreadsheet->createSheet();
         $instrSheet->setTitle('Instrucciones');
@@ -581,21 +492,19 @@ class AltaProductoController extends Controller
         $reglas = [
             '=== CODIGO DEL PRODUCTO ===',
             'PREFIJO: ME (Material de Empaque) o MP (Materia Prima)',
-            'CONSECUTIVO: numero con ceros a la izquierda (ej: 0305). El codigo completo es PREFIJO + CONSECUTIVO',
-            'Consulta la hoja "Consecutivos" antes de asignar numeros para evitar duplicados',
+            'CONSECUTIVO: selecciona del dropdown solo numeros DISPONIBLES. Codigo = PREFIJO + CONSECUTIVO',
             '',
-            '=== HOJA CONSECUTIVOS ===',
-            'Filtro "Solo activos": revisa la tabla superior con codigos activos',
-            'Filtro "Activos e inactivos": baja a la segunda tabla y usa el filtro automatico de Excel',
-            'Rangos disponibles: muestra huecos libres entre codigos ya ocupados',
+            '=== FILTRO DE CONSECUTIVOS (celda B1) ===',
+            'Solo activos: bloquea consecutivos usados por productos activos. Los inactivos aparecen como disponibles',
+            'Activos e inactivos: bloquea todos los consecutivos ya registrados en el sistema',
+            'El dropdown de CONSECUTIVO cambia al seleccionar PREFIJO (col. A) y el filtro (celda B1)',
             '',
             '=== COLUMNAS OBLIGATORIAS (morado oscuro) ===',
             'PREFIJO, CONSECUTIVO, NOMBRE_TIPO, NOMBRE_MEDIDA, TIPO_PRODUCTO',
             '',
             '=== REGLAS ===',
             'Todo en MAYUSCULAS. NOMBRE_MEDIDA con numeros (40X30X25CM)',
-            'No repetir codigos que ya existen en el catalogo',
-            'Empieza a llenar desde la fila 2 de la hoja Productos',
+            'Empieza a llenar desde la fila 3 de la hoja Productos',
         ];
         $r = 3;
         foreach ($reglas as $texto) {
@@ -1099,6 +1008,7 @@ class AltaProductoController extends Controller
         $path = $file->store('excel-productos', 'public');
 
         // Leer el Excel inmediatamente
+        $primeraFilaDatos = 2;
         try {
             $fullPath = storage_path('app/public/'.$path);
 
@@ -1106,7 +1016,7 @@ class AltaProductoController extends Controller
                 $productos = $this->leerCSV($fullPath);
             } else {
                 $spreadsheet = IOFactory::load($fullPath);
-                $productos = $this->leerSpreadsheet($spreadsheet);
+                $productos = $this->leerSpreadsheet($spreadsheet, $primeraFilaDatos);
             }
         } catch (\Exception $e) {
             return back()->with('error', 'ERROR  No se pudo leer el archivo. Asegurate de que sea un Excel (.xlsx) o CSV valido. Error: '.$e->getMessage());
@@ -1178,7 +1088,7 @@ class AltaProductoController extends Controller
         }
 
         foreach ($productos as $index => $producto) {
-            $fila = $index + 2;
+            $fila = $index + $primeraFilaDatos;
             $erroresFila = $this->validarProducto($producto, $fila, $esModuloCompras);
 
             if (! empty($erroresFila)) {
@@ -1207,7 +1117,7 @@ class AltaProductoController extends Controller
             }
 
             foreach ($productos as $index => $prod) {
-                $fila = $index + 2;
+                $fila = $index + $primeraFilaDatos;
                 // No enviar duplicados a la IA - ya pasaron validacion antes
                 if (in_array($fila, $filasDuplicadas)) {
                     continue;
@@ -1281,7 +1191,7 @@ Si todo correcto: {"errores_ia": []}';
                                     }
                                 }
                                 if (! $yaExiste) {
-                                    $idx = $filaIA - 2;
+                                    $idx = $filaIA - $primeraFilaDatos;
 
                                     // VERIFICAR con PHP que el error de la IA sea real
                                     // La IA puede alucinar - confirmar los datos reales del Excel
@@ -1850,7 +1760,7 @@ Si todo correcto: {"errores_ia": []}';
                     $errores[] = [
                         'fila' => $fila,
                         'campo' => 'CONSECUTIVO',
-                        'error' => "DUPLICADO: '{$codigoFormado}' ya existe en el sistema ({$estado}). Consulta la hoja Consecutivos del template.",
+                        'error' => "DUPLICADO: '{$codigoFormado}' ya existe en el sistema ({$estado}). Revisa el filtro y el dropdown de CONSECUTIVO en el template.",
                     ];
                 }
             }
@@ -2507,7 +2417,7 @@ Si todo correcto: {"errores_ia": []}';
     /**
      * Leer archivo Excel con PhpSpreadsheet.
      */
-    private function leerSpreadsheet($spreadsheet): array
+    private function leerSpreadsheet($spreadsheet, int &$primeraFilaDatos = 2): array
     {
         $sheet = $spreadsheet->getActiveSheet();
         $rows = $sheet->toArray();
@@ -2516,12 +2426,26 @@ Si todo correcto: {"errores_ia": []}';
             return [];
         }
 
-        $headers = array_map(fn ($h) => strtoupper(trim($h ?? '')), $rows[0]);
+        $headerRowIndex = 0;
+        foreach ($rows as $i => $row) {
+            $normalized = array_map(fn ($h) => strtoupper(trim((string) ($h ?? ''))), $row);
+            if (in_array('PREFIJO', $normalized, true) && in_array('CONSECUTIVO', $normalized, true)) {
+                $headerRowIndex = $i;
+                break;
+            }
+            if (in_array('CODIGO', $normalized, true) && in_array('NOMBRE_TIPO', $normalized, true)) {
+                $headerRowIndex = $i;
+                break;
+            }
+        }
+
+        $primeraFilaDatos = $headerRowIndex + 2;
+        $headers = array_map(fn ($h) => strtoupper(trim((string) ($h ?? ''))), $rows[$headerRowIndex]);
         $productos = [];
 
-        for ($i = 1; $i < count($rows); $i++) {
+        for ($i = $headerRowIndex + 1; $i < count($rows); $i++) {
             $row = $rows[$i];
-            if (count(array_filter($row)) === 0) {
+            if (count(array_filter($row, fn ($v) => trim((string) ($v ?? '')) !== '')) === 0) {
                 continue;
             }
 
@@ -2920,6 +2844,45 @@ Si todo correcto: {"errores_ia": []}';
         });
 
         return $catalogo;
+    }
+
+    /**
+     * Consecutivos libres para dropdown del template (huecos + cola disponible).
+     *
+     * @param  bool  $bloquearSoloActivos  true = solo productos activos ocupan el numero
+     */
+    private function generarConsecutivosDisponibles(string $prefijo, array $catalogo, bool $bloquearSoloActivos, int $limite = 250): array
+    {
+        $digitos = 4;
+        $ocupados = [];
+
+        foreach ($catalogo as $item) {
+            if ($item['prefijo'] !== $prefijo) {
+                continue;
+            }
+            if ($bloquearSoloActivos && ! $item['activo']) {
+                continue;
+            }
+            $ocupados[] = $item['consecutivo_num'];
+            $digitos = max($digitos, strlen($item['consecutivo']));
+        }
+
+        $ocupados = array_values(array_unique($ocupados));
+        $maxOcupado = empty($ocupados) ? 0 : max($ocupados);
+        $hasta = max($maxOcupado + 50, 100);
+
+        $disponibles = [];
+        for ($n = 1; $n <= $hasta && count($disponibles) < $limite; $n++) {
+            if (! in_array($n, $ocupados, true)) {
+                $disponibles[] = str_pad((string) $n, $digitos, '0', STR_PAD_LEFT);
+            }
+        }
+
+        if (empty($disponibles)) {
+            $disponibles[] = str_pad('1', $digitos, '0', STR_PAD_LEFT);
+        }
+
+        return $disponibles;
     }
 
     /**

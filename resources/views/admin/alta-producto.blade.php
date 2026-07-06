@@ -80,7 +80,7 @@
         <h3>Nacional — ME / MP</h3>
         <div class="alta-steps">
             <div class="alta-step"><div class="alta-step-num">1</div><div class="alta-step-text"><strong>Descarga el template Nacional</strong>Excel para Material de Empaque (ME) y Materia Prima (MP).</div></div>
-            <div class="alta-step"><div class="alta-step-num">2</div><div class="alta-step-text"><strong>Llena tus productos</strong>Prefijo, consecutivo, nombre tipo y medida son obligatorios. Consulta la hoja Consecutivos.</div></div>
+            <div class="alta-step"><div class="alta-step-num">2</div><div class="alta-step-text"><strong>Llena tus productos</strong>Elige PREFIJO, luego CONSECUTIVO del dropdown (solo disponibles). Filtro en celda B1.</div></div>
             <div class="alta-step"><div class="alta-step-num">3</div><div class="alta-step-text"><strong>Sube el Excel</strong>Se valida y da de alta automático.</div></div>
         </div>
         <div style="margin-top:20px;">
@@ -109,7 +109,7 @@
                 <thead><tr><th>Columna</th><th>Ejemplo</th><th>Req.</th></tr></thead>
                 <tbody>
                     <tr><td style="color:var(--purple);font-weight:700;">PREFIJO</td><td>ME / MP (dropdown)</td><td class="req">✓</td></tr>
-                    <tr><td style="color:var(--purple);font-weight:700;">CONSECUTIVO</td><td>0305 (codigo = ME0305)</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">CONSECUTIVO</td><td>0305 (dropdown disponibles, filtro B1)</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_TIPO</td><td>CAJA CORRUGADA</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--gray-muted);">NOMBRE_MARCA</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
                     <tr><td style="color:var(--gray-muted);">NOMBRE_MODELO</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
