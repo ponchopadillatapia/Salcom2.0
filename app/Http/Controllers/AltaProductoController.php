@@ -6,8 +6,6 @@ use App\Jobs\ProcesarMigracionLote;
 use App\Models\ExcelValidacion;
 use App\Models\MigracionMasiva;
 use App\Models\Producto;
-use App\Models\ProductoProveedorPrecio;
-use App\Models\ProveedorUser;
 use App\Services\AlertEngineService;
 use App\Services\IaService;
 use Illuminate\Http\Request;
@@ -376,8 +374,8 @@ class AltaProductoController extends Controller
         $sheet->mergeCells('C1:F1');
         $sheet->getStyle('C1')->getFont()->setItalic(true)->getColor()->setRGB('666666');
 
-        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PROVEEDOR', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
-        $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PROVEEDOR', 'PRECIO', 'MOQ'];
+        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PRECIO', 'MOQ'];
 
         $col = 'A';
         foreach ($headers as $header) {
@@ -391,8 +389,8 @@ class AltaProductoController extends Controller
         }
 
         $sheet->getStyle('B'.$dataStartRow.':B'.$dataEndRow)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
-        $sheet->getStyle('L'.$dataStartRow.':L'.$dataEndRow)->getNumberFormat()->setFormatCode('$#,##0.00');
-        $sheet->getStyle('M'.$dataStartRow.':M'.$dataEndRow)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->getStyle('K'.$dataStartRow.':K'.$dataEndRow)->getNumberFormat()->setFormatCode('$#,##0.00');
+        $sheet->getStyle('L'.$dataStartRow.':L'.$dataEndRow)->getNumberFormat()->setFormatCode('#,##0');
         $sheet->freezePane('A'.$dataStartRow);
 
         // Hoja listas oculta
@@ -410,11 +408,6 @@ class AltaProductoController extends Controller
         $listSheet->setCellValue('D2', 'NO');
         $listSheet->setCellValue('E1', 'Solo activos');
         $listSheet->setCellValue('E2', 'Activos e inactivos');
-        $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get(['codigo_compras', 'nombre']);
-        foreach ($proveedores as $i => $prov) {
-            $etiqueta = trim(($prov->codigo_compras ? $prov->codigo_compras.' - ' : '').$prov->nombre);
-            $listSheet->setCellValue('F'.($i + 1), $etiqueta);
-        }
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
         // Hoja datos oculta: consecutivos DISPONIBLES por prefijo y filtro
@@ -482,20 +475,12 @@ class AltaProductoController extends Controller
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
             $v->setFormula1('_Listas!$B$1:$B$'.count($this->unidadesValidas));
 
-            $v = $sheet->getCell('O'.$row)->getDataValidation();
+            $v = $sheet->getCell('M'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
             $v->setFormula1('_Listas!$D$1:$D$2');
-            $v2 = $sheet->getCell('P'.$row)->getDataValidation();
+            $v2 = $sheet->getCell('N'.$row)->getDataValidation();
             $v2->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
             $v2->setFormula1('_Listas!$D$1:$D$2');
-
-            if ($proveedores->isNotEmpty()) {
-                $v = $sheet->getCell('K'.$row)->getDataValidation();
-                $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
-                $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
-                $v->setErrorTitle('Proveedor no valido')->setError('Selecciona un proveedor del listado o escribe su codigo/nombre.');
-                $v->setFormula1('_Listas!$F$1:$F$'.$proveedores->count());
-            }
         }
 
         // === HOJA: Instrucciones ===
@@ -516,11 +501,11 @@ class AltaProductoController extends Controller
             'El dropdown de CONSECUTIVO cambia al seleccionar PREFIJO (col. A) y el filtro (celda B1)',
             '',
             '=== COLUMNAS OBLIGATORIAS (morado oscuro) ===',
-            'PREFIJO, CONSECUTIVO, NOMBRE_TIPO, NOMBRE_MEDIDA, TIPO_PRODUCTO, PROVEEDOR, PRECIO, MOQ',
+            'PREFIJO, CONSECUTIVO, NOMBRE_TIPO, NOMBRE_MEDIDA, TIPO_PRODUCTO, PRECIO, MOQ',
             '',
             '=== REGLAS ===',
             'Mayusculas y minusculas son aceptadas. NOMBRE_MEDIDA con numeros (40X30X25CM)',
-            'PROVEEDOR: codigo de compras o nombre del proveedor registrado. PRECIO con $ (ej: $150.50). MOQ: cantidad minima de compra (entero > 0)',
+            'PRECIO con $ (ej: $150.50). MOQ: cantidad minima de compra (entero > 0)',
             'CONSECUTIVO: 3 digitos (ej: 001, 305). Codigo = PREFIJO + CONSECUTIVO',
             'Empieza a llenar desde la fila 3 de la hoja Productos',
         ];
@@ -1100,7 +1085,7 @@ class AltaProductoController extends Controller
 
         // Verificar que el archivo tenga las columnas correctas
         $columnasRequeridas = $esFormatoNacional
-            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PROVEEDOR', 'PRECIO', 'MOQ']
+            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PRECIO', 'MOQ']
             : $this->columnasObligatorias;
         $columnasFaltantes = array_diff($columnasRequeridas, $columnasPresentes);
         if (! empty($columnasFaltantes)) {
@@ -1368,11 +1353,10 @@ Si todo correcto: {"errores_ia": []}';
         if ($estatus === 'validado') {
             // TODOS validados - dar de alta todos
             foreach ($productos as $prod) {
-                $productoGuardado = Producto::updateOrCreate(
+                Producto::updateOrCreate(
                     ['codigo' => strtoupper(trim($prod['CODIGO'] ?? ''))],
-                    $this->datosProductoDesdeExcel($prod, $esFormatoNacional)
+                    $this->datosProductoDesdeExcel($prod)
                 );
-                $this->guardarPrecioProveedorProducto($productoGuardado, $prod);
             }
 
             $listaProductos = [];
@@ -1412,11 +1396,10 @@ Si todo correcto: {"errores_ia": []}';
         foreach ($productos as $index => $prod) {
             $fila = $index + $primeraFilaDatos;
             if (!in_array($fila, $filasConErrorFinal)) {
-                $productoGuardado = Producto::updateOrCreate(
+                Producto::updateOrCreate(
                     ['codigo' => strtoupper(trim($prod['CODIGO'] ?? ''))],
-                    $this->datosProductoDesdeExcel($prod, $esFormatoNacional)
+                    $this->datosProductoDesdeExcel($prod)
                 );
-                $this->guardarPrecioProveedorProducto($productoGuardado, $prod);
                 $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
                 $nombre = strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
                 $productosAlta[] = ['fila' => $fila, 'texto' => "{$codigo} - {$nombre}"];
@@ -1503,9 +1486,9 @@ Si todo correcto: {"errores_ia": []}';
 
         // Headers con mismo formato del template (morado)
         $headers = $esFormatoNacional
-            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PROVEEDOR', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE']
+            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE']
             : ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE', 'DEPARTAMENTO', 'LINEA', 'SUBFAMILIA', 'CANAL', 'VENDEDOR', 'MODULO'];
-        $obligatoriosNacional = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PROVEEDOR', 'PRECIO', 'MOQ'];
+        $obligatoriosNacional = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PRECIO', 'MOQ'];
         $obligatorios = $esFormatoNacional
             ? array_fill_keys($obligatoriosNacional, true) + array_fill_keys(array_diff($headers, $obligatoriosNacional), false)
             : ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false, 'DEPARTAMENTO' => false, 'LINEA' => false, 'SUBFAMILIA' => false, 'CANAL' => false, 'VENDEDOR' => false, 'MODULO' => false];
@@ -1558,8 +1541,8 @@ Si todo correcto: {"errores_ia": []}';
             ? [
                 'PREFIJO' => 'A', 'CONSECUTIVO' => 'B', 'NOMBRE_TIPO' => 'C', 'NOMBRE_MARCA' => 'D', 'NOMBRE_MODELO' => 'E',
                 'NOMBRE_MEDIDA' => 'F', 'NOMBRE_ESPECIFICACION' => 'G', 'FAMILIA' => 'H', 'TIPO_PRODUCTO' => 'I',
-                'UNIDAD_MEDIDA' => 'J', 'PROVEEDOR' => 'K', 'PRECIO' => 'L', 'MOQ' => 'M', 'CLAVE_SAT' => 'N',
-                'LOTE' => 'O', 'PEDIMENTO' => 'P', 'VOLTAJE' => 'Q',
+                'UNIDAD_MEDIDA' => 'J', 'PRECIO' => 'K', 'MOQ' => 'L', 'CLAVE_SAT' => 'M',
+                'LOTE' => 'N', 'PEDIMENTO' => 'O', 'VOLTAJE' => 'P',
             ]
             : [
                 'CODIGO' => 'A', 'NOMBRE_TIPO' => 'B', 'NOMBRE_MARCA' => 'C', 'NOMBRE_MODELO' => 'D',
@@ -1570,9 +1553,9 @@ Si todo correcto: {"errores_ia": []}';
                 'ESPECIFICACION' => 'F', 'GENERAL' => 'B', 'PRODUCCION' => 'H',
             ];
         $camposDatos = $esFormatoNacional
-            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PROVEEDOR', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE']
+            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE']
             : ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
-        $ultimaColumna = $esFormatoNacional ? 'Q' : 'N';
+        $ultimaColumna = $esFormatoNacional ? 'P' : 'N';
 
         // Datos
         foreach ($productos as $index => $producto) {
@@ -1676,7 +1659,7 @@ Si todo correcto: {"errores_ia": []}';
                 // MPI (Internacional - Cinthya): código, tipo, modelo, medida + UNIDAD_MEDIDA
                 $camposObligatorios = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA'];
             } elseif (in_array($tipoProductoActual, ['ME', 'MP'], true) && ! empty(trim($producto['PREFIJO'] ?? ''))) {
-                $camposObligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PROVEEDOR', 'PRECIO', 'MOQ'];
+                $camposObligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PRECIO', 'MOQ'];
             } else {
                 // ME y MP (Nacional - Brenda): solo código, tipo y medida
                 $camposObligatorios = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO'];
@@ -1700,7 +1683,6 @@ Si todo correcto: {"errores_ia": []}';
                     'FAMILIA' => 'Selecciona del dropdown una familia del catalogo oficial',
                     'TIPO_PRODUCTO' => 'Selecciona del dropdown: MPI, ME, MN, MP, PT, etc.',
                     'UNIDAD_MEDIDA' => 'Selecciona del dropdown: KG, PZA, CAJA, etc.',
-                    'PROVEEDOR' => 'Codigo de compras o nombre del proveedor registrado (ej: 102003240 o Distribuidora Nacional)',
                     'PRECIO' => 'Precio con signo $ (ej: $150.50)',
                     'MOQ' => 'Cantidad minima de compra obligatoria, entero mayor a 0 (ej: 100)',
                     default => 'Este campo es obligatorio, no puede estar vacio',
@@ -2179,15 +2161,6 @@ Si todo correcto: {"errores_ia": []}';
 
         $esNacionalMeMp = ! empty(trim($producto['PREFIJO'] ?? '')) && in_array($tipoProductoActual, ['ME', 'MP'], true);
         if ($esModuloCompras && $esNacionalMeMp) {
-            $proveedorRaw = trim($producto['PROVEEDOR'] ?? '');
-            if ($proveedorRaw !== '' && ! $this->resolverProveedor($proveedorRaw)) {
-                $errores[] = [
-                    'fila' => $fila,
-                    'campo' => 'PROVEEDOR',
-                    'error' => "Proveedor no encontrado: '{$proveedorRaw}'. COMO CORREGIR: Usa el codigo de compras o el nombre exacto del proveedor registrado en el sistema.",
-                ];
-            }
-
             $moqRaw = trim((string) ($producto['MOQ'] ?? ''));
             if ($moqRaw !== '') {
                 $moqLimpio = str_replace([',', ' '], '', $moqRaw);
@@ -3025,7 +2998,7 @@ Si todo correcto: {"errores_ia": []}';
         return $digitos;
     }
 
-    private function datosProductoDesdeExcel(array $prod, bool $esFormatoNacional): array
+    private function datosProductoDesdeExcel(array $prod): array
     {
         $nombreCompleto = trim(
             strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.
@@ -3035,22 +3008,19 @@ Si todo correcto: {"errores_ia": []}';
             strtoupper(trim($prod['NOMBRE_ESPECIFICACION'] ?? ''))
         );
 
-        $proveedor = $esFormatoNacional ? $this->resolverProveedor(trim($prod['PROVEEDOR'] ?? '')) : null;
-        $precio = (float) str_replace(['$', ','], '', $prod['PRECIO'] ?? '0');
-
         return [
             'nombre' => $nombreCompleto,
             'categoria' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
             'familia' => strtoupper(trim($prod['FAMILIA'] ?? '')),
             'tipo_producto' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
             'unidad_venta' => strtoupper(trim($prod['UNIDAD_MEDIDA'] ?? '')),
-            'precio' => $precio,
+            'precio' => (float) str_replace(['$', ','], '', $prod['PRECIO'] ?? '0'),
             'clave_sat' => trim($prod['CLAVE_SAT'] ?? ''),
             'maneja_lotes' => strtoupper(trim($prod['LOTE'] ?? '')) === 'SI',
             'activo' => true,
             'stock' => 0,
-            'proveedor_nombre' => $proveedor?->nombre ?? session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
-            'proveedor_tipo' => $proveedor ? 'proveedor' : (session('proveedor_id') ? 'proveedor' : 'admin'),
+            'proveedor_nombre' => session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
+            'proveedor_tipo' => session('proveedor_id') ? 'proveedor' : 'admin',
             'departamento' => strtoupper(trim($prod['DEPARTAMENTO'] ?? '')),
             'linea' => trim($prod['LINEA'] ?? ''),
             'subfamilia_pt' => trim($prod['SUBFAMILIA'] ?? ''),
@@ -3058,45 +3028,6 @@ Si todo correcto: {"errores_ia": []}';
             'vendedor' => trim($prod['VENDEDOR'] ?? ''),
             'modulo' => strtoupper(trim($prod['MODULO'] ?? '')),
         ];
-    }
-
-    private function resolverProveedor(string $valor): ?ProveedorUser
-    {
-        $valor = trim($valor);
-        if ($valor === '') {
-            return null;
-        }
-
-        if (str_contains($valor, ' - ')) {
-            $valor = trim(explode(' - ', $valor, 2)[0]);
-        }
-
-        return ProveedorUser::query()
-            ->where('codigo_compras', $valor)
-            ->orWhereRaw('UPPER(nombre) = ?', [strtoupper($valor)])
-            ->first();
-    }
-
-    private function guardarPrecioProveedorProducto(Producto $producto, array $prod): void
-    {
-        $proveedor = $this->resolverProveedor(trim($prod['PROVEEDOR'] ?? ''));
-        if (! $proveedor) {
-            return;
-        }
-
-        $precio = (float) str_replace(['$', ','], '', $prod['PRECIO'] ?? '0');
-        $moq = (int) str_replace([',', ' '], '', (string) ($prod['MOQ'] ?? '0'));
-
-        ProductoProveedorPrecio::updateOrCreate(
-            [
-                'producto_id' => $producto->id,
-                'proveedor_id' => $proveedor->id,
-            ],
-            [
-                'precio' => $precio,
-                'moq' => max(1, $moq),
-            ]
-        );
     }
 
     private function esFormatoNacionalMeMp(array $columnasPresentes): bool

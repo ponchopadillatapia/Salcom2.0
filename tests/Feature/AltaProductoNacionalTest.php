@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\AdminUser;
 use App\Models\Producto;
-use App\Models\ProveedorUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -36,18 +35,6 @@ class AltaProductoNacionalTest extends TestCase
         ];
     }
 
-    private function crearProveedor(): ProveedorUser
-    {
-        return ProveedorUser::create([
-            'usuario' => 'provtest',
-            'password' => Hash::make('test1234'),
-            'codigo_compras' => '102003240',
-            'nombre' => 'Distribuidora Nacional SA de CV',
-            'correo' => 'prov@test.com',
-            'activo' => true,
-        ]);
-    }
-
     private function crearExcelNacional(array $filas = []): UploadedFile
     {
         if (empty($filas)) {
@@ -57,7 +44,6 @@ class AltaProductoNacionalTest extends TestCase
                 'NOMBRE_TIPO' => 'caja corrugada',
                 'NOMBRE_MEDIDA' => '40x30x25cm',
                 'TIPO_PRODUCTO' => 'me',
-                'PROVEEDOR' => '102003240',
                 'PRECIO' => '$150.50',
                 'MOQ' => '100',
             ]];
@@ -68,7 +54,7 @@ class AltaProductoNacionalTest extends TestCase
         $sheet->setCellValue('A1', 'Filtro consecutivos (col. B):');
         $sheet->setCellValue('B1', 'Solo activos');
 
-        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PROVEEDOR', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
         $col = 'A';
         foreach ($headers as $h) {
             $sheet->setCellValue($col.'2', $h);
@@ -105,7 +91,6 @@ class AltaProductoNacionalTest extends TestCase
 
     public function test_subir_excel_nacional_me_mp_no_da_500(): void
     {
-        $proveedor = $this->crearProveedor();
         $this->withSession($this->sesionAdmin());
 
         $file = $this->crearExcelNacional();
@@ -119,19 +104,12 @@ class AltaProductoNacionalTest extends TestCase
         $producto = Producto::where('codigo', 'ME001')->first();
         $this->assertNotNull($producto);
         $this->assertSame('CAJA CORRUGADA 40X30X25CM', preg_replace('/\s+/', ' ', trim($producto->nombre)));
-        $this->assertSame($proveedor->nombre, $producto->proveedor_nombre);
-
-        $this->assertDatabaseHas('producto_proveedor_precios', [
-            'proveedor_id' => $proveedor->id,
-            'precio' => '150.50',
-            'moq' => 100,
-        ]);
+        $this->assertSame(150.50, (float) $producto->precio);
+        $this->assertSame('Admin Test', $producto->proveedor_nombre);
     }
 
     public function test_subir_excel_nacional_con_error_muestra_mensaje_no_500(): void
     {
-        $this->crearProveedor();
-
         Producto::create([
             'codigo' => 'ME002',
             'nombre' => 'PRODUCTO EXISTENTE',
@@ -148,7 +126,6 @@ class AltaProductoNacionalTest extends TestCase
             'NOMBRE_TIPO' => 'CAJA',
             'NOMBRE_MEDIDA' => '30X30',
             'TIPO_PRODUCTO' => 'ME',
-            'PROVEEDOR' => '102003240',
             'PRECIO' => '$10.00',
             'MOQ' => '50',
         ]]);
@@ -162,7 +139,6 @@ class AltaProductoNacionalTest extends TestCase
 
     public function test_subir_excel_nacional_sin_moq_genera_error(): void
     {
-        $this->crearProveedor();
         $this->withSession($this->sesionAdmin());
 
         $file = $this->crearExcelNacional([[
@@ -171,7 +147,6 @@ class AltaProductoNacionalTest extends TestCase
             'NOMBRE_TIPO' => 'CAJA',
             'NOMBRE_MEDIDA' => '30X30',
             'TIPO_PRODUCTO' => 'ME',
-            'PROVEEDOR' => '102003240',
             'PRECIO' => '$10.00',
         ]]);
 
@@ -183,8 +158,6 @@ class AltaProductoNacionalTest extends TestCase
 
     public function test_subir_template_generado_por_sistema(): void
     {
-        $this->crearProveedor();
-
         Producto::create([
             'codigo' => 'ME100',
             'nombre' => 'PRODUCTO BASE',
@@ -209,9 +182,8 @@ class AltaProductoNacionalTest extends TestCase
         $sheet->setCellValue('C3', 'CAJA CORRUGADA');
         $sheet->setCellValue('F3', '40X30X25CM');
         $sheet->setCellValue('I3', 'ME');
-        $sheet->setCellValue('K3', '102003240');
-        $sheet->setCellValue('L3', '$25.00');
-        $sheet->setCellValue('M3', '25');
+        $sheet->setCellValue('K3', '$25.00');
+        $sheet->setCellValue('L3', '25');
         $filledPath = storage_path('app/test_template_lleno.xlsx');
         (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($ss))->save($filledPath);
 
