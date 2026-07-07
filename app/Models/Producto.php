@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Producto extends Model
@@ -19,6 +20,31 @@ class Producto extends Model
         'maneja_lotes', 'unidad_xml', 'iva', 'ieps', 'foto', 'activo', 'proveedor_nombre', 'proveedor_tipo',
         'departamento', 'linea', 'subfamilia_pt', 'canal', 'vendedor', 'modulo',
     ];
+
+    public function preciosProveedor(): HasMany
+    {
+        return $this->hasMany(ProductoProveedorPrecio::class);
+    }
+
+    public function precioParaProveedor(?int $proveedorId): ?float
+    {
+        if (! $proveedorId) {
+            return (float) $this->precio;
+        }
+
+        $registro = $this->preciosProveedor()->where('proveedor_id', $proveedorId)->first();
+
+        return $registro ? (float) $registro->precio : (float) $this->precio;
+    }
+
+    public function moqParaProveedor(?int $proveedorId): ?int
+    {
+        if (! $proveedorId) {
+            return null;
+        }
+
+        return $this->preciosProveedor()->where('proveedor_id', $proveedorId)->value('moq');
+    }
 
     protected $casts = [
         'activo' => 'boolean',

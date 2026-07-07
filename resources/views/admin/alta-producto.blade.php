@@ -109,7 +109,7 @@
                 <thead><tr><th>Columna</th><th>Ejemplo</th><th>Req.</th></tr></thead>
                 <tbody>
                     <tr><td style="color:var(--purple);font-weight:700;">PREFIJO</td><td>ME / MP (dropdown)</td><td class="req">✓</td></tr>
-                    <tr><td style="color:var(--purple);font-weight:700;">CONSECUTIVO</td><td>0305 (dropdown disponibles, filtro B1)</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">CONSECUTIVO</td><td>305 (dropdown disponibles, filtro B1)</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_TIPO</td><td>CAJA CORRUGADA</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--gray-muted);">NOMBRE_MARCA</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
                     <tr><td style="color:var(--gray-muted);">NOMBRE_MODELO</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
@@ -117,6 +117,9 @@
                     <tr><td style="color:var(--gray-muted);">NOMBRE_ESPECIFICACION</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
                     <tr><td style="color:var(--gray-muted);">FAMILIA</td><td style="color:var(--gray-muted);">EMPAQUE</td><td class="opt">—</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">TIPO_PRODUCTO</td><td>ME / MP</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">PROVEEDOR</td><td>Código o nombre del proveedor</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">PRECIO</td><td>$150.50</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">MOQ</td><td>100 (mínimo de compra)</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--gray-muted);">UNIDAD_MEDIDA — VOLTAJE</td><td style="color:var(--gray-muted);">opcionales</td><td class="opt">—</td></tr>
                 </tbody>
             </table>
