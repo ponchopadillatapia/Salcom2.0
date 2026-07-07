@@ -1005,11 +1005,12 @@ class AltaProductoController extends Controller
         ]);
 
         $file = $request->file('excel');
-        $path = $file->store('excel-productos', 'public');
 
-        // Leer el Excel inmediatamente
-        $primeraFilaDatos = 2;
         try {
+            $path = $file->store('excel-productos', 'public');
+
+            // Leer el Excel inmediatamente
+            $primeraFilaDatos = 2;
             $fullPath = storage_path('app/public/'.$path);
 
             if (Str::endsWith($file->getClientOriginalName(), '.csv')) {
@@ -1018,9 +1019,29 @@ class AltaProductoController extends Controller
                 $spreadsheet = IOFactory::load($fullPath);
                 $productos = $this->leerSpreadsheet($spreadsheet, $primeraFilaDatos);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('[Alta Producto] Error leyendo Excel: '.$e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
             return back()->with('error', 'ERROR  No se pudo leer el archivo. Asegurate de que sea un Excel (.xlsx) o CSV valido. Error: '.$e->getMessage());
         }
+
+        try {
+            return $this->procesarExcelSubido($productos, $path, $primeraFilaDatos);
+        } catch (\Throwable $e) {
+            Log::error('[Alta Producto] Error procesando Excel: '.$e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return back()->with('error', 'ERROR al procesar el Excel: '.$e->getMessage());
+        }
+    }
+
+    private function procesarExcelSubido(array $productos, string $path, int $primeraFilaDatos): \Illuminate\Http\RedirectResponse
+    {
 
         if (empty($productos)) {
             return back()->with('error', 'El archivo esta vacio o no tiene productos. Descarga el template, borra los ejemplos en gris y llena tus productos. Columnas obligatorias: CODIGO, NOMBRE_TIPO, NOMBRE_MARCA, NOMBRE_MODELO, NOMBRE_MEDIDA, NOMBRE_ESPECIFICACION, PRODUCCION, FAMILIA, TIPO_PRODUCTO, UNIDAD_MEDIDA, OBSERVACIONES.');
@@ -1370,16 +1391,20 @@ Si todo correcto: {"errores_ia": []}';
             }
 
             $alertEngine = new AlertEngineService;
-            $alertEngine->alertar([
-                'tipo' => 'productos_alta_automatica',
-                'modulo' => 'productos',
-                'destinatario_tipo' => 'admin',
-                'destinatario_id' => 1,
-                'titulo' => "Productos dados de alta: {$validos} productos",
-                'contenido' => "Se dieron de alta {$validos} productos en el catalogo.",
-                'datos' => ['validacion_id' => $validacion->id, 'total' => $validos],
-                'nivel' => 'info',
-            ]);
+            try {
+                $alertEngine->alertar([
+                    'tipo' => 'productos_alta_automatica',
+                    'modulo' => 'productos',
+                    'destinatario_tipo' => 'admin',
+                    'destinatario_id' => 1,
+                    'titulo' => "Productos dados de alta: {$validos} productos",
+                    'contenido' => "Se dieron de alta {$validos} productos en el catalogo.",
+                    'datos' => ['validacion_id' => $validacion->id, 'total' => $validos],
+                    'nivel' => 'info',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('[Alta Producto] No se pudo enviar alerta: '.$e->getMessage());
+            }
 
             $mensajeExito = "OK - {$validos} producto(s) validados y dados de alta en el catalogo:\n";
             foreach ($listaProductos as $item) {
@@ -1393,7 +1418,7 @@ Si todo correcto: {"errores_ia": []}';
         $filasConErrorFinal = array_unique(array_column($errores, 'fila'));
         $productosAlta = [];
         foreach ($productos as $index => $prod) {
-            $fila = $index + 2;
+            $fila = $index + $primeraFilaDatos;
             if (!in_array($fila, $filasConErrorFinal)) {
                 $nombreCompleto = trim(
                     strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.
@@ -1434,7 +1459,7 @@ Si todo correcto: {"errores_ia": []}';
 
         // Tiene errores - generar Excel con correcciones (solo celdas en rojo)
 
-        $fullPath = $this->generarExcelConErrores($productos, $errores);
+        $fullPath = $this->generarExcelConErrores($productos, $errores, $esFormatoNacional, $primeraFilaDatos);
         $relativePath = str_replace(storage_path('app/public/'), '', $fullPath);
 
         // Ordenar errores por numero de fila
@@ -1498,7 +1523,7 @@ Si todo correcto: {"errores_ia": []}';
     /**
      * Generar Excel XLSX con colores - celdas con error en rojo, aprobadas en verde.
      */
-    private function generarExcelConErrores(array $productos, array $errores): string
+    private function generarExcelConErrores(array $productos, array $errores, bool $esFormatoNacional = false, int $primeraFilaDatos = 2): string
     {
         // Agrupar errores por fila
         $erroresPorFila = [];
@@ -1511,8 +1536,14 @@ Si todo correcto: {"errores_ia": []}';
         $sheet->setTitle('Productos');
 
         // Headers con mismo formato del template (morado)
-        $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE', 'DEPARTAMENTO', 'LINEA', 'SUBFAMILIA', 'CANAL', 'VENDEDOR', 'MODULO'];
-        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false, 'DEPARTAMENTO' => false, 'LINEA' => false, 'SUBFAMILIA' => false, 'CANAL' => false, 'VENDEDOR' => false, 'MODULO' => false];
+        $headers = $esFormatoNacional
+            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE']
+            : ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE', 'DEPARTAMENTO', 'LINEA', 'SUBFAMILIA', 'CANAL', 'VENDEDOR', 'MODULO'];
+        $obligatoriosNacional = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO'];
+        $obligatorios = $esFormatoNacional
+            ? array_fill_keys($obligatoriosNacional, true) + array_fill_keys(array_diff($headers, $obligatoriosNacional), false)
+            : ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false, 'DEPARTAMENTO' => false, 'LINEA' => false, 'SUBFAMILIA' => false, 'CANAL' => false, 'VENDEDOR' => false, 'MODULO' => false];
+        $headerRow = 1;
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
@@ -1557,22 +1588,32 @@ Si todo correcto: {"errores_ia": []}';
         $sheet = $spreadsheet->getActiveSheet();
 
         // Mapeo de columnas
-        $colMap = [
-            'CODIGO' => 'A', 'NOMBRE_TIPO' => 'B', 'NOMBRE_MARCA' => 'C', 'NOMBRE_MODELO' => 'D',
-            'NOMBRE_MEDIDA' => 'E', 'NOMBRE_ESPECIFICACION' => 'F', 'FAMILIA' => 'G',
-            'TIPO_PRODUCTO' => 'H', 'UNIDAD_MEDIDA' => 'I', 'PRECIO' => 'J', 'CLAVE_SAT' => 'K',
-            'LOTE' => 'L', 'PEDIMENTO' => 'M', 'VOLTAJE' => 'N',
-            'NOMBRE' => 'B', 'MARCA' => 'C', 'MODELO' => 'D', 'MEDIDA' => 'E',
-            'ESPECIFICACION' => 'F', 'GENERAL' => 'B', 'PRODUCCION' => 'H',
-        ];
+        $colMap = $esFormatoNacional
+            ? [
+                'PREFIJO' => 'A', 'CONSECUTIVO' => 'B', 'NOMBRE_TIPO' => 'C', 'NOMBRE_MARCA' => 'D', 'NOMBRE_MODELO' => 'E',
+                'NOMBRE_MEDIDA' => 'F', 'NOMBRE_ESPECIFICACION' => 'G', 'FAMILIA' => 'H', 'TIPO_PRODUCTO' => 'I',
+                'UNIDAD_MEDIDA' => 'J', 'PRECIO' => 'K', 'CLAVE_SAT' => 'L', 'LOTE' => 'M', 'PEDIMENTO' => 'N', 'VOLTAJE' => 'O',
+            ]
+            : [
+                'CODIGO' => 'A', 'NOMBRE_TIPO' => 'B', 'NOMBRE_MARCA' => 'C', 'NOMBRE_MODELO' => 'D',
+                'NOMBRE_MEDIDA' => 'E', 'NOMBRE_ESPECIFICACION' => 'F', 'FAMILIA' => 'G',
+                'TIPO_PRODUCTO' => 'H', 'UNIDAD_MEDIDA' => 'I', 'PRECIO' => 'J', 'CLAVE_SAT' => 'K',
+                'LOTE' => 'L', 'PEDIMENTO' => 'M', 'VOLTAJE' => 'N',
+                'NOMBRE' => 'B', 'MARCA' => 'C', 'MODELO' => 'D', 'MEDIDA' => 'E',
+                'ESPECIFICACION' => 'F', 'GENERAL' => 'B', 'PRODUCCION' => 'H',
+            ];
+        $camposDatos = $esFormatoNacional
+            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE']
+            : ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $ultimaColumna = $esFormatoNacional ? 'O' : 'N';
 
         // Datos
         foreach ($productos as $index => $producto) {
-            $fila = $index + 2;
+            $fila = $index + $primeraFilaDatos;
             $excelRow = $index + 2;
 
             $col = 'A';
-            foreach (['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'] as $campo) {
+            foreach ($camposDatos as $campo) {
                 $sheet->setCellValue($col.$excelRow, $producto[$campo] ?? '');
                 $col++;
             }
@@ -1588,8 +1629,8 @@ Si todo correcto: {"errores_ia": []}';
                 }
             } else {
                 // Fila sin error = se dio de alta. Marcar toda la fila en verde claro.
-                $sheet->getStyle("A{$excelRow}:N{$excelRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D1FAE5');
-                $sheet->getStyle("A{$excelRow}:N{$excelRow}")->getFont()->getColor()->setRGB('065F46');
+                $sheet->getStyle("A{$excelRow}:{$ultimaColumna}{$excelRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D1FAE5');
+                $sheet->getStyle("A{$excelRow}:{$ultimaColumna}{$excelRow}")->getFont()->getColor()->setRGB('065F46');
             }
         }
 
@@ -1679,7 +1720,7 @@ Si todo correcto: {"errores_ia": []}';
         }
 
         foreach ($camposObligatorios as $campo) {
-            if (empty(trim($producto[$campo] ?? ''))) {
+            if (empty(trim((string) ($producto[$campo] ?? '')))) {
                 $sugerencia = match ($campo) {
                     'PREFIJO' => 'Selecciona ME o MP del dropdown',
                     'CONSECUTIVO' => 'Escribe el consecutivo numerico (ej: 0305). Revisa la hoja Consecutivos del template',
@@ -2419,7 +2460,7 @@ Si todo correcto: {"errores_ia": []}';
      */
     private function leerSpreadsheet($spreadsheet, int &$primeraFilaDatos = 2): array
     {
-        $sheet = $spreadsheet->getActiveSheet();
+        $sheet = $spreadsheet->getSheetByName('Productos') ?? $spreadsheet->getActiveSheet();
         $rows = $sheet->toArray();
 
         if (count($rows) < 2) {
@@ -2816,8 +2857,8 @@ Si todo correcto: {"errores_ia": []}';
     {
         $productos = Producto::withTrashed()
             ->where(function ($q) {
-                $q->where('codigo', 'REGEXP', '^ME[0-9]')
-                    ->orWhere('codigo', 'REGEXP', '^MP[0-9]');
+                $q->where('codigo', 'like', 'ME%')
+                    ->orWhere('codigo', 'like', 'MP%');
             })
             ->orderBy('codigo')
             ->get(['codigo', 'nombre', 'activo', 'tipo_producto']);
