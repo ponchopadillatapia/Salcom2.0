@@ -506,7 +506,7 @@ class AltaProductoController extends Controller
             '=== REGLAS ===',
             'Mayusculas y minusculas son aceptadas. NOMBRE_MEDIDA con numeros (40X30X25CM)',
             'PRECIO con $ (ej: $150.50). MOQ: cantidad minima de compra (entero > 0)',
-            'CONSECUTIVO: 3 digitos (ej: 001, 305). Codigo = PREFIJO + CONSECUTIVO',
+            'CONSECUTIVO: 4 digitos (ej: 0003, 0305). Codigo = PREFIJO + CONSECUTIVO',
             'Empieza a llenar desde la fila 3 de la hoja Productos',
         ];
         $r = 3;
@@ -1673,7 +1673,7 @@ Si todo correcto: {"errores_ia": []}';
             if (empty(trim((string) ($producto[$campo] ?? '')))) {
                 $sugerencia = match ($campo) {
                     'PREFIJO' => 'Selecciona ME o MP del dropdown',
-                    'CONSECUTIVO' => 'Escribe el consecutivo numerico (ej: 305). Revisa la hoja Consecutivos del template',
+                    'CONSECUTIVO' => 'Escribe el consecutivo numerico (ej: 0305). Revisa la hoja Consecutivos del template',
                     'CODIGO' => 'Escribe un codigo unico (ej: MPI0538, ME0201)',
                     'NOMBRE_TIPO' => 'Escribe QUE ES el producto (ej: RESINA EPOXICA, MOTOR ELECTRICO, CAJA CORRUGADA)',
                     'NOMBRE_MARCA' => 'Escribe QUIEN lo fabrica (ej: WEG, SKF, 3M, ALPHA, KRAFT)',
@@ -1735,11 +1735,11 @@ Si todo correcto: {"errores_ia": []}';
                 $errores[] = [
                     'fila' => $fila,
                     'campo' => 'CONSECUTIVO',
-                    'error' => "CONSECUTIVO invalido. Solo numeros (ej: 305). Recibido: '{$consecutivoRaw}'",
+                    'error' => "CONSECUTIVO invalido. Solo numeros (ej: 0305). Recibido: '{$consecutivoRaw}'",
                 ];
             }
             if ($prefijoRaw && $consecutivoRaw !== '' && preg_match('/^\d+$/', $consecutivoRaw)) {
-                $codigoFormado = $prefijoRaw.$consecutivoRaw;
+                $codigoFormado = $prefijoRaw.$this->formatearConsecutivoMeMp((int) $consecutivoRaw);
                 if ($tipoProductoActual && $tipoProductoActual !== $prefijoRaw) {
                     $errores[] = [
                         'fila' => $fila,
@@ -2833,9 +2833,9 @@ Si todo correcto: {"errores_ia": []}';
             }
             $catalogo[] = [
                 'prefijo' => $parsed['prefijo'],
-                'consecutivo' => $parsed['consecutivo'],
+                'consecutivo' => $this->formatearConsecutivoMeMp($parsed['consecutivo_num']),
                 'consecutivo_num' => $parsed['consecutivo_num'],
-                'codigo' => $parsed['codigo'],
+                'codigo' => $parsed['prefijo'].$this->formatearConsecutivoMeMp($parsed['consecutivo_num']),
                 'nombre' => $producto->nombre,
                 'activo' => (bool) $producto->activo && ! $producto->trashed(),
                 'tipo' => strtoupper($producto->tipo_producto ?? $parsed['prefijo']),
@@ -2856,7 +2856,7 @@ Si todo correcto: {"errores_ia": []}';
      */
     private function generarConsecutivosDisponibles(string $prefijo, array $catalogo, bool $bloquearSoloActivos, int $limite = 250): array
     {
-        $digitos = 3;
+        $digitos = $this->digitosConsecutivoMeMp();
         $ocupados = [];
 
         foreach ($catalogo as $item) {
@@ -2867,7 +2867,6 @@ Si todo correcto: {"errores_ia": []}';
                 continue;
             }
             $ocupados[] = $item['consecutivo_num'];
-            $digitos = max($digitos, strlen($item['consecutivo']));
         }
 
         $ocupados = array_values(array_unique($ocupados));
@@ -2894,7 +2893,7 @@ Si todo correcto: {"errores_ia": []}';
     private function calcularRangosDisponiblesMeMp(array $catalogo): array
     {
         $porPrefijo = ['ME' => [], 'MP' => []];
-        $digitos = ['ME' => 3, 'MP' => 3];
+        $pad = $this->digitosConsecutivoMeMp();
 
         foreach ($catalogo as $item) {
             $prefijo = $item['prefijo'];
@@ -2902,14 +2901,12 @@ Si todo correcto: {"errores_ia": []}';
                 continue;
             }
             $porPrefijo[$prefijo][] = $item['consecutivo_num'];
-            $digitos[$prefijo] = max($digitos[$prefijo], strlen($item['consecutivo']));
         }
 
         $rangos = [];
         foreach (['ME', 'MP'] as $prefijo) {
             $ocupados = array_values(array_unique($porPrefijo[$prefijo]));
             sort($ocupados);
-            $pad = $digitos[$prefijo];
 
             if (empty($ocupados)) {
                 continue;
@@ -2959,10 +2956,20 @@ Si todo correcto: {"errores_ia": []}';
 
         return [
             'prefijo' => $matches[1],
-            'consecutivo' => $matches[2],
+            'consecutivo' => $this->formatearConsecutivoMeMp((int) $matches[2]),
             'consecutivo_num' => (int) $matches[2],
-            'codigo' => $codigo,
+            'codigo' => $matches[1].$this->formatearConsecutivoMeMp((int) $matches[2]),
         ];
+    }
+
+    private function digitosConsecutivoMeMp(): int
+    {
+        return 4;
+    }
+
+    private function formatearConsecutivoMeMp(int $num): string
+    {
+        return str_pad((string) $num, $this->digitosConsecutivoMeMp(), '0', STR_PAD_LEFT);
     }
 
     private function normalizarProductoNacional(array $producto): array
@@ -2974,28 +2981,12 @@ Si todo correcto: {"errores_ia": []}';
         $prefijo = strtoupper(trim($producto['PREFIJO'] ?? ''));
         $consecutivo = trim((string) ($producto['CONSECUTIVO'] ?? ''));
         if ($prefijo && $consecutivo !== '' && preg_match('/^\d+$/', $consecutivo)) {
-            $digitos = $this->obtenerDigitosConsecutivoPrefijo($prefijo);
-            $consecutivoFmt = str_pad((string) ((int) $consecutivo), $digitos, '0', STR_PAD_LEFT);
+            $consecutivoFmt = $this->formatearConsecutivoMeMp((int) $consecutivo);
             $producto['CONSECUTIVO'] = $consecutivoFmt;
             $producto['CODIGO'] = $prefijo.$consecutivoFmt;
         }
 
         return $producto;
-    }
-
-    private function obtenerDigitosConsecutivoPrefijo(string $prefijo): int
-    {
-        $catalogo = $this->obtenerCatalogoConsecutivosMeMp();
-        $digitos = 3;
-
-        foreach ($catalogo as $item) {
-            if ($item['prefijo'] !== strtoupper($prefijo)) {
-                continue;
-            }
-            $digitos = max($digitos, strlen($item['consecutivo']));
-        }
-
-        return $digitos;
     }
 
     private function datosProductoDesdeExcel(array $prod): array

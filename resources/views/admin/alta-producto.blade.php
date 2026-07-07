@@ -109,7 +109,7 @@
                 <thead><tr><th>Columna</th><th>Ejemplo</th><th>Req.</th></tr></thead>
                 <tbody>
                     <tr><td style="color:var(--purple);font-weight:700;">PREFIJO</td><td>ME / MP (dropdown)</td><td class="req">✓</td></tr>
-                    <tr><td style="color:var(--purple);font-weight:700;">CONSECUTIVO</td><td>305 (dropdown disponibles, filtro B1)</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">CONSECUTIVO</td><td>0305 (dropdown disponibles, filtro B1)</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_TIPO</td><td>CAJA CORRUGADA</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--gray-muted);">NOMBRE_MARCA</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
                     <tr><td style="color:var(--gray-muted);">NOMBRE_MODELO</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
