@@ -362,20 +362,17 @@ class AltaProductoController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Productos');
 
-        $headerRow = 2;
-        $dataStartRow = 3;
-        $dataEndRow = 102;
-
-        // Fila 1: filtro sobre el campo CONSECUTIVO (columna B)
-        $sheet->setCellValue('A1', 'Filtro consecutivos (col. B):');
-        $sheet->getStyle('A1')->getFont()->setBold(true);
-        $sheet->setCellValue('B1', 'Solo activos');
-        $sheet->setCellValue('C1', 'El dropdown de CONSECUTIVO muestra solo numeros disponibles segun PREFIJO y este filtro.');
-        $sheet->mergeCells('C1:F1');
-        $sheet->getStyle('C1')->getFont()->setItalic(true)->getColor()->setRGB('666666');
+        $headerRow = 1;
+        $dataStartRow = 2;
+        $dataEndRow = 101;
 
         $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
         $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PRECIO', 'MOQ'];
+        $anchosColumnas = [
+            'A' => 10, 'B' => 13, 'C' => 18, 'D' => 14, 'E' => 15, 'F' => 16,
+            'G' => 22, 'H' => 18, 'I' => 14, 'J' => 14, 'K' => 10, 'L' => 8,
+            'M' => 12, 'N' => 8, 'O' => 11, 'P' => 9,
+        ];
 
         $col = 'A';
         foreach ($headers as $header) {
@@ -384,7 +381,7 @@ class AltaProductoController extends Controller
             $color = in_array($header, $obligatorios) ? '6B3FA0' : '9B7BC7';
             $sheet->getStyle($col.$headerRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($color);
             $sheet->getStyle($col.$headerRow)->getFont()->getColor()->setRGB('FFFFFF');
-            $sheet->getColumnDimension($col)->setAutoSize(true);
+            $sheet->getColumnDimension($col)->setWidth($anchosColumnas[$col] ?? 12);
             $col++;
         }
 
@@ -406,8 +403,6 @@ class AltaProductoController extends Controller
         $listSheet->setCellValue('C2', 'MP');
         $listSheet->setCellValue('D1', 'SI');
         $listSheet->setCellValue('D2', 'NO');
-        $listSheet->setCellValue('E1', 'Solo activos');
-        $listSheet->setCellValue('E2', 'Activos e inactivos');
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
         // Hoja datos oculta: consecutivos DISPONIBLES por prefijo y filtro
@@ -437,11 +432,7 @@ class AltaProductoController extends Controller
         $spreadsheet->setActiveSheetIndex(0);
         $sheet = $spreadsheet->getActiveSheet();
 
-        $filtroVal = $sheet->getCell('B1')->getDataValidation();
-        $filtroVal->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
-        $filtroVal->setFormula1('_Listas!$E$1:$E$2');
-
-        $formulaConsecutivo = 'IF($AROW="","",INDIRECT(IF($B$1="Solo activos",IF($AROW="ME","ME_SA",IF($AROW="MP","MP_SA","")),IF($AROW="ME","ME_TI",IF($AROW="MP","MP_TI","")))))';
+        $formulaConsecutivo = 'IF($AROW="","",INDIRECT(IF($AROW="ME","ME_SA",IF($AROW="MP","MP_SA",""))))';
 
         for ($row = $dataStartRow; $row <= $dataEndRow; $row++) {
             $formula = str_replace('$AROW', '$A'.$row, $formulaConsecutivo);
@@ -455,7 +446,7 @@ class AltaProductoController extends Controller
             $v = $sheet->getCell('B'.$row)->getDataValidation();
             $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
             $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
-            $v->setErrorTitle('Consecutivo no disponible')->setError('Selecciona un consecutivo del listado. Primero elige PREFIJO y revisa el filtro en B1.');
+            $v->setErrorTitle('Consecutivo no disponible')->setError('Selecciona un consecutivo del listado. Primero elige PREFIJO.');
             $v->setFormula1($formula);
 
             $v = $sheet->getCell('I'.$row)->getDataValidation();
@@ -494,11 +485,7 @@ class AltaProductoController extends Controller
             '=== CODIGO DEL PRODUCTO ===',
             'PREFIJO: ME (Material de Empaque) o MP (Materia Prima)',
             'CONSECUTIVO: selecciona del dropdown solo numeros DISPONIBLES. Codigo = PREFIJO + CONSECUTIVO',
-            '',
-            '=== FILTRO DE CONSECUTIVOS (celda B1) ===',
-            'Solo activos: bloquea consecutivos usados por productos activos. Los inactivos aparecen como disponibles',
-            'Activos e inactivos: bloquea todos los consecutivos ya registrados en el sistema',
-            'El dropdown de CONSECUTIVO cambia al seleccionar PREFIJO (col. A) y el filtro (celda B1)',
+            'El dropdown de CONSECUTIVO cambia al seleccionar PREFIJO (col. A)',
             '',
             '=== COLUMNAS OBLIGATORIAS (morado oscuro) ===',
             'PREFIJO, CONSECUTIVO, NOMBRE_TIPO, NOMBRE_MEDIDA, TIPO_PRODUCTO, PRECIO, MOQ',
@@ -507,7 +494,7 @@ class AltaProductoController extends Controller
             'Mayusculas y minusculas son aceptadas. NOMBRE_MEDIDA con numeros (40X30X25CM)',
             'PRECIO con $ (ej: $150.50). MOQ: cantidad minima de compra (entero > 0)',
             'CONSECUTIVO: 3 digitos (ej: 001, 305). Codigo = PREFIJO + CONSECUTIVO',
-            'Empieza a llenar desde la fila 3 de la hoja Productos',
+            'Empieza a llenar desde la fila 2 de la hoja Productos',
         ];
         $r = 3;
         foreach ($reglas as $texto) {

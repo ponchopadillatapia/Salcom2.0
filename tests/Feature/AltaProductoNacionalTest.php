@@ -51,17 +51,14 @@ class AltaProductoNacionalTest extends TestCase
 
         $ss = new Spreadsheet();
         $sheet = $ss->getActiveSheet();
-        $sheet->setCellValue('A1', 'Filtro consecutivos (col. B):');
-        $sheet->setCellValue('B1', 'Solo activos');
-
         $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
         $col = 'A';
         foreach ($headers as $h) {
-            $sheet->setCellValue($col.'2', $h);
+            $sheet->setCellValue($col.'1', $h);
             $col++;
         }
 
-        $row = 3;
+        $row = 2;
         foreach ($filas as $fila) {
             $col = 'A';
             foreach ($headers as $h) {
@@ -177,13 +174,13 @@ class AltaProductoNacionalTest extends TestCase
         $ss = \PhpOffice\PhpSpreadsheet\IOFactory::load($templatePath);
         $ss->setActiveSheetIndex(0);
         $sheet = $ss->getSheetByName('Productos') ?? $ss->getActiveSheet();
-        $sheet->setCellValue('A3', 'ME');
-        $sheet->setCellValue('B3', '099');
-        $sheet->setCellValue('C3', 'CAJA CORRUGADA');
-        $sheet->setCellValue('F3', '40X30X25CM');
-        $sheet->setCellValue('I3', 'ME');
-        $sheet->setCellValue('K3', '$25.00');
-        $sheet->setCellValue('L3', '25');
+        $sheet->setCellValue('A2', 'ME');
+        $sheet->setCellValue('B2', '099');
+        $sheet->setCellValue('C2', 'CAJA CORRUGADA');
+        $sheet->setCellValue('F2', '40X30X25CM');
+        $sheet->setCellValue('I2', 'ME');
+        $sheet->setCellValue('K2', '$25.00');
+        $sheet->setCellValue('L2', '25');
         $filledPath = storage_path('app/test_template_lleno.xlsx');
         (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($ss))->save($filledPath);
 
