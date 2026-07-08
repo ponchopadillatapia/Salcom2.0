@@ -40,7 +40,7 @@ class AltaProductoNacionalTest extends TestCase
         if (empty($filas)) {
             $filas = [[
                 'PREFIJO' => 'ME',
-                'CONSECUTIVO' => '001',
+                'CONSECUTIVO' => '0001',
                 'NOMBRE_TIPO' => 'caja corrugada',
                 'NOMBRE_MEDIDA' => '40x30x25cm',
                 'TIPO_PRODUCTO' => 'me',
@@ -98,7 +98,7 @@ class AltaProductoNacionalTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHasNoErrors();
 
-        $producto = Producto::where('codigo', 'ME001')->first();
+        $producto = Producto::where('codigo', 'ME0001')->first();
         $this->assertNotNull($producto);
         $this->assertSame('CAJA CORRUGADA 40X30X25CM', preg_replace('/\s+/', ' ', trim($producto->nombre)));
         $this->assertSame(150.50, (float) $producto->precio);
@@ -108,7 +108,7 @@ class AltaProductoNacionalTest extends TestCase
     public function test_subir_excel_nacional_con_error_muestra_mensaje_no_500(): void
     {
         Producto::create([
-            'codigo' => 'ME002',
+            'codigo' => 'ME0002',
             'nombre' => 'PRODUCTO EXISTENTE',
             'precio' => 0,
             'unidad_venta' => 'PZA',
@@ -119,7 +119,7 @@ class AltaProductoNacionalTest extends TestCase
 
         $file = $this->crearExcelNacional([[
             'PREFIJO' => 'ME',
-            'CONSECUTIVO' => '002',
+            'CONSECUTIVO' => '0002',
             'NOMBRE_TIPO' => 'CAJA',
             'NOMBRE_MEDIDA' => '30X30',
             'TIPO_PRODUCTO' => 'ME',
@@ -140,7 +140,7 @@ class AltaProductoNacionalTest extends TestCase
 
         $file = $this->crearExcelNacional([[
             'PREFIJO' => 'ME',
-            'CONSECUTIVO' => '010',
+            'CONSECUTIVO' => '0010',
             'NOMBRE_TIPO' => 'CAJA',
             'NOMBRE_MEDIDA' => '30X30',
             'TIPO_PRODUCTO' => 'ME',
@@ -153,10 +153,31 @@ class AltaProductoNacionalTest extends TestCase
         $response->assertSessionHas('error');
     }
 
+    public function test_consecutivo_con_ceros_extra_se_normaliza_a_4_digitos(): void
+    {
+        $this->withSession($this->sesionAdmin());
+
+        $file = $this->crearExcelNacional([[
+            'PREFIJO' => 'MP',
+            'CONSECUTIVO' => '000003',
+            'NOMBRE_TIPO' => 'BOLSA',
+            'NOMBRE_MEDIDA' => '30X30',
+            'TIPO_PRODUCTO' => 'MP',
+            'PRECIO' => '$12.00',
+            'MOQ' => '50',
+        ]]);
+
+        $response = $this->post('/admin/alta-producto/subir', ['excel' => $file]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('productos', ['codigo' => 'MP0003']);
+    }
+
     public function test_subir_template_generado_por_sistema(): void
     {
         Producto::create([
-            'codigo' => 'ME100',
+            'codigo' => 'ME0100',
             'nombre' => 'PRODUCTO BASE',
             'precio' => 0,
             'unidad_venta' => 'PZA',
@@ -175,7 +196,7 @@ class AltaProductoNacionalTest extends TestCase
         $ss->setActiveSheetIndex(0);
         $sheet = $ss->getSheetByName('Productos') ?? $ss->getActiveSheet();
         $sheet->setCellValue('A2', 'ME');
-        $sheet->setCellValue('B2', '099');
+        $sheet->setCellValue('B2', '0099');
         $sheet->setCellValue('C2', 'CAJA CORRUGADA');
         $sheet->setCellValue('F2', '40X30X25CM');
         $sheet->setCellValue('I2', 'ME');
