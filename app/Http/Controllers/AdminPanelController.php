@@ -823,6 +823,22 @@ class AdminPanelController extends Controller
     }
 
     /**
+     * Activar/inactivar producto via AJAX (toggle del campo `activo`).
+     */
+    public function toggleActivoProducto($id)
+    {
+        $producto = \App\Models\Producto::findOrFail($id);
+        $producto->activo = ! $producto->activo;
+        $producto->save();
+
+        return response()->json([
+            'success' => true,
+            'activo' => (bool) $producto->activo,
+            'mensaje' => $producto->activo ? 'Producto activado' : 'Producto marcado como inactivo',
+        ]);
+    }
+
+    /**
      * Vista detalle de un producto con todas sus especificaciones.
      */
     public function productoDetalle($id)

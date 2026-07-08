@@ -6,6 +6,7 @@ use App\Models\AdminUser;
 use App\Models\ClienteUser;
 use App\Models\Encuesta;
 use App\Models\Pedido;
+use App\Models\Producto;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -131,6 +132,65 @@ class AdminPanelTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('No se encontraron clientes');
+    }
+
+    // ═══════════════════════════════════════════
+    //  PRODUCTOS - ACTIVAR / INACTIVAR
+    // ═══════════════════════════════════════════
+
+    private function crearProducto(array $overrides = []): Producto
+    {
+        static $counter = 0;
+        $counter++;
+
+        return Producto::create(array_merge([
+            'codigo' => "ME{$counter}",
+            'nombre' => "Producto {$counter}",
+            'precio' => 10,
+            'unidad_venta' => 'PZA',
+            'activo' => true,
+        ], $overrides));
+    }
+
+    public function test_toggle_activo_producto_requiere_autenticacion(): void
+    {
+        $producto = $this->crearProducto();
+
+        $response = $this->post("/admin/productos/{$producto->id}/toggle-activo");
+        $response->assertRedirect('/login-admin');
+    }
+
+    public function test_toggle_activo_producto_cambia_estatus(): void
+    {
+        $producto = $this->crearProducto(['activo' => true]);
+        $session = $this->adminSession();
+
+        $response = $this->withSession($session)
+            ->post("/admin/productos/{$producto->id}/toggle-activo");
+
+        $response->assertOk();
+        $response->assertJson(['success' => true, 'activo' => false]);
+        $this->assertFalse($producto->fresh()->activo);
+
+        $response = $this->withSession($session)
+            ->post("/admin/productos/{$producto->id}/toggle-activo");
+
+        $response->assertOk();
+        $response->assertJson(['success' => true, 'activo' => true]);
+        $this->assertTrue($producto->fresh()->activo);
+    }
+
+    public function test_productos_inactivos_aparecen_en_listado(): void
+    {
+        $this->crearProducto(['codigo' => 'MEACTIVO', 'nombre' => 'Producto Activo', 'activo' => true]);
+        $this->crearProducto(['codigo' => 'MEINACTIVO', 'nombre' => 'Producto Inactivo', 'activo' => false]);
+
+        $response = $this->withSession($this->adminSession())->get('/admin/productos');
+
+        $response->assertStatus(200);
+        $response->assertSee('MEACTIVO');
+        $response->assertSee('MEINACTIVO');
+        $response->assertSee('producto-inactivo');
     }
 
     // ═══════════════════════════════════════════

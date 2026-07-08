@@ -405,16 +405,16 @@ class AltaProductoController extends Controller
         $listSheet->setCellValue('D2', 'NO');
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
-        // Hoja datos oculta: consecutivos DISPONIBLES por prefijo y filtro
+        // Hoja datos oculta: consecutivos DISPONIBLES por prefijo.
+        // Se bloquean los codigos usados por productos ACTIVOS e INACTIVOS
+        // (un codigo inactivo NO se reutiliza; queda apartado).
         $datosSheet = $spreadsheet->createSheet();
         $datosSheet->setTitle('_Datos');
         $listasDisponibles = [
-            'ME_SA' => $this->generarConsecutivosDisponibles('ME', $catalogo, true),
-            'ME_TI' => $this->generarConsecutivosDisponibles('ME', $catalogo, false),
-            'MP_SA' => $this->generarConsecutivosDisponibles('MP', $catalogo, true),
-            'MP_TI' => $this->generarConsecutivosDisponibles('MP', $catalogo, false),
+            'ME_DISP' => $this->generarConsecutivosDisponibles('ME', $catalogo, false),
+            'MP_DISP' => $this->generarConsecutivosDisponibles('MP', $catalogo, false),
         ];
-        $columnasDatos = ['A' => 'ME_SA', 'B' => 'ME_TI', 'C' => 'MP_SA', 'D' => 'MP_TI'];
+        $columnasDatos = ['A' => 'ME_DISP', 'B' => 'MP_DISP'];
         foreach ($columnasDatos as $colLetter => $key) {
             $items = $listasDisponibles[$key];
             foreach ($items as $i => $consecutivo) {
@@ -432,7 +432,7 @@ class AltaProductoController extends Controller
         $spreadsheet->setActiveSheetIndex(0);
         $sheet = $spreadsheet->getActiveSheet();
 
-        $formulaConsecutivo = 'IF($AROW="","",INDIRECT(IF($AROW="ME","ME_SA",IF($AROW="MP","MP_SA",""))))';
+        $formulaConsecutivo = 'IF($AROW="","",INDIRECT(IF($AROW="ME","ME_DISP",IF($AROW="MP","MP_DISP",""))))';
 
         for ($row = $dataStartRow; $row <= $dataEndRow; $row++) {
             $formula = str_replace('$AROW', '$A'.$row, $formulaConsecutivo);
