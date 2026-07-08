@@ -256,11 +256,11 @@
             </a>
             <a href="{{ route('admin.alta-producto-mto') }}" class="sb-link {{ request()->is('admin/alta-producto-mto*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
-                <span class="sb-text">Alta Producto Mantenimiento</span>
+                <span class="sb-text">Alta Producto<br>Mantenimiento</span>
             </a>
             <a href="{{ route('admin.alta-producto-pt') }}" class="sb-link {{ request()->is('admin/alta-producto-pt*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>
-                <span class="sb-text">Alta Producto Comercial PT</span>
+                <span class="sb-text">Alta Producto Comercial</span>
             </a>
 
             <div class="sb-hr"></div>

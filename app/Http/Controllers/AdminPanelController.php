@@ -765,22 +765,25 @@ class AdminPanelController extends Controller
             ['CATÁLOGO DE PRODUCTOS'],
             ['Generado: '.now()->format('d/m/Y H:i')],
             [],
-            ['CÓDIGO', 'NOMBRE', 'CATEGORÍA', 'PRECIO', 'UNIDAD', 'STOCK', 'NIVEL', 'PROVEEDOR', 'CATÁLOGO', 'FECHA ALTA'],
+            ['CÓDIGO', 'NOMBRE', 'TIPO PRODUCTO', 'UNIDAD', 'PROVEEDOR', 'FECHA ALTA'],
         ];
 
         foreach ($productos as $p) {
-            $stockLabel = $p->stock <= 0 ? 'Agotado' : ($p->stock < 50 ? 'Bajo' : 'OK');
+            $fecha = '—';
+            if ($p->created_at) {
+                try {
+                    $fecha = \Carbon\Carbon::parse($p->created_at)->format('d/m/Y H:i');
+                } catch (\Exception $e) {
+                    $fecha = '—';
+                }
+            }
             $lines[] = [
                 $p->codigo,
                 $p->nombre,
-                $p->categoria ?: '—',
-                '$'.number_format((float) $p->precio, 2),
-                $p->unidad_venta,
-                $p->stock,
-                $stockLabel,
+                $p->tipo_producto ?: ($p->categoria ?: '—'),
+                $p->unidad_venta ?: '—',
                 $p->proveedor_nombre ?: '—',
-                $p->activo ? 'Activo' : 'Inactivo',
-                $p->created_at?->format('d/m/Y H:i') ?? '—',
+                $fecha,
             ];
         }
 
@@ -817,6 +820,22 @@ class AdminPanelController extends Controller
         $producto->delete();
 
         return response()->json(['success' => true, 'mensaje' => 'Producto eliminado']);
+    }
+
+    /**
+     * Activar/inactivar producto via AJAX (toggle del campo `activo`).
+     */
+    public function toggleActivoProducto($id)
+    {
+        $producto = \App\Models\Producto::findOrFail($id);
+        $producto->activo = ! $producto->activo;
+        $producto->save();
+
+        return response()->json([
+            'success' => true,
+            'activo' => (bool) $producto->activo,
+            'mensaje' => $producto->activo ? 'Producto activado' : 'Producto marcado como inactivo',
+        ]);
     }
 
     /**
@@ -861,11 +880,11 @@ class AdminPanelController extends Controller
         $valorInventario = (float) Producto::where('activo', true)
             ->get()
             ->sum(fn ($p) => (float) $p->stock * (float) $p->precio);
-        $categorias = Producto::whereNotNull('categoria')
-            ->where('categoria', '!=', '')
+        $categorias = Producto::whereNotNull('tipo_producto')
+            ->where('tipo_producto', '!=', '')
             ->distinct()
-            ->orderBy('categoria')
-            ->pluck('categoria');
+            ->orderBy('tipo_producto')
+            ->pluck('tipo_producto');
         $totalCategorias = $categorias->count();
 
         $proveedores = Producto::whereNotNull('proveedor_nombre')
@@ -890,6 +909,7 @@ class AdminPanelController extends Controller
             'proveedor' => $proveedor,
             'admin' => $request->input('admin', ''),
             'unidad' => $request->input('unidad', ''),
+            'codigo' => $request->input('codigo', ''),
             'fecha_desde' => $fechaDesde,
             'fecha_hasta' => $fechaHasta,
         ];
@@ -945,11 +965,15 @@ class AdminPanelController extends Controller
         if ($busqueda) {
             $query->where(function ($q) use ($busqueda) {
                 $q->where('nombre', 'like', "%{$busqueda}%")
-                    ->orWhere('codigo', 'like', "%{$busqueda}%")
                     ->orWhere('codigo_alterno', 'like', "%{$busqueda}%")
                     ->orWhere('categoria', 'like', "%{$busqueda}%")
                     ->orWhere('proveedor_nombre', 'like', "%{$busqueda}%");
             });
+        }
+
+        $codigo = $request->input('codigo', '');
+        if ($codigo) {
+            $query->where('codigo', 'like', "%{$codigo}%");
         }
 
         if ($request->input('sin_stock')) {
@@ -978,7 +1002,7 @@ class AdminPanelController extends Controller
         }
 
         if ($categoria) {
-            $query->where('categoria', $categoria);
+            $query->where('tipo_producto', $categoria);
         }
 
         if ($proveedor) {
@@ -1390,15 +1414,49 @@ class AdminPanelController extends Controller
 
     // ── Inventario ──
 
-    public function inventario()
+    public function inventario(Request $request)
     {
-        $productos = Producto::where('activo', true)->orderBy('stock', 'asc')->get();
-        $totalStock = Producto::where('activo', true)->sum('stock');
-        $sinStock = Producto::where('activo', true)->where('stock', '<=', 0)->count();
-        $stockBajo = Producto::where('activo', true)->where('stock', '>', 0)->where('stock', '<', 50)->count();
-        $stockOk = Producto::where('activo', true)->where('stock', '>=', 50)->count();
+        $filtro = $request->input('stock', 'all');
+        $baseQuery = Producto::where('activo', true);
 
-        return view('admin.inventario', compact('productos', 'totalStock', 'sinStock', 'stockBajo', 'stockOk'));
+        $totalProductos = (clone $baseQuery)->count();
+        $totalStock = (clone $baseQuery)->sum('stock');
+        $sinStock = (clone $baseQuery)->where('stock', '<=', 0)->count();
+        $stockBajo = (clone $baseQuery)->where('stock', '>', 0)->where('stock', '<', 50)->count();
+        $stockOk = (clone $baseQuery)->where('stock', '>=', 50)->count();
+
+        $query = Producto::where('activo', true);
+        match ($filtro) {
+            'out' => $query->where('stock', '<=', 0),
+            'low' => $query->where('stock', '>', 0)->where('stock', '<', 50),
+            'ok' => $query->where('stock', '>=', 50),
+            default => null,
+        };
+
+        $productos = $query->orderBy('stock', 'asc')->paginate(10)->withQueryString();
+
+        $proveedoresUsers = ProveedorUser::select('nombre', 'telefono', 'correo')->get();
+        $proveedoresContacto = [];
+        foreach ($productos as $producto) {
+            $nombre = $producto->proveedor_nombre;
+            if (! $nombre || isset($proveedoresContacto[$nombre])) {
+                continue;
+            }
+            $proveedoresContacto[$nombre] = $proveedoresUsers->first(
+                fn ($u) => str_contains(mb_strtolower($u->nombre), mb_strtolower($nombre))
+            );
+        }
+
+        return view('admin.inventario', compact(
+            'productos',
+            'totalStock',
+            'sinStock',
+            'stockBajo',
+            'stockOk',
+            'totalProductos',
+            'filtro',
+            'proveedoresContacto'
+        ));
     }
 
     // ── Helper: pedidos por mes ──

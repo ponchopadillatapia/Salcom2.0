@@ -168,11 +168,12 @@ Route::get('/admin/productos', [AdminPanelController::class, 'productos'])->name
 Route::get('/admin/productos/excel', [AdminPanelController::class, 'productosExcel'])->name('admin.productos.excel')->middleware('auth.admin');
 Route::post('/admin/productos/{id}/actualizar', [AdminPanelController::class, 'actualizarProducto'])->name('admin.productos.actualizar')->middleware('auth.admin');
 Route::post('/admin/productos/{id}/borrar', [AdminPanelController::class, 'borrarProducto'])->name('admin.productos.borrar')->middleware('auth.admin');
+Route::post('/admin/productos/{id}/toggle-activo', [AdminPanelController::class, 'toggleActivoProducto'])->name('admin.productos.toggle-activo')->middleware('auth.admin');
 Route::get('/admin/productos/{id}/detalle', [AdminPanelController::class, 'productoDetalle'])->name('admin.productos.detalle')->middleware('auth.admin');
 
 // ── Admin: Alta de Producto (compras + mantenimiento) ──
 Route::get('/admin/alta-producto', [AltaProductoController::class, 'mostrarAltaProductoAdmin'])->name('admin.alta-producto')->middleware('auth.admin');
-Route::get('/admin/alta-producto/template', [AltaProductoController::class, 'descargarTemplate'])->name('admin.alta-producto.template')->middleware('auth.admin');
+Route::get('/admin/alta-producto/template', [AltaProductoController::class, 'descargarTemplateNacional'])->name('admin.alta-producto.template')->middleware('auth.admin');
 Route::get('/admin/alta-producto/template-mpi', [AltaProductoController::class, 'descargarTemplateMPI'])->name('admin.alta-producto.template-mpi')->middleware('auth.admin');
 Route::post('/admin/alta-producto/subir', [AltaProductoController::class, 'subirExcel'])->name('admin.alta-producto.subir')->middleware('auth.admin');
 Route::post('/admin/alta-producto/subir-mpi', [AltaProductoController::class, 'subirExcelMPI'])->name('admin.alta-producto.subir-mpi')->middleware('auth.admin');

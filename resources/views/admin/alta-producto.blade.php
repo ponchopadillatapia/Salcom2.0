@@ -53,7 +53,7 @@
     <div style="margin-top:12px;">
         <a href="{{ asset('storage/' . session('archivo_correcciones')) }}" download style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:var(--red);color:#fff;border-radius:8px;font-size:12px;font-weight:600;text-decoration:none;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Descargar Excel con correcciones
+            Descargar Excel con correcciones 
         </a>
     </div>
     @endif
@@ -73,14 +73,14 @@
     <button class="tab-btn {{ session('tab') === 'internacional' ? 'active' : '' }}" onclick="switchTab('internacional')">Compras Internacional (MPI)</button>
 </div>
 
-{{-- ═══ TAB: NACIONAL (ME/MP - Brenda) ═══ --}}
+{{-- ═══ TAB: NACIONAL (ME/MP) ═══ --}}
 <div class="tab-content {{ session('tab', 'nacional') === 'nacional' ? 'active' : '' }}" id="tab-nacional">
 <div class="alta-grid">
     <div class="alta-card">
-        <h3>Nacional — ME / MP (Brenda)</h3>
+        <h3>Nacional — ME / MP</h3>
         <div class="alta-steps">
             <div class="alta-step"><div class="alta-step-num">1</div><div class="alta-step-text"><strong>Descarga el template Nacional</strong>Excel para Material de Empaque (ME) y Materia Prima (MP).</div></div>
-            <div class="alta-step"><div class="alta-step-num">2</div><div class="alta-step-text"><strong>Llena tus productos</strong>Solo código, nombre tipo y medida son obligatorios.</div></div>
+            <div class="alta-step"><div class="alta-step-num">2</div><div class="alta-step-text"><strong>Llena tus productos</strong>Elige PREFIJO, luego CONSECUTIVO del dropdown (solo disponibles).</div></div>
             <div class="alta-step"><div class="alta-step-num">3</div><div class="alta-step-text"><strong>Sube el Excel</strong>Se valida y da de alta automático.</div></div>
         </div>
         <div style="margin-top:20px;">
@@ -108,7 +108,8 @@
             <table class="format-table" style="margin-top:0;">
                 <thead><tr><th>Columna</th><th>Ejemplo</th><th>Req.</th></tr></thead>
                 <tbody>
-                    <tr><td style="color:var(--purple);font-weight:700;">CODIGO</td><td>ME0305</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">PREFIJO</td><td>ME / MP (dropdown)</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">CONSECUTIVO</td><td>0305 (dropdown disponibles)</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">NOMBRE_TIPO</td><td>CAJA CORRUGADA</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--gray-muted);">NOMBRE_MARCA</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
                     <tr><td style="color:var(--gray-muted);">NOMBRE_MODELO</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
@@ -116,6 +117,8 @@
                     <tr><td style="color:var(--gray-muted);">NOMBRE_ESPECIFICACION</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
                     <tr><td style="color:var(--gray-muted);">FAMILIA</td><td style="color:var(--gray-muted);">EMPAQUE</td><td class="opt">—</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">TIPO_PRODUCTO</td><td>ME / MP</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">PRECIO</td><td>$150.50</td><td class="req">✓</td></tr>
+                    <tr><td style="color:var(--purple);font-weight:700;">MOQ</td><td>100 (mínimo de compra)</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--gray-muted);">UNIDAD_MEDIDA — VOLTAJE</td><td style="color:var(--gray-muted);">opcionales</td><td class="opt">—</td></tr>
                 </tbody>
             </table>
@@ -124,11 +127,11 @@
 </div>
 </div>
 
-{{-- ═══ TAB: INTERNACIONAL (MPI - Cinthya) ═══ --}}
+{{-- ═══ TAB: INTERNACIONAL (MPI) ═══ --}}
 <div class="tab-content {{ session('tab') === 'internacional' ? 'active' : '' }}" id="tab-internacional">
 <div class="alta-grid">
     <div class="alta-card">
-        <h3>Internacional — MPI (Cinthya)</h3>
+        <h3>Internacional — MPI</h3>
         <div class="alta-steps">
             <div class="alta-step"><div class="alta-step-num">1</div><div class="alta-step-text"><strong>Descarga el template MPI</strong>Excel exclusivo para Materia Prima de Importación.</div></div>
             <div class="alta-step"><div class="alta-step-num">2</div><div class="alta-step-text"><strong>Llena tus productos</strong>Código, nombre genérico, medida, familia, unidad, lote y pedimento obligatorios.</div></div>
@@ -171,7 +174,6 @@
                     <tr><td style="color:var(--gray-muted);">CLAVE_SAT</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">LOTE</td><td>SI</td><td class="req">✓</td></tr>
                     <tr><td style="color:var(--purple);font-weight:700;">PEDIMENTO</td><td>SI</td><td class="req">✓</td></tr>
-                    <tr><td style="color:var(--gray-muted);">VOLTAJE</td><td style="color:var(--gray-muted);">—</td><td class="opt">—</td></tr>
                 </tbody>
             </table>
         </div>

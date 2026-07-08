@@ -71,6 +71,11 @@
     .badge-activo{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
     .badge-activo.on{background:var(--green-bg);color:var(--green)}
     .badge-activo.off{background:var(--gray-soft);color:var(--gray-muted)}
+    .badge-inactivo{font-size:10px;font-weight:600;padding:2px 8px;border-radius:999px;display:inline-block;background:var(--gray-soft);color:var(--gray-muted);margin-left:6px;vertical-align:middle}
+    .admin-table tbody tr.producto-inactivo td{background:#f4f4f5;color:#9ca3af}
+    .admin-table tbody tr.producto-inactivo td a{color:#9ca3af!important}
+    .admin-table tbody tr.producto-inactivo td span{color:#9ca3af!important}
+    .admin-table tbody tr.producto-inactivo:hover td{background:#ececee}
     .stock-bar{width:72px;height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px}
     .stock-fill{height:100%;border-radius:4px}
 
@@ -119,18 +124,6 @@
             <a href="{{ route('admin.productos', $baseQuery) }}" class="filter-btn {{ $chipActive() ? 'active' : '' }}">
                 Todos <span class="filter-count">{{ $totalGeneral }}</span>
             </a>
-            <a href="{{ route('admin.productos', array_merge($baseQuery, ['grupo' => 'criticos'])) }}" class="filter-btn warn {{ $chipActive(null, 'criticos') ? 'active' : '' }}">
-                Críticos <span class="filter-count">{{ $conteoCriticos }}</span>
-            </a>
-            <a href="{{ route('admin.productos', array_merge($baseQuery, ['stock' => 'agotado'])) }}" class="filter-btn danger {{ $chipActive('agotado') ? 'active' : '' }}">
-                Agotados <span class="filter-count">{{ $conteoAgotado }}</span>
-            </a>
-            <a href="{{ route('admin.productos', array_merge($baseQuery, ['stock' => 'bajo'])) }}" class="filter-btn warn {{ $chipActive('bajo') ? 'active' : '' }}">
-                Stock bajo <span class="filter-count">{{ $conteoBajo }}</span>
-            </a>
-            <a href="{{ route('admin.productos', array_merge($baseQuery, ['stock' => 'ok'])) }}" class="filter-btn ok {{ $chipActive('ok') ? 'active' : '' }}">
-                Stock OK <span class="filter-count">{{ $conteoOk }}</span>
-            </a>
         </div>
         <span class="badge-count">{{ $productos->total() }} resultado{{ $productos->total() !== 1 ? 's' : '' }}</span>
     </div>
@@ -142,7 +135,11 @@
             @endif
             <div class="filter-field search-field">
                 <label>Buscar</label>
-                <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Código, nombre o categoría…">
+                <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Nombre, categoría o proveedor…">
+            </div>
+            <div class="filter-field">
+                <label>Código</label>
+                <input type="text" name="codigo" value="{{ $filtros['codigo'] ?? '' }}" placeholder="Buscar por código…">
             </div>
             <div class="filter-field">
                 <label>Tipo Producto</label>
@@ -255,8 +252,11 @@
                     </tr>
                     @php $lastDate = $currentDate; @endphp
                 @endif
-                <tr data-id="{{ $p->id }}" data-categoria="{{ $p->categoria }}" data-precio="{{ $p->precio }}" data-unidad="{{ $p->unidad_venta }}" data-stock="{{ $p->stock }}" style="cursor:pointer" onclick="abrirEditor(this)">
-                    <td onclick="event.stopPropagation()"><a href="{{ route('admin.productos.detalle', $p->id) }}" style="font-weight:700;color:var(--purple);text-decoration:none;">{{ $p->codigo }}</a></td>
+                <tr data-id="{{ $p->id }}" data-categoria="{{ $p->categoria }}" data-precio="{{ $p->precio }}" data-unidad="{{ $p->unidad_venta }}" data-stock="{{ $p->stock }}" class="{{ $p->activo ? '' : 'producto-inactivo' }}" style="cursor:pointer" onclick="abrirEditor(this)">
+                    <td onclick="event.stopPropagation()">
+                        <a href="{{ route('admin.productos.detalle', $p->id) }}" style="font-weight:700;color:var(--purple);text-decoration:none;">{{ $p->codigo }}</a>
+                        <span class="badge-inactivo" style="{{ $p->activo ? 'display:none;' : '' }}" title="Producto inactivo">🚫 Inactivo</span>
+                    </td>
                     <td style="font-weight:600">{{ $p->nombre }}</td>
                     <td style="color:var(--gray-muted)">{{ $p->categoria ?: '—' }}</td>
                     <td style="font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">${{ number_format($p->precio, 2) }}</td>
@@ -271,8 +271,9 @@
                         @endif
                     </td>
                     <td style="font-size:11px;color:var(--gray-muted);white-space:nowrap">{{ $p->created_at ? $p->created_at->format('h:i a') : '—' }}</td>
-                    <td style="text-align:center" onclick="event.stopPropagation()">
-                        <button onclick="borrarProducto({{ $p->id }}, '{{ $p->codigo }}')" style="background:none;border:none;cursor:pointer;color:var(--red);opacity:.6;transition:.15s" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">
+                    <td style="text-align:center;white-space:nowrap" onclick="event.stopPropagation()">
+                        <button class="btn-toggle-activo" onclick="toggleActivo(this, {{ $p->id }}, '{{ $p->codigo }}')" title="{{ $p->activo ? 'Marcar como inactivo' : 'Reactivar producto' }}" style="background:none;border:none;cursor:pointer;font-size:15px;line-height:1;opacity:.7;transition:.15s;vertical-align:middle;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">{{ $p->activo ? '🚫' : '✅' }}</button>
+                        <button onclick="borrarProducto({{ $p->id }}, '{{ $p->codigo }}')" title="Eliminar producto" style="background:none;border:none;cursor:pointer;color:var(--red);opacity:.6;transition:.15s;vertical-align:middle;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                         </button>
                     </td>
@@ -411,6 +412,34 @@ function guardarProducto() {
         }
     })
     .catch(err => alert('Error al guardar'));
+}
+
+function toggleActivo(btn, id, codigo) {
+    fetch(`/admin/productos/${id}/toggle-activo`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        }
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (!res.success) { alert(res.mensaje || 'Error al cambiar el estatus'); return; }
+        const fila = btn.closest('tr');
+        const badge = fila.querySelector('.badge-inactivo');
+        if (res.activo) {
+            fila.classList.remove('producto-inactivo');
+            btn.textContent = '🚫';
+            btn.title = 'Marcar como inactivo';
+            if (badge) badge.style.display = 'none';
+        } else {
+            fila.classList.add('producto-inactivo');
+            btn.textContent = '✅';
+            btn.title = 'Reactivar producto';
+            if (badge) badge.style.display = '';
+        }
+    })
+    .catch(err => alert('Error al cambiar el estatus'));
 }
 
 function borrarProducto(id, codigo) {

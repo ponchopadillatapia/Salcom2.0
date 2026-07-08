@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\NamedRange;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
@@ -350,6 +351,172 @@ class AltaProductoController extends Controller
     }
 
     /**
+     * Template Excel Nacional (ME/MP) con PREFIJO + CONSECUTIVO y dropdown de disponibles.
+     */
+    public function descargarTemplateNacional()
+    {
+        $spreadsheet = new Spreadsheet;
+        $catalogo = $this->obtenerCatalogoConsecutivosMeMp();
+
+        // === HOJA PRINCIPAL: Productos ===
+        $sheet = $spreadsheet->getActiveSheet();
+        $sheet->setTitle('Productos');
+
+        $headerRow = 1;
+        $dataStartRow = 2;
+        $dataEndRow = 101;
+
+        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PRECIO', 'MOQ'];
+        $anchosColumnas = [
+            'A' => 10, 'B' => 13, 'C' => 18, 'D' => 14, 'E' => 15, 'F' => 16,
+            'G' => 22, 'H' => 18, 'I' => 14, 'J' => 14, 'K' => 10, 'L' => 8,
+            'M' => 12, 'N' => 8, 'O' => 11, 'P' => 9,
+        ];
+
+        $col = 'A';
+        foreach ($headers as $header) {
+            $sheet->setCellValue($col.$headerRow, $header);
+            $sheet->getStyle($col.$headerRow)->getFont()->setBold(true);
+            $color = in_array($header, $obligatorios) ? '6B3FA0' : '9B7BC7';
+            $sheet->getStyle($col.$headerRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($color);
+            $sheet->getStyle($col.$headerRow)->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->getColumnDimension($col)->setWidth($anchosColumnas[$col] ?? 12);
+            $col++;
+        }
+
+        $sheet->getStyle('B'.$dataStartRow.':B'.$dataEndRow)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+        $sheet->getStyle('K'.$dataStartRow.':K'.$dataEndRow)->getNumberFormat()->setFormatCode('$#,##0.00');
+        $sheet->getStyle('L'.$dataStartRow.':L'.$dataEndRow)->getNumberFormat()->setFormatCode('#,##0');
+        $sheet->freezePane('A'.$dataStartRow);
+
+        // Hoja listas oculta
+        $listSheet = $spreadsheet->createSheet();
+        $listSheet->setTitle('_Listas');
+        foreach ($this->familiasValidas as $i => $fam) {
+            $listSheet->setCellValue('A'.($i + 1), $fam);
+        }
+        foreach ($this->unidadesValidas as $i => $uni) {
+            $listSheet->setCellValue('B'.($i + 1), $uni);
+        }
+        $listSheet->setCellValue('C1', 'ME');
+        $listSheet->setCellValue('C2', 'MP');
+        $listSheet->setCellValue('D1', 'SI');
+        $listSheet->setCellValue('D2', 'NO');
+        $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
+
+        // Hoja datos oculta: consecutivos DISPONIBLES por prefijo.
+        // Se bloquean los codigos usados por productos ACTIVOS e INACTIVOS
+        // (un codigo inactivo NO se reutiliza; queda apartado).
+        $datosSheet = $spreadsheet->createSheet();
+        $datosSheet->setTitle('_Datos');
+        $listasDisponibles = [
+            'ME_DISP' => $this->generarConsecutivosDisponibles('ME', $catalogo, false),
+            'MP_DISP' => $this->generarConsecutivosDisponibles('MP', $catalogo, false),
+        ];
+        $columnasDatos = ['A' => 'ME_DISP', 'B' => 'MP_DISP'];
+        foreach ($columnasDatos as $colLetter => $key) {
+            $items = $listasDisponibles[$key];
+            foreach ($items as $i => $consecutivo) {
+                $datosSheet->setCellValueExplicit($colLetter.($i + 1), $consecutivo, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            }
+        }
+        $datosSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
+
+        foreach ($columnasDatos as $colLetter => $key) {
+            $count = max(1, count($listasDisponibles[$key]));
+            $range = "'_Datos'!\${$colLetter}\$1:\${$colLetter}\$".$count;
+            $spreadsheet->addNamedRange(new NamedRange($key, $datosSheet, $range));
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+        $sheet = $spreadsheet->getActiveSheet();
+
+        $formulaConsecutivo = 'IF($AROW="","",INDIRECT(IF($AROW="ME","ME_DISP",IF($AROW="MP","MP_DISP",""))))';
+
+        for ($row = $dataStartRow; $row <= $dataEndRow; $row++) {
+            $formula = str_replace('$AROW', '$A'.$row, $formulaConsecutivo);
+
+            $v = $sheet->getCell('A'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
+            $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
+            $v->setErrorTitle('Prefijo no valido')->setError('Selecciona ME o MP');
+            $v->setFormula1('_Listas!$C$1:$C$2');
+
+            $v = $sheet->getCell('B'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
+            $v->setErrorTitle('Consecutivo no disponible')->setError('Selecciona un consecutivo del listado. Primero elige PREFIJO.');
+            $v->setFormula1($formula);
+
+            $v = $sheet->getCell('I'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(false)->setShowDropDown(true);
+            $v->setErrorStyle(DataValidation::STYLE_STOP)->setShowErrorMessage(true);
+            $v->setErrorTitle('Tipo no valido')->setError('Selecciona ME o MP');
+            $v->setFormula1('_Listas!$C$1:$C$2');
+        }
+
+        $fc = count($this->familiasValidas);
+        for ($row = $dataStartRow; $row <= $dataEndRow; $row++) {
+            $v = $sheet->getCell('H'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$A$1:$A$'.$fc);
+
+            $v = $sheet->getCell('J'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$B$1:$B$'.count($this->unidadesValidas));
+
+            $v = $sheet->getCell('M'.$row)->getDataValidation();
+            $v->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v->setFormula1('_Listas!$D$1:$D$2');
+            $v2 = $sheet->getCell('N'.$row)->getDataValidation();
+            $v2->setType(DataValidation::TYPE_LIST)->setAllowBlank(true)->setShowDropDown(true);
+            $v2->setFormula1('_Listas!$D$1:$D$2');
+        }
+
+        // === HOJA: Instrucciones ===
+        $instrSheet = $spreadsheet->createSheet();
+        $instrSheet->setTitle('Instrucciones');
+        $instrSheet->getColumnDimension('A')->setWidth(90);
+        $instrSheet->setCellValue('A1', 'INSTRUCCIONES - ALTA NACIONAL ME / MP');
+        $instrSheet->getStyle('A1')->getFont()->setBold(true)->setSize(14)->getColor()->setRGB('6B3FA0');
+
+        $reglas = [
+            '=== CODIGO DEL PRODUCTO ===',
+            'PREFIJO: ME (Material de Empaque) o MP (Materia Prima)',
+            'CONSECUTIVO: selecciona del dropdown solo numeros DISPONIBLES. Codigo = PREFIJO + CONSECUTIVO',
+            'El dropdown de CONSECUTIVO cambia al seleccionar PREFIJO (col. A)',
+            '',
+            '=== COLUMNAS OBLIGATORIAS (morado oscuro) ===',
+            'PREFIJO, CONSECUTIVO, NOMBRE_TIPO, NOMBRE_MEDIDA, TIPO_PRODUCTO, PRECIO, MOQ',
+            '',
+            '=== REGLAS ===',
+            'Mayusculas y minusculas son aceptadas. NOMBRE_MEDIDA con numeros (40X30X25CM)',
+            'PRECIO con $ (ej: $150.50). MOQ: cantidad minima de compra (entero > 0)',
+            'CONSECUTIVO: 4 digitos (ej: 0003, 0305). Codigo = PREFIJO + CONSECUTIVO',
+            'Empieza a llenar desde la fila 2 de la hoja Productos',
+        ];
+        $r = 3;
+        foreach ($reglas as $texto) {
+            $instrSheet->setCellValue('A'.$r, $texto);
+            if (str_starts_with($texto, '===')) {
+                $instrSheet->getStyle('A'.$r)->getFont()->setBold(true)->setSize(11);
+            }
+            $r++;
+        }
+
+        $spreadsheet->setActiveSheetIndex(0);
+
+        $writer = new Xlsx($spreadsheet);
+        $tempFile = tempnam(sys_get_temp_dir(), 'template_nacional_');
+        $writer->save($tempFile);
+
+        return response()->download($tempFile, 'Template_Alta_Nacional_ME_MP_Salcom.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ])->deleteFileAfterSend(true);
+    }
+
+    /**
      * Descargar template Excel MPI (Internacional - Cinthya).
      */
     public function descargarTemplateMPI()
@@ -358,7 +525,7 @@ class AltaProductoController extends Controller
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Productos MPI');
 
-        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_generico', 'codigo_proveedor', 'NOMBRE_ESPECIFICACION_adicional', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_generico', 'codigo_proveedor', 'NOMBRE_ESPECIFICACION_adicional', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO'];
         $obligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_generico', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'LOTE', 'PEDIMENTO'];
 
         $col = 'A';
@@ -374,6 +541,9 @@ class AltaProductoController extends Controller
             $sheet->getColumnDimension($col)->setAutoSize(true);
             $col++;
         }
+
+        // Columna B (CONSECUTIVO) como texto para conservar ceros a la izquierda
+        $sheet->getStyle('B2:B101')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
 
         // Formato moneda para PRECIO (I)
         $sheet->getStyle('I2:I101')->getNumberFormat()->setFormatCode('$#,##0.00');
@@ -498,10 +668,11 @@ class AltaProductoController extends Controller
                 $erroresFila[] = ['fila' => $fila, 'campo' => 'PREFIJO', 'error' => "PREFIJO '{$prefijo}' no valido. Solo: MPI, MPIVA, MPIDA"];
             }
 
-            // Formar código y validar único
+            // Formar código y validar único (ignorar soft-deleted, se restaurarán)
             $consecutivo = trim($producto['CONSECUTIVO'] ?? '');
             $codigo = strtoupper($prefijo . $consecutivo);
-            if ($codigo && Producto::where('codigo', $codigo)->exists()) {
+            $existente = Producto::where('codigo', $codigo)->first();
+            if ($existente) {
                 $erroresFila[] = ['fila' => $fila, 'campo' => 'CODIGO', 'error' => "DUPLICADO: '{$codigo}' ya existe."];
             }
 
@@ -533,7 +704,7 @@ class AltaProductoController extends Controller
             $codigoProv = trim($prod['CODIGO_PROVEEDOR'] ?? $prod['codigo_proveedor'] ?? '');
             $espec = trim($prod['NOMBRE_ESPECIFICACION_ADICIONAL'] ?? $prod['NOMBRE_ESPECIFICACION_adicional'] ?? '');
 
-            $nombre = trim(strtoupper($nombreGenerico).' '.strtoupper($espec));
+            $nombre = trim(strtoupper($nombreGenerico).' '.strtoupper($codigoProv).' '.strtoupper($espec));
             $precio = $prod['PRECIO'] ?? null;
             if ($precio) {
                 $precio = (float) str_replace(['$', ',', ' '], '', $precio);
@@ -543,7 +714,13 @@ class AltaProductoController extends Controller
 
             $claveSat = trim($prod['CLAVE_SAT'] ?? '') ?: null;
 
-            Producto::updateOrCreate(
+            // Restaurar si fue soft-deleted
+            $existente = Producto::withTrashed()->where('codigo', $codigo)->first();
+            if ($existente && $existente->trashed()) {
+                $existente->restore();
+            }
+
+            $productoMPI = Producto::withTrashed()->updateOrCreate(
                 ['codigo' => $codigo],
                 [
                     'nombre' => $nombre,
@@ -560,8 +737,13 @@ class AltaProductoController extends Controller
                     'activo' => true,
                     'proveedor_nombre' => session('admin_nombre') ?? 'Admin',
                     'proveedor_tipo' => 'admin',
+                    'deleted_at' => null,
                 ]
             );
+            // Forzar fecha de alta a ahora
+            $productoMPI->timestamps = false;
+            $productoMPI->created_at = now();
+            $productoMPI->save();
             $creados++;
         }
 
@@ -709,9 +891,10 @@ class AltaProductoController extends Controller
                 }
             }
 
-            // Validar duplicado
+            // Validar duplicado (ignorar soft-deleted, se restaurarán)
             $codigo = strtoupper(trim($producto['CODIGO'] ?? ''));
-            if ($codigo && Producto::where('codigo', $codigo)->exists()) {
+            $existente = Producto::where('codigo', $codigo)->first();
+            if ($existente) {
                 $erroresFila[] = ['fila' => $fila, 'campo' => 'CODIGO', 'error' => "DUPLICADO: '{$codigo}' ya existe en el sistema."];
             }
 
@@ -757,7 +940,13 @@ class AltaProductoController extends Controller
                 $precio = 0;
             }
 
-            Producto::updateOrCreate(
+            // Restaurar si fue soft-deleted
+            $existenteMTO = Producto::withTrashed()->where('codigo', $codigo)->first();
+            if ($existenteMTO && $existenteMTO->trashed()) {
+                $existenteMTO->restore();
+            }
+
+            Producto::withTrashed()->updateOrCreate(
                 ['codigo' => $codigo],
                 [
                     'nombre' => $nombre,
@@ -775,6 +964,8 @@ class AltaProductoController extends Controller
                     'activo' => true,
                     'proveedor_nombre' => session('admin_nombre') ?? 'Admin',
                     'proveedor_tipo' => 'admin',
+                    'deleted_at' => null,
+                    'created_at' => now(),
                 ]
             );
             $creados++;
@@ -804,30 +995,86 @@ class AltaProductoController extends Controller
         ]);
 
         $file = $request->file('excel');
-        $path = $file->store('excel-productos', 'public');
 
-        // Leer el Excel inmediatamente
         try {
+            $path = $file->store('excel-productos', 'public');
+
+            // Leer el Excel inmediatamente
+            $primeraFilaDatos = 2;
             $fullPath = storage_path('app/public/'.$path);
 
             if (Str::endsWith($file->getClientOriginalName(), '.csv')) {
                 $productos = $this->leerCSV($fullPath);
             } else {
                 $spreadsheet = IOFactory::load($fullPath);
-                $productos = $this->leerSpreadsheet($spreadsheet);
+                $productos = $this->leerSpreadsheet($spreadsheet, $primeraFilaDatos);
             }
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
+            Log::error('[Alta Producto] Error leyendo Excel: '.$e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
             return back()->with('error', 'ERROR  No se pudo leer el archivo. Asegurate de que sea un Excel (.xlsx) o CSV valido. Error: '.$e->getMessage());
         }
+
+        try {
+            return $this->procesarExcelSubido($productos, $path, $primeraFilaDatos);
+        } catch (\Throwable $e) {
+            Log::error('[Alta Producto] Error procesando Excel: '.$e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return back()->with('error', 'ERROR al procesar el Excel: '.$e->getMessage());
+        }
+    }
+
+    private function procesarExcelSubido(array $productos, string $path, int $primeraFilaDatos): \Illuminate\Http\RedirectResponse
+    {
 
         if (empty($productos)) {
             return back()->with('error', 'El archivo esta vacio o no tiene productos. Descarga el template, borra los ejemplos en gris y llena tus productos. Columnas obligatorias: CODIGO, NOMBRE_TIPO, NOMBRE_MARCA, NOMBRE_MODELO, NOMBRE_MEDIDA, NOMBRE_ESPECIFICACION, PRODUCCION, FAMILIA, TIPO_PRODUCTO, UNIDAD_MEDIDA, OBSERVACIONES.');
         }
 
-        // Verificar que el archivo tenga las columnas correctas
+        // Filtrar filas realmente vacías (solo tienen dropdowns pre-llenados pero sin datos)
         $primeraFila = $productos[0] ?? [];
         $columnasPresentes = array_keys($primeraFila);
-        $columnasFaltantes = array_diff($this->columnasObligatorias, $columnasPresentes);
+        $esFormatoNacional = $this->esFormatoNacionalMeMp($columnasPresentes);
+
+        $productos = array_map(fn ($prod) => $this->normalizarProductoNacional($prod), $productos);
+
+        $productos = array_filter($productos, function ($prod) use ($esFormatoNacional) {
+            if ($esFormatoNacional) {
+                $prefijo = trim($prod['PREFIJO'] ?? '');
+                $consecutivo = trim((string) ($prod['CONSECUTIVO'] ?? ''));
+                $nombre = trim($prod['NOMBRE_TIPO'] ?? '');
+                $medida = trim($prod['NOMBRE_MEDIDA'] ?? '');
+
+                return ! empty($prefijo) || $consecutivo !== '' || ! empty($nombre) || ! empty($medida);
+            }
+
+            $codigo = trim($prod['CODIGO'] ?? '');
+            $nombre = trim($prod['NOMBRE_TIPO'] ?? '');
+            $medida = trim($prod['NOMBRE_MEDIDA'] ?? '');
+
+            return ! empty($codigo) || ! empty($nombre) || ! empty($medida);
+        });
+        $productos = array_values($productos);
+
+        if (empty($productos)) {
+            $mensajeVacio = $esFormatoNacional
+                ? 'El archivo no tiene productos con datos. Llena al menos PREFIJO, CONSECUTIVO, NOMBRE_TIPO o NOMBRE_MEDIDA.'
+                : 'El archivo no tiene productos con datos. Llena al menos CODIGO, NOMBRE_TIPO o NOMBRE_MEDIDA.';
+
+            return back()->with('error', $mensajeVacio);
+        }
+
+        // Verificar que el archivo tenga las columnas correctas
+        $columnasRequeridas = $esFormatoNacional
+            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PRECIO', 'MOQ']
+            : $this->columnasObligatorias;
+        $columnasFaltantes = array_diff($columnasRequeridas, $columnasPresentes);
         if (! empty($columnasFaltantes)) {
             return back()->with('error', 'El archivo no tiene las columnas correctas. Faltan: '.implode(', ', $columnasFaltantes).'. Descarga el template oficial y usalo como base.');
         }
@@ -852,7 +1099,7 @@ class AltaProductoController extends Controller
         }
 
         foreach ($productos as $index => $producto) {
-            $fila = $index + 2;
+            $fila = $index + $primeraFilaDatos;
             $erroresFila = $this->validarProducto($producto, $fila, $esModuloCompras);
 
             if (! empty($erroresFila)) {
@@ -881,7 +1128,7 @@ class AltaProductoController extends Controller
             }
 
             foreach ($productos as $index => $prod) {
-                $fila = $index + 2;
+                $fila = $index + $primeraFilaDatos;
                 // No enviar duplicados a la IA - ya pasaron validacion antes
                 if (in_array($fila, $filasDuplicadas)) {
                     continue;
@@ -955,7 +1202,7 @@ Si todo correcto: {"errores_ia": []}';
                                     }
                                 }
                                 if (! $yaExiste) {
-                                    $idx = $filaIA - 2;
+                                    $idx = $filaIA - $primeraFilaDatos;
 
                                     // VERIFICAR con PHP que el error de la IA sea real
                                     // La IA puede alucinar - confirmar los datos reales del Excel
@@ -1093,36 +1340,9 @@ Si todo correcto: {"errores_ia": []}';
         if ($estatus === 'validado') {
             // TODOS validados - dar de alta todos
             foreach ($productos as $prod) {
-                $nombreCompleto = trim(
-                    strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.
-                    strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.
-                    strtoupper(trim($prod['NOMBRE_MODELO'] ?? '')).' '.
-                    strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? '')).' '.
-                    strtoupper(trim($prod['NOMBRE_ESPECIFICACION'] ?? ''))
-                );
-
                 Producto::updateOrCreate(
                     ['codigo' => strtoupper(trim($prod['CODIGO'] ?? ''))],
-                    [
-                        'nombre' => $nombreCompleto,
-                        'categoria' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
-                        'familia' => strtoupper(trim($prod['FAMILIA'] ?? '')),
-                        'tipo_producto' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
-                        'unidad_venta' => strtoupper(trim($prod['UNIDAD_MEDIDA'] ?? '')),
-                        'precio' => (float) str_replace(['$', ','], '', $prod['PRECIO'] ?? '0'),
-                        'clave_sat' => trim($prod['CLAVE_SAT'] ?? ''),
-                        'maneja_lotes' => strtoupper(trim($prod['LOTE'] ?? '')) === 'SI',
-                        'activo' => true,
-                        'stock' => 0,
-                        'proveedor_nombre' => session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
-                        'proveedor_tipo' => session('proveedor_id') ? 'proveedor' : 'admin',
-                        'departamento' => strtoupper(trim($prod['DEPARTAMENTO'] ?? '')),
-                        'linea' => trim($prod['LINEA'] ?? ''),
-                        'subfamilia_pt' => trim($prod['SUBFAMILIA'] ?? ''),
-                        'canal' => trim($prod['CANAL'] ?? ''),
-                        'vendedor' => trim($prod['VENDEDOR'] ?? ''),
-                        'modulo' => strtoupper(trim($prod['MODULO'] ?? '')),
-                    ]
+                    $this->datosProductoDesdeExcel($prod)
                 );
             }
 
@@ -1134,16 +1354,20 @@ Si todo correcto: {"errores_ia": []}';
             }
 
             $alertEngine = new AlertEngineService;
-            $alertEngine->alertar([
-                'tipo' => 'productos_alta_automatica',
-                'modulo' => 'productos',
-                'destinatario_tipo' => 'admin',
-                'destinatario_id' => 1,
-                'titulo' => "Productos dados de alta: {$validos} productos",
-                'contenido' => "Se dieron de alta {$validos} productos en el catalogo.",
-                'datos' => ['validacion_id' => $validacion->id, 'total' => $validos],
-                'nivel' => 'info',
-            ]);
+            try {
+                $alertEngine->alertar([
+                    'tipo' => 'productos_alta_automatica',
+                    'modulo' => 'productos',
+                    'destinatario_tipo' => 'admin',
+                    'destinatario_id' => 1,
+                    'titulo' => "Productos dados de alta: {$validos} productos",
+                    'contenido' => "Se dieron de alta {$validos} productos en el catalogo.",
+                    'datos' => ['validacion_id' => $validacion->id, 'total' => $validos],
+                    'nivel' => 'info',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('[Alta Producto] No se pudo enviar alerta: '.$e->getMessage());
+            }
 
             $mensajeExito = "OK - {$validos} producto(s) validados y dados de alta en el catalogo:\n";
             foreach ($listaProductos as $item) {
@@ -1157,38 +1381,11 @@ Si todo correcto: {"errores_ia": []}';
         $filasConErrorFinal = array_unique(array_column($errores, 'fila'));
         $productosAlta = [];
         foreach ($productos as $index => $prod) {
-            $fila = $index + 2;
+            $fila = $index + $primeraFilaDatos;
             if (!in_array($fila, $filasConErrorFinal)) {
-                $nombreCompleto = trim(
-                    strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.
-                    strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.
-                    strtoupper(trim($prod['NOMBRE_MODELO'] ?? '')).' '.
-                    strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? '')).' '.
-                    strtoupper(trim($prod['NOMBRE_ESPECIFICACION'] ?? ''))
-                );
-
                 Producto::updateOrCreate(
                     ['codigo' => strtoupper(trim($prod['CODIGO'] ?? ''))],
-                    [
-                        'nombre' => $nombreCompleto,
-                        'categoria' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
-                        'familia' => strtoupper(trim($prod['FAMILIA'] ?? '')),
-                        'tipo_producto' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
-                        'unidad_venta' => strtoupper(trim($prod['UNIDAD_MEDIDA'] ?? '')),
-                        'precio' => (float) str_replace(['$', ','], '', $prod['PRECIO'] ?? '0'),
-                        'clave_sat' => trim($prod['CLAVE_SAT'] ?? ''),
-                        'maneja_lotes' => strtoupper(trim($prod['LOTE'] ?? '')) === 'SI',
-                        'activo' => true,
-                        'stock' => 0,
-                        'proveedor_nombre' => session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
-                        'proveedor_tipo' => session('proveedor_id') ? 'proveedor' : 'admin',
-                        'departamento' => strtoupper(trim($prod['DEPARTAMENTO'] ?? '')),
-                        'linea' => trim($prod['LINEA'] ?? ''),
-                        'subfamilia_pt' => trim($prod['SUBFAMILIA'] ?? ''),
-                        'canal' => trim($prod['CANAL'] ?? ''),
-                        'vendedor' => trim($prod['VENDEDOR'] ?? ''),
-                        'modulo' => strtoupper(trim($prod['MODULO'] ?? '')),
-                    ]
+                    $this->datosProductoDesdeExcel($prod)
                 );
                 $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
                 $nombre = strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
@@ -1198,7 +1395,7 @@ Si todo correcto: {"errores_ia": []}';
 
         // Tiene errores - generar Excel con correcciones (solo celdas en rojo)
 
-        $fullPath = $this->generarExcelConErrores($productos, $errores);
+        $fullPath = $this->generarExcelConErrores($productos, $errores, $esFormatoNacional, $primeraFilaDatos);
         $relativePath = str_replace(storage_path('app/public/'), '', $fullPath);
 
         // Ordenar errores por numero de fila
@@ -1262,7 +1459,7 @@ Si todo correcto: {"errores_ia": []}';
     /**
      * Generar Excel XLSX con colores - celdas con error en rojo, aprobadas en verde.
      */
-    private function generarExcelConErrores(array $productos, array $errores): string
+    private function generarExcelConErrores(array $productos, array $errores, bool $esFormatoNacional = false, int $primeraFilaDatos = 2): string
     {
         // Agrupar errores por fila
         $erroresPorFila = [];
@@ -1275,8 +1472,14 @@ Si todo correcto: {"errores_ia": []}';
         $sheet->setTitle('Productos');
 
         // Headers con mismo formato del template (morado)
-        $headers = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE', 'DEPARTAMENTO', 'LINEA', 'SUBFAMILIA', 'CANAL', 'VENDEDOR', 'MODULO'];
-        $obligatorios = ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false, 'DEPARTAMENTO' => false, 'LINEA' => false, 'SUBFAMILIA' => false, 'CANAL' => false, 'VENDEDOR' => false, 'MODULO' => false];
+        $headers = $esFormatoNacional
+            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE']
+            : ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE', 'DEPARTAMENTO', 'LINEA', 'SUBFAMILIA', 'CANAL', 'VENDEDOR', 'MODULO'];
+        $obligatoriosNacional = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PRECIO', 'MOQ'];
+        $obligatorios = $esFormatoNacional
+            ? array_fill_keys($obligatoriosNacional, true) + array_fill_keys(array_diff($headers, $obligatoriosNacional), false)
+            : ['CODIGO' => true, 'NOMBRE_TIPO' => true, 'NOMBRE_MARCA' => true, 'NOMBRE_MODELO' => true, 'NOMBRE_MEDIDA' => true, 'NOMBRE_ESPECIFICACION' => true, 'FAMILIA' => true, 'TIPO_PRODUCTO' => true, 'UNIDAD_MEDIDA' => false, 'PRECIO' => false, 'CLAVE_SAT' => false, 'LOTE' => false, 'PEDIMENTO' => false, 'VOLTAJE' => false, 'DEPARTAMENTO' => false, 'LINEA' => false, 'SUBFAMILIA' => false, 'CANAL' => false, 'VENDEDOR' => false, 'MODULO' => false];
+        $headerRow = 1;
         $col = 'A';
         foreach ($headers as $header) {
             $sheet->setCellValue($col.'1', $header);
@@ -1321,22 +1524,33 @@ Si todo correcto: {"errores_ia": []}';
         $sheet = $spreadsheet->getActiveSheet();
 
         // Mapeo de columnas
-        $colMap = [
-            'CODIGO' => 'A', 'NOMBRE_TIPO' => 'B', 'NOMBRE_MARCA' => 'C', 'NOMBRE_MODELO' => 'D',
-            'NOMBRE_MEDIDA' => 'E', 'NOMBRE_ESPECIFICACION' => 'F', 'FAMILIA' => 'G',
-            'TIPO_PRODUCTO' => 'H', 'UNIDAD_MEDIDA' => 'I', 'PRECIO' => 'J', 'CLAVE_SAT' => 'K',
-            'LOTE' => 'L', 'PEDIMENTO' => 'M', 'VOLTAJE' => 'N',
-            'NOMBRE' => 'B', 'MARCA' => 'C', 'MODELO' => 'D', 'MEDIDA' => 'E',
-            'ESPECIFICACION' => 'F', 'GENERAL' => 'B', 'PRODUCCION' => 'H',
-        ];
+        $colMap = $esFormatoNacional
+            ? [
+                'PREFIJO' => 'A', 'CONSECUTIVO' => 'B', 'NOMBRE_TIPO' => 'C', 'NOMBRE_MARCA' => 'D', 'NOMBRE_MODELO' => 'E',
+                'NOMBRE_MEDIDA' => 'F', 'NOMBRE_ESPECIFICACION' => 'G', 'FAMILIA' => 'H', 'TIPO_PRODUCTO' => 'I',
+                'UNIDAD_MEDIDA' => 'J', 'PRECIO' => 'K', 'MOQ' => 'L', 'CLAVE_SAT' => 'M',
+                'LOTE' => 'N', 'PEDIMENTO' => 'O', 'VOLTAJE' => 'P',
+            ]
+            : [
+                'CODIGO' => 'A', 'NOMBRE_TIPO' => 'B', 'NOMBRE_MARCA' => 'C', 'NOMBRE_MODELO' => 'D',
+                'NOMBRE_MEDIDA' => 'E', 'NOMBRE_ESPECIFICACION' => 'F', 'FAMILIA' => 'G',
+                'TIPO_PRODUCTO' => 'H', 'UNIDAD_MEDIDA' => 'I', 'PRECIO' => 'J', 'CLAVE_SAT' => 'K',
+                'LOTE' => 'L', 'PEDIMENTO' => 'M', 'VOLTAJE' => 'N',
+                'NOMBRE' => 'B', 'MARCA' => 'C', 'MODELO' => 'D', 'MEDIDA' => 'E',
+                'ESPECIFICACION' => 'F', 'GENERAL' => 'B', 'PRODUCCION' => 'H',
+            ];
+        $camposDatos = $esFormatoNacional
+            ? ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE']
+            : ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
+        $ultimaColumna = $esFormatoNacional ? 'P' : 'N';
 
         // Datos
         foreach ($productos as $index => $producto) {
-            $fila = $index + 2;
+            $fila = $index + $primeraFilaDatos;
             $excelRow = $index + 2;
 
             $col = 'A';
-            foreach (['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'] as $campo) {
+            foreach ($camposDatos as $campo) {
                 $sheet->setCellValue($col.$excelRow, $producto[$campo] ?? '');
                 $col++;
             }
@@ -1352,8 +1566,8 @@ Si todo correcto: {"errores_ia": []}';
                 }
             } else {
                 // Fila sin error = se dio de alta. Marcar toda la fila en verde claro.
-                $sheet->getStyle("A{$excelRow}:N{$excelRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D1FAE5');
-                $sheet->getStyle("A{$excelRow}:N{$excelRow}")->getFont()->getColor()->setRGB('065F46');
+                $sheet->getStyle("A{$excelRow}:{$ultimaColumna}{$excelRow}")->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('D1FAE5');
+                $sheet->getStyle("A{$excelRow}:{$ultimaColumna}{$excelRow}")->getFont()->getColor()->setRGB('065F46');
             }
         }
 
@@ -1431,6 +1645,8 @@ Si todo correcto: {"errores_ia": []}';
             if ($tipoProductoActual === 'MPI') {
                 // MPI (Internacional - Cinthya): código, tipo, modelo, medida + UNIDAD_MEDIDA
                 $camposObligatorios = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA'];
+            } elseif (in_array($tipoProductoActual, ['ME', 'MP'], true) && ! empty(trim($producto['PREFIJO'] ?? ''))) {
+                $camposObligatorios = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO', 'PRECIO', 'MOQ'];
             } else {
                 // ME y MP (Nacional - Brenda): solo código, tipo y medida
                 $camposObligatorios = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MEDIDA', 'TIPO_PRODUCTO'];
@@ -1441,8 +1657,10 @@ Si todo correcto: {"errores_ia": []}';
         }
 
         foreach ($camposObligatorios as $campo) {
-            if (empty(trim($producto[$campo] ?? ''))) {
+            if (empty(trim((string) ($producto[$campo] ?? '')))) {
                 $sugerencia = match ($campo) {
+                    'PREFIJO' => 'Selecciona ME o MP del dropdown',
+                    'CONSECUTIVO' => 'Escribe el consecutivo numerico (ej: 0305). Revisa la hoja Consecutivos del template',
                     'CODIGO' => 'Escribe un codigo unico (ej: MPI0538, ME0201)',
                     'NOMBRE_TIPO' => 'Escribe QUE ES el producto (ej: RESINA EPOXICA, MOTOR ELECTRICO, CAJA CORRUGADA)',
                     'NOMBRE_MARCA' => 'Escribe QUIEN lo fabrica (ej: WEG, SKF, 3M, ALPHA, KRAFT)',
@@ -1452,6 +1670,8 @@ Si todo correcto: {"errores_ia": []}';
                     'FAMILIA' => 'Selecciona del dropdown una familia del catalogo oficial',
                     'TIPO_PRODUCTO' => 'Selecciona del dropdown: MPI, ME, MN, MP, PT, etc.',
                     'UNIDAD_MEDIDA' => 'Selecciona del dropdown: KG, PZA, CAJA, etc.',
+                    'PRECIO' => 'Precio con signo $ (ej: $150.50)',
+                    'MOQ' => 'Cantidad minima de compra obligatoria, entero mayor a 0 (ej: 100)',
                     default => 'Este campo es obligatorio, no puede estar vacio',
                 };
                 $errores[] = [
@@ -1486,6 +1706,45 @@ Si todo correcto: {"errores_ia": []}';
         $subfamilia = strtoupper(trim($producto['SUBFAMILIA'] ?? ''));
         $unidad = strtoupper(trim($producto['UNIDAD_MEDIDA'] ?? ''));
         $precio = $producto['PRECIO'] ?? '';
+
+        // === VALIDAR PREFIJO + CONSECUTIVO (formato nacional ME/MP) ===
+        $prefijoRaw = strtoupper(trim($producto['PREFIJO'] ?? ''));
+        $consecutivoRaw = trim((string) ($producto['CONSECUTIVO'] ?? ''));
+        if ($prefijoRaw || $consecutivoRaw !== '') {
+            if (! in_array($prefijoRaw, ['ME', 'MP'], true)) {
+                $errores[] = [
+                    'fila' => $fila,
+                    'campo' => 'PREFIJO',
+                    'error' => "PREFIJO '{$prefijoRaw}' no valido. Solo: ME o MP",
+                ];
+            }
+            if ($consecutivoRaw === '' || ! preg_match('/^\d+$/', $consecutivoRaw)) {
+                $errores[] = [
+                    'fila' => $fila,
+                    'campo' => 'CONSECUTIVO',
+                    'error' => "CONSECUTIVO invalido. Solo numeros (ej: 0305). Recibido: '{$consecutivoRaw}'",
+                ];
+            }
+            if ($prefijoRaw && $consecutivoRaw !== '' && preg_match('/^\d+$/', $consecutivoRaw)) {
+                $codigoFormado = $prefijoRaw.$this->formatearConsecutivoMeMp((int) $consecutivoRaw);
+                if ($tipoProductoActual && $tipoProductoActual !== $prefijoRaw) {
+                    $errores[] = [
+                        'fila' => $fila,
+                        'campo' => 'TIPO_PRODUCTO',
+                        'error' => "El prefijo '{$prefijoRaw}' no coincide con TIPO_PRODUCTO '{$tipoProductoActual}'. -> Pon: {$prefijoRaw}",
+                    ];
+                }
+                $existenteCodigo = Producto::withTrashed()->where('codigo', $codigoFormado)->first();
+                if ($existenteCodigo) {
+                    $estado = ($existenteCodigo->activo && ! $existenteCodigo->trashed()) ? 'activo' : 'inactivo';
+                    $errores[] = [
+                        'fila' => $fila,
+                        'campo' => 'CONSECUTIVO',
+                        'error' => "DUPLICADO: '{$codigoFormado}' ya existe en el sistema ({$estado}). Revisa el filtro y el dropdown de CONSECUTIVO en el template.",
+                    ];
+                }
+            }
+        }
 
         // === VALIDAR CÓDIGO VS TIPO_PRODUCTO ===
         $codigoRaw = strtoupper(trim($producto['CODIGO'] ?? ''));
@@ -1543,17 +1802,12 @@ Si todo correcto: {"errores_ia": []}';
 
         foreach ($partesNombre as $campo => $info) {
             if (! empty($info['valor'])) {
-                // Debe ser MAYUSCULAS (en compras, NOMBRE_MEDIDA acepta minúsculas)
-                if ($info['valor'] !== strtoupper($info['valor'])) {
-                    if ($esModuloCompras && $campo === 'NOMBRE_MEDIDA') {
-                        // En compras se acepta minúsculas en medida (kg, lt, etc.) - se convierte automáticamente
-                    } else {
-                        $errores[] = [
-                            'fila' => $fila,
-                            'campo' => $campo,
-                            'error' => "Debe estar en MAYUSCULAS sin acentos. Recibido: '{$info['valor']}'. COMO CORREGIR: {$info['desc']}",
-                        ];
-                    }
+                if ($info['valor'] !== strtoupper($info['valor']) && ! $esModuloCompras) {
+                    $errores[] = [
+                        'fila' => $fila,
+                        'campo' => $campo,
+                        'error' => "Debe estar en MAYUSCULAS sin acentos. Recibido: '{$info['valor']}'. COMO CORREGIR: {$info['desc']}",
+                    ];
                 }
                 // No caracteres especiales
                 if (preg_match('/[#$%&*=+{}\[\]|\\\\<>~`"\'?_@^!]/', $info['valor'])) {
@@ -1801,7 +2055,7 @@ Si todo correcto: {"errores_ia": []}';
         $tipoProductoRaw = trim($producto['TIPO_PRODUCTO'] ?? '');
 
         // === 2.5 TIPO_PRODUCTO - Debe ser exactamente MPI, ME o MN en MAYUSCULAS ===
-        if ($tipoProductoRaw && $tipoProductoRaw !== strtoupper($tipoProductoRaw)) {
+        if ($tipoProductoRaw && $tipoProductoRaw !== strtoupper($tipoProductoRaw) && ! $esModuloCompras) {
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'TIPO_PRODUCTO',
@@ -1817,7 +2071,7 @@ Si todo correcto: {"errores_ia": []}';
         }
 
         // === 2.7 UNIDAD_MEDIDA - Debe estar en MAYUSCULAS y ser valida ===
-        if ($unidadRaw && $unidadRaw !== strtoupper($unidadRaw)) {
+        if ($unidadRaw && $unidadRaw !== strtoupper($unidadRaw) && ! $esModuloCompras) {
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'UNIDAD_MEDIDA',
@@ -1889,6 +2143,21 @@ Si todo correcto: {"errores_ia": []}';
                     'campo' => 'PRECIO',
                     'error' => "Precio invalido. Debe llevar \$ al inicio (ej: \$150.50, \$2,800.00). Recibido: '{$precioStr}'",
                 ];
+            }
+        }
+
+        $esNacionalMeMp = ! empty(trim($producto['PREFIJO'] ?? '')) && in_array($tipoProductoActual, ['ME', 'MP'], true);
+        if ($esModuloCompras && $esNacionalMeMp) {
+            $moqRaw = trim((string) ($producto['MOQ'] ?? ''));
+            if ($moqRaw !== '') {
+                $moqLimpio = str_replace([',', ' '], '', $moqRaw);
+                if (! preg_match('/^\d+$/', $moqLimpio) || (int) $moqLimpio <= 0) {
+                    $errores[] = [
+                        'fila' => $fila,
+                        'campo' => 'MOQ',
+                        'error' => "MOQ invalido. Debe ser un entero mayor a 0 (ej: 100). Recibido: '{$moqRaw}'",
+                    ];
+                }
             }
         }
 
@@ -2138,21 +2407,35 @@ Si todo correcto: {"errores_ia": []}';
     /**
      * Leer archivo Excel con PhpSpreadsheet.
      */
-    private function leerSpreadsheet($spreadsheet): array
+    private function leerSpreadsheet($spreadsheet, int &$primeraFilaDatos = 2): array
     {
-        $sheet = $spreadsheet->getActiveSheet();
+        $sheet = $spreadsheet->getSheetByName('Productos') ?? $spreadsheet->getActiveSheet();
         $rows = $sheet->toArray();
 
         if (count($rows) < 2) {
             return [];
         }
 
-        $headers = array_map(fn ($h) => strtoupper(trim($h ?? '')), $rows[0]);
+        $headerRowIndex = 0;
+        foreach ($rows as $i => $row) {
+            $normalized = array_map(fn ($h) => strtoupper(trim((string) ($h ?? ''))), $row);
+            if (in_array('PREFIJO', $normalized, true) && in_array('CONSECUTIVO', $normalized, true)) {
+                $headerRowIndex = $i;
+                break;
+            }
+            if (in_array('CODIGO', $normalized, true) && in_array('NOMBRE_TIPO', $normalized, true)) {
+                $headerRowIndex = $i;
+                break;
+            }
+        }
+
+        $primeraFilaDatos = $headerRowIndex + 2;
+        $headers = array_map(fn ($h) => strtoupper(trim((string) ($h ?? ''))), $rows[$headerRowIndex]);
         $productos = [];
 
-        for ($i = 1; $i < count($rows); $i++) {
+        for ($i = $headerRowIndex + 1; $i < count($rows); $i++) {
             $row = $rows[$i];
-            if (count(array_filter($row)) === 0) {
+            if (count(array_filter($row, fn ($v) => trim((string) ($v ?? '')) !== '')) === 0) {
                 continue;
             }
 
@@ -2517,6 +2800,221 @@ Si todo correcto: {"errores_ia": []}';
     }
 
     /**
+     * Catalogo de consecutivos ME/MP existentes en el sistema.
+     */
+    private function obtenerCatalogoConsecutivosMeMp(): array
+    {
+        $productos = Producto::withTrashed()
+            ->where(function ($q) {
+                $q->where('codigo', 'like', 'ME%')
+                    ->orWhere('codigo', 'like', 'MP%');
+            })
+            ->orderBy('codigo')
+            ->get(['codigo', 'nombre', 'activo', 'tipo_producto']);
+
+        $catalogo = [];
+        foreach ($productos as $producto) {
+            $parsed = $this->parseCodigoMeMp($producto->codigo);
+            if (! $parsed) {
+                continue;
+            }
+            $catalogo[] = [
+                'prefijo' => $parsed['prefijo'],
+                'consecutivo' => $this->formatearConsecutivoMeMp($parsed['consecutivo_num']),
+                'consecutivo_num' => $parsed['consecutivo_num'],
+                'codigo' => $parsed['prefijo'].$this->formatearConsecutivoMeMp($parsed['consecutivo_num']),
+                'nombre' => $producto->nombre,
+                'activo' => (bool) $producto->activo && ! $producto->trashed(),
+                'tipo' => strtoupper($producto->tipo_producto ?? $parsed['prefijo']),
+            ];
+        }
+
+        usort($catalogo, function ($a, $b) {
+            return [$a['prefijo'], $a['consecutivo_num']] <=> [$b['prefijo'], $b['consecutivo_num']];
+        });
+
+        return $catalogo;
+    }
+
+    /**
+     * Consecutivos libres para dropdown del template (huecos + cola disponible).
+     *
+     * @param  bool  $bloquearSoloActivos  true = solo productos activos ocupan el numero
+     */
+    private function generarConsecutivosDisponibles(string $prefijo, array $catalogo, bool $bloquearSoloActivos, int $limite = 250): array
+    {
+        $digitos = $this->digitosConsecutivoMeMp();
+        $ocupados = [];
+
+        foreach ($catalogo as $item) {
+            if ($item['prefijo'] !== $prefijo) {
+                continue;
+            }
+            if ($bloquearSoloActivos && ! $item['activo']) {
+                continue;
+            }
+            $ocupados[] = $item['consecutivo_num'];
+        }
+
+        $ocupados = array_values(array_unique($ocupados));
+        $maxOcupado = empty($ocupados) ? 0 : max($ocupados);
+        $hasta = max($maxOcupado + 50, 100);
+
+        $disponibles = [];
+        for ($n = 1; $n <= $hasta && count($disponibles) < $limite; $n++) {
+            if (! in_array($n, $ocupados, true)) {
+                $disponibles[] = str_pad((string) $n, $digitos, '0', STR_PAD_LEFT);
+            }
+        }
+
+        if (empty($disponibles)) {
+            $disponibles[] = str_pad('1', $digitos, '0', STR_PAD_LEFT);
+        }
+
+        return $disponibles;
+    }
+
+    /**
+     * Rangos de consecutivos libres por prefijo ME/MP.
+     */
+    private function calcularRangosDisponiblesMeMp(array $catalogo): array
+    {
+        $porPrefijo = ['ME' => [], 'MP' => []];
+        $pad = $this->digitosConsecutivoMeMp();
+
+        foreach ($catalogo as $item) {
+            $prefijo = $item['prefijo'];
+            if (! isset($porPrefijo[$prefijo])) {
+                continue;
+            }
+            $porPrefijo[$prefijo][] = $item['consecutivo_num'];
+        }
+
+        $rangos = [];
+        foreach (['ME', 'MP'] as $prefijo) {
+            $ocupados = array_values(array_unique($porPrefijo[$prefijo]));
+            sort($ocupados);
+
+            if (empty($ocupados)) {
+                continue;
+            }
+
+            if ($ocupados[0] > 1) {
+                $desde = 1;
+                $hasta = $ocupados[0] - 1;
+                $rangos[] = $this->formatearRangoDisponible($prefijo, $desde, $hasta, $pad, 'Hueco al inicio del prefijo');
+            }
+
+            for ($i = 0; $i < count($ocupados) - 1; $i++) {
+                if ($ocupados[$i + 1] - $ocupados[$i] > 1) {
+                    $desde = $ocupados[$i] + 1;
+                    $hasta = $ocupados[$i + 1] - 1;
+                    $codAnt = $prefijo.str_pad((string) $ocupados[$i], $pad, '0', STR_PAD_LEFT);
+                    $codSig = $prefijo.str_pad((string) $ocupados[$i + 1], $pad, '0', STR_PAD_LEFT);
+                    $rangos[] = $this->formatearRangoDisponible($prefijo, $desde, $hasta, $pad, "Entre {$codAnt} y {$codSig}");
+                }
+            }
+        }
+
+        return $rangos;
+    }
+
+    private function formatearRangoDisponible(string $prefijo, int $desde, int $hasta, int $pad, string $nota): array
+    {
+        $desdeFmt = str_pad((string) $desde, $pad, '0', STR_PAD_LEFT);
+        $hastaFmt = str_pad((string) $hasta, $pad, '0', STR_PAD_LEFT);
+
+        return [
+            'prefijo' => $prefijo,
+            'desde_fmt' => $desdeFmt,
+            'hasta_fmt' => $hastaFmt,
+            'cantidad' => $hasta - $desde + 1,
+            'ejemplo' => $prefijo.$desdeFmt.($desde !== $hasta ? ' … '.$prefijo.$hastaFmt : ''),
+            'nota' => $nota,
+        ];
+    }
+
+    private function parseCodigoMeMp(string $codigo): ?array
+    {
+        $codigo = strtoupper(trim($codigo));
+        if (! preg_match('/^(ME|MP)(\d+)$/', $codigo, $matches)) {
+            return null;
+        }
+
+        return [
+            'prefijo' => $matches[1],
+            'consecutivo' => $this->formatearConsecutivoMeMp((int) $matches[2]),
+            'consecutivo_num' => (int) $matches[2],
+            'codigo' => $matches[1].$this->formatearConsecutivoMeMp((int) $matches[2]),
+        ];
+    }
+
+    private function digitosConsecutivoMeMp(): int
+    {
+        return 4;
+    }
+
+    private function formatearConsecutivoMeMp(int $num): string
+    {
+        return str_pad((string) $num, $this->digitosConsecutivoMeMp(), '0', STR_PAD_LEFT);
+    }
+
+    private function normalizarProductoNacional(array $producto): array
+    {
+        if (! empty(trim($producto['CODIGO'] ?? ''))) {
+            return $producto;
+        }
+
+        $prefijo = strtoupper(trim($producto['PREFIJO'] ?? ''));
+        $consecutivo = trim((string) ($producto['CONSECUTIVO'] ?? ''));
+        if ($prefijo && $consecutivo !== '' && preg_match('/^\d+$/', $consecutivo)) {
+            $consecutivoFmt = $this->formatearConsecutivoMeMp((int) $consecutivo);
+            $producto['CONSECUTIVO'] = $consecutivoFmt;
+            $producto['CODIGO'] = $prefijo.$consecutivoFmt;
+        }
+
+        return $producto;
+    }
+
+    private function datosProductoDesdeExcel(array $prod): array
+    {
+        $nombreCompleto = trim(
+            strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.
+            strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.
+            strtoupper(trim($prod['NOMBRE_MODELO'] ?? '')).' '.
+            strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? '')).' '.
+            strtoupper(trim($prod['NOMBRE_ESPECIFICACION'] ?? ''))
+        );
+
+        return [
+            'nombre' => $nombreCompleto,
+            'categoria' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
+            'familia' => strtoupper(trim($prod['FAMILIA'] ?? '')),
+            'tipo_producto' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
+            'unidad_venta' => strtoupper(trim($prod['UNIDAD_MEDIDA'] ?? '')),
+            'precio' => (float) str_replace(['$', ','], '', $prod['PRECIO'] ?? '0'),
+            'clave_sat' => trim($prod['CLAVE_SAT'] ?? ''),
+            'maneja_lotes' => strtoupper(trim($prod['LOTE'] ?? '')) === 'SI',
+            'activo' => true,
+            'stock' => 0,
+            'proveedor_nombre' => session('proveedor_nombre') ?? session('admin_nombre') ?? 'Sistema',
+            'proveedor_tipo' => session('proveedor_id') ? 'proveedor' : 'admin',
+            'departamento' => strtoupper(trim($prod['DEPARTAMENTO'] ?? '')),
+            'linea' => trim($prod['LINEA'] ?? ''),
+            'subfamilia_pt' => trim($prod['SUBFAMILIA'] ?? ''),
+            'canal' => trim($prod['CANAL'] ?? ''),
+            'vendedor' => trim($prod['VENDEDOR'] ?? ''),
+            'modulo' => strtoupper(trim($prod['MODULO'] ?? '')),
+        ];
+    }
+
+    private function esFormatoNacionalMeMp(array $columnasPresentes): bool
+    {
+        return in_array('PREFIJO', $columnasPresentes, true)
+            && in_array('CONSECUTIVO', $columnasPresentes, true);
+    }
+
+    /**
      * Inferir el TIPO_PRODUCTO esperado según el prefijo del código.
      * Retorna null si no se puede determinar (no marca error).
      */
@@ -2530,27 +3028,25 @@ Si todo correcto: {"errores_ia": []}';
         $prefijo = strtoupper($tipoProducto);
         $prefijoLen = strlen($prefijo);
 
-        // Buscar todos los códigos con ese prefijo + números
-        $ultimoCodigo = Producto::where('codigo', 'LIKE', $prefijo.'%')
-            ->get(['codigo'])
-            ->filter(function ($p) use ($prefijo, $prefijoLen) {
-                $sufijo = substr($p->codigo, $prefijoLen);
-                return ctype_digit($sufijo) && strlen($sufijo) > 0;
-            })
-            ->sortByDesc(function ($p) use ($prefijoLen) {
-                return (int) substr($p->codigo, $prefijoLen);
-            })
-            ->first();
+        // Query optimizada: buscar el máximo número con LIKE + CAST en MySQL
+        $ultimo = Producto::where('codigo', 'LIKE', $prefijo.'%')
+            ->whereRaw('LENGTH(codigo) > ?', [$prefijoLen])
+            ->orderByRaw('CAST(SUBSTRING(codigo, ?) AS UNSIGNED) DESC', [$prefijoLen + 1])
+            ->limit(1)
+            ->value('codigo');
 
-        if ($ultimoCodigo) {
-            $numero = (int) substr($ultimoCodigo->codigo, $prefijoLen);
-            $siguiente = $numero + 1;
+        if ($ultimo) {
+            $sufijo = substr($ultimo, $prefijoLen);
+            if (ctype_digit($sufijo)) {
+                $siguiente = (int) $sufijo + 1;
+            } else {
+                $siguiente = 1;
+            }
         } else {
             $siguiente = 1;
         }
 
-        // Formatear con padding de 4 dígitos mínimo
-        $digitos = max(4, strlen((string) $siguiente));
+        $digitos = max(3, strlen((string) $siguiente));
         return $prefijo . str_pad($siguiente, $digitos, '0', STR_PAD_LEFT);
     }
 
@@ -2593,13 +3089,18 @@ Si todo correcto: {"errores_ia": []}';
             return 'RP';
         }
 
+        // Mantenimiento (Pagagoni): CM=Consumibles, BL=Baleros, CIL=Cilindros, CN=Conexiones, MN=Mantenimiento
+        if (str_starts_with($codigo, 'CM') || str_starts_with($codigo, 'BL') || str_starts_with($codigo, 'CIL') || str_starts_with($codigo, 'CN') || str_starts_with($codigo, 'MN')) {
+            return 'MN';
+        }
+
         // Herramientas
-        if (str_starts_with($codigo, 'HER') || str_starts_with($codigo, 'HET') || str_starts_with($codigo, 'CM')) {
+        if (str_starts_with($codigo, 'HER') || str_starts_with($codigo, 'HET')) {
             return 'HERRAMIENTAS';
         }
 
         // Refacciones
-        if (str_starts_with($codigo, 'BL') || str_starts_with($codigo, 'CN') || str_starts_with($codigo, 'RI') || str_starts_with($codigo, '500') || str_starts_with($codigo, '101')) {
+        if (str_starts_with($codigo, 'RI') || str_starts_with($codigo, '500') || str_starts_with($codigo, '101')) {
             return 'REFACCIONES';
         }
 
