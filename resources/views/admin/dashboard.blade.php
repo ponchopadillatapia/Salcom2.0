@@ -215,12 +215,26 @@
             </div>
             <div style="max-height:320px;overflow-y:auto;">
             <table class="pp-tbl">
-                <thead><tr><th>Proveedor</th><th>Código</th><th>Score</th></tr></thead>
+                <thead><tr><th>Proveedor</th><th>Código</th><th>Documentos</th><th>Score</th></tr></thead>
                 <tbody>
                 @forelse($proveedoresActivosList as $prov)
+                    @php
+                        $tiposRequeridos = ['cif', 'opinion', 'caratula_banco'];
+                        $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
+                        $completos = count(array_intersect($tiposRequeridos, $docsAprobados));
+                        $totalReq = count($tiposRequeridos);
+                        $todoCompleto = $completos === $totalReq;
+                    @endphp
                     <tr>
                         <td>{{ $prov->nombre ?? $prov->usuario }}</td>
                         <td>{{ $prov->id_proveedor ?? '—' }}</td>
+                        <td>
+                            @if($todoCompleto)
+                                <span style="font-size:11px;font-weight:600;color:var(--green);">✓ Completa</span>
+                            @else
+                                <span style="font-size:11px;font-weight:600;color:var(--amber);">{{ $completos }}/{{ $totalReq }}</span>
+                            @endif
+                        </td>
                         <td>
                             <div style="display:flex;align-items:center;gap:6px;">
                                 <div class="pp-score-bar" style="width:50px;"><div class="pp-score-fill" style="width:{{ $prov->score_total }}%;background:{{ $prov->score_total >= 80 ? 'var(--green)' : ($prov->score_total >= 60 ? 'var(--amber)' : 'var(--red)') }};"></div></div>
@@ -229,7 +243,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="3" style="text-align:center;color:var(--gray-muted);">Sin proveedores activos</td></tr>
+                    <tr><td colspan="4" style="text-align:center;color:var(--gray-muted);">Sin proveedores activos</td></tr>
                 @endforelse
                 </tbody>
             </table>
