@@ -12,7 +12,6 @@ use App\Models\Muestra;
 use App\Models\OcBorrador;
 use App\Models\Pedido;
 use App\Models\Producto;
-use App\Models\ProductoProveedorPrecio;
 use App\Models\ProveedorUser;
 use App\Services\InventarioCalculoService;
 use App\Services\PedidoProveedorSyncService;
@@ -853,42 +852,6 @@ class AdminPanelController extends Controller
     }
 
     /**
-     * Vincular proveedor a producto (usa proveedor_id internamente).
-     */
-    public function asignarProveedorProducto(Request $request, $id)
-    {
-        $request->validate([
-            'proveedor_id' => 'required|exists:proveedores_users,id',
-            'precio' => 'nullable|numeric|min:0',
-            'moq' => 'nullable|integer|min:1',
-        ]);
-
-        $producto = Producto::with('preciosProveedor.proveedor')->findOrFail($id);
-        $proveedor = ProveedorUser::findOrFail($request->proveedor_id);
-
-        ProductoProveedorPrecio::updateOrCreate(
-            [
-                'producto_id' => $producto->id,
-                'proveedor_id' => $proveedor->id,
-            ],
-            [
-                'precio' => $request->input('precio', $producto->precio),
-                'moq' => $request->input('moq', 1),
-            ]
-        );
-
-        return response()->json([
-            'success' => true,
-            'mensaje' => 'Proveedor vinculado correctamente',
-            'proveedor' => [
-                'id' => $proveedor->id,
-                'nombre' => $proveedor->nombre ?? $proveedor->usuario,
-                'id_proveedor' => $proveedor->id_proveedor,
-            ],
-        ]);
-    }
-
-    /**
      * Vista detalle de un producto con todas sus especificaciones.
      */
     public function productoDetalle($id)
@@ -967,10 +930,6 @@ class AdminPanelController extends Controller
 
         $filtrosActivos = $this->filtrosTienenValor($filtros);
 
-        $proveedoresActivos = ProveedorUser::where('activo', true)
-            ->orderBy('nombre')
-            ->get(['id', 'nombre', 'usuario', 'id_proveedor']);
-
         return view('admin.productos', compact(
             'productos',
             'stockOpciones',
@@ -988,7 +947,6 @@ class AdminPanelController extends Controller
             'totalCategorias',
             'categorias',
             'proveedores',
-            'proveedoresActivos',
             'admins',
             'filtros',
             'filtrosActivos',

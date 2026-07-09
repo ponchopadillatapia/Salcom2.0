@@ -169,7 +169,6 @@ Route::get('/admin/productos/excel', [AdminPanelController::class, 'productosExc
 Route::post('/admin/productos/{id}/actualizar', [AdminPanelController::class, 'actualizarProducto'])->name('admin.productos.actualizar')->middleware('auth.admin');
 Route::post('/admin/productos/{id}/borrar', [AdminPanelController::class, 'borrarProducto'])->name('admin.productos.borrar')->middleware('auth.admin');
 Route::post('/admin/productos/{id}/toggle-activo', [AdminPanelController::class, 'toggleActivoProducto'])->name('admin.productos.toggle-activo')->middleware('auth.admin');
-Route::post('/admin/productos/{id}/asignar-proveedor', [AdminPanelController::class, 'asignarProveedorProducto'])->name('admin.productos.asignar-proveedor')->middleware('auth.admin');
 Route::get('/admin/productos/{id}/detalle', [AdminPanelController::class, 'productoDetalle'])->name('admin.productos.detalle')->middleware('auth.admin');
 
 // ── Admin: Alta de Producto (compras + mantenimiento) ──

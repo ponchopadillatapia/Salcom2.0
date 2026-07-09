@@ -38,6 +38,9 @@
     .tab-btn:hover{color:var(--purple)}
     .tab-content{display:none}
     .tab-content.active{display:block}
+    .proveedor-select{width:100%;padding:10px 12px;border:1px solid var(--border-light);border-radius:10px;font-size:13px;font-family:inherit;color:var(--gray-text);margin-bottom:16px;background:#fff}
+    .proveedor-select:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px var(--purple-subtle)}
+    .proveedor-label{display:block;font-size:12px;font-weight:600;color:var(--gray-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.03em}
     @media(max-width:768px){.alta-grid{grid-template-columns:1fr}}
 </style>
 @endpush
@@ -81,7 +84,8 @@
         <div class="alta-steps">
             <div class="alta-step"><div class="alta-step-num">1</div><div class="alta-step-text"><strong>Descarga el template Nacional</strong>Excel para Material de Empaque (ME) y Materia Prima (MP).</div></div>
             <div class="alta-step"><div class="alta-step-num">2</div><div class="alta-step-text"><strong>Llena tus productos</strong>Elige PREFIJO, luego CONSECUTIVO del dropdown (solo disponibles).</div></div>
-            <div class="alta-step"><div class="alta-step-num">3</div><div class="alta-step-text"><strong>Sube el Excel</strong>Se valida y da de alta automático.</div></div>
+            <div class="alta-step"><div class="alta-step-num">3</div><div class="alta-step-text"><strong>Selecciona el proveedor</strong>Al subir, los productos se vinculan automáticamente con el proveedor elegido.</div></div>
+            <div class="alta-step"><div class="alta-step-num">4</div><div class="alta-step-text"><strong>Sube el Excel</strong>Se valida, da de alta y concatena proveedor con cada producto.</div></div>
         </div>
         <div style="margin-top:20px;">
             <a href="{{ route('admin.alta-producto.template') }}" class="btn-download">
@@ -94,13 +98,22 @@
         <h3>Subir Excel Nacional</h3>
         <form method="POST" action="{{ route('admin.alta-producto.subir') }}" enctype="multipart/form-data">
             @csrf
+            <label class="proveedor-label" for="proveedorNac">Proveedor *</label>
+            <select name="proveedor_id" id="proveedorNac" class="proveedor-select" required onchange="checkNacReady()">
+                <option value="">— Selecciona proveedor —</option>
+                @foreach($proveedoresActivos as $prov)
+                <option value="{{ $prov->id }}" @selected(old('proveedor_id') == $prov->id)>
+                    {{ $prov->opcionSelectLabel() }}
+                </option>
+                @endforeach
+            </select>
             <div class="upload-zone" onclick="document.getElementById('fileNac').click()">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <div style="font-size:14px;font-weight:600;color:var(--gray-text);margin-top:8px;">Arrastra tu Excel aquí o haz clic</div>
                 <div style="font-size:12px;color:var(--gray-muted);margin-top:4px;">.xlsx, .xls, .csv · Max 5MB</div>
                 <div id="fileNameNac" style="margin-top:8px;font-size:12px;color:var(--purple);font-weight:600;display:none;"></div>
             </div>
-            <input type="file" name="excel" id="fileNac" accept=".xlsx,.xls,.csv" style="display:none;" onchange="showName(this,'fileNameNac','btnNac')">
+            <input type="file" name="excel" id="fileNac" accept=".xlsx,.xls,.csv" style="display:none;" onchange="checkNacReady()">
             <button type="submit" class="btn-upload" id="btnNac" disabled>Subir y validar</button>
         </form>
         <h3 style="margin-top:24px;">Formato Nacional</h3>
@@ -212,8 +225,19 @@ function showName(input, labelId, btnId) {
     if (name) {
         document.getElementById(labelId).textContent = name;
         document.getElementById(labelId).style.display = 'block';
-        document.getElementById(btnId).disabled = false;
+        if (btnId) document.getElementById(btnId).disabled = false;
     }
+}
+function checkNacReady() {
+    const fileInput = document.getElementById('fileNac');
+    const name = fileInput.files[0]?.name;
+    if (name) {
+        document.getElementById('fileNameNac').textContent = name;
+        document.getElementById('fileNameNac').style.display = 'block';
+    }
+    const hasFile = fileInput.files.length > 0;
+    const hasProv = document.getElementById('proveedorNac').value !== '';
+    document.getElementById('btnNac').disabled = !(hasFile && hasProv);
 }
 </script>
 @endpush
