@@ -152,12 +152,13 @@
             <h4>Proveedores</h4>
             <div class="pp-negocio-row">
                 <div class="pp-negocio-label">Activos</div>
-                <div class="pp-negocio-value" style="font-size:20px;">{{ $proveedoresActivos }}</div>
+                <div class="pp-negocio-value" style="font-size:20px;color:var(--green);">{{ $proveedoresActivos }}</div>
             </div>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Score promedio</div>
-                <div class="pp-negocio-value" style="color:var(--green);font-size:20px;">{{ $scorePromedio }}%</div>
+                <div class="pp-negocio-label">Inactivos</div>
+                <div class="pp-negocio-value" style="font-size:20px;color:var(--red);">{{ $totalProveedores - $proveedoresActivos }}</div>
             </div>
+            <div class="pp-negocio-sub">Total: {{ $totalProveedores }} · Score: {{ $scorePromedio }}%</div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
@@ -203,6 +204,64 @@
             </div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
+    </div>
+
+    {{-- Proveedores activos e inactivos --}}
+    <div class="pp-section-title">Proveedores — Activos e Inactivos</div>
+    <div class="pp-grid-2">
+        <div class="pp-card pp-activity-card">
+            <div class="pp-activity-head" style="display:flex;align-items:center;justify-content:space-between;">
+                <span><span style="color:var(--green);">●</span> Activos ({{ $proveedoresActivosList->count() }})</span>
+            </div>
+            <div style="max-height:320px;overflow-y:auto;">
+            <table class="pp-tbl">
+                <thead><tr><th>Proveedor</th><th>Código</th><th>Score</th></tr></thead>
+                <tbody>
+                @forelse($proveedoresActivosList as $prov)
+                    <tr>
+                        <td>{{ $prov->nombre ?? $prov->usuario }}</td>
+                        <td>{{ $prov->id_proveedor ?? '—' }}</td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <div class="pp-score-bar" style="width:50px;"><div class="pp-score-fill" style="width:{{ $prov->score_total }}%;background:{{ $prov->score_total >= 80 ? 'var(--green)' : ($prov->score_total >= 60 ? 'var(--amber)' : 'var(--red)') }};"></div></div>
+                                <span style="font-size:11px;font-weight:600;">{{ $prov->score_total }}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="3" style="text-align:center;color:var(--gray-muted);">Sin proveedores activos</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+            </div>
+        </div>
+        <div class="pp-card pp-activity-card">
+            <div class="pp-activity-head" style="display:flex;align-items:center;justify-content:space-between;">
+                <span><span style="color:var(--red);">●</span> Inactivos ({{ $proveedoresInactivosList->count() }})</span>
+            </div>
+            <div style="max-height:320px;overflow-y:auto;">
+            <table class="pp-tbl">
+                <thead><tr><th>Proveedor</th><th>Código</th><th>Tiempo inactivo</th><th>Score</th></tr></thead>
+                <tbody>
+                @forelse($proveedoresInactivosList as $prov)
+                    <tr>
+                        <td>{{ $prov->nombre ?? $prov->usuario }}</td>
+                        <td>{{ $prov->id_proveedor ?? '—' }}</td>
+                        <td style="font-size:11px;color:var(--gray-muted);">{{ $prov->updated_at->diffForHumans(null, true) }}</td>
+                        <td>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                                <div class="pp-score-bar" style="width:50px;"><div class="pp-score-fill" style="width:{{ $prov->score_total }}%;background:{{ $prov->score_total >= 80 ? 'var(--green)' : ($prov->score_total >= 60 ? 'var(--amber)' : 'var(--red)') }};"></div></div>
+                                <span style="font-size:11px;font-weight:600;">{{ $prov->score_total }}%</span>
+                            </div>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="4" style="text-align:center;color:var(--gray-muted);">Sin proveedores inactivos</td></tr>
+                @endforelse
+                </tbody>
+            </table>
+            </div>
+        </div>
     </div>
 
     {{-- Accesos directos --}}

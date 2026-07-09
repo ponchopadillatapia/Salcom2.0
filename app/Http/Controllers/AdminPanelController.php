@@ -134,6 +134,8 @@ class AdminPanelController extends Controller
             'docsPendientes' => DocumentoProveedor::where('estatus', 'pendiente')->count(),
             'ultimosPedidos' => Pedido::with('proveedor')->orderBy('created_at', 'desc')->limit(3)->get(),
             'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(3)->get(),
+            'proveedoresActivosList' => ProveedorUser::where('activo', true)->orderBy('nombre')->get(),
+            'proveedoresInactivosList' => ProveedorUser::where('activo', false)->orderBy('nombre')->get(),
             'pedidosPorMes' => $pedidosPorMes,
             'facturasPorEstatus' => $facturasPorEstatus,
             'facturasPagadasCount' => $facturasPagadasCount,
