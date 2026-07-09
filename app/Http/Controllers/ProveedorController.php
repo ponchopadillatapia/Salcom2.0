@@ -175,7 +175,7 @@ class ProveedorController extends Controller
         return [
             'id' => $proveedor->id,
             'nombre' => $proveedor->nombre,
-            'codigo' => $proveedor->codigo_compras,
+            'codigo' => $proveedor->id_proveedor,
             'correo' => $proveedor->correo,
             'token' => null,
         ];

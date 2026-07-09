@@ -7,6 +7,8 @@ use App\Models\ClienteUser;
 use App\Models\Encuesta;
 use App\Models\Pedido;
 use App\Models\Producto;
+use App\Models\ProductoProveedorPrecio;
+use App\Models\ProveedorUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -208,6 +210,63 @@ class AdminPanelTest extends TestCase
         $response->assertOk();
         $response->assertJson(['success' => true]);
         $this->assertSame('Caja corrugada 40x30 para empaque', $producto->fresh()->descripcion);
+    }
+
+    public function test_asignar_proveedor_producto_usa_proveedor_id(): void
+    {
+        $proveedor = ProveedorUser::create([
+            'usuario' => 'provtest',
+            'password' => Hash::make('test1234'),
+            'nombre' => 'Proveedor Test',
+            'correo' => 'prov@test.com',
+            'id_proveedor' => 'SAP-9001',
+            'activo' => true,
+        ]);
+
+        $producto = Producto::create([
+            'codigo' => 'ME0099',
+            'nombre' => 'Producto ME test',
+            'precio' => 100,
+            'unidad_venta' => 'PZA',
+            'stock' => 10,
+            'activo' => true,
+            'proveedor_nombre' => 'Brenda',
+            'proveedor_tipo' => 'admin',
+            'categoria' => 'ME',
+        ]);
+
+        $response = $this->withSession($this->adminSession())
+            ->postJson("/admin/productos/{$producto->id}/asignar-proveedor", [
+                'proveedor_id' => $proveedor->id,
+                'precio' => 95.5,
+                'moq' => 5,
+            ]);
+
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
+
+        $this->assertDatabaseHas('producto_proveedor_precios', [
+            'producto_id' => $producto->id,
+            'proveedor_id' => $proveedor->id,
+            'precio' => 95.5,
+            'moq' => 5,
+        ]);
+    }
+
+    public function test_asignar_proveedor_requiere_autenticacion(): void
+    {
+        $producto = Producto::create([
+            'codigo' => 'ME0100',
+            'nombre' => 'Producto sin auth',
+            'precio' => 50,
+            'unidad_venta' => 'PZA',
+            'stock' => 1,
+            'activo' => true,
+        ]);
+
+        $this->postJson("/admin/productos/{$producto->id}/asignar-proveedor", [
+            'proveedor_id' => 1,
+        ])->assertRedirect('/login-admin');
     }
 
     // ═══════════════════════════════════════════

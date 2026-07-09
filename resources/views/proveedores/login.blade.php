@@ -45,8 +45,8 @@
                 <input type="password" name="pwd" placeholder="Tu contraseña" required>
             </div>
             <div class="ios-field">
-                <label>Código de compras</label>
-                <input type="text" name="codigo_compras" placeholder="Código asignado (opcional)">
+                <label>ID Proveedor</label>
+                <input type="text" name="id_proveedor" placeholder="ID asignado por Compras (opcional)">
             </div>
             <button type="submit" class="ios-btn-primary">Ingresar al portal</button>
         </form>

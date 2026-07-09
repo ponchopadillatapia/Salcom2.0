@@ -49,7 +49,7 @@
         <thead>
             <tr>
                 <th>Proveedor</th>
-                <th>Código</th>
+                <th>ID Proveedor</th>
                 <th>CIF</th>
                 <th>Opinión</th>
                 <th>Acta</th>
@@ -70,7 +70,10 @@
             @endphp
             <tr>
                 <td style="font-weight:600;">{{ $prov->nombre ?? $prov->usuario }}</td>
-                <td style="font-size:11px;color:var(--gray-muted);">{{ $prov->codigo_compras ?? '—' }}</td>
+                <td style="font-size:11px;color:var(--gray-muted);">
+                    <div>#{{ $prov->id }}</div>
+                    <div>{{ $prov->idProveedorDisplay() }}</div>
+                </td>
                 @foreach($tiposRequeridos as $tipo)
                     @php
                         $doc = $docs->get($tipo);

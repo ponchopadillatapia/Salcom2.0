@@ -71,7 +71,8 @@
     <table class="tbl" id="tablaOpinion">
         <thead>
             <tr>
-                <th>Código</th>
+                <th>ID sistema</th>
+                <th>ID Proveedor</th>
                 <th>Proveedor</th>
                 <th>Estado</th>
                 <th>Fecha revisión</th>
@@ -87,7 +88,8 @@
                 $labels = ['aprobado' => 'Positiva', 'pendiente' => 'En revisión', 'rechazado' => 'Negativa/Rechazada', 'sin_documento' => 'Sin documento'];
             @endphp
             <tr data-estatus="{{ $est }}">
-                <td style="font-weight:700;color:var(--purple)">{{ $prov->codigo_compras ?? '—' }}</td>
+                <td style="font-weight:600;color:var(--gray-muted)">#{{ $prov->id }}</td>
+                <td style="font-weight:700;color:var(--purple)">{{ $prov->idProveedorDisplay() }}</td>
                 <td style="font-weight:600">{{ $prov->nombre ?? $prov->usuario }}</td>
                 <td><span class="badge-op {{ $est }}">{{ $labels[$est] ?? $est }}</span></td>
                 <td style="color:var(--gray-muted)">{{ $doc && $doc->revisado_at ? $doc->revisado_at->format('d/m/Y') : '—' }}</td>

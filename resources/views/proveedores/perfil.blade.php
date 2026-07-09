@@ -84,7 +84,8 @@
         <div>
             <div class="perfil-name">{{ $proveedor->nombre ?? session('proveedor_nombre', '—') }}</div>
             <div class="perfil-meta">
-                Código: {{ $proveedor->codigo_compras ?? session('proveedor_codigo', '—') }}
+                ID Proveedor: {{ $proveedor->id_proveedor ?? session('proveedor_codigo', '—') }}
+                · #{{ $proveedor->id ?? session('proveedor_id', '—') }}
                 · {{ $proveedor->correo ?? session('proveedor_correo', '—') }}
             </div>
         </div>
@@ -120,8 +121,12 @@
                 <span class="info-value">{{ $proveedor->tipo_persona ?? '—' }}</span>
             </div>
             <div class="info-row">
-                <span class="info-label">Código de compras</span>
-                <span class="info-value">{{ $proveedor->codigo_compras ?? '—' }}</span>
+                <span class="info-label">ID sistema</span>
+                <span class="info-value">#{{ $proveedor->id ?? '—' }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">ID Proveedor</span>
+                <span class="info-value">{{ $proveedor->id_proveedor ?? '—' }}</span>
             </div>
         </div>
 

@@ -219,7 +219,7 @@
                 <tr>
                     <td>
                         <div style="font-weight:600">{{ $d->proveedor?->nombre ?? $d->proveedor?->usuario ?? 'ID: '.$d->proveedor_id }}</div>
-                        @if($d->proveedor?->codigo_compras)<div style="font-size:11px;color:var(--gray-muted)">{{ $d->proveedor->codigo_compras }}</div>@endif
+                        @if($d->proveedor?->id_proveedor)<div style="font-size:11px;color:var(--gray-muted)">ID Proveedor: {{ $d->proveedor->id_proveedor }} · #{{ $d->proveedor_id }}</div>@elseif($d->proveedor_id)<div style="font-size:11px;color:var(--gray-muted)">#{{ $d->proveedor_id }}</div>@endif
                     </td>
                     <td><span class="tipo-badge">{{ $labelTipo($d->tipo) }}</span></td>
                     <td><span class="badge-doc {{ $d->estatus }}">{{ $estatusOpciones[$d->estatus] ?? ucfirst($d->estatus) }}</span></td>

@@ -40,13 +40,13 @@ class IaProveedorAdminTest extends TestCase
             'password' => Hash::make('secret'),
             'nombre' => 'Proveedor IA Test',
             'correo' => 'prov-ia@test.com',
-            'codigo_compras' => 'COD-IA-001',
+            'id_proveedor' => 'COD-IA-001',
         ]);
 
         return [
             'proveedor_id' => $proveedor->id,
             'proveedor_nombre' => $proveedor->nombre,
-            'proveedor_codigo' => $proveedor->codigo_compras,
+            'proveedor_codigo' => $proveedor->id_proveedor,
             'proveedor_correo' => $proveedor->correo,
         ];
     }

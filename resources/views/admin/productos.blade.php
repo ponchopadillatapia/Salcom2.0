@@ -262,16 +262,25 @@
                     <td style="font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">${{ number_format($p->precio, 2) }}</td>
                     <td>{{ $p->unidad_venta }}</td>
                     <td style="font-size:12px;">
-                        @if($p->proveedor_tipo === 'admin')
+                        @if($p->preciosProveedor->isNotEmpty())
+                            @foreach($p->preciosProveedor as $vinculo)
+                                <div style="margin-bottom:2px;">
+                                    <span style="color:var(--green);font-weight:600;">{{ $vinculo->proveedor?->nombre ?? $vinculo->proveedor?->usuario ?? 'Proveedor' }}</span>
+                                    <span style="color:var(--gray-muted);font-size:10px;">#{{ $vinculo->proveedor_id }}</span>
+                                </div>
+                            @endforeach
+                        @elseif($p->proveedor_tipo === 'admin')
                             <span style="color:var(--purple);font-weight:600;">{{ $p->proveedor_nombre }}</span>
+                            <span style="display:block;font-size:10px;color:var(--amber);font-weight:600;">Sin proveedor vinculado</span>
                         @elseif($p->proveedor_nombre)
                             <span style="color:var(--gray-muted);">{{ $p->proveedor_nombre }}</span>
                         @else
-                            —
+                            <span style="color:var(--amber);font-weight:600;font-size:11px;">Sin proveedor</span>
                         @endif
                     </td>
                     <td style="font-size:11px;color:var(--gray-muted);white-space:nowrap">{{ $p->created_at ? $p->created_at->format('h:i a') : '—' }}</td>
                     <td style="text-align:center;white-space:nowrap" onclick="event.stopPropagation()">
+                        <button onclick="abrirAsignarProveedor({{ $p->id }}, '{{ addslashes($p->codigo) }}', '{{ addslashes($p->nombre) }}', {{ $p->precio }})" title="Vincular proveedor" style="background:none;border:none;cursor:pointer;font-size:15px;line-height:1;opacity:.7;transition:.15s;vertical-align:middle;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">🔗</button>
                         <button class="btn-toggle-activo" onclick="toggleActivo(this, {{ $p->id }}, '{{ $p->codigo }}')" title="{{ $p->activo ? 'Marcar como inactivo' : 'Reactivar producto' }}" style="background:none;border:none;cursor:pointer;font-size:15px;line-height:1;opacity:.7;transition:.15s;vertical-align:middle;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.7">{{ $p->activo ? '🚫' : '✅' }}</button>
                         <button onclick="borrarProducto({{ $p->id }}, '{{ $p->codigo }}')" title="Eliminar producto" style="background:none;border:none;cursor:pointer;color:var(--red);opacity:.6;transition:.15s;vertical-align:middle;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.6">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
@@ -358,6 +367,37 @@
         </div>
     </div>
 </div>
+
+{{-- Modal vincular proveedor --}}
+<div class="edit-modal-overlay" id="asignarProveedorModal" onclick="if(event.target===this)cerrarAsignarProveedor()">
+    <div class="edit-modal">
+        <h3>Vincular proveedor</h3>
+        <div class="edit-subtitle"><span id="asignarCodigo"></span> — <span id="asignarNombre"></span></div>
+        <input type="hidden" id="asignarProductoId">
+        <div class="edit-field">
+            <label>Proveedor (ID sistema)</label>
+            <select id="asignarProveedorId" required>
+                <option value="">Seleccionar proveedor…</option>
+                @foreach($proveedoresActivos as $prov)
+                    <option value="{{ $prov->id }}">{{ $prov->opcionSelectLabel() }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="edit-field">
+            <label>Precio con este proveedor</label>
+            <input type="number" id="asignarPrecio" step="0.01" min="0" placeholder="Usa precio del producto si se deja vacío">
+        </div>
+        <div class="edit-field">
+            <label>MOQ</label>
+            <input type="number" id="asignarMoq" step="1" min="1" value="1">
+        </div>
+        <p style="font-size:11px;color:var(--gray-muted);margin-top:4px;">Por dentro se guarda con <strong>proveedor_id</strong> (#). El ID Proveedor de negocio es solo referencia visual.</p>
+        <div class="edit-actions">
+            <button class="btn-cancel" type="button" onclick="cerrarAsignarProveedor()">Cancelar</button>
+            <button class="btn-save" type="button" onclick="guardarProveedorProducto()">Vincular</button>
+        </div>
+    </div>
+</div>
 @endsection
 @push('styles')
 <style>
@@ -395,6 +435,54 @@ function abrirEditor(row) {
 
 function cerrarEditor() {
     document.getElementById('editModal').style.display = 'none';
+}
+
+function abrirAsignarProveedor(id, codigo, nombre, precio) {
+    document.getElementById('asignarProductoId').value = id;
+    document.getElementById('asignarCodigo').textContent = codigo;
+    document.getElementById('asignarNombre').textContent = nombre;
+    document.getElementById('asignarProveedorId').value = '';
+    document.getElementById('asignarPrecio').value = precio || '';
+    document.getElementById('asignarMoq').value = 1;
+    document.getElementById('asignarProveedorModal').style.display = 'flex';
+}
+
+function cerrarAsignarProveedor() {
+    document.getElementById('asignarProveedorModal').style.display = 'none';
+}
+
+function guardarProveedorProducto() {
+    const id = document.getElementById('asignarProductoId').value;
+    const proveedorId = document.getElementById('asignarProveedorId').value;
+    if (!proveedorId) {
+        alert('Selecciona un proveedor');
+        return;
+    }
+
+    const data = {
+        proveedor_id: proveedorId,
+        precio: document.getElementById('asignarPrecio').value || null,
+        moq: document.getElementById('asignarMoq').value || 1,
+    };
+
+    fetch(`/admin/productos/${id}/asignar-proveedor`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+        },
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.success) {
+            cerrarAsignarProveedor();
+            location.reload();
+        } else {
+            alert(res.mensaje || 'Error al vincular proveedor');
+        }
+    })
+    .catch(() => alert('Error al vincular proveedor'));
 }
 
 function guardarProducto() {
@@ -483,7 +571,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Los selects NO filtran automáticamente - solo al presionar "Filtrar"
 
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarEditor(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            cerrarEditor();
+            cerrarAsignarProveedor();
+        }
+    });
 });
 </script>
 @endpush

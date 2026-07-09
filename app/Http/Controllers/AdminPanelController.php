@@ -12,6 +12,7 @@ use App\Models\Muestra;
 use App\Models\OcBorrador;
 use App\Models\Pedido;
 use App\Models\Producto;
+use App\Models\ProductoProveedorPrecio;
 use App\Models\ProveedorUser;
 use App\Services\InventarioCalculoService;
 use App\Services\PedidoProveedorSyncService;
@@ -320,7 +321,7 @@ class AdminPanelController extends Controller
                     ->orWhere('codigo_proveedor', 'like', "%{$busqueda}%")
                     ->orWhereHas('proveedor', function ($p) use ($busqueda) {
                         $p->where('nombre', 'like', "%{$busqueda}%")
-                            ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
+                            ->orWhere('id_proveedor', 'like', "%{$busqueda}%");
                     });
             });
         }
@@ -460,16 +461,19 @@ class AdminPanelController extends Controller
             $b = $filtrosProv['busqueda'];
             $query->where(function ($q) use ($b) {
                 $q->where('nombre', 'like', "%{$b}%")
-                    ->orWhere('codigo_compras', 'like', "%{$b}%")
+                    ->orWhere('id_proveedor', 'like', "%{$b}%")
                     ->orWhere('correo', 'like', "%{$b}%")
                     ->orWhere('usuario', 'like', "%{$b}%");
+                if ($id = $this->parseProveedorIdBusqueda($b)) {
+                    $q->orWhere('id', $id);
+                }
             });
         } else {
             if ($filtrosProv['nombre']) {
                 $query->where('nombre', 'like', '%'.$filtrosProv['nombre'].'%');
             }
             if ($filtrosProv['codigo']) {
-                $query->where('codigo_compras', 'like', '%'.$filtrosProv['codigo'].'%');
+                $query->where('id_proveedor', 'like', '%'.$filtrosProv['codigo'].'%');
             }
             if ($filtrosProv['correo']) {
                 $query->where('correo', 'like', '%'.$filtrosProv['correo'].'%');
@@ -484,10 +488,14 @@ class AdminPanelController extends Controller
 
         $ordenesQuery = OcBorrador::with('proveedor')->orderByDesc('created_at');
         if ($filtrosOc['proveedor']) {
-            $ordenesQuery->whereHas('proveedor', function ($pq) use ($filtrosOc) {
-                $pq->where('nombre', 'like', '%'.$filtrosOc['proveedor'].'%')
-                    ->orWhere('usuario', 'like', '%'.$filtrosOc['proveedor'].'%')
-                    ->orWhere('codigo_compras', 'like', '%'.$filtrosOc['proveedor'].'%');
+            $fp = $filtrosOc['proveedor'];
+            $ordenesQuery->whereHas('proveedor', function ($pq) use ($fp) {
+                $pq->where('nombre', 'like', '%'.$fp.'%')
+                    ->orWhere('usuario', 'like', '%'.$fp.'%')
+                    ->orWhere('id_proveedor', 'like', '%'.$fp.'%');
+                if ($id = $this->parseProveedorIdBusqueda($fp)) {
+                    $pq->orWhere('id', $id);
+                }
             });
         }
         if ($filtrosOc['numero']) {
@@ -516,7 +524,13 @@ class AdminPanelController extends Controller
             $facturasQuery->where('folio_cfdi', 'like', '%'.$filtrosFact['folio'].'%');
         }
         if ($filtrosFact['proveedor']) {
-            $facturasQuery->where('codigo_proveedor', 'like', '%'.$filtrosFact['proveedor'].'%');
+            $fp = $filtrosFact['proveedor'];
+            $facturasQuery->where(function ($q) use ($fp) {
+                $q->where('codigo_proveedor', 'like', '%'.$fp.'%');
+                if ($id = $this->parseProveedorIdBusqueda($fp)) {
+                    $q->orWhereHas('proveedor', fn ($pq) => $pq->where('id', $id));
+                }
+            });
         }
         if ($filtrosFact['vencidas'] === '1') {
             $facturasQuery->where('fecha_vencimiento', '<', now());
@@ -605,7 +619,7 @@ class AdminPanelController extends Controller
 
     public function proveedorFacturas(string $codigo)
     {
-        $proveedor = ProveedorUser::where('codigo_compras', $codigo)->first();
+        $proveedor = ProveedorUser::where('id_proveedor', $codigo)->first();
         $facturas = Factura::where('codigo_proveedor', $codigo)->orderBy('fecha_vencimiento', 'desc')->get();
 
         // Exportar a Excel si se pide
@@ -677,7 +691,7 @@ class AdminPanelController extends Controller
         $lines[] = [];
 
         foreach ($facturas as $f) {
-            $prov = ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
+            $prov = ProveedorUser::where('id_proveedor', $f->codigo_proveedor)->first();
             $vencida = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
             $diasV = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
 
@@ -839,6 +853,42 @@ class AdminPanelController extends Controller
     }
 
     /**
+     * Vincular proveedor a producto (usa proveedor_id internamente).
+     */
+    public function asignarProveedorProducto(Request $request, $id)
+    {
+        $request->validate([
+            'proveedor_id' => 'required|exists:proveedores_users,id',
+            'precio' => 'nullable|numeric|min:0',
+            'moq' => 'nullable|integer|min:1',
+        ]);
+
+        $producto = Producto::with('preciosProveedor.proveedor')->findOrFail($id);
+        $proveedor = ProveedorUser::findOrFail($request->proveedor_id);
+
+        ProductoProveedorPrecio::updateOrCreate(
+            [
+                'producto_id' => $producto->id,
+                'proveedor_id' => $proveedor->id,
+            ],
+            [
+                'precio' => $request->input('precio', $producto->precio),
+                'moq' => $request->input('moq', 1),
+            ]
+        );
+
+        return response()->json([
+            'success' => true,
+            'mensaje' => 'Proveedor vinculado correctamente',
+            'proveedor' => [
+                'id' => $proveedor->id,
+                'nombre' => $proveedor->nombre ?? $proveedor->usuario,
+                'id_proveedor' => $proveedor->id_proveedor,
+            ],
+        ]);
+    }
+
+    /**
      * Vista detalle de un producto con todas sus especificaciones.
      */
     public function productoDetalle($id)
@@ -865,6 +915,7 @@ class AdminPanelController extends Controller
         }
 
         $productos = $this->queryProductosFiltrados($request)
+            ->with(['preciosProveedor.proveedor'])
             ->orderBy('created_at', 'desc')
             ->paginate(50)
             ->withQueryString();
@@ -916,6 +967,10 @@ class AdminPanelController extends Controller
 
         $filtrosActivos = $this->filtrosTienenValor($filtros);
 
+        $proveedoresActivos = ProveedorUser::where('activo', true)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'usuario', 'id_proveedor']);
+
         return view('admin.productos', compact(
             'productos',
             'stockOpciones',
@@ -933,6 +988,7 @@ class AdminPanelController extends Controller
             'totalCategorias',
             'categorias',
             'proveedores',
+            'proveedoresActivos',
             'admins',
             'filtros',
             'filtrosActivos',
@@ -1120,7 +1176,7 @@ class AdminPanelController extends Controller
                     ->orWhere('codigo_proveedor', 'like', "%{$busqueda}%")
                     ->orWhereHas('proveedor', function ($q2) use ($busqueda) {
                         $q2->where('nombre', 'like', "%{$busqueda}%")
-                            ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
+                            ->orWhere('id_proveedor', 'like', "%{$busqueda}%");
                     });
             });
         }
@@ -1158,13 +1214,14 @@ class AdminPanelController extends Controller
             ['DOCUMENTOS FISCALES DE PROVEEDORES'],
             ['Generado: '.now()->format('d/m/Y H:i')],
             [],
-            ['PROVEEDOR', 'CÓDIGO', 'TIPO', 'ESTATUS', 'NOTAS', 'FECHA REVISIÓN', 'SUBIDO'],
+            ['PROVEEDOR', 'ID SISTEMA', 'ID PROVEEDOR', 'TIPO', 'ESTATUS', 'NOTAS', 'FECHA REVISIÓN', 'SUBIDO'],
         ];
 
         foreach ($documentos as $d) {
             $lines[] = [
                 $d->proveedor?->nombre ?? $d->proveedor?->usuario ?? 'ID: '.$d->proveedor_id,
-                $d->proveedor?->codigo_compras ?? '—',
+                $d->proveedor_id,
+                $d->proveedor?->id_proveedor ?? '—',
                 $tipoLabels[$d->tipo] ?? $d->tipo,
                 $estatusOpciones[$d->estatus] ?? ucfirst($d->estatus),
                 $d->notas_revision ?? '—',
@@ -1273,7 +1330,7 @@ class AdminPanelController extends Controller
                     ->orWhere('notas_revision', 'like', "%{$busqueda}%")
                     ->orWhereHas('proveedor', function ($q2) use ($busqueda) {
                         $q2->where('nombre', 'like', "%{$busqueda}%")
-                            ->orWhere('codigo_compras', 'like', "%{$busqueda}%")
+                            ->orWhere('id_proveedor', 'like', "%{$busqueda}%")
                             ->orWhere('usuario', 'like', "%{$busqueda}%");
                     });
             });
@@ -1360,11 +1417,11 @@ class AdminPanelController extends Controller
 
         $detalleProveedores = [];
         foreach ($proveedores as $prov) {
-            if (! $prov->codigo_compras) {
+            if (! $prov->id_proveedor) {
                 continue;
             }
 
-            $factProv = $facturasProveedor->where('codigo_proveedor', $prov->codigo_compras);
+            $factProv = $facturasProveedor->where('codigo_proveedor', $prov->id_proveedor);
             $totalProv = $factProv->count();
             if ($totalProv === 0) {
                 continue;
@@ -1376,7 +1433,7 @@ class AdminPanelController extends Controller
 
             $detalleProveedores[] = [
                 'nombre' => $prov->nombre ?? $prov->usuario,
-                'codigo' => $prov->codigo_compras,
+                'codigo' => $prov->id_proveedor,
                 'total' => $totalProv,
                 'pagadas' => $factProv->where('estatus', 'pagada')->count(),
                 'pendientes' => $factProv->where('estatus', 'pendiente')->count(),
@@ -1521,7 +1578,7 @@ class AdminPanelController extends Controller
             ->get();
 
         $codigos = $agrupado->pluck('codigo_proveedor')->filter()->values();
-        $proveedores = ProveedorUser::whereIn('codigo_compras', $codigos)->get()->keyBy('codigo_compras');
+        $proveedores = ProveedorUser::whereIn('id_proveedor', $codigos)->get()->keyBy('id_proveedor');
 
         // Obtener categoría principal de productos por proveedor
         $categoriasProv = Producto::whereIn('proveedor_nombre', $proveedores->pluck('nombre')->filter())
@@ -1565,9 +1622,9 @@ class AdminPanelController extends Controller
         $totales = ['compras_anterior' => 0, 'compras_actual' => 0, 'facturas_anterior' => 0, 'facturas_actual' => 0];
 
         foreach ($proveedores as $prov) {
-            $facturasAnterior = Factura::where('codigo_proveedor', $prov->codigo_compras)
+            $facturasAnterior = Factura::where('codigo_proveedor', $prov->id_proveedor)
                 ->whereYear('created_at', $anioAnterior)->get();
-            $facturasActual = Factura::where('codigo_proveedor', $prov->codigo_compras)
+            $facturasActual = Factura::where('codigo_proveedor', $prov->id_proveedor)
                 ->whereYear('created_at', $anioActual)->get();
 
             $montoAnterior = $facturasAnterior->sum('total');
@@ -1579,7 +1636,8 @@ class AdminPanelController extends Controller
             $variacionCant = $cantAnterior > 0 ? round((($cantActual - $cantAnterior) / $cantAnterior) * 100, 1) : ($cantActual > 0 ? 100 : 0);
 
             $reporte[] = [
-                'codigo' => $prov->codigo_compras,
+                'id' => $prov->id,
+                'codigo' => $prov->id_proveedor,
                 'nombre' => $prov->nombre ?? $prov->usuario,
                 'compras_anterior' => $montoAnterior,
                 'compras_actual' => $montoActual,
@@ -1623,14 +1681,14 @@ class AdminPanelController extends Controller
         $lines[] = ['REPORTE DE COMPRAS POR PROVEEDOR - COMPARATIVO ANUAL'];
         $lines[] = ['Generado: '.now()->format('d/m/Y H:i')];
         $lines[] = [];
-        $lines[] = ['CODIGO', 'PROVEEDOR', 'SCORE', "FACTURAS {$anioAnterior}", "FACTURAS {$anioActual}", 'VAR FACTURAS %', "COMPRAS {$anioAnterior}", "COMPRAS {$anioActual}", 'VAR COMPRAS %'];
+        $lines[] = ['ID SISTEMA', 'ID PROVEEDOR', 'PROVEEDOR', 'SCORE', "FACTURAS {$anioAnterior}", "FACTURAS {$anioActual}", 'VAR FACTURAS %', "COMPRAS {$anioAnterior}", "COMPRAS {$anioActual}", 'VAR COMPRAS %'];
 
         $totalAnterior = 0;
         $totalActual = 0;
 
         foreach ($proveedores as $prov) {
-            $facturasAnt = Factura::where('codigo_proveedor', $prov->codigo_compras)->whereYear('created_at', $anioAnterior)->get();
-            $facturasAct = Factura::where('codigo_proveedor', $prov->codigo_compras)->whereYear('created_at', $anioActual)->get();
+            $facturasAnt = Factura::where('codigo_proveedor', $prov->id_proveedor)->whereYear('created_at', $anioAnterior)->get();
+            $facturasAct = Factura::where('codigo_proveedor', $prov->id_proveedor)->whereYear('created_at', $anioActual)->get();
 
             $montoAnt = $facturasAnt->sum('total');
             $montoAct = $facturasAct->sum('total');
@@ -1641,7 +1699,8 @@ class AdminPanelController extends Controller
             $varCant = $cantAnt > 0 ? round((($cantAct - $cantAnt) / $cantAnt) * 100, 1) : 0;
 
             $lines[] = [
-                $prov->codigo_compras,
+                $prov->id,
+                $prov->id_proveedor ?? '—',
                 $prov->nombre ?? $prov->usuario,
                 $prov->score_total.'%',
                 $cantAnt,
@@ -1693,14 +1752,15 @@ class AdminPanelController extends Controller
 
         foreach ($proveedores as $prov) {
             $fila = [
-                'codigo' => $prov->codigo_compras,
+                'id' => $prov->id,
+                'codigo' => $prov->id_proveedor,
                 'nombre' => $prov->nombre ?? $prov->usuario,
                 'meses' => [],
                 'total' => 0,
             ];
 
             for ($m = 1; $m <= $mesActual; $m++) {
-                $monto = Factura::where('codigo_proveedor', $prov->codigo_compras)
+                $monto = Factura::where('codigo_proveedor', $prov->id_proveedor)
                     ->whereYear('created_at', $anio)
                     ->whereMonth('created_at', $m)
                     ->sum('total');
@@ -1731,7 +1791,7 @@ class AdminPanelController extends Controller
         $lines[] = [];
 
         // Header
-        $header = ['CODIGO', 'PROVEEDOR'];
+        $header = ['ID SISTEMA', 'ID PROVEEDOR', 'PROVEEDOR'];
         for ($m = 1; $m <= $mesActual; $m++) {
             $header[] = strtoupper(substr($this->mesNombre($m), 0, 3));
         }
@@ -1742,11 +1802,11 @@ class AdminPanelController extends Controller
         $granTotal = 0;
 
         foreach ($proveedores as $prov) {
-            $row = [$prov->codigo_compras, $prov->nombre ?? $prov->usuario];
+            $row = [$prov->id, $prov->id_proveedor ?? '—', $prov->nombre ?? $prov->usuario];
             $totalProv = 0;
 
             for ($m = 1; $m <= $mesActual; $m++) {
-                $monto = Factura::where('codigo_proveedor', $prov->codigo_compras)
+                $monto = Factura::where('codigo_proveedor', $prov->id_proveedor)
                     ->whereYear('created_at', $anio)
                     ->whereMonth('created_at', $m)
                     ->sum('total');
@@ -1967,13 +2027,13 @@ class AdminPanelController extends Controller
     public function exportOpinion()
     {
         $proveedores = ProveedorUser::where('activo', true)->orderBy('nombre')->get();
-        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['OPINION POSITIVA SAT - ESTADO POR PROVEEDOR'], ['Generado: '.now()->format('d/m/Y H:i')], [], ['CODIGO', 'PROVEEDOR', 'CORREO', 'ESTADO OPINION']];
+        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['OPINION POSITIVA SAT - ESTADO POR PROVEEDOR'], ['Generado: '.now()->format('d/m/Y H:i')], [], ['ID SISTEMA', 'ID PROVEEDOR', 'PROVEEDOR', 'CORREO', 'ESTADO OPINION']];
 
         foreach ($proveedores as $prov) {
             $doc = DocumentoProveedor::where('proveedor_id', $prov->id)->where('tipo', 'opinion')->latest()->first();
             $est = $doc ? $doc->estatus : 'Sin documento';
             $labels = ['aprobado' => 'Positiva', 'pendiente' => 'En revision', 'rechazado' => 'Negativa'];
-            $lines[] = [$prov->codigo_compras, $prov->nombre ?? $prov->usuario, $prov->correo ?? '-', $labels[$est] ?? $est];
+            $lines[] = [$prov->id, $prov->id_proveedor ?? '—', $prov->nombre ?? $prov->usuario, $prov->correo ?? '-', $labels[$est] ?? $est];
         }
 
         return $this->csvResponse($lines, 'Opinion_Positiva_'.now()->format('Y-m-d').'.csv');
@@ -1982,10 +2042,10 @@ class AdminPanelController extends Controller
     public function exportAutorizacion()
     {
         $proveedores = ProveedorUser::orderBy('nombre')->get();
-        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['AUTORIZACION DE PROVEEDORES'], ['Generado: '.now()->format('d/m/Y H:i')], [], ['CODIGO', 'PROVEEDOR', 'CORREO', 'ESTADO', 'SCORE']];
+        $lines = [['INDUSTRIAS SALCOM S.A. DE C.V.'], ['AUTORIZACION DE PROVEEDORES'], ['Generado: '.now()->format('d/m/Y H:i')], [], ['ID SISTEMA', 'ID PROVEEDOR', 'PROVEEDOR', 'CORREO', 'ESTADO', 'SCORE']];
 
         foreach ($proveedores as $prov) {
-            $lines[] = [$prov->codigo_compras, $prov->nombre ?? $prov->usuario, $prov->correo ?? '-', $prov->activo ? 'Activo' : 'Inactivo', $prov->score_total.'%'];
+            $lines[] = [$prov->id, $prov->id_proveedor ?? '—', $prov->nombre ?? $prov->usuario, $prov->correo ?? '-', $prov->activo ? 'Activo' : 'Inactivo', $prov->score_total.'%'];
         }
 
         return $this->csvResponse($lines, 'Autorizacion_Proveedores_'.now()->format('Y-m-d').'.csv');
@@ -2201,7 +2261,7 @@ class AdminPanelController extends Controller
 
     private function buildProveedoresMetricas($proveedores): array
     {
-        $codigos = $proveedores->pluck('codigo_compras')->filter()->values();
+        $codigos = $proveedores->pluck('id_proveedor')->filter()->values();
         if ($codigos->isEmpty()) {
             return [];
         }
@@ -2214,7 +2274,7 @@ class AdminPanelController extends Controller
 
         $metricas = [];
         foreach ($proveedores as $prov) {
-            $codigo = $prov->codigo_compras;
+            $codigo = $prov->id_proveedor;
             if (! $codigo) {
                 $metricas[$prov->id] = $this->metricasProveedorVacias($prov);
 
@@ -2388,5 +2448,16 @@ class AdminPanelController extends Controller
             'total' => $total,
             'pctCumple' => $total > 0 ? round(($verde / $total) * 100) : 0,
         ];
+    }
+
+    private function parseProveedorIdBusqueda(?string $term): ?int
+    {
+        if ($term === null || trim($term) === '') {
+            return null;
+        }
+
+        $limpio = ltrim(trim($term), '#');
+
+        return ctype_digit($limpio) ? (int) $limpio : null;
     }
 }

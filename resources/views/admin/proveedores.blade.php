@@ -191,7 +191,7 @@
             @include('partials.prov-admin-preserve-filters', ['preserve' => $preserveFact])
             <div class="filter-field search-field">
                 <label>Buscar</label>
-                <input type="text" name="busqueda" value="{{ $filtrosProv['busqueda'] }}" placeholder="Nombre, código, correo o usuario…">
+                <input type="text" name="busqueda" value="{{ $filtrosProv['busqueda'] }}" placeholder="Nombre, ID proveedor, #ID sistema o correo…">
             </div>
             <div class="filter-field">
                 <label>Estado</label>
@@ -232,7 +232,7 @@
     </div>
     @if($proveedores->count())
         <table class="admin-table" id="tableProveedores">
-            <thead><tr><th>Código</th><th>Nombre</th><th>Correo</th><th>OTIF</th><th>Entrega</th><th>Puntualidad</th><th>Estado</th><th>Acción</th></tr></thead>
+            <thead><tr><th>ID sistema</th><th>ID Proveedor</th><th>Nombre</th><th>Correo</th><th>OTIF</th><th>Entrega</th><th>Puntualidad</th><th>Estado</th><th>Acción</th></tr></thead>
             <tbody>
             @foreach($proveedores as $p)
                 @php
@@ -241,7 +241,8 @@
                     $scClass = $sc >= 80 ? 'score-val-high' : ($sc >= 60 ? 'score-val-mid' : 'score-val-low');
                 @endphp
                 <tr>
-                    <td style="font-weight:700;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
+                    <td style="font-weight:600;color:var(--gray-muted)">#{{ $p->id }}</td>
+                    <td style="font-weight:700;color:var(--purple)">{{ $p->idProveedorDisplay() }}</td>
                     <td style="font-weight:600">{{ $p->nombre ?? '—' }}</td>
                     <td>{{ $p->correo ?? '—' }}</td>
                     <td>
@@ -283,7 +284,7 @@
             @include('partials.prov-admin-preserve-filters', ['preserve' => $preserveFact])
             <div class="filter-field search-field">
                 <label>Buscar</label>
-                <input type="text" name="busqueda" value="{{ $filtrosProv['busqueda'] }}" placeholder="Nombre, código o correo…">
+                <input type="text" name="busqueda" value="{{ $filtrosProv['busqueda'] }}" placeholder="Nombre, ID proveedor o correo…">
             </div>
             <div class="filter-field">
                 <label>Estado</label>
@@ -314,7 +315,7 @@
     </div>
     @if($proveedores->count())
         <table class="admin-table" id="tableForecast">
-            <thead><tr><th>Código</th><th>Proveedor</th><th>OTIF</th><th>Forecast %</th><th>Compras último trimestre</th><th>Estimado próximo mes</th></tr></thead>
+            <thead><tr><th>ID sistema</th><th>ID Proveedor</th><th>Proveedor</th><th>OTIF</th><th>Forecast %</th><th>Compras último trimestre</th><th>Estimado próximo mes</th></tr></thead>
             <tbody>
             @foreach($proveedores as $p)
                 @php
@@ -325,7 +326,8 @@
                     $estimado = $m['estimado'] ?? 0;
                 @endphp
                 <tr>
-                    <td style="font-weight:700;color:var(--purple)">{{ $p->codigo_compras ?? '—' }}</td>
+                    <td style="font-weight:600;color:var(--gray-muted)">#{{ $p->id }}</td>
+                    <td style="font-weight:700;color:var(--purple)">{{ $p->idProveedorDisplay() }}</td>
                     <td style="font-weight:600">{{ $p->nombre ?? $p->usuario }}</td>
                     <td><span class="pct-val">{{ number_format($otifActual, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span></td>
                     <td>
@@ -427,7 +429,7 @@
                 @php
                     $lineasOc = $o->productos ?? [];
                     $proveedorNombre = $o->proveedor?->nombre ?? $o->proveedor?->usuario ?? '—';
-                    $proveedorCodigo = $o->proveedor?->codigo_compras ?? $o->codigo_proveedor ?? '';
+                    $proveedorCodigo = $o->proveedor?->id_proveedor ?? $o->codigo_proveedor ?? '';
                     $vencimiento = $o->created_at->copy()->addDays(30);
                     $vencida = $o->estatus !== 'completada' && $vencimiento->isPast();
                 @endphp
@@ -476,7 +478,7 @@
             </div>
             <div class="filter-field">
                 <label>Proveedor</label>
-                <input type="text" name="f_fact_proveedor" value="{{ $filtrosFact['proveedor'] ?? '' }}" placeholder="Código compras">
+                <input type="text" name="f_fact_proveedor" value="{{ $filtrosFact['proveedor'] ?? '' }}" placeholder="ID proveedor o #ID sistema">
             </div>
             <div class="filter-field">
                 <label>Vencimiento</label>
@@ -525,7 +527,7 @@
     </div>
     @if($facturasPendientes->count())
         <table class="admin-table" id="tableFacturas">
-            <thead><tr><th>Folio CFDI</th><th>Proveedor</th><th>Código</th><th>Total</th><th>Vencimiento</th><th>Días vencido</th><th></th></tr></thead>
+            <thead><tr><th>Folio CFDI</th><th>Proveedor</th><th>ID Proveedor</th><th>Total</th><th>Vencimiento</th><th>Días vencido</th><th></th></tr></thead>
             <tbody>
             @foreach($facturasPendientes as $f)
                 @php

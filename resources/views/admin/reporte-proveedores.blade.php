@@ -117,7 +117,8 @@
         <table class="admin-table">
             <thead>
                 <tr>
-                    <th>Código</th>
+                    <th>ID sistema</th>
+                    <th>ID Proveedor</th>
                     <th>Proveedor</th>
                     <th>Score</th>
                     <th>Facturas {{ $anioAnterior }}</th>
@@ -131,6 +132,7 @@
             <tbody>
             @foreach($reporte as $r)
                 <tr>
+                    <td class="code-col" style="color:var(--gray-muted)">#{{ $r['id'] ?? '—' }}</td>
                     <td class="code-col">{{ $r['codigo'] ?? '—' }}</td>
                     <td class="name-col">{{ $r['nombre'] }}</td>
                     <td class="{{ $r['score'] >= 80 ? 'score-ok' : ($r['score'] >= 50 ? 'score-mid' : 'score-low') }}">{{ number_format($r['score'], 0) }}%</td>
@@ -145,6 +147,7 @@
             </tbody>
             <tfoot>
                 <tr>
+                    <td></td>
                     <td></td>
                     <td>Gran total</td>
                     <td></td>

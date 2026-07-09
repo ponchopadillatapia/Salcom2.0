@@ -637,7 +637,7 @@ PROMPT,
 
         return $proveedores->map(function ($prov) {
             return [
-                'codigo' => $prov->codigo_compras,
+                'codigo' => $prov->id_proveedor,
                 'nombre' => $prov->nombre,
                 'precio_unitario' => 0, // No tenemos precio por producto-proveedor aún
                 'moneda' => 'MXN',

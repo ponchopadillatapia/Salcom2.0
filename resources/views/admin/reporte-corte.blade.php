@@ -117,7 +117,8 @@
         <table class="admin-table">
             <thead>
                 <tr>
-                    <th>Código</th>
+                    <th>ID sistema</th>
+                    <th>ID Proveedor</th>
                     <th>Proveedor</th>
                     @foreach($meses as $m => $nombre)
                         <th>{{ strtoupper(substr($nombre, 0, 3)) }}</th>
@@ -128,6 +129,7 @@
             <tbody>
             @foreach($reporte as $r)
                 <tr>
+                    <td class="code-col" style="color:var(--gray-muted)">#{{ $r['id'] ?? '—' }}</td>
                     <td class="code-col">{{ $r['codigo'] ?? '—' }}</td>
                     <td class="name-col">{{ $r['nombre'] }}</td>
                     @foreach($meses as $m => $nombre)
@@ -139,6 +141,7 @@
             </tbody>
             <tfoot>
                 <tr>
+                    <td></td>
                     <td></td>
                     <td>Total por mes</td>
                     @foreach($meses as $m => $nombre)

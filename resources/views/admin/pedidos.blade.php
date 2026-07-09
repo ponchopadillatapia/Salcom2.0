@@ -255,7 +255,7 @@
             @foreach($pedidos as $p)
                 @php
                     $nombreProv = $p->proveedor?->nombre ?? $p->nombre_proveedor;
-                    $codigoProv = $p->proveedor?->codigo_compras ?? $p->codigo_proveedor;
+                    $codigoProv = $p->proveedor?->id_proveedor ?? $p->codigo_proveedor;
                     $productos = is_array($p->productos) ? $p->productos : [];
                     $numProductos = count($productos);
                 @endphp
