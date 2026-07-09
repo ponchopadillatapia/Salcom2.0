@@ -791,13 +791,13 @@ class AdminPanelController extends Controller
     }
 
     /**
-     * Actualizar producto (categoría, precio, unidad, stock) via AJAX.
+     * Actualizar producto (categoría, precio, unidad, stock, descripción) via AJAX.
      */
     public function actualizarProducto(Request $request, $id)
     {
         $producto = \App\Models\Producto::findOrFail($id);
 
-        $campos = $request->only(['categoria', 'precio', 'unidad_venta', 'stock']);
+        $campos = $request->only(['categoria', 'precio', 'unidad_venta', 'stock', 'descripcion']);
 
         if (isset($campos['precio'])) {
             $campos['precio'] = (float) str_replace(['$', ','], '', $campos['precio']);
