@@ -22,19 +22,14 @@
     .upload-zone.dragover{border-color:var(--purple);background:var(--purple-light)}
     .btn-download{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;transition:var(--transition)}
     .btn-download:hover{background:#15803d;transform:translateY(-1px)}
-    .btn-upload{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--purple);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:var(--transition);margin-top:16px}
+    .btn-upload{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--purple);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:var(--transition)}
     .btn-upload:hover{background:var(--purple-dark)}
-    .btn-upload:disabled{opacity:.5;cursor:not-allowed}
-    .proveedor-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
-    .proveedor-grid form{margin:0}
-    .btn-proveedor{display:inline-flex;align-items:center;gap:8px;padding:10px 16px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:var(--transition)}
-    .btn-proveedor:hover{background:#15803d;transform:translateY(-1px)}
-    .btn-proveedor.is-active{background:var(--purple);box-shadow:0 0 0 3px rgba(107,63,160,.15)}
-    .btn-proveedor.is-active:hover{background:var(--purple-dark)}
-    .proveedor-asignado{background:var(--purple-subtle);border:1px solid #d4c4e8;border-radius:10px;padding:12px 14px;font-size:13px;color:var(--purple);margin:14px 0 4px;font-weight:600}
-    .alta-paso-titulo{font-size:12px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.04em;margin:0 0 10px}
-    .alta-paso-bloqueado{opacity:.45;pointer-events:none;user-select:none}
-    .alta-paso-listo{border-left:3px solid var(--purple);padding-left:14px;margin-top:20px}
+    .btn-upload:disabled,.btn-download:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .btn-upload{margin-top:0}
+    .nac-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:16px}
+    .nac-select{flex:1;min-width:180px;padding:10px 12px;border:1px solid var(--border-light);border-radius:10px;font-size:13px;font-family:inherit;color:var(--gray-text);background:#fff}
+    .nac-select:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px var(--purple-subtle)}
+    .nac-prov-ok{font-size:12px;color:var(--green);font-weight:600;margin-top:8px;display:block}
     .format-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
     .format-table th{text-align:left;padding:8px;background:var(--gray-soft);font-weight:600;color:var(--gray-muted);font-size:11px;text-transform:uppercase;border-bottom:1px solid var(--border-light)}
     .format-table td{padding:8px;border-bottom:1px solid var(--border-light);color:var(--gray-text)}
@@ -91,8 +86,7 @@
         <div class="alta-steps">
             <div class="alta-step"><div class="alta-step-num">1</div><div class="alta-step-text"><strong>Descarga el template Nacional</strong>Excel para Material de Empaque (ME) y Materia Prima (MP).</div></div>
             <div class="alta-step"><div class="alta-step-num">2</div><div class="alta-step-text"><strong>Llena tus productos</strong>Elige PREFIJO, luego CONSECUTIVO del dropdown (solo disponibles).</div></div>
-            <div class="alta-step"><div class="alta-step-num">3</div><div class="alta-step-text"><strong>Asigna el proveedor</strong>Clic en el botón verde del proveedor. Se confirma en morado.</div></div>
-            <div class="alta-step"><div class="alta-step-num">4</div><div class="alta-step-text"><strong>Sube el Excel</strong>Con proveedor asignado, el botón morado da de alta y concatena en Productos.</div></div>
+            <div class="alta-step"><div class="alta-step-num">3</div><div class="alta-step-text"><strong>Asigna proveedor y sube</strong>Botón verde para proveedor, morado para subir el Excel.</div></div>
         </div>
         <div style="margin-top:20px;">
             <a href="{{ route('admin.alta-producto.template') }}" class="btn-download">
@@ -104,39 +98,11 @@
     <div class="alta-card">
         <h3>Subir Excel Nacional</h3>
 
-        <p class="alta-paso-titulo">Paso 1 — Asignar proveedor</p>
-        <p style="font-size:12px;color:var(--gray-muted);margin:0 0 12px;">Elige proveedor con el botón verde. No se asigna solo: debes dar clic.</p>
-        <div class="proveedor-grid">
-            @forelse($proveedoresActivos as $prov)
-            <form method="POST" action="{{ route('admin.alta-producto.concatenar-proveedor') }}">
-                @csrf
-                <input type="hidden" name="proveedor_id" value="{{ $prov->id }}">
-                <button type="submit" class="btn-proveedor {{ ($proveedorConcatenado?->id === $prov->id) ? 'is-active' : '' }}">
-                    @if($proveedorConcatenado?->id === $prov->id)
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                    @else
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                    @endif
-                    {{ $prov->nombre ?? $prov->usuario }}
-                </button>
-            </form>
-            @empty
-            <p style="font-size:12px;color:var(--amber);font-weight:600;">No hay proveedores activos. Corre el seeder en el servidor.</p>
-            @endforelse
-        </div>
+        <form id="formAsignarProv" method="POST" action="{{ route('admin.alta-producto.concatenar-proveedor') }}">
+            @csrf
+        </form>
 
-        @if($proveedorConcatenado)
-        <div class="proveedor-asignado">
-            Proveedor listo para concatenar: {{ $proveedorConcatenado->opcionSelectLabel() }}
-        </div>
-        @endif
-
-        <div class="{{ $proveedorConcatenado ? 'alta-paso-listo' : 'alta-paso-bloqueado' }}" id="pasoSubirNac">
-        <p class="alta-paso-titulo">Paso 2 — Subir productos</p>
-        @if(!$proveedorConcatenado)
-        <p style="font-size:12px;color:var(--gray-muted);margin:0 0 12px;">Primero asigna un proveedor (paso 1).</p>
-        @endif
-        <form method="POST" action="{{ route('admin.alta-producto.subir') }}" enctype="multipart/form-data">
+        <form id="formSubirNac" method="POST" action="{{ route('admin.alta-producto.subir') }}" enctype="multipart/form-data">
             @csrf
             <div class="upload-zone" onclick="document.getElementById('fileNac').click()">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -145,9 +111,23 @@
                 <div id="fileNameNac" style="margin-top:8px;font-size:12px;color:var(--purple);font-weight:600;display:none;"></div>
             </div>
             <input type="file" name="excel" id="fileNac" accept=".xlsx,.xls,.csv" style="display:none;" onchange="checkNacReady()">
-            <button type="submit" class="btn-upload" id="btnNac" disabled>Subir y validar</button>
+
+            <div class="nac-actions">
+                <select name="proveedor_id" id="proveedorNac" class="nac-select" form="formAsignarProv" required onchange="checkAsignarReady()">
+                    <option value="">Proveedor…</option>
+                    @foreach($proveedoresActivos as $prov)
+                    <option value="{{ $prov->id }}" @selected($proveedorConcatenado?->id == $prov->id)>{{ $prov->nombre ?? $prov->usuario }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" form="formAsignarProv" class="btn-download" id="btnAsignar" disabled>Asignar proveedor</button>
+                <button type="submit" form="formSubirNac" class="btn-upload" id="btnNac" disabled>Subir y validar</button>
+            </div>
         </form>
-        </div>
+
+        @if($proveedorConcatenado)
+        <span class="nac-prov-ok">✓ Proveedor asignado: {{ $proveedorConcatenado->nombre ?? $proveedorConcatenado->usuario }}</span>
+        @endif
+
         <h3 style="margin-top:24px;">Formato Nacional</h3>
         <div style="background:#f8f5ff;border:1px solid #d4c4e8;border-radius:10px;padding:16px;font-size:12px;">
             <table class="format-table" style="margin-top:0;">
@@ -260,6 +240,9 @@ function showName(input, labelId, btnId) {
         if (btnId) document.getElementById(btnId).disabled = false;
     }
 }
+function checkAsignarReady() {
+    document.getElementById('btnAsignar').disabled = document.getElementById('proveedorNac').value === '';
+}
 function checkNacReady() {
     const fileInput = document.getElementById('fileNac');
     const name = fileInput.files[0]?.name;
@@ -271,6 +254,9 @@ function checkNacReady() {
     const proveedorListo = @json((bool) $proveedorConcatenado);
     document.getElementById('btnNac').disabled = !(hasFile && proveedorListo);
 }
-document.addEventListener('DOMContentLoaded', checkNacReady);
+document.addEventListener('DOMContentLoaded', function () {
+    checkAsignarReady();
+    checkNacReady();
+});
 </script>
 @endpush
