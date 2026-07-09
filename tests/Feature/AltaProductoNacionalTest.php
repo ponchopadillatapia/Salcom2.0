@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\AdminUser;
 use App\Models\Producto;
+use App\Models\ProductoProveedorPrecio;
 use App\Models\ProveedorUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -161,9 +162,10 @@ class AltaProductoNacionalTest extends TestCase
         $response->assertSessionHas('error');
     }
 
-    public function test_subir_excel_nacional_con_error_muestra_mensaje_no_500(): void
+    public function test_subir_excel_nacional_actualiza_producto_activo_existente(): void
     {
-        Producto::create([
+        $proveedor = $this->crearProveedor();
+        $producto = Producto::create([
             'codigo' => 'ME0002',
             'nombre' => 'PRODUCTO EXISTENTE',
             'precio' => 0,
@@ -171,7 +173,6 @@ class AltaProductoNacionalTest extends TestCase
             'activo' => true,
         ]);
 
-        $proveedor = $this->crearProveedor();
         $file = $this->crearExcelNacional([[
             'PREFIJO' => 'ME',
             'CONSECUTIVO' => '0002',
@@ -189,7 +190,12 @@ class AltaProductoNacionalTest extends TestCase
 
         $this->assertNotEquals(500, $response->getStatusCode());
         $response->assertRedirect();
-        $response->assertSessionHas('error');
+        $response->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('producto_proveedor_precios', [
+            'producto_id' => $producto->id,
+            'proveedor_id' => $proveedor->id,
+        ]);
     }
 
     public function test_subir_excel_nacional_sin_moq_genera_error(): void
@@ -236,6 +242,92 @@ class AltaProductoNacionalTest extends TestCase
         $response->assertRedirect();
         $response->assertSessionHasNoErrors();
         $this->assertDatabaseHas('productos', ['codigo' => 'MP0003']);
+    }
+
+    public function test_subir_excel_nacional_reactiva_producto_inactivo(): void
+    {
+        $proveedor = $this->crearProveedor();
+        Producto::create([
+            'codigo' => 'ME0008',
+            'nombre' => 'PRODUCTO INACTIVO',
+            'precio' => 10,
+            'unidad_venta' => 'PZA',
+            'activo' => false,
+        ]);
+
+        $file = $this->crearExcelNacional([[
+            'PREFIJO' => 'ME',
+            'CONSECUTIVO' => '0008',
+            'NOMBRE_TIPO' => 'CAJA NUEVA',
+            'NOMBRE_MEDIDA' => '40X30',
+            'TIPO_PRODUCTO' => 'ME',
+            'PRECIO' => '$20.00',
+            'MOQ' => '25',
+        ]]);
+
+        $response = $this->withSession($this->sesionAdminConProveedor($proveedor))
+            ->post('/admin/alta-producto/subir', ['excel' => $file]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        $producto = Producto::where('codigo', 'ME0008')->first();
+        $this->assertTrue($producto->activo);
+        $this->assertDatabaseHas('producto_proveedor_precios', [
+            'producto_id' => $producto->id,
+            'proveedor_id' => $proveedor->id,
+        ]);
+    }
+
+    public function test_mismo_codigo_puede_vincular_otro_proveedor(): void
+    {
+        $proveedorA = $this->crearProveedor();
+        $proveedorB = ProveedorUser::create([
+            'usuario' => 'demo',
+            'password' => Hash::make('test1234'),
+            'nombre' => 'Proveedor Demo',
+            'correo' => 'demo@test.com',
+            'id_proveedor' => 'DEMO-001',
+            'activo' => true,
+        ]);
+
+        $producto = Producto::create([
+            'codigo' => 'ME0011',
+            'nombre' => 'PRODUCTO ACTIVO',
+            'precio' => 50,
+            'unidad_venta' => 'PZA',
+            'activo' => true,
+        ]);
+
+        ProductoProveedorPrecio::create([
+            'producto_id' => $producto->id,
+            'proveedor_id' => $proveedorA->id,
+            'precio' => 50,
+            'moq' => 10,
+        ]);
+
+        $file = $this->crearExcelNacional([[
+            'PREFIJO' => 'ME',
+            'CONSECUTIVO' => '0011',
+            'NOMBRE_TIPO' => 'CAJA',
+            'NOMBRE_MEDIDA' => '30X30',
+            'TIPO_PRODUCTO' => 'ME',
+            'PRECIO' => '$55.00',
+            'MOQ' => '15',
+        ]]);
+
+        $response = $this->withSession($this->sesionAdminConProveedor($proveedorB))
+            ->post('/admin/alta-producto/subir', ['excel' => $file]);
+
+        $response->assertRedirect();
+        $response->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('producto_proveedor_precios', [
+            'producto_id' => $producto->id,
+            'proveedor_id' => $proveedorB->id,
+            'precio' => 55.00,
+            'moq' => 15,
+        ]);
     }
 
     public function test_subir_template_generado_por_sistema(): void
