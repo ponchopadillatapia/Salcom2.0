@@ -7,6 +7,8 @@ use App\Models\ClienteUser;
 use App\Models\Encuesta;
 use App\Models\Pedido;
 use App\Models\Producto;
+use App\Models\ProductoProveedorPrecio;
+use App\Models\ProveedorUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -191,6 +193,23 @@ class AdminPanelTest extends TestCase
         $response->assertSee('MEACTIVO');
         $response->assertSee('MEINACTIVO');
         $response->assertSee('producto-inactivo');
+    }
+
+    public function test_actualizar_producto_guarda_descripcion(): void
+    {
+        $producto = $this->crearProducto(['descripcion' => null]);
+
+        $response = $this->withSession($this->adminSession())
+            ->postJson("/admin/productos/{$producto->id}/actualizar", [
+                'categoria' => 'ME',
+                'precio' => '25.50',
+                'unidad_venta' => 'PZA',
+                'descripcion' => 'Caja corrugada 40x30 para empaque',
+            ]);
+
+        $response->assertOk();
+        $response->assertJson(['success' => true]);
+        $this->assertSame('Caja corrugada 40x30 para empaque', $producto->fresh()->descripcion);
     }
 
     // ═══════════════════════════════════════════

@@ -6,6 +6,8 @@ use App\Jobs\ProcesarMigracionLote;
 use App\Models\ExcelValidacion;
 use App\Models\MigracionMasiva;
 use App\Models\Producto;
+use App\Models\ProductoProveedorPrecio;
+use App\Models\ProveedorUser;
 use App\Services\AlertEngineService;
 use App\Services\IaService;
 use Illuminate\Http\Request;
@@ -52,7 +54,11 @@ class AltaProductoController extends Controller
 
     public function mostrarAltaProductoAdmin()
     {
-        return view('admin.alta-producto');
+        $proveedoresActivos = ProveedorUser::where('activo', true)
+            ->orderBy('nombre')
+            ->get(['id', 'nombre', 'usuario', 'id_proveedor']);
+
+        return view('admin.alta-producto', compact('proveedoresActivos'));
     }
 
     /**
@@ -990,9 +996,13 @@ class AltaProductoController extends Controller
      */
     public function subirExcel(Request $request)
     {
-        $request->validate([
-            'excel' => 'required|file|mimes:xlsx,xls,csv|max:5120',
-        ]);
+        $rules = ['excel' => 'required|file|mimes:xlsx,xls,csv|max:5120'];
+        if ($request->is('admin/*')) {
+            $rules['proveedor_id'] = 'required|exists:proveedores_users,id';
+        }
+        $request->validate($rules);
+
+        $proveedorIdVinculo = $request->is('admin/*') ? (int) $request->input('proveedor_id') : null;
 
         $file = $request->file('excel');
 
@@ -1019,7 +1029,7 @@ class AltaProductoController extends Controller
         }
 
         try {
-            return $this->procesarExcelSubido($productos, $path, $primeraFilaDatos);
+            return $this->procesarExcelSubido($productos, $path, $primeraFilaDatos, $proveedorIdVinculo);
         } catch (\Throwable $e) {
             Log::error('[Alta Producto] Error procesando Excel: '.$e->getMessage(), [
                 'file' => $e->getFile(),
@@ -1030,7 +1040,7 @@ class AltaProductoController extends Controller
         }
     }
 
-    private function procesarExcelSubido(array $productos, string $path, int $primeraFilaDatos): \Illuminate\Http\RedirectResponse
+    private function procesarExcelSubido(array $productos, string $path, int $primeraFilaDatos, ?int $proveedorIdVinculo = null): \Illuminate\Http\RedirectResponse
     {
 
         if (empty($productos)) {
@@ -1085,6 +1095,8 @@ class AltaProductoController extends Controller
         $conError = 0;
         $esModuloCompras = request()->is('admin/*');
         $esModuloProveedor = !$esModuloCompras;
+        $vincularProveedor = $esModuloCompras && $esFormatoNacional && $proveedorIdVinculo;
+        $proveedorVinculo = $vincularProveedor ? ProveedorUser::find($proveedorIdVinculo) : null;
 
         // Auto-generar códigos para proveedores si vienen vacíos
         if ($esModuloProveedor) {
@@ -1340,10 +1352,7 @@ Si todo correcto: {"errores_ia": []}';
         if ($estatus === 'validado') {
             // TODOS validados - dar de alta todos
             foreach ($productos as $prod) {
-                Producto::updateOrCreate(
-                    ['codigo' => strtoupper(trim($prod['CODIGO'] ?? ''))],
-                    $this->datosProductoDesdeExcel($prod)
-                );
+                $this->guardarProductoDesdeAlta($prod, $proveedorIdVinculo, $vincularProveedor);
             }
 
             $listaProductos = [];
@@ -1369,7 +1378,11 @@ Si todo correcto: {"errores_ia": []}';
                 Log::warning('[Alta Producto] No se pudo enviar alerta: '.$e->getMessage());
             }
 
-            $mensajeExito = "OK - {$validos} producto(s) validados y dados de alta en el catalogo:\n";
+            $mensajeExito = "OK - {$validos} producto(s) validados y dados de alta en el catalogo";
+            if ($proveedorVinculo) {
+                $mensajeExito .= ' vinculados a '.($proveedorVinculo->nombre ?? $proveedorVinculo->usuario).' (#'.$proveedorVinculo->id.')';
+            }
+            $mensajeExito .= ":\n";
             foreach ($listaProductos as $item) {
                 $mensajeExito .= "* {$item}\n";
             }
@@ -1383,10 +1396,7 @@ Si todo correcto: {"errores_ia": []}';
         foreach ($productos as $index => $prod) {
             $fila = $index + $primeraFilaDatos;
             if (!in_array($fila, $filasConErrorFinal)) {
-                Producto::updateOrCreate(
-                    ['codigo' => strtoupper(trim($prod['CODIGO'] ?? ''))],
-                    $this->datosProductoDesdeExcel($prod)
-                );
+                $this->guardarProductoDesdeAlta($prod, $proveedorIdVinculo, $vincularProveedor);
                 $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
                 $nombre = strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
                 $productosAlta[] = ['fila' => $fila, 'texto' => "{$codigo} - {$nombre}"];
@@ -2974,6 +2984,37 @@ Si todo correcto: {"errores_ia": []}';
         }
 
         return $producto;
+    }
+
+    private function guardarProductoDesdeAlta(array $prod, ?int $proveedorIdVinculo, bool $vincularProveedor): Producto
+    {
+        $producto = Producto::updateOrCreate(
+            ['codigo' => strtoupper(trim($prod['CODIGO'] ?? ''))],
+            $this->datosProductoDesdeExcel($prod)
+        );
+
+        if ($vincularProveedor && $proveedorIdVinculo) {
+            $this->vincularProveedorAlProducto($producto, $proveedorIdVinculo, $prod);
+        }
+
+        return $producto;
+    }
+
+    private function vincularProveedorAlProducto(Producto $producto, int $proveedorId, array $prod): void
+    {
+        $precio = (float) str_replace(['$', ','], '', $prod['PRECIO'] ?? (string) $producto->precio);
+        $moq = max(1, (int) ($prod['MOQ'] ?? 1));
+
+        ProductoProveedorPrecio::updateOrCreate(
+            [
+                'producto_id' => $producto->id,
+                'proveedor_id' => $proveedorId,
+            ],
+            [
+                'precio' => $precio > 0 ? $precio : (float) $producto->precio,
+                'moq' => $moq,
+            ]
+        );
     }
 
     private function datosProductoDesdeExcel(array $prod): array

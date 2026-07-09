@@ -31,7 +31,7 @@ class ProveedorControllerLoginTest extends TestCase
             'usuario' => $usuario,
             'password' => Hash::make($pwd),
             'nombre' => 'Test Proveedor',
-            'codigo_compras' => 'COD001',
+            'id_proveedor' => 'COD001',
             'correo' => 'test@example.com',
             'tipo_persona' => 'Moral',
             'telefono' => '5551234567',

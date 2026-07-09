@@ -252,7 +252,7 @@
                     </tr>
                     @php $lastDate = $currentDate; @endphp
                 @endif
-                <tr data-id="{{ $p->id }}" data-categoria="{{ $p->categoria }}" data-precio="{{ $p->precio }}" data-unidad="{{ $p->unidad_venta }}" data-stock="{{ $p->stock }}" class="{{ $p->activo ? '' : 'producto-inactivo' }}" style="cursor:pointer" onclick="abrirEditor(this)">
+                <tr data-id="{{ $p->id }}" data-categoria="{{ $p->categoria }}" data-precio="{{ $p->precio }}" data-unidad="{{ $p->unidad_venta }}" data-stock="{{ $p->stock }}" data-descripcion='@json($p->descripcion ?? "")' class="{{ $p->activo ? '' : 'producto-inactivo' }}" style="cursor:pointer" onclick="abrirEditor(this)">
                     <td onclick="event.stopPropagation()">
                         <a href="{{ route('admin.productos.detalle', $p->id) }}" style="font-weight:700;color:var(--purple);text-decoration:none;">{{ $p->codigo }}</a>
                         <span class="badge-inactivo" style="{{ $p->activo ? 'display:none;' : '' }}" title="Producto inactivo">🚫 Inactivo</span>
@@ -262,12 +262,20 @@
                     <td style="font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">${{ number_format($p->precio, 2) }}</td>
                     <td>{{ $p->unidad_venta }}</td>
                     <td style="font-size:12px;">
-                        @if($p->proveedor_tipo === 'admin')
+                        @if($p->preciosProveedor->isNotEmpty())
+                            @foreach($p->preciosProveedor as $vinculo)
+                                <div style="margin-bottom:2px;">
+                                    <span style="color:var(--green);font-weight:600;">{{ $vinculo->proveedor?->nombre ?? $vinculo->proveedor?->usuario ?? 'Proveedor' }}</span>
+                                    <span style="color:var(--gray-muted);font-size:10px;">#{{ $vinculo->proveedor_id }}</span>
+                                </div>
+                            @endforeach
+                        @elseif($p->proveedor_tipo === 'admin')
                             <span style="color:var(--purple);font-weight:600;">{{ $p->proveedor_nombre }}</span>
+                            <span style="display:block;font-size:10px;color:var(--amber);font-weight:600;">Sin proveedor vinculado</span>
                         @elseif($p->proveedor_nombre)
                             <span style="color:var(--gray-muted);">{{ $p->proveedor_nombre }}</span>
                         @else
-                            —
+                            <span style="color:var(--amber);font-weight:600;font-size:11px;">Sin proveedor</span>
                         @endif
                     </td>
                     <td style="font-size:11px;color:var(--gray-muted);white-space:nowrap">{{ $p->created_at ? $p->created_at->format('h:i a') : '—' }}</td>
@@ -348,12 +356,17 @@
                 <option value="NA">NA</option>
             </select>
         </div>
+        <div class="edit-field">
+            <label>Descripción</label>
+            <textarea id="editDescripcion" rows="4" placeholder="Descripción del producto"></textarea>
+        </div>
         <div class="edit-actions">
             <button class="btn-cancel" onclick="cerrarEditor()">Cancelar</button>
             <button class="btn-save" onclick="guardarProducto()">Guardar</button>
         </div>
     </div>
 </div>
+
 @endsection
 @push('styles')
 <style>
@@ -363,8 +376,8 @@
     .edit-modal .edit-subtitle{font-size:12px;color:var(--gray-muted);margin-bottom:20px}
     .edit-field{margin-bottom:14px}
     .edit-field label{display:block;font-size:11px;font-weight:600;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
-    .edit-field input,.edit-field select{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;color:var(--gray-text);outline:none}
-    .edit-field input:focus,.edit-field select:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(107,63,160,.1)}
+    .edit-field input,.edit-field select,.edit-field textarea{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-family:inherit;color:var(--gray-text);outline:none;resize:vertical}
+    .edit-field input:focus,.edit-field select:focus,.edit-field textarea:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(107,63,160,.1)}
     .edit-actions{display:flex;gap:10px;margin-top:20px}
     .edit-actions .btn-save{flex:1;padding:10px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
     .edit-actions .btn-save:hover{background:var(--purple-dark)}
@@ -379,6 +392,11 @@ function abrirEditor(row) {
     document.getElementById('editCategoria').value = row.dataset.categoria || '';
     document.getElementById('editPrecio').value = row.dataset.precio || '0';
     document.getElementById('editUnidad').value = row.dataset.unidad || '';
+    try {
+        document.getElementById('editDescripcion').value = JSON.parse(row.getAttribute('data-descripcion') || '""');
+    } catch (e) {
+        document.getElementById('editDescripcion').value = '';
+    }
     document.getElementById('editCodigo').textContent = row.cells[0].textContent;
     document.getElementById('editNombre').textContent = row.cells[1].textContent;
     modal.style.display = 'flex';
@@ -394,6 +412,7 @@ function guardarProducto() {
         categoria: document.getElementById('editCategoria').value,
         precio: document.getElementById('editPrecio').value,
         unidad_venta: document.getElementById('editUnidad').value,
+        descripcion: document.getElementById('editDescripcion').value,
     };
 
     fetch(`/admin/productos/${id}/actualizar`, {
@@ -473,7 +492,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Los selects NO filtran automáticamente - solo al presionar "Filtrar"
 
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrarEditor(); });
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+            cerrarEditor();
+            cerrarAsignarProveedor();
+        }
+    });
 });
 </script>
 @endpush

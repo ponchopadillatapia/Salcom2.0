@@ -25,7 +25,7 @@ class NuevasFuncionalidadesTest extends TestCase
     {
         $p = ProveedorUser::create(['usuario' => 'P1', 'password' => Hash::make('x'), 'nombre' => 'Prov Test', 'correo' => 'p@p.com']);
 
-        return ['proveedor_id' => $p->id, 'proveedor_nombre' => $p->nombre, 'proveedor_codigo' => $p->codigo_compras];
+        return ['proveedor_id' => $p->id, 'proveedor_nombre' => $p->nombre, 'proveedor_codigo' => $p->id_proveedor];
     }
 
     private function clienteSession(): array

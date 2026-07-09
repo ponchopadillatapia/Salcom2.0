@@ -12,7 +12,7 @@ class ProveedorUser extends Authenticatable
     protected $table = 'proveedores_users';
 
     protected $fillable = [
-        'usuario', 'password', 'codigo_compras', 'nombre',
+        'usuario', 'password', 'id_proveedor', 'nombre',
         'tipo_persona', 'telefono', 'correo', 'foto', 'activo',
         'score_entrega', 'score_puntualidad', 'score_total',
         'aviso_privacidad_aceptado', 'aviso_privacidad_fecha',
@@ -48,5 +48,27 @@ class ProveedorUser extends Authenticatable
         $this->save();
 
         return $this->score_total;
+    }
+
+    /**
+     * Código visible para Compras (columna id_proveedor en BD).
+     */
+    public function idProveedorDisplay(): string
+    {
+        return $this->id_proveedor ?: '—';
+    }
+
+    /**
+     * Etiqueta para selects admin: usa proveedor_id internamente, muestra ID Proveedor si existe.
+     */
+    public function opcionSelectLabel(): string
+    {
+        $nombre = $this->nombre ?? $this->usuario;
+        $partes = [$nombre, '#'.$this->id];
+        if ($this->id_proveedor) {
+            $partes[] = 'ID '.$this->id_proveedor;
+        }
+
+        return implode(' · ', $partes);
     }
 }

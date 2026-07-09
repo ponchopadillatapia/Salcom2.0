@@ -79,7 +79,7 @@ class PedidoProveedorSyncService
             return false;
         }
 
-        $prov = ProveedorUser::where('codigo_compras', $factura->codigo_proveedor)->first();
+        $prov = ProveedorUser::where('id_proveedor', $factura->codigo_proveedor)->first();
 
         $pedido->update([
             'codigo_proveedor' => $factura->codigo_proveedor,
@@ -91,7 +91,7 @@ class PedidoProveedorSyncService
 
     private function vincularDesdeProveedorRotativo(Pedido $pedido): bool
     {
-        $proveedores = ProveedorUser::orderBy('id')->get(['codigo_compras', 'nombre']);
+        $proveedores = ProveedorUser::orderBy('id')->get(['id_proveedor', 'nombre']);
         if ($proveedores->isEmpty()) {
             return false;
         }
@@ -99,7 +99,7 @@ class PedidoProveedorSyncService
         $prov = $proveedores[$pedido->id % $proveedores->count()];
 
         $pedido->update([
-            'codigo_proveedor' => $prov->codigo_compras,
+            'codigo_proveedor' => $prov->id_proveedor,
             'nombre_proveedor' => $prov->nombre,
         ]);
 

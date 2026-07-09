@@ -150,7 +150,8 @@
         <table class="admin-table">
             <thead>
                 <tr>
-                    <th>Código</th>
+                    <th>ID sistema</th>
+                    <th>ID Proveedor</th>
                     <th>Proveedor</th>
                     <th>Estado</th>
                     <th>Correo</th>
@@ -164,7 +165,8 @@
                     $lbl = match($est) { 'aprobado'=>'Positiva', 'pendiente'=>'En revisión', 'rechazado'=>'Negativa', default=>'Sin documento' };
                 @endphp
                 <tr>
-                    <td style="font-weight:700;color:var(--purple)">{{ $op['proveedor']->codigo_compras ?? '—' }}</td>
+                    <td style="font-weight:600;color:var(--gray-muted)">#{{ $op['proveedor']->id }}</td>
+                    <td style="font-weight:700;color:var(--purple)">{{ $op['proveedor']->idProveedorDisplay() }}</td>
                     <td style="font-weight:600">{{ $op['proveedor']->nombre ?? $op['proveedor']->usuario }}</td>
                     <td><span class="badge-est {{ $cls }}">{{ $lbl }}</span></td>
                     <td style="font-size:12px;color:var(--gray-muted)">
@@ -199,7 +201,8 @@
         <table class="admin-table">
             <thead>
                 <tr>
-                    <th>Código</th>
+                    <th>ID sistema</th>
+                    <th>ID Proveedor</th>
                     <th>Proveedor</th>
                     <th>Estado</th>
                     <th>Acción</th>
@@ -208,7 +211,8 @@
             <tbody>
             @foreach(\App\Models\ProveedorUser::orderBy('nombre')->get() as $prov)
                 <tr>
-                    <td style="font-weight:700;color:var(--purple)">{{ $prov->codigo_compras ?? '—' }}</td>
+                    <td style="font-weight:600;color:var(--gray-muted)">#{{ $prov->id }}</td>
+                    <td style="font-weight:700;color:var(--purple)">{{ $prov->idProveedorDisplay() }}</td>
                     <td style="font-weight:600">{{ $prov->nombre ?? $prov->usuario }}</td>
                     <td><span class="badge-est {{ $prov->activo ? 'ok' : 'err' }}">{{ $prov->activo ? 'Activo' : 'Inactivo' }}</span></td>
                     <td>
@@ -346,7 +350,7 @@
                     <select name="proveedor_id" required style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);">
                         <option value="">Seleccionar proveedor...</option>
                         @foreach($proveedores as $prov)
-                            <option value="{{ $prov->id }}">{{ $prov->nombre ?? $prov->usuario }} ({{ $prov->codigo_compras ?? '—' }})</option>
+                            <option value="{{ $prov->id }}">{{ $prov->opcionSelectLabel() }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -429,7 +433,7 @@
                 <tr style="{{ $atrasada ? 'background:rgba(255,59,48,0.04);' : '' }}">
                     <td>
                         <div style="font-weight:600;">{{ $prov->nombre ?? $prov->usuario ?? '—' }}</div>
-                        <div style="font-size:10px;color:var(--gray-muted);">{{ $prov->codigo_compras ?? '' }}</div>
+                        @include('partials.proveedor-ids', ['proveedor' => $prov])
                     </td>
                     <td style="font-weight:700;color:var(--purple);">OC-{{ str_pad($oc->id, 4, '0', STR_PAD_LEFT) }}</td>
                     <td>{{ $ocData['fecha_oc']->format('d/m/Y') }}</td>

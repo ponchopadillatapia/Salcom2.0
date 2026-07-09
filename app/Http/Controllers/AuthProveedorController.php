@@ -195,7 +195,7 @@ class AuthProveedorController extends Controller
     {
         $proveedor = ProveedorUser::where('usuario', $codigo)->first();
         if ($proveedor && Hash::check($pwd, $proveedor->password)) {
-            return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->codigo_compras, 'correo' => $proveedor->correo, 'token' => null];
+            return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->id_proveedor, 'correo' => $proveedor->correo, 'token' => null];
         }
 
         // Super admins (jesus, alex, fred) pueden entrar al portal de proveedores

@@ -187,7 +187,7 @@
                 <tr>
                     <th>Folio CFDI</th>
                     <th>Proveedor</th>
-                    <th>Código</th>
+                    <th>ID Proveedor</th>
                     <th>Total</th>
                     <th>Vencimiento</th>
                     <th>Estatus</th>
@@ -206,7 +206,7 @@
                 @php
                     $esVencida = ($f->estatus === 'pendiente' && $f->fecha_vencimiento && $f->fecha_vencimiento->isPast());
                     $estatusMostrar = $esVencida ? 'vencida' : $f->estatus;
-                    $provF = \App\Models\ProveedorUser::where('codigo_compras', $f->codigo_proveedor)->first();
+                    $provF = \App\Models\ProveedorUser::where('id_proveedor', $f->codigo_proveedor)->first();
                     $nombreProvF = $provF->nombre ?? $provF->usuario ?? $f->codigo_proveedor ?? '—';
                 @endphp
                 <tr data-estatus="{{ $estatusMostrar }}">
@@ -252,7 +252,7 @@
         <table class="tbl" id="tableProveedores">
             <thead>
                 <tr>
-                    <th>Código</th>
+                    <th>ID Proveedor</th>
                     <th>Proveedor</th>
                     <th>Facturas</th>
                     <th>Pagadas</th>
@@ -322,7 +322,7 @@
                 <tr>
                     <th>Folio CFDI</th>
                     <th>Proveedor</th>
-                    <th>Código</th>
+                    <th>ID Proveedor</th>
                     <th>Total</th>
                     <th>Vencimiento</th>
                     <th>Días vencida</th>

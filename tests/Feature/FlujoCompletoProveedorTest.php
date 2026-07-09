@@ -28,7 +28,7 @@ class FlujoCompletoProveedorTest extends TestCase
             'usuario' => 'PROV001',
             'password' => Hash::make('secret123'),
             'nombre' => 'Proveedor Test SA',
-            'codigo_compras' => 'COD001',
+            'id_proveedor' => 'COD001',
             'correo' => 'prov@test.com',
             'tipo_persona' => 'Moral',
             'telefono' => '5551234567',

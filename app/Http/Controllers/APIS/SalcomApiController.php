@@ -123,13 +123,13 @@ class SalcomApiController extends Controller
             $query->where(function ($q) use ($busqueda) {
                 $q->where('nombre', 'like', "%{$busqueda}%")
                     ->orWhere('correo', 'like', "%{$busqueda}%")
-                    ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
+                    ->orWhere('id_proveedor', 'like', "%{$busqueda}%");
             });
         }
 
         $proveedores = $query->orderBy('created_at', 'desc')
             ->limit($request->input('limit', 50))
-            ->get(['id', 'usuario', 'codigo_compras', 'nombre',
+            ->get(['id', 'usuario', 'id_proveedor', 'nombre',
                 'tipo_persona', 'telefono', 'correo', 'activo', 'created_at']);
 
         return response()->json(['total' => $proveedores->count(), 'data' => $proveedores]);
@@ -139,7 +139,7 @@ class SalcomApiController extends Controller
     {
         $documentos = DocumentoProveedor::where('proveedor_id', $proveedor->id)->get();
         $muestras = Muestra::where('proveedor', 'like', "%{$proveedor->nombre}%")->orderBy('created_at', 'desc')->limit(10)->get();
-        $facturas = Factura::where('codigo_proveedor', $proveedor->codigo_compras)->orderBy('created_at', 'desc')->limit(10)->get();
+        $facturas = Factura::where('codigo_proveedor', $proveedor->id_proveedor)->orderBy('created_at', 'desc')->limit(10)->get();
 
         return response()->json([
             'proveedor' => $proveedor->makeHidden(['password']),
@@ -309,7 +309,7 @@ class SalcomApiController extends Controller
 
     public function documentos(Request $request): JsonResponse
     {
-        $query = DocumentoProveedor::with('proveedor:id,nombre,correo,codigo_compras');
+        $query = DocumentoProveedor::with('proveedor:id,nombre,correo,id_proveedor');
 
         if ($estatus = $request->input('estatus')) {
             $query->where('estatus', $estatus);

@@ -31,7 +31,7 @@ class Pedido extends Model
 
     public function proveedor(): BelongsTo
     {
-        return $this->belongsTo(ProveedorUser::class, 'codigo_proveedor', 'codigo_compras');
+        return $this->belongsTo(ProveedorUser::class, 'codigo_proveedor', 'id_proveedor');
     }
 
     public function tracking()

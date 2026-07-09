@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -24,6 +25,13 @@ class Producto extends Model
     public function preciosProveedor(): HasMany
     {
         return $this->hasMany(ProductoProveedorPrecio::class);
+    }
+
+    public function proveedoresVinculados(): BelongsToMany
+    {
+        return $this->belongsToMany(ProveedorUser::class, 'producto_proveedor_precios', 'producto_id', 'proveedor_id')
+            ->withPivot('precio', 'moq')
+            ->withTimestamps();
     }
 
     public function precioParaProveedor(?int $proveedorId): ?float

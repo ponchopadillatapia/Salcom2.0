@@ -14,7 +14,7 @@ class ProveedorUserSeeder extends Seeder
             [
                 'usuario' => 'PROV001',
                 'password' => Hash::make('salcom2026'),
-                'codigo_compras' => '102003240',
+                'id_proveedor' => '102003240',
                 'nombre' => 'Distribuidora Nacional SA de CV',
                 'tipo_persona' => 'Persona Moral',
                 'telefono' => '3312345678',
@@ -23,7 +23,7 @@ class ProveedorUserSeeder extends Seeder
             [
                 'usuario' => 'PROV002',
                 'password' => Hash::make('salcom2026'),
-                'codigo_compras' => '102003241',
+                'id_proveedor' => '102003241',
                 'nombre' => 'Materiales Industriales del Bajío',
                 'tipo_persona' => 'Persona Moral',
                 'telefono' => '4771234567',
@@ -32,7 +32,7 @@ class ProveedorUserSeeder extends Seeder
             [
                 'usuario' => 'PROV003',
                 'password' => Hash::make('salcom2026'),
-                'codigo_compras' => '102003242',
+                'id_proveedor' => '102003242',
                 'nombre' => 'Juan Pérez López',
                 'tipo_persona' => 'Persona Física',
                 'telefono' => '5551234567',
