@@ -53,7 +53,7 @@ Route::get('/proveedor/inventario', function () {
 })->name('proveedores.inventario')->middleware('auth.proveedor');
 Route::get('/proveedor/inventario/excel', [PortalProveedorController::class, 'exportarInventarioExcel'])->name('proveedores.inventario.excel')->middleware('auth.proveedor');
 Route::get('/validacion-fiscal', function () {
-    return view('proveedores.fiscal');
+    return view('APIS.empresa');
 })->name('proveedores.validacion-fiscal')->middleware('auth.proveedor');
 Route::get('/proveedor/fiscal', function () {
     return view('proveedores.fiscal');
