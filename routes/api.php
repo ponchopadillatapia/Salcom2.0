@@ -1,7 +1,11 @@
 <?php
 
+use App\Http\Controllers\APIS\EmpresaApiController;
 use App\Http\Controllers\APIS\SalcomApiController;
 use Illuminate\Support\Facades\Route;
+
+// ── Validación fiscal de empresa (sin token, acceso interno) ──
+Route::post('/empresa', [EmpresaApiController::class, 'validar']);
 
 // ── API Salcom (protegida con Bearer token) ──
 Route::middleware('auth.api_token')->prefix('salcom')->group(function () {

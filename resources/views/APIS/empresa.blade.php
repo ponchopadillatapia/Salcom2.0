@@ -661,7 +661,6 @@ function renderResultado(data) {
     const sem    = semaforos[estado] || semaforos.rojo;
     const cif    = data.cif;
 
-    const nombre = cif.datos.nombre || 'NO DETECTADO';
     const rfc    = cif.datos.rfc || 'No detectado';
     const tipo   = cif.datos.tipo_persona || '—';
 
@@ -682,6 +681,14 @@ function renderResultado(data) {
     }
 
     secciones.push({ titulo: 'Carátula de Banco', icono: 'bi-credit-card', doc: data.caratula_banco });
+
+    // Determinar título y documentos con errores
+    const docsConError = secciones.filter(s => s.doc && !s.doc.valida).map(s => s.titulo);
+    const todoOk = estado === 'verde';
+    const tituloResultado = todoOk ? 'DOCUMENTOS CORRECTOS' : 'DOCUMENTOS NO VÁLIDOS';
+    const subtitulo = todoOk
+        ? `RFC: ${rfc} · ${tipoPersona === 'moral' ? 'Persona Moral' : 'Persona Física'} · Todos los documentos válidos`
+        : `RFC: ${rfc} · ${tipoPersona === 'moral' ? 'Persona Moral' : 'Persona Física'} · Documentos con errores: ${docsConError.join(', ')}`;
 
     const seccionesHtml = secciones.map(s => {
         if (!s.doc) return '';
@@ -726,8 +733,8 @@ function renderResultado(data) {
             <div class="resultado-header">
                 <span class="semaforo">${sem.icon}</span>
                 <div>
-                    <div class="resultado-empresa">${nombre}</div>
-                    <div class="resultado-rfc">RFC: ${rfc} · ${tipoLabel} · ${sem.texto}</div>
+                    <div class="resultado-empresa">${tituloResultado}</div>
+                    <div class="resultado-rfc">${subtitulo}</div>
                 </div>
             </div>
             <hr class="resultado-divider">

@@ -101,6 +101,39 @@ class EmpresaApiController extends Controller
             $banco = $this->validarCaratulaBanco($textos['caratula_banco']);
 
             // ════════════════════════════════════════
+            // CRUCE: Si el CIF no pudo extraer la razón social, intentar desde la carátula de banco
+            // ════════════════════════════════════════
+            if (empty($cif['datos']['nombre']) && !empty($banco['datos']['titular'])) {
+                $titular = $banco['datos']['titular'];
+                // Limpiar texto del titular
+                $corteTitular = ['DOMICILIO', 'TEPAME', 'PARAISOS', 'ZAPOPAN', 'JAL', 'MEXICO', 'CP'];
+                foreach ($corteTitular as $pc) {
+                    $pos = strpos($titular, $pc);
+                    if ($pos !== false) {
+                        $titular = trim(substr($titular, 0, $pos));
+                    }
+                }
+                if (strlen($titular) > 5) {
+                    $cif['datos']['nombre'] = $titular;
+                    // Reemplazar el error por hallazgo
+                    $cif['errores'] = array_values(array_filter($cif['errores'], fn($e) => !str_contains($e, 'Razón Social') && !str_contains($e, 'nombre del contribuyente')));
+                    $cif['hallazgos'][] = 'Razón Social (de carátula bancaria): ' . $titular;
+                    $cif['valida'] = empty($cif['errores']);
+                }
+            }
+
+            // También intentar extraer el nombre de la primera línea del texto del CIF si aún no lo tiene
+            if (empty($cif['datos']['nombre']) && !empty($textos['cif'])) {
+                // Buscar patrones tipo "VERTICALE PLATAFORMAS Y ASCENSORES SAS DE CV"
+                if (preg_match('/([A-ZÁÉÍÓÚÑ&]+(?:\s+[A-ZÁÉÍÓÚÑ&Y]+){2,}(?:\s+(?:S\.?A\.?S?|S\.?A\.?\s*DE\s*C\.?V\.?|S\s*DE\s*R\.?L\.?)))/u', $textos['cif'], $rsMatch)) {
+                    $cif['datos']['nombre'] = trim($rsMatch[1]);
+                    $cif['errores'] = array_values(array_filter($cif['errores'], fn($e) => !str_contains($e, 'Razón Social') && !str_contains($e, 'nombre del contribuyente')));
+                    $cif['hallazgos'][] = 'Razón Social: ' . trim($rsMatch[1]);
+                    $cif['valida'] = empty($cif['errores']);
+                }
+            }
+
+            // ════════════════════════════════════════
             // SEMÁFORO
             // ════════════════════════════════════════
             $cifOk = $cif['valida'];
@@ -217,6 +250,13 @@ class EmpresaApiController extends Controller
                 $nombreRaw = trim($nm[1]);
             } elseif (preg_match('/RAZON\s*SOCIAL[:\s]+(.+?)(?=REGIMEN|DOMICILIO|FECHA|TIPO|CODIGO|OBLIGACIONES|$)/ui', $texto, $nm)) {
                 $nombreRaw = trim($nm[1]);
+            } elseif (preg_match('/(?:S\.?A\.?\s*(?:DE\s*)?C\.?V\.?|S\.?\s*DE\s*R\.?L|S\.?A\.?S)/u', $texto, $nm, PREG_OFFSET_CAPTURE)) {
+                // Buscar hacia atrás desde el tipo de sociedad para extraer la razón social
+                $posicion = $nm[0][1];
+                $fragmento = substr($texto, max(0, $posicion - 100), $posicion - max(0, $posicion - 100));
+                if (preg_match('/([A-ZÁÉÍÓÚÑ&\s]{3,})\s*$/u', $fragmento, $preNombre)) {
+                    $nombreRaw = trim($preNombre[1]) . ' ' . $nm[0][0];
+                }
             }
 
             // Limpiar: quitar etiquetas que se colaron al inicio
@@ -248,10 +288,17 @@ class EmpresaApiController extends Controller
             }
 
             if (strlen($nombreRaw) > 2) {
-                $datos['nombre'] = $nombreRaw;
-                $hallazgos[] = 'Razón Social: ' . $nombreRaw;
+                // Filtrar basura del OCR: si no tiene espacios y son menos de 15 chars, probablemente es basura
+                if (strlen($nombreRaw) > 5 && (str_contains($nombreRaw, ' ') || strlen($nombreRaw) > 15)) {
+                    $datos['nombre'] = $nombreRaw;
+                    $hallazgos[] = 'Razón Social: ' . $nombreRaw;
+                } else {
+                    $datos['nombre'] = null;
+                    $errores[] = 'No se pudo extraer la Razón Social del documento';
+                }
             } else {
-                $datos['nombre'] = 'NO DETECTADO';
+                $datos['nombre'] = null;
+                $errores[] = 'No se pudo extraer la Razón Social del documento';
             }
         } else {
             // Persona Física: buscar nombre completo
@@ -278,10 +325,16 @@ class EmpresaApiController extends Controller
             }
 
             if (strlen($nombreFisico) > 2) {
-                $datos['nombre'] = $nombreFisico;
-                $hallazgos[] = 'Nombre: ' . $nombreFisico;
+                if (strlen($nombreFisico) > 5 && (str_contains($nombreFisico, ' ') || strlen($nombreFisico) > 15)) {
+                    $datos['nombre'] = $nombreFisico;
+                    $hallazgos[] = 'Nombre: ' . $nombreFisico;
+                } else {
+                    $datos['nombre'] = null;
+                    $errores[] = 'No se pudo extraer el nombre del contribuyente';
+                }
             } else {
-                $datos['nombre'] = 'NO DETECTADO';
+                $datos['nombre'] = null;
+                $errores[] = 'No se pudo extraer el nombre del contribuyente';
             }
         }
 
@@ -392,6 +445,21 @@ class EmpresaApiController extends Controller
             $errores[] = 'No tiene sello oficial del SAT';
         }
 
+        // RFC en la opinión
+        if (preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/u', $texto, $rfcOp)) {
+            $datos['rfc_encontrado'] = $rfcOp[1];
+            $hallazgos[] = 'RFC vigente y activo: '.$rfcOp[1];
+        } else {
+            $errores[] = 'No se encontró RFC en la Opinión';
+        }
+
+        // Cruzar RFC con CIF
+        if ($rfcCif && $datos['rfc_encontrado'] && $datos['rfc_encontrado'] !== $rfcCif) {
+            $errores[] = 'RFC no coincide: CIF='.$rfcCif.' vs Opinión='.$datos['rfc_encontrado'];
+        } elseif ($rfcCif && ! $datos['rfc_encontrado'] && ! str_contains($texto, $rfcCif)) {
+            $errores[] = 'El RFC del CIF ('.$rfcCif.') no aparece en la Opinión';
+        }
+
         // Sentido (POSITIVA / NEGATIVA)
         if (str_contains($texto, 'POSITIVA')) {
             $datos['sentido'] = 'POSITIVA';
@@ -403,23 +471,31 @@ class EmpresaApiController extends Controller
             $errores[] = 'No se detectó si la opinión es Positiva o Negativa';
         }
 
+        // Declaraciones presentadas al día
+        if (str_contains($texto, 'DECLARACION') || str_contains($texto, 'DECLARACIONES')
+            || str_contains($texto, 'OBLIGACIONES FISCALES') || str_contains($texto, 'CUMPLIDO')) {
+            $hallazgos[] = 'Declaraciones presentadas al día';
+        } else {
+            $errores[] = 'No se detectó referencia a declaraciones presentadas';
+        }
+
+        // Sin adeudos fiscales — solo informar si es negativa
+        if ($datos['sentido'] === 'NEGATIVA') {
+            $errores[] = 'El contribuyente tiene adeudos fiscales';
+        }
+
+        // No está en listas negras (Art. 69, 69-B)
+        if (str_contains($texto, '69-B') || str_contains($texto, '69B')
+            || str_contains($texto, 'LISTA NEGRA') || str_contains($texto, 'DEFINITIVOS')) {
+            $errores[] = 'Se detectó referencia a listas negras (Art. 69-B) — verificar manualmente';
+        } else {
+            $hallazgos[] = 'No está en listas negras del SAT';
+        }
+
         // Artículo 32-D
         if (str_contains($texto, 'ARTICULO 32-D') || str_contains($texto, '32-D')) {
             $datos['articulo'] = '32-D CFF';
             $hallazgos[] = 'Referencia al Art. 32-D del CFF';
-        }
-
-        // RFC en la opinión
-        if (preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/u', $texto, $rfcOp)) {
-            $datos['rfc_encontrado'] = $rfcOp[1];
-            $hallazgos[] = 'RFC en opinión: '.$rfcOp[1];
-        }
-
-        // Cruzar RFC con CIF
-        if ($rfcCif && $datos['rfc_encontrado'] && $datos['rfc_encontrado'] !== $rfcCif) {
-            $errores[] = 'RFC no coincide: CIF='.$rfcCif.' vs Opinión='.$datos['rfc_encontrado'];
-        } elseif ($rfcCif && ! $datos['rfc_encontrado'] && ! str_contains($texto, $rfcCif)) {
-            $errores[] = 'El RFC del CIF ('.$rfcCif.') no aparece en la Opinión';
         }
 
         // Mes y año en curso
@@ -712,15 +788,18 @@ class EmpresaApiController extends Controller
         }
 
         // CLABE (18 dígitos) — buscar por texto "CLABE" o directamente 18 dígitos consecutivos
-        if (preg_match('/CLABE[:\s\w]*(\d{18})/', $texto, $clabeM)) {
+        // Primero limpiar espacios entre dígitos que el OCR pueda insertar
+        $textoDigitos = preg_replace('/(\d)\s+(\d)/', '$1$2', $texto);
+
+        if (preg_match('/(?:Cuenta\s*)?CLABE[:\s]*(\d{18})/i', $textoDigitos, $clabeM)) {
             $datos['clabe'] = $clabeM[1];
             $hallazgos[] = 'CLABE interbancaria: '.$clabeM[1];
-        } elseif (preg_match('/CUENTA\s*CLABE[:\s]*(\d{18})/', $texto, $clabeM)) {
+        } elseif (preg_match('/CLABE[^0-9]{0,20}(\d{18})/i', $textoDigitos, $clabeM)) {
             $datos['clabe'] = $clabeM[1];
-            $hallazgos[] = 'Cuenta CLABE: '.$clabeM[1];
-        } elseif (preg_match('/(\d{18})/', $texto, $clabeM)) {
+            $hallazgos[] = 'CLABE interbancaria: '.$clabeM[1];
+        } elseif (preg_match('/(\d{18})/', $textoDigitos, $clabeM)) {
             $datos['clabe'] = $clabeM[1];
-            $hallazgos[] = 'CLABE detectada: '.$clabeM[1];
+            $hallazgos[] = 'CLABE interbancaria: '.$clabeM[1];
         } else {
             $errores[] = 'No se encontró CLABE interbancaria (18 dígitos)';
         }
