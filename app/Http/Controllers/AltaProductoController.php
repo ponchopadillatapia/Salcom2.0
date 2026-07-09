@@ -85,7 +85,7 @@ class AltaProductoController extends Controller
         return redirect()
             ->route('admin.alta-producto')
             ->with('tab', 'nacional')
-            ->with('mensaje', 'Proveedor concatenado: '.$proveedor->opcionSelectLabel().'. Ya puedes subir el Excel.');
+            ->with('mensaje', 'Proveedor asignado: '.$proveedor->opcionSelectLabel().'. Ahora puedes subir el Excel.');
     }
 
     /**
@@ -439,13 +439,12 @@ class AltaProductoController extends Controller
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
         // Hoja datos oculta: consecutivos DISPONIBLES por prefijo.
-        // Se bloquean los codigos usados por productos ACTIVOS e INACTIVOS
-        // (un codigo inactivo NO se reutiliza; queda apartado).
+        // Solo productos ACTIVOS ocupan el numero; inactivos o eliminados liberan el consecutivo.
         $datosSheet = $spreadsheet->createSheet();
         $datosSheet->setTitle('_Datos');
         $listasDisponibles = [
-            'ME_DISP' => $this->generarConsecutivosDisponibles('ME', $catalogo, false),
-            'MP_DISP' => $this->generarConsecutivosDisponibles('MP', $catalogo, false),
+            'ME_DISP' => $this->generarConsecutivosDisponibles('ME', $catalogo, true),
+            'MP_DISP' => $this->generarConsecutivosDisponibles('MP', $catalogo, true),
         ];
         $columnasDatos = ['A' => 'ME_DISP', 'B' => 'MP_DISP'];
         foreach ($columnasDatos as $colLetter => $key) {
@@ -1035,7 +1034,7 @@ class AltaProductoController extends Controller
 
             if (!$proveedorActivo) {
                 return back()
-                    ->with('error', 'Primero debes concatenar un proveedor antes de subir el Excel.')
+                    ->with('error', 'Primero debes asignar un proveedor (botón verde) antes de subir el Excel.')
                     ->with('tab', 'nacional');
             }
         }
@@ -1782,12 +1781,16 @@ Si todo correcto: {"errores_ia": []}';
                 }
                 $existenteCodigo = Producto::withTrashed()->where('codigo', $codigoFormado)->first();
                 if ($existenteCodigo) {
-                    $estado = ($existenteCodigo->activo && ! $existenteCodigo->trashed()) ? 'activo' : 'inactivo';
-                    $errores[] = [
-                        'fila' => $fila,
-                        'campo' => 'CONSECUTIVO',
-                        'error' => "DUPLICADO: '{$codigoFormado}' ya existe en el sistema ({$estado}). Revisa el filtro y el dropdown de CONSECUTIVO en el template.",
-                    ];
+                    $estaVigente = $existenteCodigo->activo && ! $existenteCodigo->trashed();
+                    if ($estaVigente && ! $esModuloCompras) {
+                        $errores[] = [
+                            'fila' => $fila,
+                            'campo' => 'CONSECUTIVO',
+                            'error' => "DUPLICADO: '{$codigoFormado}' ya existe en el sistema (activo). Revisa el filtro y el dropdown de CONSECUTIVO en el template.",
+                        ];
+                    } elseif (! $estaVigente) {
+                        // Inactivo o eliminado: se puede reutilizar al subir de nuevo.
+                    }
                 }
             }
         }
@@ -3024,8 +3027,14 @@ Si todo correcto: {"errores_ia": []}';
 
     private function guardarProductoDesdeAlta(array $prod, ?int $proveedorIdVinculo, bool $vincularProveedor): Producto
     {
+        $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
+        $existente = Producto::withTrashed()->where('codigo', $codigo)->first();
+        if ($existente?->trashed()) {
+            $existente->restore();
+        }
+
         $producto = Producto::updateOrCreate(
-            ['codigo' => strtoupper(trim($prod['CODIGO'] ?? ''))],
+            ['codigo' => $codigo],
             $this->datosProductoDesdeExcel($prod)
         );
 
