@@ -58,7 +58,34 @@ class AltaProductoController extends Controller
             ->orderBy('nombre')
             ->get(['id', 'nombre', 'usuario', 'id_proveedor']);
 
-        return view('admin.alta-producto', compact('proveedoresActivos'));
+        $proveedorConcatenado = null;
+        if ($proveedorId = session('alta_nacional_proveedor_id')) {
+            $proveedorConcatenado = ProveedorUser::find($proveedorId);
+        }
+
+        return view('admin.alta-producto', compact('proveedoresActivos', 'proveedorConcatenado'));
+    }
+
+    /**
+     * Paso 1 nacional: guardar proveedor en sesión antes de subir Excel.
+     */
+    public function concatenarProveedorNacional(Request $request)
+    {
+        $request->validate([
+            'proveedor_id' => 'required|exists:proveedores_users,id',
+        ]);
+
+        $proveedor = ProveedorUser::where('activo', true)->findOrFail($request->proveedor_id);
+
+        session([
+            'alta_nacional_proveedor_id' => $proveedor->id,
+            'alta_nacional_proveedor_nombre' => $proveedor->nombre ?? $proveedor->usuario,
+        ]);
+
+        return redirect()
+            ->route('admin.alta-producto')
+            ->with('tab', 'nacional')
+            ->with('mensaje', 'Proveedor concatenado: '.$proveedor->opcionSelectLabel().'. Ya puedes subir el Excel.');
     }
 
     /**
@@ -996,13 +1023,22 @@ class AltaProductoController extends Controller
      */
     public function subirExcel(Request $request)
     {
-        $rules = ['excel' => 'required|file|mimes:xlsx,xls,csv|max:5120'];
-        if ($request->is('admin/*')) {
-            $rules['proveedor_id'] = 'required|exists:proveedores_users,id';
-        }
-        $request->validate($rules);
+        $request->validate([
+            'excel' => 'required|file|mimes:xlsx,xls,csv|max:5120',
+        ]);
 
-        $proveedorIdVinculo = $request->is('admin/*') ? (int) $request->input('proveedor_id') : null;
+        $proveedorIdVinculo = null;
+        if ($request->is('admin/*')) {
+            $proveedorIdVinculo = (int) session('alta_nacional_proveedor_id');
+            $proveedorActivo = $proveedorIdVinculo
+                && ProveedorUser::where('id', $proveedorIdVinculo)->where('activo', true)->exists();
+
+            if (!$proveedorActivo) {
+                return back()
+                    ->with('error', 'Primero debes concatenar un proveedor antes de subir el Excel.')
+                    ->with('tab', 'nacional');
+            }
+        }
 
         $file = $request->file('excel');
 
