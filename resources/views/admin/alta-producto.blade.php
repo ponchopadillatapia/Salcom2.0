@@ -25,6 +25,11 @@
     .btn-upload{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--purple);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:var(--transition);margin-top:16px}
     .btn-upload:hover{background:var(--purple-dark)}
     .btn-upload:disabled{opacity:.5;cursor:not-allowed}
+    .btn-concatenar{display:inline-flex;align-items:center;gap:8px;padding:10px 20px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:var(--transition);margin-top:12px}
+    .btn-concatenar:hover{background:#15803d}
+    .btn-concatenar:disabled{opacity:.5;cursor:not-allowed}
+    .proveedor-listo{background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:12px 14px;font-size:13px;color:var(--green);margin:12px 0 16px;font-weight:600}
+    .alta-paso-titulo{font-size:12px;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.04em;margin:0 0 10px}
     .format-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:12px}
     .format-table th{text-align:left;padding:8px;background:var(--gray-soft);font-weight:600;color:var(--gray-muted);font-size:11px;text-transform:uppercase;border-bottom:1px solid var(--border-light)}
     .format-table td{padding:8px;border-bottom:1px solid var(--border-light);color:var(--gray-text)}
@@ -84,8 +89,8 @@
         <div class="alta-steps">
             <div class="alta-step"><div class="alta-step-num">1</div><div class="alta-step-text"><strong>Descarga el template Nacional</strong>Excel para Material de Empaque (ME) y Materia Prima (MP).</div></div>
             <div class="alta-step"><div class="alta-step-num">2</div><div class="alta-step-text"><strong>Llena tus productos</strong>Elige PREFIJO, luego CONSECUTIVO del dropdown (solo disponibles).</div></div>
-            <div class="alta-step"><div class="alta-step-num">3</div><div class="alta-step-text"><strong>Selecciona el proveedor</strong>Al subir, los productos se vinculan automáticamente con el proveedor elegido.</div></div>
-            <div class="alta-step"><div class="alta-step-num">4</div><div class="alta-step-text"><strong>Sube el Excel</strong>Se valida, da de alta y concatena proveedor con cada producto.</div></div>
+            <div class="alta-step"><div class="alta-step-num">3</div><div class="alta-step-text"><strong>Concatena el proveedor</strong>Selecciónalo y confirma con el botón verde antes de subir.</div></div>
+            <div class="alta-step"><div class="alta-step-num">4</div><div class="alta-step-text"><strong>Sube el Excel</strong>Con el proveedor ya concatenado, valida y da de alta los productos.</div></div>
         </div>
         <div style="margin-top:20px;">
             <a href="{{ route('admin.alta-producto.template') }}" class="btn-download">
@@ -96,17 +101,33 @@
     </div>
     <div class="alta-card">
         <h3>Subir Excel Nacional</h3>
-        <form method="POST" action="{{ route('admin.alta-producto.subir') }}" enctype="multipart/form-data">
+
+        <p class="alta-paso-titulo">Paso 1 — Concatenar proveedor</p>
+        <form method="POST" action="{{ route('admin.alta-producto.concatenar-proveedor') }}">
             @csrf
             <label class="proveedor-label" for="proveedorNac">Proveedor *</label>
-            <select name="proveedor_id" id="proveedorNac" class="proveedor-select" required onchange="checkNacReady()">
+            <select name="proveedor_id" id="proveedorNac" class="proveedor-select" required onchange="checkConcatenarReady()">
                 <option value="">— Selecciona proveedor —</option>
                 @foreach($proveedoresActivos as $prov)
-                <option value="{{ $prov->id }}" @selected(old('proveedor_id') == $prov->id)>
+                <option value="{{ $prov->id }}" @selected(old('proveedor_id', $proveedorConcatenado?->id) == $prov->id)>
                     {{ $prov->opcionSelectLabel() }}
                 </option>
                 @endforeach
             </select>
+            <button type="submit" class="btn-concatenar" id="btnConcatenar" disabled>Concatenar proveedor</button>
+        </form>
+
+        @if($proveedorConcatenado)
+        <div class="proveedor-listo" id="proveedorListo">
+            ✓ Proveedor concatenado: {{ $proveedorConcatenado->opcionSelectLabel() }}
+        </div>
+        @else
+        <div class="proveedor-listo" id="proveedorListo" style="display:none;"></div>
+        @endif
+
+        <p class="alta-paso-titulo" style="margin-top:20px;">Paso 2 — Subir productos</p>
+        <form method="POST" action="{{ route('admin.alta-producto.subir') }}" enctype="multipart/form-data">
+            @csrf
             <div class="upload-zone" onclick="document.getElementById('fileNac').click()">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <div style="font-size:14px;font-weight:600;color:var(--gray-text);margin-top:8px;">Arrastra tu Excel aquí o haz clic</div>
@@ -228,6 +249,10 @@ function showName(input, labelId, btnId) {
         if (btnId) document.getElementById(btnId).disabled = false;
     }
 }
+function checkConcatenarReady() {
+    const hasProv = document.getElementById('proveedorNac').value !== '';
+    document.getElementById('btnConcatenar').disabled = !hasProv;
+}
 function checkNacReady() {
     const fileInput = document.getElementById('fileNac');
     const name = fileInput.files[0]?.name;
@@ -236,8 +261,12 @@ function checkNacReady() {
         document.getElementById('fileNameNac').style.display = 'block';
     }
     const hasFile = fileInput.files.length > 0;
-    const hasProv = document.getElementById('proveedorNac').value !== '';
-    document.getElementById('btnNac').disabled = !(hasFile && hasProv);
+    const proveedorListo = @json((bool) $proveedorConcatenado);
+    document.getElementById('btnNac').disabled = !(hasFile && proveedorListo);
 }
+document.addEventListener('DOMContentLoaded', function () {
+    checkConcatenarReady();
+    checkNacReady();
+});
 </script>
 @endpush

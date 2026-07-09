@@ -48,6 +48,14 @@ class AltaProductoNacionalTest extends TestCase
         ]);
     }
 
+    private function sesionAdminConProveedor(ProveedorUser $proveedor): array
+    {
+        return array_merge($this->sesionAdmin(), [
+            'alta_nacional_proveedor_id' => $proveedor->id,
+            'alta_nacional_proveedor_nombre' => $proveedor->nombre,
+        ]);
+    }
+
     private function crearExcelNacional(array $filas = []): UploadedFile
     {
         if (empty($filas)) {
@@ -99,16 +107,29 @@ class AltaProductoNacionalTest extends TestCase
         $response->assertHeader('content-disposition');
     }
 
+    public function test_concatenar_proveedor_guarda_sesion(): void
+    {
+        $proveedor = $this->crearProveedor();
+
+        $response = $this->withSession($this->sesionAdmin())
+            ->post('/admin/alta-producto/concatenar-proveedor', [
+                'proveedor_id' => $proveedor->id,
+            ]);
+
+        $response->assertRedirect(route('admin.alta-producto'));
+        $response->assertSessionHas('alta_nacional_proveedor_id', $proveedor->id);
+        $response->assertSessionHas('mensaje');
+    }
+
     public function test_subir_excel_nacional_me_mp_no_da_500(): void
     {
         $proveedor = $this->crearProveedor();
-        $this->withSession($this->sesionAdmin());
+        $this->withSession($this->sesionAdminConProveedor($proveedor));
 
         $file = $this->crearExcelNacional();
 
         $response = $this->post('/admin/alta-producto/subir', [
             'excel' => $file,
-            'proveedor_id' => $proveedor->id,
         ]);
 
         $this->assertNotEquals(500, $response->getStatusCode(), 'Subida nacional devolvió 500');
@@ -129,14 +150,15 @@ class AltaProductoNacionalTest extends TestCase
         ]);
     }
 
-    public function test_subir_excel_nacional_sin_proveedor_falla_validacion(): void
+    public function test_subir_excel_nacional_sin_proveedor_concatenado_falla(): void
     {
         $this->withSession($this->sesionAdmin());
         $file = $this->crearExcelNacional();
 
         $response = $this->post('/admin/alta-producto/subir', ['excel' => $file]);
 
-        $response->assertSessionHasErrors('proveedor_id');
+        $response->assertRedirect();
+        $response->assertSessionHas('error');
     }
 
     public function test_subir_excel_nacional_con_error_muestra_mensaje_no_500(): void
@@ -149,8 +171,7 @@ class AltaProductoNacionalTest extends TestCase
             'activo' => true,
         ]);
 
-        $this->withSession($this->sesionAdmin());
-
+        $proveedor = $this->crearProveedor();
         $file = $this->crearExcelNacional([[
             'PREFIJO' => 'ME',
             'CONSECUTIVO' => '0002',
@@ -161,11 +182,10 @@ class AltaProductoNacionalTest extends TestCase
             'MOQ' => '50',
         ]]);
 
-        $proveedor = $this->crearProveedor();
-        $response = $this->post('/admin/alta-producto/subir', [
-            'excel' => $file,
-            'proveedor_id' => $proveedor->id,
-        ]);
+        $response = $this->withSession($this->sesionAdminConProveedor($proveedor))
+            ->post('/admin/alta-producto/subir', [
+                'excel' => $file,
+            ]);
 
         $this->assertNotEquals(500, $response->getStatusCode());
         $response->assertRedirect();
@@ -175,7 +195,7 @@ class AltaProductoNacionalTest extends TestCase
     public function test_subir_excel_nacional_sin_moq_genera_error(): void
     {
         $proveedor = $this->crearProveedor();
-        $this->withSession($this->sesionAdmin());
+        $this->withSession($this->sesionAdminConProveedor($proveedor));
 
         $file = $this->crearExcelNacional([[
             'PREFIJO' => 'ME',
@@ -188,7 +208,6 @@ class AltaProductoNacionalTest extends TestCase
 
         $response = $this->post('/admin/alta-producto/subir', [
             'excel' => $file,
-            'proveedor_id' => $proveedor->id,
         ]);
 
         $response->assertRedirect();
@@ -198,7 +217,7 @@ class AltaProductoNacionalTest extends TestCase
     public function test_consecutivo_con_ceros_extra_se_normaliza_a_4_digitos(): void
     {
         $proveedor = $this->crearProveedor();
-        $this->withSession($this->sesionAdmin());
+        $this->withSession($this->sesionAdminConProveedor($proveedor));
 
         $file = $this->crearExcelNacional([[
             'PREFIJO' => 'MP',
@@ -212,7 +231,6 @@ class AltaProductoNacionalTest extends TestCase
 
         $response = $this->post('/admin/alta-producto/subir', [
             'excel' => $file,
-            'proveedor_id' => $proveedor->id,
         ]);
 
         $response->assertRedirect();
@@ -231,7 +249,7 @@ class AltaProductoNacionalTest extends TestCase
             'activo' => true,
         ]);
 
-        $this->withSession($this->sesionAdmin());
+        $this->withSession($this->sesionAdminConProveedor($proveedor));
 
         $templateResponse = $this->get('/admin/alta-producto/template');
         $templateResponse->assertOk();
@@ -255,7 +273,6 @@ class AltaProductoNacionalTest extends TestCase
         $file = new UploadedFile($filledPath, 'template_lleno.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
         $response = $this->post('/admin/alta-producto/subir', [
             'excel' => $file,
-            'proveedor_id' => $proveedor->id,
         ]);
 
         $this->assertNotEquals(500, $response->getStatusCode(), 'Subida del template generado devolvió 500');

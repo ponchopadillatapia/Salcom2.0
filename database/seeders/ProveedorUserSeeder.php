@@ -38,12 +38,33 @@ class ProveedorUserSeeder extends Seeder
                 'telefono' => '5551234567',
                 'correo' => 'juan.perez@correo.com',
             ],
+            // Demos para alta nacional ME/MP (hasta conectar proveedores reales)
+            [
+                'usuario' => 'said',
+                'password' => Hash::make('salcom2026'),
+                'id_proveedor' => 'DEMO-SAID',
+                'nombre' => 'Proveedor Demo Said',
+                'tipo_persona' => 'Persona Moral',
+                'telefono' => '3300000001',
+                'correo' => 'said@demo.salcom',
+                'activo' => true,
+            ],
+            [
+                'usuario' => 'demo',
+                'password' => Hash::make('salcom2026'),
+                'id_proveedor' => 'DEMO-001',
+                'nombre' => 'Proveedor Demo',
+                'tipo_persona' => 'Persona Moral',
+                'telefono' => '3300000002',
+                'correo' => 'demo@demo.salcom',
+                'activo' => true,
+            ],
         ];
 
         foreach ($proveedores as $prov) {
             ProveedorUser::updateOrCreate(
                 ['usuario' => $prov['usuario']],
-                $prov
+                array_merge(['activo' => true], $prov)
             );
         }
     }
