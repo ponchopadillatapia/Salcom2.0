@@ -246,6 +246,81 @@ class PortalProveedorController extends Controller
         ])->deleteFileAfterSend(true);
     }
 
+    public function mostrarIdentificacion()
+    {
+        return view('proveedores.identificacion_proveedor');
+    }
+
+    public function guardarIdentificacion(Request $request)
+    {
+        $esFisica = $request->input('tipo_persona') === 'Persona Física';
+        $esMoral = $request->input('tipo_persona') === 'Persona Moral';
+
+        $rules = [
+            'fecha' => 'required|date',
+            'tipo_persona' => 'required|in:Persona Física,Persona Moral',
+            'calle' => 'nullable|string|max:255',
+            'num_exterior' => 'nullable|string|max:50',
+            'num_interior' => 'nullable|string|max:50',
+            'colonia' => 'nullable|string|max:255',
+            'municipio' => 'nullable|string|max:255',
+            'estado' => 'nullable|string|max:255',
+            'ciudad' => 'nullable|string|max:255',
+            'pais' => 'nullable|string|max:100',
+            'cp' => 'nullable|string|max:10',
+            'telefono' => 'nullable|string|max:30',
+            'celular' => 'nullable|string|max:30',
+            'telefono2' => 'nullable|string|max:30',
+            'extension' => 'nullable|string|max:20',
+            'correo' => 'nullable|email|max:255',
+            'clabe' => 'nullable|string|max:18',
+            'cuenta' => 'nullable|string|max:30',
+            'banco' => 'nullable|string|max:255',
+            'docs' => 'nullable|array',
+            'nombre_firma' => 'nullable|string|max:255',
+        ];
+
+        if ($esFisica) {
+            $rules['apellido_paterno'] = 'required|string|max:100';
+            $rules['apellido_materno'] = 'nullable|string|max:100';
+            $rules['nombres'] = 'required|string|max:150';
+            $rules['razon_social'] = 'nullable|string|max:255';
+        }
+
+        if ($esMoral) {
+            $rules['razon_social'] = 'required|string|max:255';
+            $rules['apellido_paterno'] = 'nullable|string|max:100';
+            $rules['apellido_materno'] = 'nullable|string|max:100';
+            $rules['nombres'] = 'nullable|string|max:150';
+        }
+
+        $data = $request->validate($rules);
+
+        $nombreEsperado = $esMoral
+            ? trim($data['razon_social'] ?? '')
+            : trim(implode(' ', array_filter([
+                $data['apellido_paterno'] ?? '',
+                $data['apellido_materno'] ?? '',
+                $data['nombres'] ?? '',
+            ])));
+
+        session([
+            'identificacion_proveedor' => array_merge($data, [
+                'tipo_clave' => $esMoral ? 'moral' : 'fisica',
+                'nombre_esperado' => $nombreEsperado,
+            ]),
+        ]);
+
+        return redirect()->route('proveedores.validacion-fiscal');
+    }
+
+    public function mostrarValidacionFiscal()
+    {
+        $identificacion = session('identificacion_proveedor');
+
+        return view('APIS.empresa', compact('identificacion'));
+    }
+
     /**
      * Subir documento fiscal — validación automática por IA.
      */
