@@ -160,14 +160,6 @@
                     @endforeach
                 </select>
             </div>
-            <div class="filter-field">
-                <label>Subido desde</label>
-                <input type="date" name="fecha_desde" value="{{ $filtros['fecha_desde'] }}">
-            </div>
-            <div class="filter-field">
-                <label>Subido hasta</label>
-                <input type="date" name="fecha_hasta" value="{{ $filtros['fecha_hasta'] }}">
-            </div>
             <div class="filter-actions">
                 <button type="submit" class="btn-primary">Filtrar</button>
                 @if($filtrosActivos)
@@ -181,8 +173,6 @@
             @if($filtros['busqueda'])<span class="active-tag">«{{ $filtros['busqueda'] }}»</span>@endif
             @if($filtros['estatus'])<span class="active-tag">{{ $estatusOpciones[$filtros['estatus']] ?? ucfirst($filtros['estatus']) }}</span>@endif
             @if($filtros['tipo'])<span class="active-tag">{{ $labelTipo($filtros['tipo']) }}</span>@endif
-            @if($filtros['fecha_desde'])<span class="active-tag">Desde {{ $filtros['fecha_desde'] }}</span>@endif
-            @if($filtros['fecha_hasta'])<span class="active-tag">Hasta {{ $filtros['fecha_hasta'] }}</span>@endif
         </div>
         @endif
     </div>
@@ -210,8 +200,6 @@
                     <th>Tipo</th>
                     <th>Estatus</th>
                     <th>Notas</th>
-                    <th>Fecha revisión</th>
-                    <th>Subido</th>
                 </tr>
             </thead>
             <tbody>
@@ -224,8 +212,6 @@
                     <td><span class="tipo-badge">{{ $labelTipo($d->tipo) }}</span></td>
                     <td><span class="badge-doc {{ $d->estatus }}">{{ $estatusOpciones[$d->estatus] ?? ucfirst($d->estatus) }}</span></td>
                     <td style="max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--gray-muted)" title="{{ $d->notas_revision }}">{{ $d->notas_revision ?? '—' }}</td>
-                    <td style="color:var(--gray-muted);white-space:nowrap">{{ $d->revisado_at?->format('d/m/Y') ?? '—' }}</td>
-                    <td style="color:var(--gray-muted);white-space:nowrap">{{ $d->created_at?->format('d/m/Y') ?? '—' }}</td>
                 </tr>
             @endforeach
             </tbody>

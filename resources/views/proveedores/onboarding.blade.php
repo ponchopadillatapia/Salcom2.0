@@ -84,26 +84,70 @@
             <div class="paso-icono verde"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Listado de documentos fiscales</div>
-                <div class="paso-desc">Subiste tu CIF, Opinión de Cumplimiento del SAT, Acta Constitutiva, INE y Carátula bancaria. Documentos compartidos con Salcom.</div>
+                <div class="paso-desc">Documentos requeridos según tu tipo de persona. Compartidos con Salcom.</div>
                 {{-- Estado actual de documentos --}}
+                @php
+                    $tipoPersona = $proveedor->tipo_persona ?? 'moral';
+                    $esMoral = str_contains(strtolower($tipoPersona), 'moral');
+
+                    // Documentos requeridos según tipo de persona
+                    $docsRequeridos = [
+                        'cif' => 'CIF',
+                        'opinion' => 'Opinión SAT',
+                    ];
+                    if ($esMoral) {
+                        $docsRequeridos['acta'] = 'Acta constitutiva';
+                    }
+                    $docsRequeridos['rep_legal'] = 'INE Rep. legal';
+                    $docsRequeridos['caratula_banco'] = 'Carátula bancaria';
+
+                    // Obtener documentos subidos del proveedor
+                    $docsSubidos = $proveedor->documentos->keyBy('tipo');
+
+                    $vigentes = 0;
+                    $pendientes = 0;
+                    $faltantes = 0;
+                    $totalDocs = count($docsRequeridos);
+                @endphp
                 <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
                     <div style="background:var(--gray-soft);border-radius:10px;padding:14px;">
                         <div style="font-size:12px;font-weight:700;color:var(--gray-text);margin-bottom:10px;">Estado actual</div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);"></span><span style="flex:1;">CIF</span><span style="font-size:11px;color:var(--green);font-weight:600;">Vigente</span></div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);"></span><span style="flex:1;">Opinión SAT</span><span style="font-size:11px;color:var(--green);font-weight:700;">POSITIVA</span></div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);"></span><span style="flex:1;">Acta constitutiva</span><span style="font-size:11px;color:var(--green);font-weight:600;">Vigente</span></div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--amber);"></span><span style="flex:1;">INE Rep. legal</span><span style="font-size:11px;color:var(--amber);font-weight:600;">Por vencer</span></div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--green);"></span><span style="flex:1;">Carátula bancaria</span><span style="font-size:11px;color:var(--green);font-weight:600;">Vigente</span></div>
-                        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;"><span style="width:8px;height:8px;border-radius:50%;background:var(--red);"></span><span style="flex:1;">Comprobante domicilio</span><span style="font-size:11px;color:var(--red);font-weight:600;">Vencido</span></div>
+                        @foreach($docsRequeridos as $tipo => $label)
+                            @php
+                                $doc = $docsSubidos->get($tipo);
+                                if ($doc && $doc->estatus === 'aprobado') {
+                                    $color = 'var(--green)';
+                                    $estado = 'Vigente';
+                                    $vigentes++;
+                                } elseif ($doc && $doc->estatus === 'pendiente') {
+                                    $color = 'var(--amber)';
+                                    $estado = 'Pendiente';
+                                    $pendientes++;
+                                } elseif ($doc && $doc->estatus === 'rechazado') {
+                                    $color = 'var(--red)';
+                                    $estado = 'Rechazado';
+                                    $faltantes++;
+                                } else {
+                                    $color = 'var(--gray-muted)';
+                                    $estado = 'No subido';
+                                    $faltantes++;
+                                }
+                            @endphp
+                            <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;">
+                                <span style="width:8px;height:8px;border-radius:50%;background:{{ $color }};"></span>
+                                <span style="flex:1;">{{ $label }}</span>
+                                <span style="font-size:11px;color:{{ $color }};font-weight:600;">{{ $estado }}</span>
+                            </div>
+                        @endforeach
                     </div>
                     <div style="background:var(--gray-soft);border-radius:10px;padding:14px;text-align:center;">
                         <div style="font-size:12px;font-weight:700;color:var(--gray-text);margin-bottom:10px;">Resumen</div>
-                        <div style="font-size:36px;font-weight:700;color:var(--amber);">5/6</div>
+                        <div style="font-size:36px;font-weight:700;color:{{ $vigentes === $totalDocs ? 'var(--green)' : 'var(--amber)' }};">{{ $vigentes }}/{{ $totalDocs }}</div>
                         <div style="font-size:11px;color:var(--gray-muted);margin-top:4px;">Documentos al día</div>
                         <div style="margin-top:12px;text-align:left;font-size:12px;">
-                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Vigentes</span><span style="font-weight:700;color:var(--green);">4</span></div>
-                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Por vencer</span><span style="font-weight:700;color:var(--amber);">1</span></div>
-                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Vencidos</span><span style="font-weight:700;color:var(--red);">1</span></div>
+                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Vigentes</span><span style="font-weight:700;color:var(--green);">{{ $vigentes }}</span></div>
+                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Pendientes</span><span style="font-weight:700;color:var(--amber);">{{ $pendientes }}</span></div>
+                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Faltantes</span><span style="font-weight:700;color:var(--red);">{{ $faltantes }}</span></div>
                         </div>
                     </div>
                 </div>

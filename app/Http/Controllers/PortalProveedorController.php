@@ -26,7 +26,7 @@ class PortalProveedorController extends Controller
 
     public function mostrarOnboarding()
     {
-        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $proveedor = ProveedorUser::with('documentos')->find(session('proveedor_id'));
 
         return view('proveedores.onboarding', compact('proveedor'));
     }

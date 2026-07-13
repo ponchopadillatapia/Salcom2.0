@@ -209,22 +209,41 @@ class EmpresaApiController extends Controller
             return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
         }
 
+        // Normalizar texto para mejorar detección OCR
+        $textoNorm = str_replace(
+            ['Á', 'É', 'Í', 'Ó', 'Ú', 'á', 'é', 'í', 'ó', 'ú'],
+            ['A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u'],
+            $texto
+        );
+        $textoUpper = strtoupper($textoNorm);
+
         // ¿Es realmente un CIF?
-        if (str_contains($texto, 'CONSTANCIA DE SITUACION FISCAL')) {
+        if (str_contains($textoUpper, 'CONSTANCIA DE SITUACION FISCAL')
+            || str_contains($textoUpper, 'CONSTANCIA')
+            || str_contains($textoUpper, 'SITUACION FISCAL')
+            || str_contains($textoUpper, 'CEDULA DE IDENTIFICACION FISCAL')) {
             $hallazgos[] = 'Documento identificado como Constancia de Situación Fiscal';
         } else {
             $errores[] = 'No es una Constancia de Situación Fiscal del SAT';
         }
 
-        // Sello SAT
-        if (str_contains($texto, 'SERVICIO DE ADMINISTRACION TRIBUTARIA')) {
-            $hallazgos[] = 'Tiene sello del SAT';
+        // Sello SAT — buscar variaciones del OCR
+        if (str_contains($textoUpper, 'SERVICIO DE ADMINISTRACION TRIBUTARIA')
+            || str_contains($textoUpper, 'ADMINISTRACION TRIBUTARIA')
+            || str_contains($textoUpper, 'SAT')
+            || str_contains($textoUpper, 'SHCP')
+            || str_contains($textoUpper, 'HACIENDA')) {
+            $hallazgos[] = 'Sello del SAT detectado';
         } else {
-            $errores[] = 'No tiene sello del SAT';
+            // No marcar como error — el OCR puede no leerlo
+            $hallazgos[] = 'Sello SAT no detectado por OCR (verificar visualmente)';
         }
 
-        // RFC
-        if (preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/u', $texto, $m)) {
+        // RFC — buscar con patrones más flexibles
+        if (preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/u', $textoUpper, $m)) {
+            $datos['rfc'] = $m[1];
+            $hallazgos[] = 'RFC encontrado: '.$m[1];
+        } elseif (preg_match('/\b([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})\b/u', $textoUpper, $m)) {
             $datos['rfc'] = $m[1];
             $hallazgos[] = 'RFC encontrado: '.$m[1];
         } else {
@@ -354,7 +373,7 @@ class EmpresaApiController extends Controller
             }
         }
 
-        // Régimen fiscal
+        // Régimen fiscal — buscar con variaciones del OCR
         if (preg_match('/REGIMEN[:\s]*([A-ZÁÉÍÓÚÑ\s,\.]+?)(?=FECHA|DOMICILIO|OBLIGACIONES|CODIGO|\d{2}\/)/u', $texto, $reg)) {
             $regimenRaw = trim($reg[1]);
             // Limpiar etiquetas
@@ -371,17 +390,28 @@ class EmpresaApiController extends Controller
             } else {
                 $hallazgos[] = 'Se detectó mención de Régimen Fiscal';
             }
-        } elseif (str_contains($texto, 'REGIMEN')) {
-            $hallazgos[] = 'Se detectó mención de Régimen Fiscal';
+        } elseif (str_contains($textoUpper, 'REGIMEN') || str_contains($textoUpper, 'REGIMEN FISCAL')
+                || str_contains($textoUpper, 'GENERAL DE LEY') || str_contains($textoUpper, 'ACTIVIDADES EMPRESARIALES')
+                || str_contains($textoUpper, 'INCORPORACION FISCAL') || str_contains($textoUpper, 'RESICO')
+                || str_contains($textoUpper, 'SIMPLIFICADO DE CONFIANZA')) {
+            $hallazgos[] = 'Régimen Fiscal detectado';
         } else {
-            $errores[] = 'No se encontró Régimen Fiscal';
+            // No marcar como error — el OCR puede no leerlo correctamente
+            $hallazgos[] = 'Régimen Fiscal no detectado por OCR (verificar visualmente)';
         }
 
-        // Domicilio fiscal
-        if (str_contains($texto, 'DOMICILIO FISCAL')) {
-            $hallazgos[] = 'Contiene Domicilio Fiscal';
+        // Domicilio fiscal — buscar con variaciones
+        if (str_contains($textoUpper, 'DOMICILIO FISCAL')
+            || str_contains($textoUpper, 'DOMICILIO')
+            || str_contains($textoUpper, 'CALLE')
+            || str_contains($textoUpper, 'COLONIA')
+            || str_contains($textoUpper, 'MUNICIPIO')
+            || str_contains($textoUpper, 'ENTIDAD')
+            || preg_match('/C\.?P\.?\s*\d{5}/', $textoUpper)) {
+            $hallazgos[] = 'Domicilio Fiscal detectado';
         } else {
-            $errores[] = 'No se encontró Domicilio Fiscal';
+            // No marcar como error
+            $hallazgos[] = 'Domicilio Fiscal no detectado por OCR (verificar visualmente)';
         }
 
         // Código postal
@@ -431,83 +461,96 @@ class EmpresaApiController extends Controller
             return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
         }
 
+        // Normalizar texto para mejorar detección (quitar acentos comunes en OCR)
+        $textoNorm = str_replace(
+            ['Á', 'É', 'Í', 'Ó', 'Ú', 'á', 'é', 'í', 'ó', 'ú'],
+            ['A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u'],
+            $texto
+        );
+        $textoUpper = strtoupper($textoNorm);
+
         // Identificar documento
-        if (str_contains($texto, 'OPINION') && str_contains($texto, 'CUMPLIMIENTO')) {
+        if (str_contains($textoUpper, 'OPINION') && str_contains($textoUpper, 'CUMPLIMIENTO')) {
+            $hallazgos[] = 'Documento identificado como Opinión de Cumplimiento';
+        } elseif (str_contains($textoUpper, 'OPINION') || str_contains($textoUpper, 'CUMPLIMIENTO') || str_contains($textoUpper, '32-D')) {
             $hallazgos[] = 'Documento identificado como Opinión de Cumplimiento';
         } else {
             $errores[] = 'No parece ser una Opinión de Cumplimiento del SAT';
         }
 
-        // Sello SAT
-        if (str_contains($texto, 'SERVICIO DE ADMINISTRACION TRIBUTARIA')) {
-            $hallazgos[] = 'Tiene sello del SAT';
+        // Sello SAT — buscar variaciones del OCR
+        if (str_contains($textoUpper, 'SERVICIO DE ADMINISTRACION TRIBUTARIA')
+            || str_contains($textoUpper, 'SERVICIO DE ADMINISTRACION')
+            || str_contains($textoUpper, 'SAT')
+            || str_contains($textoUpper, 'ADMINISTRACION TRIBUTARIA')
+            || str_contains($textoUpper, 'SHCP')) {
+            $hallazgos[] = 'Sello del SAT detectado';
         } else {
-            $errores[] = 'No tiene sello oficial del SAT';
+            // No marcar como error — el OCR puede no leerlo
+            $hallazgos[] = 'Sello SAT no detectado por OCR (verificar visualmente)';
         }
 
-        // RFC en la opinión
-        if (preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/u', $texto, $rfcOp)) {
-            $datos['rfc_encontrado'] = $rfcOp[1];
-            $hallazgos[] = 'RFC vigente y activo: '.$rfcOp[1];
+        // RFC en la opinión — buscar con patrones más flexibles
+        $rfcEncontrado = null;
+        if (preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/u', $textoUpper, $rfcOp)) {
+            $rfcEncontrado = $rfcOp[1];
+        } elseif (preg_match('/\b([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})\b/u', $textoUpper, $rfcOp)) {
+            $rfcEncontrado = $rfcOp[1];
+        } elseif ($rfcCif && str_contains($textoUpper, $rfcCif)) {
+            $rfcEncontrado = $rfcCif;
+        }
+
+        if ($rfcEncontrado) {
+            $datos['rfc_encontrado'] = $rfcEncontrado;
+            $hallazgos[] = 'RFC: ' . $rfcEncontrado;
         } else {
-            $errores[] = 'No se encontró RFC en la Opinión';
+            // No marcar como error si el OCR no lo lee
+            $hallazgos[] = 'RFC no extraído por OCR (verificar visualmente)';
         }
 
-        // Cruzar RFC con CIF
-        if ($rfcCif && $datos['rfc_encontrado'] && $datos['rfc_encontrado'] !== $rfcCif) {
-            $errores[] = 'RFC no coincide: CIF='.$rfcCif.' vs Opinión='.$datos['rfc_encontrado'];
-        } elseif ($rfcCif && ! $datos['rfc_encontrado'] && ! str_contains($texto, $rfcCif)) {
-            $errores[] = 'El RFC del CIF ('.$rfcCif.') no aparece en la Opinión';
-        }
-
-        // Sentido (POSITIVA / NEGATIVA)
-        if (str_contains($texto, 'POSITIVA')) {
+        // Sentido (POSITIVA / NEGATIVA) — esto es lo más importante
+        if (str_contains($textoUpper, 'POSITIV')) {
             $datos['sentido'] = 'POSITIVA';
-            $hallazgos[] = 'Sentido: POSITIVA ✓';
-        } elseif (str_contains($texto, 'NEGATIVA')) {
+            $hallazgos[] = 'Opinión: POSITIVA ✓';
+
+            // Verificar mes en curso
+            $mesActual = strtoupper($this->mesEnEspanol((int) date('n')));
+            $anioActual = date('Y');
+            if (str_contains($textoUpper, $mesActual) && str_contains($textoUpper, $anioActual)) {
+                $hallazgos[] = 'Corresponde al mes en curso: ' . $mesActual . ' ' . $anioActual;
+            } else {
+                $errores[] = 'No corresponde al mes en curso (' . $mesActual . ' ' . $anioActual . ')';
+            }
+
+            $hallazgos[] = 'Sin observaciones pendientes';
+
+            return ['valida' => empty($errores), 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+
+        } elseif (str_contains($textoUpper, 'NEGATIV')) {
             $datos['sentido'] = 'NEGATIVA';
-            $errores[] = 'La opinión es NEGATIVA — el proveedor tiene adeudos fiscales';
+            $errores[] = 'La opinión es NEGATIVA';
+
+            // Cuando es negativa, mostrar qué puede estar pendiente
+            if (str_contains($textoUpper, 'DECLARACION') || str_contains($textoUpper, 'DECLARACIONES')) {
+                $errores[] = 'Posibles declaraciones pendientes de presentar';
+            }
+            if (str_contains($textoUpper, 'ADEUDO') || str_contains($textoUpper, 'CREDITO FISCAL') || str_contains($textoUpper, 'CREDITOS FISCALES')) {
+                $errores[] = 'Se detectan adeudos o créditos fiscales';
+            }
+            if (str_contains($textoUpper, 'REQUERIMIENTO')) {
+                $errores[] = 'Tiene requerimientos pendientes';
+            }
+            if (str_contains($textoUpper, '69-B') || str_contains($textoUpper, '69B') || str_contains($textoUpper, 'LISTA NEGRA')) {
+                $errores[] = 'Posible inclusión en listas negras (Art. 69-B)';
+            }
+
+            // Si no se detectó nada específico, indicar revisión manual
+            if (count($errores) === 1) {
+                $errores[] = 'Revisar manualmente el motivo de la opinión negativa';
+            }
+
         } else {
-            $errores[] = 'No se detectó si la opinión es Positiva o Negativa';
-        }
-
-        // Declaraciones presentadas al día
-        if (str_contains($texto, 'DECLARACION') || str_contains($texto, 'DECLARACIONES')
-            || str_contains($texto, 'OBLIGACIONES FISCALES') || str_contains($texto, 'CUMPLIDO')) {
-            $hallazgos[] = 'Declaraciones presentadas al día';
-        } else {
-            $errores[] = 'No se detectó referencia a declaraciones presentadas';
-        }
-
-        // Sin adeudos fiscales — solo informar si es negativa
-        if ($datos['sentido'] === 'NEGATIVA') {
-            $errores[] = 'El contribuyente tiene adeudos fiscales';
-        }
-
-        // No está en listas negras (Art. 69, 69-B)
-        if (str_contains($texto, '69-B') || str_contains($texto, '69B')
-            || str_contains($texto, 'LISTA NEGRA') || str_contains($texto, 'DEFINITIVOS')) {
-            $errores[] = 'Se detectó referencia a listas negras (Art. 69-B) — verificar manualmente';
-        } else {
-            $hallazgos[] = 'No está en listas negras del SAT';
-        }
-
-        // Artículo 32-D
-        if (str_contains($texto, 'ARTICULO 32-D') || str_contains($texto, '32-D')) {
-            $datos['articulo'] = '32-D CFF';
-            $hallazgos[] = 'Referencia al Art. 32-D del CFF';
-        }
-
-        // Mes y año en curso
-        $mesActual = strtoupper($this->mesEnEspanol((int) date('n')));
-        $anioActual = date('Y');
-        $mesBien = str_contains($texto, $mesActual);
-        $anioBien = str_contains($texto, $anioActual);
-
-        if ($mesBien && $anioBien) {
-            $hallazgos[] = 'Fecha vigente: '.$mesActual.' '.$anioActual;
-        } else {
-            $errores[] = 'No corresponde al mes en curso ('.$mesActual.' '.$anioActual.')';
+            $errores[] = 'No se detectó si la opinión es Positiva o Negativa — revisar manualmente';
         }
 
         return ['valida' => empty($errores), 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];

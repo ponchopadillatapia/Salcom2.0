@@ -206,77 +206,63 @@
         </div></a>
     </div>
 
-    {{-- Proveedores activos e inactivos --}}
-    <div class="pp-section-title">Proveedores — Activos e Inactivos</div>
-    <div class="pp-grid-2">
-        <div class="pp-card pp-activity-card">
-            <div class="pp-activity-head" style="display:flex;align-items:center;justify-content:space-between;">
-                <span><span style="color:var(--green);">●</span> Activos ({{ $proveedoresActivosList->count() }})</span>
-            </div>
-            <div style="max-height:320px;overflow-y:auto;">
-            <table class="pp-tbl">
-                <thead><tr><th>Proveedor</th><th>Código</th><th>Documentos</th><th>Score</th></tr></thead>
-                <tbody>
-                @forelse($proveedoresActivosList as $prov)
-                    @php
-                        $tiposRequeridos = ['cif', 'opinion', 'caratula_banco'];
-                        $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
-                        $completos = count(array_intersect($tiposRequeridos, $docsAprobados));
-                        $totalReq = count($tiposRequeridos);
-                        $todoCompleto = $completos === $totalReq;
-                    @endphp
-                    <tr>
-                        <td>{{ $prov->nombre ?? $prov->usuario }}</td>
-                        <td>{{ $prov->id_proveedor ?? '—' }}</td>
-                        <td>
-                            @if($todoCompleto)
-                                <span style="font-size:11px;font-weight:600;color:var(--green);">✓ Completa</span>
-                            @else
-                                <span style="font-size:11px;font-weight:600;color:var(--amber);">{{ $completos }}/{{ $totalReq }}</span>
-                            @endif
-                        </td>
-                        <td>
-                            <div style="display:flex;align-items:center;gap:6px;">
-                                <div class="pp-score-bar" style="width:50px;"><div class="pp-score-fill" style="width:{{ $prov->score_total }}%;background:{{ $prov->score_total >= 80 ? 'var(--green)' : ($prov->score_total >= 60 ? 'var(--amber)' : 'var(--red)') }};"></div></div>
-                                <span style="font-size:11px;font-weight:600;">{{ $prov->score_total }}%</span>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="4" style="text-align:center;color:var(--gray-muted);">Sin proveedores activos</td></tr>
-                @endforelse
-                </tbody>
-            </table>
-            </div>
+    {{-- Proveedores — Documentos fiscales pendientes --}}
+    <div class="pp-section-title">Proveedores — Documentación Fiscal</div>
+    <a href="{{ route('admin.documentos') }}" style="text-decoration:none;color:inherit;display:block;">
+    <div class="pp-card pp-activity-card" style="cursor:pointer;transition:var(--transition);" onmouseover="this.style.borderColor='var(--purple-dark)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.borderColor='var(--purple)';this.style.boxShadow='var(--shadow-sm)'">
+        <div class="pp-activity-head" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Documentos faltantes o pendientes de validar</span>
+            <span class="pp-detail-link">Ver detalle →</span>
         </div>
-        <div class="pp-card pp-activity-card">
-            <div class="pp-activity-head" style="display:flex;align-items:center;justify-content:space-between;">
-                <span><span style="color:var(--red);">●</span> Inactivos ({{ $proveedoresInactivosList->count() }})</span>
-            </div>
-            <div style="max-height:320px;overflow-y:auto;">
-            <table class="pp-tbl">
-                <thead><tr><th>Proveedor</th><th>Código</th><th>Tiempo inactivo</th><th>Score</th></tr></thead>
-                <tbody>
-                @forelse($proveedoresInactivosList as $prov)
-                    <tr>
-                        <td>{{ $prov->nombre ?? $prov->usuario }}</td>
-                        <td>{{ $prov->id_proveedor ?? '—' }}</td>
-                        <td style="font-size:11px;color:var(--gray-muted);">{{ $prov->updated_at->diffForHumans(null, true) }}</td>
-                        <td>
-                            <div style="display:flex;align-items:center;gap:6px;">
-                                <div class="pp-score-bar" style="width:50px;"><div class="pp-score-fill" style="width:{{ $prov->score_total }}%;background:{{ $prov->score_total >= 80 ? 'var(--green)' : ($prov->score_total >= 60 ? 'var(--amber)' : 'var(--red)') }};"></div></div>
-                                <span style="font-size:11px;font-weight:600;">{{ $prov->score_total }}%</span>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
-                    <tr><td colspan="4" style="text-align:center;color:var(--gray-muted);">Sin proveedores inactivos</td></tr>
-                @endforelse
-                </tbody>
-            </table>
-            </div>
+        <div style="max-height:380px;overflow-y:auto;">
+        <table class="pp-tbl">
+            <thead><tr><th>Proveedor</th><th>Código</th><th>Documentos faltantes / pendientes</th><th>Estado</th></tr></thead>
+            <tbody>
+            @php
+                $tiposRequeridos = ['cif' => 'CIF', 'opinion' => 'Opinión SAT', 'caratula_banco' => 'Carátula bancaria'];
+                $proveedoresConFaltantes = $proveedoresActivosList->filter(function($prov) use ($tiposRequeridos) {
+                    $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
+                    return count(array_intersect(array_keys($tiposRequeridos), $docsAprobados)) < count($tiposRequeridos);
+                });
+            @endphp
+            @forelse($proveedoresConFaltantes as $prov)
+                @php
+                    $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
+                    $docsPendientes = $prov->documentos->where('estatus', 'pendiente')->pluck('tipo')->unique()->toArray();
+                    $faltantes = [];
+                    $pendientesValidar = [];
+                    foreach ($tiposRequeridos as $tipo => $label) {
+                        if (in_array($tipo, $docsAprobados)) continue;
+                        if (in_array($tipo, $docsPendientes)) {
+                            $pendientesValidar[] = $label;
+                        } else {
+                            $faltantes[] = $label;
+                        }
+                    }
+                    $completos = count(array_intersect(array_keys($tiposRequeridos), $docsAprobados));
+                @endphp
+                <tr>
+                    <td>{{ $prov->nombre ?? $prov->usuario }}</td>
+                    <td>{{ $prov->id_proveedor ?? '—' }}</td>
+                    <td style="font-size:11px;">
+                        @if(count($faltantes))
+                            <span style="color:var(--red);font-weight:600;">No subidos:</span> {{ implode(', ', $faltantes) }}
+                        @endif
+                        @if(count($faltantes) && count($pendientesValidar))<br>@endif
+                        @if(count($pendientesValidar))
+                            <span style="color:var(--amber);font-weight:600;">Por validar:</span> {{ implode(', ', $pendientesValidar) }}
+                        @endif
+                    </td>
+                    <td><span style="font-size:11px;font-weight:600;color:var(--amber);">{{ $completos }}/{{ count($tiposRequeridos) }}</span></td>
+                </tr>
+            @empty
+                <tr><td colspan="4" style="text-align:center;color:var(--green);font-weight:600;">Todos los proveedores tienen documentación completa ✓</td></tr>
+            @endforelse
+            </tbody>
+        </table>
         </div>
     </div>
+    </a>
 
     {{-- Accesos directos --}}
     <div class="pp-section-title">Accesos directos</div>
