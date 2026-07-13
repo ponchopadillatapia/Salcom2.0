@@ -102,11 +102,9 @@
                     $docsRequeridos['caratula_banco'] = 'Carátula bancaria';
 
                     // Obtener documentos subidos del proveedor
-                    try {
-                        $docsSubidos = $proveedor->documentos->keyBy('tipo');
-                    } catch (\Exception $e) {
-                        $docsSubidos = collect();
-                    }
+                    $docsSubidos = ($proveedor->relationLoaded('documentos') && $proveedor->documentos)
+                        ? $proveedor->documentos->keyBy('tipo')
+                        : collect();
 
                     $vigentes = 0;
                     $pendientes = 0;

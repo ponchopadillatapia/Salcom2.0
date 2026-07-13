@@ -221,14 +221,23 @@
             @php
                 $tiposRequeridos = ['cif' => 'CIF', 'opinion' => 'Opinión SAT', 'caratula_banco' => 'Carátula bancaria'];
                 $proveedoresConFaltantes = $proveedoresActivosList->filter(function($prov) use ($tiposRequeridos) {
-                    $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
+                    try {
+                        $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
+                    } catch (\Exception $e) {
+                        return true;
+                    }
                     return count(array_intersect(array_keys($tiposRequeridos), $docsAprobados)) < count($tiposRequeridos);
                 });
             @endphp
             @forelse($proveedoresConFaltantes as $prov)
                 @php
-                    $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
-                    $docsPendientes = $prov->documentos->where('estatus', 'pendiente')->pluck('tipo')->unique()->toArray();
+                    try {
+                        $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
+                        $docsPendientes = $prov->documentos->where('estatus', 'pendiente')->pluck('tipo')->unique()->toArray();
+                    } catch (\Exception $e) {
+                        $docsAprobados = [];
+                        $docsPendientes = [];
+                    }
                     $faltantes = [];
                     $pendientesValidar = [];
                     foreach ($tiposRequeridos as $tipo => $label) {

@@ -26,10 +26,17 @@ class PortalProveedorController extends Controller
 
     public function mostrarOnboarding()
     {
-        $proveedor = ProveedorUser::with('documentos')->find(session('proveedor_id'));
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
 
         if (!$proveedor) {
             return redirect()->route('proveedores.login');
+        }
+
+        // Cargar documentos de forma segura (puede fallar si la tabla no existe aún)
+        try {
+            $proveedor->load('documentos');
+        } catch (\Exception $e) {
+            // Si falla, el proveedor seguirá sin documentos cargados
         }
 
         return view('proveedores.onboarding', compact('proveedor'));
