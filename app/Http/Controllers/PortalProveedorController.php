@@ -28,6 +28,10 @@ class PortalProveedorController extends Controller
     {
         $proveedor = ProveedorUser::with('documentos')->find(session('proveedor_id'));
 
+        if (!$proveedor) {
+            return redirect()->route('proveedores.login');
+        }
+
         return view('proveedores.onboarding', compact('proveedor'));
     }
 
