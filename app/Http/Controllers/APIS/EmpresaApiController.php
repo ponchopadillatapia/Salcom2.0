@@ -134,6 +134,95 @@ class EmpresaApiController extends Controller
             }
 
             // ════════════════════════════════════════
+            // CRUCE CON FORMULARIO DE IDENTIFICACIÓN
+            // ════════════════════════════════════════
+            $nombreEsperado = trim((string) $request->input('nombre_esperado', ''));
+            $clabeEsperada = preg_replace('/\D/', '', (string) $request->input('clabe_esperada', ''));
+            $cuentaEsperada = preg_replace('/\D/', '', (string) $request->input('cuenta_esperada', ''));
+            $bancoEsperado = trim((string) $request->input('banco_esperado', ''));
+            $cpEsperado = preg_replace('/\D/', '', (string) $request->input('cp_esperado', ''));
+
+            if ($nombreEsperado !== '' || $clabeEsperada !== '' || $cpEsperado !== '' || $bancoEsperado !== '') {
+                // Tipo de persona declarado vs CIF
+                $cifEsMoral = (bool) ($cif['datos']['es_moral'] ?? false);
+                $declaroMoral = $tipoPersona === 'moral';
+                if ($cifEsMoral !== $declaroMoral) {
+                    $esperadoLabel = $declaroMoral ? 'Persona Moral' : 'Persona Física';
+                    $encontradoLabel = $cifEsMoral ? 'Persona Moral' : 'Persona Física';
+                    $cif['errores'][] = "El tipo de persona del formulario ({$esperadoLabel}) no coincide con el CIF ({$encontradoLabel})";
+                    $cif['valida'] = false;
+                } else {
+                    $cif['hallazgos'][] = 'Tipo de persona coincide con el formulario de identificación';
+                }
+
+                // Nombre / razón social
+                if ($nombreEsperado !== '') {
+                    $nombreDoc = (string) ($cif['datos']['nombre'] ?? '');
+                    if ($nombreDoc === '') {
+                        $cif['errores'][] = 'No se pudo verificar el nombre del formulario contra el CIF (nombre no detectado en el documento)';
+                        $cif['valida'] = false;
+                    } elseif ($this->nombresCoinciden($nombreEsperado, $nombreDoc)) {
+                        $cif['hallazgos'][] = 'Nombre/Razón Social coincide con el formulario de identificación';
+                    } else {
+                        $etiqueta = $declaroMoral ? 'Razón Social' : 'Nombre';
+                        $cif['errores'][] = "{$etiqueta} del formulario (\"{$nombreEsperado}\") no coincide con el CIF (\"{$nombreDoc}\")";
+                        $cif['valida'] = false;
+                    }
+                }
+
+                // Código postal
+                if ($cpEsperado !== '' && strlen($cpEsperado) === 5) {
+                    $cpDoc = (string) ($cif['datos']['codigo_postal'] ?? '');
+                    if ($cpDoc !== '' && $cpDoc !== $cpEsperado) {
+                        $cif['errores'][] = "C.P. del formulario ({$cpEsperado}) no coincide con el CIF ({$cpDoc})";
+                        $cif['valida'] = false;
+                    } elseif ($cpDoc === $cpEsperado) {
+                        $cif['hallazgos'][] = 'C.P. coincide con el formulario de identificación';
+                    }
+                }
+
+                // CLABE
+                if ($clabeEsperada !== '' && strlen($clabeEsperada) === 18) {
+                    $clabeDoc = (string) ($banco['datos']['clabe'] ?? '');
+                    if ($clabeDoc === '') {
+                        $banco['errores'][] = 'No se pudo verificar la CLABE del formulario (no detectada en la carátula)';
+                        $banco['valida'] = false;
+                    } elseif ($clabeDoc !== $clabeEsperada) {
+                        $banco['errores'][] = "CLABE del formulario ({$clabeEsperada}) no coincide con la carátula ({$clabeDoc})";
+                        $banco['valida'] = false;
+                    } else {
+                        $banco['hallazgos'][] = 'CLABE coincide con el formulario de identificación';
+                    }
+                }
+
+                // Cuenta bancaria
+                if ($cuentaEsperada !== '') {
+                    $cuentaDoc = (string) ($banco['datos']['cuenta'] ?? '');
+                    if ($cuentaDoc !== '' && ! str_ends_with($cuentaDoc, $cuentaEsperada) && ! str_ends_with($cuentaEsperada, $cuentaDoc) && $cuentaDoc !== $cuentaEsperada) {
+                        $banco['errores'][] = "Cuenta del formulario ({$cuentaEsperada}) no coincide con la carátula ({$cuentaDoc})";
+                        $banco['valida'] = false;
+                    } elseif ($cuentaDoc !== '' && ($cuentaDoc === $cuentaEsperada || str_ends_with($cuentaDoc, $cuentaEsperada) || str_ends_with($cuentaEsperada, $cuentaDoc))) {
+                        $banco['hallazgos'][] = 'Número de cuenta coincide con el formulario de identificación';
+                    }
+                }
+
+                // Banco
+                if ($bancoEsperado !== '') {
+                    $bancoDoc = (string) ($banco['datos']['banco'] ?? '');
+                    if ($bancoDoc !== '') {
+                        $bancoEspNorm = $this->normalizarNombre($bancoEsperado);
+                        $bancoDocNorm = $this->normalizarNombre($bancoDoc);
+                        if ($bancoEspNorm === $bancoDocNorm || str_contains($bancoEspNorm, $bancoDocNorm) || str_contains($bancoDocNorm, $bancoEspNorm)) {
+                            $banco['hallazgos'][] = 'Institución bancaria coincide con el formulario de identificación';
+                        } else {
+                            $banco['errores'][] = "Banco del formulario (\"{$bancoEsperado}\") no coincide con la carátula (\"{$bancoDoc}\")";
+                            $banco['valida'] = false;
+                        }
+                    }
+                }
+            }
+
+            // ════════════════════════════════════════
             // SEMÁFORO
             // ════════════════════════════════════════
             $cifOk = $cif['valida'];
@@ -1122,6 +1211,54 @@ class EmpresaApiController extends Controller
         }
 
         return (bool) preg_match('/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/u', $rfc);
+    }
+
+    private function normalizarNombre(string $nombre): string
+    {
+        $nombre = mb_strtoupper(trim($nombre), 'UTF-8');
+        $reemplazos = [
+            'Á' => 'A', 'É' => 'E', 'Í' => 'I', 'Ó' => 'O', 'Ú' => 'U', 'Ü' => 'U', 'Ñ' => 'N',
+            'á' => 'A', 'é' => 'E', 'í' => 'I', 'ó' => 'O', 'ú' => 'U', 'ü' => 'U', 'ñ' => 'N',
+        ];
+        $nombre = strtr($nombre, $reemplazos);
+        $nombre = preg_replace('/[^A-Z0-9\s]/', ' ', $nombre) ?? $nombre;
+        $nombre = preg_replace('/\s+/', ' ', $nombre) ?? $nombre;
+
+        return trim($nombre);
+    }
+
+    private function nombresCoinciden(string $esperado, string $encontrado): bool
+    {
+        $a = $this->normalizarNombre($esperado);
+        $b = $this->normalizarNombre($encontrado);
+
+        if ($a === '' || $b === '') {
+            return false;
+        }
+
+        if ($a === $b) {
+            return true;
+        }
+
+        // Uno contiene al otro (útil con S.A. DE C.V. u orden de apellidos)
+        if (str_contains($a, $b) || str_contains($b, $a)) {
+            return true;
+        }
+
+        // Comparar tokens (orden flexible)
+        $tokensA = array_values(array_filter(explode(' ', $a), fn ($t) => strlen($t) > 1));
+        $tokensB = array_values(array_filter(explode(' ', $b), fn ($t) => strlen($t) > 1));
+        if (count($tokensA) >= 2 && count($tokensB) >= 2) {
+            $inter = array_intersect($tokensA, $tokensB);
+            $umbral = min(count($tokensA), count($tokensB));
+            if ($umbral > 0 && count($inter) / $umbral >= 0.75) {
+                return true;
+            }
+        }
+
+        similar_text($a, $b, $pct);
+
+        return $pct >= 80;
     }
 
     private function mesEnEspanol(int $mes): string

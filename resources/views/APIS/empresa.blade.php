@@ -1,4 +1,4 @@
-﻿﻿<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -392,6 +392,18 @@
     <div class="section-header">
         <h1>Validación de Documentos</h1>
         <p>Sube los documentos requeridos para continuar con tu registro como proveedor.</p>
+        @if(!empty($identificacion))
+            <p style="margin-top:10px;font-size:0.85rem;color:var(--purple);font-weight:600;">
+                Identificación recibida:
+                {{ $identificacion['tipo_persona'] ?? '' }}
+                @if(!empty($identificacion['nombre_esperado']))
+                    — {{ $identificacion['nombre_esperado'] }}
+                @endif
+            </p>
+            <p style="font-size:0.8rem;color:var(--gray-muted);">
+                Los documentos deben coincidir con los datos del formulario de identificación.
+            </p>
+        @endif
     </div>
 
     <div class="card-salcom">
@@ -399,10 +411,10 @@
         {{-- ── SELECTOR TIPO PERSONA ── --}}
         <p class="group-title"><i class="bi bi-person-lines-fill"></i> Tipo de Persona</p>
         <div style="display:flex;gap:12px;margin-bottom:1.5rem">
-            <button type="button" class="tipo-btn" id="btn_moral" onclick="seleccionarTipo('moral')">
+            <button type="button" class="tipo-btn" id="btn_moral" onclick="seleccionarTipo('moral')" @if(!empty($identificacion)) disabled style="opacity:.85;cursor:default;" @endif>
                 <i class="bi bi-building"></i> Persona Moral
             </button>
-            <button type="button" class="tipo-btn" id="btn_fisica" onclick="seleccionarTipo('fisica')">
+            <button type="button" class="tipo-btn" id="btn_fisica" onclick="seleccionarTipo('fisica')" @if(!empty($identificacion)) disabled style="opacity:.85;cursor:default;" @endif>
                 <i class="bi bi-person"></i> Persona Física
             </button>
         </div>
@@ -487,7 +499,15 @@
 // ── Estado del formulario ──
 let tipoPersona = null; // 'moral' o 'fisica'
 
+// Datos del formulario de identificación (si viene de ahí)
+const identificacion = @json($identificacion ?? null);
+
 function seleccionarTipo(tipo) {
+    // Si ya viene fijado desde identificación, no permitir cambiar
+    if (identificacion && identificacion.tipo_clave && tipo !== identificacion.tipo_clave) {
+        return;
+    }
+
     tipoPersona = tipo;
 
     // UI de botones
@@ -507,6 +527,11 @@ function seleccionarTipo(tipo) {
         document.getElementById('acta_nombre').className = 'file-name empty';
         document.getElementById('row_acta').classList.remove('has-file');
     }
+}
+
+// Preseleccionar tipo desde identificación
+if (identificacion && identificacion.tipo_clave) {
+    seleccionarTipo(identificacion.tipo_clave);
 }
 
 // ── Campos requeridos según tipo ──
@@ -623,6 +648,25 @@ function enviar() {
 
     const formData = new FormData();
     formData.append('tipo_persona', tipoPersona);
+
+    // Datos del formulario de identificación para cruzar con los documentos
+    if (identificacion) {
+        if (identificacion.nombre_esperado) {
+            formData.append('nombre_esperado', identificacion.nombre_esperado);
+        }
+        if (identificacion.clabe) {
+            formData.append('clabe_esperada', identificacion.clabe);
+        }
+        if (identificacion.cuenta) {
+            formData.append('cuenta_esperada', identificacion.cuenta);
+        }
+        if (identificacion.banco) {
+            formData.append('banco_esperado', identificacion.banco);
+        }
+        if (identificacion.cp) {
+            formData.append('cp_esperado', identificacion.cp);
+        }
+    }
 
     // Agregar todos los campos que tengan archivo (requeridos + opcionales)
     for (const [campo, nombreCampo] of Object.entries(campos)) {
