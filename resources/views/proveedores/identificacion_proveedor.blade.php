@@ -5,7 +5,7 @@
 @section('hero')
 <div class="hero-band">
     <h1>Identificación del Proveedor</h1>
-    <p>Formato FCONT-0010 — Persona física o moral</p>
+    <p>Formato — Persona física o moral</p>
 </div>
 @endsection
 
