@@ -28,11 +28,47 @@ class PortalProveedorController extends Controller
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
 
-        if (!$proveedor) {
-            return redirect()->route('proveedores.login');
+        // Si entró como admin, proveedor_id antes era el id de admin_users (sin fila en proveedores_users).
+        // No redirigir a login: eso causa rebote (login -> portal) y parece que onboarding no carga.
+        if (! $proveedor) {
+            $admin = \App\Models\AdminUser::find(session('proveedor_id'));
+            if ($admin && $admin->rol === 'admin') {
+                $existente = ProveedorUser::where('usuario', $admin->usuario)->first();
+                if ($existente) {
+                    $proveedor = $existente;
+                } else {
+                    $datos = [
+                        'usuario' => $admin->usuario,
+                        'nombre' => $admin->nombre,
+                        'correo' => $admin->correo ?: ($admin->usuario.'@salcom.local'),
+                        'password' => $admin->password,
+                        'tipo_persona' => 'Persona Moral',
+                        'activo' => true,
+                    ];
+                    if (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'id_proveedor')) {
+                        $datos['id_proveedor'] = 'ADMIN-'.$admin->id;
+                    } elseif (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'codigo_compras')) {
+                        $datos['codigo_compras'] = 'ADMIN-'.$admin->id;
+                    }
+                    $proveedor = new ProveedorUser;
+                    $proveedor->forceFill($datos)->save();
+                    $proveedor = $proveedor->fresh();
+                }
+
+                session([
+                    'proveedor_id' => $proveedor->id,
+                    'proveedor_nombre' => $proveedor->nombre ?? $admin->nombre,
+                    'proveedor_codigo' => $proveedor->id_proveedor ?? $proveedor->codigo_compras ?? ('ADMIN-'.$admin->id),
+                    'proveedor_correo' => $proveedor->correo ?? $admin->correo,
+                ]);
+            }
         }
 
-        // Cargar documentos de forma segura (puede fallar si la tabla no existe aún)
+        if (! $proveedor) {
+            return redirect('/portal-proveedor')
+                ->with('error', 'No se pudo cargar el onboarding. Cierra sesión e inicia de nuevo.');
+        }
+
         try {
             $proveedor->load('documentos');
         } catch (\Exception $e) {

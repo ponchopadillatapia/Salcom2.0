@@ -198,15 +198,53 @@ class AuthProveedorController extends Controller
             return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->id_proveedor, 'correo' => $proveedor->correo, 'token' => null];
         }
 
-        // Super admins (jesus, alex, fred) pueden entrar al portal de proveedores
-        $admin = AdminUser::where('usuario', $codigo)
-            ->orWhere('correo', $codigo)
-            ->first();
+        // Super admins (jesus, alex, fred) pueden entrar al portal de proveedores.
+        // Se crea/usa un ProveedorUser espejo para que onboarding y demás páginas no fallen.
+        $admin = AdminUser::where(function ($q) use ($codigo) {
+            $q->where('usuario', $codigo)->orWhere('correo', $codigo);
+        })->first();
+
         if ($admin && Hash::check($pwd, $admin->password) && $admin->rol === 'admin') {
-            return ['id' => $admin->id, 'nombre' => $admin->nombre, 'codigo' => 'ADMIN-'.$admin->id, 'correo' => $admin->correo, 'token' => null];
+            $proveedor = $this->asegurarProveedorEspejoAdmin($admin);
+
+            return [
+                'id' => $proveedor->id,
+                'nombre' => $proveedor->nombre ?? $admin->nombre,
+                'codigo' => $proveedor->id_proveedor ?? $proveedor->codigo_compras ?? ('ADMIN-'.$admin->id),
+                'correo' => $proveedor->correo ?? $admin->correo,
+                'token' => null,
+            ];
         }
 
         return null;
+    }
+
+    private function asegurarProveedorEspejoAdmin(AdminUser $admin): ProveedorUser
+    {
+        $existente = ProveedorUser::where('usuario', $admin->usuario)->first();
+        if ($existente) {
+            return $existente;
+        }
+
+        $datos = [
+            'usuario' => $admin->usuario,
+            'nombre' => $admin->nombre,
+            'correo' => $admin->correo ?: ($admin->usuario.'@salcom.local'),
+            'password' => $admin->password,
+            'tipo_persona' => 'Persona Moral',
+            'activo' => true,
+        ];
+
+        if (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'id_proveedor')) {
+            $datos['id_proveedor'] = 'ADMIN-'.$admin->id;
+        } elseif (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'codigo_compras')) {
+            $datos['codigo_compras'] = 'ADMIN-'.$admin->id;
+        }
+
+        $proveedor = new ProveedorUser;
+        $proveedor->forceFill($datos)->save();
+
+        return $proveedor->fresh();
     }
 
     private function guardarSesion(array $datos, string $source, ?string $token): void
