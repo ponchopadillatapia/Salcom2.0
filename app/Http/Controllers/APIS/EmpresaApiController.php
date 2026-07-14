@@ -23,11 +23,16 @@ class EmpresaApiController extends Controller
                 'caratula_banco_pdf' => 'required|mimes:pdf|max:10240',
                 'rep_legal_pdf' => 'nullable|mimes:pdf|max:10240',
                 'contribuyente_pdf' => 'nullable|mimes:pdf|max:10240',
+                'poder_pdf' => 'nullable|mimes:pdf|max:10240',
             ];
 
-            // Acta constitutiva solo requerida para Persona Moral
+            // Acta constitutiva: para Persona Moral es obligatoria SALVO que suba poder notarial
             if ($tipoPersona === 'moral') {
-                $rules['acta_pdf'] = 'required|mimes:pdf|max:10240';
+                if ($request->hasFile('poder_pdf') && !$request->hasFile('acta_pdf')) {
+                    $rules['acta_pdf'] = 'nullable|mimes:pdf|max:10240';
+                } else {
+                    $rules['acta_pdf'] = 'nullable|mimes:pdf|max:10240';
+                }
             } else {
                 $rules['acta_pdf'] = 'nullable|mimes:pdf|max:10240';
             }
@@ -53,6 +58,9 @@ class EmpresaApiController extends Controller
             if ($request->hasFile('contribuyente_pdf')) {
                 $archivos['contribuyente'] = $request->file('contribuyente_pdf')->store('contribuyente', 'local');
             }
+            if ($request->hasFile('poder_pdf')) {
+                $archivos['poder'] = $request->file('poder_pdf')->store('poder', 'local');
+            }
 
             $textos = [];
             foreach ($archivos as $clave => $ruta) {
@@ -64,6 +72,9 @@ class EmpresaApiController extends Controller
             // ════════════════════════════════════════
             $cif = $this->validarCIF($textos['cif']);
 
+            // Datos del formulario de identificación (para cruce)
+            $nombreEsperado = trim((string) $request->input('nombre_esperado', ''));
+
             // ════════════════════════════════════════
             // OPINIÓN DE CUMPLIMIENTO
             // ════════════════════════════════════════
@@ -74,7 +85,8 @@ class EmpresaApiController extends Controller
             // ════════════════════════════════════════
             $acta = null;
             if (isset($textos['acta'])) {
-                $acta = $this->validarActa($textos['acta'], $cif['datos']['es_moral']);
+                $nombreParaCruce = $nombreEsperado !== '' ? $nombreEsperado : ($cif['datos']['nombre'] ?? null);
+                $acta = $this->validarActa($textos['acta'], $cif['datos']['es_moral'], $nombreParaCruce);
             } elseif ($tipoPersona === 'fisica') {
                 $acta = ['valida' => true, 'datos' => [], 'errores' => [], 'hallazgos' => ['Persona Física — Acta Constitutiva no requerida']];
             }
@@ -93,6 +105,14 @@ class EmpresaApiController extends Controller
             $contribuyente = null;
             if (isset($textos['contribuyente'])) {
                 $contribuyente = $this->validarINE($textos['contribuyente'], 'Contribuyente');
+            }
+
+            // ════════════════════════════════════════
+            // PODER NOTARIAL (opcional)
+            // ════════════════════════════════════════
+            $poder = null;
+            if (isset($textos['poder'])) {
+                $poder = $this->validarPoder($textos['poder']);
             }
 
             // ════════════════════════════════════════
@@ -230,9 +250,10 @@ class EmpresaApiController extends Controller
             $actaOk = $acta ? $acta['valida'] : true;
             $repOk = $repLegal ? $repLegal['valida'] : true;
             $contOk = $contribuyente ? $contribuyente['valida'] : true;
+            $poderOk = $poder ? $poder['valida'] : true;
             $bancoOk = $banco['valida'];
 
-            $todoOk = $cifOk && $opOk && $actaOk && $repOk && $contOk && $bancoOk;
+            $todoOk = $cifOk && $opOk && $actaOk && $repOk && $contOk && $poderOk && $bancoOk;
 
             if ($todoOk) {
                 $estado = 'verde';
@@ -258,6 +279,9 @@ class EmpresaApiController extends Controller
             }
             if ($contribuyente) {
                 $response['contribuyente'] = $contribuyente;
+            }
+            if ($poder) {
+                $response['poder'] = $poder;
             }
 
             return response()->json($response);
@@ -645,12 +669,15 @@ class EmpresaApiController extends Controller
         return ['valida' => empty($errores), 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
     }
 
-    private function validarActa(string $texto, bool $esMoral): array
+    private function validarActa(string $texto, bool $esMoral, ?string $nombreEsperado = null): array
     {
         $datos = [
             'notario' => null,
             'escritura' => null,
             'tipo_sociedad' => null,
+            'nombre_acta' => null,
+            'duracion' => null,
+            'registro_publico' => false,
             'caracteres_leidos' => strlen($texto),
         ];
         $errores = [];
@@ -668,47 +695,243 @@ class EmpresaApiController extends Controller
             return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
         }
 
-        // Escritura
-        if (preg_match('/ESCRITURA\s*(?:PUBLICA\s*)?(?:NUMERO\s*)?[:\s#]*(\d+)/u', $texto, $esc)) {
+        // Normalizar texto
+        $textoNorm = str_replace(
+            ['Á', 'É', 'Í', 'Ó', 'Ú', 'á', 'é', 'í', 'ó', 'ú'],
+            ['A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u'],
+            $texto
+        );
+        $textoUpper = strtoupper($textoNorm);
+
+        // ── Escritura Pública ──
+        if (preg_match('/ESCRITURA\s*(?:PUBLICA\s*)?(?:NUMERO\s*)?[:\s#]*(\d+)/u', $textoUpper, $esc)) {
             $datos['escritura'] = $esc[1];
             $hallazgos[] = 'Escritura Pública No. '.$esc[1];
-        } elseif (str_contains($texto, 'ESCRITURA')) {
+        } elseif (str_contains($textoUpper, 'ESCRITURA')) {
             $hallazgos[] = 'Se menciona Escritura Pública';
         }
 
-        // Notario
-        if (preg_match('/NOTARIO\s*(?:PUBLICO\s*)?(?:NUMERO\s*)?[:\s#]*(\d+)?/u', $texto, $not)) {
+        // ── Notario ──
+        if (preg_match('/NOTARI[OA]\s*(?:PUBLICO\s*)?(?:NUMERO\s*)?[:\s#]*(\d+)?/u', $textoUpper, $not)) {
             $datos['notario'] = isset($not[1]) ? 'Notaría #'.$not[1] : 'Sí';
             $hallazgos[] = 'Notario Público: '.($not[1] ?? 'detectado');
-        } elseif (str_contains($texto, 'NOTARIO') || str_contains($texto, 'NOTARIA')) {
-            $hallazgos[] = 'Se menciona Notario Público';
+        } elseif (str_contains($textoUpper, 'NOTARI') || str_contains($textoUpper, 'FEDATARIO')) {
+            $hallazgos[] = 'Se menciona Notario/Fedatario Público';
         } else {
             $errores[] = 'No se encontró referencia al Notario Público';
         }
 
-        // Tipo sociedad
-        $sociedades = ['S.A. DE C.V.', 'S.A.S.', 'S. DE R.L.', 'S.A.', 'S.C.', 'A.C.', 'S.A.P.I.'];
+        // ── Tipo sociedad ──
+        $sociedades = ['S.A. DE C.V.', 'SA DE CV', 'S.A.S.', 'SAS', 'S. DE R.L.', 'S DE RL', 'S.A.', 'S.C.', 'A.C.', 'S.A.P.I.'];
         foreach ($sociedades as $s) {
-            if (str_contains($texto, str_replace('.', '', str_replace(' ', '', $s)))
-                || str_contains($texto, $s)) {
+            if (str_contains($textoUpper, $s) || str_contains($textoUpper, str_replace(['.', ' '], '', $s))) {
                 $datos['tipo_sociedad'] = $s;
                 $hallazgos[] = 'Tipo de sociedad: '.$s;
                 break;
             }
         }
         if (! $datos['tipo_sociedad']) {
-            if (str_contains($texto, 'SOCIEDAD')) {
+            if (str_contains($textoUpper, 'SOCIEDAD')) {
                 $hallazgos[] = 'Se menciona Sociedad';
-            } else {
-                $errores[] = 'No se encontró tipo de Sociedad';
             }
         }
 
-        // Constitución
-        if (str_contains($texto, 'CONSTITUCI')) {
+        // ── Nombre / Razón Social en el Acta ──
+        $nombreActa = null;
+        if (preg_match('/(?:DENOMINACION|RAZON\s*SOCIAL|DENOMINARA)[:\s]+[""]?([^"""\n]+?)[""]?(?=\s*(?:CON|QUE|SOCIEDAD|S\.?A|DOMICILIO|,))/ui', $texto, $nmActa)) {
+            $nombreActa = trim($nmActa[1]);
+        } elseif (preg_match('/(?:CONSTITUIR|CONSTITUYE|CONSTITUCION DE)\s+(?:LA\s+)?(?:SOCIEDAD\s+)?[""]?([^"""\n]{5,80})[""]?/ui', $texto, $nmActa)) {
+            $nombreActa = trim($nmActa[1]);
+        }
+
+        if ($nombreActa) {
+            $datos['nombre_acta'] = $nombreActa;
+            $hallazgos[] = 'Razón Social en Acta: ' . $nombreActa;
+
+            // Cruce con nombre esperado
+            if ($nombreEsperado && $nombreEsperado !== '') {
+                if ($this->nombresCoinciden($nombreEsperado, $nombreActa)) {
+                    $hallazgos[] = 'Nombre coincide con el registro del proveedor ✓';
+                } else {
+                    $errores[] = "El nombre en el Acta (\"{$nombreActa}\") no coincide con el registro (\"{$nombreEsperado}\")";
+                }
+            }
+        } else {
+            $hallazgos[] = 'No se pudo extraer el nombre de la sociedad del Acta (verificar visualmente)';
+        }
+
+        // ── Sello del Registro Público de la Propiedad y del Comercio ──
+        if (str_contains($textoUpper, 'REGISTRO PUBLICO')
+            || str_contains($textoUpper, 'REGISTRO PUBLICO DE LA PROPIEDAD')
+            || str_contains($textoUpper, 'REGISTRO PUBLICO DE COMERCIO')
+            || str_contains($textoUpper, 'BOLETA DE INSCRIPCION')
+            || str_contains($textoUpper, 'INSCRIPCION')
+            || str_contains($textoUpper, 'FOLIO MERCANTIL')
+            || str_contains($textoUpper, 'FOLIO ELECTRONICO')) {
+            $datos['registro_publico'] = true;
+            $hallazgos[] = 'Sello/Inscripción del Registro Público detectado ✓';
+        } else {
+            $errores[] = 'No se detectó sello o inscripción del Registro Público de la Propiedad y del Comercio';
+        }
+
+        // ── Duración de la sociedad ──
+        if (preg_match('/DURACION[:\s]*(\d+)\s*(?:ANOS|AÑOS|A.OS)/ui', $textoUpper, $durM)) {
+            $datos['duracion'] = (int) $durM[1];
+            $hallazgos[] = 'Duración de la sociedad: '.$durM[1].' años';
+        } elseif (preg_match('/(\d+)\s*(?:ANOS|AÑOS|A.OS)\s*(?:DE\s*)?DURACION/ui', $textoUpper, $durM)) {
+            $datos['duracion'] = (int) $durM[1];
+            $hallazgos[] = 'Duración de la sociedad: '.$durM[1].' años';
+        } elseif (str_contains($textoUpper, 'DURACION') || str_contains($textoUpper, 'INDEFINID')) {
+            $datos['duracion'] = 99;
+            $hallazgos[] = 'Duración: indefinida o mencionada';
+        } else {
+            $hallazgos[] = 'No se detectó cláusula de duración (verificar visualmente)';
+        }
+
+        // ── Constitución ──
+        if (str_contains($textoUpper, 'CONSTITUCI') || str_contains($textoUpper, 'CONSTITUTIVA')) {
             $hallazgos[] = 'Contiene cláusula de Constitución';
         } else {
-            $errores[] = 'No se encontró cláusula de Constitución';
+            $errores[] = 'No se encontró referencia a Constitución de la sociedad';
+        }
+
+        return ['valida' => empty($errores), 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+    }
+
+    /**
+     * Valida un Poder Notarial — verifica facultades, origen de autoridad y tipo (individual/mancomunado).
+     */
+    private function validarPoder(string $texto): array
+    {
+        $datos = [
+            'notario' => null,
+            'escritura' => null,
+            'otorgante' => null,
+            'apoderado' => null,
+            'facultades' => [],
+            'es_mancomunado' => false,
+            'caracteres_leidos' => strlen($texto),
+        ];
+        $errores = [];
+        $hallazgos = [];
+
+        if (strlen($texto) < 20) {
+            $errores[] = 'No se pudo leer el contenido del PDF — puede ser imagen escaneada';
+
+            return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+        }
+
+        // Normalizar
+        $textoNorm = str_replace(
+            ['Á', 'É', 'Í', 'Ó', 'Ú', 'á', 'é', 'í', 'ó', 'ú'],
+            ['A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u'],
+            $texto
+        );
+        $textoUpper = strtoupper($textoNorm);
+
+        // ── Identificar que es un Poder ──
+        if (str_contains($textoUpper, 'PODER') && (str_contains($textoUpper, 'NOTARI') || str_contains($textoUpper, 'ESCRITURA'))) {
+            $hallazgos[] = 'Documento identificado como Poder Notarial';
+        } elseif (str_contains($textoUpper, 'PODER') || str_contains($textoUpper, 'APODERAD') || str_contains($textoUpper, 'MANDATO')) {
+            $hallazgos[] = 'Documento identificado como Poder/Mandato';
+        } else {
+            $errores[] = 'No se detectó que sea un Poder Notarial';
+        }
+
+        // ── Escritura ──
+        if (preg_match('/ESCRITURA\s*(?:PUBLICA\s*)?(?:NUMERO\s*)?[:\s#]*(\d+)/u', $textoUpper, $esc)) {
+            $datos['escritura'] = $esc[1];
+            $hallazgos[] = 'Escritura Pública No. '.$esc[1];
+        }
+
+        // ── Notario ──
+        if (preg_match('/NOTARI[OA]\s*(?:PUBLICO\s*)?(?:NUMERO\s*)?[:\s#]*(\d+)?/u', $textoUpper, $not)) {
+            $datos['notario'] = isset($not[1]) ? 'Notaría #'.$not[1] : 'Sí';
+            $hallazgos[] = 'Notario Público: '.($not[1] ?? 'detectado');
+        }
+
+        // ── Origen de autoridad (Regla de la Pirámide) ──
+        $tieneOrigen = false;
+        if (str_contains($textoUpper, 'ADMINISTRADOR UNICO') || str_contains($textoUpper, 'ADMINISTRADOR UNICO')) {
+            $datos['otorgante'] = 'Administrador Único';
+            $hallazgos[] = 'Otorgado por: Administrador Único ✓';
+            $tieneOrigen = true;
+        } elseif (str_contains($textoUpper, 'CONSEJO DE ADMINISTRACION')) {
+            $datos['otorgante'] = 'Consejo de Administración';
+            $hallazgos[] = 'Otorgado por: Consejo de Administración ✓';
+            $tieneOrigen = true;
+        } elseif (str_contains($textoUpper, 'ASAMBLEA') && str_contains($textoUpper, 'ACCIONISTAS')) {
+            $datos['otorgante'] = 'Asamblea de Accionistas';
+            $hallazgos[] = 'Otorgado por: Asamblea de Accionistas ✓';
+            $tieneOrigen = true;
+        } elseif (str_contains($textoUpper, 'DIRECTOR GENERAL') || str_contains($textoUpper, 'REPRESENTANTE LEGAL')) {
+            $datos['otorgante'] = 'Director General / Representante Legal';
+            $hallazgos[] = 'Otorgado por: Director General o Rep. Legal';
+            $tieneOrigen = true;
+        }
+
+        if (!$tieneOrigen) {
+            $errores[] = 'No se detectó el origen de autoridad del poder (Administrador Único, Consejo de Administración o Asamblea)';
+        }
+
+        // ── Antecedente (de dónde emana la autoridad) ──
+        if (str_contains($textoUpper, 'ANTECEDENTE') || str_contains($textoUpper, 'EN VIRTUD')
+            || str_contains($textoUpper, 'CONFORME A') || str_contains($textoUpper, 'FACULTADES QUE LE CONFIERE')
+            || str_contains($textoUpper, 'ACTA CONSTITUTIVA')) {
+            $hallazgos[] = 'Se menciona antecedente/origen de facultades';
+        } else {
+            $errores[] = 'No se encontró referencia al antecedente de la autoridad del otorgante';
+        }
+
+        // ── Matriz de Facultades ──
+        $facultades = [];
+
+        // Actos de Administración
+        if (str_contains($textoUpper, 'ACTOS DE ADMINISTRACION') || str_contains($textoUpper, 'PODER GENERAL DE ADMINISTRACION')
+            || str_contains($textoUpper, 'PODER DE ADMINISTRACION')) {
+            $facultades[] = 'Actos de Administración (puede firmar contratos)';
+        }
+
+        // Actos de Dominio
+        if (str_contains($textoUpper, 'ACTOS DE DOMINIO') || str_contains($textoUpper, 'PODER DE DOMINIO')) {
+            $facultades[] = 'Actos de Dominio (puede comprar/vender bienes)';
+        }
+
+        // Títulos de Crédito / Poder Cambiario
+        if (str_contains($textoUpper, 'TITULOS DE CREDITO') || str_contains($textoUpper, 'PODER CAMBIARIO')
+            || str_contains($textoUpper, 'PAGARE') || str_contains($textoUpper, 'LETRA DE CAMBIO')
+            || str_contains($textoUpper, 'SUSCRIBIR') || str_contains($textoUpper, 'ENDOSAR')) {
+            $facultades[] = 'Títulos de Crédito / Poder Cambiario (puede firmar pagarés, abrir cuentas)';
+        }
+
+        // Pleitos y Cobranzas
+        if (str_contains($textoUpper, 'PLEITOS Y COBRANZAS') || str_contains($textoUpper, 'PODER PARA PLEITOS')) {
+            $facultades[] = 'Pleitos y Cobranzas (puede representar legalmente)';
+        }
+
+        // Laboral
+        if (str_contains($textoUpper, 'RELACIONES LABORALES') || str_contains($textoUpper, 'MATERIA LABORAL')
+            || str_contains($textoUpper, 'TRABAJADORES')) {
+            $facultades[] = 'Relaciones Laborales';
+        }
+
+        if (!empty($facultades)) {
+            $datos['facultades'] = $facultades;
+            foreach ($facultades as $f) {
+                $hallazgos[] = '✓ Facultad: ' . $f;
+            }
+        } else {
+            $errores[] = 'No se detectaron facultades específicas en el poder (Administración, Dominio, Títulos de Crédito, etc.)';
+        }
+
+        // ── Individual o Mancomunado ──
+        if (str_contains($textoUpper, 'MANCOMUNAD') || str_contains($textoUpper, 'CONJUNTAMENTE')
+            || str_contains($textoUpper, 'MANERA CONJUNTA') || str_contains($textoUpper, 'DE FORMA CONJUNTA')
+            || str_contains($textoUpper, 'ACTUEN DE MANERA CONJUNTA')) {
+            $datos['es_mancomunado'] = true;
+            $errores[] = '⚠ PODER MANCOMUNADO — Se requiere firma e identificación de otra persona adicional';
+        } else {
+            $hallazgos[] = 'Poder Individual (no requiere firma adicional)';
         }
 
         return ['valida' => empty($errores), 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];

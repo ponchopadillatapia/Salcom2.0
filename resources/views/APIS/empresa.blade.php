@@ -453,7 +453,7 @@
 
         <div class="doc-row" id="row_rep_legal">
             <label class="doc-label" for="rep_legal"><i class="bi bi-person-badge"></i> ID Oficial del Representante Legal</label>
-            <p class="doc-hint">INE/IFE vigente del representante legal · PDF (opcional)</p>
+            <p class="doc-hint">INE/IFE vigente del representante legal · PDF <span id="rep_legal_hint_opt">(opcional en Persona Física)</span></p>
             <input type="file" id="rep_legal" accept=".pdf" onchange="verArchivo('rep_legal')">
             <label for="rep_legal" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
             <span id="rep_legal_nombre" class="file-name empty">Sin archivo</span>
@@ -467,7 +467,18 @@
             <span id="contribuyente_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
-        {{-- ── GRUPO 3: Datos bancarios ── --}}
+        {{-- ── GRUPO 3: Poder Notarial (opcional) ── --}}
+        <p class="group-title"><i class="bi bi-shield-lock"></i> Poder Notarial <span class="optional-badge">Opcional</span></p>
+
+        <div class="doc-row" id="row_poder">
+            <label class="doc-label" for="poder"><i class="bi bi-file-earmark-lock"></i> Poder Notarial</label>
+            <p class="doc-hint">Poder para actos de administración, dominio o títulos de crédito · PDF (opcional)</p>
+            <input type="file" id="poder" accept=".pdf" onchange="verArchivo('poder')">
+            <label for="poder" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
+            <span id="poder_nombre" class="file-name empty">Sin archivo</span>
+        </div>
+
+        {{-- ── GRUPO 4: Datos bancarios ── --}}
         <p class="group-title"><i class="bi bi-bank"></i> Datos Bancarios</p>
 
         <div class="doc-row" id="row_caratula_banco">
@@ -520,12 +531,31 @@ function seleccionarTipo(tipo) {
     // Acta constitutiva: solo para Persona Moral
     document.getElementById('row_acta').style.display = tipo === 'moral' ? 'block' : 'none';
 
-    // Limpiar acta si cambia a física
+    // Poder Notarial: solo para Persona Moral
+    var rowPoder = document.getElementById('row_poder');
+    var groupPoder = rowPoder ? rowPoder.closest('.group-title') ? null : rowPoder : null;
+    if (rowPoder) rowPoder.style.display = tipo === 'moral' ? 'block' : 'none';
+    // Ocultar/mostrar título del grupo Poder Notarial
+    var poderTitles = document.querySelectorAll('.group-title');
+    poderTitles.forEach(function(el) {
+        if (el.textContent.includes('Poder Notarial')) {
+            el.style.display = tipo === 'moral' ? 'flex' : 'none';
+        }
+    });
+
+    // Limpiar acta y poder si cambia a física
     if (tipo === 'fisica') {
         document.getElementById('acta').value = '';
         document.getElementById('acta_nombre').textContent = 'Sin archivo';
         document.getElementById('acta_nombre').className = 'file-name empty';
         document.getElementById('row_acta').classList.remove('has-file');
+
+        if (document.getElementById('poder')) {
+            document.getElementById('poder').value = '';
+            document.getElementById('poder_nombre').textContent = 'Sin archivo';
+            document.getElementById('poder_nombre').className = 'file-name empty';
+            if (rowPoder) rowPoder.classList.remove('has-file');
+        }
     }
 }
 
@@ -537,13 +567,28 @@ if (identificacion && identificacion.tipo_clave) {
 // ── Campos requeridos según tipo ──
 function getCamposRequeridos() {
     const base = ['cif', 'opinion', 'caratula_banco'];
-    if (tipoPersona === 'moral') base.push('acta');
+    if (tipoPersona === 'moral') {
+        // Si no se subió acta, el poder es obligatorio (y viceversa)
+        const tieneActa = document.getElementById('acta').files[0];
+        const tienePoder = document.getElementById('poder') && document.getElementById('poder').files[0];
+        if (!tieneActa && !tienePoder) {
+            base.push('acta'); // pide al menos uno
+        } else if (tieneActa) {
+            base.push('acta');
+        } else if (tienePoder) {
+            base.push('poder');
+        }
+    }
     return base;
 }
 
 // ── Campos opcionales ──
 function getCamposOpcionales() {
-    return ['rep_legal', 'contribuyente'];
+    const opcionales = ['rep_legal', 'contribuyente'];
+    if (tipoPersona === 'moral') {
+        opcionales.push('poder');
+    }
+    return opcionales;
 }
 
 // ── Campos y sus nombres para el FormData ──
@@ -553,6 +598,7 @@ const campos = {
     acta:           'acta_pdf',
     rep_legal:      'rep_legal_pdf',
     contribuyente:  'contribuyente_pdf',
+    poder:          'poder_pdf',
     caratula_banco: 'caratula_banco_pdf',
 };
 
@@ -597,31 +643,41 @@ function enviar() {
         return;
     }
 
+    // Para Persona Moral: validar que tenga al menos Acta o Poder
+    if (tipoPersona === 'moral') {
+        const tieneActa = document.getElementById('acta').files[0];
+        const tienePoder = document.getElementById('poder') && document.getElementById('poder').files[0];
+        if (!tieneActa && !tienePoder) {
+            mostrarError('Persona Moral requiere al menos el Acta Constitutiva o el Poder Notarial. Sube al menos uno.');
+            return;
+        }
+    }
+
     // Verificar campos requeridos
     const requeridos = getCamposRequeridos();
     for (const campo of requeridos) {
         const input = document.getElementById(campo);
-        if (!input.files[0]) {
-            const nombres = { cif: 'CIF', opinion: 'Opinión de Cumplimiento', acta: 'Acta Constitutiva', caratula_banco: 'Carátula de Banco' };
+        if (!input || !input.files[0]) {
+            const nombres = { cif: 'CIF', opinion: 'Opinión de Cumplimiento', acta: 'Acta Constitutiva', poder: 'Poder Notarial', caratula_banco: 'Carátula de Banco' };
             mostrarError(`Falta el documento: ${nombres[campo] || campo}`);
             return;
         }
         const archivo = input.files[0];
         if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
-            const nombres = { cif: 'CIF', opinion: 'Opinión de Cumplimiento', acta: 'Acta Constitutiva', caratula_banco: 'Carátula de Banco' };
-            mostrarError(`El archivo de "${nombres[campo] || campo}" no es un PDF válido.`);
+            const nombres = { cif: 'CIF', opinion: 'Opinión de Cumplimiento', acta: 'Acta Constitutiva', poder: 'Poder Notarial', caratula_banco: 'Carátula de Banco' };
+            mostrarError(`El archivo de "${nombres[campo] || campo}" no es un PDF válido. Solo se aceptan archivos PDF.`);
             return;
         }
     }
 
-    // Verificar opcionales que se hayan subido
-    for (const campo of getCamposOpcionales()) {
+    // Verificar que TODOS los archivos subidos (requeridos + opcionales) sean PDF
+    for (const [campo, nombreCampo] of Object.entries(campos)) {
         const input = document.getElementById(campo);
-        if (input.files[0]) {
+        if (input && input.files[0]) {
             const archivo = input.files[0];
             if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
-                const nombres = { rep_legal: 'ID Representante Legal', contribuyente: 'ID Contribuyente' };
-                mostrarError(`El archivo de "${nombres[campo] || campo}" no es un PDF válido.`);
+                const nombres = { cif: 'CIF', opinion: 'Opinión de Cumplimiento', acta: 'Acta Constitutiva', poder: 'Poder Notarial', rep_legal: 'ID Representante Legal', contribuyente: 'ID Contribuyente', caratula_banco: 'Carátula de Banco' };
+                mostrarError(`El archivo de "${nombres[campo] || campo}" no es un PDF válido. Solo se aceptan archivos PDF.`);
                 return;
             }
         }
@@ -722,6 +778,9 @@ function renderResultado(data) {
     }
     if (data.contribuyente) {
         secciones.push({ titulo: 'ID Contribuyente', icono: 'bi-person-check', doc: data.contribuyente });
+    }
+    if (data.poder) {
+        secciones.push({ titulo: 'Poder Notarial', icono: 'bi-shield-lock', doc: data.poder });
     }
 
     secciones.push({ titulo: 'Carátula de Banco', icono: 'bi-credit-card', doc: data.caratula_banco });
