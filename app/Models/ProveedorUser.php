@@ -14,6 +14,7 @@ class ProveedorUser extends Authenticatable
     protected $fillable = [
         'usuario', 'password', 'id_proveedor', 'codigo_compras', 'nombre',
         'tipo_persona', 'telefono', 'correo', 'foto', 'activo',
+        'datos_identificacion',
         'score_entrega', 'score_puntualidad', 'score_total',
         'aviso_privacidad_aceptado', 'aviso_privacidad_fecha',
     ];
@@ -22,6 +23,7 @@ class ProveedorUser extends Authenticatable
 
     protected $casts = [
         'activo' => 'boolean',
+        'datos_identificacion' => 'array',
         'score_entrega' => 'decimal:2',
         'score_puntualidad' => 'decimal:2',
         'score_total' => 'decimal:2',
@@ -104,5 +106,100 @@ class ProveedorUser extends Authenticatable
         }
 
         return implode(' · ', $partes);
+    }
+
+    /** Tipos de documentos fiscales requeridos según tipo de persona. */
+    public function documentosRequeridos(): array
+    {
+        $docs = [
+            'cif' => 'CIF',
+            'opinion' => 'Opinión SAT',
+        ];
+        if (str_contains(strtolower((string) $this->tipo_persona), 'moral')) {
+            $docs['acta'] = 'Acta constitutiva';
+        }
+        $docs['rep_legal'] = 'INE Rep. legal';
+        $docs['caratula_banco'] = 'Carátula bancaria';
+
+        return $docs;
+    }
+
+    public function tieneFormularioDatosBancarios(): bool
+    {
+        $db = $this->datos_identificacion ?? [];
+        if (! empty(trim((string) ($db['banco'] ?? ''))) || ! empty(trim((string) ($db['clabe'] ?? '')))) {
+            return true;
+        }
+
+        $ident = session('identificacion_proveedor', []);
+        if (! empty(trim((string) ($ident['banco'] ?? ''))) || ! empty(trim((string) ($ident['clabe'] ?? '')))) {
+            return true;
+        }
+
+        return $this->documentos()
+            ->where('tipo', 'caratula_banco')
+            ->whereIn('estatus', ['aprobado', 'pendiente'])
+            ->exists();
+    }
+
+    /** Hay formulario de identificación guardado (para revisión de Contabilidad/Dirección). */
+    public function tieneFormularioIdentificacion(): bool
+    {
+        $db = $this->datos_identificacion;
+
+        return is_array($db) && count(array_filter($db)) > 0;
+    }
+
+    public function documentosFiscalesCompletos(): bool
+    {
+        $docs = $this->relationLoaded('documentos')
+            ? $this->documentos
+            : $this->documentos()->get();
+
+        foreach (array_keys($this->documentosRequeridos()) as $tipo) {
+            $doc = $docs->firstWhere('tipo', $tipo);
+            if (! $doc || $doc->estatus !== 'aprobado') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** Docs aprobados hace ≥14 días de un ciclo de 21 → avisar renovación (última semana). */
+    public function documentosPorRenovar(): bool
+    {
+        if (! $this->documentosFiscalesCompletos()) {
+            return false;
+        }
+
+        $docs = $this->relationLoaded('documentos')
+            ? $this->documentos
+            : $this->documentos()->get();
+
+        foreach (array_keys($this->documentosRequeridos()) as $tipo) {
+            $doc = $docs->firstWhere('tipo', $tipo);
+            if (! $doc || $doc->estatus !== 'aprobado') {
+                continue;
+            }
+            $desde = $doc->revisado_at ?? $doc->updated_at ?? $doc->created_at;
+            if ($desde && now()->diffInDays($desde) >= 14) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function contactosSuficientes(): bool
+    {
+        return $this->contactos()->count() >= 2;
+    }
+
+    public function listoParaDireccion(): bool
+    {
+        return $this->tieneFormularioDatosBancarios()
+            && $this->documentosFiscalesCompletos()
+            && $this->contactosSuficientes();
     }
 }

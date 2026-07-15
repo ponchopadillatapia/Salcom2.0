@@ -26,7 +26,7 @@ class AuthProveedorController extends Controller
     public function mostrarLogin()
     {
         if (session('proveedor_id')) {
-            return redirect('/portal-proveedor');
+            return $this->redirectTrasLoginProveedor(session('proveedor_nombre', 'Proveedor'));
         }
 
         return view('proveedores.login');
@@ -65,7 +65,7 @@ class AuthProveedorController extends Controller
                 RateLimiter::clear($rateLimitKey);
                 $this->guardarSesion($datos, 'local', null);
 
-                return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido '.$datos['nombre']);
+                return $this->redirectTrasLoginProveedor($datos['nombre']);
             }
             RateLimiter::hit($rateLimitKey, $decaySeconds);
             Log::error('Login: fallo local', ['codigo' => $codigo, 'modo' => 'local']);
@@ -81,7 +81,7 @@ class AuthProveedorController extends Controller
             $this->guardarSesion($datos, 'api', $datos['token']);
             Log::info('Login: exitoso por API', ['codigo' => $codigo]);
 
-            return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido '.$datos['nombre']);
+            return $this->redirectTrasLoginProveedor($datos['nombre']);
         }
 
         $errorType = $apiResult['error_type'] ?? '';
@@ -112,7 +112,7 @@ class AuthProveedorController extends Controller
                 RateLimiter::clear($rateLimitKey);
                 $this->guardarSesion($datos, 'local', null);
 
-                return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido '.$datos['nombre']);
+                return $this->redirectTrasLoginProveedor($datos['nombre']);
             }
             RateLimiter::hit($rateLimitKey, $decaySeconds);
             Log::error('Login: fallback local también falló', ['codigo' => $codigo]);
@@ -142,9 +142,10 @@ class AuthProveedorController extends Controller
             'usuario' => $request->correo, 'password' => bcrypt($request->password),
             'nombre' => $request->nombre, 'tipo_persona' => $request->tipo_persona,
             'telefono' => $request->telefono, 'correo' => $request->correo,
+            'activo' => false,
         ]);
 
-        return redirect('/login-proveedor')->with('mensaje', 'Registro exitoso, ahora puedes iniciar sesión');
+        return redirect('/login-proveedor')->with('mensaje', 'Registro exitoso. Inicia sesión y completa tu onboarding para que Dirección active tu cuenta.');
     }
 
     public function mostrarActualizacion()
@@ -245,6 +246,17 @@ class AuthProveedorController extends Controller
         $proveedor->forceFill($datos)->save();
 
         return $proveedor->fresh();
+    }
+
+    private function redirectTrasLoginProveedor(string $nombre)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if ($proveedor && ! $proveedor->activo) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('mensaje', 'Bienvenido '.$nombre.'. Completa tu onboarding para que Dirección active tu cuenta.');
+        }
+
+        return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido '.$nombre);
     }
 
     private function guardarSesion(array $datos, string $source, ?string $token): void

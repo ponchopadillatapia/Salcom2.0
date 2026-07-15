@@ -70,12 +70,38 @@ class PortalProveedorController extends Controller
         }
 
         try {
-            $proveedor->load('documentos');
+            $proveedor->load(['documentos', 'contactos']);
         } catch (\Exception $e) {
             // Si falla, el proveedor seguirá sin documentos cargados
         }
 
-        return view('proveedores.onboarding', compact('proveedor'));
+        $pasoRegistro = true;
+        $pasoBancarios = $proveedor->tieneFormularioDatosBancarios();
+        $pasoDocs = $proveedor->documentosFiscalesCompletos();
+        $pasoDocsRenovar = $proveedor->documentosPorRenovar();
+        $numContactos = $proveedor->contactos?->count() ?? $proveedor->contactos()->count();
+        $pasoContactos = $numContactos >= 2;
+        $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos;
+        $pasoActivo = (bool) $proveedor->activo;
+
+        $completados = (int) $pasoRegistro + (int) $pasoBancarios + (int) $pasoDocs + (int) $pasoContactos + (int) ($pasoListoDireccion && $pasoActivo ? 1 : 0);
+        $totalPasos = 5;
+        $pct = (int) round(100 * $completados / $totalPasos);
+
+        return view('proveedores.onboarding', compact(
+            'proveedor',
+            'pasoRegistro',
+            'pasoBancarios',
+            'pasoDocs',
+            'pasoDocsRenovar',
+            'numContactos',
+            'pasoContactos',
+            'pasoListoDireccion',
+            'pasoActivo',
+            'completados',
+            'totalPasos',
+            'pct'
+        ));
     }
 
     public function mostrarBusiness()
@@ -295,7 +321,15 @@ class PortalProveedorController extends Controller
 
     public function mostrarIdentificacion()
     {
-        return view('proveedores.identificacion_proveedor');
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $identificacion = session('identificacion_proveedor')
+            ?? ($proveedor?->datos_identificacion ?? []);
+
+        if ($identificacion && ! session('identificacion_proveedor')) {
+            session(['identificacion_proveedor' => $identificacion]);
+        }
+
+        return view('proveedores.identificacion_proveedor', compact('identificacion'));
     }
 
     public function guardarIdentificacion(Request $request)
@@ -351,12 +385,17 @@ class PortalProveedorController extends Controller
                 $data['nombres'] ?? '',
             ])));
 
-        session([
-            'identificacion_proveedor' => array_merge($data, [
-                'tipo_clave' => $esMoral ? 'moral' : 'fisica',
-                'nombre_esperado' => $nombreEsperado,
-            ]),
+        $payload = array_merge($data, [
+            'tipo_clave' => $esMoral ? 'moral' : 'fisica',
+            'nombre_esperado' => $nombreEsperado,
         ]);
+
+        session(['identificacion_proveedor' => $payload]);
+
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if ($proveedor) {
+            $proveedor->update(['datos_identificacion' => $payload]);
+        }
 
         return redirect()->route('proveedores.validacion-fiscal');
     }
@@ -364,6 +403,13 @@ class PortalProveedorController extends Controller
     public function mostrarValidacionFiscal()
     {
         $identificacion = session('identificacion_proveedor');
+        if (! $identificacion) {
+            $proveedor = ProveedorUser::find(session('proveedor_id'));
+            $identificacion = $proveedor?->datos_identificacion;
+            if ($identificacion) {
+                session(['identificacion_proveedor' => $identificacion]);
+            }
+        }
 
         return view('APIS.empresa', compact('identificacion'));
     }

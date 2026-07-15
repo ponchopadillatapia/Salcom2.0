@@ -398,50 +398,55 @@
             </div>
         </div>
         <nav class="sb-nav">
+            @php
+                $portalOk = $proveedorPortalActivo ?? true;
+                $lockHref = route('proveedores.onboarding');
+                $lockAttr = ! $portalOk ? 'style="opacity:.45" title="Completa onboarding"' : '';
+            @endphp
             <div class="sb-section">Principal</div>
-            <a href="{{ route('proveedores.portal') }}" class="sb-link {{ request()->routeIs('proveedores.portal') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.portal') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.portal') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                 <span class="sb-text">Inicio</span>
             </a>
-            <a href="{{ route('proveedores.dashboard') }}" class="sb-link {{ request()->routeIs('proveedores.dashboard') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.dashboard') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></div>
                 <span class="sb-text">Dashboard</span>
             </a>
             <div class="sb-hr"></div>
             <div class="sb-section">Operaciones</div>
-            <a href="{{ route('proveedores.alta-producto') }}" class="sb-link {{ request()->routeIs('proveedores.alta-producto') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.alta-producto') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.alta-producto') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
                 <span class="sb-text">Alta de producto</span>
             </a>
-            <a href="{{ route('proveedores.ia') }}" class="sb-link {{ request()->routeIs('proveedores.ia*') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.ia') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.ia*') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V6a4 4 0 0 1 4-4z"/><path d="M16 11v1a4 4 0 0 1-8 0v-1"/><line x1="12" y1="16" x2="12" y2="20"/><line x1="8" y1="20" x2="16" y2="20"/></svg></div>
                 <span class="sb-text">Módulo IA</span>
             </a>
-            <a href="{{ route('proveedores.forecast') }}" class="sb-link {{ request()->routeIs('proveedores.forecast') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.forecast') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.forecast') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
                 <span class="sb-text">Forecast</span>
             </a>
-            <a href="{{ route('proveedores.otif') }}" class="sb-link {{ request()->routeIs('proveedores.otif') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.otif') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.otif') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                 <span class="sb-text">OTIF</span>
             </a>
-            <a href="{{ route('proveedores.oc') }}" class="sb-link {{ request()->routeIs('proveedores.oc') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.oc') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.oc') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
                 <span class="sb-text">Órdenes de Compra</span>
             </a>
-            <a href="{{ route('proveedores.inventario') }}" class="sb-link {{ request()->routeIs('proveedores.inventario') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.inventario') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.inventario') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                 <span class="sb-text">Inventario</span>
             </a>
-            <a href="{{ route('proveedores.fiscal') }}" class="sb-link {{ request()->routeIs('proveedores.fiscal') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.fiscal') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.fiscal') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
                 <span class="sb-text">Fiscal</span>
             </a>
-            <a href="{{ route('proveedores.dashboard') }}" class="sb-link">
+            <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
                 <span class="sb-text">Facturas</span>
             </a>
-            <a href="{{ route('proveedores.dashboard') }}" class="sb-link">
+            <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
                 <span class="sb-text">Pagos</span>
             </a>
@@ -451,15 +456,11 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
                 <span class="sb-text">Onboarding</span>
             </a>
-            <a href="{{ route('proveedores.identificacion') }}" class="sb-link {{ request()->routeIs('proveedores.identificacion*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/><path d="M16 11l2 2 4-4"/></svg></div>
-                <span class="sb-text">Identificación</span>
-            </a>
-            <a href="{{ route('proveedores.payment-history') }}" class="sb-link {{ request()->routeIs('proveedores.payment-history') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.payment-history') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.payment-history') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
                 <span class="sb-text">Historial de pagos</span>
             </a>
-            <a href="{{ route('proveedores.business') }}" class="sb-link {{ request()->routeIs('proveedores.business') ? 'active' : '' }}">
+            <a href="{{ $portalOk ? route('proveedores.business') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.business') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                 <span class="sb-text">Business</span>
             </a>
@@ -474,6 +475,11 @@
 
     {{-- CONTENIDO --}}
     <div class="main-content @yield('main-class')">
+        @if(isset($proveedorPortalActivo) && ! $proveedorPortalActivo && ! request()->routeIs('proveedores.onboarding'))
+        <div style="background:#fff7ed;border:1px solid #fcd34d;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e;">
+            Cuenta en onboarding. <a href="{{ route('proveedores.onboarding') }}" style="color:var(--purple);font-weight:600;">Ir a Onboarding</a>
+        </div>
+        @endif
         @yield('content')
     </div>
 

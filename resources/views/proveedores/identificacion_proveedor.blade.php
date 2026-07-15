@@ -97,6 +97,7 @@
 
 <form method="POST" action="{{ route('proveedores.identificacion.guardar') }}" id="formIdentificacion">
     @csrf
+    @php $d = $identificacion ?? []; @endphp
 
     {{-- Datos generales --}}
     <div class="id-card">
@@ -109,14 +110,15 @@
         <div class="form-row cols-2">
             <div class="form-group">
                 <label for="fecha">Fecha</label>
-                <input type="date" id="fecha" name="fecha" value="{{ old('fecha', date('Y-m-d')) }}" required>
+                <input type="date" id="fecha" name="fecha" value="{{ old('fecha', $d['fecha'] ?? date('Y-m-d')) }}" required>
             </div>
             <div class="form-group">
                 <label for="tipo_persona">Tipo de persona</label>
                 <select id="tipo_persona" name="tipo_persona" required>
-                    <option value="" disabled {{ old('tipo_persona') ? '' : 'selected' }}>Selecciona una opción</option>
-                    <option value="Persona Física" {{ old('tipo_persona') == 'Persona Física' ? 'selected' : '' }}>Persona Física</option>
-                    <option value="Persona Moral" {{ old('tipo_persona') == 'Persona Moral' ? 'selected' : '' }}>Persona Moral</option>
+                    @php $tp = old('tipo_persona', $d['tipo_persona'] ?? ''); @endphp
+                    <option value="" disabled {{ $tp ? '' : 'selected' }}>Selecciona una opción</option>
+                    <option value="Persona Física" {{ $tp == 'Persona Física' ? 'selected' : '' }}>Persona Física</option>
+                    <option value="Persona Moral" {{ $tp == 'Persona Moral' ? 'selected' : '' }}>Persona Moral</option>
                 </select>
             </div>
         </div>
@@ -126,15 +128,15 @@
             <div class="form-row cols-3">
                 <div class="form-group">
                     <label for="apellido_paterno">Apellido paterno</label>
-                    <input type="text" id="apellido_paterno" name="apellido_paterno" value="{{ old('apellido_paterno') }}" placeholder="Apellido paterno">
+                    <input type="text" id="apellido_paterno" name="apellido_paterno" value="{{ old('apellido_paterno', $d['apellido_paterno'] ?? '') }}" placeholder="Apellido paterno">
                 </div>
                 <div class="form-group">
                     <label for="apellido_materno">Apellido materno</label>
-                    <input type="text" id="apellido_materno" name="apellido_materno" value="{{ old('apellido_materno') }}" placeholder="Apellido materno">
+                    <input type="text" id="apellido_materno" name="apellido_materno" value="{{ old('apellido_materno', $d['apellido_materno'] ?? '') }}" placeholder="Apellido materno">
                 </div>
                 <div class="form-group">
                     <label for="nombres">Nombre(s)</label>
-                    <input type="text" id="nombres" name="nombres" value="{{ old('nombres') }}" placeholder="Nombre(s)">
+                    <input type="text" id="nombres" name="nombres" value="{{ old('nombres', $d['nombres'] ?? '') }}" placeholder="Nombre(s)">
                 </div>
             </div>
         </div>
@@ -144,7 +146,7 @@
             <div class="form-row cols-1">
                 <div class="form-group">
                     <label for="razon_social">Denominación o Razón Social</label>
-                    <input type="text" id="razon_social" name="razon_social" value="{{ old('razon_social') }}" placeholder="Nombre completo de la empresa">
+                    <input type="text" id="razon_social" name="razon_social" value="{{ old('razon_social', $d['razon_social'] ?? '') }}" placeholder="Nombre completo de la empresa">
                 </div>
             </div>
         </div>
@@ -161,71 +163,71 @@
         <div class="form-row cols-3">
             <div class="form-group" style="grid-column: span 1;">
                 <label for="calle">Calle, avenida o vía</label>
-                <input type="text" id="calle" name="calle" value="{{ old('calle') }}" placeholder="Calle / avenida">
+                <input type="text" id="calle" name="calle" value="{{ old('calle', $d['calle'] ?? '') }}" placeholder="Calle / avenida">
             </div>
             <div class="form-group">
                 <label for="num_exterior">Número exterior</label>
-                <input type="text" id="num_exterior" name="num_exterior" value="{{ old('num_exterior') }}" placeholder="Ext.">
+                <input type="text" id="num_exterior" name="num_exterior" value="{{ old('num_exterior', $d['num_exterior'] ?? '') }}" placeholder="Ext.">
             </div>
             <div class="form-group">
                 <label for="num_interior">Número interior</label>
-                <input type="text" id="num_interior" name="num_interior" value="{{ old('num_interior') }}" placeholder="Int. (opcional)">
+                <input type="text" id="num_interior" name="num_interior" value="{{ old('num_interior', $d['num_interior'] ?? '') }}" placeholder="Int. (opcional)">
             </div>
         </div>
 
         <div class="form-row cols-3">
             <div class="form-group">
                 <label for="colonia">Colonia o fraccionamiento</label>
-                <input type="text" id="colonia" name="colonia" value="{{ old('colonia') }}" placeholder="Colonia">
+                <input type="text" id="colonia" name="colonia" value="{{ old('colonia', $d['colonia'] ?? '') }}" placeholder="Colonia">
             </div>
             <div class="form-group">
                 <label for="municipio">Delegación / Municipio</label>
-                <input type="text" id="municipio" name="municipio" value="{{ old('municipio') }}" placeholder="Municipio">
+                <input type="text" id="municipio" name="municipio" value="{{ old('municipio', $d['municipio'] ?? '') }}" placeholder="Municipio">
             </div>
             <div class="form-group">
                 <label for="estado">Entidad Federativa / Estado</label>
-                <input type="text" id="estado" name="estado" value="{{ old('estado') }}" placeholder="Estado">
+                <input type="text" id="estado" name="estado" value="{{ old('estado', $d['estado'] ?? '') }}" placeholder="Estado">
             </div>
         </div>
 
         <div class="form-row cols-4">
             <div class="form-group">
                 <label for="ciudad">Ciudad o población</label>
-                <input type="text" id="ciudad" name="ciudad" value="{{ old('ciudad') }}" placeholder="Ciudad">
+                <input type="text" id="ciudad" name="ciudad" value="{{ old('ciudad', $d['ciudad'] ?? '') }}" placeholder="Ciudad">
             </div>
             <div class="form-group">
                 <label for="pais">País</label>
-                <input type="text" id="pais" name="pais" value="{{ old('pais', 'México') }}" placeholder="País">
+                <input type="text" id="pais" name="pais" value="{{ old('pais', $d['pais'] ?? 'México') }}" placeholder="País">
             </div>
             <div class="form-group">
                 <label for="cp">C.P.</label>
-                <input type="text" id="cp" name="cp" value="{{ old('cp') }}" placeholder="00000" maxlength="10">
+                <input type="text" id="cp" name="cp" value="{{ old('cp', $d['cp'] ?? '') }}" placeholder="00000" maxlength="10">
             </div>
             <div class="form-group">
                 <label for="telefono">Teléfono</label>
-                <input type="tel" id="telefono" name="telefono" value="{{ old('telefono') }}" placeholder="33 1234 5678">
+                <input type="tel" id="telefono" name="telefono" value="{{ old('telefono', $d['telefono'] ?? '') }}" placeholder="33 1234 5678">
             </div>
         </div>
 
         <div class="form-row cols-3">
             <div class="form-group">
                 <label for="celular">Celular</label>
-                <input type="tel" id="celular" name="celular" value="{{ old('celular') }}" placeholder="33 1234 5678">
+                <input type="tel" id="celular" name="celular" value="{{ old('celular', $d['celular'] ?? '') }}" placeholder="33 1234 5678">
             </div>
             <div class="form-group">
                 <label for="telefono2">Teléfono 2 (incluir clave lada)</label>
-                <input type="tel" id="telefono2" name="telefono2" value="{{ old('telefono2') }}" placeholder="Lada + número">
+                <input type="tel" id="telefono2" name="telefono2" value="{{ old('telefono2', $d['telefono2'] ?? '') }}" placeholder="Lada + número">
             </div>
             <div class="form-group">
                 <label for="extension">Extensión</label>
-                <input type="text" id="extension" name="extension" value="{{ old('extension') }}" placeholder="Ext.">
+                <input type="text" id="extension" name="extension" value="{{ old('extension', $d['extension'] ?? '') }}" placeholder="Ext.">
             </div>
         </div>
 
         <div class="form-row cols-1">
             <div class="form-group">
                 <label for="correo">Correo electrónico</label>
-                <input type="email" id="correo" name="correo" value="{{ old('correo', session('proveedor_correo')) }}" placeholder="correo@empresa.com">
+                <input type="email" id="correo" name="correo" value="{{ old('correo', $d['correo'] ?? session('proveedor_correo')) }}" placeholder="correo@empresa.com">
             </div>
         </div>
     </div>
@@ -241,17 +243,17 @@
         <div class="form-row cols-1">
             <div class="form-group">
                 <label for="clabe">Cuenta CLABE</label>
-                <input type="text" id="clabe" name="clabe" value="{{ old('clabe') }}" placeholder="18 dígitos" maxlength="18">
+                <input type="text" id="clabe" name="clabe" value="{{ old('clabe', $d['clabe'] ?? '') }}" placeholder="18 dígitos" maxlength="18">
             </div>
         </div>
         <div class="form-row cols-2">
             <div class="form-group">
                 <label for="cuenta">Cuenta</label>
-                <input type="text" id="cuenta" name="cuenta" value="{{ old('cuenta') }}" placeholder="Número de cuenta">
+                <input type="text" id="cuenta" name="cuenta" value="{{ old('cuenta', $d['cuenta'] ?? '') }}" placeholder="Número de cuenta">
             </div>
             <div class="form-group">
                 <label for="banco">Nombre de la Institución Financiera</label>
-                <input type="text" id="banco" name="banco" value="{{ old('banco') }}" placeholder="Ej. BBVA, Banorte, Santander">
+                <input type="text" id="banco" name="banco" value="{{ old('banco', $d['banco'] ?? '') }}" placeholder="Ej. BBVA, Banorte, Santander">
             </div>
         </div>
     </div>
@@ -266,27 +268,27 @@
 
         <div class="docs-grid">
             <label class="doc-check" id="doc-acta-constitutiva">
-                <input type="checkbox" name="docs[]" value="acta_constitutiva" {{ in_array('acta_constitutiva', old('docs', [])) ? 'checked' : '' }}>
+                <input type="checkbox" name="docs[]" value="acta_constitutiva" {{ in_array('acta_constitutiva', old('docs', $d['docs'] ?? [])) ? 'checked' : '' }}>
                 Acta Constitutiva
             </label>
             <label class="doc-check">
-                <input type="checkbox" name="docs[]" value="id_rep_legal" {{ in_array('id_rep_legal', old('docs', [])) ? 'checked' : '' }}>
+                <input type="checkbox" name="docs[]" value="id_rep_legal" {{ in_array('id_rep_legal', old('docs', $d['docs'] ?? [])) ? 'checked' : '' }}>
                 Identificación oficial del representante legal
             </label>
             <label class="doc-check">
-                <input type="checkbox" name="docs[]" value="id_contribuyente" {{ in_array('id_contribuyente', old('docs', [])) ? 'checked' : '' }}>
+                <input type="checkbox" name="docs[]" value="id_contribuyente" {{ in_array('id_contribuyente', old('docs', $d['docs'] ?? [])) ? 'checked' : '' }}>
                 Identificación oficial del contribuyente
             </label>
             <label class="doc-check">
-                <input type="checkbox" name="docs[]" value="constancia_fiscal" {{ in_array('constancia_fiscal', old('docs', [])) ? 'checked' : '' }}>
+                <input type="checkbox" name="docs[]" value="constancia_fiscal" {{ in_array('constancia_fiscal', old('docs', $d['docs'] ?? [])) ? 'checked' : '' }}>
                 Constancia de Situación Fiscal
             </label>
             <label class="doc-check">
-                <input type="checkbox" name="docs[]" value="opinion_cumplimiento" {{ in_array('opinion_cumplimiento', old('docs', [])) ? 'checked' : '' }}>
+                <input type="checkbox" name="docs[]" value="opinion_cumplimiento" {{ in_array('opinion_cumplimiento', old('docs', $d['docs'] ?? [])) ? 'checked' : '' }}>
                 Opinión de Cumplimiento
             </label>
             <label class="doc-check">
-                <input type="checkbox" name="docs[]" value="caratula_banco" {{ in_array('caratula_banco', old('docs', [])) ? 'checked' : '' }}>
+                <input type="checkbox" name="docs[]" value="caratula_banco" {{ in_array('caratula_banco', old('docs', $d['docs'] ?? [])) ? 'checked' : '' }}>
                 Carátula de banco
             </label>
         </div>
@@ -307,7 +309,7 @@
         <div class="form-row cols-1">
             <div class="form-group">
                 <label for="nombre_firma">Nombre del representante legal</label>
-                <input type="text" id="nombre_firma" name="nombre_firma" value="{{ old('nombre_firma') }}" placeholder="Nombre completo quien firma">
+                <input type="text" id="nombre_firma" name="nombre_firma" value="{{ old('nombre_firma', $d['nombre_firma'] ?? '') }}" placeholder="Nombre completo quien firma">
             </div>
         </div>
     </div>

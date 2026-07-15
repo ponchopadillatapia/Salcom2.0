@@ -41,6 +41,7 @@ class AdminSmokeTest extends TestCase
             '/admin/encuestas',
             '/admin/pedidos',
             '/admin/proveedores',
+            '/admin/solicitudes-alta',
             '/admin/productos',
             '/admin/facturas',
             '/admin/documentos',

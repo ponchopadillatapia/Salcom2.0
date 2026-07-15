@@ -2108,6 +2108,86 @@ class AdminPanelController extends Controller
         return back()->with('mensaje', "Proveedor {$prov->nombre} ".($request->accion === 'alta' ? 'dado de alta' : 'dado de baja').' por dirección.');
     }
 
+    /** Solicitudes de alta (onboarding): proveedores inactivos para revisión manual de Contabilidad/Dirección. */
+    public function solicitudesAlta(Request $request)
+    {
+        $filtro = $request->input('filtro', 'todas'); // todas | con_datos | sin_datos
+
+        $pendientes = ProveedorUser::with(['documentos', 'contactos'])
+            ->where('activo', false)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (ProveedorUser $p) {
+                $formulario = $p->tieneFormularioIdentificacion();
+                $bancarios = $p->tieneFormularioDatosBancarios();
+                $docsCount = $p->documentos->count();
+                $contactosN = $p->contactos->count();
+                $conDatos = $formulario || $docsCount > 0 || $contactosN > 0;
+
+                return (object) [
+                    'proveedor' => $p,
+                    'formulario' => $formulario,
+                    'bancarios' => $bancarios,
+                    'docs_count' => $docsCount,
+                    'num_contactos' => $contactosN,
+                    'con_datos' => $conDatos,
+                ];
+            });
+
+        $conteoConDatos = $pendientes->where('con_datos', true)->count();
+        $conteoSinDatos = $pendientes->where('con_datos', false)->count();
+
+        if ($filtro === 'con_datos') {
+            $pendientes = $pendientes->where('con_datos', true)->values();
+        } elseif ($filtro === 'sin_datos') {
+            $pendientes = $pendientes->where('con_datos', false)->values();
+        }
+
+        return view('admin.solicitudes-alta', compact(
+            'pendientes',
+            'filtro',
+            'conteoConDatos',
+            'conteoSinDatos'
+        ));
+    }
+
+    public function detalleSolicitudAlta(ProveedorUser $proveedor)
+    {
+        if ($proveedor->activo) {
+            return redirect()->route('admin.solicitudes-alta')
+                ->with('mensaje', 'Este proveedor ya está activo.');
+        }
+
+        $proveedor->load(['documentos', 'contactos']);
+        $identificacion = $proveedor->datos_identificacion ?? [];
+        $tiposLabel = [
+            'cif' => 'CIF / Constancia fiscal',
+            'opinion' => 'Opinión SAT',
+            'acta' => 'Acta constitutiva',
+            'rep_legal' => 'INE Rep. legal',
+            'contribuyente' => 'INE Contribuyente',
+            'caratula_banco' => 'Carátula bancaria',
+        ];
+
+        return view('admin.solicitud-alta-detalle', compact('proveedor', 'identificacion', 'tiposLabel'));
+    }
+
+    public function aprobarSolicitudAlta(Request $request)
+    {
+        $request->validate(['proveedor_id' => 'required|integer']);
+
+        $prov = ProveedorUser::findOrFail($request->proveedor_id);
+
+        if ($prov->activo) {
+            return back()->with('error', 'Este proveedor ya está activo.');
+        }
+
+        $prov->update(['activo' => true]);
+
+        return redirect()->route('admin.solicitudes-alta')
+            ->with('mensaje', "Proveedor {$prov->nombre} aprobado y activado. Ya puede usar el portal completo.");
+    }
+
     public function autorizarCosto(Request $request)
     {
         $request->validate(['producto_id' => 'required', 'nuevo_precio' => 'required|numeric|min:0']);

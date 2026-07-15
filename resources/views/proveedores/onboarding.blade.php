@@ -46,175 +46,144 @@
     .btn-ver:active { transform: scale(0.97); }
     .btn-ver.disabled { border-color: var(--border-light); color: var(--gray-muted); cursor: not-allowed; pointer-events: none; }
 
+    .ob-aviso { background: var(--amber-bg, #fff7ed); border: 1px solid #fcd34d; border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #92400e; margin-bottom: 16px; }
+    .ob-ok { background: var(--green-bg); border: 1px solid var(--green); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: var(--green); margin-bottom: 16px; }
+
     @media (max-width: 768px) { .paso-card { flex-wrap: wrap; } }
 </style>
 @endpush
 
 @section('content')
 
+    @if(session('error'))
+    <div class="ob-aviso">{{ session('error') }}</div>
+    @endif
+
+    @if(!($pasoActivo ?? false))
+    <div class="ob-aviso">
+        Completa los pasos y espera la aprobación de Dirección. El resto del portal está bloqueado.
+    </div>
+    @else
+    <div class="ob-ok">Tu cuenta ya está activa. Puedes usar todo el portal.</div>
+    @endif
+
+    @if($pasoDocsRenovar ?? false)
+    <div class="ob-aviso">
+        Tus documentos fiscales están por vencer o requieren renovación. Actualízalos en Validación de documentos (no se bloquea el acceso).
+    </div>
+    @endif
+
     <div class="ob-header">
         <h2>Hola, {{ session('proveedor_nombre', 'Proveedor') }}</h2>
-        <p>Aquí puedes ver tu progreso como proveedor de Industrias Salcom. Completa cada paso para activar tu cuenta completamente.</p>
+        <p>Completa cada paso. Cuando todo esté listo, Dirección revisará y activará tu cuenta.</p>
 
         <div class="progress-wrap">
             <div class="progress-label">
                 <span>Progreso de onboarding</span>
-                <span>2 de 6 pasos completados</span>
+                <span>{{ $completados }} de {{ $totalPasos }} pasos</span>
             </div>
             <div class="progress-bar">
-                <div class="progress-fill" style="width: 33%"></div>
+                <div class="progress-fill" style="width: {{ $pct }}%"></div>
             </div>
         </div>
     </div>
 
     <div class="pasos-grid">
 
-        {{-- PASO 1: Cuestionario --}}
+        {{-- 1 Registro --}}
         <div class="paso-card completado">
-            <div class="paso-icono verde"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
+            <div class="paso-icono verde"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Cuestionario de registro</div>
-                <div class="paso-desc">Completaste el cuestionario con tus datos generales: nombre, correo, teléfono, tipo de persona y código de compras.</div>
+                <div class="paso-desc">Datos generales de tu cuenta (nombre, correo, teléfono, tipo de persona).</div>
             </div>
             <span class="paso-badge badge-completado">Completado</span>
         </div>
 
-        {{-- PASO 2: Documentos fiscales (listado compartido) --}}
-        <div class="paso-card completado">
-            <div class="paso-icono verde"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15l2 2 4-4"/></svg></div>
+        {{-- 2 Datos bancarios --}}
+        <div class="paso-card {{ $pasoBancarios ? 'completado' : 'pendiente' }}">
+            <div class="paso-icono {{ $pasoBancarios ? 'verde' : 'ambar' }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ $pasoBancarios ? '#059669' : '#D97706' }}" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
             <div class="paso-info">
-                <div class="paso-titulo">Listado de documentos fiscales</div>
-                <div class="paso-desc">Documentos requeridos según tu tipo de persona. Compartidos con Salcom.</div>
-                {{-- Estado actual de documentos --}}
-                @php
-                    $tipoPersona = $proveedor->tipo_persona ?? 'moral';
-                    $esMoral = str_contains(strtolower($tipoPersona), 'moral');
-
-                    // Documentos requeridos según tipo de persona
-                    $docsRequeridos = [
-                        'cif' => 'CIF',
-                        'opinion' => 'Opinión SAT',
-                    ];
-                    if ($esMoral) {
-                        $docsRequeridos['acta'] = 'Acta constitutiva';
-                    }
-                    $docsRequeridos['rep_legal'] = 'INE Rep. legal';
-                    $docsRequeridos['caratula_banco'] = 'Carátula bancaria';
-
-                    // Obtener documentos subidos del proveedor
-                    $docsSubidos = ($proveedor->relationLoaded('documentos') && $proveedor->documentos)
-                        ? $proveedor->documentos->keyBy('tipo')
-                        : collect();
-
-                    $vigentes = 0;
-                    $pendientes = 0;
-                    $faltantes = 0;
-                    $totalDocs = count($docsRequeridos);
-                @endphp
-                <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-                    <div style="background:var(--gray-soft);border-radius:10px;padding:14px;">
-                        <div style="font-size:12px;font-weight:700;color:var(--gray-text);margin-bottom:10px;">Estado actual</div>
-                        @foreach($docsRequeridos as $tipo => $label)
-                            @php
-                                $doc = $docsSubidos->get($tipo);
-                                if ($doc && $doc->estatus === 'aprobado') {
-                                    $color = 'var(--green)';
-                                    $estado = 'Vigente';
-                                    $vigentes++;
-                                } elseif ($doc && $doc->estatus === 'pendiente') {
-                                    $color = 'var(--amber)';
-                                    $estado = 'Pendiente';
-                                    $pendientes++;
-                                } elseif ($doc && $doc->estatus === 'rechazado') {
-                                    $color = 'var(--red)';
-                                    $estado = 'Rechazado';
-                                    $faltantes++;
-                                } else {
-                                    $color = 'var(--gray-muted)';
-                                    $estado = 'No subido';
-                                    $faltantes++;
-                                }
-                            @endphp
-                            <div style="display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12px;">
-                                <span style="width:8px;height:8px;border-radius:50%;background:{{ $color }};"></span>
-                                <span style="flex:1;">{{ $label }}</span>
-                                <span style="font-size:11px;color:{{ $color }};font-weight:600;">{{ $estado }}</span>
-                            </div>
-                        @endforeach
-                    </div>
-                    <div style="background:var(--gray-soft);border-radius:10px;padding:14px;text-align:center;">
-                        <div style="font-size:12px;font-weight:700;color:var(--gray-text);margin-bottom:10px;">Resumen</div>
-                        <div style="font-size:36px;font-weight:700;color:{{ $vigentes === $totalDocs ? 'var(--green)' : 'var(--amber)' }};">{{ $vigentes }}/{{ $totalDocs }}</div>
-                        <div style="font-size:11px;color:var(--gray-muted);margin-top:4px;">Documentos al día</div>
-                        <div style="margin-top:12px;text-align:left;font-size:12px;">
-                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Vigentes</span><span style="font-weight:700;color:var(--green);">{{ $vigentes }}</span></div>
-                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Pendientes</span><span style="font-weight:700;color:var(--amber);">{{ $pendientes }}</span></div>
-                            <div style="display:flex;justify-content:space-between;padding:3px 0;"><span style="color:var(--gray-muted);">Faltantes</span><span style="font-weight:700;color:var(--red);">{{ $faltantes }}</span></div>
-                        </div>
-                    </div>
+                <div class="paso-titulo">Formulario datos bancarios</div>
+                <div class="paso-desc">
+                    @if($pasoBancarios)
+                        Ya registraste tus datos bancarios. No es necesario volver a llenarlo (salvo actualización).
+                    @else
+                        Captura tu institución financiera y datos bancarios en Identificación.
+                    @endif
                 </div>
             </div>
-            <span class="paso-badge badge-completado">Completado</span>
-            <a href="/validacion-fiscal" class="btn-ver">Ver</a>
+            <span class="paso-badge {{ $pasoBancarios ? 'badge-completado' : 'badge-pendiente' }}">{{ $pasoBancarios ? 'Completado' : 'Pendiente' }}</span>
+            @if($pasoBancarios)
+                <span class="btn-ver disabled">Listo</span>
+            @else
+                <a href="{{ route('proveedores.identificacion') }}" class="btn-ver">Llenar</a>
+            @endif
         </div>
 
-        {{-- PASO 3: Contactos --}}
-        <div class="paso-card pendiente">
-            <div class="paso-icono ambar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+        {{-- 3 Docs --}}
+        <div class="paso-card {{ $pasoDocs ? 'completado' : 'pendiente' }}">
+            <div class="paso-icono {{ $pasoDocs ? 'verde' : 'ambar' }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ $pasoDocs ? '#059669' : '#D97706' }}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+            <div class="paso-info">
+                <div class="paso-titulo">Validación de documentos</div>
+                <div class="paso-desc">
+                    @if($pasoDocsRenovar)
+                        Documentos vigentes, pero próximos a renovar (ciclo ~21 días). Actualízalos cuando puedas.
+                    @elseif($pasoDocs)
+                        Documentos aprobados. Puedes renovarlos cuando el sistema te avise.
+                    @else
+                        Sube y valida tus documentos fiscales (CIF, opinión SAT, carátula bancaria, etc.).
+                    @endif
+                </div>
+            </div>
+            <span class="paso-badge {{ $pasoDocs ? 'badge-completado' : 'badge-pendiente' }}">
+                {{ $pasoDocsRenovar ? 'Por renovar' : ($pasoDocs ? 'Completado' : 'Pendiente') }}
+            </span>
+            <a href="{{ route('proveedores.validacion-fiscal') }}" class="btn-ver">{{ $pasoDocs ? 'Ver / renovar' : 'Validar' }}</a>
+        </div>
+
+        {{-- 4 Contactos --}}
+        <div class="paso-card {{ $pasoContactos ? 'completado' : 'pendiente' }}">
+            <div class="paso-icono {{ $pasoContactos ? 'verde' : 'ambar' }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ $pasoContactos ? '#059669' : '#D97706' }}" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Registro de contactos</div>
-                <div class="paso-desc">Registra los contactos de tu empresa por área:</div>
-                <ul style="margin:6px 0 0 16px;font-size:12px;color:var(--gray-muted);line-height:1.8;list-style:disc;">
-                    <li><strong>Business</strong> (área comercial)</li>
-                    <li><strong>Finanzas</strong></li>
-                    <li><strong>Compras</strong> (CA)</li>
-                    <li><strong>Almacén</strong></li>
-                    <li><strong>ITE</strong> (IT/Sistemas)</li>
-                    <li><strong>Producción</strong></li>
-                    <li><strong>OTIF / Calidad</strong></li>
-                </ul>
+                <div class="paso-desc">Mínimo 2 contactos. Llevas {{ $numContactos }}.</div>
             </div>
-            <span class="paso-badge badge-pendiente">Pendiente</span>
-            <a href="{{ route('proveedores.perfil') }}" class="btn-ver">Registrar</a>
+            <span class="paso-badge {{ $pasoContactos ? 'badge-completado' : 'badge-pendiente' }}">{{ $pasoContactos ? 'Completado' : 'Pendiente' }}</span>
+            <a href="{{ route('proveedores.perfil') }}" class="btn-ver">{{ $pasoContactos ? 'Ver' : 'Registrar' }}</a>
         </div>
 
-        {{-- PASO 4: Validación por Salcom --}}
-        <div class="paso-card pendiente">
-            <div class="paso-icono ambar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-            <div class="paso-info">
-                <div class="paso-titulo">Validación por Industrias Salcom</div>
-                <div class="paso-desc">Nuestro equipo está revisando tu información, documentos y contactos. Te notificaremos cuando esté lista la aprobación.</div>
-            </div>
-            <span class="paso-badge badge-pendiente">En revisión</span>
-            <button class="btn-ver disabled">Ver</button>
-        </div>
-
-        {{-- PASO 5: Validación de estándar / formato NAE y EXDAT --}}
-        <div class="paso-card bloqueado">
-            <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
-            <div class="paso-info">
-                <div class="paso-titulo">Validación de estándar</div>
-                <div class="paso-desc">El proveedor sube el formato que aplique según su tipo:</div>
-                <ul style="margin:6px 0 0 16px;font-size:12px;color:var(--gray-muted);line-height:1.8;list-style:disc;">
-                    <li><strong>Formato NAE</strong> — Proveedor Nacional</li>
-                    <li><strong>Formato EXDAT</strong> — Proveedor Extranjero</li>
-                </ul>
-                <div style="font-size:11px;color:var(--gray-muted);margin-top:6px;font-style:italic;">Se verifica que toda la documentación cumpla con los estándares de Salcom.</div>
-            </div>
-            <span class="paso-badge badge-bloqueado">Pendiente</span>
-            <button class="btn-ver disabled">Ver</button>
-        </div>
-
-        {{-- PASO 6: Proveedor activo --}}
-        <div class="paso-card bloqueado">
-            <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+        {{-- 5 Direccion / activo --}}
+        @if($pasoActivo)
+        <div class="paso-card completado">
+            <div class="paso-icono verde"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Proveedor activo</div>
-                <div class="paso-desc">Una vez aprobado, podrás operar de forma completa: recibir OC, subir facturas y dar seguimiento a tus pagos.</div>
+                <div class="paso-desc">Dirección ya activó tu cuenta. Puedes operar en el portal.</div>
             </div>
-            <span class="paso-badge badge-bloqueado">Pendiente</span>
-            <button class="btn-ver disabled">Ver</button>
+            <span class="paso-badge badge-completado">Completado</span>
         </div>
+        @elseif($pasoListoDireccion)
+        <div class="paso-card pendiente">
+            <div class="paso-icono ambar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="paso-info">
+                <div class="paso-titulo">Espera validación de Dirección</div>
+                <div class="paso-desc">Ya completaste datos bancarios, documentos y contactos. Tu solicitud está en revisión. El resto del sistema sigue bloqueado hasta que te den de alta.</div>
+            </div>
+            <span class="paso-badge badge-pendiente">En revisión</span>
+            <span class="btn-ver disabled">Esperar</span>
+        </div>
+        @else
+        <div class="paso-card bloqueado">
+            <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+            <div class="paso-info">
+                <div class="paso-titulo">Espera validación de Dirección</div>
+                <div class="paso-desc">Se desbloquea cuando completes datos bancarios, documentos y al menos 2 contactos.</div>
+            </div>
+            <span class="paso-badge badge-bloqueado">Bloqueado</span>
+            <span class="btn-ver disabled">—</span>
+        </div>
+        @endif
 
     </div>
 
