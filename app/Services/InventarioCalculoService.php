@@ -93,13 +93,16 @@ class InventarioCalculoService
     public function generarReporteCompleto(): array
     {
         $productos = Producto::where('activo', true)->orderBy('codigo')->get();
+        $diasEntrega = (int) AlertaConfiguracion::get('dias_entrega_proveedor', 15);
+        $pedidos = Pedido::where('created_at', '>=', now()->subMonths(3))
+            ->whereNotIn('estatus', ['cancelado'])
+            ->get(['id', 'productos', 'created_at', 'estatus']);
+
         $reporte = [];
 
         foreach ($productos as $producto) {
-            // TODO: Obtener consumo mensual real de pedidos (por ahora usar stock como proxy)
-            $consumoMensual = $this->estimarConsumoMensual($producto);
+            $consumoMensual = $this->estimarConsumoMensual($producto, $pedidos);
             $consumoDiario = $this->calcularConsumoDiario($consumoMensual);
-            $diasEntrega = (int) AlertaConfiguracion::get('dias_entrega_proveedor', 15);
             $pendienteRecibir = 0; // TODO: Obtener de OC pendientes
 
             $minimo = $this->calcularMinimo($consumoDiario, $diasEntrega);
@@ -130,13 +133,16 @@ class InventarioCalculoService
 
     /**
      * Estimar consumo mensual basado en pedidos de los últimos 3 meses.
+     *
+     * @param  \Illuminate\Support\Collection|null  $pedidos  Pedidos precargados (evita N+1).
      */
-    private function estimarConsumoMensual(Producto $producto): float
+    private function estimarConsumoMensual(Producto $producto, $pedidos = null): float
     {
-        $tresMesesAtras = now()->subMonths(3);
-        $pedidos = Pedido::where('created_at', '>=', $tresMesesAtras)
-            ->whereNotIn('estatus', ['cancelado'])
-            ->get();
+        if ($pedidos === null) {
+            $pedidos = Pedido::where('created_at', '>=', now()->subMonths(3))
+                ->whereNotIn('estatus', ['cancelado'])
+                ->get(['id', 'productos', 'created_at', 'estatus']);
+        }
 
         $cantidadTotal = 0;
         $mesesConPedido = [];

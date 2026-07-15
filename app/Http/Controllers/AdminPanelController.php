@@ -1851,7 +1851,12 @@ class AdminPanelController extends Controller
 
         $inventarioService = app(InventarioCalculoService::class);
         $diasPedido = (int) AlertaConfiguracion::get('dias_alerta_documento', 7);
-        $reporteInventario = collect($inventarioService->generarReporteCompleto())->keyBy('codigo');
+        try {
+            $reporteInventario = collect($inventarioService->generarReporteCompleto())->keyBy('codigo');
+        } catch (\Throwable $e) {
+            report($e);
+            $reporteInventario = collect();
+        }
         $inventarioDias = [];
         foreach ($productos as $prod) {
             $row = $reporteInventario->get($prod->codigo);
