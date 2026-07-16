@@ -448,12 +448,12 @@
             <span id="acta_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
-        {{-- ── GRUPO 2: Identificaciones (opcionales) ── --}}
+        {{-- ── GRUPO 2: Identificaciones ── --}}
         <p class="group-title"><i class="bi bi-person-vcard"></i> Identificaciones Oficiales</p>
 
-        <div class="doc-row" id="row_rep_legal">
+        <div class="doc-row" id="row_rep_legal" style="display:none;">
             <label class="doc-label" for="rep_legal"><i class="bi bi-person-badge"></i> ID Oficial del Representante Legal</label>
-            <p class="doc-hint">INE/IFE vigente del representante legal · PDF <span id="rep_legal_hint_opt">(opcional en Persona Física)</span></p>
+            <p class="doc-hint">INE/IFE vigente del representante legal · PDF</p>
             <input type="file" id="rep_legal" accept=".pdf" onchange="verArchivo('rep_legal')">
             <label for="rep_legal" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
             <span id="rep_legal_nombre" class="file-name empty">Sin archivo</span>
@@ -461,7 +461,7 @@
 
         <div class="doc-row" id="row_contribuyente">
             <label class="doc-label" for="contribuyente"><i class="bi bi-person-check"></i> ID Oficial del Contribuyente</label>
-            <p class="doc-hint">INE/IFE vigente del contribuyente · PDF (opcional)</p>
+            <p class="doc-hint">INE/IFE vigente del contribuyente · PDF</p>
             <input type="file" id="contribuyente" accept=".pdf" onchange="verArchivo('contribuyente')">
             <label for="contribuyente" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
             <span id="contribuyente_nombre" class="file-name empty">Sin archivo</span>
@@ -531,6 +531,9 @@ function seleccionarTipo(tipo) {
     // Acta constitutiva: solo para Persona Moral
     document.getElementById('row_acta').style.display = tipo === 'moral' ? 'block' : 'none';
 
+    // ID Representante Legal: solo para Persona Moral
+    document.getElementById('row_rep_legal').style.display = tipo === 'moral' ? 'block' : 'none';
+
     // Poder Notarial: solo para Persona Moral
     var rowPoder = document.getElementById('row_poder');
     var groupPoder = rowPoder ? rowPoder.closest('.group-title') ? null : rowPoder : null;
@@ -543,12 +546,17 @@ function seleccionarTipo(tipo) {
         }
     });
 
-    // Limpiar acta y poder si cambia a física
+    // Limpiar acta, poder y rep_legal si cambia a física
     if (tipo === 'fisica') {
         document.getElementById('acta').value = '';
         document.getElementById('acta_nombre').textContent = 'Sin archivo';
         document.getElementById('acta_nombre').className = 'file-name empty';
         document.getElementById('row_acta').classList.remove('has-file');
+
+        document.getElementById('rep_legal').value = '';
+        document.getElementById('rep_legal_nombre').textContent = 'Sin archivo';
+        document.getElementById('rep_legal_nombre').className = 'file-name empty';
+        document.getElementById('row_rep_legal').classList.remove('has-file');
 
         if (document.getElementById('poder')) {
             document.getElementById('poder').value = '';
@@ -567,24 +575,32 @@ if (identificacion && identificacion.tipo_clave) {
 // ── Campos requeridos según tipo ──
 function getCamposRequeridos() {
     const base = ['cif', 'opinion', 'caratula_banco'];
+
     if (tipoPersona === 'moral') {
-        // Si no se subió acta, el poder es obligatorio (y viceversa)
+        // Persona Moral: ambas INEs son obligatorias
+        base.push('rep_legal');
+        base.push('contribuyente');
+        // Acta o Poder (al menos uno)
         const tieneActa = document.getElementById('acta').files[0];
         const tienePoder = document.getElementById('poder') && document.getElementById('poder').files[0];
         if (!tieneActa && !tienePoder) {
-            base.push('acta'); // pide al menos uno
+            base.push('acta');
         } else if (tieneActa) {
             base.push('acta');
         } else if (tienePoder) {
             base.push('poder');
         }
+    } else {
+        // Persona Física: solo ID Contribuyente obligatorio
+        base.push('contribuyente');
     }
+
     return base;
 }
 
 // ── Campos opcionales ──
 function getCamposOpcionales() {
-    const opcionales = ['rep_legal', 'contribuyente'];
+    const opcionales = [];
     if (tipoPersona === 'moral') {
         opcionales.push('poder');
     }
