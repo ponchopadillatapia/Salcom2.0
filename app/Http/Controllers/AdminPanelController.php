@@ -2148,11 +2148,22 @@ class AdminPanelController extends Controller
             $pendientes = $pendientes->where('con_datos', false)->values();
         }
 
+        // Cargar solicitudes de la tabla nueva (si existe)
+        $solicitudes = collect();
+        try {
+            $solicitudes = \App\Models\SolicitudAlta::with('proveedor')
+                ->orderByDesc('created_at')
+                ->get();
+        } catch (\Exception $e) {
+            // La tabla no existe aún en este servidor
+        }
+
         return view('admin.solicitudes-alta', compact(
             'pendientes',
             'filtro',
             'conteoConDatos',
-            'conteoSinDatos'
+            'conteoSinDatos',
+            'solicitudes'
         ));
     }
 
@@ -2514,24 +2525,27 @@ class AdminPanelController extends Controller
         return redirect()->route('admin.solicitudes-alta')->with('mensaje', 'Solicitud aprobada correctamente.');
     }
 
-    public function revisarSolicitud(\App\Models\SolicitudAlta $solicitud)
+    public function revisarSolicitud(ProveedorUser $proveedor)
     {
+        $proveedor->load('documentos');
+        $datosIdent = $proveedor->datos_identificacion ?? [];
+
         $identificacion = [
-            'tipo_persona' => $solicitud->tipo_persona,
-            'tipo_clave' => str_contains(strtolower($solicitud->tipo_persona), 'moral') ? 'moral' : 'fisica',
-            'nombre_esperado' => $solicitud->nombre_completo,
-            'razon_social' => $solicitud->razon_social,
-            'apellido_paterno' => $solicitud->apellido_paterno,
-            'apellido_materno' => $solicitud->apellido_materno,
-            'nombres' => $solicitud->nombres,
-            'clabe' => $solicitud->clabe,
-            'cuenta' => $solicitud->cuenta,
-            'banco' => $solicitud->banco,
-            'cp' => $solicitud->cp,
-            'correo' => $solicitud->correo,
+            'tipo_persona' => $proveedor->tipo_persona ?? ($datosIdent['tipo_persona'] ?? null),
+            'tipo_clave' => str_contains(strtolower($proveedor->tipo_persona ?? ''), 'moral') ? 'moral' : 'fisica',
+            'nombre_esperado' => $datosIdent['nombre_esperado'] ?? $proveedor->nombre,
+            'razon_social' => $datosIdent['razon_social'] ?? null,
+            'apellido_paterno' => $datosIdent['apellido_paterno'] ?? null,
+            'apellido_materno' => $datosIdent['apellido_materno'] ?? null,
+            'nombres' => $datosIdent['nombres'] ?? null,
+            'clabe' => $datosIdent['clabe'] ?? null,
+            'cuenta' => $datosIdent['cuenta'] ?? null,
+            'banco' => $datosIdent['banco'] ?? null,
+            'cp' => $datosIdent['cp'] ?? null,
+            'correo' => $proveedor->correo ?? ($datosIdent['correo'] ?? null),
         ];
 
-        $solicitudId = $solicitud->id;
+        $solicitudId = $proveedor->id;
 
         return view('APIS.empresa', compact('identificacion', 'solicitudId'));
     }

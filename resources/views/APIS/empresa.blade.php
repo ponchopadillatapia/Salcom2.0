@@ -508,19 +508,16 @@
             <h3 style="font-size:1.1rem;font-weight:700;color:var(--gray-text);margin-bottom:8px;">Decisión del administrador</h3>
             <p style="font-size:0.85rem;color:var(--gray-muted);margin-bottom:20px;">Después de revisar los documentos, aprueba o rechaza esta solicitud de alta.</p>
             <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-                <form method="POST" action="/admin/solicitudes-alta/{{ $solicitudId }}/aprobar">
-                    @csrf @method('PATCH')
+                <form method="POST" action="{{ route('admin.solicitudes-alta.aprobar') }}">
+                    @csrf
+                    <input type="hidden" name="proveedor_id" value="{{ $solicitudId }}">
                     <button type="submit" style="padding:12px 32px;background:#059669;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;">
                         ✓ Aprobar solicitud
                     </button>
                 </form>
-                <form method="POST" action="/admin/solicitudes-alta/{{ $solicitudId }}/rechazar">
-                    @csrf @method('PATCH')
-                    <input type="text" name="notas" placeholder="Motivo del rechazo (opcional)" style="padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-family:inherit;width:200px;">
-                    <button type="submit" style="padding:12px 32px;background:#DC2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;">
-                        ✕ Rechazar solicitud
-                    </button>
-                </form>
+                <a href="{{ route('admin.solicitudes-alta') }}" style="padding:12px 32px;background:#DC2626;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block;">
+                    ✕ Rechazar — volver
+                </a>
             </div>
         </div>
     </div>

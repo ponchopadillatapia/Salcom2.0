@@ -126,20 +126,22 @@ class ProveedorUser extends Authenticatable
 
     public function tieneFormularioDatosBancarios(): bool
     {
+        // Solo completado si llenó el formulario de identificación con datos bancarios reales
         $db = $this->datos_identificacion ?? [];
-        if (! empty(trim((string) ($db['banco'] ?? ''))) || ! empty(trim((string) ($db['clabe'] ?? '')))) {
+        if (is_array($db) && (! empty(trim((string) ($db['banco'] ?? ''))) || ! empty(trim((string) ($db['clabe'] ?? ''))))) {
             return true;
         }
 
-        $ident = session('identificacion_proveedor', []);
-        if (! empty(trim((string) ($ident['banco'] ?? ''))) || ! empty(trim((string) ($ident['clabe'] ?? '')))) {
-            return true;
+        // Verificar si hay una solicitud de alta guardada para este proveedor
+        try {
+            if (\App\Models\SolicitudAlta::where('proveedor_id', $this->id)->exists()) {
+                return true;
+            }
+        } catch (\Exception $e) {
+            // Tabla puede no existir aún
         }
 
-        return $this->documentos()
-            ->where('tipo', 'caratula_banco')
-            ->whereIn('estatus', ['aprobado', 'pendiente'])
-            ->exists();
+        return false;
     }
 
     /** Hay formulario de identificación guardado (para revisión de Contabilidad/Dirección). */
