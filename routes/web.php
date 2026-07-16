@@ -204,6 +204,10 @@ Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/documentos/excel', [AdminPanelController::class, 'documentosExcel'])->name('admin.documentos.excel')->middleware('auth.admin');
 Route::get('/admin/negocio', [AdminPanelController::class, 'negocio'])->name('admin.negocio')->middleware('auth.admin');
+Route::get('/admin/solicitudes-alta', [AdminPanelController::class, 'solicitudesAlta'])->name('admin.solicitudes-alta')->middleware('auth.admin');
+Route::get('/admin/solicitudes-alta/{solicitud}/revisar', [AdminPanelController::class, 'revisarSolicitud'])->name('admin.solicitudes.revisar')->middleware('auth.admin');
+Route::patch('/admin/solicitudes-alta/{solicitud}/aprobar', [AdminPanelController::class, 'aprobarSolicitud'])->name('admin.solicitudes.aprobar')->middleware('auth.admin');
+Route::patch('/admin/solicitudes-alta/{solicitud}/rechazar', [AdminPanelController::class, 'rechazarSolicitud'])->name('admin.solicitudes.rechazar')->middleware('auth.admin');
 Route::get('/admin/otif', [AdminPanelController::class, 'otif'])->name('admin.otif')->middleware('auth.admin');
 Route::get('/admin/inventario', [AdminPanelController::class, 'inventario'])->name('admin.inventario')->middleware('auth.admin');
 

@@ -84,6 +84,15 @@
 
 @section('content')
 
+@if(session('exito'))
+    <div class="id-card" style="border-color:#059669;background:#ecfdf5;margin-bottom:16px;">
+        <p style="color:#059669;font-size:14px;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            {{ session('exito') }}
+        </p>
+    </div>
+@endif
+
 @if ($errors->any())
     <div class="id-card" style="border-color:#DC2626;background:#FEF2F2;margin-bottom:16px;">
         <p style="color:#DC2626;font-size:13px;font-weight:600;margin:0;">Corrige los siguientes campos:</p>

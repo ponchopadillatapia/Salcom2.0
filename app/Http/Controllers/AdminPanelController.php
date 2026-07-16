@@ -2504,4 +2504,45 @@ class AdminPanelController extends Controller
 
         return ctype_digit($limpio) ? (int) $limpio : null;
     }
+
+    // ── Solicitudes de Alta (métodos de acción) ──
+
+    public function aprobarSolicitud(\App\Models\SolicitudAlta $solicitud)
+    {
+        $solicitud->update(['estatus' => 'aprobada']);
+
+        return redirect()->route('admin.solicitudes-alta')->with('mensaje', 'Solicitud aprobada correctamente.');
+    }
+
+    public function revisarSolicitud(\App\Models\SolicitudAlta $solicitud)
+    {
+        $identificacion = [
+            'tipo_persona' => $solicitud->tipo_persona,
+            'tipo_clave' => str_contains(strtolower($solicitud->tipo_persona), 'moral') ? 'moral' : 'fisica',
+            'nombre_esperado' => $solicitud->nombre_completo,
+            'razon_social' => $solicitud->razon_social,
+            'apellido_paterno' => $solicitud->apellido_paterno,
+            'apellido_materno' => $solicitud->apellido_materno,
+            'nombres' => $solicitud->nombres,
+            'clabe' => $solicitud->clabe,
+            'cuenta' => $solicitud->cuenta,
+            'banco' => $solicitud->banco,
+            'cp' => $solicitud->cp,
+            'correo' => $solicitud->correo,
+        ];
+
+        $solicitudId = $solicitud->id;
+
+        return view('APIS.empresa', compact('identificacion', 'solicitudId'));
+    }
+
+    public function rechazarSolicitud(Request $request, \App\Models\SolicitudAlta $solicitud)
+    {
+        $solicitud->update([
+            'estatus' => 'rechazada',
+            'notas_admin' => $request->input('notas', ''),
+        ]);
+
+        return redirect()->route('admin.solicitudes-alta')->with('mensaje', 'Solicitud rechazada.');
+    }
 }

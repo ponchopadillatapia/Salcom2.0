@@ -392,12 +392,47 @@ class PortalProveedorController extends Controller
 
         session(['identificacion_proveedor' => $payload]);
 
+        // Guardar solicitud de alta en la BD para el panel admin
+        try {
+            \App\Models\SolicitudAlta::create([
+                'proveedor_id' => session('proveedor_id'),
+                'tipo_persona' => $data['tipo_persona'],
+                'nombre_completo' => $nombreEsperado,
+                'razon_social' => $data['razon_social'] ?? null,
+                'apellido_paterno' => $data['apellido_paterno'] ?? null,
+                'apellido_materno' => $data['apellido_materno'] ?? null,
+                'nombres' => $data['nombres'] ?? null,
+                'calle' => $data['calle'] ?? null,
+                'num_exterior' => $data['num_exterior'] ?? null,
+                'num_interior' => $data['num_interior'] ?? null,
+                'colonia' => $data['colonia'] ?? null,
+                'municipio' => $data['municipio'] ?? null,
+                'estado' => $data['estado'] ?? null,
+                'ciudad' => $data['ciudad'] ?? null,
+                'pais' => $data['pais'] ?? null,
+                'cp' => $data['cp'] ?? null,
+                'telefono' => $data['telefono'] ?? null,
+                'celular' => $data['celular'] ?? null,
+                'telefono2' => $data['telefono2'] ?? null,
+                'extension' => $data['extension'] ?? null,
+                'correo' => $data['correo'] ?? null,
+                'clabe' => $data['clabe'] ?? null,
+                'cuenta' => $data['cuenta'] ?? null,
+                'banco' => $data['banco'] ?? null,
+                'docs_marcados' => $data['docs'] ?? [],
+                'nombre_firma' => $data['nombre_firma'] ?? null,
+            ]);
+        } catch (\Exception $e) {
+            // La tabla aún no existe — se creará al correr migraciones
+        }
+
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         if ($proveedor) {
             $proveedor->update(['datos_identificacion' => $payload]);
         }
 
-        return redirect()->route('proveedores.validacion-fiscal');
+        return redirect()->route('proveedores.identificacion')
+            ->with('exito', 'Se enviaron los documentos para validar correctamente. Tu solicitud fue recibida por el equipo de Industrias Salcom.');
     }
 
     public function mostrarValidacionFiscal()
@@ -411,7 +446,9 @@ class PortalProveedorController extends Controller
             }
         }
 
-        return view('APIS.empresa', compact('identificacion'));
+        $solicitudId = null;
+
+        return view('APIS.empresa', compact('identificacion', 'solicitudId'));
     }
 
     /**

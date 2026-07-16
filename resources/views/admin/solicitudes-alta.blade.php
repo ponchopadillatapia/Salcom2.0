@@ -1,119 +1,121 @@
 @extends('layouts.admin')
-
-@section('title', 'Solicitudes de alta')
-
+@section('title', 'Solicitudes de Alta')
 @section('hero')
 <div class="hero-band">
-    <h1>Solicitudes de alta</h1>
-    <p>Contabilidad y Dirección revisan a mano el formulario, bancarios y documentos antes de aprobar.</p>
+    <h1>Solicitudes de Alta</h1>
+    <p>Proveedores que enviaron su formato de identificación para validación</p>
 </div>
 @endsection
-
 @push('styles')
 <style>
-    .sa-toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; align-items: center; }
-    .sa-filter {
-        padding: 8px 14px; font-size: 12px; font-weight: 600; border: 1.5px solid var(--border);
-        border-radius: 8px; background: var(--white); color: var(--gray-text); text-decoration: none;
-        display: inline-flex; align-items: center; gap: 6px;
-    }
-    .sa-filter:hover { border-color: var(--purple); color: var(--purple); }
-    .sa-filter.active { background: var(--purple); color: #fff; border-color: var(--purple); }
-    .sa-count { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: rgba(0,0,0,.08); }
-    .sa-filter.active .sa-count { background: rgba(255,255,255,.25); }
-
-    .sa-panel { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-    .sa-table { width: 100%; border-collapse: collapse; }
-    .sa-table th {
-        font-size: 11px; font-weight: 700; color: var(--gray-muted); text-transform: uppercase;
-        letter-spacing: .4px; padding: 12px 16px; text-align: left; background: var(--gray-soft);
-        border-bottom: 1px solid var(--border);
-    }
-    .sa-table td { padding: 14px 16px; font-size: 13px; color: var(--gray-text); border-bottom: 1px solid var(--border); vertical-align: middle; }
-    .sa-table tr:last-child td { border-bottom: none; }
-    .sa-table tbody tr:hover td { background: var(--purple-subtle); }
-
-    .sa-nombre { font-weight: 700; color: var(--gray-text); }
-    .sa-meta { font-size: 12px; color: var(--gray-muted); margin-top: 2px; }
-
-    .sa-paso { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; margin: 2px 2px 2px 0; white-space: nowrap; }
-    .sa-paso.ok { background: var(--green-bg); color: var(--green); }
-    .sa-paso.no { background: var(--amber-bg); color: var(--amber); }
-
-    .sa-link {
-        display: inline-block; padding: 8px 14px; background: var(--purple); color: #fff; border-radius: 8px;
-        font-size: 12px; font-weight: 700; text-decoration: none;
-    }
-    .sa-link:hover { filter: brightness(.95); color: #fff; }
-
-    .sa-empty { padding: 40px 24px; text-align: center; color: var(--gray-muted); font-size: 14px; }
-    .sa-flash { padding: 12px 16px; border-radius: 10px; font-size: 13px; margin-bottom: 16px; }
-    .sa-flash.ok { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
-    .sa-flash.err { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
-
-    @media (max-width: 900px) {
-        .sa-table { display: block; overflow-x: auto; }
-    }
+    .sol-grid{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+    .sol-card{background:var(--white);border:1px solid var(--border-light);border-radius:14px;padding:20px 24px;box-shadow:var(--shadow-sm);transition:var(--transition)}
+    .sol-card:hover{box-shadow:var(--shadow-md)}
+    .sol-card.pendiente{border-left:4px solid var(--amber)}
+    .sol-card.aprobada{border-left:4px solid var(--green)}
+    .sol-card.rechazada{border-left:4px solid var(--red)}
+    .sol-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+    .sol-nombre{font-size:16px;font-weight:700;color:var(--gray-text)}
+    .sol-badge{font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px;text-transform:uppercase}
+    .sol-badge.pendiente{background:var(--amber-bg);color:var(--amber)}
+    .sol-badge.aprobada{background:var(--green-bg);color:var(--green)}
+    .sol-badge.rechazada{background:var(--red-bg);color:var(--red)}
+    .sol-meta{font-size:12px;color:var(--gray-muted);margin-bottom:12px}
+    .sol-datos{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 16px;font-size:12px;margin-bottom:14px}
+    .sol-dato-label{font-weight:600;color:var(--gray-muted)}
+    .sol-dato-value{color:var(--gray-text)}
+    .sol-docs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+    .sol-doc-tag{font-size:11px;padding:3px 10px;border-radius:8px;background:var(--purple-light);color:var(--purple);font-weight:600}
+    .sol-actions{display:flex;gap:8px;align-items:center}
+    .btn-aprobar{padding:6px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+    .btn-rechazar{padding:6px 16px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+    .btn-aprobar:hover{opacity:.9}.btn-rechazar:hover{opacity:.9}
+    .sol-empty{text-align:center;padding:40px;color:var(--gray-muted);font-size:14px}
+    @media(max-width:768px){.sol-datos{grid-template-columns:1fr 1fr}}
 </style>
 @endpush
-
 @section('content')
+<div class="sol-grid">
 
-@if(session('mensaje'))
-<div class="sa-flash ok">{{ session('mensaje') }}</div>
-@endif
-@if(session('error'))
-<div class="sa-flash err">{{ session('error') }}</div>
-@endif
-
-<div class="sa-toolbar">
-    <a href="{{ route('admin.solicitudes-alta', ['filtro' => 'todas']) }}" class="sa-filter {{ ($filtro ?? 'todas') === 'todas' ? 'active' : '' }}">
-        Todas <span class="sa-count">{{ ($conteoConDatos ?? 0) + ($conteoSinDatos ?? 0) }}</span>
-    </a>
-    <a href="{{ route('admin.solicitudes-alta', ['filtro' => 'con_datos']) }}" class="sa-filter {{ ($filtro ?? '') === 'con_datos' ? 'active' : '' }}">
-        Con datos enviados <span class="sa-count">{{ $conteoConDatos ?? 0 }}</span>
-    </a>
-    <a href="{{ route('admin.solicitudes-alta', ['filtro' => 'sin_datos']) }}" class="sa-filter {{ ($filtro ?? '') === 'sin_datos' ? 'active' : '' }}">
-        Sin datos aún <span class="sa-count">{{ $conteoSinDatos ?? 0 }}</span>
-    </a>
-</div>
-
-<div class="sa-panel">
-    @if(($pendientes ?? collect())->isEmpty())
-        <div class="sa-empty">No hay solicitudes con este filtro.</div>
-    @else
-    <table class="sa-table">
-        <thead>
-            <tr>
-                <th>Proveedor</th>
-                <th>Registro</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($pendientes as $row)
-            @php $p = $row->proveedor; @endphp
-            <tr>
-                <td>
-                    <div class="sa-nombre">{{ $p->nombre ?? $p->usuario }}</div>
-                    <div class="sa-meta">
-                        #{{ $p->id }}
-                        @if($p->id_proveedor) · ID {{ $p->id_proveedor }}@endif
-                        · {{ $p->correo }}
-                    </div>
-                    <div class="sa-meta">{{ $p->tipo_persona }} · {{ $p->telefono }}</div>
-                </td>
-                <td>
-                    <div class="sa-meta">{{ optional($p->created_at)->format('d/m/Y H:i') ?? '—' }}</div>
-                </td>
-                <td>
-                    <a href="{{ route('admin.solicitudes-alta.detalle', $p) }}" class="sa-link">Revisar</a>
-                </td>
-            </tr>
-            @endforeach
-        </tbody>
-    </table>
+    @if(session('mensaje'))
+        <div style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--green);font-weight:600;">
+            {{ session('mensaje') }}
+        </div>
     @endif
-</div>
 
+    @forelse($solicitudes as $sol)
+        <div class="sol-card {{ $sol->estatus }}">
+            <div class="sol-head">
+                <div>
+                    <div class="sol-nombre">{{ $sol->nombre_completo ?: '—' }}</div>
+                    <div class="sol-meta">
+                        {{ $sol->tipo_persona }} ·
+                        Proveedor: {{ $sol->proveedor?->nombre ?? $sol->proveedor?->usuario ?? '#'.$sol->proveedor_id }} ·
+                        Enviado: {{ $sol->created_at->format('d/m/Y H:i') }}
+                    </div>
+                </div>
+                <span class="sol-badge {{ $sol->estatus }}">{{ ucfirst($sol->estatus) }}</span>
+            </div>
+
+            <div class="sol-datos">
+                <div><span class="sol-dato-label">Correo:</span> <span class="sol-dato-value">{{ $sol->correo ?? '—' }}</span></div>
+                <div><span class="sol-dato-label">Teléfono:</span> <span class="sol-dato-value">{{ $sol->telefono ?? '—' }}</span></div>
+                <div><span class="sol-dato-label">Celular:</span> <span class="sol-dato-value">{{ $sol->celular ?? '—' }}</span></div>
+                <div><span class="sol-dato-label">Dirección:</span> <span class="sol-dato-value">{{ implode(', ', array_filter([$sol->calle, $sol->num_exterior, $sol->colonia, $sol->municipio, $sol->estado])) ?: '—' }}</span></div>
+                <div><span class="sol-dato-label">C.P.:</span> <span class="sol-dato-value">{{ $sol->cp ?? '—' }}</span></div>
+                <div><span class="sol-dato-label">País:</span> <span class="sol-dato-value">{{ $sol->pais ?? '—' }}</span></div>
+                <div><span class="sol-dato-label">CLABE:</span> <span class="sol-dato-value">{{ $sol->clabe ?? '—' }}</span></div>
+                <div><span class="sol-dato-label">Cuenta:</span> <span class="sol-dato-value">{{ $sol->cuenta ?? '—' }}</span></div>
+                <div><span class="sol-dato-label">Banco:</span> <span class="sol-dato-value">{{ $sol->banco ?? '—' }}</span></div>
+                @if($sol->nombre_firma)
+                    <div><span class="sol-dato-label">Firma:</span> <span class="sol-dato-value">{{ $sol->nombre_firma }}</span></div>
+                @endif
+            </div>
+
+            @if($sol->docs_marcados && count($sol->docs_marcados))
+                <div class="sol-docs">
+                    @php
+                        $docsLabels = [
+                            'acta_constitutiva' => 'Acta Constitutiva',
+                            'id_rep_legal' => 'ID Rep. Legal',
+                            'id_contribuyente' => 'ID Contribuyente',
+                            'constancia_fiscal' => 'CIF',
+                            'opinion_cumplimiento' => 'Opinión SAT',
+                            'caratula_banco' => 'Carátula Banco',
+                        ];
+                    @endphp
+                    @foreach($sol->docs_marcados as $doc)
+                        <span class="sol-doc-tag">{{ $docsLabels[$doc] ?? $doc }}</span>
+                    @endforeach
+                </div>
+            @endif
+
+            @if($sol->estatus === 'pendiente')
+                <div class="sol-actions">
+                    <a href="{{ route('admin.solicitudes.revisar', $sol) }}" class="btn-aprobar" style="background:var(--purple);text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        Revisar documentos
+                    </a>
+                    <form method="POST" action="{{ route('admin.solicitudes.aprobar', $sol) }}">
+                        @csrf @method('PATCH')
+                        <button type="submit" class="btn-aprobar">✓ Aprobar</button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.solicitudes.rechazar', $sol) }}">
+                        @csrf @method('PATCH')
+                        <button type="submit" class="btn-rechazar">✕ Rechazar</button>
+                    </form>
+                </div>
+            @endif
+
+            @if($sol->notas_admin)
+                <div style="margin-top:8px;font-size:12px;color:var(--gray-muted);font-style:italic;">Notas: {{ $sol->notas_admin }}</div>
+            @endif
+        </div>
+    @empty
+        <div class="sol-empty">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            <p style="margin-top:12px;">No hay solicitudes de alta pendientes.</p>
+        </div>
+    @endforelse
+</div>
 @endsection
