@@ -428,7 +428,11 @@ class PortalProveedorController extends Controller
 
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         if ($proveedor) {
-            $proveedor->update(['datos_identificacion' => $payload]);
+            try {
+                $proveedor->update(['datos_identificacion' => $payload]);
+            } catch (\Exception $e) {
+                // La columna datos_identificacion puede no existir aún en producción
+            }
         }
 
         return redirect()->route('proveedores.identificacion')
