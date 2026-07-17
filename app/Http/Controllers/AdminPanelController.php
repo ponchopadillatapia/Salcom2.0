@@ -1115,6 +1115,7 @@ class AdminPanelController extends Controller
             'pendiente' => 'Pendiente',
             'pagada' => 'Pagada',
             'cancelada' => 'Cancelada',
+            'rechazada' => 'Rechazada',
         ];
     }
 

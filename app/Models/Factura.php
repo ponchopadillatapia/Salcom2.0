@@ -14,15 +14,36 @@ class Factura extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'folio_cfdi', 'codigo_cliente', 'codigo_proveedor', 'pedido_id',
-        'monto', 'monto_iva', 'total', 'estatus', 'fecha_vencimiento',
+        'folio_cfdi',
+        'uuid_cfdi',
+        'codigo_cliente',
+        'codigo_proveedor',
+        'regimen_fiscal',
+        'es_fletera',
+        'pedido_id',
+        'monto',
+        'monto_iva',
+        'retencion_iva',
+        'retencion_isr',
+        'total',
+        'estatus',
+        'fecha_vencimiento',
+        'archivo_pdf',
+        'archivo_xml',
+        'archivo_oc',
+        'notas',
+        'validacion_detalle',
     ];
 
     protected $casts = [
         'monto' => 'decimal:2',
         'monto_iva' => 'decimal:2',
+        'retencion_iva' => 'decimal:2',
+        'retencion_isr' => 'decimal:2',
         'total' => 'decimal:2',
+        'es_fletera' => 'boolean',
         'fecha_vencimiento' => 'date',
+        'validacion_detalle' => 'array',
     ];
 
     public function pedido()

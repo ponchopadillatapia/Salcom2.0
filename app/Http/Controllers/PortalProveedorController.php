@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\ContactoProveedor;
 use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
+use App\Models\Factura;
 use App\Models\ProveedorUser;
+use App\Services\AltaFacturaValidationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -456,7 +459,203 @@ class PortalProveedorController extends Controller
     }
 
     /**
-     * Subir documento fiscal — validación automática por IA.
+     * Alta de facturas — formulario con historial reciente.
+     */
+    public function mostrarAltaFacturas()
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+
+        $facturas = Factura::query()
+            ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo))
+            ->orderByDesc('created_at')
+            ->limit(15)
+            ->get();
+
+        $stats = [
+            'total' => $facturas->count(),
+            'pendientes' => $facturas->where('estatus', 'pendiente')->count(),
+            'rechazadas' => $facturas->where('estatus', 'rechazada')->count(),
+            'fleteras' => $facturas->where('es_fletera', true)->count(),
+        ];
+
+        $rfcProveedor = $this->rfcProveedorSesion($proveedor);
+
+        return view('proveedores.fiscal', compact('facturas', 'stats', 'rfcProveedor', 'proveedor'));
+    }
+
+    /**
+     * Alta de factura: XML + PDF, validación de régimen / fletera / retenciones.
+     */
+    public function altaFactura(Request $request, AltaFacturaValidationService $validator)
+    {
+        $request->validate([
+            'archivo' => 'required|file|mimes:pdf|max:10240',
+            'archivo_xml' => 'required|file|mimes:xml|max:5120',
+            'archivo_oc' => 'nullable|file|mimes:pdf|max:10240',
+            'es_fletera' => 'required|in:0,1',
+            'notas' => 'nullable|string|max:500',
+        ], [
+            'archivo.required' => 'La factura en PDF es obligatoria.',
+            'archivo_xml.required' => 'El XML de la factura es obligatorio.',
+            'es_fletera.required' => 'Indica si la factura es de fletera o no.',
+        ]);
+
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor) {
+            return back()->withErrors(['archivo' => 'Sesión de proveedor no válida. Vuelve a iniciar sesión.']);
+        }
+
+        $pdf = $request->file('archivo');
+        $xmlFile = $request->file('archivo_xml');
+
+        $pdfContent = file_get_contents($pdf->getRealPath());
+        if (! str_starts_with($pdfContent, '%PDF')) {
+            return back()->withInput()->with('fiscal_resultado', [
+                'aprobado' => false,
+                'mensaje' => 'El archivo PDF no es válido.',
+                'errores' => ['El archivo de factura no es un PDF real.'],
+                'checklist' => [],
+            ]);
+        }
+
+        $xmlContent = file_get_contents($xmlFile->getRealPath());
+        $esFletera = $request->input('es_fletera') === '1';
+        $rfcProveedor = $this->rfcProveedorSesion($proveedor);
+
+        $resultado = $validator->validar($xmlContent, $esFletera, $rfcProveedor);
+
+        $dir = 'facturas-proveedor/'.$proveedor->id;
+        $pathPdf = $pdf->store($dir, 'public');
+        $pathXml = $xmlFile->store($dir, 'public');
+        $pathOc = $request->hasFile('archivo_oc')
+            ? $request->file('archivo_oc')->store($dir, 'public')
+            : null;
+
+        $datos = $resultado['datos'];
+        $folio = $datos['uuid']
+            ?: trim(($datos['serie'] ?? '').($datos['folio'] ?? ''))
+            ?: ('TMP-'.uniqid());
+
+        // Evitar choque con unique folio_cfdi si UUID ya falló por duplicado
+        if (! $resultado['aprobado'] && $datos['uuid'] && Factura::where('uuid_cfdi', $datos['uuid'])->exists()) {
+            Storage::disk('public')->delete(array_filter([$pathPdf, $pathXml, $pathOc]));
+
+            return back()->withInput()->with('fiscal_resultado', [
+                'aprobado' => false,
+                'mensaje' => 'La factura fue rechazada.',
+                'errores' => $resultado['errores'],
+                'advertencias' => $resultado['advertencias'],
+                'checklist' => $resultado['checklist'],
+                'datos' => $datos,
+            ]);
+        }
+
+        $dias = (int) config('facturas.dias_vencimiento', 30);
+        $codigoProv = $proveedor->id_proveedor ?: session('proveedor_codigo');
+
+        if ($resultado['aprobado']) {
+            // Si folio_cfdi ya existe con otro UUID, generar uno derivado
+            $folioCfdi = $folio;
+            if (Factura::where('folio_cfdi', $folioCfdi)->exists()) {
+                $folioCfdi = $folioCfdi.'-'.substr(uniqid(), -4);
+            }
+
+            Factura::create([
+                'folio_cfdi' => $folioCfdi,
+                'uuid_cfdi' => $datos['uuid'],
+                'codigo_proveedor' => $codigoProv,
+                'regimen_fiscal' => $datos['regimen_fiscal'],
+                'es_fletera' => $esFletera,
+                'monto' => $datos['subtotal'],
+                'monto_iva' => $datos['iva'],
+                'retencion_iva' => $datos['retencion_iva'],
+                'retencion_isr' => $datos['retencion_isr'],
+                'total' => $datos['total'] ?: ($datos['subtotal'] + $datos['iva']),
+                'estatus' => 'pendiente',
+                'fecha_vencimiento' => now()->addDays($dias)->toDateString(),
+                'archivo_pdf' => $pathPdf,
+                'archivo_xml' => $pathXml,
+                'archivo_oc' => $pathOc,
+                'notas' => $request->input('notas'),
+                'validacion_detalle' => [
+                    'checklist' => $resultado['checklist'],
+                    'advertencias' => $resultado['advertencias'],
+                    'retencion_esperada' => $datos['retencion_esperada'],
+                    'rfc_emisor' => $datos['rfc_emisor'],
+                    'regimen_nombre' => $datos['regimen_nombre'],
+                    'validado_at' => now()->toIso8601String(),
+                ],
+            ]);
+
+            return back()->with('fiscal_resultado', [
+                'aprobado' => true,
+                'mensaje' => 'Factura validada y registrada correctamente. Queda pendiente de revisión contable.',
+                'errores' => [],
+                'advertencias' => $resultado['advertencias'],
+                'checklist' => $resultado['checklist'],
+                'datos' => $datos,
+            ]);
+        }
+
+        // Rechazada: guardar registro para trazabilidad
+        $folioRechazo = 'RECH-'.strtoupper(substr(uniqid(), -8));
+        Factura::create([
+            'folio_cfdi' => $folioRechazo,
+            'uuid_cfdi' => null,
+            'codigo_proveedor' => $codigoProv,
+            'regimen_fiscal' => $datos['regimen_fiscal'],
+            'es_fletera' => $esFletera,
+            'monto' => $datos['subtotal'] ?: 0,
+            'monto_iva' => $datos['iva'] ?: 0,
+            'retencion_iva' => $datos['retencion_iva'] ?: 0,
+            'retencion_isr' => $datos['retencion_isr'] ?: 0,
+            'total' => $datos['total'] ?: 0,
+            'estatus' => 'rechazada',
+            'fecha_vencimiento' => null,
+            'archivo_pdf' => $pathPdf,
+            'archivo_xml' => $pathXml,
+            'archivo_oc' => $pathOc,
+            'notas' => $request->input('notas'),
+            'validacion_detalle' => [
+                'checklist' => $resultado['checklist'],
+                'errores' => $resultado['errores'],
+                'advertencias' => $resultado['advertencias'],
+                'datos_parciales' => $datos,
+                'validado_at' => now()->toIso8601String(),
+            ],
+        ]);
+
+        return back()->withInput()->with('fiscal_resultado', [
+            'aprobado' => false,
+            'mensaje' => 'La factura fue rechazada por validación fiscal.',
+            'errores' => $resultado['errores'],
+            'advertencias' => $resultado['advertencias'],
+            'checklist' => $resultado['checklist'],
+            'datos' => $datos,
+        ]);
+    }
+
+    /**
+     * RFC del proveedor desde identificación o input.
+     */
+    private function rfcProveedorSesion(?ProveedorUser $proveedor): ?string
+    {
+        if (! $proveedor) {
+            return session('proveedor_rfc') ?: null;
+        }
+
+        $datos = $proveedor->datos_identificacion ?? [];
+        $rfc = $datos['rfc'] ?? $datos['RFC'] ?? null;
+        if ($rfc) {
+            return strtoupper(trim((string) $rfc));
+        }
+
+        return session('proveedor_rfc') ?: null;
+    }
+
+    /**
+     * Subir documento fiscal de onboarding (CIF, opinión, etc.).
      */
     public function subirDocumentoFiscal(Request $request)
     {
@@ -470,30 +669,24 @@ class PortalProveedorController extends Controller
         $notas = $request->input('notas', '');
         $provId = session('proveedor_id');
 
-        // Guardar archivo
         $path = $request->file('archivo')->store('documentos-fiscales', 'public');
 
-        // Validación automática por IA (reglas básicas)
         $errores = [];
         $archivo = $request->file('archivo');
 
-        // Validar tamaño mínimo (un PDF real tiene al menos 1KB)
         if ($archivo->getSize() < 1024) {
             $errores[] = 'El archivo parece estar vacío o corrupto.';
         }
 
-        // Validar que sea PDF real (magic bytes)
         $contenido = file_get_contents($archivo->getRealPath());
         if (! str_starts_with($contenido, '%PDF')) {
             $errores[] = 'El archivo no es un PDF válido.';
         }
 
-        // Validar RFC si se proporcionó (formato básico)
         if ($rfc && ! preg_match('/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i', $rfc)) {
             $errores[] = "El RFC '{$rfc}' no tiene un formato válido. Debe ser 12 o 13 caracteres (ej: ABC123456XY7).";
         }
 
-        // Validaciones específicas por tipo de documento
         $tipoLabel = match ($tipo) {
             'cif' => 'Constancia de Situación Fiscal',
             'opinion' => 'Opinión de cumplimiento SAT',
@@ -505,7 +698,6 @@ class PortalProveedorController extends Controller
         };
 
         if (empty($errores)) {
-            // Documento aprobado — guardar en BD
             DocumentoProveedor::updateOrCreate(
                 ['proveedor_id' => $provId, 'tipo' => $tipo],
                 [
@@ -522,7 +714,6 @@ class PortalProveedorController extends Controller
             ]);
         }
 
-        // Documento rechazado
         DocumentoProveedor::updateOrCreate(
             ['proveedor_id' => $provId, 'tipo' => $tipo],
             [
