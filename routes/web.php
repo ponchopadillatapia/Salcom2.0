@@ -53,8 +53,10 @@ Route::get('/proveedor/inventario', function () {
 })->name('proveedores.inventario')->middleware('auth.proveedor');
 Route::get('/proveedor/inventario/excel', [PortalProveedorController::class, 'exportarInventarioExcel'])->name('proveedores.inventario.excel')->middleware('auth.proveedor');
 Route::get('/validacion-fiscal', [PortalProveedorController::class, 'mostrarValidacionFiscal'])->name('proveedores.validacion-fiscal')->middleware('auth.proveedor');
-Route::get('/proveedor/fiscal', [PortalProveedorController::class, 'mostrarAltaFacturas'])->name('proveedores.fiscal')->middleware('auth.proveedor');
-Route::post('/proveedor/fiscal/subir', [PortalProveedorController::class, 'altaFactura'])->name('proveedores.fiscal.subir')->middleware('auth.proveedor');
+Route::get('/proveedor/fiscal', function () {
+    return view('proveedores.fiscal');
+})->name('proveedores.fiscal')->middleware('auth.proveedor');
+Route::post('/proveedor/fiscal/subir', [PortalProveedorController::class, 'subirDocumentoFiscal'])->name('proveedores.fiscal.subir')->middleware('auth.proveedor');
 Route::get('/identificacion-proveedor', [PortalProveedorController::class, 'mostrarIdentificacion'])->name('proveedores.identificacion')->middleware('auth.proveedor');
 Route::post('/identificacion-proveedor', [PortalProveedorController::class, 'guardarIdentificacion'])->name('proveedores.identificacion.guardar')->middleware('auth.proveedor');
 
@@ -201,6 +203,8 @@ Route::get('/admin/migracion-masiva/template', [AltaProductoController::class, '
 Route::get('/admin/facturas', [AdminPanelController::class, 'facturas'])->name('admin.facturas')->middleware('auth.admin');
 Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel'])->name('admin.facturas.excel')->middleware('auth.admin');
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
+Route::get('/admin/expediente-fiscal', [AdminPanelController::class, 'expedienteFiscal'])->name('admin.expediente-fiscal')->middleware('auth.admin');
+Route::get('/admin/expediente-fiscal/{documento}/descargar', [AdminPanelController::class, 'descargarDocumentoFiscal'])->name('admin.expediente-fiscal.descargar')->middleware('auth.admin');
 Route::get('/admin/documentos/excel', [AdminPanelController::class, 'documentosExcel'])->name('admin.documentos.excel')->middleware('auth.admin');
 Route::get('/admin/negocio', [AdminPanelController::class, 'negocio'])->name('admin.negocio')->middleware('auth.admin');
 Route::get('/admin/otif', [AdminPanelController::class, 'otif'])->name('admin.otif')->middleware('auth.admin');

@@ -458,6 +458,50 @@ class PortalProveedorController extends Controller
         return view('APIS.empresa', compact('identificacion', 'solicitudId'));
     }
 
+    public function mostrarAdjuntoDocumentos()
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $documentos = $proveedor ? $proveedor->documentos()->orderByDesc('created_at')->get() : collect();
+
+        $tiposLabel = [
+            'cif' => 'CIF / Constancia fiscal',
+            'opinion' => 'Opinión SAT',
+            'acta' => 'Acta constitutiva',
+            'rep_legal' => 'INE Rep. legal',
+            'contribuyente' => 'INE Contribuyente',
+            'caratula_banco' => 'Carátula bancaria',
+        ];
+
+        return view('proveedores.adjunto-documentos', compact('documentos', 'tiposLabel'));
+    }
+
+    public function subirAdjuntoDocumentos(Request $request)
+    {
+        $tipos = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'caratula_banco'];
+        $subidos = 0;
+
+        foreach ($tipos as $tipo) {
+            if ($request->hasFile($tipo)) {
+                $request->validate([$tipo => 'mimes:pdf|max:10240']);
+
+                $archivo = $request->file($tipo);
+                $ruta = $archivo->store("expediente_fiscal/{$tipo}", 'public');
+
+                DocumentoProveedor::updateOrCreate(
+                    ['proveedor_id' => session('proveedor_id'), 'tipo' => $tipo],
+                    ['archivo' => $ruta, 'estatus' => 'pendiente', 'notas_revision' => null, 'revisado_at' => null]
+                );
+                $subidos++;
+            }
+        }
+
+        if ($subidos === 0) {
+            return back()->withErrors(['general' => 'Selecciona al menos un documento PDF para subir.']);
+        }
+
+        return back()->with('adj_exito', "Se subieron {$subidos} documento(s) correctamente. El equipo de Salcom los revisará.");
+    }
+
     /**
      * Alta de facturas — formulario con historial reciente.
      */

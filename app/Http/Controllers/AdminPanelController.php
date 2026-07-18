@@ -2519,6 +2519,72 @@ class AdminPanelController extends Controller
 
     // ── Solicitudes de Alta (métodos de acción) ──
 
+    public function expedienteFiscal(Request $request)
+    {
+        $tipos = [
+            'cif' => 'CIF / Constancia fiscal',
+            'opinion' => 'Opinión SAT',
+            'acta' => 'Acta constitutiva',
+            'rep_legal' => 'INE Rep. legal',
+            'contribuyente' => 'INE Contribuyente',
+            'caratula_banco' => 'Carátula bancaria',
+        ];
+
+        $query = DocumentoProveedor::with('proveedor')->orderByDesc('created_at');
+
+        if ($request->filled('tipo')) {
+            $query->where('tipo', $request->tipo);
+        }
+
+        if ($request->filled('busqueda')) {
+            $b = $request->busqueda;
+            $query->whereHas('proveedor', function ($q) use ($b) {
+                $q->where('nombre', 'like', "%{$b}%")
+                    ->orWhere('usuario', 'like', "%{$b}%");
+            });
+        }
+
+        if ($request->filled('persona')) {
+            $persona = $request->persona;
+            $query->whereHas('proveedor', function ($q) use ($persona) {
+                if ($persona === 'fisica') {
+                    $q->where('tipo_persona', 'like', '%Física%')
+                      ->orWhere('tipo_persona', 'like', '%fisica%');
+                } else {
+                    $q->where('tipo_persona', 'like', '%Moral%')
+                      ->orWhere('tipo_persona', 'like', '%moral%');
+                }
+            });
+        }
+
+        $documentos = $query->get();
+
+        // Agrupar por proveedor
+        $proveedoresConDocs = $documentos->groupBy('proveedor_id')->map(function ($docs) {
+            return [
+                'proveedor' => $docs->first()->proveedor,
+                'documentos' => $docs,
+            ];
+        })->filter(fn($item) => $item['proveedor'] !== null)->values();
+
+        return view('admin.expediente-fiscal', compact('proveedoresConDocs', 'tipos'));
+    }
+
+    public function descargarDocumentoFiscal(DocumentoProveedor $documento)
+    {
+        $path = storage_path('app/public/' . $documento->archivo);
+
+        if (!file_exists($path)) {
+            return back()->with('error', 'El archivo no se encontró en el servidor.');
+        }
+
+        $nombreArchivo = ($documento->proveedor?->nombre ?? 'proveedor') . '_' . $documento->tipo . '.pdf';
+
+        return response()->download($path, $nombreArchivo);
+    }
+
+    // ── Solicitudes de Alta (aprobar/rechazar) ──
+
     public function aprobarSolicitud(\App\Models\SolicitudAlta $solicitud)
     {
         $solicitud->update(['estatus' => 'aprobada']);

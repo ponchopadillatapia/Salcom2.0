@@ -187,15 +187,17 @@
         <div class="form-row cols-3">
             <div class="form-group">
                 <label for="colonia">Colonia o fraccionamiento</label>
-                <input type="text" id="colonia" name="colonia" value="{{ old('colonia', $d['colonia'] ?? '') }}" placeholder="Colonia">
+                <select id="colonia" name="colonia" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);">
+                    <option value="{{ old('colonia', $d['colonia'] ?? '') }}">{{ old('colonia', $d['colonia'] ?? 'Se llena con C.P.') }}</option>
+                </select>
             </div>
             <div class="form-group">
                 <label for="municipio">Delegación / Municipio</label>
-                <input type="text" id="municipio" name="municipio" value="{{ old('municipio', $d['municipio'] ?? '') }}" placeholder="Municipio">
+                <input type="text" id="municipio" name="municipio" value="{{ old('municipio', $d['municipio'] ?? '') }}" placeholder="Se llena con C.P." readonly style="background:#f9fafb;">
             </div>
             <div class="form-group">
                 <label for="estado">Entidad Federativa / Estado</label>
-                <input type="text" id="estado" name="estado" value="{{ old('estado', $d['estado'] ?? '') }}" placeholder="Estado">
+                <input type="text" id="estado" name="estado" value="{{ old('estado', $d['estado'] ?? '') }}" placeholder="Se llena con C.P." readonly style="background:#f9fafb;">
             </div>
         </div>
 
@@ -210,7 +212,8 @@
             </div>
             <div class="form-group">
                 <label for="cp">C.P.</label>
-                <input type="text" id="cp" name="cp" value="{{ old('cp', $d['cp'] ?? '') }}" placeholder="00000" maxlength="10">
+                <input type="text" id="cp" name="cp" value="{{ old('cp', $d['cp'] ?? '') }}" placeholder="00000" maxlength="5" oninput="buscarCP(this.value)">
+                <small id="cp-loading" style="display:none;color:var(--purple);font-size:10px;">Buscando...</small>
             </div>
             <div class="form-group">
                 <label for="telefono">Teléfono</label>
@@ -262,7 +265,27 @@
             </div>
             <div class="form-group">
                 <label for="banco">Nombre de la Institución Financiera</label>
-                <input type="text" id="banco" name="banco" value="{{ old('banco', $d['banco'] ?? '') }}" placeholder="Ej. BBVA, Banorte, Santander">
+                <select id="banco" name="banco" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);">
+                    <option value="">Selecciona tu banco</option>
+                    @php
+                        $bancos = [
+                            'BBVA', 'Santander', 'Banorte', 'Citibanamex', 'HSBC',
+                            'Scotiabank', 'Inbursa', 'Banco Azteca', 'BanBajío',
+                            'Banregio', 'Afirme', 'Multiva', 'Mifel', 'Bansi',
+                            'Bank of America', 'JP Morgan', 'Banca Coppel (BanCoppel)',
+                            'Compartamos Banco', 'Banco del Bienestar', 'Banco Autofin',
+                            'CI Banco', 'Intercam Banco', 'Monex', 'Ve por Más',
+                            'Actinver', 'Barclays', 'Banco Base', 'Banco Inmobiliario Mexicano',
+                            'Banco Sabadell', 'Deutsche Bank', 'ING Bank', 'Investa Bank',
+                            'Banco S3 (México)', 'ABC Capital', 'Consubanco',
+                            'Nu México (Nu)', 'Openbank', 'Hey Banco', 'Albo', 'Stori',
+                            'Otro',
+                        ];
+                    @endphp
+                    @foreach($bancos as $b)
+                        <option value="{{ $b }}" {{ old('banco', $d['banco'] ?? '') === $b ? 'selected' : '' }}>{{ $b }}</option>
+                    @endforeach
+                </select>
             </div>
         </div>
     </div>
@@ -378,5 +401,78 @@
     select.addEventListener('change', toggleCampos);
     toggleCampos();
 })();
+
+// ── Autocompletado de CP con API SEPOMEX ──
+var cpTimeout = null;
+function buscarCP(cp) {
+    cp = cp.replace(/\D/g, '');
+    if (cp.length !== 5) return;
+
+    var loading = document.getElementById('cp-loading');
+    if (loading) loading.style.display = 'inline';
+
+    clearTimeout(cpTimeout);
+    cpTimeout = setTimeout(function() {
+        fetch('https://api.zippopotam.us/MX/' + cp)
+            .then(function(res) { return res.ok ? res.json() : null; })
+            .then(function(data) {
+                if (loading) loading.style.display = 'none';
+                if (!data || !data.places || !data.places.length) {
+                    // Intentar API alternativa
+                    buscarCPAlternativo(cp);
+                    return;
+                }
+                var lugar = data.places[0];
+                document.getElementById('estado').value = lugar.state || '';
+                document.getElementById('municipio').value = lugar['place name'] || '';
+                document.getElementById('ciudad').value = lugar['place name'] || '';
+
+                // Llenar colonias
+                var coloniaSelect = document.getElementById('colonia');
+                coloniaSelect.innerHTML = '';
+                data.places.forEach(function(p) {
+                    var opt = document.createElement('option');
+                    opt.value = p['place name'];
+                    opt.textContent = p['place name'];
+                    coloniaSelect.appendChild(opt);
+                });
+            })
+            .catch(function() {
+                if (loading) loading.style.display = 'none';
+                buscarCPAlternativo(cp);
+            });
+    }, 300);
+}
+
+function buscarCPAlternativo(cp) {
+    // Fallback: usar API copomex o simplemente dejar que el usuario llene manual
+    fetch('/api/codigo-postal/' + cp)
+        .then(function(res) { return res.ok ? res.json() : null; })
+        .then(function(data) {
+            if (!data) return;
+            if (data.estado) document.getElementById('estado').value = data.estado;
+            if (data.municipio) document.getElementById('municipio').value = data.municipio;
+            if (data.ciudad) document.getElementById('ciudad').value = data.ciudad || data.municipio;
+            if (data.colonias && data.colonias.length) {
+                var coloniaSelect = document.getElementById('colonia');
+                coloniaSelect.innerHTML = '';
+                data.colonias.forEach(function(c) {
+                    var opt = document.createElement('option');
+                    opt.value = c;
+                    opt.textContent = c;
+                    coloniaSelect.appendChild(opt);
+                });
+            }
+        })
+        .catch(function() {
+            // Permitir llenado manual si falla
+            var coloniaSelect = document.getElementById('colonia');
+            coloniaSelect.outerHTML = '<input type="text" id="colonia" name="colonia" placeholder="Escribe la colonia" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;">';
+            document.getElementById('municipio').removeAttribute('readonly');
+            document.getElementById('municipio').style.background = '';
+            document.getElementById('estado').removeAttribute('readonly');
+            document.getElementById('estado').style.background = '';
+        });
+}
 </script>
 @endpush
