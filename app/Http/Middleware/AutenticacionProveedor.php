@@ -21,6 +21,8 @@ class AutenticacionProveedor
         'proveedores.identificacion.guardar',
         'proveedores.actualizacion',
         'proveedores.actualizacion.guardar',
+        'proveedores.adjunto-documentos',
+        'proveedores.adjunto-documentos.subir',
         'proveedores.logout',
         'proveedores.aviso.aceptar',
         'aviso.privacidad',

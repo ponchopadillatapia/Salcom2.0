@@ -29,6 +29,7 @@ class PortalProveedorController extends Controller
 
     public function mostrarOnboarding()
     {
+      try {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
 
         // Si entró como admin, proveedor_id antes era el id de admin_users (sin fila en proveedores_users).
@@ -123,6 +124,26 @@ class PortalProveedorController extends Controller
             'totalPasos',
             'pct'
         ));
+
+      } catch (\Exception $e) {
+        \Illuminate\Support\Facades\Log::error('Onboarding error: ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine());
+        // Fallback: mostrar onboarding básico sin datos calculados
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        return view('proveedores.onboarding', [
+            'proveedor' => $proveedor,
+            'pasoRegistro' => true,
+            'pasoBancarios' => false,
+            'pasoDocs' => false,
+            'pasoDocsRenovar' => false,
+            'numContactos' => 0,
+            'pasoContactos' => false,
+            'pasoListoDireccion' => false,
+            'pasoActivo' => false,
+            'completados' => 1,
+            'totalPasos' => 5,
+            'pct' => 20,
+        ]);
+      }
     }
 
     public function mostrarBusiness()
