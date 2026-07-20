@@ -279,6 +279,29 @@ class EmpresaApiController extends Controller
                 $estado = 'rojo';
             }
 
+            // Guardar copias en expediente fiscal — SOLO si validación correcta
+            if ($todoOk) {
+                $proveedorId = session('proveedor_id');
+                if ($proveedorId) {
+                    try {
+                        $tiposGuardar = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'caratula_banco'];
+                        foreach ($tiposGuardar as $tipo) {
+                            if ($request->hasFile($tipo . '_pdf')) {
+                                $rutaPublica = $request->file($tipo . '_pdf')->store("expediente_fiscal/{$tipo}", 'public');
+                                if ($rutaPublica) {
+                                    \App\Models\DocumentoProveedor::updateOrCreate(
+                                        ['proveedor_id' => $proveedorId, 'tipo' => $tipo],
+                                        ['archivo' => $rutaPublica, 'estatus' => 'aprobado', 'notas_revision' => 'Validación automática aprobada', 'revisado_at' => now()]
+                                    );
+                                }
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        // No bloquear la respuesta
+                    }
+                }
+            }
+
             $response = [
                 'estado' => $estado,
                 'tipo_persona' => $tipoPersona,

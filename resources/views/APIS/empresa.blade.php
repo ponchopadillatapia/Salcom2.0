@@ -862,7 +862,7 @@ function renderResultado(data) {
     const todoVerde = estado === 'verde';
     const btnPortal = todoVerde ? `
         <hr class="resultado-divider">
-        <a href="/portal-proveedor" class="btn-portal">
+        <a href="/onboarding" class="btn-portal">
             <i class="bi bi-box-arrow-in-right"></i> Ir al Portal del Proveedor
         </a>` : '';
 

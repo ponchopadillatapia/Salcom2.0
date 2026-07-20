@@ -118,17 +118,26 @@ class ProveedorUser extends Authenticatable
     /** Tipos de documentos fiscales requeridos según tipo de persona. */
     public function documentosRequeridos(): array
     {
-        $docs = [
+        $esMoral = str_contains(strtolower((string) $this->tipo_persona), 'moral');
+
+        if ($esMoral) {
+            return [
+                'cif' => 'CIF',
+                'opinion' => 'Opinión SAT',
+                'acta' => 'Acta constitutiva',
+                'rep_legal' => 'INE Rep. legal',
+                'contribuyente' => 'INE Contribuyente',
+                'caratula_banco' => 'Carátula bancaria',
+            ];
+        }
+
+        // Persona Física
+        return [
             'cif' => 'CIF',
             'opinion' => 'Opinión SAT',
+            'contribuyente' => 'INE Contribuyente',
+            'caratula_banco' => 'Carátula bancaria',
         ];
-        if (str_contains(strtolower((string) $this->tipo_persona), 'moral')) {
-            $docs['acta'] = 'Acta constitutiva';
-        }
-        $docs['rep_legal'] = 'INE Rep. legal';
-        $docs['caratula_banco'] = 'Carátula bancaria';
-
-        return $docs;
     }
 
     public function tieneFormularioDatosBancarios(): bool
