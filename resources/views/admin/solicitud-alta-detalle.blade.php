@@ -175,13 +175,30 @@
 
 <div class="sd-card">
     <h3>Aprobación de Dirección</h3>
-    <p style="font-size:13px;color:var(--gray-muted);margin:0 0 14px;">Al aprobar, la cuenta queda activa y el proveedor puede usar todo el portal.</p>
+    @php
+        $nContactos = $proveedor->contactos->count();
+        $bancariosOk = $proveedor->tieneFormularioDatosBancarios();
+        $puedeAprobar = $nContactos >= 2 && $bancariosOk;
+    @endphp
+    <p style="font-size:13px;color:var(--gray-muted);margin:0 0 14px;">
+        Para aprobar se requieren datos bancarios y mínimo 2 contactos.
+        Ahora: contactos {{ $nContactos }}/2 · bancarios {{ $bancariosOk ? 'OK' : 'faltan' }}.
+    </p>
+    @if(! $puedeAprobar)
+        <div class="sd-aviso" style="margin-bottom:14px;">
+            Aún no se puede aprobar. El proveedor debe completar lo faltante (contactos y/o bancarios).
+        </div>
+    @endif
     <div class="sd-actions">
+        @if($puedeAprobar)
         <form method="POST" action="{{ route('admin.solicitudes-alta.aprobar') }}" onsubmit="return confirm('¿Confirmar aprobación de {{ addslashes($proveedor->nombre ?? $proveedor->usuario) }}?');">
             @csrf
             <input type="hidden" name="proveedor_id" value="{{ $proveedor->id }}">
             <button type="submit" class="sd-btn">Aprobar y activar</button>
         </form>
+        @else
+            <button type="button" class="sd-btn" disabled style="opacity:.5;cursor:not-allowed;">Aprobar y activar</button>
+        @endif
     </div>
 </div>
 

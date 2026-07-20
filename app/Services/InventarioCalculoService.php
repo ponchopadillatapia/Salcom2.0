@@ -94,14 +94,12 @@ class InventarioCalculoService
     {
         $productos = Producto::where('activo', true)->orderBy('codigo')->get();
         $diasEntrega = (int) AlertaConfiguracion::get('dias_entrega_proveedor', 15);
-        $pedidos = Pedido::where('created_at', '>=', now()->subMonths(3))
-            ->whereNotIn('estatus', ['cancelado'])
-            ->get(['id', 'productos', 'created_at', 'estatus']);
+        $consumoPorCodigo = $this->indexarConsumoMensualPorCodigo();
 
         $reporte = [];
 
         foreach ($productos as $producto) {
-            $consumoMensual = $this->estimarConsumoMensual($producto, $pedidos);
+            $consumoMensual = $consumoPorCodigo[$producto->codigo] ?? 0.0;
             $consumoDiario = $this->calcularConsumoDiario($consumoMensual);
             $pendienteRecibir = 0; // TODO: Obtener de OC pendientes
 
@@ -132,36 +130,46 @@ class InventarioCalculoService
     }
 
     /**
-     * Estimar consumo mensual basado en pedidos de los últimos 3 meses.
+     * Una pasada sobre pedidos → consumo mensual estimado por código de producto.
      *
-     * @param  \Illuminate\Support\Collection|null  $pedidos  Pedidos precargados (evita N+1).
+     * @return array<string, float>
      */
-    private function estimarConsumoMensual(Producto $producto, $pedidos = null): float
+    private function indexarConsumoMensualPorCodigo(): array
     {
-        if ($pedidos === null) {
-            $pedidos = Pedido::where('created_at', '>=', now()->subMonths(3))
-                ->whereNotIn('estatus', ['cancelado'])
-                ->get(['id', 'productos', 'created_at', 'estatus']);
-        }
+        $pedidos = Pedido::where('created_at', '>=', now()->subMonths(3))
+            ->whereNotIn('estatus', ['cancelado'])
+            ->get(['productos', 'created_at']);
 
-        $cantidadTotal = 0;
-        $mesesConPedido = [];
+        $totales = [];
+        $meses = [];
 
         foreach ($pedidos as $pedido) {
-            $item = collect($pedido->productos ?? [])->first(function ($p) use ($producto) {
-                return ($p['sku'] ?? $p['codigo'] ?? '') === $producto->codigo;
-            });
-
-            if ($item) {
-                $mes = $pedido->created_at->format('Y-m');
-                $mesesConPedido[$mes] = true;
-                $cantidadTotal += (float) ($item['cantidad'] ?? 0);
+            $mes = $pedido->created_at->format('Y-m');
+            foreach ($pedido->productos ?? [] as $item) {
+                $codigo = (string) ($item['sku'] ?? $item['codigo'] ?? '');
+                if ($codigo === '') {
+                    continue;
+                }
+                $totales[$codigo] = ($totales[$codigo] ?? 0) + (float) ($item['cantidad'] ?? 0);
+                $meses[$codigo][$mes] = true;
             }
         }
 
-        $meses = count($mesesConPedido);
+        $resultado = [];
+        foreach ($totales as $codigo => $cantidad) {
+            $nMeses = count($meses[$codigo] ?? []);
+            $resultado[$codigo] = $nMeses > 0 ? round($cantidad / $nMeses, 2) : 0.0;
+        }
 
-        return $meses > 0 ? round($cantidadTotal / $meses, 2) : 0;
+        return $resultado;
+    }
+
+    /**
+     * Estimar consumo mensual basado en pedidos de los últimos 3 meses.
+     */
+    private function estimarConsumoMensual(Producto $producto): float
+    {
+        return $this->indexarConsumoMensualPorCodigo()[$producto->codigo] ?? 0.0;
     }
 
     /**

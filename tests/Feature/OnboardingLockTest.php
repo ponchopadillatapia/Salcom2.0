@@ -68,10 +68,32 @@ class OnboardingLockTest extends TestCase
         $p = $this->crearInactivo();
         $this->sesion($p);
 
-        // Formulario bancarios (desde Onboarding) y validación de docs — no el menú Fiscal (OC)
+        // Sin bancarios: docs bloqueados; identificación y perfil sí
         $this->get(route('proveedores.identificacion'))->assertOk();
-        $this->get(route('proveedores.validacion-fiscal'))->assertOk();
+        $this->get(route('proveedores.validacion-fiscal'))
+            ->assertRedirect(route('proveedores.onboarding'));
         $this->get(route('proveedores.perfil'))->assertOk();
+
+        $this->get(route('proveedores.onboarding'))
+            ->assertOk()
+            ->assertSee('Bloqueado');
+    }
+
+    public function test_con_bancarios_puede_abrir_validacion_docs(): void
+    {
+        $p = $this->crearInactivo();
+        $p->update([
+            'datos_identificacion' => [
+                'banco' => 'BBVA',
+                'clabe' => '012345678901234567',
+            ],
+        ]);
+        $this->sesion($p->fresh());
+
+        $this->get(route('proveedores.validacion-fiscal'))->assertOk();
+        $this->get(route('proveedores.onboarding'))
+            ->assertOk()
+            ->assertSee('Validar');
     }
 
     public function test_inactivo_no_puede_acceder_operaciones(): void

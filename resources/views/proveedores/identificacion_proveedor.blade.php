@@ -104,7 +104,7 @@
     </div>
 @endif
 
-<form method="POST" action="{{ route('proveedores.identificacion.guardar') }}" id="formIdentificacion">
+<form method="POST" action="{{ route('proveedores.identificacion.guardar') }}" id="formIdentificacion" novalidate>
     @csrf
     @php $d = $identificacion ?? []; @endphp
 
@@ -136,16 +136,16 @@
             <div class="section-label">Persona Física</div>
             <div class="form-row cols-3">
                 <div class="form-group">
-                    <label for="apellido_paterno">Apellido paterno</label>
-                    <input type="text" id="apellido_paterno" name="apellido_paterno" value="{{ old('apellido_paterno', $d['apellido_paterno'] ?? '') }}" placeholder="Apellido paterno">
+                    <label for="apellido_paterno">Apellido paterno <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="apellido_paterno" name="apellido_paterno" value="{{ old('apellido_paterno', $d['apellido_paterno'] ?? '') }}" placeholder="Apellido paterno" class="no-emoji" maxlength="100">
                 </div>
                 <div class="form-group">
-                    <label for="apellido_materno">Apellido materno</label>
-                    <input type="text" id="apellido_materno" name="apellido_materno" value="{{ old('apellido_materno', $d['apellido_materno'] ?? '') }}" placeholder="Apellido materno">
+                    <label for="apellido_materno">Apellido materno <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="apellido_materno" name="apellido_materno" value="{{ old('apellido_materno', $d['apellido_materno'] ?? '') }}" placeholder="Apellido materno" class="no-emoji" maxlength="100">
                 </div>
                 <div class="form-group">
-                    <label for="nombres">Nombre(s)</label>
-                    <input type="text" id="nombres" name="nombres" value="{{ old('nombres', $d['nombres'] ?? '') }}" placeholder="Nombre(s)">
+                    <label for="nombres">Nombre(s) <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="nombres" name="nombres" value="{{ old('nombres', $d['nombres'] ?? '') }}" placeholder="Nombre(s)" class="no-emoji" maxlength="150">
                 </div>
             </div>
         </div>
@@ -154,8 +154,8 @@
             <div class="section-label">Persona Moral</div>
             <div class="form-row cols-1">
                 <div class="form-group">
-                    <label for="razon_social">Denominación o Razón Social</label>
-                    <input type="text" id="razon_social" name="razon_social" value="{{ old('razon_social', $d['razon_social'] ?? '') }}" placeholder="Nombre completo de la empresa">
+                    <label for="razon_social">Denominación o Razón Social <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="razon_social" name="razon_social" value="{{ old('razon_social', $d['razon_social'] ?? '') }}" placeholder="Nombre completo de la empresa" class="no-emoji" maxlength="255">
                 </div>
             </div>
         </div>
@@ -171,75 +171,75 @@
 
         <div class="form-row cols-3">
             <div class="form-group" style="grid-column: span 1;">
-                <label for="calle">Calle, avenida o vía</label>
-                <input type="text" id="calle" name="calle" value="{{ old('calle', $d['calle'] ?? '') }}" placeholder="Calle / avenida">
+                <label for="calle">Calle, avenida o vía <span style="color:#DC2626">*</span></label>
+                <input type="text" id="calle" name="calle" value="{{ old('calle', $d['calle'] ?? '') }}" placeholder="Calle / avenida" required class="no-emoji" maxlength="255">
             </div>
             <div class="form-group">
-                <label for="num_exterior">Número exterior</label>
-                <input type="text" id="num_exterior" name="num_exterior" value="{{ old('num_exterior', $d['num_exterior'] ?? '') }}" placeholder="Ext.">
+                <label for="num_exterior">Número exterior <span style="color:#DC2626">*</span></label>
+                <input type="text" id="num_exterior" name="num_exterior" value="{{ old('num_exterior', $d['num_exterior'] ?? '') }}" placeholder="Ext." required class="no-emoji" maxlength="50">
             </div>
             <div class="form-group">
                 <label for="num_interior">Número interior</label>
-                <input type="text" id="num_interior" name="num_interior" value="{{ old('num_interior', $d['num_interior'] ?? '') }}" placeholder="Int. (opcional)">
+                <input type="text" id="num_interior" name="num_interior" value="{{ old('num_interior', $d['num_interior'] ?? '') }}" placeholder="Int. (opcional)" class="no-emoji" maxlength="50">
             </div>
         </div>
 
         <div class="form-row cols-3">
             <div class="form-group">
-                <label for="colonia">Colonia o fraccionamiento</label>
-                <select id="colonia" name="colonia" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);">
+                <label for="colonia">Colonia o fraccionamiento <span style="color:#DC2626">*</span></label>
+                <select id="colonia" name="colonia" required style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);">
                     <option value="{{ old('colonia', $d['colonia'] ?? '') }}">{{ old('colonia', $d['colonia'] ?? 'Se llena con C.P.') }}</option>
                 </select>
             </div>
             <div class="form-group">
-                <label for="municipio">Delegación / Municipio</label>
-                <input type="text" id="municipio" name="municipio" value="{{ old('municipio', $d['municipio'] ?? '') }}" placeholder="Se llena con C.P." readonly style="background:#f9fafb;">
+                <label for="municipio">Delegación / Municipio <span style="color:#DC2626">*</span></label>
+                <input type="text" id="municipio" name="municipio" value="{{ old('municipio', $d['municipio'] ?? '') }}" placeholder="Se llena con C.P." required readonly style="background:#f9fafb;" class="no-emoji">
             </div>
             <div class="form-group">
-                <label for="estado">Entidad Federativa / Estado</label>
-                <input type="text" id="estado" name="estado" value="{{ old('estado', $d['estado'] ?? '') }}" placeholder="Se llena con C.P." readonly style="background:#f9fafb;">
+                <label for="estado">Entidad Federativa / Estado <span style="color:#DC2626">*</span></label>
+                <input type="text" id="estado" name="estado" value="{{ old('estado', $d['estado'] ?? '') }}" placeholder="Se llena con C.P." required readonly style="background:#f9fafb;" class="no-emoji">
             </div>
         </div>
 
         <div class="form-row cols-4">
             <div class="form-group">
-                <label for="ciudad">Ciudad o población</label>
-                <input type="text" id="ciudad" name="ciudad" value="{{ old('ciudad', $d['ciudad'] ?? '') }}" placeholder="Ciudad">
+                <label for="ciudad">Ciudad o población <span style="color:#DC2626">*</span></label>
+                <input type="text" id="ciudad" name="ciudad" value="{{ old('ciudad', $d['ciudad'] ?? '') }}" placeholder="Ciudad" required class="no-emoji">
             </div>
             <div class="form-group">
-                <label for="pais">País</label>
-                <input type="text" id="pais" name="pais" value="{{ old('pais', $d['pais'] ?? 'México') }}" placeholder="País">
+                <label for="pais">País <span style="color:#DC2626">*</span></label>
+                <input type="text" id="pais" name="pais" value="{{ old('pais', $d['pais'] ?? 'México') }}" placeholder="País" required class="no-emoji">
             </div>
             <div class="form-group">
-                <label for="cp">C.P.</label>
-                <input type="text" id="cp" name="cp" value="{{ old('cp', $d['cp'] ?? '') }}" placeholder="00000" maxlength="5" oninput="buscarCP(this.value)">
+                <label for="cp">C.P. <span style="color:#DC2626">*</span></label>
+                <input type="text" id="cp" name="cp" value="{{ old('cp', $d['cp'] ?? '') }}" placeholder="00000" maxlength="5" inputmode="numeric" pattern="[0-9]{5}" required oninput="this.value=this.value.replace(/\D/g,'').slice(0,5);buscarCP(this.value)">
                 <small id="cp-loading" style="display:none;color:var(--purple);font-size:10px;">Buscando...</small>
             </div>
             <div class="form-group">
-                <label for="telefono">Teléfono</label>
-                <input type="tel" id="telefono" name="telefono" value="{{ old('telefono', $d['telefono'] ?? '') }}" placeholder="33 1234 5678">
+                <label for="telefono">Teléfono <span style="color:#DC2626">*</span></label>
+                <input type="tel" id="telefono" name="telefono" value="{{ old('telefono', $d['telefono'] ?? '') }}" placeholder="10 dígitos" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" required class="solo-digitos">
             </div>
         </div>
 
         <div class="form-row cols-3">
             <div class="form-group">
-                <label for="celular">Celular</label>
-                <input type="tel" id="celular" name="celular" value="{{ old('celular', $d['celular'] ?? '') }}" placeholder="33 1234 5678">
+                <label for="celular">Celular <span style="color:#DC2626">*</span></label>
+                <input type="tel" id="celular" name="celular" value="{{ old('celular', $d['celular'] ?? '') }}" placeholder="10 dígitos" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" required class="solo-digitos">
             </div>
             <div class="form-group">
-                <label for="telefono2">Teléfono 2 (incluir clave lada)</label>
-                <input type="tel" id="telefono2" name="telefono2" value="{{ old('telefono2', $d['telefono2'] ?? '') }}" placeholder="Lada + número">
+                <label for="telefono2">Teléfono 2 (opcional)</label>
+                <input type="tel" id="telefono2" name="telefono2" value="{{ old('telefono2', $d['telefono2'] ?? '') }}" placeholder="10 dígitos" maxlength="10" inputmode="numeric" pattern="[0-9]{10}" class="solo-digitos">
             </div>
             <div class="form-group">
                 <label for="extension">Extensión</label>
-                <input type="text" id="extension" name="extension" value="{{ old('extension', $d['extension'] ?? '') }}" placeholder="Ext.">
+                <input type="text" id="extension" name="extension" value="{{ old('extension', $d['extension'] ?? '') }}" placeholder="Ext." maxlength="6" inputmode="numeric" class="solo-digitos">
             </div>
         </div>
 
         <div class="form-row cols-1">
             <div class="form-group">
-                <label for="correo">Correo electrónico</label>
-                <input type="email" id="correo" name="correo" value="{{ old('correo', $d['correo'] ?? session('proveedor_correo')) }}" placeholder="correo@empresa.com">
+                <label for="correo">Correo electrónico <span style="color:#DC2626">*</span></label>
+                <input type="email" id="correo" name="correo" value="{{ old('correo', $d['correo'] ?? session('proveedor_correo')) }}" placeholder="correo@empresa.com" required>
             </div>
         </div>
     </div>
@@ -250,40 +250,45 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
             Datos bancarios
         </h3>
-        <p class="card-desc">Cuenta para pagos y transferencias.</p>
+        <p class="card-desc">Cuenta para pagos y transferencias. Todos los campos son obligatorios.</p>
 
         <div class="form-row cols-1">
             <div class="form-group">
-                <label for="clabe">Cuenta CLABE</label>
-                <input type="text" id="clabe" name="clabe" value="{{ old('clabe', $d['clabe'] ?? '') }}" placeholder="18 dígitos" maxlength="18">
+                <label for="clabe">Cuenta CLABE <span style="color:#DC2626">*</span></label>
+                <input type="text" id="clabe" name="clabe" value="{{ old('clabe', $d['clabe'] ?? '') }}" placeholder="18 dígitos" maxlength="18" inputmode="numeric" pattern="[0-9]{18}" required class="solo-digitos">
             </div>
         </div>
         <div class="form-row cols-2">
             <div class="form-group">
-                <label for="cuenta">Cuenta</label>
-                <input type="text" id="cuenta" name="cuenta" value="{{ old('cuenta', $d['cuenta'] ?? '') }}" placeholder="Número de cuenta">
+                <label for="cuenta">Cuenta <span style="color:#DC2626">*</span></label>
+                <input type="text" id="cuenta" name="cuenta" value="{{ old('cuenta', $d['cuenta'] ?? '') }}" placeholder="Número de cuenta" maxlength="20" inputmode="numeric" pattern="[0-9]{5,20}" required class="solo-digitos">
             </div>
             <div class="form-group">
-                <label for="banco">Nombre de la Institución Financiera</label>
-                <select id="banco" name="banco" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);">
-                    <option value="">Selecciona tu banco</option>
+                <label for="banco">Nombre de la Institución Financiera <span style="color:#DC2626">*</span></label>
+                <select id="banco" name="banco" required style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);">
+                    <option value="" disabled {{ old('banco', $d['banco'] ?? '') ? '' : 'selected' }}>Selecciona tu banco</option>
                     @php
                         $bancos = [
-                            'BBVA', 'Santander', 'Banorte', 'Citibanamex', 'HSBC',
-                            'Scotiabank', 'Inbursa', 'Banco Azteca', 'BanBajío',
-                            'Banregio', 'Afirme', 'Multiva', 'Mifel', 'Bansi',
-                            'Bank of America', 'JP Morgan', 'Banca Coppel (BanCoppel)',
-                            'Compartamos Banco', 'Banco del Bienestar', 'Banco Autofin',
-                            'CI Banco', 'Intercam Banco', 'Monex', 'Ve por Más',
-                            'Actinver', 'Barclays', 'Banco Base', 'Banco Inmobiliario Mexicano',
-                            'Banco Sabadell', 'Deutsche Bank', 'ING Bank', 'Investa Bank',
-                            'Banco S3 (México)', 'ABC Capital', 'Consubanco',
-                            'Nu México (Nu)', 'Openbank', 'Hey Banco', 'Albo', 'Stori',
-                            'Otro',
+                            // Más usados primero
+                            'BBVA', 'Banamex', 'Banorte', 'Santander', 'HSBC',
+                            'Scotiabank', 'Inbursa', 'Banco Azteca', 'BanCoppel',
+                            'Nu México (Nu)', 'BanBajío', 'Banregio', 'Afirme',
+                            'Hey Banco', 'Albo', 'Stori', 'Openbank',
+                            'Multiva', 'Mifel', 'Bansi', 'CI Banco', 'Intercam Banco',
+                            'Monex', 'Ve por Más', 'Actinver', 'Compartamos Banco',
+                            'Banco del Bienestar', 'Banca Mifel',
+                            'Bank of America', 'JP Morgan', 'Barclays', 'Deutsche Bank',
+                            'ING Bank', 'Banco Sabadell', 'Banco Base',
+                            'Banco Autofin', 'Banco Inmobiliario Mexicano',
+                            'Banco S3 (México)', 'ABC Capital', 'Consubanco', 'Investa Bank',
                         ];
+                        $bancoActual = old('banco', $d['banco'] ?? '');
+                        if ($bancoActual === 'Citibanamex') {
+                            $bancoActual = 'Banamex';
+                        }
                     @endphp
                     @foreach($bancos as $b)
-                        <option value="{{ $b }}" {{ old('banco', $d['banco'] ?? '') === $b ? 'selected' : '' }}>{{ $b }}</option>
+                        <option value="{{ $b }}" {{ $bancoActual === $b ? 'selected' : '' }}>{{ $b }}</option>
                     @endforeach
                 </select>
             </div>
@@ -340,8 +345,8 @@
 
         <div class="form-row cols-1">
             <div class="form-group">
-                <label for="nombre_firma">Nombre del representante legal</label>
-                <input type="text" id="nombre_firma" name="nombre_firma" value="{{ old('nombre_firma', $d['nombre_firma'] ?? '') }}" placeholder="Nombre completo quien firma">
+                <label for="nombre_firma">Nombre del representante legal <span style="color:#DC2626">*</span></label>
+                <input type="text" id="nombre_firma" name="nombre_firma" value="{{ old('nombre_firma', $d['nombre_firma'] ?? '') }}" placeholder="Nombre completo quien firma" required class="no-emoji" maxlength="255">
             </div>
         </div>
     </div>
@@ -370,6 +375,8 @@
     var fisica = document.getElementById('campos-fisica');
     var moral = document.getElementById('campos-moral');
     var docActa = document.getElementById('doc-acta-constitutiva');
+    var form = document.getElementById('formIdentificacion');
+    var emojiRe = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu;
 
     function toggleCampos() {
         var tipo = select.value;
@@ -388,7 +395,6 @@
             if (!esMoral) el.value = '';
         });
 
-        // Acta Constitutiva solo aplica a Persona Moral
         if (docActa) {
             docActa.style.display = esMoral ? 'flex' : 'none';
             if (!esMoral) {
@@ -400,6 +406,125 @@
 
     select.addEventListener('change', toggleCampos);
     toggleCampos();
+
+    // Solo dígitos
+    document.querySelectorAll('.solo-digitos').forEach(function (el) {
+        el.addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '');
+        });
+        el.addEventListener('paste', function (e) {
+            e.preventDefault();
+            var t = (e.clipboardData || window.clipboardData).getData('text') || '';
+            this.value = (this.value + t.replace(/\D/g, '')).slice(0, this.maxLength || 20);
+        });
+    });
+
+    // Sin emojis
+    document.querySelectorAll('.no-emoji').forEach(function (el) {
+        el.addEventListener('input', function () {
+            this.value = this.value.replace(emojiRe, '');
+        });
+    });
+
+    function marcarError(el, msg) {
+        el.style.borderColor = '#DC2626';
+        el.setAttribute('title', msg || 'Campo obligatorio');
+        if (!el._errHint) {
+            var hint = document.createElement('small');
+            hint.className = 'campo-error-hint';
+            hint.style.cssText = 'color:#DC2626;font-size:11px;margin-top:4px;display:block;';
+            el.parentNode.appendChild(hint);
+            el._errHint = hint;
+        }
+        el._errHint.textContent = msg || 'Campo obligatorio';
+    }
+
+    function limpiarError(el) {
+        el.style.borderColor = '';
+        el.removeAttribute('title');
+        if (el._errHint) {
+            el._errHint.remove();
+            el._errHint = null;
+        }
+    }
+
+    form.addEventListener('submit', function (e) {
+        var ok = true;
+        var primero = null;
+
+        form.querySelectorAll('[required]').forEach(function (el) {
+            if (el.offsetParent === null && el.closest('#campos-fisica, #campos-moral')) {
+                // oculto por tipo de persona
+                if (!el.required) return;
+            }
+            var visible = el.offsetParent !== null || el.type === 'hidden';
+            if (!visible && (el.closest('#campos-fisica') || el.closest('#campos-moral'))) {
+                return;
+            }
+            limpiarError(el);
+            var val = (el.value || '').trim();
+            if (!val) {
+                ok = false;
+                marcarError(el, 'Este campo es obligatorio');
+                if (!primero) primero = el;
+            }
+        });
+
+        ['telefono', 'celular'].forEach(function (id) {
+            var el = document.getElementById(id);
+            if (!el) return;
+            if (el.value && !/^[0-9]{10}$/.test(el.value)) {
+                ok = false;
+                marcarError(el, 'Debe tener exactamente 10 dígitos');
+                if (!primero) primero = el;
+            }
+        });
+
+        var tel2 = document.getElementById('telefono2');
+        if (tel2 && tel2.value && !/^[0-9]{10}$/.test(tel2.value)) {
+            ok = false;
+            marcarError(tel2, 'Debe tener exactamente 10 dígitos');
+            if (!primero) primero = tel2;
+        }
+
+        var clabe = document.getElementById('clabe');
+        if (clabe && !/^[0-9]{18}$/.test(clabe.value || '')) {
+            ok = false;
+            marcarError(clabe, 'La CLABE debe tener 18 dígitos');
+            if (!primero) primero = clabe;
+        }
+
+        var cuenta = document.getElementById('cuenta');
+        if (cuenta && !/^[0-9]{5,20}$/.test(cuenta.value || '')) {
+            ok = false;
+            marcarError(cuenta, 'Solo dígitos (5 a 20)');
+            if (!primero) primero = cuenta;
+        }
+
+        var cp = document.getElementById('cp');
+        if (cp && !/^[0-9]{5}$/.test(cp.value || '')) {
+            ok = false;
+            marcarError(cp, 'C.P. de 5 dígitos');
+            if (!primero) primero = cp;
+        }
+
+        form.querySelectorAll('.no-emoji').forEach(function (el) {
+            if (/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(el.value || '')) {
+                ok = false;
+                marcarError(el, 'No se permiten emojis');
+                if (!primero) primero = el;
+            }
+        });
+
+        if (!ok) {
+            e.preventDefault();
+            if (primero) {
+                primero.focus();
+                primero.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            alert('Completa todos los campos obligatorios correctamente antes de enviar.');
+        }
+    });
 })();
 
 // ── Autocompletado de CP con API SEPOMEX ──
@@ -418,7 +543,6 @@ function buscarCP(cp) {
             .then(function(data) {
                 if (loading) loading.style.display = 'none';
                 if (!data || !data.places || !data.places.length) {
-                    // Intentar API alternativa
                     buscarCPAlternativo(cp);
                     return;
                 }
@@ -427,7 +551,6 @@ function buscarCP(cp) {
                 document.getElementById('municipio').value = lugar['place name'] || '';
                 document.getElementById('ciudad').value = lugar['place name'] || '';
 
-                // Llenar colonias
                 var coloniaSelect = document.getElementById('colonia');
                 coloniaSelect.innerHTML = '';
                 data.places.forEach(function(p) {
@@ -445,7 +568,6 @@ function buscarCP(cp) {
 }
 
 function buscarCPAlternativo(cp) {
-    // Fallback: usar API copomex o simplemente dejar que el usuario llene manual
     fetch('/api/codigo-postal/' + cp)
         .then(function(res) { return res.ok ? res.json() : null; })
         .then(function(data) {
@@ -465,9 +587,8 @@ function buscarCPAlternativo(cp) {
             }
         })
         .catch(function() {
-            // Permitir llenado manual si falla
             var coloniaSelect = document.getElementById('colonia');
-            coloniaSelect.outerHTML = '<input type="text" id="colonia" name="colonia" placeholder="Escribe la colonia" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;">';
+            coloniaSelect.outerHTML = '<input type="text" id="colonia" name="colonia" required class="no-emoji" placeholder="Escribe la colonia" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;">';
             document.getElementById('municipio').removeAttribute('readonly');
             document.getElementById('municipio').style.background = '';
             document.getElementById('estado').removeAttribute('readonly');

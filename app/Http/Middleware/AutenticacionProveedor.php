@@ -28,6 +28,18 @@ class AutenticacionProveedor
         'aviso.privacidad',
     ];
 
+    /** Rutas permitidas si ya está activo pero aún le faltan los 2 contactos. */
+    private array $rutasSoloContactos = [
+        'proveedores.onboarding',
+        'proveedores.perfil',
+        'proveedores.perfil.foto',
+        'proveedores.contactos.guardar',
+        'proveedores.contactos.eliminar',
+        'proveedores.logout',
+        'proveedores.aviso.aceptar',
+        'aviso.privacidad',
+    ];
+
     public function handle(Request $request, Closure $next)
     {
         if (! session('proveedor_id')) {
@@ -37,12 +49,16 @@ class AutenticacionProveedor
 
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         $activo = $proveedor ? (bool) $proveedor->activo : false;
+        $contactosOk = $proveedor ? $proveedor->contactosSuficientes() : false;
+        $debeContactos = $this->debeCompletarContactos($proveedor);
 
-        View::share('proveedorPortalActivo', $activo);
+        View::share('proveedorPortalActivo', $activo && ! $debeContactos);
         View::share('proveedorPortal', $proveedor);
+        View::share('proveedorDebeContactos', $debeContactos);
+
+        $ruta = optional($request->route())->getName();
 
         if (! $activo) {
-            $ruta = optional($request->route())->getName();
             $permitida = $ruta && (
                 in_array($ruta, $this->rutasOnboarding, true)
                 || str_starts_with((string) $ruta, 'proveedores.identificacion')
@@ -53,6 +69,13 @@ class AutenticacionProveedor
                     ->route('proveedores.onboarding')
                     ->with('error', 'Tu cuenta aún no está activa. Completa el onboarding y espera la aprobación de Dirección.');
             }
+        } elseif ($debeContactos) {
+            $permitida = $ruta && in_array($ruta, $this->rutasSoloContactos, true);
+            if (! $permitida) {
+                return redirect()
+                    ->route('proveedores.perfil')
+                    ->with('error_contacto', 'Debes registrar mínimo 2 contactos antes de usar el resto del portal.');
+            }
         }
 
         $response = $next($request);
@@ -62,5 +85,24 @@ class AutenticacionProveedor
         $response->headers->set('Expires', '0');
 
         return $response;
+    }
+
+    /** Activo pero sin 2 contactos, y ya pasó por formulario de alta (no espejos ADMIN). */
+    private function debeCompletarContactos(?ProveedorUser $proveedor): bool
+    {
+        if (! $proveedor || ! $proveedor->activo) {
+            return false;
+        }
+        if ($proveedor->contactosSuficientes()) {
+            return false;
+        }
+
+        $codigo = (string) ($proveedor->id_proveedor ?? '');
+        if (str_starts_with($codigo, 'ADMIN-')) {
+            return false;
+        }
+
+        return $proveedor->tieneFormularioIdentificacion()
+            || $proveedor->tieneFormularioDatosBancarios();
     }
 }
