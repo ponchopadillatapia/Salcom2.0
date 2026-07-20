@@ -208,9 +208,6 @@
 
     </div>
 
-<<<<<<< HEAD
-@endsection
-=======
     {{-- ══════════════════════════════════════════════════════════
          ADJUNTO DE DOCUMENTOS FISCALES (solo si ya hay datos bancarios)
     ══════════════════════════════════════════════════════════════ --}}
@@ -340,11 +337,9 @@ function adjSubirConTipo() {
     var form = document.getElementById('formAdjOnboarding');
     var formData = new FormData(form);
 
-    // Limpiar archivos previos del form
     formData.delete('cif'); formData.delete('opinion'); formData.delete('acta');
     formData.delete('rep_legal'); formData.delete('contribuyente'); formData.delete('caratula_banco');
 
-    // Subir el primer archivo con el tipo seleccionado
     formData.append(tipo, adjArchivos[0]);
 
     fetch('{{ route("proveedores.adjunto-documentos.subir") }}', {
@@ -389,4 +384,3 @@ function adjFiltrarTipos() {
 </script>
 @endif
 @endpush
->>>>>>> b4a353e45270181b7af9e254e07e2ef965607810
