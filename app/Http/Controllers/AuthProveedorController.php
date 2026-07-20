@@ -126,27 +126,45 @@ class AuthProveedorController extends Controller
         return back()->with('error', $apiResult['message'])->withInput();
     }
 
-    public function guardar(RegisterProveedorRequest $request)
+    public function guardar(Request $request)
     {
-        $recaptchaSecret = config('services.recaptcha.secret_key');
-        if ($recaptchaSecret) {
-            $recaptcha = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
-                'secret' => $recaptchaSecret, 'response' => $request->input('g-recaptcha-response'), 'remoteip' => $request->ip(),
-            ])->json();
-            if (! ($recaptcha['success'] ?? false)) {
-                return back()->withErrors(['g-recaptcha-response' => 'Captcha inválido, inténtalo de nuevo'])->withInput();
-            }
-        }
-
         try {
-            ProveedorUser::create([
-                'usuario' => $request->correo, 'password' => bcrypt($request->password),
-                'nombre' => $request->nombre, 'tipo_persona' => $request->tipo_persona,
-                'telefono' => $request->telefono, 'correo' => $request->correo,
-                'activo' => false,
+            $request->validate([
+                'nombre' => 'required|string|max:255',
+                'tipo_persona' => 'required|string|max:255',
+                'telefono' => 'required|string|max:20',
+                'correo' => 'required|email',
+                'password' => 'required|min:8|confirmed',
+            ], [
+                'nombre.required' => 'El nombre es obligatorio.',
+                'correo.required' => 'El correo es obligatorio.',
+                'correo.email' => 'El correo no es válido.',
+                'password.required' => 'La contraseña es obligatoria.',
+                'password.min' => 'La contraseña debe tener mínimo 8 caracteres.',
+                'password.confirmed' => 'Las contraseñas no coinciden.',
             ]);
-        } catch (\Exception $e) {
-            // Si falla por columnas, intentar con insert directo
+
+            // Verificar si ya existe
+            $existe = \Illuminate\Support\Facades\DB::table('proveedores_users')
+                ->where('correo', $request->correo)
+                ->orWhere('usuario', $request->correo)
+                ->exists();
+
+            if ($existe) {
+                return back()->withErrors(['correo' => 'Este correo ya está registrado.'])->withInput();
+            }
+
+            $recaptchaSecret = config('services.recaptcha.secret_key');
+            if ($recaptchaSecret) {
+                $recaptcha = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+                    'secret' => $recaptchaSecret, 'response' => $request->input('g-recaptcha-response'), 'remoteip' => $request->ip(),
+                ])->json();
+                if (! ($recaptcha['success'] ?? false)) {
+                    return back()->withErrors(['g-recaptcha-response' => 'Captcha inválido'])->withInput();
+                }
+            }
+
+            // Insertar proveedor
             \Illuminate\Support\Facades\DB::table('proveedores_users')->insert([
                 'usuario' => $request->correo,
                 'password' => bcrypt($request->password),
@@ -158,35 +176,17 @@ class AuthProveedorController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ]);
+
+            return redirect('/login-proveedor')->with('mensaje', 'Registro exitoso. Inicia sesión y completa tu onboarding.');
+
+            return redirect('/login-proveedor')->with('mensaje', 'Registro exitoso. Inicia sesión y completa tu onboarding.');
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e; // Re-lanzar para que Laravel muestre los errores de validación
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error registro proveedor: ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine());
+            return back()->withErrors(['general' => 'Error al registrar. Intenta de nuevo. (' . class_basename($e) . ')'])->withInput();
         }
-
-        // Enviar correo de bienvenida al proveedor
-        if (config('mail.default') !== 'log') {
-            try {
-                $correoProveedor = $request->correo;
-                $nombreProveedor = $request->nombre;
-
-                \Illuminate\Support\Facades\Mail::raw(
-                    "Hola {$nombreProveedor},\n\n" .
-                    "Tu registro como proveedor en Industrias Salcom fue exitoso.\n\n" .
-                    "Para completar tu alta, inicia sesión en el portal y completa los pasos del onboarding:\n" .
-                    "1. Formulario de datos bancarios\n" .
-                    "2. Validación de documentos fiscales\n" .
-                    "3. Registro de contactos\n\n" .
-                    "Una vez completados, el equipo de Dirección revisará y activará tu cuenta.\n\n" .
-                    "Portal de proveedores: https://salcomlink.mx/login-proveedor\n\n" .
-                    "Saludos,\nIndustrias Salcom S.A. de C.V.",
-                    function ($message) use ($correoProveedor, $nombreProveedor) {
-                        $message->to($correoProveedor, $nombreProveedor)
-                            ->subject('Bienvenido a Industrias Salcom - Registro exitoso');
-                    }
-                );
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::warning('No se pudo enviar correo de bienvenida: ' . $e->getMessage());
-            }
-        }
-
-        return redirect('/login-proveedor')->with('mensaje', 'Registro exitoso. Inicia sesión y completa tu onboarding para que Dirección active tu cuenta.');
     }
 
     public function mostrarActualizacion()
