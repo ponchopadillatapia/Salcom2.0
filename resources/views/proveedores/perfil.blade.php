@@ -175,11 +175,30 @@
             Contactos de la empresa
         </h3>
 
+        @php
+            $nContactos = $contactos->count();
+            $faltan = $faltanContactos ?? max(0, 2 - $nContactos);
+        @endphp
+
+        @if($faltan > 0)
+            <div class="alert" style="background:#fff7ed;border:1px solid #fcd34d;color:#92400e;margin-bottom:14px;">
+                <strong>Obligatorio:</strong> debes registrar mínimo <strong>2 contactos</strong>.
+                Llevas {{ $nContactos }}/2 — falta{{ $faltan === 1 ? '' : 'n' }} {{ $faltan }}.
+            </div>
+        @else
+            <div class="alert alert-success" style="margin-bottom:14px;">Ya tienes {{ $nContactos }} contactos (mínimo cumplido).</div>
+        @endif
+
         @if(session('mensaje'))
             <div class="alert alert-success">{{ session('mensaje') }}</div>
         @endif
         @if(session('error_contacto'))
             <div class="alert" style="background:var(--red-bg);border:1px solid #fca5a5;color:var(--red)">{{ session('error_contacto') }}</div>
+        @endif
+        @if ($errors->any())
+            <div class="alert" style="background:var(--red-bg);border:1px solid #fca5a5;color:var(--red)">
+                <ul style="margin:0;padding-left:18px;">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+            </div>
         @endif
 
         @if($contactos->count())
@@ -202,39 +221,39 @@
             </tbody>
         </table>
         @else
-        <p style="font-size:13px;color:var(--gray-muted);margin-bottom:12px">No hay contactos registrados. Agrega a tu equipo.</p>
+        <p style="font-size:13px;color:var(--gray-muted);margin-bottom:12px">No hay contactos. Debes agregar al menos 2 para completar el onboarding.</p>
         @endif
 
         <div class="add-contact-form">
-            <h4>Agregar contacto</h4>
-            <form method="POST" action="{{ route('proveedores.contactos.guardar') }}">
+            <h4>Agregar contacto {{ $faltan > 0 ? '(obligatorio — '.$nContactos.'/2)' : '' }}</h4>
+            <form method="POST" action="{{ route('proveedores.contactos.guardar') }}" id="formContacto">
                 @csrf
                 <div class="form-row-contact">
                     <div class="fg">
-                        <label>Nombre</label>
-                        <input type="text" name="nombre" placeholder="Nombre completo" required>
+                        <label>Nombre <span style="color:#DC2626">*</span></label>
+                        <input type="text" name="nombre" placeholder="Apellido(s) Nombre(s)" required maxlength="255" value="{{ old('nombre') }}">
                     </div>
                     <div class="fg">
-                        <label>Rol</label>
+                        <label>Rol <span style="color:#DC2626">*</span></label>
                         <select name="rol" required>
                             <option value="">Seleccionar…</option>
-                            <option value="calidad">Calidad</option>
-                            <option value="ventas">Ventas</option>
-                            <option value="compras">Compras</option>
-                            <option value="logistica">Logística</option>
-                            <option value="administracion">Administración</option>
-                            <option value="produccion">Producción</option>
-                            <option value="direccion">Dirección</option>
-                            <option value="otro">Otro</option>
+                            <option value="calidad" {{ old('rol')==='calidad'?'selected':'' }}>Calidad</option>
+                            <option value="ventas" {{ old('rol')==='ventas'?'selected':'' }}>Ventas</option>
+                            <option value="compras" {{ old('rol')==='compras'?'selected':'' }}>Compras</option>
+                            <option value="logistica" {{ old('rol')==='logistica'?'selected':'' }}>Logística</option>
+                            <option value="administracion" {{ old('rol')==='administracion'?'selected':'' }}>Administración</option>
+                            <option value="produccion" {{ old('rol')==='produccion'?'selected':'' }}>Producción</option>
+                            <option value="direccion" {{ old('rol')==='direccion'?'selected':'' }}>Dirección</option>
+                            <option value="otro" {{ old('rol')==='otro'?'selected':'' }}>Otro</option>
                         </select>
                     </div>
                     <div class="fg">
-                        <label>Teléfono</label>
-                        <input type="text" name="telefono" placeholder="10 dígitos">
+                        <label>Teléfono <span style="color:#DC2626">*</span></label>
+                        <input type="tel" name="telefono" id="contacto_tel" placeholder="10 dígitos" required maxlength="10" inputmode="numeric" pattern="[0-9]{10}" value="{{ old('telefono') }}">
                     </div>
                     <div class="fg">
-                        <label>Correo</label>
-                        <input type="email" name="correo" placeholder="correo@empresa.com">
+                        <label>Correo <span style="color:#DC2626">*</span></label>
+                        <input type="email" name="correo" placeholder="correo@empresa.com" required value="{{ old('correo') }}">
                     </div>
                     <button type="submit" class="btn-add">Agregar</button>
                 </div>
@@ -304,5 +323,12 @@ function ejecutarEliminar() {
 document.getElementById('deleteModal').addEventListener('click', function(e) {
     if (e.target === this) cerrarDeleteModal();
 });
+
+var telContacto = document.getElementById('contacto_tel');
+if (telContacto) {
+    telContacto.addEventListener('input', function () {
+        this.value = this.value.replace(/\D/g, '').slice(0, 10);
+    });
+}
 </script>
 @endpush

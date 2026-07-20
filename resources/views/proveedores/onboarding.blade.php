@@ -58,6 +58,9 @@
     @if(session('error'))
     <div class="ob-aviso">{{ session('error') }}</div>
     @endif
+    @if(session('mensaje'))
+    <div class="ob-ok">{{ session('mensaje') }}</div>
+    @endif
 
     @if(!($pasoActivo ?? false))
     <div class="ob-aviso">
@@ -121,7 +124,18 @@
             @endif
         </div>
 
-        {{-- 3 Docs --}}
+        {{-- 3 Docs (bloqueado hasta llenar datos bancarios) --}}
+        @if(! $pasoBancarios)
+        <div class="paso-card bloqueado">
+            <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+            <div class="paso-info">
+                <div class="paso-titulo">Validación de documentos</div>
+                <div class="paso-desc">Primero completa el formulario de datos bancarios. Al guardarlo, este paso se desbloquea.</div>
+            </div>
+            <span class="paso-badge badge-bloqueado">Bloqueado</span>
+            <span class="btn-ver disabled">Validar</span>
+        </div>
+        @else
         <div class="paso-card {{ $pasoDocs ? 'completado' : 'pendiente' }}">
             <div class="paso-icono {{ $pasoDocs ? 'verde' : 'ambar' }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ $pasoDocs ? '#059669' : '#D97706' }}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
             <div class="paso-info">
@@ -141,13 +155,20 @@
             </span>
             <a href="{{ route('proveedores.validacion-fiscal') }}" class="btn-ver">{{ $pasoDocs ? 'Ver / renovar' : 'Validar' }}</a>
         </div>
+        @endif
 
         {{-- 4 Contactos --}}
         <div class="paso-card {{ $pasoContactos ? 'completado' : 'pendiente' }}">
             <div class="paso-icono {{ $pasoContactos ? 'verde' : 'ambar' }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ $pasoContactos ? '#059669' : '#D97706' }}" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Registro de contactos</div>
-                <div class="paso-desc">Mínimo 2 contactos. Llevas {{ $numContactos }}.</div>
+                <div class="paso-desc">
+                    @if($pasoContactos)
+                        Ya registraste {{ $numContactos }} contactos (mínimo 2 cumplido).
+                    @else
+                        <strong>Obligatorio:</strong> mínimo 2 contactos. Llevas {{ $numContactos }}/2.
+                    @endif
+                </div>
             </div>
             <span class="paso-badge {{ $pasoContactos ? 'badge-completado' : 'badge-pendiente' }}">{{ $pasoContactos ? 'Completado' : 'Pendiente' }}</span>
             <a href="{{ route('proveedores.perfil') }}" class="btn-ver">{{ $pasoContactos ? 'Ver' : 'Registrar' }}</a>
@@ -188,8 +209,9 @@
     </div>
 
     {{-- ══════════════════════════════════════════════════════════
-         ADJUNTO DE DOCUMENTOS FISCALES
+         ADJUNTO DE DOCUMENTOS FISCALES (solo si ya hay datos bancarios)
     ══════════════════════════════════════════════════════════════ --}}
+    @if($pasoBancarios)
     <div style="margin-top:32px;">
         <div class="paso-card" style="border-left:4px solid var(--purple);flex-direction:column;align-items:stretch;">
             <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;">
@@ -253,10 +275,12 @@
             @endif
         </div>
     </div>
+    @endif
 
 @endsection
 
 @push('scripts')
+@if($pasoBancarios ?? false)
 <script>
 var adjArchivos = [];
 
@@ -360,4 +384,5 @@ function adjFiltrarTipos() {
     });
 }
 </script>
+@endif
 @endpush

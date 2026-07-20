@@ -95,9 +95,64 @@ class SolicitudesAltaAdminTest extends TestCase
 
         $this->post(route('admin.solicitudes-alta.aprobar'), [
             'proveedor_id' => $p->id,
+        ])->assertRedirect();
+
+        $this->assertFalse($p->fresh()->activo);
+    }
+
+    public function test_no_aprueba_sin_dos_contactos(): void
+    {
+        $this->withSession($this->sesionAdmin());
+        $p = $this->proveedorPendiente([
+            'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
+        ]);
+
+        $this->post(route('admin.solicitudes-alta.aprobar'), [
+            'proveedor_id' => $p->id,
+        ])->assertRedirect();
+
+        $this->assertFalse($p->fresh()->activo);
+    }
+
+    public function test_aprueba_con_bancarios_y_dos_contactos(): void
+    {
+        $this->withSession($this->sesionAdmin());
+        $p = $this->proveedorPendiente([
+            'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
+        ]);
+        ContactoProveedor::create([
+            'proveedor_id' => $p->id, 'nombre' => 'Uno', 'rol' => 'ventas',
+            'telefono' => '3311111111', 'correo' => 'u1@t.com',
+        ]);
+        ContactoProveedor::create([
+            'proveedor_id' => $p->id, 'nombre' => 'Dos', 'rol' => 'compras',
+            'telefono' => '3322222222', 'correo' => 'u2@t.com',
+        ]);
+
+        $this->post(route('admin.solicitudes-alta.aprobar'), [
+            'proveedor_id' => $p->id,
         ])->assertRedirect(route('admin.solicitudes-alta'));
 
         $this->assertTrue($p->fresh()->activo);
+    }
+
+    public function test_activo_sin_contactos_no_entra_a_operaciones(): void
+    {
+        $p = $this->proveedorPendiente([
+            'activo' => true,
+            'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
+        ]);
+
+        $this->withSession([
+            'proveedor_id' => $p->id,
+            'proveedor_nombre' => $p->nombre,
+            'proveedor_correo' => $p->correo,
+        ]);
+
+        $this->get(route('proveedores.oc'))
+            ->assertRedirect(route('proveedores.perfil'));
+
+        $this->get(route('proveedores.perfil'))->assertOk();
     }
 
     public function test_proveedor_guarda_identificacion_en_bd(): void
@@ -111,13 +166,23 @@ class SolicitudesAltaAdminTest extends TestCase
         ])->post(route('proveedores.identificacion.guardar'), [
             'fecha' => '2026-07-15',
             'tipo_persona' => 'Persona Moral',
-            'razon_social' => 'Empresa Demo',
+            'razon_social' => 'Empresa Demo SA de CV',
+            'calle' => 'Calle 1',
+            'num_exterior' => '100',
+            'colonia' => 'Centro',
+            'municipio' => 'Guadalajara',
+            'estado' => 'Jalisco',
+            'ciudad' => 'Guadalajara',
+            'pais' => 'México',
+            'cp' => '44100',
+            'telefono' => '3312345678',
+            'celular' => '3387654321',
+            'correo' => 'solicitante@test.com',
             'banco' => 'Banorte',
             'clabe' => '012345678901234567',
-            'cuenta' => '998877',
-            'calle' => 'Calle 1',
-            'correo' => 'solicitante@test.com',
-        ])->assertRedirect(route('proveedores.validacion-fiscal'));
+            'cuenta' => '99887766',
+            'nombre_firma' => 'Juan Perez',
+        ])->assertRedirect(route('proveedores.onboarding'));
 
         $fresh = $p->fresh();
         $this->assertSame('Banorte', $fresh->datos_identificacion['banco'] ?? null);

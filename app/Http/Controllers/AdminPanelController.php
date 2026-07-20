@@ -2108,7 +2108,12 @@ class AdminPanelController extends Controller
     {
         $request->validate(['proveedor_id' => 'required', 'accion' => 'required|in:alta,baja']);
 
-        $prov = ProveedorUser::findOrFail($request->proveedor_id);
+        $prov = ProveedorUser::with('contactos')->findOrFail($request->proveedor_id);
+
+        if ($request->accion === 'alta' && ! $prov->contactosSuficientes()) {
+            return back()->with('error', 'No se puede dar de alta: el proveedor debe tener mínimo 2 contactos registrados.');
+        }
+
         $prov->update(['activo' => $request->accion === 'alta']);
 
         return back()->with('mensaje', "Proveedor {$prov->nombre} ".($request->accion === 'alta' ? 'dado de alta' : 'dado de baja').' por dirección.');
@@ -2193,10 +2198,18 @@ class AdminPanelController extends Controller
     {
         $request->validate(['proveedor_id' => 'required|integer']);
 
-        $prov = ProveedorUser::findOrFail($request->proveedor_id);
+        $prov = ProveedorUser::with('contactos')->findOrFail($request->proveedor_id);
 
         if ($prov->activo) {
             return back()->with('error', 'Este proveedor ya está activo.');
+        }
+
+        if (! $prov->contactosSuficientes()) {
+            return back()->with('error', 'No se puede aprobar: faltan contactos. El proveedor debe registrar mínimo 2 contactos.');
+        }
+
+        if (! $prov->tieneFormularioDatosBancarios()) {
+            return back()->with('error', 'No se puede aprobar: faltan datos bancarios.');
         }
 
         $prov->update(['activo' => true]);

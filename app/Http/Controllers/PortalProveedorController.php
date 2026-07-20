@@ -187,8 +187,10 @@ class PortalProveedorController extends Controller
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         $contactos = $proveedor ? $proveedor->contactos()->orderBy('nombre')->get() : collect();
+        $minContactos = 2;
+        $faltanContactos = max(0, $minContactos - $contactos->count());
 
-        return view('proveedores.perfil', compact('proveedor', 'contactos'));
+        return view('proveedores.perfil', compact('proveedor', 'contactos', 'minContactos', 'faltanContactos'));
     }
 
     public function subirFoto(Request $request)
@@ -218,10 +220,18 @@ class PortalProveedorController extends Controller
     public function guardarContacto(Request $request)
     {
         $request->validate([
-            'nombre' => 'required|string|max:255',
+            'nombre' => ['required', 'string', 'max:255', 'regex:/^[\p{L}\p{N}\s\.,;#\-\/()&°\'\"]+$/u'],
             'rol' => 'required|string|max:100',
-            'telefono' => 'nullable|string|max:20',
-            'correo' => 'nullable|email|max:255',
+            'telefono' => ['required', 'regex:/^[0-9]{10}$/'],
+            'correo' => 'required|email|max:255',
+        ], [
+            'nombre.required' => 'El nombre del contacto es obligatorio.',
+            'nombre.regex' => 'El nombre no puede contener emojis.',
+            'rol.required' => 'El rol es obligatorio.',
+            'telefono.required' => 'El teléfono es obligatorio.',
+            'telefono.regex' => 'El teléfono debe tener exactamente 10 dígitos.',
+            'correo.required' => 'El correo es obligatorio.',
+            'correo.email' => 'El correo no es válido.',
         ]);
 
         ContactoProveedor::create([
@@ -232,7 +242,20 @@ class PortalProveedorController extends Controller
             'correo' => $request->correo,
         ]);
 
-        return back()->with('mensaje', 'Contacto agregado correctamente.');
+        $total = ContactoProveedor::where('proveedor_id', session('proveedor_id'))->count();
+        $faltan = max(0, 2 - $total);
+
+        if ($faltan > 0) {
+            return back()->with('mensaje', "Contacto agregado ({$total}/2). Falta".($faltan === 1 ? '' : 'n')." {$faltan} más. El mínimo son 2.");
+        }
+
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if ($proveedor && ! $proveedor->activo) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('mensaje', 'Ya tienes 2 contactos registrados. Continúa con el onboarding.');
+        }
+
+        return back()->with('mensaje', 'Contacto agregado correctamente. Ya cumpliste el mínimo de 2.');
     }
 
     public function eliminarContacto(Request $request, ContactoProveedor $contacto)
@@ -247,6 +270,15 @@ class PortalProveedorController extends Controller
 
         if (! $proveedor || ! $password || ! Hash::check($password, $proveedor->password)) {
             return back()->with('error_contacto', 'Contraseña incorrecta. No se eliminó el contacto.');
+        }
+
+        $total = ContactoProveedor::where('proveedor_id', session('proveedor_id'))->count();
+        if ($total <= 2) {
+            $codigo = (string) ($proveedor->id_proveedor ?? '');
+            $esAdminEspejo = str_starts_with($codigo, 'ADMIN-');
+            if (! $esAdminEspejo && ($proveedor->tieneFormularioIdentificacion() || $proveedor->tieneFormularioDatosBancarios() || ! $proveedor->activo)) {
+                return back()->with('error_contacto', 'Debes mantener mínimo 2 contactos. No puedes eliminar este contacto.');
+            }
         }
 
         $contacto->delete();
@@ -379,45 +411,59 @@ class PortalProveedorController extends Controller
         $esFisica = $request->input('tipo_persona') === 'Persona Física';
         $esMoral = $request->input('tipo_persona') === 'Persona Moral';
 
+        $sinEmoji = 'regex:/^[\p{L}\p{N}\s\.,;#\-\/()&°\'\"]+$/u';
+        $soloTexto = ['required', 'string', 'max:255', $sinEmoji];
+
         $rules = [
             'fecha' => 'required|date',
             'tipo_persona' => 'required|in:Persona Física,Persona Moral',
-            'calle' => 'nullable|string|max:255',
-            'num_exterior' => 'nullable|string|max:50',
-            'num_interior' => 'nullable|string|max:50',
-            'colonia' => 'nullable|string|max:255',
-            'municipio' => 'nullable|string|max:255',
-            'estado' => 'nullable|string|max:255',
-            'ciudad' => 'nullable|string|max:255',
-            'pais' => 'nullable|string|max:100',
-            'cp' => 'nullable|string|max:10',
-            'telefono' => 'nullable|string|max:30',
-            'celular' => 'nullable|string|max:30',
-            'telefono2' => 'nullable|string|max:30',
-            'extension' => 'nullable|string|max:20',
-            'correo' => 'nullable|email|max:255',
-            'clabe' => 'nullable|string|max:18',
-            'cuenta' => 'nullable|string|max:30',
-            'banco' => 'nullable|string|max:255',
+            'calle' => $soloTexto,
+            'num_exterior' => ['required', 'string', 'max:50', $sinEmoji],
+            'num_interior' => ['nullable', 'string', 'max:50', $sinEmoji],
+            'colonia' => $soloTexto,
+            'municipio' => $soloTexto,
+            'estado' => $soloTexto,
+            'ciudad' => $soloTexto,
+            'pais' => $soloTexto,
+            'cp' => ['required', 'regex:/^[0-9]{5}$/'],
+            'telefono' => ['required', 'regex:/^[0-9]{10}$/'],
+            'celular' => ['required', 'regex:/^[0-9]{10}$/'],
+            'telefono2' => ['nullable', 'regex:/^[0-9]{10}$/'],
+            'extension' => ['nullable', 'regex:/^[0-9]{1,6}$/'],
+            'correo' => 'required|email|max:255',
+            'clabe' => ['required', 'regex:/^[0-9]{18}$/'],
+            'cuenta' => ['required', 'regex:/^[0-9]{5,20}$/'],
+            'banco' => 'required|string|max:255|not_in:Otro',
             'docs' => 'nullable|array',
-            'nombre_firma' => 'nullable|string|max:255',
+            'nombre_firma' => $soloTexto,
         ];
 
         if ($esFisica) {
-            $rules['apellido_paterno'] = 'required|string|max:100';
-            $rules['apellido_materno'] = 'nullable|string|max:100';
-            $rules['nombres'] = 'required|string|max:150';
+            $rules['apellido_paterno'] = ['required', 'string', 'max:100', $sinEmoji];
+            $rules['apellido_materno'] = ['required', 'string', 'max:100', $sinEmoji];
+            $rules['nombres'] = ['required', 'string', 'max:150', $sinEmoji];
             $rules['razon_social'] = 'nullable|string|max:255';
         }
 
         if ($esMoral) {
-            $rules['razon_social'] = 'required|string|max:255';
+            $rules['razon_social'] = ['required', 'string', 'max:255', $sinEmoji];
             $rules['apellido_paterno'] = 'nullable|string|max:100';
             $rules['apellido_materno'] = 'nullable|string|max:100';
             $rules['nombres'] = 'nullable|string|max:150';
         }
 
-        $data = $request->validate($rules);
+        $data = $request->validate($rules, [
+            'required' => 'El campo :attribute es obligatorio.',
+            'regex' => 'El campo :attribute tiene un formato inválido.',
+            'telefono.regex' => 'El teléfono debe tener exactamente 10 dígitos numéricos.',
+            'celular.regex' => 'El celular debe tener exactamente 10 dígitos numéricos.',
+            'telefono2.regex' => 'El teléfono 2 debe tener exactamente 10 dígitos numéricos.',
+            'clabe.regex' => 'La CLABE debe tener exactamente 18 dígitos numéricos.',
+            'cuenta.regex' => 'La cuenta solo acepta dígitos (5 a 20).',
+            'cp.regex' => 'El C.P. debe tener exactamente 5 dígitos.',
+            'sinEmoji' => 'No se permiten emojis ni caracteres especiales.',
+            'banco.not_in' => 'Selecciona un banco de la lista.',
+        ]);
 
         $nombreEsperado = $esMoral
             ? trim($data['razon_social'] ?? '')
@@ -477,15 +523,20 @@ class PortalProveedorController extends Controller
             }
         }
 
-        return redirect()->route('proveedores.identificacion')
-            ->with('exito', 'Se enviaron los documentos para validar correctamente. Tu solicitud fue recibida por el equipo de Industrias Salcom.');
+        return redirect()->route('proveedores.onboarding')
+            ->with('mensaje', 'Formulario de datos bancarios guardado. Ya puedes continuar con la validación de documentos.');
     }
 
     public function mostrarValidacionFiscal()
     {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if ($proveedor && ! $proveedor->tieneFormularioDatosBancarios()) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('error', 'Primero completa el formulario de datos bancarios.');
+        }
+
         $identificacion = session('identificacion_proveedor');
         if (! $identificacion) {
-            $proveedor = ProveedorUser::find(session('proveedor_id'));
             $identificacion = $proveedor?->datos_identificacion;
             if ($identificacion) {
                 session(['identificacion_proveedor' => $identificacion]);
@@ -500,6 +551,11 @@ class PortalProveedorController extends Controller
     public function mostrarAdjuntoDocumentos()
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if ($proveedor && ! $proveedor->tieneFormularioDatosBancarios()) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('error', 'Primero completa el formulario de datos bancarios.');
+        }
+
         $documentos = $proveedor ? $proveedor->documentos()->orderByDesc('created_at')->get() : collect();
 
         $tiposLabel = [
@@ -516,6 +572,12 @@ class PortalProveedorController extends Controller
 
     public function subirAdjuntoDocumentos(Request $request)
     {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if ($proveedor && ! $proveedor->tieneFormularioDatosBancarios()) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('error', 'Primero completa el formulario de datos bancarios.');
+        }
+
         $tipos = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'caratula_banco'];
         $subidos = 0;
 

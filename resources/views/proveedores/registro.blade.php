@@ -40,7 +40,12 @@
 
         <form method="POST" action="{{ route('proveedores.registro.guardar') }}">
             @csrf
-            <div class="ios-field"><label>Nombre completo <span class="req">*</span></label><input type="text" name="nombre" placeholder="Tu nombre completo" value="{{ old('nombre') }}" required>@error('nombre')<span class="error-msg">{{ $message }}</span>@enderror</div>
+            <div class="ios-field">
+                <label>Nombre completo <span class="req">*</span></label>
+                <input type="text" name="nombre" id="reg_nombre" placeholder="Apellido paterno Apellido materno Nombre(s)" value="{{ old('nombre') }}" required maxlength="255">
+                <span style="font-size:11px;color:rgba(255,255,255,0.45);margin-top:4px;display:block;">Orden: primero apellidos, luego nombre(s). Ej: García López Juan Carlos</span>
+                @error('nombre')<span class="error-msg">{{ $message }}</span>@enderror
+            </div>
             <div class="ios-field"><label>Tipo de persona <span class="req">*</span></label>
                 <select name="tipo_persona" required>
                     <option value="" disabled {{ old('tipo_persona') ? '' : 'selected' }}>Selecciona una opción</option>
@@ -50,7 +55,11 @@
                 @error('tipo_persona')<span class="error-msg">{{ $message }}</span>@enderror
             </div>
             <div class="form-row">
-                <div class="ios-field"><label>Teléfono <span class="req">*</span></label><input type="tel" name="telefono" placeholder="33 1234 5678" value="{{ old('telefono') }}" required>@error('telefono')<span class="error-msg">{{ $message }}</span>@enderror</div>
+                <div class="ios-field">
+                    <label>Teléfono <span class="req">*</span></label>
+                    <input type="tel" name="telefono" id="reg_telefono" placeholder="10 dígitos" value="{{ old('telefono') }}" required maxlength="10" inputmode="numeric" pattern="[0-9]{10}">
+                    @error('telefono')<span class="error-msg">{{ $message }}</span>@enderror
+                </div>
                 <div class="ios-field"><label>Correo electrónico <span class="req">*</span></label><input type="email" name="correo" placeholder="tu@correo.com" value="{{ old('correo') }}" required>@error('correo')<span class="error-msg">{{ $message }}</span>@enderror</div>
             </div>
             <div class="form-row">
@@ -66,5 +75,21 @@
 
     <div class="ios-footer-text">&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
 </div>
+<script>
+(function () {
+    var tel = document.getElementById('reg_telefono');
+    if (tel) {
+        tel.addEventListener('input', function () {
+            this.value = this.value.replace(/\D/g, '').slice(0, 10);
+        });
+    }
+    var nom = document.getElementById('reg_nombre');
+    if (nom) {
+        nom.addEventListener('input', function () {
+            this.value = this.value.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '');
+        });
+    }
+})();
+</script>
 </body>
 </html>
