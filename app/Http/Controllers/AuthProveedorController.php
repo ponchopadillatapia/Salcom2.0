@@ -138,46 +138,52 @@ class AuthProveedorController extends Controller
             }
         }
 
-        ProveedorUser::create([
-            'usuario' => $request->correo, 'password' => bcrypt($request->password),
-            'nombre' => $request->nombre, 'tipo_persona' => $request->tipo_persona,
-            'telefono' => $request->telefono, 'correo' => $request->correo,
-            'activo' => false,
-        ]);
+        try {
+            ProveedorUser::create([
+                'usuario' => $request->correo, 'password' => bcrypt($request->password),
+                'nombre' => $request->nombre, 'tipo_persona' => $request->tipo_persona,
+                'telefono' => $request->telefono, 'correo' => $request->correo,
+                'activo' => false,
+            ]);
+        } catch (\Exception $e) {
+            // Si falla por columnas, intentar con insert directo
+            \Illuminate\Support\Facades\DB::table('proveedores_users')->insert([
+                'usuario' => $request->correo,
+                'password' => bcrypt($request->password),
+                'nombre' => $request->nombre,
+                'tipo_persona' => $request->tipo_persona,
+                'telefono' => $request->telefono,
+                'correo' => $request->correo,
+                'activo' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         // Enviar correo de bienvenida al proveedor
-        try {
-            $correoProveedor = $request->correo;
-            $nombreProveedor = $request->nombre;
+        if (config('mail.default') !== 'log') {
+            try {
+                $correoProveedor = $request->correo;
+                $nombreProveedor = $request->nombre;
 
-            \Illuminate\Support\Facades\Mail::send([], [], function ($message) use ($correoProveedor, $nombreProveedor) {
-                $message->to($correoProveedor, $nombreProveedor)
-                    ->subject('Bienvenido a Industrias Salcom — Registro exitoso')
-                    ->html(
-                        '<div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:20px;">' .
-                        '<div style="text-align:center;margin-bottom:20px;">' .
-                        '<h2 style="color:#6B3FA0;margin:0;">Industrias Salcom</h2>' .
-                        '<p style="color:#666;font-size:12px;">Portal de Proveedores</p>' .
-                        '</div>' .
-                        '<div style="background:#f9fafb;border-radius:12px;padding:24px;border:1px solid #e5e7eb;">' .
-                        '<h3 style="color:#1a1a2e;margin-top:0;">¡Hola ' . htmlspecialchars($nombreProveedor) . '!</h3>' .
-                        '<p style="color:#4b5563;">Tu registro como proveedor fue exitoso. Para completar tu alta, inicia sesión y sigue los pasos del onboarding:</p>' .
-                        '<ol style="color:#4b5563;line-height:2;">' .
-                        '<li>Formulario de datos bancarios</li>' .
-                        '<li>Validación de documentos fiscales</li>' .
-                        '<li>Registro de contactos</li>' .
-                        '</ol>' .
-                        '<p style="color:#4b5563;">Una vez completados, el equipo de Dirección revisará y activará tu cuenta.</p>' .
-                        '<div style="text-align:center;margin-top:20px;">' .
-                        '<a href="https://salcomlink.mx/login-proveedor" style="background:#6B3FA0;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;">Iniciar sesión</a>' .
-                        '</div>' .
-                        '</div>' .
-                        '<p style="text-align:center;color:#999;font-size:11px;margin-top:20px;">Industrias Salcom S.A. de C.V. · Este correo fue enviado automáticamente.</p>' .
-                        '</div>'
-                    );
-            });
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('No se pudo enviar correo de bienvenida: ' . $e->getMessage());
+                \Illuminate\Support\Facades\Mail::raw(
+                    "Hola {$nombreProveedor},\n\n" .
+                    "Tu registro como proveedor en Industrias Salcom fue exitoso.\n\n" .
+                    "Para completar tu alta, inicia sesión en el portal y completa los pasos del onboarding:\n" .
+                    "1. Formulario de datos bancarios\n" .
+                    "2. Validación de documentos fiscales\n" .
+                    "3. Registro de contactos\n\n" .
+                    "Una vez completados, el equipo de Dirección revisará y activará tu cuenta.\n\n" .
+                    "Portal de proveedores: https://salcomlink.mx/login-proveedor\n\n" .
+                    "Saludos,\nIndustrias Salcom S.A. de C.V.",
+                    function ($message) use ($correoProveedor, $nombreProveedor) {
+                        $message->to($correoProveedor, $nombreProveedor)
+                            ->subject('Bienvenido a Industrias Salcom - Registro exitoso');
+                    }
+                );
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning('No se pudo enviar correo de bienvenida: ' . $e->getMessage());
+            }
         }
 
         return redirect('/login-proveedor')->with('mensaje', 'Registro exitoso. Inicia sesión y completa tu onboarding para que Dirección active tu cuenta.');

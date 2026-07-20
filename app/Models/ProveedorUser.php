@@ -36,7 +36,10 @@ class ProveedorUser extends Authenticatable
      */
     public function getIdProveedorAttribute($value)
     {
-        return $value ?? $this->attributes['codigo_compras'] ?? null;
+        if ($value !== null) {
+            return $value;
+        }
+        return $this->attributes['codigo_compras'] ?? null;
     }
 
     /**
@@ -46,9 +49,13 @@ class ProveedorUser extends Authenticatable
     {
         static $col = null;
         if ($col === null) {
-            $col = \Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'id_proveedor')
-                ? 'id_proveedor'
-                : 'codigo_compras';
+            try {
+                $col = \Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'id_proveedor')
+                    ? 'id_proveedor'
+                    : 'codigo_compras';
+            } catch (\Exception $e) {
+                $col = 'codigo_compras';
+            }
         }
         return $col;
     }

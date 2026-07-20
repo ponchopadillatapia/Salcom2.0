@@ -79,10 +79,28 @@ class PortalProveedorController extends Controller
         }
 
         $pasoRegistro = true;
-        $pasoBancarios = $proveedor->tieneFormularioDatosBancarios();
-        $pasoDocs = $proveedor->documentosFiscalesCompletos();
-        $pasoDocsRenovar = $proveedor->documentosPorRenovar();
-        $numContactos = $proveedor->contactos?->count() ?? $proveedor->contactos()->count();
+        try {
+            $pasoBancarios = $proveedor->tieneFormularioDatosBancarios();
+        } catch (\Exception $e) {
+            $pasoBancarios = false;
+        }
+        try {
+            $pasoDocs = $proveedor->documentosFiscalesCompletos();
+        } catch (\Exception $e) {
+            $pasoDocs = false;
+        }
+        try {
+            $pasoDocsRenovar = $proveedor->documentosPorRenovar();
+        } catch (\Exception $e) {
+            $pasoDocsRenovar = false;
+        }
+        try {
+            $numContactos = $proveedor->relationLoaded('contactos')
+                ? $proveedor->contactos->count()
+                : $proveedor->contactos()->count();
+        } catch (\Exception $e) {
+            $numContactos = 0;
+        }
         $pasoContactos = $numContactos >= 2;
         $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos;
         $pasoActivo = (bool) $proveedor->activo;
