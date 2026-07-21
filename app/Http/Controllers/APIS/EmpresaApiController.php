@@ -291,14 +291,30 @@ class EmpresaApiController extends Controller
                 $proveedorId = session('proveedor_id');
                 if ($proveedorId) {
                     try {
-                        $tiposGuardar = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'caratula_banco'];
+                        $resultadosPorTipo = [
+                            'cif' => $cif,
+                            'opinion' => $opinion,
+                            'acta' => $acta,
+                            'rep_legal' => $repLegal,
+                            'contribuyente' => $contribuyente,
+                            'poder' => $poder,
+                            'caratula_banco' => $banco,
+                        ];
+                        $tiposGuardar = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'poder', 'caratula_banco'];
                         foreach ($tiposGuardar as $tipo) {
                             if ($request->hasFile($tipo.'_pdf')) {
                                 $rutaPublica = $request->file($tipo.'_pdf')->store("expediente_fiscal/{$tipo}", 'public');
                                 if ($rutaPublica) {
+                                    $res = $resultadosPorTipo[$tipo] ?? null;
                                     DocumentoProveedor::updateOrCreate(
                                         ['proveedor_id' => $proveedorId, 'tipo' => $tipo],
-                                        ['archivo' => $rutaPublica, 'estatus' => 'aprobado', 'notas_revision' => 'Validación automática aprobada', 'revisado_at' => now()]
+                                        [
+                                            'archivo' => $rutaPublica,
+                                            'estatus' => 'aprobado',
+                                            'notas_revision' => 'Validación automática aprobada',
+                                            'resultado_validacion' => is_array($res) ? $res : null,
+                                            'revisado_at' => now(),
+                                        ]
                                     );
                                 }
                             }

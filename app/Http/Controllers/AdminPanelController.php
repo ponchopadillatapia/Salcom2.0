@@ -2177,27 +2177,6 @@ class AdminPanelController extends Controller
         ));
     }
 
-    public function detalleSolicitudAlta(ProveedorUser $proveedor)
-    {
-        if ($proveedor->activo) {
-            return redirect()->route('admin.solicitudes-alta')
-                ->with('mensaje', 'Este proveedor ya está activo.');
-        }
-
-        $proveedor->load(['documentos', 'contactos']);
-        $identificacion = $proveedor->datos_identificacion ?? [];
-        $tiposLabel = [
-            'cif' => 'CIF / Constancia fiscal',
-            'opinion' => 'Opinión SAT',
-            'acta' => 'Acta constitutiva',
-            'rep_legal' => 'INE Rep. legal',
-            'contribuyente' => 'INE Contribuyente',
-            'caratula_banco' => 'Carátula bancaria',
-        ];
-
-        return view('admin.solicitud-alta-detalle', compact('proveedor', 'identificacion', 'tiposLabel'));
-    }
-
     public function aprobarSolicitudAlta(Request $request)
     {
         $request->validate(['proveedor_id' => 'required|integer']);

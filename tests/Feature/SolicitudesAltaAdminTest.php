@@ -61,7 +61,7 @@ class SolicitudesAltaAdminTest extends TestCase
             ->assertSee('Aprobar');
     }
 
-    public function test_detalle_muestra_formulario_y_bancarios(): void
+    public function test_ver_muestra_resultados_de_validacion_aprobados(): void
     {
         $this->withSession($this->sesionAdmin());
         $p = $this->proveedorPendiente([
@@ -78,16 +78,22 @@ class SolicitudesAltaAdminTest extends TestCase
         DocumentoProveedor::create([
             'proveedor_id' => $p->id,
             'tipo' => 'cif',
-            'estatus' => 'pendiente',
+            'estatus' => 'aprobado',
             'archivo' => 'documentos-fiscales/demo.pdf',
+            'notas_revision' => 'Validación automática aprobada',
+            'resultado_validacion' => [
+                'valida' => true,
+                'hallazgos' => ['Sello del SAT detectado', 'RFC encontrado'],
+                'errores' => [],
+            ],
         ]);
 
-        $this->get(route('admin.solicitudes-alta.detalle', $p))
+        $this->get(route('admin.solicitudes-alta.ver', $p))
             ->assertOk()
-            ->assertSee('BBVA')
-            ->assertSee('012345678901234567')
-            ->assertSee('Av Test')
-            ->assertSee('Aprobar y activar');
+            ->assertSee('DOCUMENTOS CORRECTOS')
+            ->assertSee('Constancia de Situación Fiscal')
+            ->assertSee('Sello del SAT detectado')
+            ->assertSee('Clic para descargar PDF');
     }
 
     public function test_aprueba_manual_sin_onboarding_completo(): void
