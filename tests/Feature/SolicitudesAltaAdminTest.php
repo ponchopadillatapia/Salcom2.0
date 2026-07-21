@@ -56,7 +56,9 @@ class SolicitudesAltaAdminTest extends TestCase
             ->assertOk()
             ->assertSee('Solicitudes de alta')
             ->assertSee('Solicitante SA')
-            ->assertSee('Revisar');
+            ->assertSee('Ver')
+            ->assertSee('Rechazar')
+            ->assertSee('Aprobar');
     }
 
     public function test_detalle_muestra_formulario_y_bancarios(): void
@@ -187,5 +189,44 @@ class SolicitudesAltaAdminTest extends TestCase
         $fresh = $p->fresh();
         $this->assertSame('Banorte', $fresh->datos_identificacion['banco'] ?? null);
         $this->assertTrue($fresh->tieneFormularioDatosBancarios());
+    }
+
+    public function test_rechaza_solicitud_y_sale_de_pendientes(): void
+    {
+        $this->withSession($this->sesionAdmin());
+        $p = $this->proveedorPendiente();
+
+        $this->post(route('admin.solicitudes-alta.rechazar'), [
+            'proveedor_id' => $p->id,
+        ])->assertRedirect(route('admin.solicitudes-alta'));
+
+        $this->assertSoftDeleted('proveedores_users', ['id' => $p->id]);
+    }
+
+    public function test_ver_solo_muestra_documentos_aprobados(): void
+    {
+        $this->withSession($this->sesionAdmin());
+        $p = $this->proveedorPendiente();
+
+        DocumentoProveedor::create([
+            'proveedor_id' => $p->id,
+            'tipo' => 'cif',
+            'archivo' => 'expediente_fiscal/cif/ok.pdf',
+            'estatus' => 'aprobado',
+            'notas_revision' => 'Validación automática aprobada',
+        ]);
+        DocumentoProveedor::create([
+            'proveedor_id' => $p->id,
+            'tipo' => 'opinion',
+            'archivo' => 'expediente_fiscal/opinion/bad.pdf',
+            'estatus' => 'pendiente',
+            'notas_revision' => 'Pendiente',
+        ]);
+
+        $this->get(route('admin.solicitudes-alta.ver', $p))
+            ->assertOk()
+            ->assertSee('Constancia de Situación Fiscal')
+            ->assertSee('Aprobado')
+            ->assertDontSee('Opinión de Cumplimiento SAT');
     }
 }

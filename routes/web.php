@@ -164,8 +164,10 @@ Route::post('/proveedor/aviso-privacidad', [PortalProveedorController::class, 'a
 Route::get('/admin/proveedores', [AdminPanelController::class, 'proveedores'])->name('admin.proveedores')->middleware('auth.admin');
 Route::get('/admin/solicitudes-alta', [AdminPanelController::class, 'solicitudesAlta'])->name('admin.solicitudes-alta')->middleware('auth.admin');
 Route::get('/admin/solicitudes-alta/{proveedor}/revisar', [AdminPanelController::class, 'revisarSolicitud'])->name('admin.solicitudes.revisar')->middleware('auth.admin');
+Route::get('/admin/solicitudes-alta/{proveedor}/ver', [AdminPanelController::class, 'verDocumentosAprobadosSolicitud'])->name('admin.solicitudes-alta.ver')->middleware('auth.admin');
 Route::get('/admin/solicitudes-alta/{proveedor}', [AdminPanelController::class, 'detalleSolicitudAlta'])->name('admin.solicitudes-alta.detalle')->middleware('auth.admin');
 Route::post('/admin/solicitudes-alta/aprobar', [AdminPanelController::class, 'aprobarSolicitudAlta'])->name('admin.solicitudes-alta.aprobar')->middleware('auth.admin');
+Route::post('/admin/solicitudes-alta/rechazar', [AdminPanelController::class, 'rechazarSolicitudAlta'])->name('admin.solicitudes-alta.rechazar')->middleware('auth.admin');
 Route::get('/admin/proveedores/{codigo}/facturas', [AdminPanelController::class, 'proveedorFacturas'])->name('admin.proveedor-facturas')->middleware('auth.admin');
 Route::get('/admin/proveedores/facturas-pendientes/excel', [AdminPanelController::class, 'facturasPendientesExcel'])->name('admin.facturas-pendientes.excel')->middleware('auth.admin');
 Route::get('/admin/productos', [AdminPanelController::class, 'productos'])->name('admin.productos')->middleware('auth.admin');
