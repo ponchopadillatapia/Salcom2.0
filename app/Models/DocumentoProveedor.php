@@ -3,7 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read ProveedorUser|null $proveedor
+ */
 class DocumentoProveedor extends Model
 {
     protected $table = 'documentos_proveedor';
@@ -18,7 +22,7 @@ class DocumentoProveedor extends Model
         'revisado_at' => 'datetime',
     ];
 
-    public function proveedor()
+    public function proveedor(): BelongsTo
     {
         return $this->belongsTo(ProveedorUser::class, 'proveedor_id');
     }

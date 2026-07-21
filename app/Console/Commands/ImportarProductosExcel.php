@@ -9,6 +9,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 class ImportarProductosExcel extends Command
 {
     protected $signature = 'productos:importar {archivo} {--dry-run : Solo muestra qué haría sin insertar}';
+
     protected $description = 'Importar productos desde el Excel bruto de la BD vieja (Productos Chapalita). Filtra cuentas contables y gastos.';
 
     // No se ignora nada - se suben todos los productos
@@ -19,20 +20,20 @@ class ImportarProductosExcel extends Command
         'H87' => 'PZA',
         'PCE' => 'PZA',
         'XBX' => 'CAJA',
-        'E4'  => 'KG',
+        'E4' => 'KG',
         'MTR' => 'METRO',
         'XKI' => 'SET',
         'LTR' => 'LITRO',
         'XPK' => 'PACK',
-        'NA'  => 'NA',
+        'NA' => 'NA',
         'E48' => 'PZA',
         'C62' => 'PZA',
         'XBJ' => 'CUBETA',
-        'PR'  => 'PAR',
+        'PR' => 'PAR',
         'A76' => 'PACK',
-        'TA'  => 'TONELADA',
+        'TA' => 'TONELADA',
         'X44' => 'PZA',
-        'SR'  => 'TIRA',
+        'SR' => 'TIRA',
         'X3H' => 'PZA',
         'ACT' => 'PZA',
     ];
@@ -42,13 +43,14 @@ class ImportarProductosExcel extends Command
         $archivo = $this->argument('archivo');
         $dryRun = $this->option('dry-run');
 
-        if (!file_exists($archivo)) {
+        if (! file_exists($archivo)) {
             $this->error("Archivo no encontrado: {$archivo}");
+
             return 1;
         }
 
         $this->info("Leyendo Excel: {$archivo}");
-        $this->info("Usando lectura por chunks para no saturar memoria...");
+        $this->info('Usando lectura por chunks para no saturar memoria...');
 
         // Leer con reader optimizado (read_only + solo columnas necesarias)
         $reader = IOFactory::createReaderForFile($archivo);
@@ -77,8 +79,12 @@ class ImportarProductosExcel extends Command
         $colLote = array_search('MANAGEBATCHNUMBERS', $headers);
         $colUnidad = array_search('PURCHASEUNIT', $headers);
 
-        if ($colCode === false) $colCode = 0;
-        if ($colName === false) $colName = 2;
+        if ($colCode === false) {
+            $colCode = 0;
+        }
+        if ($colName === false) {
+            $colName = 2;
+        }
 
         $this->info("Columnas: Code={$colCode}, Name={$colName}");
 
@@ -103,11 +109,13 @@ class ImportarProductosExcel extends Command
 
                 if (empty($codigo) && empty($nombre)) {
                     $vacios++;
+
                     continue;
                 }
 
                 if ($this->debeIgnorar($codigo)) {
                     $ignorados++;
+
                     continue;
                 }
 
@@ -122,7 +130,7 @@ class ImportarProductosExcel extends Command
                 $tipoProducto = $this->determinarTipo($clasificacion, $codigo);
                 $familia = $this->extraerFamilia($grupo);
 
-                if (!$dryRun) {
+                if (! $dryRun) {
                     try {
                         $producto = Producto::withTrashed()->updateOrCreate(
                             ['codigo' => $codigo],
@@ -165,8 +173,8 @@ class ImportarProductosExcel extends Command
         $this->newLine(2);
 
         // Asignar categorías por prefijo de código
-        if (!$dryRun) {
-            $this->info("Asignando categorías por prefijo...");
+        if (! $dryRun) {
+            $this->info('Asignando categorías por prefijo...');
             Producto::where('codigo', 'LIKE', 'RP%')->whereNull('deleted_at')->update(['categoria' => 'RP']);
             Producto::where('codigo', 'LIKE', '550%')->whereNull('deleted_at')->update(['categoria' => 'CONTABLE']);
             Producto::whereRaw("(codigo LIKE '500%' OR codigo LIKE '101%' OR codigo LIKE 'BL%' OR codigo LIKE 'CN%' OR codigo LIKE 'RI%')")->whereNull('deleted_at')->update(['categoria' => 'REFACCIONES']);
@@ -180,12 +188,12 @@ class ImportarProductosExcel extends Command
             Producto::where('codigo', 'LIKE', '590%')->whereNull('deleted_at')->update(['categoria' => 'MOLDES']);
             Producto::where('codigo', 'LIKE', 'SEGG%')->whereNull('deleted_at')->update(['categoria' => 'SEGURIDAD']);
             Producto::where('codigo', 'LIKE', 'MS%')->where('categoria', 'MN')->whereNull('deleted_at')->update(['categoria' => 'SERVICIOS']);
-            $this->info("Categorías asignadas.");
+            $this->info('Categorías asignadas.');
         }
 
         $modo = $dryRun ? '(DRY RUN - nada se guardó)' : '';
         $this->info("=== RESULTADO {$modo} ===");
-        $this->info("Total filas: " . ($highestRow - 1));
+        $this->info('Total filas: '.($highestRow - 1));
         $this->info("Insertados: {$insertados}");
         $this->info("Actualizados: {$actualizados}");
         $this->info("Ignorados (cuentas/gastos): {$ignorados}");
@@ -201,6 +209,7 @@ class ImportarProductosExcel extends Command
                 return true;
             }
         }
+
         return false;
     }
 
@@ -222,20 +231,36 @@ class ImportarProductosExcel extends Command
 
         // Inferir del código
         $codigoUpper = strtoupper($codigo);
-        if (str_starts_with($codigoUpper, 'MPI') || str_starts_with($codigoUpper, 'FMPI') || str_starts_with($codigoUpper, 'EMPI') || str_starts_with($codigoUpper, 'NMPI') || str_starts_with($codigoUpper, 'MPIDA') || str_starts_with($codigoUpper, 'MPIVA')) return 'MPI';
-        if (str_starts_with($codigoUpper, 'ME')) return 'ME';
-        if (str_starts_with($codigoUpper, 'MP')) return 'MP';
-        if (str_starts_with($codigoUpper, 'MS')) return 'MN';
-        if (str_starts_with($codigoUpper, 'RP')) return 'MP';
-        if (str_starts_with($codigoUpper, 'MUE')) return 'MN';
-        if (preg_match('/^[EMN][A-Z]/', $codigoUpper)) return 'PT';
+        if (str_starts_with($codigoUpper, 'MPI') || str_starts_with($codigoUpper, 'FMPI') || str_starts_with($codigoUpper, 'EMPI') || str_starts_with($codigoUpper, 'NMPI') || str_starts_with($codigoUpper, 'MPIDA') || str_starts_with($codigoUpper, 'MPIVA')) {
+            return 'MPI';
+        }
+        if (str_starts_with($codigoUpper, 'ME')) {
+            return 'ME';
+        }
+        if (str_starts_with($codigoUpper, 'MP')) {
+            return 'MP';
+        }
+        if (str_starts_with($codigoUpper, 'MS')) {
+            return 'MN';
+        }
+        if (str_starts_with($codigoUpper, 'RP')) {
+            return 'MP';
+        }
+        if (str_starts_with($codigoUpper, 'MUE')) {
+            return 'MN';
+        }
+        if (preg_match('/^[EMN][A-Z]/', $codigoUpper)) {
+            return 'PT';
+        }
 
         return 'MN';
     }
 
     private function extraerFamilia(string $grupo): string
     {
-        if (empty($grupo)) return '';
+        if (empty($grupo)) {
+            return '';
+        }
 
         // El grupo viene como "20-Abrillantador 400ml" — extraer la parte después del guión
         $parts = explode('-', $grupo, 2);

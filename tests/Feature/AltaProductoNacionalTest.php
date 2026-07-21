@@ -9,6 +9,7 @@ use App\Models\ProveedorUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Tests\TestCase;
@@ -71,7 +72,7 @@ class AltaProductoNacionalTest extends TestCase
             ]];
         }
 
-        $ss = new Spreadsheet();
+        $ss = new Spreadsheet;
         $sheet = $ss->getActiveSheet();
         $headers = ['PREFIJO', 'CONSECUTIVO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO', 'UNIDAD_MEDIDA', 'PRECIO', 'MOQ', 'CLAVE_SAT', 'LOTE', 'PEDIMENTO', 'VOLTAJE'];
         $col = 'A';
@@ -349,7 +350,7 @@ class AltaProductoNacionalTest extends TestCase
         $templatePath = storage_path('app/test_template_generado.xlsx');
         file_put_contents($templatePath, $templateResponse->getContent());
 
-        $ss = \PhpOffice\PhpSpreadsheet\IOFactory::load($templatePath);
+        $ss = IOFactory::load($templatePath);
         $ss->setActiveSheetIndex(0);
         $sheet = $ss->getSheetByName('Productos') ?? $ss->getActiveSheet();
         $sheet->setCellValue('A2', 'ME');
@@ -360,7 +361,7 @@ class AltaProductoNacionalTest extends TestCase
         $sheet->setCellValue('K2', '$25.00');
         $sheet->setCellValue('L2', '25');
         $filledPath = storage_path('app/test_template_lleno.xlsx');
-        (new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($ss))->save($filledPath);
+        (new Xlsx($ss))->save($filledPath);
 
         $file = new UploadedFile($filledPath, 'template_lleno.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', null, true);
         $response = $this->post('/admin/alta-producto/subir', [

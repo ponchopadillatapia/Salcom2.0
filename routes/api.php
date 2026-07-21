@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\APIS\EmpresaApiController;
 use App\Http\Controllers\APIS\SalcomApiController;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 
 // ── Validación fiscal de empresa (sin token, acceso interno) ──
@@ -16,7 +17,7 @@ Route::get('/codigo-postal/{cp}', function (string $cp) {
 
     // Intentar con zippopotam
     try {
-        $response = \Illuminate\Support\Facades\Http::timeout(5)->get("https://api.zippopotam.us/MX/{$cp}");
+        $response = Http::timeout(5)->get("https://api.zippopotam.us/MX/{$cp}");
         if ($response->ok()) {
             $data = $response->json();
             $places = $data['places'] ?? [];
@@ -25,11 +26,12 @@ Route::get('/codigo-postal/{cp}', function (string $cp) {
                     'estado' => $places[0]['state'] ?? '',
                     'municipio' => $places[0]['place name'] ?? '',
                     'ciudad' => $places[0]['place name'] ?? '',
-                    'colonias' => array_map(fn($p) => $p['place name'], $places),
+                    'colonias' => array_map(fn ($p) => $p['place name'], $places),
                 ]);
             }
         }
-    } catch (\Exception $e) {}
+    } catch (Exception $e) {
+    }
 
     return response()->json(['error' => 'No encontrado'], 404);
 });

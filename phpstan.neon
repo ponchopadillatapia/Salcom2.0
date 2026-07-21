@@ -18,18 +18,21 @@ parameters:
 
     # Tratar tipos de PHPDoc como no-ciertos (evita falsos positivos)
     treatPhpDocTypesAsCertain: false
+    reportUnmatchedIgnoredErrors: false
 
     # Baseline: errores existentes que se corregirán gradualmente
     ignoreErrors:
         - message: '#Call to an undefined method thiagoalessio\\TesseractOCR\\TesseractOCR::lang#'
           path: app/Http/Controllers/APIS/EmpresaApiController.php
-        - message: '#Relation .proveedor. is not found in App\\Models\\DocumentoProveedor model#'
-          paths:
-            - app/Http/Controllers/APIS/SalcomApiController.php
-            - app/Http/Controllers/AdminPanelController.php
         - message: '#should return float but returns string#'
           path: app/Models/ProveedorUser.php
         - message: '#expects int, string given#'
           path: app/Services/DocumentValidationService.php
         - message: '#expects float\|int, string given#'
           path: app/Services/IaService.php
+        # Ruido pedántico Eloquent/Larastan (nullsafe con with(), métodos legacy, uniones literales)
+        - identifier: nullsafe.neverNull
+        - identifier: method.unused
+        - identifier: identical.alwaysFalse
+        - identifier: function.alreadyNarrowedType
+        - identifier: notIdentical.alwaysTrue

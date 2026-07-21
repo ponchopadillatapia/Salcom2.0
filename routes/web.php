@@ -1,7 +1,7 @@
 <?php
 
 use App\Http\Controllers\AltaProductoController;
-use App\Http\Controllers\APIS\EmpresaApiController;
+use App\Http\Controllers\AltaProductoPTController;
 use App\Http\Controllers\AuthProveedorController;
 use App\Http\Controllers\MuestraController;
 use App\Http\Controllers\OrdenCompraController;
@@ -189,9 +189,9 @@ Route::get('/admin/alta-producto-mto/template', [AltaProductoController::class, 
 Route::post('/admin/alta-producto-mto/subir', [AltaProductoController::class, 'subirExcelMTO'])->name('admin.alta-producto-mto.subir')->middleware('auth.admin');
 
 // ── Admin: Alta de Producto Terminado (PT) ──
-Route::get('/admin/alta-producto-pt', [\App\Http\Controllers\AltaProductoPTController::class, 'mostrar'])->name('admin.alta-producto-pt')->middleware('auth.admin');
-Route::get('/admin/alta-producto-pt/template', [\App\Http\Controllers\AltaProductoPTController::class, 'descargarTemplate'])->name('admin.alta-producto-pt.template')->middleware('auth.admin');
-Route::post('/admin/alta-producto-pt/subir', [\App\Http\Controllers\AltaProductoPTController::class, 'subirExcel'])->name('admin.alta-producto-pt.subir')->middleware('auth.admin');
+Route::get('/admin/alta-producto-pt', [AltaProductoPTController::class, 'mostrar'])->name('admin.alta-producto-pt')->middleware('auth.admin');
+Route::get('/admin/alta-producto-pt/template', [AltaProductoPTController::class, 'descargarTemplate'])->name('admin.alta-producto-pt.template')->middleware('auth.admin');
+Route::post('/admin/alta-producto-pt/subir', [AltaProductoPTController::class, 'subirExcel'])->name('admin.alta-producto-pt.subir')->middleware('auth.admin');
 
 // ── Admin: Migración Masiva (productos del sistema viejo → formato nuevo con IA) ──
 Route::get('/admin/migracion-masiva', [AltaProductoController::class, 'mostrarMigracionMasiva'])->name('admin.migracion-masiva')->middleware('auth.admin');
