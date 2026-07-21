@@ -188,7 +188,7 @@ class ProveedorUser extends Authenticatable
         foreach (array_keys($this->documentosRequeridos()) as $tipo) {
             /** @var DocumentoProveedor|null $doc */
             $doc = $docs->firstWhere('tipo', $tipo);
-            if (! $doc || $doc->estatus !== 'aprobado') {
+            if (! $doc instanceof DocumentoProveedor || $doc->estatus !== 'aprobado') {
                 return false;
             }
         }
@@ -210,7 +210,7 @@ class ProveedorUser extends Authenticatable
         foreach (array_keys($this->documentosRequeridos()) as $tipo) {
             /** @var DocumentoProveedor|null $doc */
             $doc = $docs->firstWhere('tipo', $tipo);
-            if (! $doc || $doc->estatus !== 'aprobado') {
+            if (! $doc instanceof DocumentoProveedor || $doc->estatus !== 'aprobado') {
                 continue;
             }
             $desde = $doc->revisado_at ?? $doc->updated_at ?? $doc->created_at;

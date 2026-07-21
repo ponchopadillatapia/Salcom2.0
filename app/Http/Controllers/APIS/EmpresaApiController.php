@@ -609,6 +609,8 @@ class EmpresaApiController extends Controller
                 $errores[] = 'Revisar manualmente el motivo de la opinión negativa';
             }
 
+            return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+
         } else {
             $errores[] = 'No se detectó si la opinión es Positiva o Negativa — revisar manualmente';
         }

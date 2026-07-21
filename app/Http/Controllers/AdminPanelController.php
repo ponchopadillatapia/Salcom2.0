@@ -1181,10 +1181,11 @@ class AdminPanelController extends Controller
         ];
 
         foreach ($documentos as $d) {
+            $prov = $d->proveedor;
             $lines[] = [
-                $d->proveedor?->nombre ?? $d->proveedor?->usuario ?? 'ID: '.$d->proveedor_id,
+                ($prov !== null ? ($prov->nombre ?? $prov->usuario) : null) ?? 'ID: '.$d->proveedor_id,
                 $d->proveedor_id,
-                $d->proveedor?->id_proveedor ?? '—',
+                ($prov !== null ? $prov->id_proveedor : null) ?? '—',
                 $tipoLabels[$d->tipo] ?? $d->tipo,
                 $estatusOpciones[$d->estatus] ?? ucfirst($d->estatus),
                 $d->notas_revision ?? '—',
@@ -2091,7 +2092,7 @@ class AdminPanelController extends Controller
             $diasV = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
             $lines[] = [
                 $f->folio_cfdi,
-                $f->proveedor?->nombre ?? $f->codigo_proveedor,
+                $f->proveedor !== null ? ($f->proveedor->nombre ?? $f->codigo_proveedor) : $f->codigo_proveedor,
                 $f->codigo_proveedor,
                 '$'.number_format((float) $f->monto, 2),
                 '$'.number_format((float) $f->monto_iva, 2),

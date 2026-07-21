@@ -401,7 +401,8 @@ class PortalProveedorController extends Controller
     public function mostrarIdentificacion()
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
-        $identificacion = session('identificacion_proveedor');
+        $identificacion = session('identificacion_proveedor')
+            ?? ($proveedor !== null ? ($proveedor->datos_identificacion ?? []) : []);
         if (! is_array($identificacion)) {
             $identificacion = $proveedor !== null
                 ? ($proveedor->datos_identificacion ?? [])

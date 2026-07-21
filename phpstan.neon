@@ -22,6 +22,7 @@ parameters:
 
     # Baseline: errores existentes que se corregirán gradualmente
     ignoreErrors:
+        - identifier: method.unused
         - message: '#Call to an undefined method thiagoalessio\\TesseractOCR\\TesseractOCR::lang#'
           path: app/Http/Controllers/APIS/EmpresaApiController.php
         - message: '#should return float but returns string#'
