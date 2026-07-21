@@ -13,8 +13,10 @@ use App\Models\OcBorrador;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
+use App\Models\SolicitudAlta;
 use App\Services\InventarioCalculoService;
 use App\Services\PedidoProveedorSyncService;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -55,9 +57,12 @@ class AdminPanelController extends Controller
             (float) ($mesAnteriorCompras['facturas'] ?? 0)
         );
 
-        $facturasPagadasCount = (int) ($facturasPorEstatus->get('pagada')?->cantidad ?? 0);
-        $facturasPendientesCount = (int) ($facturasPorEstatus->get('pendiente')?->cantidad ?? 0);
-        $facturasCanceladasCount = (int) ($facturasPorEstatus->get('cancelada')?->cantidad ?? 0);
+        $facturasPagadas = $facturasPorEstatus->get('pagada');
+        $facturasPendientes = $facturasPorEstatus->get('pendiente');
+        $facturasCanceladas = $facturasPorEstatus->get('cancelada');
+        $facturasPagadasCount = (int) ($facturasPagadas !== null ? $facturasPagadas->cantidad : 0);
+        $facturasPendientesCount = (int) ($facturasPendientes !== null ? $facturasPendientes->cantidad : 0);
+        $facturasCanceladasCount = (int) ($facturasCanceladas !== null ? $facturasCanceladas->cantidad : 0);
 
         $proveedoresActivosList = ProveedorUser::where('activo', true)->get();
         $opinionActualizados = 0;
@@ -786,7 +791,7 @@ class AdminPanelController extends Controller
             $fecha = '—';
             if ($p->created_at) {
                 try {
-                    $fecha = \Carbon\Carbon::parse($p->created_at)->format('d/m/Y H:i');
+                    $fecha = Carbon::parse($p->created_at)->format('d/m/Y H:i');
                 } catch (\Exception $e) {
                     $fecha = '—';
                 }
@@ -809,7 +814,7 @@ class AdminPanelController extends Controller
      */
     public function actualizarProducto(Request $request, $id)
     {
-        $producto = \App\Models\Producto::findOrFail($id);
+        $producto = Producto::findOrFail($id);
 
         $campos = $request->only(['categoria', 'precio', 'unidad_venta', 'stock', 'descripcion']);
 
@@ -830,7 +835,7 @@ class AdminPanelController extends Controller
      */
     public function borrarProducto($id)
     {
-        $producto = \App\Models\Producto::findOrFail($id);
+        $producto = Producto::findOrFail($id);
         $producto->delete();
 
         return response()->json(['success' => true, 'mensaje' => 'Producto eliminado']);
@@ -841,7 +846,7 @@ class AdminPanelController extends Controller
      */
     public function toggleActivoProducto($id)
     {
-        $producto = \App\Models\Producto::findOrFail($id);
+        $producto = Producto::findOrFail($id);
         $producto->activo = ! $producto->activo;
         $producto->save();
 
@@ -857,7 +862,8 @@ class AdminPanelController extends Controller
      */
     public function productoDetalle($id)
     {
-        $producto = \App\Models\Producto::findOrFail($id);
+        $producto = Producto::findOrFail($id);
+
         return view('admin.producto-detalle', compact('producto'));
     }
 
@@ -1178,10 +1184,11 @@ class AdminPanelController extends Controller
         ];
 
         foreach ($documentos as $d) {
+            $prov = $d->proveedor;
             $lines[] = [
-                $d->proveedor?->nombre ?? $d->proveedor?->usuario ?? 'ID: '.$d->proveedor_id,
+                ($prov !== null ? ($prov->nombre ?? $prov->usuario) : null) ?? 'ID: '.$d->proveedor_id,
                 $d->proveedor_id,
-                $d->proveedor?->id_proveedor ?? '—',
+                ($prov !== null ? $prov->id_proveedor : null) ?? '—',
                 $tipoLabels[$d->tipo] ?? $d->tipo,
                 $estatusOpciones[$d->estatus] ?? ucfirst($d->estatus),
                 $d->notas_revision ?? '—',
@@ -1549,7 +1556,7 @@ class AdminPanelController extends Controller
             ->orderByDesc('total')
             ->get()
             ->groupBy('proveedor_nombre')
-            ->map(fn($g) => $g->first()->categoria);
+            ->map(fn ($g) => $g->first()->categoria);
 
         return $agrupado->map(function ($row) use ($proveedores, $categoriasProv) {
             $prov = $proveedores->get($row->codigo_proveedor);
@@ -1564,7 +1571,7 @@ class AdminPanelController extends Controller
                 'monto' => (float) $row->monto_total,
                 'score' => (float) ($prov->score_total ?? 0),
                 'categoria' => $categoriasProv->get($nombreProv, '—'),
-                'ultima_hora' => $row->ultima_factura ? \Carbon\Carbon::parse($row->ultima_factura)->format('h:i a') : '—',
+                'ultima_hora' => $row->ultima_factura ? Carbon::parse($row->ultima_factura)->format('h:i a') : '—',
             ];
         })->values()->all();
     }
@@ -1896,7 +1903,7 @@ class AdminPanelController extends Controller
         $totalProveedores = ProveedorUser::count();
         $conteoProveedoresActivos = ProveedorUser::where('activo', true)->count();
         $conteoInventarioCritico = collect($inventarioDias)
-            ->filter(fn ($i) => ($i['dias_inventario'] ?? 0) < (($i['dias_pedido'] ?? 0) + ($i['dias_entrega'] ?? 0)))
+            ->filter(fn ($i) => $i['dias_inventario'] < ($i['dias_pedido'] + $i['dias_entrega']))
             ->count();
         $conteoOcAtrasadas = $ocProveedores->where('atrasada', true)->count();
 
@@ -2088,7 +2095,7 @@ class AdminPanelController extends Controller
             $diasV = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
             $lines[] = [
                 $f->folio_cfdi,
-                $f->proveedor?->nombre ?? $f->codigo_proveedor,
+                $f->proveedor !== null ? ($f->proveedor->nombre ?? $f->codigo_proveedor) : $f->codigo_proveedor,
                 $f->codigo_proveedor,
                 '$'.number_format((float) $f->monto, 2),
                 '$'.number_format((float) $f->monto_iva, 2),
@@ -2157,7 +2164,7 @@ class AdminPanelController extends Controller
         // Cargar solicitudes de la tabla nueva (si existe)
         $solicitudes = collect();
         try {
-            $solicitudes = \App\Models\SolicitudAlta::with('proveedor')
+            $solicitudes = SolicitudAlta::with('proveedor')
                 ->orderByDesc('created_at')
                 ->get();
         } catch (\Exception $e) {
@@ -2562,10 +2569,10 @@ class AdminPanelController extends Controller
             $query->whereHas('proveedor', function ($q) use ($persona) {
                 if ($persona === 'fisica') {
                     $q->where('tipo_persona', 'like', '%Física%')
-                      ->orWhere('tipo_persona', 'like', '%fisica%');
+                        ->orWhere('tipo_persona', 'like', '%fisica%');
                 } else {
                     $q->where('tipo_persona', 'like', '%Moral%')
-                      ->orWhere('tipo_persona', 'like', '%moral%');
+                        ->orWhere('tipo_persona', 'like', '%moral%');
                 }
             });
         }
@@ -2578,27 +2585,28 @@ class AdminPanelController extends Controller
                 'proveedor' => $docs->first()->proveedor,
                 'documentos' => $docs,
             ];
-        })->filter(fn($item) => $item['proveedor'] !== null)->values();
+        })->filter(fn ($item) => $item['proveedor'] !== null)->values();
 
         return view('admin.expediente-fiscal', compact('proveedoresConDocs', 'tipos'));
     }
 
     public function descargarDocumentoFiscal(DocumentoProveedor $documento)
     {
-        $path = storage_path('app/public/' . $documento->archivo);
+        $path = storage_path('app/public/'.$documento->archivo);
 
-        if (!file_exists($path)) {
+        if (! file_exists($path)) {
             return back()->with('error', 'El archivo no se encontró en el servidor.');
         }
 
-        $nombreArchivo = ($documento->proveedor?->nombre ?? 'proveedor') . '_' . $documento->tipo . '.pdf';
+        $proveedorDoc = $documento->proveedor;
+        $nombreArchivo = (($proveedorDoc instanceof ProveedorUser ? $proveedorDoc->nombre : null) ?? 'proveedor').'_'.$documento->tipo.'.pdf';
 
         return response()->download($path, $nombreArchivo);
     }
 
     // ── Solicitudes de Alta (aprobar/rechazar) ──
 
-    public function aprobarSolicitud(\App\Models\SolicitudAlta $solicitud)
+    public function aprobarSolicitud(SolicitudAlta $solicitud)
     {
         $solicitud->update(['estatus' => 'aprobada']);
 
@@ -2630,7 +2638,7 @@ class AdminPanelController extends Controller
         return view('APIS.empresa', compact('identificacion', 'solicitudId'));
     }
 
-    public function rechazarSolicitud(Request $request, \App\Models\SolicitudAlta $solicitud)
+    public function rechazarSolicitud(Request $request, SolicitudAlta $solicitud)
     {
         $solicitud->update([
             'estatus' => 'rechazada',

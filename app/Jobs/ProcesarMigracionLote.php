@@ -10,7 +10,6 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
-use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -25,6 +24,7 @@ class ProcesarMigracionLote implements ShouldQueue
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public int $tries = 3;
+
     public int $timeout = 180;
 
     public function __construct(
@@ -38,8 +38,9 @@ class ProcesarMigracionLote implements ShouldQueue
     public function handle(): void
     {
         $migracion = MigracionMasiva::find($this->migracionId);
-        if (!$migracion) {
+        if (! $migracion) {
             Log::error("[MigracionMasiva] Migración #{$this->migracionId} no encontrada");
+
             return;
         }
 
@@ -47,10 +48,10 @@ class ProcesarMigracionLote implements ShouldQueue
             $migracion->update(['estatus' => 'procesando']);
         }
 
-        Log::info("[MigracionMasiva] Procesando lote {$this->loteNumero} de migración #{$this->migracionId} (" . count($this->productos) . " productos)");
+        Log::info("[MigracionMasiva] Procesando lote {$this->loteNumero} de migración #{$this->migracionId} (".count($this->productos).' productos)');
 
         try {
-            $iaService = new IaService();
+            $iaService = new IaService;
             $prompt = $this->construirPrompt();
             $resultado = $iaService->llamarClaude($prompt);
 
@@ -70,11 +71,11 @@ class ProcesarMigracionLote implements ShouldQueue
 
                     Log::info("[MigracionMasiva] Lote {$this->loteNumero} completado: {$procesados} productos procesados");
                 } else {
-                    Log::error("[MigracionMasiva] Respuesta no parseable. Primeros 500 chars: " . substr($resultado['content'] ?? '', 0, 500));
+                    Log::error('[MigracionMasiva] Respuesta no parseable. Primeros 500 chars: '.substr($resultado['content'] ?? '', 0, 500));
                     $this->marcarLoteConError($migracion, 'Respuesta de IA no parseable');
                 }
             } else {
-                $this->marcarLoteConError($migracion, 'Error al llamar a la IA: ' . ($resultado['error'] ?? 'desconocido'));
+                $this->marcarLoteConError($migracion, 'Error al llamar a la IA: '.($resultado['error'] ?? 'desconocido'));
             }
 
         } catch (\Exception $e) {
@@ -90,9 +91,9 @@ class ProcesarMigracionLote implements ShouldQueue
      */
     private function construirPrompt(): string
     {
-        $productosTexto = "";
+        $productosTexto = '';
         foreach ($this->productos as $i => $prod) {
-            $productosTexto .= ($i + 1) . ". CODIGO: {$prod['codigo']} | NOMBRE: {$prod['nombre']} | GRUPO: {$prod['grupo']}\n";
+            $productosTexto .= ($i + 1).". CODIGO: {$prod['codigo']} | NOMBRE: {$prod['nombre']} | GRUPO: {$prod['grupo']}\n";
         }
 
         return "Eres un experto en catalogacion de productos de limpieza, aerosoles y quimicos industriales.
@@ -132,7 +133,7 @@ Responde UNICAMENTE JSON valido sin markdown:
      */
     private function guardarResultados(array $productosIA): void
     {
-        $jsonPath = storage_path('app/public/migraciones-masivas/resultado_' . $this->migracionId . '.json');
+        $jsonPath = storage_path('app/public/migraciones-masivas/resultado_'.$this->migracionId.'.json');
 
         // Leer resultados previos
         $existentes = [];
@@ -189,7 +190,7 @@ Responde UNICAMENTE JSON valido sin markdown:
                 $migracion->update(['resultado_path' => $excelPath]);
                 Log::info("[MigracionMasiva] Excel de resultado generado: {$excelPath}");
             } catch (\Exception $e) {
-                Log::error("[MigracionMasiva] Error generando Excel de resultado: " . $e->getMessage());
+                Log::error('[MigracionMasiva] Error generando Excel de resultado: '.$e->getMessage());
             }
 
             Log::info("[MigracionMasiva] Migración #{$this->migracionId} finalizada. Procesados: {$migracion->productos_procesados}, Errores: {$migracion->productos_error}");
@@ -202,13 +203,13 @@ Responde UNICAMENTE JSON valido sin markdown:
      */
     private function generarExcelResultado(MigracionMasiva $migracion): string
     {
-        $jsonPath = storage_path('app/public/migraciones-masivas/resultado_' . $migracion->id . '.json');
+        $jsonPath = storage_path('app/public/migraciones-masivas/resultado_'.$migracion->id.'.json');
         $productos = [];
         if (file_exists($jsonPath)) {
             $productos = json_decode(file_get_contents($jsonPath), true) ?? [];
         }
 
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Productos Migrados');
 
@@ -221,14 +222,14 @@ Responde UNICAMENTE JSON valido sin markdown:
         $col = 'A';
         foreach ($headers as $header) {
             $headerToCol[$header] = $col;
-            $sheet->setCellValue($col . '1', $header);
-            $sheet->getStyle($col . '1')->getFont()->setBold(true);
+            $sheet->setCellValue($col.'1', $header);
+            $sheet->getStyle($col.'1')->getFont()->setBold(true);
             if ($obligatorios[$header]) {
-                $sheet->getStyle($col . '1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
+                $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
             } else {
-                $sheet->getStyle($col . '1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
+                $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('9B7BC7');
             }
-            $sheet->getStyle($col . '1')->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
             $sheet->getColumnDimension($col)->setAutoSize(true);
             $col++;
         }
@@ -254,7 +255,7 @@ Responde UNICAMENTE JSON valido sin markdown:
             ];
 
             foreach ($valores as $header => $valor) {
-                $celda = $headerToCol[$header] . $row;
+                $celda = $headerToCol[$header].$row;
                 $sheet->setCellValue($celda, $valor);
 
                 // Si es obligatorio y está vacío, pintar en rojo
@@ -268,8 +269,8 @@ Responde UNICAMENTE JSON valido sin markdown:
         }
 
         // Guardar
-        $excelPath = 'migraciones-masivas/resultado_' . $migracion->id . '.xlsx';
-        $fullPath = storage_path('app/public/' . $excelPath);
+        $excelPath = 'migraciones-masivas/resultado_'.$migracion->id.'.xlsx';
+        $fullPath = storage_path('app/public/'.$excelPath);
 
         $writer = new Xlsx($spreadsheet);
         $writer->save($fullPath);
@@ -288,7 +289,7 @@ Responde UNICAMENTE JSON valido sin markdown:
 
         $migracion = MigracionMasiva::find($this->migracionId);
         if ($migracion) {
-            $this->marcarLoteConError($migracion, 'Job falló permanentemente: ' . $exception->getMessage());
+            $this->marcarLoteConError($migracion, 'Job falló permanentemente: '.$exception->getMessage());
             $this->verificarFinalizacion($migracion);
         }
     }

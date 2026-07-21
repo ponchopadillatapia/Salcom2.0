@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Facades\Schema;
 
 class ProveedorUser extends Authenticatable
 {
@@ -39,6 +41,7 @@ class ProveedorUser extends Authenticatable
         if ($value !== null) {
             return $value;
         }
+
         return $this->attributes['codigo_compras'] ?? null;
     }
 
@@ -50,13 +53,14 @@ class ProveedorUser extends Authenticatable
         static $col = null;
         if ($col === null) {
             try {
-                $col = \Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'id_proveedor')
+                $col = Schema::hasColumn('proveedores_users', 'id_proveedor')
                     ? 'id_proveedor'
                     : 'codigo_compras';
             } catch (\Exception $e) {
                 $col = 'codigo_compras';
             }
         }
+
         return $col;
     }
 
@@ -69,15 +73,16 @@ class ProveedorUser extends Authenticatable
             $valor = $operador;
             $operador = '=';
         }
+
         return $query->where(static::columnaCodigoProveedor(), $operador, $valor);
     }
 
-    public function contactos()
+    public function contactos(): HasMany
     {
         return $this->hasMany(ContactoProveedor::class, 'proveedor_id');
     }
 
-    public function documentos()
+    public function documentos(): HasMany
     {
         return $this->hasMany(DocumentoProveedor::class, 'proveedor_id');
     }
@@ -150,7 +155,7 @@ class ProveedorUser extends Authenticatable
 
         // Verificar si hay una solicitud de alta guardada para este proveedor
         try {
-            if (\App\Models\SolicitudAlta::where('proveedor_id', $this->id)->exists()) {
+            if (SolicitudAlta::where('proveedor_id', $this->id)->exists()) {
                 return true;
             }
         } catch (\Exception $e) {
@@ -176,7 +181,7 @@ class ProveedorUser extends Authenticatable
 
         foreach (array_keys($this->documentosRequeridos()) as $tipo) {
             $doc = $docs->firstWhere('tipo', $tipo);
-            if (! $doc || $doc->estatus !== 'aprobado') {
+            if (! $doc instanceof DocumentoProveedor || $doc->estatus !== 'aprobado') {
                 return false;
             }
         }
@@ -197,7 +202,7 @@ class ProveedorUser extends Authenticatable
 
         foreach (array_keys($this->documentosRequeridos()) as $tipo) {
             $doc = $docs->firstWhere('tipo', $tipo);
-            if (! $doc || $doc->estatus !== 'aprobado') {
+            if (! $doc instanceof DocumentoProveedor || $doc->estatus !== 'aprobado') {
                 continue;
             }
             $desde = $doc->revisado_at ?? $doc->updated_at ?? $doc->created_at;

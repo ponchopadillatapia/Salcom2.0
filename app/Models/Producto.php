@@ -40,9 +40,9 @@ class Producto extends Model
             return (float) $this->precio;
         }
 
-        $registro = $this->preciosProveedor()->where('proveedor_id', $proveedorId)->first();
+        $precio = $this->preciosProveedor()->where('proveedor_id', $proveedorId)->value('precio');
 
-        return $registro ? (float) $registro->precio : (float) $this->precio;
+        return $precio !== null ? (float) $precio : (float) $this->precio;
     }
 
     public function moqParaProveedor(?int $proveedorId): ?int

@@ -46,7 +46,10 @@ class MigracionMasiva extends Model
      */
     public function getPorcentajeAttribute(): int
     {
-        if ($this->total_productos === 0) return 0;
+        if ($this->total_productos === 0) {
+            return 0;
+        }
+
         return (int) round(($this->productos_procesados + $this->productos_error) / $this->total_productos * 100);
     }
 }

@@ -10,14 +10,17 @@ use App\Models\ProductoProveedorPrecio;
 use App\Models\ProveedorUser;
 use App\Services\AlertEngineService;
 use App\Services\IaService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Cell\DataType;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\NamedRange;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
+use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
@@ -220,7 +223,7 @@ class AltaProductoController extends Controller
         // Dropdown TIPO_PRODUCTO (columna H)
         $tiposProducto = ['MPI', 'ME', 'MN', 'MP', 'PT', 'RP', 'CONTABLE', 'GASTOS', 'REFACCIONES', 'HERRAMIENTAS', 'MAQUINARIA', 'MUESTRAS', 'INSUMOS', 'EQUIPO', 'SEGURIDAD', 'VEHICULOS', 'MOLDES', 'SERVICIOS'];
         foreach ($tiposProducto as $i => $tipo) {
-            $listSheet->setCellValue('C' . ($i + 1), $tipo);
+            $listSheet->setCellValue('C'.($i + 1), $tipo);
         }
         $tipoCount = count($tiposProducto);
         for ($row = 2; $row <= 100; $row++) {
@@ -232,7 +235,7 @@ class AltaProductoController extends Controller
             $validation->setShowErrorMessage(true);
             $validation->setErrorTitle('Tipo de producto no valido');
             $validation->setError('Selecciona un tipo de producto del listado');
-            $validation->setFormula1('_Listas!$C$1:$C$' . $tipoCount);
+            $validation->setFormula1('_Listas!$C$1:$C$'.$tipoCount);
         }
 
         // Dropdown LOTE (columna L)
@@ -414,11 +417,11 @@ class AltaProductoController extends Controller
             $color = in_array($header, $obligatorios) ? '6B3FA0' : '9B7BC7';
             $sheet->getStyle($col.$headerRow)->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB($color);
             $sheet->getStyle($col.$headerRow)->getFont()->getColor()->setRGB('FFFFFF');
-            $sheet->getColumnDimension($col)->setWidth($anchosColumnas[$col] ?? 12);
+            $sheet->getColumnDimension($col)->setWidth($anchosColumnas[$col]);
             $col++;
         }
 
-        $sheet->getStyle('B'.$dataStartRow.':B'.$dataEndRow)->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+        $sheet->getStyle('B'.$dataStartRow.':B'.$dataEndRow)->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
         $sheet->getStyle('K'.$dataStartRow.':K'.$dataEndRow)->getNumberFormat()->setFormatCode('$#,##0.00');
         $sheet->getStyle('L'.$dataStartRow.':L'.$dataEndRow)->getNumberFormat()->setFormatCode('#,##0');
         $sheet->freezePane('A'.$dataStartRow);
@@ -450,7 +453,7 @@ class AltaProductoController extends Controller
         foreach ($columnasDatos as $colLetter => $key) {
             $items = $listasDisponibles[$key];
             foreach ($items as $i => $consecutivo) {
-                $datosSheet->setCellValueExplicit($colLetter.($i + 1), $consecutivo, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+                $datosSheet->setCellValueExplicit($colLetter.($i + 1), $consecutivo, DataType::TYPE_STRING);
             }
         }
         $datosSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
@@ -575,7 +578,7 @@ class AltaProductoController extends Controller
         }
 
         // Columna B (CONSECUTIVO) como texto para conservar ceros a la izquierda
-        $sheet->getStyle('B2:B101')->getNumberFormat()->setFormatCode(\PhpOffice\PhpSpreadsheet\Style\NumberFormat::FORMAT_TEXT);
+        $sheet->getStyle('B2:B101')->getNumberFormat()->setFormatCode(NumberFormat::FORMAT_TEXT);
 
         // Formato moneda para PRECIO (I)
         $sheet->getStyle('I2:I101')->getNumberFormat()->setFormatCode('$#,##0.00');
@@ -583,12 +586,19 @@ class AltaProductoController extends Controller
         // Hoja listas
         $listSheet = $spreadsheet->createSheet();
         $listSheet->setTitle('_Listas');
-        foreach ($this->familiasValidas as $i => $fam) { $listSheet->setCellValue('A'.($i+1), $fam); }
-        foreach ($this->unidadesValidas as $i => $uni) { $listSheet->setCellValue('B'.($i+1), $uni); }
+        foreach ($this->familiasValidas as $i => $fam) {
+            $listSheet->setCellValue('A'.($i + 1), $fam);
+        }
+        foreach ($this->unidadesValidas as $i => $uni) {
+            $listSheet->setCellValue('B'.($i + 1), $uni);
+        }
         $listSheet->setCellValue('C1', 'MPI');
-        $listSheet->setCellValue('D1', 'SI'); $listSheet->setCellValue('D2', 'NO');
+        $listSheet->setCellValue('D1', 'SI');
+        $listSheet->setCellValue('D2', 'NO');
         // Prefijos MPI
-        $listSheet->setCellValue('E1', 'MPI'); $listSheet->setCellValue('E2', 'MPIVA'); $listSheet->setCellValue('E3', 'MPIDA');
+        $listSheet->setCellValue('E1', 'MPI');
+        $listSheet->setCellValue('E2', 'MPIVA');
+        $listSheet->setCellValue('E3', 'MPIDA');
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
         $spreadsheet->setActiveSheetIndex(0);
@@ -680,7 +690,8 @@ class AltaProductoController extends Controller
             $prefijo = trim($prod['PREFIJO'] ?? '');
             $consecutivo = trim($prod['CONSECUTIVO'] ?? '');
             $nombre = trim($prod['NOMBRE_GENERICO'] ?? $prod['NOMBRE_generico'] ?? '');
-            return !empty($prefijo) || !empty($consecutivo) || !empty($nombre);
+
+            return ! empty($prefijo) || ! empty($consecutivo) || ! empty($nombre);
         });
         $productos = array_values($productos);
 
@@ -696,19 +707,19 @@ class AltaProductoController extends Controller
 
             // Validar prefijo válido
             $prefijo = strtoupper(trim($producto['PREFIJO'] ?? ''));
-            if ($prefijo && !in_array($prefijo, ['MPI', 'MPIVA', 'MPIDA'])) {
+            if ($prefijo && ! in_array($prefijo, ['MPI', 'MPIVA', 'MPIDA'])) {
                 $erroresFila[] = ['fila' => $fila, 'campo' => 'PREFIJO', 'error' => "PREFIJO '{$prefijo}' no valido. Solo: MPI, MPIVA, MPIDA"];
             }
 
             // Formar código y validar único (ignorar soft-deleted, se restaurarán)
             $consecutivo = trim($producto['CONSECUTIVO'] ?? '');
-            $codigo = strtoupper($prefijo . $consecutivo);
+            $codigo = strtoupper($prefijo.$consecutivo);
             $existente = Producto::where('codigo', $codigo)->first();
             if ($existente) {
                 $erroresFila[] = ['fila' => $fila, 'campo' => 'CODIGO', 'error' => "DUPLICADO: '{$codigo}' ya existe."];
             }
 
-            if (!empty($erroresFila)) {
+            if (! empty($erroresFila)) {
                 $errores = array_merge($errores, $erroresFila);
                 $conError++;
             } else {
@@ -716,11 +727,16 @@ class AltaProductoController extends Controller
             }
         }
 
-        if (!empty($errores)) {
+        if (! empty($errores)) {
             $msg = "Se encontraron errores en {$conError} producto(s):\n\n";
             $porFila = [];
-            foreach ($errores as $err) { $porFila[$err['fila']][] = $err['error']; }
-            foreach ($porFila as $fila => $errs) { $msg .= "Fila {$fila}: ".implode(' | ', $errs)."\n"; }
+            foreach ($errores as $err) {
+                $porFila[$err['fila']][] = $err['error'];
+            }
+            foreach ($porFila as $fila => $errs) {
+                $msg .= "Fila {$fila}: ".implode(' | ', $errs)."\n";
+            }
+
             return back()->with('error', $msg)->with('tab', 'internacional');
         }
 
@@ -729,8 +745,10 @@ class AltaProductoController extends Controller
         foreach ($productos as $prod) {
             $prefijo = strtoupper(trim($prod['PREFIJO'] ?? ''));
             $consecutivo = trim($prod['CONSECUTIVO'] ?? '');
-            $codigo = strtoupper($prefijo . $consecutivo);
-            if (empty($codigo)) continue;
+            $codigo = strtoupper($prefijo.$consecutivo);
+            if (empty($codigo)) {
+                continue;
+            }
 
             $nombreGenerico = trim($prod['NOMBRE_GENERICO'] ?? $prod['NOMBRE_generico'] ?? '');
             $codigoProv = trim($prod['CODIGO_PROVEEDOR'] ?? $prod['codigo_proveedor'] ?? '');
@@ -779,16 +797,19 @@ class AltaProductoController extends Controller
             $creados++;
         }
 
-        try { app(AlertEngineService::class)->alertar([
-            'tipo' => 'productos_alta_automatica',
-            'modulo' => 'productos',
-            'destinatario_tipo' => 'admin',
-            'destinatario_id' => 1,
-            'titulo' => "Alta MPI: {$creados} producto(s)",
-            'contenido' => "Se dieron de alta {$creados} producto(s) MPI Internacional.",
-            'datos' => ['total' => $creados],
-            'nivel' => 'info',
-        ]); } catch (\Exception $e) {}
+        try {
+            app(AlertEngineService::class)->alertar([
+                'tipo' => 'productos_alta_automatica',
+                'modulo' => 'productos',
+                'destinatario_tipo' => 'admin',
+                'destinatario_id' => 1,
+                'titulo' => "Alta MPI: {$creados} producto(s)",
+                'contenido' => "Se dieron de alta {$creados} producto(s) MPI Internacional.",
+                'datos' => ['total' => $creados],
+                'nivel' => 'info',
+            ]);
+        } catch (\Exception $e) {
+        }
 
         return back()->with('mensaje', "Se dieron de alta {$creados} producto(s) MPI exitosamente.")->with('tab', 'internacional');
     }
@@ -833,11 +854,16 @@ class AltaProductoController extends Controller
         $listSheet = $spreadsheet->createSheet();
         $listSheet->setTitle('_Listas');
         // Familias
-        foreach ($this->familiasValidas as $i => $fam) { $listSheet->setCellValue('A'.($i+1), $fam); }
+        foreach ($this->familiasValidas as $i => $fam) {
+            $listSheet->setCellValue('A'.($i + 1), $fam);
+        }
         // Unidades
-        foreach ($this->unidadesValidas as $i => $uni) { $listSheet->setCellValue('B'.($i+1), $uni); }
+        foreach ($this->unidadesValidas as $i => $uni) {
+            $listSheet->setCellValue('B'.($i + 1), $uni);
+        }
         // SI/NO para LOTE y PEDIMENTO
-        $listSheet->setCellValue('C1', 'SI'); $listSheet->setCellValue('C2', 'NO');
+        $listSheet->setCellValue('C1', 'SI');
+        $listSheet->setCellValue('C2', 'NO');
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
         $spreadsheet->setActiveSheetIndex(0);
@@ -909,7 +935,8 @@ class AltaProductoController extends Controller
         $productos = array_filter($productos, function ($prod) {
             $codigo = trim($prod['CODIGO'] ?? '');
             $nombre = trim($prod['NOMBRE_TIPO'] ?? '');
-            return !empty($codigo) || !empty($nombre);
+
+            return ! empty($codigo) || ! empty($nombre);
         });
         $productos = array_values($productos);
 
@@ -930,7 +957,7 @@ class AltaProductoController extends Controller
                 $erroresFila[] = ['fila' => $fila, 'campo' => 'CODIGO', 'error' => "DUPLICADO: '{$codigo}' ya existe en el sistema."];
             }
 
-            if (!empty($erroresFila)) {
+            if (! empty($erroresFila)) {
                 $errores = array_merge($errores, $erroresFila);
                 $conError++;
             } else {
@@ -938,11 +965,16 @@ class AltaProductoController extends Controller
             }
         }
 
-        if (!empty($errores)) {
+        if (! empty($errores)) {
             $msg = "Se encontraron errores en {$conError} producto(s):\n\n";
             $porFila = [];
-            foreach ($errores as $err) { $porFila[$err['fila']][] = $err['error']; }
-            foreach ($porFila as $fila => $errs) { $msg .= "Fila {$fila}: ".implode(' | ', $errs)."\n"; }
+            foreach ($errores as $err) {
+                $porFila[$err['fila']][] = $err['error'];
+            }
+            foreach ($porFila as $fila => $errs) {
+                $msg .= "Fila {$fila}: ".implode(' | ', $errs)."\n";
+            }
+
             return back()->with('error', $msg);
         }
 
@@ -950,7 +982,9 @@ class AltaProductoController extends Controller
         $creados = 0;
         foreach ($productos as $prod) {
             $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
-            if (empty($codigo)) continue;
+            if (empty($codigo)) {
+                continue;
+            }
 
             $nombreTipo = strtoupper(trim($prod['NOMBRE_TIPO'] ?? ''));
             $nombreModelo = strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
@@ -1003,16 +1037,19 @@ class AltaProductoController extends Controller
             $creados++;
         }
 
-        try { app(AlertEngineService::class)->alertar([
-            'tipo' => 'productos_alta_automatica',
-            'modulo' => 'productos',
-            'destinatario_tipo' => 'admin',
-            'destinatario_id' => 1,
-            'titulo' => "Alta Mantenimiento: {$creados} producto(s)",
-            'contenido' => "Se dieron de alta {$creados} producto(s) de Mantenimiento (CM/BL/CIL/CN).",
-            'datos' => ['total' => $creados],
-            'nivel' => 'info',
-        ]); } catch (\Exception $e) {}
+        try {
+            app(AlertEngineService::class)->alertar([
+                'tipo' => 'productos_alta_automatica',
+                'modulo' => 'productos',
+                'destinatario_tipo' => 'admin',
+                'destinatario_id' => 1,
+                'titulo' => "Alta Mantenimiento: {$creados} producto(s)",
+                'contenido' => "Se dieron de alta {$creados} producto(s) de Mantenimiento (CM/BL/CIL/CN).",
+                'datos' => ['total' => $creados],
+                'nivel' => 'info',
+            ]);
+        } catch (\Exception $e) {
+        }
 
         return back()->with('mensaje', "Se dieron de alta {$creados} producto(s) de Mantenimiento exitosamente.");
     }
@@ -1032,7 +1069,7 @@ class AltaProductoController extends Controller
             $proveedorActivo = $proveedorIdVinculo
                 && ProveedorUser::where('id', $proveedorIdVinculo)->where('activo', true)->exists();
 
-            if (!$proveedorActivo) {
+            if (! $proveedorActivo) {
                 return back()
                     ->with('error', 'Primero debes asignar un proveedor (botón verde) antes de subir el Excel.')
                     ->with('tab', 'nacional');
@@ -1075,7 +1112,7 @@ class AltaProductoController extends Controller
         }
     }
 
-    private function procesarExcelSubido(array $productos, string $path, int $primeraFilaDatos, ?int $proveedorIdVinculo = null): \Illuminate\Http\RedirectResponse
+    private function procesarExcelSubido(array $productos, string $path, int $primeraFilaDatos, ?int $proveedorIdVinculo = null): RedirectResponse
     {
 
         if (empty($productos)) {
@@ -1129,7 +1166,7 @@ class AltaProductoController extends Controller
         $validos = 0;
         $conError = 0;
         $esModuloCompras = request()->is('admin/*');
-        $esModuloProveedor = !$esModuloCompras;
+        $esModuloProveedor = ! $esModuloCompras;
         $vincularProveedor = $esModuloCompras && $esFormatoNacional && $proveedorIdVinculo;
         $proveedorVinculo = $vincularProveedor ? ProveedorUser::find($proveedorIdVinculo) : null;
 
@@ -1138,7 +1175,7 @@ class AltaProductoController extends Controller
             foreach ($productos as &$prod) {
                 $codigo = trim($prod['CODIGO'] ?? '');
                 $tipo = strtoupper(trim($prod['TIPO_PRODUCTO'] ?? ''));
-                if (empty($codigo) && !empty($tipo)) {
+                if (empty($codigo) && ! empty($tipo)) {
                     $prod['CODIGO'] = $this->generarSiguienteCodigo($tipo);
                 }
             }
@@ -1161,42 +1198,42 @@ class AltaProductoController extends Controller
         // La IA valida TODAS las filas para detectar campos cruzados
         // (ej: una especificacion en NOMBRE_TIPO, una medida repetida en NOMBRE_ESPECIFICACION)
         // En módulo compras NO se ejecuta validación IA (los datos internos son más flexibles)
-        if (!$esModuloCompras) {
-        try {
-            $iaService = new IaService;
-            $productosParaIA = [];
+        if (! $esModuloCompras) {
+            try {
+                $iaService = new IaService;
+                $productosParaIA = [];
 
-            // Identificar filas con error de DUPLICADO - no enviarlas a la IA
-            $filasDuplicadas = [];
-            foreach ($errores as $err) {
-                if (str_contains($err['error'], 'DUPLICADO')) {
-                    $filasDuplicadas[] = $err['fila'];
+                // Identificar filas con error de DUPLICADO - no enviarlas a la IA
+                $filasDuplicadas = [];
+                foreach ($errores as $err) {
+                    if (str_contains($err['error'], 'DUPLICADO')) {
+                        $filasDuplicadas[] = $err['fila'];
+                    }
                 }
-            }
 
-            foreach ($productos as $index => $prod) {
-                $fila = $index + $primeraFilaDatos;
-                // No enviar duplicados a la IA - ya pasaron validacion antes
-                if (in_array($fila, $filasDuplicadas)) {
-                    continue;
+                foreach ($productos as $index => $prod) {
+                    $fila = $index + $primeraFilaDatos;
+                    // No enviar duplicados a la IA - ya pasaron validacion antes
+                    if (in_array($fila, $filasDuplicadas)) {
+                        continue;
+                    }
+                    $productosParaIA[] = [
+                        'fila_excel' => $fila,
+                        'nombre_tipo' => $prod['NOMBRE_TIPO'] ?? '',
+                        'nombre_marca' => $prod['NOMBRE_MARCA'] ?? '',
+                        'nombre_modelo' => $prod['NOMBRE_MODELO'] ?? '',
+                        'nombre_medida' => $prod['NOMBRE_MEDIDA'] ?? '',
+                        'nombre_especificacion' => $prod['NOMBRE_ESPECIFICACION'] ?? '',
+                        'familia' => $prod['FAMILIA'] ?? '',
+                        'tipo_producto' => $prod['TIPO_PRODUCTO'] ?? '',
+                    ];
                 }
-                $productosParaIA[] = [
-                    'fila_excel' => $fila,
-                    'nombre_tipo' => $prod['NOMBRE_TIPO'] ?? '',
-                    'nombre_marca' => $prod['NOMBRE_MARCA'] ?? '',
-                    'nombre_modelo' => $prod['NOMBRE_MODELO'] ?? '',
-                    'nombre_medida' => $prod['NOMBRE_MEDIDA'] ?? '',
-                    'nombre_especificacion' => $prod['NOMBRE_ESPECIFICACION'] ?? '',
-                    'familia' => $prod['FAMILIA'] ?? '',
-                    'tipo_producto' => $prod['TIPO_PRODUCTO'] ?? '',
-                ];
-            }
 
-            if (! empty($productosParaIA)) {
-                // Enviar en lotes de 15 para no exceder tokens
-                $lotes = array_chunk($productosParaIA, 15);
-                foreach ($lotes as $lote) {
-                    $prompt = 'Eres un detector de CAMPOS CRUZADOS en productos industriales. Tu UNICO trabajo es detectar si un dato esta en el campo INCORRECTO (puesto donde no va).
+                if (! empty($productosParaIA)) {
+                    // Enviar en lotes de 15 para no exceder tokens
+                    $lotes = array_chunk($productosParaIA, 15);
+                    foreach ($lotes as $lote) {
+                        $prompt = 'Eres un detector de CAMPOS CRUZADOS en productos industriales. Tu UNICO trabajo es detectar si un dato esta en el campo INCORRECTO (puesto donde no va).
 
 DEFINICION DE CAMPOS:
 - NOMBRE_TIPO = Que ES el producto (ej: MOTOR ELECTRICO, PINTURA VINILICA, CAJA CARTON)
@@ -1227,149 +1264,149 @@ Responde UNICAMENTE JSON valido, sin markdown:
 {"errores_ia": [{"fila": N, "campo": "NOMBRE_X", "error": "explicacion corta", "sugerencia": "VALOR"}]}
 Si todo correcto: {"errores_ia": []}';
 
-                    $resultado = $iaService->llamarClaude($prompt);
-                    if ($resultado['success'] && $resultado['content']) {
-                        $contenido = preg_replace('/```json\s*/', '', $resultado['content']);
-                        $contenido = preg_replace('/```\s*/', '', $contenido);
-                        $iaResult = json_decode(trim($contenido), true);
-                        if ($iaResult && ! empty($iaResult['errores_ia'])) {
-                            foreach ($iaResult['errores_ia'] as $errIA) {
-                                $filaIA = (int) ($errIA['fila'] ?? 0);
-                                if ($filaIA < 2) {
-                                    continue;
-                                }
-                                $campoIA = $errIA['campo'] ?? 'NOMBRE_TIPO';
-
-                                // No duplicar errores que PHP ya detecto
-                                $yaExiste = false;
-                                foreach ($errores as $eEx) {
-                                    if ($eEx['fila'] === $filaIA && $eEx['campo'] === $campoIA) {
-                                        $yaExiste = true;
-                                        break;
+                        $resultado = $iaService->llamarClaude($prompt);
+                        if ($resultado['success'] && $resultado['content']) {
+                            $contenido = preg_replace('/```json\s*/', '', $resultado['content']);
+                            $contenido = preg_replace('/```\s*/', '', $contenido);
+                            $iaResult = json_decode(trim($contenido), true);
+                            if ($iaResult && ! empty($iaResult['errores_ia'])) {
+                                foreach ($iaResult['errores_ia'] as $errIA) {
+                                    $filaIA = (int) ($errIA['fila'] ?? 0);
+                                    if ($filaIA < 2) {
+                                        continue;
                                     }
-                                }
-                                if (! $yaExiste) {
-                                    $idx = $filaIA - $primeraFilaDatos;
+                                    $campoIA = $errIA['campo'] ?? 'NOMBRE_TIPO';
 
-                                    // VERIFICAR con PHP que el error de la IA sea real
-                                    // La IA puede alucinar - confirmar los datos reales del Excel
-                                    if (isset($productos[$idx])) {
+                                    // No duplicar errores que PHP ya detecto
+                                    $yaExiste = false;
+                                    foreach ($errores as $eEx) {
+                                        if ($eEx['fila'] === $filaIA && $eEx['campo'] === $campoIA) {
+                                            $yaExiste = true;
+                                            break;
+                                        }
+                                    }
+                                    if (! $yaExiste) {
+                                        $idx = $filaIA - $primeraFilaDatos;
                                         $errorTexto = strtolower($errIA['error'] ?? '');
-                                        $prod = $productos[$idx];
 
-                                        // Si dice "identico" o "duplicado" entre especificacion y medida, verificar
-                                        if (str_contains($errorTexto, 'identic') || str_contains($errorTexto, 'duplica') || str_contains($errorTexto, 'mismo texto')) {
-                                            $medida = strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? ''));
-                                            $espec = strtoupper(trim($prod['NOMBRE_ESPECIFICACION'] ?? ''));
-                                            if ($medida !== $espec) {
-                                                continue; // Falso positivo - NO son identicos
+                                        // VERIFICAR con PHP que el error de la IA sea real
+                                        // La IA puede alucinar - confirmar los datos reales del Excel
+                                        if (isset($productos[$idx])) {
+                                            $prod = $productos[$idx];
+
+                                            // Si dice "identico" o "duplicado" entre especificacion y medida, verificar
+                                            if (str_contains($errorTexto, 'identic') || str_contains($errorTexto, 'duplica') || str_contains($errorTexto, 'mismo texto')) {
+                                                $medida = strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? ''));
+                                                $espec = strtoupper(trim($prod['NOMBRE_ESPECIFICACION'] ?? ''));
+                                                if ($medida !== $espec) {
+                                                    continue; // Falso positivo - NO son identicos
+                                                }
                                             }
-                                        }
 
-                                        // Si dice que hay una medida (numeros) en NOMBRE_MARCA, verificar que NOMBRE_MARCA realmente tenga numeros
-                                        if ($campoIA === 'NOMBRE_MARCA' && (str_contains($errorTexto, 'medida') || str_contains($errorTexto, 'numero'))) {
-                                            $valorMarca = trim($prod['NOMBRE_MARCA'] ?? '');
-                                            if (!preg_match('/\d/', $valorMarca)) {
-                                                continue; // Falso positivo - NOMBRE_MARCA no tiene numeros
+                                            // Si dice que hay una medida (numeros) en NOMBRE_MARCA, verificar que NOMBRE_MARCA realmente tenga numeros
+                                            if ($campoIA === 'NOMBRE_MARCA' && (str_contains($errorTexto, 'medida') || str_contains($errorTexto, 'numero'))) {
+                                                $valorMarca = trim($prod['NOMBRE_MARCA'] ?? '');
+                                                if (! preg_match('/\d/', $valorMarca)) {
+                                                    continue; // Falso positivo - NOMBRE_MARCA no tiene numeros
+                                                }
                                             }
-                                        }
 
-                                        // Si dice que hay una medida en NOMBRE_TIPO, verificar que NOMBRE_TIPO realmente tenga numeros
-                                        if ($campoIA === 'NOMBRE_TIPO' && (str_contains($errorTexto, 'medida') || str_contains($errorTexto, 'numero'))) {
-                                            $valorTipo = trim($prod['NOMBRE_TIPO'] ?? '');
-                                            if (!preg_match('/\d/', $valorTipo)) {
-                                                continue; // Falso positivo - NOMBRE_TIPO no tiene numeros
+                                            // Si dice que hay una medida en NOMBRE_TIPO, verificar que NOMBRE_TIPO realmente tenga numeros
+                                            if ($campoIA === 'NOMBRE_TIPO' && (str_contains($errorTexto, 'medida') || str_contains($errorTexto, 'numero'))) {
+                                                $valorTipo = trim($prod['NOMBRE_TIPO'] ?? '');
+                                                if (! preg_match('/\d/', $valorTipo)) {
+                                                    continue; // Falso positivo - NOMBRE_TIPO no tiene numeros
+                                                }
                                             }
-                                        }
 
-                                        // Si dice que hay una medida en NOMBRE_MEDIDA pero el error reporta un valor que NO es el real, descartar
-                                        if ($campoIA === 'NOMBRE_MEDIDA' && (str_contains($errorTexto, 'marca') || str_contains($errorTexto, 'campo'))) {
-                                            // Verificar que la sugerencia de la IA no sea el valor de OTRA fila
-                                            $sugerenciaIA = strtoupper(trim($errIA['sugerencia'] ?? ''));
-                                            $medidaReal = strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? ''));
-                                            // Si la IA dice "pon X" pero X no tiene relacion con esta fila, descartar
-                                            if ($sugerenciaIA && $sugerenciaIA !== $medidaReal && !str_contains($medidaReal, $sugerenciaIA)) {
-                                                // Verificar si la sugerencia es el valor de NOMBRE_MEDIDA de otra fila (confusion)
-                                                $esDeOtraFila = false;
-                                                foreach ($productos as $otroProd) {
-                                                    if (strtoupper(trim($otroProd['NOMBRE_MEDIDA'] ?? '')) === $sugerenciaIA && $otroProd !== $prod) {
-                                                        $esDeOtraFila = true;
-                                                        break;
+                                            // Si dice que hay una medida en NOMBRE_MEDIDA pero el error reporta un valor que NO es el real, descartar
+                                            if ($campoIA === 'NOMBRE_MEDIDA' && (str_contains($errorTexto, 'marca') || str_contains($errorTexto, 'campo'))) {
+                                                // Verificar que la sugerencia de la IA no sea el valor de OTRA fila
+                                                $sugerenciaIA = strtoupper(trim($errIA['sugerencia'] ?? ''));
+                                                $medidaReal = strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? ''));
+                                                // Si la IA dice "pon X" pero X no tiene relacion con esta fila, descartar
+                                                if ($sugerenciaIA && $sugerenciaIA !== $medidaReal && ! str_contains($medidaReal, $sugerenciaIA)) {
+                                                    // Verificar si la sugerencia es el valor de NOMBRE_MEDIDA de otra fila (confusion)
+                                                    $esDeOtraFila = false;
+                                                    foreach ($productos as $otroProd) {
+                                                        if (strtoupper(trim($otroProd['NOMBRE_MEDIDA'] ?? '')) === $sugerenciaIA && $otroProd !== $prod) {
+                                                            $esDeOtraFila = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                    if ($esDeOtraFila) {
+                                                        continue; // La IA confundio filas
                                                     }
                                                 }
-                                                if ($esDeOtraFila) {
-                                                    continue; // La IA confundio filas
+                                            }
+
+                                            // Si dice que hay una marca en NOMBRE_TIPO, verificar que realmente sea una marca conocida
+                                            if ($campoIA === 'NOMBRE_TIPO' && str_contains($errorTexto, 'marca')) {
+                                                $valorTipo = strtoupper(trim($prod['NOMBRE_TIPO'] ?? ''));
+                                                $marcasTop = ['WEG', 'SKF', '3M', 'ALPHA', 'SIEMENS', 'ABB', 'SCHNEIDER', 'BOSCH', 'SAMSUNG', 'APPLE', 'LG', 'SONY', 'COMEX', 'TRUPER', 'PEMEX', 'DUPONT', 'HENKEL', 'DE LA ROSA', 'BIMBO', 'NESTLE'];
+                                                if (! in_array($valorTipo, $marcasTop)) {
+                                                    continue; // No es una marca conocida - falso positivo
                                                 }
                                             }
                                         }
 
-                                        // Si dice que hay una marca en NOMBRE_TIPO, verificar que realmente sea una marca conocida
-                                        if ($campoIA === 'NOMBRE_TIPO' && str_contains($errorTexto, 'marca')) {
-                                            $valorTipo = strtoupper(trim($prod['NOMBRE_TIPO'] ?? ''));
-                                            $marcasTop = ['WEG', 'SKF', '3M', 'ALPHA', 'SIEMENS', 'ABB', 'SCHNEIDER', 'BOSCH', 'SAMSUNG', 'APPLE', 'LG', 'SONY', 'COMEX', 'TRUPER', 'PEMEX', 'DUPONT', 'HENKEL', 'DE LA ROSA', 'BIMBO', 'NESTLE'];
-                                            if (!in_array($valorTipo, $marcasTop)) {
-                                                continue; // No es una marca conocida - falso positivo
+                                        // Si la sugerencia es igual al valor actual, descartar (falso positivo)
+                                        $sugerencia = $errIA['sugerencia'] ?? null;
+                                        if ($sugerencia) {
+                                            if (isset($productos[$idx])) {
+                                                $campoKey = $campoIA;
+                                                $valorActual = strtoupper(trim($productos[$idx][$campoKey] ?? ''));
+                                                $sugerenciaLimpia = strtoupper(trim($sugerencia));
+                                                if ($valorActual === $sugerenciaLimpia) {
+                                                    continue; // La IA sugiere lo mismo que ya tiene - falso positivo
+                                                }
                                             }
                                         }
-                                    }
 
-                                    // Si la sugerencia es igual al valor actual, descartar (falso positivo)
-                                    $sugerencia = $errIA['sugerencia'] ?? null;
-                                    if ($sugerencia) {
-                                        if (isset($productos[$idx])) {
-                                            $campoKey = $campoIA;
-                                            $valorActual = strtoupper(trim($productos[$idx][$campoKey] ?? ''));
-                                            $sugerenciaLimpia = strtoupper(trim($sugerencia));
-                                            if ($valorActual === $sugerenciaLimpia) {
-                                                continue; // La IA sugiere lo mismo que ya tiene - falso positivo
+                                        // Si la IA dice que una marca está en NOMBRE_MODELO, pero NOMBRE_MARCA ya tiene esa marca, es falso positivo
+                                        if (isset($productos[$idx]) && $campoIA === 'NOMBRE_MODELO' && str_contains($errorTexto, 'marca')) {
+                                            $valorModelo = strtoupper(trim($productos[$idx]['NOMBRE_MODELO'] ?? ''));
+                                            $valorMarca = strtoupper(trim($productos[$idx]['NOMBRE_MARCA'] ?? ''));
+                                            // Si NOMBRE_MODELO tiene un código numérico, es válido (ej: "20012420 ABRILLANTADOR 400ML")
+                                            if (preg_match('/\d{4,}/', $valorModelo)) {
+                                                continue; // Tiene código numérico - es válido
+                                            }
+                                            // Si la marca que sugiere ya está en NOMBRE_MARCA, falso positivo
+                                            $sugerenciaIA2 = strtoupper(trim($errIA['sugerencia'] ?? ''));
+                                            if ($sugerenciaIA2 && str_contains($valorMarca, $sugerenciaIA2)) {
+                                                continue; // Ya está en NOMBRE_MARCA
                                             }
                                         }
-                                    }
 
-                                    // Si la IA dice que una marca está en NOMBRE_MODELO, pero NOMBRE_MARCA ya tiene esa marca, es falso positivo
-                                    if ($campoIA === 'NOMBRE_MODELO' && str_contains($errorTexto, 'marca')) {
-                                        $valorModelo = strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
-                                        $valorMarca = strtoupper(trim($prod['NOMBRE_MARCA'] ?? ''));
-                                        // Si NOMBRE_MODELO tiene un código numérico, es válido (ej: "20012420 ABRILLANTADOR 400ML")
-                                        if (preg_match('/\d{4,}/', $valorModelo)) {
-                                            continue; // Tiene código numérico - es válido
+                                        // Si la IA dice que hay una medida en NOMBRE_MARCA, verificar que NOMBRE_MARCA realmente tenga números
+                                        // Excluir marcas como "SURE SCENTS", "ANGEL OF MINE" que no tienen números
+                                        if (isset($productos[$idx]) && $campoIA === 'NOMBRE_MEDIDA' && str_contains($errorTexto, 'NOMBRE_MARCA')) {
+                                            $valorMarcaReal = trim($productos[$idx]['NOMBRE_MARCA'] ?? '');
+                                            if (! preg_match('/\d/', $valorMarcaReal)) {
+                                                continue; // NOMBRE_MARCA no tiene números - falso positivo
+                                            }
                                         }
-                                        // Si la marca que sugiere ya está en NOMBRE_MARCA, falso positivo
-                                        $sugerenciaIA2 = strtoupper(trim($errIA['sugerencia'] ?? ''));
-                                        if ($sugerenciaIA2 && str_contains($valorMarca, $sugerenciaIA2)) {
-                                            continue; // Ya está en NOMBRE_MARCA
-                                        }
-                                    }
 
-                                    // Si la IA dice que hay una medida en NOMBRE_MARCA, verificar que NOMBRE_MARCA realmente tenga números
-                                    // Excluir marcas como "SURE SCENTS", "ANGEL OF MINE" que no tienen números
-                                    if ($campoIA === 'NOMBRE_MEDIDA' && str_contains($errorTexto, 'NOMBRE_MARCA')) {
-                                        $valorMarcaReal = trim($prod['NOMBRE_MARCA'] ?? '');
-                                        if (!preg_match('/\d/', $valorMarcaReal)) {
-                                            continue; // NOMBRE_MARCA no tiene números - falso positivo
+                                        $mensajeError = 'IA: '.($errIA['error'] ?? 'Campo con dato incorrecto');
+                                        if ($sugerencia) {
+                                            $mensajeError .= " || CORRECCION: {$sugerencia}";
                                         }
+                                        $errores[] = ['fila' => $filaIA, 'campo' => $campoIA, 'error' => $mensajeError];
                                     }
-
-                                    $mensajeError = 'IA: '.($errIA['error'] ?? 'Campo con dato incorrecto');
-                                    if ($sugerencia) {
-                                        $mensajeError .= " || CORRECCION: {$sugerencia}";
-                                    }
-                                    $errores[] = ['fila' => $filaIA, 'campo' => $campoIA, 'error' => $mensajeError];
                                 }
                             }
                         }
                     }
                 }
+
+                // Recalcular conteos despues de IA
+                $filasConErrorFinal = array_unique(array_column($errores, 'fila'));
+                $conError = count($filasConErrorFinal);
+                $validos = count($productos) - $conError;
+
+            } catch (\Exception $e) {
+                Log::warning('[Alta Producto] IA validacion: '.$e->getMessage());
             }
-
-            // Recalcular conteos despues de IA
-            $filasConErrorFinal = array_unique(array_column($errores, 'fila'));
-            $conError = count($filasConErrorFinal);
-            $validos = count($productos) - $conError;
-
-        } catch (\Exception $e) {
-            Log::warning('[Alta Producto] IA validacion: '.$e->getMessage());
-        }
         } // fin if (!$esModuloCompras) - validación IA
 
         // Guardar resultado
@@ -1430,7 +1467,7 @@ Si todo correcto: {"errores_ia": []}';
         $productosAlta = [];
         foreach ($productos as $index => $prod) {
             $fila = $index + $primeraFilaDatos;
-            if (!in_array($fila, $filasConErrorFinal)) {
+            if (! in_array($fila, $filasConErrorFinal)) {
                 $this->guardarProductoDesdeAlta($prod, $proveedorIdVinculo, $vincularProveedor);
                 $codigo = strtoupper(trim($prod['CODIGO'] ?? ''));
                 $nombre = strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.strtoupper(trim($prod['NOMBRE_MODELO'] ?? ''));
@@ -1483,8 +1520,8 @@ Si todo correcto: {"errores_ia": []}';
 
         // Si hubo productos que si se dieron de alta, agregar mensaje de exito
         $mensajeExito = null;
-        if (!empty($productosAlta)) {
-            $mensajeExito = "OK - ".count($productosAlta)." producto(s) SI se dieron de alta:\n";
+        if (! empty($productosAlta)) {
+            $mensajeExito = 'OK - '.count($productosAlta)." producto(s) SI se dieron de alta:\n";
             foreach ($productosAlta as $item) {
                 $mensajeExito .= "* Fila {$item['fila']} - {$item['texto']}\n";
             }
@@ -1553,7 +1590,7 @@ Si todo correcto: {"errores_ia": []}';
         }
         $tiposProducto2 = ['MPI', 'ME', 'MN', 'MP', 'PT', 'RP', 'CONTABLE', 'GASTOS', 'REFACCIONES', 'HERRAMIENTAS', 'MAQUINARIA', 'MUESTRAS', 'INSUMOS', 'EQUIPO', 'SEGURIDAD', 'VEHICULOS', 'MOLDES', 'SERVICIOS'];
         foreach ($tiposProducto2 as $i => $tipo) {
-            $listSheet->setCellValue('C' . ($i + 1), $tipo);
+            $listSheet->setCellValue('C'.($i + 1), $tipo);
         }
         $listSheet->setCellValue('D1', 'SI');
         $listSheet->setCellValue('D2', 'NO');
@@ -1728,14 +1765,14 @@ Si todo correcto: {"errores_ia": []}';
         }
 
         // === 1b. CAMPOS OBLIGATORIOS ADICIONALES POR TIPO_PRODUCTO (solo para proveedores) ===
-        if (!$esModuloCompras) {
+        if (! $esModuloCompras) {
             $camposExtra = $this->obligatoriosPorTipo[$tipoProductoActual] ?? [];
             foreach ($camposExtra as $campo) {
                 if (empty(trim($producto[$campo] ?? ''))) {
                     $sugerencia = match ($campo) {
                         'FAMILIA' => 'Para PT es obligatorio. Selecciona del dropdown.',
                         'UNIDAD_MEDIDA' => 'Para MPI es obligatorio. Selecciona: KG, PZA, CAJA, etc.',
-                        default => 'Este campo es obligatorio para ' . $tipoProductoActual,
+                        default => 'Este campo es obligatorio para '.$tipoProductoActual,
                     };
                     $errores[] = [
                         'fila' => $fila,
@@ -1869,7 +1906,7 @@ Si todo correcto: {"errores_ia": []}';
                 // Detectar texto basura (consonantes sin vocales)
                 // Excluir medidas con formato de dimensiones (30CMX30CM, 40X30X25, etc.)
                 $esFormatoDimensiones = preg_match('/\d+\s*(CM|MM|MT|LT|ML|KG|GR|PZA)?\s*X\s*\d+/i', $info['valor']);
-                if (!$esFormatoDimensiones) {
+                if (! $esFormatoDimensiones) {
                     // Intentar limpiar espacios - si sin espacios es un formato valido, sugerir correccion
                     $valorSinEspacios = strtoupper(str_replace(' ', '', $info['valor']));
                     $esFormatoDimensionesLimpio = preg_match('/^\d+(CM|MM|MT|LT|ML|KG|GR|PZA)?X\d+(CM|MM|MT|LT|ML|KG|GR|PZA)?$/i', $valorSinEspacios);
@@ -1954,7 +1991,7 @@ Si todo correcto: {"errores_ia": []}';
             ];
         }
 
-        if ($nombreMedidaRaw && ! preg_match('/\d/', $nombreMedidaRaw) && !$esModuloCompras) {
+        if ($nombreMedidaRaw && ! preg_match('/\d/', $nombreMedidaRaw) && ! $esModuloCompras) {
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'NOMBRE_MEDIDA',
@@ -2060,7 +2097,7 @@ Si todo correcto: {"errores_ia": []}';
                 $primeraPalabra = $palabrasTipoArr[0];
                 $segundaPalabra = $palabrasTipoArr[1];
                 // Si la primera palabra es un adjetivo y la segunda es un sustantivo, esta volteado
-                if (in_array($primeraPalabra, $adjetivosIndustriales) && !in_array($segundaPalabra, $adjetivosIndustriales)) {
+                if (in_array($primeraPalabra, $adjetivosIndustriales) && ! in_array($segundaPalabra, $adjetivosIndustriales)) {
                     $sugerenciaOrden = $segundaPalabra.' '.$primeraPalabra;
                     if (count($palabrasTipoArr) > 2) {
                         $sugerenciaOrden .= ' '.implode(' ', array_slice($palabrasTipoArr, 2));
@@ -2478,7 +2515,7 @@ Si todo correcto: {"errores_ia": []}';
             }
         }
 
-        $primeraFilaDatos = $headerRowIndex + 2;
+        $primeraFilaDatos = (int) ($headerRowIndex + 2);
         $headers = array_map(fn ($h) => strtoupper(trim((string) ($h ?? ''))), $rows[$headerRowIndex]);
         $productos = [];
 
@@ -2547,7 +2584,7 @@ Si todo correcto: {"errores_ia": []}';
 
         // Leer el Excel
         try {
-            $fullPath = storage_path('app/public/' . $path);
+            $fullPath = storage_path('app/public/'.$path);
 
             if (Str::endsWith($file->getClientOriginalName(), '.csv')) {
                 $productos = $this->leerCSV($fullPath);
@@ -2556,7 +2593,7 @@ Si todo correcto: {"errores_ia": []}';
                 $productos = $this->leerSpreadsheet($spreadsheet);
             }
         } catch (\Exception $e) {
-            return back()->with('error', 'No se pudo leer el archivo. Asegúrate de que sea un Excel (.xlsx) o CSV válido. Error: ' . $e->getMessage());
+            return back()->with('error', 'No se pudo leer el archivo. Asegúrate de que sea un Excel (.xlsx) o CSV válido. Error: '.$e->getMessage());
         }
 
         if (empty($productos)) {
@@ -2574,7 +2611,7 @@ Si todo correcto: {"errores_ia": []}';
         $totalProductos = count($productosParaMigrar);
 
         if ($totalProductos > 500) {
-            return back()->with('error', 'El Excel tiene ' . $totalProductos . ' productos. El máximo por archivo es 500. Copia solo 50-500 filas del Excel bruto a un Excel en blanco y sube ese.');
+            return back()->with('error', 'El Excel tiene '.$totalProductos.' productos. El máximo por archivo es 500. Copia solo 50-500 filas del Excel bruto a un Excel en blanco y sube ese.');
         }
 
         // Obtener admin_id de la sesión
@@ -2597,8 +2634,8 @@ Si todo correcto: {"errores_ia": []}';
         ]);
 
         // Crear archivo JSON vacío para acumular resultados de cada lote
-        $resultadoJsonPath = 'migraciones-masivas/resultado_' . $migracion->id . '.json';
-        $resultadoFullPath = storage_path('app/public/' . $resultadoJsonPath);
+        $resultadoJsonPath = 'migraciones-masivas/resultado_'.$migracion->id.'.json';
+        $resultadoFullPath = storage_path('app/public/'.$resultadoJsonPath);
         file_put_contents($resultadoFullPath, json_encode([], JSON_UNESCAPED_UNICODE));
 
         // Despachar un job por cada lote
@@ -2610,9 +2647,9 @@ Si todo correcto: {"errores_ia": []}';
             );
         }
 
-        Log::info("[MigracionMasiva] Iniciada migración #{$migracion->id}: " . count($productosParaMigrar) . " productos en {$totalLotes} lotes");
+        Log::info("[MigracionMasiva] Iniciada migración #{$migracion->id}: ".count($productosParaMigrar)." productos en {$totalLotes} lotes");
 
-        return back()->with('mensaje', "Migración iniciada: " . count($productosParaMigrar) . " productos se procesarán en {$totalLotes} lotes. El progreso se actualizará automáticamente.");
+        return back()->with('mensaje', 'Migración iniciada: '.count($productosParaMigrar)." productos se procesarán en {$totalLotes} lotes. El progreso se actualizará automáticamente.");
     }
 
     /**
@@ -2681,7 +2718,7 @@ Si todo correcto: {"errores_ia": []}';
             }
         }
 
-        if (!$colCodigo || !$colNombre) {
+        if (! $colCodigo || ! $colNombre) {
             return [];
         }
 
@@ -2757,17 +2794,17 @@ Si todo correcto: {"errores_ia": []}';
     {
         $migracion = MigracionMasiva::findOrFail($id);
 
-        if (!$migracion->resultado_path) {
+        if (! $migracion->resultado_path) {
             return back()->with('error', 'Esta migración aún no tiene un archivo de resultado.');
         }
 
-        $fullPath = storage_path('app/public/' . $migracion->resultado_path);
+        $fullPath = storage_path('app/public/'.$migracion->resultado_path);
 
-        if (!file_exists($fullPath)) {
+        if (! file_exists($fullPath)) {
             return back()->with('error', 'El archivo de resultado no se encontró en el servidor.');
         }
 
-        return response()->download($fullPath, 'Migracion_Resultado_' . $migracion->id . '.xlsx', [
+        return response()->download($fullPath, 'Migracion_Resultado_'.$migracion->id.'.xlsx', [
             'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         ]);
     }
@@ -2778,7 +2815,7 @@ Si todo correcto: {"errores_ia": []}';
      */
     public function descargarTemplateMigracion()
     {
-        $spreadsheet = new Spreadsheet();
+        $spreadsheet = new Spreadsheet;
         $sheet = $spreadsheet->getActiveSheet();
         $sheet->setTitle('Productos');
 
@@ -2786,10 +2823,10 @@ Si todo correcto: {"errores_ia": []}';
         $headers = ['ItemCode', 'ItemName', 'ItemsGroupCode', 'RefCodigoGrupoArticulos', 'NCMCode', 'Refe_Codigo_Articulos_SAT', 'ManageBatchNumbers', 'ManageSerialNumbers', 'PurchaseItem', 'SalesItem', 'InventoryItem', 'BarCode', 'IndirectTax', 'WTLiable', 'VatLiable', 'Mainsupplier', 'PurchaseUnit'];
         $col = 'A';
         foreach ($headers as $header) {
-            $sheet->setCellValue($col . '1', $header);
-            $sheet->getStyle($col . '1')->getFont()->setBold(true);
-            $sheet->getStyle($col . '1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
-            $sheet->getStyle($col . '1')->getFont()->getColor()->setRGB('FFFFFF');
+            $sheet->setCellValue($col.'1', $header);
+            $sheet->getStyle($col.'1')->getFont()->setBold(true);
+            $sheet->getStyle($col.'1')->getFill()->setFillType(Fill::FILL_SOLID)->getStartColor()->setRGB('6B3FA0');
+            $sheet->getStyle($col.'1')->getFont()->getColor()->setRGB('FFFFFF');
             $sheet->getColumnDimension($col)->setAutoSize(true);
             $col++;
         }
@@ -2830,9 +2867,9 @@ Si todo correcto: {"errores_ia": []}';
         ];
 
         foreach ($instrucciones as $texto) {
-            $instrSheet->setCellValue('A' . $row, $texto);
+            $instrSheet->setCellValue('A'.$row, $texto);
             if (str_starts_with($texto, '===')) {
-                $instrSheet->getStyle('A' . $row)->getFont()->setBold(true);
+                $instrSheet->getStyle('A'.$row)->getFont()->setBold(true);
             }
             $row++;
         }
@@ -3133,7 +3170,8 @@ Si todo correcto: {"errores_ia": []}';
         }
 
         $digitos = max(3, strlen((string) $siguiente));
-        return $prefijo . str_pad($siguiente, $digitos, '0', STR_PAD_LEFT);
+
+        return $prefijo.str_pad((string) $siguiente, $digitos, '0', STR_PAD_LEFT);
     }
 
     private function inferirTipoPorCodigo(string $codigo): ?string

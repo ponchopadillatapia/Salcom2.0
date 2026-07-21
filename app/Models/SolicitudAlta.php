@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SolicitudAlta extends Model
 {
@@ -21,7 +22,7 @@ class SolicitudAlta extends Model
         'docs_marcados' => 'array',
     ];
 
-    public function proveedor()
+    public function proveedor(): BelongsTo
     {
         return $this->belongsTo(ProveedorUser::class, 'proveedor_id');
     }

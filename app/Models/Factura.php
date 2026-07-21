@@ -8,6 +8,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * @property-read ProveedorUser|null $proveedor
+ * @property-read int|null $cantidad Alias de agregaciones (count) en consultas selectRaw
+ * @property-read int|null $num_facturas
+ * @property-read float|string|null $monto_total
+ * @property-read string|null $ultima_factura
  */
 class Factura extends Model
 {

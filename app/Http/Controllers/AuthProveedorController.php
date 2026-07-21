@@ -4,18 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\ProveedorApiException;
 use App\Http\Requests\LoginProveedorRequest;
-use App\Http\Requests\RegisterProveedorRequest;
 use App\Mail\BienvenidaProveedor;
 use App\Models\AdminUser;
 use App\Models\ProveedorUser;
 use App\Services\AlertEngineService;
 use App\Services\ProveedorApiService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class AuthProveedorController extends Controller
 {
@@ -148,7 +150,7 @@ class AuthProveedorController extends Controller
             ]);
 
             // Verificar si ya existe
-            $existe = \Illuminate\Support\Facades\DB::table('proveedores_users')
+            $existe = DB::table('proveedores_users')
                 ->where('correo', $request->correo)
                 ->orWhere('usuario', $request->correo)
                 ->exists();
@@ -168,7 +170,7 @@ class AuthProveedorController extends Controller
             }
 
             // Insertar proveedor
-            $proveedorId = \Illuminate\Support\Facades\DB::table('proveedores_users')->insertGetId([
+            $proveedorId = DB::table('proveedores_users')->insertGetId([
                 'usuario' => $request->correo,
                 'password' => bcrypt($request->password),
                 'nombre' => $request->nombre,
@@ -188,11 +190,12 @@ class AuthProveedorController extends Controller
 
             return redirect('/login-proveedor')->with('mensaje', 'Registro exitoso. Revisa tu correo e inicia sesión para completar tu onboarding.');
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             throw $e; // Re-lanzar para que Laravel muestre los errores de validación
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Error registro proveedor: ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine());
-            return back()->withErrors(['general' => 'Error al registrar. Intenta de nuevo. (' . class_basename($e) . ')'])->withInput();
+            Log::error('Error registro proveedor: '.$e->getMessage().' | '.$e->getFile().':'.$e->getLine());
+
+            return back()->withErrors(['general' => 'Error al registrar. Intenta de nuevo. ('.class_basename($e).')'])->withInput();
         }
     }
 
@@ -284,9 +287,9 @@ class AuthProveedorController extends Controller
             'activo' => true,
         ];
 
-        if (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'id_proveedor')) {
+        if (Schema::hasColumn('proveedores_users', 'id_proveedor')) {
             $datos['id_proveedor'] = 'ADMIN-'.$admin->id;
-        } elseif (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'codigo_compras')) {
+        } elseif (Schema::hasColumn('proveedores_users', 'codigo_compras')) {
             $datos['codigo_compras'] = 'ADMIN-'.$admin->id;
         }
 

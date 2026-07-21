@@ -21,12 +21,9 @@ parameters:
 
     # Baseline: errores existentes que se corregirán gradualmente
     ignoreErrors:
+        - identifier: method.unused
         - message: '#Call to an undefined method thiagoalessio\\TesseractOCR\\TesseractOCR::lang#'
           path: app/Http/Controllers/APIS/EmpresaApiController.php
-        - message: '#Relation .proveedor. is not found in App\\Models\\DocumentoProveedor model#'
-          paths:
-            - app/Http/Controllers/APIS/SalcomApiController.php
-            - app/Http/Controllers/AdminPanelController.php
         - message: '#should return float but returns string#'
           path: app/Models/ProveedorUser.php
         - message: '#expects int, string given#'
