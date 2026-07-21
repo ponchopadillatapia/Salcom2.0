@@ -9,13 +9,15 @@ use Illuminate\Console\Command;
 class FormatearFallidos extends Command
 {
     protected $signature = 'productos:formatear-fallidos';
+
     protected $description = 'Reprocesar solo los productos que fallaron (IDs en storage/app/productos_fallidos.txt)';
 
     public function handle(): int
     {
         $file = storage_path('app/productos_fallidos.txt');
-        if (!file_exists($file)) {
-            $this->error("No hay archivo de fallidos.");
+        if (! file_exists($file)) {
+            $this->error('No hay archivo de fallidos.');
+
             return 1;
         }
 
@@ -23,17 +25,17 @@ class FormatearFallidos extends Command
         $ids = array_map('intval', $ids);
         $ids = array_unique($ids);
 
-        $this->info("Reprocesando " . count($ids) . " productos fallidos...");
+        $this->info('Reprocesando '.count($ids).' productos fallidos...');
 
         $productos = Producto::whereIn('id', $ids)->get();
-        $iaService = new IaService();
+        $iaService = new IaService;
         $lotes = $productos->chunk(20);
         $procesados = 0;
         $errores = 0;
         $nuevosFallidos = [];
 
         foreach ($lotes as $lote) {
-            $productosTexto = "";
+            $productosTexto = '';
             foreach ($lote as $prod) {
                 $productosTexto .= "{$prod->id}. {$prod->nombre}\n";
             }
@@ -74,7 +76,7 @@ Responde UNICAMENTE JSON valido sin markdown:
                 $contenido = preg_replace('/^\xEF\xBB\xBF/', '', $contenido);
 
                 $iaResult = json_decode($contenido, true);
-                if (!$iaResult && preg_match('/\{.*\}/s', $contenido, $matches)) {
+                if (! $iaResult && preg_match('/\{.*\}/s', $contenido, $matches)) {
                     $iaResult = json_decode($matches[0], true);
                 }
 
@@ -89,26 +91,31 @@ Responde UNICAMENTE JSON valido sin markdown:
                     }
                 } else {
                     $errores += $lote->count();
-                    foreach ($lote as $p) { $nuevosFallidos[] = $p->id; }
+                    foreach ($lote as $p) {
+                        $nuevosFallidos[] = $p->id;
+                    }
                 }
             } else {
                 $errores += $lote->count();
-                foreach ($lote as $p) { $nuevosFallidos[] = $p->id; }
+                foreach ($lote as $p) {
+                    $nuevosFallidos[] = $p->id;
+                }
             }
 
             $this->info("Progreso: {$procesados} OK, {$errores} errores");
         }
 
         // Guardar los que siguen fallando
-        if (!empty($nuevosFallidos)) {
+        if (! empty($nuevosFallidos)) {
             file_put_contents($file, implode("\n", $nuevosFallidos));
-            $this->warn("Quedan " . count($nuevosFallidos) . " que siguen fallando.");
+            $this->warn('Quedan '.count($nuevosFallidos).' que siguen fallando.');
         } else {
             unlink($file);
-            $this->info("Todos procesados. Archivo de fallidos eliminado.");
+            $this->info('Todos procesados. Archivo de fallidos eliminado.');
         }
 
         $this->info("=== RESULTADO: {$procesados} formateados, {$errores} errores ===");
+
         return 0;
     }
 }

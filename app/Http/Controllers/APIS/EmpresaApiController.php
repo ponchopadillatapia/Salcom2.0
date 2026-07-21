@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\APIS;
 
 use App\Http\Controllers\Controller;
+use App\Models\DocumentoProveedor;
+use Aws\Textract\TextractClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -28,7 +30,7 @@ class EmpresaApiController extends Controller
 
             // Acta constitutiva: para Persona Moral es obligatoria SALVO que suba poder notarial
             if ($tipoPersona === 'moral') {
-                if ($request->hasFile('poder_pdf') && !$request->hasFile('acta_pdf')) {
+                if ($request->hasFile('poder_pdf') && ! $request->hasFile('acta_pdf')) {
                     $rules['acta_pdf'] = 'nullable|mimes:pdf|max:10240';
                 } else {
                     $rules['acta_pdf'] = 'nullable|mimes:pdf|max:10240';
@@ -222,7 +224,7 @@ class EmpresaApiController extends Controller
                     $curp = $repLegal['datos']['curp'];
                     // Las primeras 4 letras del CURP coinciden con las primeras 4 del RFC (persona física)
                     // Para persona moral el RFC tiene 3 letras, no aplica directamente
-                    if (!$cif['datos']['es_moral']) {
+                    if (! $cif['datos']['es_moral']) {
                         $rfcInicio = substr($rfcCif, 0, 10); // XXXX######
                         $curpInicio = substr($curp, 0, 10);
                         if ($rfcInicio === $curpInicio) {
@@ -235,13 +237,13 @@ class EmpresaApiController extends Controller
             }
 
             // 2. Nombre del Representante Legal ↔ Acta Constitutiva
-            if ($repLegal && $acta && $repLegal['datos']['nombre'] && $acta['datos']['nombre_acta'] ?? null) {
+            if ($repLegal && $acta && ! empty($repLegal['datos']['nombre']) && ! empty($acta['datos']['nombre_acta'])) {
                 $nombreIne = $repLegal['datos']['nombre'];
                 $textoActa = $textos['acta'] ?? '';
                 $textoActaUpper = strtoupper($textoActa);
                 // Verificar que el nombre del rep legal aparezca en el acta
                 $nombreIneUpper = strtoupper($nombreIne);
-                $palabrasNombre = array_filter(explode(' ', $nombreIneUpper), fn($p) => strlen($p) > 2);
+                $palabrasNombre = array_filter(explode(' ', $nombreIneUpper), fn ($p) => strlen($p) > 2);
                 $coincidencias = 0;
                 foreach ($palabrasNombre as $palabra) {
                     if (str_contains($textoActaUpper, $palabra)) {
@@ -291,10 +293,10 @@ class EmpresaApiController extends Controller
                     try {
                         $tiposGuardar = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'caratula_banco'];
                         foreach ($tiposGuardar as $tipo) {
-                            if ($request->hasFile($tipo . '_pdf')) {
-                                $rutaPublica = $request->file($tipo . '_pdf')->store("expediente_fiscal/{$tipo}", 'public');
+                            if ($request->hasFile($tipo.'_pdf')) {
+                                $rutaPublica = $request->file($tipo.'_pdf')->store("expediente_fiscal/{$tipo}", 'public');
                                 if ($rutaPublica) {
-                                    \App\Models\DocumentoProveedor::updateOrCreate(
+                                    DocumentoProveedor::updateOrCreate(
                                         ['proveedor_id' => $proveedorId, 'tipo' => $tipo],
                                         ['archivo' => $rutaPublica, 'estatus' => 'aprobado', 'notas_revision' => 'Validación automática aprobada', 'revisado_at' => now()]
                                     );
@@ -545,7 +547,7 @@ class EmpresaApiController extends Controller
             }
             if (strlen($regimenRaw) > 3) {
                 $datos['regimen'] = $regimenRaw;
-                $hallazgos[] = 'Régimen: ' . $regimenRaw;
+                $hallazgos[] = 'Régimen: '.$regimenRaw;
             } else {
                 $hallazgos[] = 'Se detectó mención de Régimen Fiscal';
             }
@@ -658,7 +660,7 @@ class EmpresaApiController extends Controller
 
         if ($rfcEncontrado) {
             $datos['rfc_encontrado'] = $rfcEncontrado;
-            $hallazgos[] = 'RFC: ' . $rfcEncontrado;
+            $hallazgos[] = 'RFC: '.$rfcEncontrado;
         } else {
             $hallazgos[] = 'RFC — no detectado por OCR';
         }
@@ -672,9 +674,9 @@ class EmpresaApiController extends Controller
             $mesActual = strtoupper($this->mesEnEspanol((int) date('n')));
             $anioActual = date('Y');
             if (str_contains($textoUpper, $mesActual) && str_contains($textoUpper, $anioActual)) {
-                $hallazgos[] = 'Corresponde al mes en curso: ' . $mesActual . ' ' . $anioActual;
+                $hallazgos[] = 'Corresponde al mes en curso: '.$mesActual.' '.$anioActual;
             } else {
-                $errores[] = 'No corresponde al mes en curso (' . $mesActual . ' ' . $anioActual . ')';
+                $errores[] = 'No corresponde al mes en curso ('.$mesActual.' '.$anioActual.')';
             }
 
             $hallazgos[] = 'Sin observaciones pendientes';
@@ -704,11 +706,17 @@ class EmpresaApiController extends Controller
                 $errores[] = 'Revisar manualmente el motivo de la opinión negativa';
             }
 
+            return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+
         } else {
             $errores[] = 'No se detectó si la opinión es Positiva o Negativa — revisar manualmente';
         }
 
-        return ['valida' => empty($errores), 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+        // PHPStan: en la práctica $errores puede quedar vacío en caminos futuros;
+        // usamos count para no pelear con el análisis de uniones de literales.
+        $esValida = count($errores) === 0;
+
+        return ['valida' => $esValida, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
     }
 
     private function validarActa(string $texto, bool $esMoral, ?string $nombreEsperado = null): array
@@ -808,10 +816,10 @@ class EmpresaApiController extends Controller
 
         if ($nombreActa) {
             $datos['nombre_acta'] = $nombreActa;
-            $hallazgos[] = 'Razón Social en Acta: ' . $nombreActa;
+            $hallazgos[] = 'Razón Social en Acta: '.$nombreActa;
 
             // Cruce con nombre esperado
-            if ($nombreEsperado && $nombreEsperado !== '') {
+            if (is_string($nombreEsperado) && trim($nombreEsperado) !== '') {
                 if ($this->nombresCoinciden($nombreEsperado, $nombreActa)) {
                     $hallazgos[] = 'Nombre coincide con el registro del proveedor ✓';
                 } else {
@@ -1032,7 +1040,7 @@ class EmpresaApiController extends Controller
 
         // ── Origen de autoridad (Regla de la Pirámide) ──
         $tieneOrigen = false;
-        if (str_contains($textoUpper, 'ADMINISTRADOR UNICO') || str_contains($textoUpper, 'ADMINISTRADOR UNICO')) {
+        if (str_contains($textoUpper, 'ADMINISTRADOR UNICO')) {
             $datos['otorgante'] = 'Administrador Único';
             $hallazgos[] = 'Otorgado por: Administrador Único ✓';
             $tieneOrigen = true;
@@ -1050,7 +1058,7 @@ class EmpresaApiController extends Controller
             $tieneOrigen = true;
         }
 
-        if (!$tieneOrigen) {
+        if (! $tieneOrigen) {
             $errores[] = 'No se detectó el origen de autoridad del poder (Administrador Único, Consejo de Administración o Asamblea)';
         }
 
@@ -1095,10 +1103,10 @@ class EmpresaApiController extends Controller
             $facultades[] = 'Relaciones Laborales';
         }
 
-        if (!empty($facultades)) {
+        if (! empty($facultades)) {
             $datos['facultades'] = $facultades;
             foreach ($facultades as $f) {
-                $hallazgos[] = '✓ Facultad: ' . $f;
+                $hallazgos[] = '✓ Facultad: '.$f;
             }
         } else {
             $errores[] = 'No se detectaron facultades específicas en el poder (Administración, Dominio, Títulos de Crédito, etc.)';
@@ -1189,7 +1197,7 @@ class EmpresaApiController extends Controller
         }
 
         // Método 2: Si Textract devuelve líneas sueltas, buscar patrones de nombre
-        if (!$datos['apellido_paterno'] && !$datos['nombres']) {
+        if (! $datos['apellido_paterno'] && ! $datos['nombres']) {
             // Buscar 2-4 palabras en mayúsculas seguidas que parezcan nombre
             if (preg_match_all('/\b([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})(?:\s+([A-ZÁÉÍÓÚÑ]{2,}))?(?:\s+([A-ZÁÉÍÓÚÑ]{2,}))?\b/u', $texto, $nombreLineas, PREG_SET_ORDER)) {
                 $noEsNombre = ['SEXO', 'DOMICILIO', 'CLAVE', 'SECCION', 'VIGENCIA', 'ESTADO', 'MUNICIPIO', 'FECHA', 'NACIMIENTO', 'CURP', 'INE', 'IFE', 'ELECTOR', 'CREDENCIAL', 'INSTITUTO', 'NACIONAL', 'ELECTORAL', 'REGISTRO', 'FEDERAL', 'ELECTORES', 'CREDENCIAL', 'PARA', 'VOTAR', 'APELLIDO', 'PATERNO', 'MATERNO', 'NOMBRE'];
@@ -1212,13 +1220,13 @@ class EmpresaApiController extends Controller
         }
 
         // Construir nombre completo desde partes
-        if (!$nombreCompleto && ($datos['apellido_paterno'] || $datos['nombres'])) {
+        if (! $nombreCompleto && ($datos['apellido_paterno'] || $datos['nombres'])) {
             $partes = array_filter([$datos['apellido_paterno'], $datos['apellido_materno'], $datos['nombres']]);
             $nombreCompleto = implode(' ', $partes);
         }
 
         // Método 3: Buscar cualquier línea con NOMBRE:
-        if (!$nombreCompleto) {
+        if (! $nombreCompleto) {
             if (preg_match('/NOMBRE[:\s]+([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+){0,3})/u', $texto, $nomGeneral)) {
                 $nombreCompleto = trim($nomGeneral[1]);
             }
@@ -1235,7 +1243,7 @@ class EmpresaApiController extends Controller
             }
             if (strlen($nombreCompleto) > 2) {
                 $datos['nombre'] = $nombreCompleto;
-                $hallazgos[] = 'Nombre: ' . $nombreCompleto;
+                $hallazgos[] = 'Nombre: '.$nombreCompleto;
             }
         }
 
@@ -1290,20 +1298,20 @@ class EmpresaApiController extends Controller
         }
 
         // Método 2: Buscar formato dd/mm/yyyy o mm/yyyy después de VIGENCIA
-        if (!$vigenciaEncontrada && preg_match('/VIG(?:ENCIA)?[:\s.]*\d{0,2}[\/\-]?\d{0,2}[\/\-]?(20[2-3]\d)/', $texto, $vigM2)) {
+        if (! $vigenciaEncontrada && preg_match('/VIG(?:ENCIA)?[:\s.]*\d{0,2}[\/\-]?\d{0,2}[\/\-]?(20[2-3]\d)/', $texto, $vigM2)) {
             $datos['vigencia'] = $vigM2[1];
             $vigenciaEncontrada = true;
         }
 
         // Método 3: Buscar años 2024-2039 que NO estén cerca de NACIMIENTO o CURP
-        if (!$vigenciaEncontrada) {
+        if (! $vigenciaEncontrada) {
             // Buscar todos los años 202X-203X en el texto
             if (preg_match_all('/\b(20[2-3]\d)\b/', $texto, $aniosAll)) {
                 foreach ($aniosAll[1] as $anioCandidate) {
                     $pos = strpos($texto, $anioCandidate);
                     // Verificar que no esté cerca de "NACIMIENTO" (dentro de 50 chars antes)
                     $contexto = substr($texto, max(0, $pos - 50), 50);
-                    if (!str_contains($contexto, 'NACIMIENTO') && !str_contains($contexto, 'NACI')
+                    if (! str_contains($contexto, 'NACIMIENTO') && ! str_contains($contexto, 'NACI')
                         && (int) $anioCandidate >= $anioActual) {
                         $datos['vigencia'] = $anioCandidate;
                         $vigenciaEncontrada = true;
@@ -1465,7 +1473,7 @@ class EmpresaApiController extends Controller
     private function ocrConTextract(string $path): string
     {
         // Verificar que AWS SDK esté disponible
-        if (!class_exists('\Aws\Textract\TextractClient')) {
+        if (! class_exists('\Aws\Textract\TextractClient')) {
             return '';
         }
 
@@ -1478,7 +1486,7 @@ class EmpresaApiController extends Controller
         }
 
         try {
-            $client = new \Aws\Textract\TextractClient([
+            $client = new TextractClient([
                 'region' => $region,
                 'version' => 'latest',
                 'credentials' => [
@@ -1622,9 +1630,9 @@ class EmpresaApiController extends Controller
                 }
             }
 
-            if ($gsPath && $tesseractPath) {
+            if ($gsPath !== null) {
                 try {
-                    $tmpPng = $tmpDir . '/salcom_gs_' . uniqid() . '.png';
+                    $tmpPng = $tmpDir.'/salcom_gs_'.uniqid().'.png';
                     $cmd = sprintf(
                         '"%s" -dNOPAUSE -dBATCH -sDEVICE=png16m -r300 -dFirstPage=1 -dLastPage=1 -sOutputFile="%s" "%s" 2>&1',
                         $gsPath, $tmpPng, $pdfPath

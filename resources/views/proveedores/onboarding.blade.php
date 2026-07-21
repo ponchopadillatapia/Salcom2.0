@@ -110,7 +110,7 @@
                 <div class="paso-titulo">Formulario datos bancarios</div>
                 <div class="paso-desc">
                     @if($pasoBancarios)
-                        Ya registraste tus datos bancarios. No es necesario volver a llenarlo (salvo actualización).
+                        Ya registraste tus datos. Puedes revisarlos o corregirlos si hubo un error.
                     @else
                         Captura tu institución financiera y datos bancarios en Identificación.
                     @endif
@@ -118,7 +118,7 @@
             </div>
             <span class="paso-badge {{ $pasoBancarios ? 'badge-completado' : 'badge-pendiente' }}">{{ $pasoBancarios ? 'Completado' : 'Pendiente' }}</span>
             @if($pasoBancarios)
-                <span class="btn-ver disabled">Listo</span>
+                <a href="{{ route('proveedores.identificacion') }}" class="btn-ver">Ver / editar</a>
             @else
                 <a href="{{ route('proveedores.identificacion') }}" class="btn-ver">Llenar</a>
             @endif

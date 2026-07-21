@@ -9,6 +9,7 @@ use Illuminate\Console\Command;
 class FormatearNombresProductos extends Command
 {
     protected $signature = 'productos:formatear {--limit=50 : Cantidad de productos a procesar} {--offset=0 : Desde qué producto empezar} {--categoria= : Filtrar por categoría} {--dry-run : Solo muestra sin guardar}';
+
     protected $description = 'Reformatear nombres de productos al formato: TIPO MARCA MODELO MEDIDA ESPECIFICACION (todo mayúsculas, ordenado)';
 
     public function handle(): int
@@ -26,15 +27,17 @@ class FormatearNombresProductos extends Command
         $productos = $query->offset($offset)->limit($limit)->get();
 
         $this->info("Procesando {$productos->count()} productos (offset: {$offset}, limit: {$limit})");
-        if ($dryRun) $this->info("*** DRY RUN - no se guardará nada ***");
+        if ($dryRun) {
+            $this->info('*** DRY RUN - no se guardará nada ***');
+        }
 
-        $iaService = new IaService();
+        $iaService = new IaService;
         $lotes = $productos->chunk(20);
         $procesados = 0;
         $errores = 0;
 
         foreach ($lotes as $lote) {
-            $productosTexto = "";
+            $productosTexto = '';
             $ids = [];
             foreach ($lote as $prod) {
                 $productosTexto .= "{$prod->id}. {$prod->nombre}\n";
@@ -81,15 +84,15 @@ Responde UNICAMENTE JSON valido sin markdown:
                 $iaResult = json_decode($contenido, true);
 
                 // If failed, try extracting JSON block
-                if (!$iaResult) {
+                if (! $iaResult) {
                     if (preg_match('/\{.*\}/s', $contenido, $matches)) {
                         $iaResult = json_decode($matches[0], true);
                     }
                 }
 
-                if (!$iaResult) {
-                    $this->error("JSON error: " . json_last_error_msg());
-                    $this->error("Primeros 200: " . substr($contenido, 0, 200));
+                if (! $iaResult) {
+                    $this->error('JSON error: '.json_last_error_msg());
+                    $this->error('Primeros 200: '.substr($contenido, 0, 200));
                 }
 
                 if ($iaResult && isset($iaResult['productos'])) {
@@ -97,7 +100,7 @@ Responde UNICAMENTE JSON valido sin markdown:
                         $id = (int) ($item['id'] ?? 0);
                         $nuevoNombre = strtoupper(trim($item['nombre'] ?? ''));
                         if ($id && $nuevoNombre) {
-                            if (!$dryRun) {
+                            if (! $dryRun) {
                                 Producto::where('id', $id)->update(['nombre' => $nuevoNombre]);
                             }
                             $procesados++;
@@ -115,21 +118,21 @@ Responde UNICAMENTE JSON valido sin markdown:
                 } else {
                     $errores += $lote->count();
                     $failedIds = $lote->pluck('id')->toArray();
-                    file_put_contents(storage_path('app/productos_fallidos.txt'), implode("\n", $failedIds) . "\n", FILE_APPEND);
-                    $this->error("Lote no parseable. IDs guardados.");
+                    file_put_contents(storage_path('app/productos_fallidos.txt'), implode("\n", $failedIds)."\n", FILE_APPEND);
+                    $this->error('Lote no parseable. IDs guardados.');
                 }
             } else {
                 $errores += $lote->count();
                 $failedIds = $lote->pluck('id')->toArray();
-                file_put_contents(storage_path('app/productos_fallidos.txt'), implode("\n", $failedIds) . "\n", FILE_APPEND);
-                $this->error("Error IA: " . ($resultado['error'] ?? 'desconocido'));
+                file_put_contents(storage_path('app/productos_fallidos.txt'), implode("\n", $failedIds)."\n", FILE_APPEND);
+                $this->error('Error IA: '.($resultado['error'] ?? 'desconocido'));
             }
 
             $this->info("Progreso: {$procesados} formateados, {$errores} errores");
         }
 
         $this->newLine();
-        $this->info("=== RESULTADO ===");
+        $this->info('=== RESULTADO ===');
         $this->info("Formateados: {$procesados}");
         $this->info("Errores: {$errores}");
 

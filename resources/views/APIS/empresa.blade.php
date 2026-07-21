@@ -126,6 +126,69 @@
         .doc-row:hover        { border-color: var(--purple-mid); background: var(--purple-light); }
         .doc-row.has-file     { border-style: solid; border-color: var(--purple); background: var(--purple-light); }
         .doc-row.error-file   { border-style: solid; border-color: #DC2626; background: #FEE2E2; }
+        .doc-row.validado     { border-style: solid; border-color: var(--green); background: var(--green-bg); }
+        .doc-row.validado .file-btn { opacity: 0.85; }
+        .doc-badge-ok {
+            display: inline-block;
+            margin-top: 0.45rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--green);
+            background: #d1fae5;
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+        .doc-badge-retry {
+            display: inline-block;
+            margin-top: 0.45rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #DC2626;
+            background: #fecaca;
+            padding: 3px 10px;
+            border-radius: 999px;
+        }
+
+        .aviso-pdf {
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 1.25rem;
+            font-size: 0.85rem;
+            color: #1e3a8a;
+            line-height: 1.5;
+        }
+        .aviso-pdf > strong:first-child { display: block; margin-bottom: 4px; font-size: 0.9rem; color: #1e40af; }
+        .aviso-pdf ul { margin: 6px 0 0 1.1rem; padding: 0; }
+        .aviso-pdf li { margin-bottom: 2px; }
+
+        .btn-reintentar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.8rem;
+            background: var(--purple);
+            color: var(--white);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 0.75rem;
+            transition: opacity 0.2s, transform 0.15s;
+        }
+        .btn-reintentar:hover { opacity: 0.92; transform: translateY(-1px); }
+        .hint-reintento {
+            font-size: 0.8rem;
+            color: var(--gray-muted);
+            text-align: center;
+            margin-top: 0.5rem;
+            line-height: 1.4;
+        }
 
         .doc-row label.doc-label {
             display: flex;
@@ -408,6 +471,16 @@
 
     <div class="card-salcom">
 
+        <div class="aviso-pdf">
+            <strong><i class="bi bi-info-circle"></i> Importante: solo archivos PDF</strong>
+            Todos los documentos deben subirse en formato <strong>PDF</strong>.
+            Preferimos PDFs con texto seleccionable (no solo imagen escaneada), para que el sistema pueda validarlos automáticamente.
+            <ul>
+                <li>Si tu archivo es un escaneo “plano”, puede fallar la validación automática.</li>
+                <li>Si algunos documentos salen bien y otros mal, usa <strong>Reintentar</strong>: los correctos se conservan y solo vuelves a subir los que fallaron.</li>
+            </ul>
+        </div>
+
         {{-- ── SELECTOR TIPO PERSONA ── --}}
         <p class="group-title"><i class="bi bi-person-lines-fill"></i> Tipo de Persona</p>
         <div style="display:flex;gap:12px;margin-bottom:1.5rem">
@@ -530,80 +603,84 @@
 <script>
 // ── Estado del formulario ──
 let tipoPersona = null; // 'moral' o 'fisica'
+/** Archivos que ya pasaron validación (se reenvían sin pedirlos de nuevo) */
+let archivosValidos = {};
+/** Campos que fallaron en la última validación */
+let docsFallidos = [];
 
 // Datos del formulario de identificación (si viene de ahí)
 const identificacion = @json($identificacion ?? null);
 
+const nombresDocs = {
+    cif: 'CIF',
+    opinion: 'Opinión de Cumplimiento',
+    acta: 'Acta Constitutiva',
+    poder: 'Poder Notarial',
+    rep_legal: 'ID Representante Legal',
+    contribuyente: 'ID Contribuyente',
+    caratula_banco: 'Carátula de Banco',
+};
+
+function getArchivo(campo) {
+    const input = document.getElementById(campo);
+    if (input && input.files && input.files[0]) return input.files[0];
+    return archivosValidos[campo] || null;
+}
+
 function seleccionarTipo(tipo) {
-    // Si ya viene fijado desde identificación, no permitir cambiar
     if (identificacion && identificacion.tipo_clave && tipo !== identificacion.tipo_clave) {
         return;
     }
 
     tipoPersona = tipo;
 
-    // UI de botones
     document.getElementById('btn_moral').classList.toggle('selected', tipo === 'moral');
     document.getElementById('btn_fisica').classList.toggle('selected', tipo === 'fisica');
-
-    // Mostrar formulario
     document.getElementById('formulario_docs').style.display = 'block';
-
-    // Acta constitutiva: solo para Persona Moral
     document.getElementById('row_acta').style.display = tipo === 'moral' ? 'block' : 'none';
-
-    // ID Representante Legal: solo para Persona Moral
     document.getElementById('row_rep_legal').style.display = tipo === 'moral' ? 'block' : 'none';
 
-    // Poder Notarial: solo para Persona Moral
     var rowPoder = document.getElementById('row_poder');
-    var groupPoder = rowPoder ? rowPoder.closest('.group-title') ? null : rowPoder : null;
     if (rowPoder) rowPoder.style.display = tipo === 'moral' ? 'block' : 'none';
-    // Ocultar/mostrar título del grupo Poder Notarial
-    var poderTitles = document.querySelectorAll('.group-title');
-    poderTitles.forEach(function(el) {
+    document.querySelectorAll('.group-title').forEach(function(el) {
         if (el.textContent.includes('Poder Notarial')) {
             el.style.display = tipo === 'moral' ? 'flex' : 'none';
         }
     });
 
-    // Limpiar acta, poder y rep_legal si cambia a física
     if (tipo === 'fisica') {
-        document.getElementById('acta').value = '';
-        document.getElementById('acta_nombre').textContent = 'Sin archivo';
-        document.getElementById('acta_nombre').className = 'file-name empty';
-        document.getElementById('row_acta').classList.remove('has-file');
-
-        document.getElementById('rep_legal').value = '';
-        document.getElementById('rep_legal_nombre').textContent = 'Sin archivo';
-        document.getElementById('rep_legal_nombre').className = 'file-name empty';
-        document.getElementById('row_rep_legal').classList.remove('has-file');
-
-        if (document.getElementById('poder')) {
-            document.getElementById('poder').value = '';
-            document.getElementById('poder_nombre').textContent = 'Sin archivo';
-            document.getElementById('poder_nombre').className = 'file-name empty';
-            if (rowPoder) rowPoder.classList.remove('has-file');
-        }
+        ['acta', 'rep_legal', 'poder'].forEach(function(campo) { limpiarCampo(campo); });
     }
 }
 
-// Preseleccionar tipo desde identificación
+function limpiarCampo(campo) {
+    const input = document.getElementById(campo);
+    const label = document.getElementById(campo + '_nombre');
+    const row = document.getElementById('row_' + campo);
+    if (input) input.value = '';
+    delete archivosValidos[campo];
+    if (label) {
+        label.textContent = 'Sin archivo';
+        label.className = 'file-name empty';
+    }
+    if (row) {
+        row.classList.remove('has-file', 'error-file', 'validado');
+        const badge = row.querySelector('.doc-badge-ok, .doc-badge-retry');
+        if (badge) badge.remove();
+    }
+}
+
 if (identificacion && identificacion.tipo_clave) {
     seleccionarTipo(identificacion.tipo_clave);
 }
 
-// ── Campos requeridos según tipo ──
 function getCamposRequeridos() {
     const base = ['cif', 'opinion', 'caratula_banco'];
-
     if (tipoPersona === 'moral') {
-        // Persona Moral: ambas INEs son obligatorias
         base.push('rep_legal');
         base.push('contribuyente');
-        // Acta o Poder (al menos uno)
-        const tieneActa = document.getElementById('acta').files[0];
-        const tienePoder = document.getElementById('poder') && document.getElementById('poder').files[0];
+        const tieneActa = getArchivo('acta');
+        const tienePoder = getArchivo('poder');
         if (!tieneActa && !tienePoder) {
             base.push('acta');
         } else if (tieneActa) {
@@ -612,23 +689,11 @@ function getCamposRequeridos() {
             base.push('poder');
         }
     } else {
-        // Persona Física: solo ID Contribuyente obligatorio
         base.push('contribuyente');
     }
-
     return base;
 }
 
-// ── Campos opcionales ──
-function getCamposOpcionales() {
-    const opcionales = [];
-    if (tipoPersona === 'moral') {
-        opcionales.push('poder');
-    }
-    return opcionales;
-}
-
-// ── Campos y sus nombres para el FormData ──
 const campos = {
     cif:            'cif_pdf',
     opinion:        'opinion_pdf',
@@ -639,12 +704,56 @@ const campos = {
     caratula_banco: 'caratula_banco_pdf',
 };
 
-// ── Valida que el archivo sea PDF antes de marcarlo ──
+function setBadge(row, clase, texto) {
+    if (!row) return;
+    let badge = row.querySelector('.doc-badge-ok, .doc-badge-retry');
+    if (!badge) {
+        badge = document.createElement('div');
+        row.appendChild(badge);
+    }
+    badge.className = clase;
+    badge.textContent = texto;
+}
+
+function marcarFilaValidada(campo) {
+    const archivo = archivosValidos[campo];
+    const label = document.getElementById(campo + '_nombre');
+    const row = document.getElementById('row_' + campo);
+    if (!archivo || !label || !row) return;
+    label.textContent = '✓ ' + archivo.name;
+    label.className = 'file-name';
+    row.classList.remove('error-file');
+    row.classList.add('has-file', 'validado');
+    setBadge(row, 'doc-badge-ok', 'Validado — no es necesario volver a subir');
+}
+
+function marcarFilaReintentar(campo) {
+    const label = document.getElementById(campo + '_nombre');
+    const row = document.getElementById('row_' + campo);
+    const input = document.getElementById(campo);
+    if (input) input.value = '';
+    if (label) {
+        label.textContent = 'Sin archivo — vuelve a subir un PDF';
+        label.className = 'file-name pdf-err';
+    }
+    if (row) {
+        row.classList.remove('has-file', 'validado');
+        row.classList.add('error-file');
+        setBadge(row, 'doc-badge-retry', 'Requiere nuevo PDF');
+    }
+}
+
 function verArchivo(campo) {
     const input   = document.getElementById(campo);
     const label   = document.getElementById(campo + '_nombre');
     const row     = document.getElementById('row_' + campo);
     const archivo = input.files[0];
+
+    delete archivosValidos[campo];
+    docsFallidos = docsFallidos.filter(c => c !== campo);
+    row.classList.remove('validado');
+    const oldBadge = row.querySelector('.doc-badge-ok, .doc-badge-retry');
+    if (oldBadge) oldBadge.remove();
 
     if (!archivo) {
         label.textContent = 'Sin archivo';
@@ -674,47 +783,82 @@ const semaforos = {
     rojo:     { icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>', texto: 'Documentos con errores',        clase: 'rojo'     },
 };
 
+function cachearResultadoArchivos(data) {
+    docsFallidos = [];
+    Object.keys(campos).forEach(function(campo) {
+        const doc = data[campo];
+        if (!doc) return;
+        if (doc.valida) {
+            const f = getArchivo(campo);
+            if (f) archivosValidos[campo] = f;
+        } else {
+            delete archivosValidos[campo];
+            docsFallidos.push(campo);
+            const input = document.getElementById(campo);
+            if (input) input.value = '';
+        }
+    });
+}
+
+function prepararReintento() {
+    Object.keys(campos).forEach(function(campo) {
+        if (archivosValidos[campo]) {
+            marcarFilaValidada(campo);
+        } else if (docsFallidos.indexOf(campo) !== -1) {
+            marcarFilaReintentar(campo);
+        }
+    });
+
+    document.getElementById('resultado').innerHTML = `
+        <div class="resultado-card amarillo" style="margin-bottom:0;">
+            <div class="resultado-header">
+                <span class="semaforo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#CA8A04" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></span>
+                <div>
+                    <div class="resultado-empresa">Corrige solo los documentos con error</div>
+                    <div class="resultado-rfc">Los que ya se validaron quedaron precargados. Sube un PDF nuevo en los marcados en rojo y pulsa Revalidar.</div>
+                </div>
+            </div>
+        </div>`;
+
+    const texto = document.getElementById('btn_texto');
+    if (texto) texto.textContent = 'Revalidar documentos';
+
+    const primeroFallido = docsFallidos[0];
+    const row = primeroFallido ? document.getElementById('row_' + primeroFallido) : document.getElementById('formulario_docs');
+    if (row) row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 function enviar() {
     if (!tipoPersona) {
         mostrarError('Selecciona primero si eres Persona Física o Persona Moral.');
         return;
     }
 
-    // Para Persona Moral: validar que tenga al menos Acta o Poder
     if (tipoPersona === 'moral') {
-        const tieneActa = document.getElementById('acta').files[0];
-        const tienePoder = document.getElementById('poder') && document.getElementById('poder').files[0];
-        if (!tieneActa && !tienePoder) {
+        if (!getArchivo('acta') && !getArchivo('poder')) {
             mostrarError('Persona Moral requiere al menos el Acta Constitutiva o el Poder Notarial. Sube al menos uno.');
             return;
         }
     }
 
-    // Verificar campos requeridos
     const requeridos = getCamposRequeridos();
     for (const campo of requeridos) {
-        const input = document.getElementById(campo);
-        if (!input || !input.files[0]) {
-            const nombres = { cif: 'CIF', opinion: 'Opinión de Cumplimiento', acta: 'Acta Constitutiva', poder: 'Poder Notarial', caratula_banco: 'Carátula de Banco' };
-            mostrarError(`Falta el documento: ${nombres[campo] || campo}`);
+        const archivo = getArchivo(campo);
+        if (!archivo) {
+            mostrarError(`Falta el documento: ${nombresDocs[campo] || campo}`);
             return;
         }
-        const archivo = input.files[0];
         if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
-            const nombres = { cif: 'CIF', opinion: 'Opinión de Cumplimiento', acta: 'Acta Constitutiva', poder: 'Poder Notarial', caratula_banco: 'Carátula de Banco' };
-            mostrarError(`El archivo de "${nombres[campo] || campo}" no es un PDF válido. Solo se aceptan archivos PDF.`);
+            mostrarError(`El archivo de "${nombresDocs[campo] || campo}" no es un PDF válido. Solo se aceptan archivos PDF.`);
             return;
         }
     }
 
-    // Verificar que TODOS los archivos subidos (requeridos + opcionales) sean PDF
-    for (const [campo, nombreCampo] of Object.entries(campos)) {
-        const input = document.getElementById(campo);
-        if (input && input.files[0]) {
-            const archivo = input.files[0];
+    for (const campo of Object.keys(campos)) {
+        const archivo = getArchivo(campo);
+        if (archivo) {
             if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
-                const nombres = { cif: 'CIF', opinion: 'Opinión de Cumplimiento', acta: 'Acta Constitutiva', poder: 'Poder Notarial', rep_legal: 'ID Representante Legal', contribuyente: 'ID Contribuyente', caratula_banco: 'Carátula de Banco' };
-                mostrarError(`El archivo de "${nombres[campo] || campo}" no es un PDF válido. Solo se aceptan archivos PDF.`);
+                mostrarError(`El archivo de "${nombresDocs[campo] || campo}" no es un PDF válido. Solo se aceptan archivos PDF.`);
                 return;
             }
         }
@@ -742,30 +886,18 @@ function enviar() {
     const formData = new FormData();
     formData.append('tipo_persona', tipoPersona);
 
-    // Datos del formulario de identificación para cruzar con los documentos
     if (identificacion) {
-        if (identificacion.nombre_esperado) {
-            formData.append('nombre_esperado', identificacion.nombre_esperado);
-        }
-        if (identificacion.clabe) {
-            formData.append('clabe_esperada', identificacion.clabe);
-        }
-        if (identificacion.cuenta) {
-            formData.append('cuenta_esperada', identificacion.cuenta);
-        }
-        if (identificacion.banco) {
-            formData.append('banco_esperado', identificacion.banco);
-        }
-        if (identificacion.cp) {
-            formData.append('cp_esperado', identificacion.cp);
-        }
+        if (identificacion.nombre_esperado) formData.append('nombre_esperado', identificacion.nombre_esperado);
+        if (identificacion.clabe) formData.append('clabe_esperada', identificacion.clabe);
+        if (identificacion.cuenta) formData.append('cuenta_esperada', identificacion.cuenta);
+        if (identificacion.banco) formData.append('banco_esperado', identificacion.banco);
+        if (identificacion.cp) formData.append('cp_esperado', identificacion.cp);
     }
 
-    // Agregar todos los campos que tengan archivo (requeridos + opcionales)
     for (const [campo, nombreCampo] of Object.entries(campos)) {
-        const input = document.getElementById(campo);
-        if (input.files[0]) {
-            formData.append(nombreCampo, input.files[0]);
+        const archivo = getArchivo(campo);
+        if (archivo) {
+            formData.append(nombreCampo, archivo, archivo.name);
         }
     }
 
@@ -779,7 +911,7 @@ function enviar() {
         btn.disabled       = false;
         spin.style.display = 'none';
         icon.style.display = 'inline';
-        texto.textContent  = 'Validar Documentos';
+        texto.textContent  = Object.keys(archivosValidos).length ? 'Revalidar documentos' : 'Validar Documentos';
 
         if (data.mensaje) { mostrarError(data.mensaje); return; }
         renderResultado(data);
@@ -788,41 +920,31 @@ function enviar() {
         btn.disabled       = false;
         spin.style.display = 'none';
         icon.style.display = 'inline';
-        texto.textContent  = 'Validar Documentos';
+        texto.textContent  = Object.keys(archivosValidos).length ? 'Revalidar documentos' : 'Validar Documentos';
         mostrarError('Error de conexión. Intenta de nuevo.');
     });
 }
 
 function renderResultado(data) {
+    cachearResultadoArchivos(data);
+
     const estado = data.estado;
     const sem    = semaforos[estado] || semaforos.rojo;
     const cif    = data.cif;
-
     const rfc    = cif.datos.rfc || 'No detectado';
-    const tipo   = cif.datos.tipo_persona || '—';
 
     const secciones = [
-        { titulo: 'Constancia de Situación Fiscal (CIF)', icono: 'bi-file-earmark-text', doc: data.cif },
-        { titulo: 'Opinión de Cumplimiento SAT',          icono: 'bi-patch-check',       doc: data.opinion },
+        { titulo: 'Constancia de Situación Fiscal (CIF)', doc: data.cif },
+        { titulo: 'Opinión de Cumplimiento SAT', doc: data.opinion },
     ];
-
     if (tipoPersona === 'moral') {
-        secciones.push({ titulo: 'Acta Constitutiva', icono: 'bi-building', doc: data.acta });
+        secciones.push({ titulo: 'Acta Constitutiva', doc: data.acta });
     }
+    if (data.rep_legal) secciones.push({ titulo: 'ID Representante Legal', doc: data.rep_legal });
+    if (data.contribuyente) secciones.push({ titulo: 'ID Contribuyente', doc: data.contribuyente });
+    if (data.poder) secciones.push({ titulo: 'Poder Notarial', doc: data.poder });
+    secciones.push({ titulo: 'Carátula de Banco', doc: data.caratula_banco });
 
-    if (data.rep_legal) {
-        secciones.push({ titulo: 'ID Representante Legal', icono: 'bi-person-badge', doc: data.rep_legal });
-    }
-    if (data.contribuyente) {
-        secciones.push({ titulo: 'ID Contribuyente', icono: 'bi-person-check', doc: data.contribuyente });
-    }
-    if (data.poder) {
-        secciones.push({ titulo: 'Poder Notarial', icono: 'bi-shield-lock', doc: data.poder });
-    }
-
-    secciones.push({ titulo: 'Carátula de Banco', icono: 'bi-credit-card', doc: data.caratula_banco });
-
-    // Determinar título y documentos con errores
     const docsConError = secciones.filter(s => s.doc && !s.doc.valida).map(s => s.titulo);
     const todoOk = estado === 'verde';
     const tituloResultado = todoOk ? 'DOCUMENTOS CORRECTOS' : 'DOCUMENTOS NO VÁLIDOS';
@@ -860,19 +982,15 @@ function renderResultado(data) {
         const ok = s.doc.valida;
         const hallazgos = (s.doc.hallazgos || []);
         const errores   = (s.doc.errores || []);
-
         const iconOk  = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
         const iconErr = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
-        const statusIcon = ok ? iconOk : iconErr;
         const statusLabel = ok ? '<span class="status-pill ok">Aprobado</span>' : '<span class="status-pill err">Revisar</span>';
-
         const hallazgosHtml = hallazgos.map(h => `<div class="detalle-item ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg> ${h}</div>`).join('');
         const erroresHtml = errores.map(e => `<div class="detalle-item err"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> ${e}</div>`).join('');
-
         return `
         <div class="seccion-doc ${ok ? 'seccion-ok' : 'seccion-err'}">
             <div class="seccion-header">
-                <span class="seccion-icon">${statusIcon}</span>
+                <span class="seccion-icon">${ok ? iconOk : iconErr}</span>
                 <span class="seccion-titulo">${s.titulo}</span>
                 ${statusLabel}
             </div>
@@ -884,14 +1002,24 @@ function renderResultado(data) {
         </div>`;
     }).join('');
 
-    const todoVerde = estado === 'verde';
-    const btnPortal = todoVerde ? `
+    const btnPortal = todoOk ? `
         <hr class="resultado-divider">
         <a href="/onboarding" class="btn-portal">
             <i class="bi bi-box-arrow-in-right"></i> Ir al Portal del Proveedor
         </a>` : '';
 
-    const tipoLabel = tipoPersona === 'moral' ? 'Persona Moral' : 'Persona Física';
+    const nOk = Object.keys(archivosValidos).length;
+    const nFail = docsFallidos.length;
+    const btnReintentar = !todoOk ? `
+        <hr class="resultado-divider">
+        <button type="button" class="btn-reintentar" onclick="prepararReintento()">
+            <i class="bi bi-arrow-clockwise"></i> Reintentar
+        </button>
+        <p class="hint-reintento">
+            ${nOk ? nOk + ' documento(s) aprobado(s) se conservarán precargados. ' : ''}
+            ${nFail ? 'Solo vuelve a subir: ' + docsFallidos.map(c => nombresDocs[c] || c).join(', ') + '.' : 'Corrige los documentos marcados y vuelve a validar.'}
+            Recuerda: deben ser PDF (idealmente con texto seleccionable).
+        </p>` : '';
 
     document.getElementById('resultado').innerHTML = `
         <div class="resultado-card ${sem.clase}">
@@ -906,9 +1034,14 @@ function renderResultado(data) {
             ${seccionesHtml}
             ${cruceHtml}
             ${btnPortal}
+            ${btnReintentar}
         </div>`;
 
-    // Mostrar botones de admin si estamos en modo revisión
+    const textoBtn = document.getElementById('btn_texto');
+    if (textoBtn) {
+        textoBtn.textContent = todoOk ? 'Validar Documentos' : 'Revalidar documentos';
+    }
+
     var adminActions = document.getElementById('admin-actions');
     if (adminActions) {
         adminActions.style.display = 'block';
@@ -922,10 +1055,12 @@ function mostrarError(msg) {
                 <span class="semaforo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
                 <span class="resultado-empresa">${msg}</span>
             </div>
+            <button type="button" class="btn-reintentar" onclick="document.getElementById('resultado').innerHTML=''; document.getElementById('formulario_docs').scrollIntoView({behavior:'smooth',block:'start'});">
+                <i class="bi bi-arrow-clockwise"></i> Reintentar
+            </button>
         </div>`;
 }
 
-// ── Back button ──
 (function() {
     const ref = document.referrer;
     const origin = window.location.origin;

@@ -4,9 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Producto;
 use App\Services\AlertEngineService;
-use App\Services\IaService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Cell\DataValidation;
 use PhpOffice\PhpSpreadsheet\IOFactory;
@@ -32,12 +30,17 @@ class AltaProductoPTController extends Controller
     ];
 
     // Clasificaciones PT (6 dropdowns)
-    private array $departamentos = ['GASTOS','HERRAMIENTAS','INSUMOS','MANO DE OBRA','MAQUINARIA Y EQUIPO','MATERIALES','ME','MI','MN','MO','MP','MPI','MS','PAPELERIA','PT','REFACCIONES','RP','SEGURIDAD','SERVICIOS','VEHICULOS'];
-    private array $lineas = ['Aerosoles','Aromatizante Solido','Breeze Matic','Canastilla','Clip On','Cono Gel','Desinfectante','Difusor Electrico','Dispensador','Gel Aromatizante','Hang Air','Insecticida','Lavatrastes','Limpiador','Liquido Goteador','Metered','Micro Can','Mini Spray','Pastilla','Tapete'];
-    private array $subfamilias = ['Abrillantador 400ml','Abrillantador 8oz','Accesorios Plasticos','Aerosol 10oz','Aerosol 19oz','Aerosol 8oz','Aerosol Hogar 400ml','Aerosol Metered Institucional','Breeze Matic','Canastilla','Clip On','Cono Gel 170g','Difusor Electrico','Dispensador','Gel 70g','Hang Air','Insecticida','Lavatrastes','Limpiador Sanitario','Liquido Goteador','Metered 180g','Micro Can','Mini Spray','Pastilla Alambre','Pastilla Azul','Pastilla Barra','Pastilla Cloro','Tapete Anti-Salpicadura','Tapete Con Pastilla','Tapete Liso','Tapete Storm'];
-    private array $canales = ['Autoservicio','Abarrotera','Exportacion','Ferretero','Institucional','Mayoreo'];
-    private array $vendedores = ['Alexandre Cominu','Ana Barrera','Directo Exportacion','Directo Mexico','Francisco Alvarez','Guillermo Quiroz','Imelda Lopez INST','Jesus Sesma','Jorge Ornelas','Luis Ibarra','Marco Vargas','Omar Garcia'];
-    private array $modulos = ['AEROSOL','AROMATIZANTE','BREEZE MATIC','CANASTILLA','DISPENSADOR','ENSAMBLES','HERRAMIENTAS','INSECTICIDA','LAVATRASTES','LIMPIADOR','LIQUIDO','MAQUINARIA','PASTILLA','REFACCIONES','TAPETE'];
+    private array $departamentos = ['GASTOS', 'HERRAMIENTAS', 'INSUMOS', 'MANO DE OBRA', 'MAQUINARIA Y EQUIPO', 'MATERIALES', 'ME', 'MI', 'MN', 'MO', 'MP', 'MPI', 'MS', 'PAPELERIA', 'PT', 'REFACCIONES', 'RP', 'SEGURIDAD', 'SERVICIOS', 'VEHICULOS'];
+
+    private array $lineas = ['Aerosoles', 'Aromatizante Solido', 'Breeze Matic', 'Canastilla', 'Clip On', 'Cono Gel', 'Desinfectante', 'Difusor Electrico', 'Dispensador', 'Gel Aromatizante', 'Hang Air', 'Insecticida', 'Lavatrastes', 'Limpiador', 'Liquido Goteador', 'Metered', 'Micro Can', 'Mini Spray', 'Pastilla', 'Tapete'];
+
+    private array $subfamilias = ['Abrillantador 400ml', 'Abrillantador 8oz', 'Accesorios Plasticos', 'Aerosol 10oz', 'Aerosol 19oz', 'Aerosol 8oz', 'Aerosol Hogar 400ml', 'Aerosol Metered Institucional', 'Breeze Matic', 'Canastilla', 'Clip On', 'Cono Gel 170g', 'Difusor Electrico', 'Dispensador', 'Gel 70g', 'Hang Air', 'Insecticida', 'Lavatrastes', 'Limpiador Sanitario', 'Liquido Goteador', 'Metered 180g', 'Micro Can', 'Mini Spray', 'Pastilla Alambre', 'Pastilla Azul', 'Pastilla Barra', 'Pastilla Cloro', 'Tapete Anti-Salpicadura', 'Tapete Con Pastilla', 'Tapete Liso', 'Tapete Storm'];
+
+    private array $canales = ['Autoservicio', 'Abarrotera', 'Exportacion', 'Ferretero', 'Institucional', 'Mayoreo'];
+
+    private array $vendedores = ['Alexandre Cominu', 'Ana Barrera', 'Directo Exportacion', 'Directo Mexico', 'Francisco Alvarez', 'Guillermo Quiroz', 'Imelda Lopez INST', 'Jesus Sesma', 'Jorge Ornelas', 'Luis Ibarra', 'Marco Vargas', 'Omar Garcia'];
+
+    private array $modulos = ['AEROSOL', 'AROMATIZANTE', 'BREEZE MATIC', 'CANASTILLA', 'DISPENSADOR', 'ENSAMBLES', 'HERRAMIENTAS', 'INSECTICIDA', 'LAVATRASTES', 'LIMPIADOR', 'LIQUIDO', 'MAQUINARIA', 'PASTILLA', 'REFACCIONES', 'TAPETE'];
 
     public function mostrar()
     {
@@ -93,26 +96,40 @@ class AltaProductoPTController extends Controller
         $listSheet->setCellValue('D2', 'NO');
 
         // Voltaje (col E)
-        $voltajes = ['110V','127V','220V','220/440V','110/220V','440V','480V','12VDC','24VDC','3HP','5HP','10HP','60Hz','N/A'];
-        foreach ($voltajes as $i => $v) { $listSheet->setCellValue('E'.($i+1), $v); }
+        $voltajes = ['110V', '127V', '220V', '220/440V', '110/220V', '440V', '480V', '12VDC', '24VDC', '3HP', '5HP', '10HP', '60Hz', 'N/A'];
+        foreach ($voltajes as $i => $v) {
+            $listSheet->setCellValue('E'.($i + 1), $v);
+        }
 
         // DEPARTAMENTO (col F)
-        foreach ($this->departamentos as $i => $v) { $listSheet->setCellValue('F'.($i+1), $v); }
+        foreach ($this->departamentos as $i => $v) {
+            $listSheet->setCellValue('F'.($i + 1), $v);
+        }
 
         // LINEA (col G)
-        foreach ($this->lineas as $i => $v) { $listSheet->setCellValue('G'.($i+1), $v); }
+        foreach ($this->lineas as $i => $v) {
+            $listSheet->setCellValue('G'.($i + 1), $v);
+        }
 
         // SUBFAMILIA (col H)
-        foreach ($this->subfamilias as $i => $v) { $listSheet->setCellValue('H'.($i+1), $v); }
+        foreach ($this->subfamilias as $i => $v) {
+            $listSheet->setCellValue('H'.($i + 1), $v);
+        }
 
         // CANAL (col I)
-        foreach ($this->canales as $i => $v) { $listSheet->setCellValue('I'.($i+1), $v); }
+        foreach ($this->canales as $i => $v) {
+            $listSheet->setCellValue('I'.($i + 1), $v);
+        }
 
         // VENDEDOR (col J)
-        foreach ($this->vendedores as $i => $v) { $listSheet->setCellValue('J'.($i+1), $v); }
+        foreach ($this->vendedores as $i => $v) {
+            $listSheet->setCellValue('J'.($i + 1), $v);
+        }
 
         // MODULO (col K)
-        foreach ($this->modulos as $i => $v) { $listSheet->setCellValue('K'.($i+1), $v); }
+        foreach ($this->modulos as $i => $v) {
+            $listSheet->setCellValue('K'.($i + 1), $v);
+        }
 
         $listSheet->setSheetState(Worksheet::SHEETSTATE_HIDDEN);
 
@@ -331,7 +348,7 @@ class AltaProductoPTController extends Controller
         $primeraFila = $productos[0] ?? [];
         $columnasPresentes = array_keys($primeraFila);
         $columnasFaltantes = array_diff($this->columnasObligatorias, $columnasPresentes);
-        if (!empty($columnasFaltantes)) {
+        if (! empty($columnasFaltantes)) {
             return back()->with('error', 'Faltan columnas: '.implode(', ', $columnasFaltantes).'. Usa el template oficial de PT.');
         }
 
@@ -343,7 +360,7 @@ class AltaProductoPTController extends Controller
         foreach ($productos as $index => $producto) {
             $fila = $index + 2;
             $erroresFila = $this->validarProductoPT($producto, $fila);
-            if (!empty($erroresFila)) {
+            if (! empty($erroresFila)) {
                 $errores = array_merge($errores, $erroresFila);
                 $conError++;
             } else {
@@ -352,7 +369,7 @@ class AltaProductoPTController extends Controller
         }
 
         // Si hay errores, generar Excel con correcciones
-        if (!empty($errores)) {
+        if (! empty($errores)) {
             $archivoErrores = $this->generarExcelConErrores($productos, $errores);
             $mensajeError = "Se encontraron errores en {$conError} producto(s):\n\n";
             $porFila = [];
@@ -362,6 +379,7 @@ class AltaProductoPTController extends Controller
             foreach ($porFila as $fila => $errs) {
                 $mensajeError .= "Fila {$fila}: ".implode(' | ', $errs)."\n";
             }
+
             return back()->with('error', $mensajeError)->with('archivo_correcciones', $archivoErrores);
         }
 
@@ -369,7 +387,9 @@ class AltaProductoPTController extends Controller
         $creados = 0;
         foreach ($productos as $producto) {
             $codigo = strtoupper(trim($producto['CODIGO'] ?? ''));
-            if (empty($codigo)) continue;
+            if (empty($codigo)) {
+                continue;
+            }
 
             // Construir nombre compuesto
             $partes = array_filter([
@@ -417,8 +437,14 @@ class AltaProductoPTController extends Controller
             $creados++;
         }
 
-        // Disparar alertas
-        try { app(AlertEngineService::class)->verificarTodo(); } catch (\Exception $e) {}
+        // Disparar alertas (si el motor expone verificación post-alta)
+        try {
+            $engine = app(AlertEngineService::class);
+            if (method_exists($engine, 'verificarTodo')) {
+                $engine->verificarTodo();
+            }
+        } catch (\Exception $e) {
+        }
 
         return back()->with('mensaje', "Se dieron de alta {$creados} producto(s) terminado(s) exitosamente.");
     }
@@ -431,11 +457,12 @@ class AltaProductoPTController extends Controller
         // Codigo obligatorio
         if (empty($codigo)) {
             $errores[] = ['fila' => $fila, 'campo' => 'CODIGO', 'error' => 'CODIGO es obligatorio'];
+
             return $errores;
         }
 
         // Validar que sea codigo PT (E/M/N + letras)
-        if (!preg_match('/^[EMN][A-Z]{2}/', $codigo)) {
+        if (! preg_match('/^[EMN][A-Z]{2}/', $codigo)) {
             $errores[] = ['fila' => $fila, 'campo' => 'CODIGO', 'error' => "Codigo '{$codigo}' no parece PT. Los codigos PT empiezan con E/M/N + letras (ej: EAEHO, MAEDC)."];
         }
 
@@ -454,19 +481,19 @@ class AltaProductoPTController extends Controller
 
         // NOMBRE_TIPO minimo 2 palabras
         $tipo = trim($producto['NOMBRE_TIPO'] ?? '');
-        if (!empty($tipo) && str_word_count($tipo) < 2) {
+        if (! empty($tipo) && str_word_count($tipo) < 2) {
             $errores[] = ['fila' => $fila, 'campo' => 'NOMBRE_TIPO', 'error' => "NOMBRE_TIPO debe tener minimo 2 palabras ('{$tipo}')"];
         }
 
         // NOMBRE_MEDIDA debe tener numeros
         $medida = trim($producto['NOMBRE_MEDIDA'] ?? '');
-        if (!empty($medida) && !preg_match('/\d/', $medida)) {
+        if (! empty($medida) && ! preg_match('/\d/', $medida)) {
             $errores[] = ['fila' => $fila, 'campo' => 'NOMBRE_MEDIDA', 'error' => "NOMBRE_MEDIDA debe contener numeros ('{$medida}')"];
         }
 
         // Validar FAMILIA contra catalogo
         $familia = strtoupper(trim($producto['FAMILIA'] ?? ''));
-        if (!empty($familia) && !in_array($familia, $this->familiasValidas)) {
+        if (! empty($familia) && ! in_array($familia, $this->familiasValidas)) {
             $errores[] = ['fila' => $fila, 'campo' => 'FAMILIA', 'error' => "FAMILIA '{$familia}' no esta en el catalogo."];
         }
 
@@ -527,7 +554,7 @@ class AltaProductoPTController extends Controller
         $savePath = 'excel-correcciones/'.$filename;
         $fullPath = storage_path('app/public/'.$savePath);
 
-        if (!is_dir(dirname($fullPath))) {
+        if (! is_dir(dirname($fullPath))) {
             mkdir(dirname($fullPath), 0755, true);
         }
         $writer->save($fullPath);
@@ -540,16 +567,19 @@ class AltaProductoPTController extends Controller
         $productos = [];
         $handle = fopen($path, 'r');
         $headers = fgetcsv($handle);
-        $headers = array_map(fn($h) => strtoupper(trim($h)), $headers);
+        $headers = array_map(fn ($h) => strtoupper(trim($h)), $headers);
 
         while (($row = fgetcsv($handle)) !== false) {
-            if (count($row) !== count($headers)) continue;
+            if (count($row) !== count($headers)) {
+                continue;
+            }
             $producto = array_combine($headers, $row);
-            if (!empty(trim($producto['CODIGO'] ?? ''))) {
+            if (! empty(trim($producto['CODIGO'] ?? ''))) {
                 $productos[] = $producto;
             }
         }
         fclose($handle);
+
         return $productos;
     }
 
@@ -569,21 +599,25 @@ class AltaProductoPTController extends Controller
 
             if (empty($headers)) {
                 $headers = array_map('strtoupper', $rowData);
+
                 continue;
             }
 
             // Ignorar filas vacias
-            if (empty(array_filter($rowData))) continue;
+            if (empty(array_filter($rowData))) {
+                continue;
+            }
 
             $producto = [];
             foreach ($headers as $i => $header) {
                 $producto[$header] = $rowData[$i] ?? '';
             }
 
-            if (!empty(trim($producto['CODIGO'] ?? ''))) {
+            if (! empty(trim($producto['CODIGO'] ?? ''))) {
                 $productos[] = $producto;
             }
         }
+
         return $productos;
     }
 }

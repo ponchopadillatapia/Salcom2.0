@@ -2,9 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Mail\BienvenidaProveedor;
+use App\Models\Alerta;
 use App\Models\ProveedorUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class OnboardingLockTest extends TestCase
@@ -36,6 +39,7 @@ class OnboardingLockTest extends TestCase
 
     public function test_registro_crea_cuenta_inactiva(): void
     {
+        Mail::fake();
         config(['services.recaptcha.secret_key' => null]);
 
         $this->post('/proveedor/registro', [
@@ -51,6 +55,29 @@ class OnboardingLockTest extends TestCase
             'correo' => 'demo.lock@test.com',
             'activo' => 0,
         ]);
+
+        $proveedor = ProveedorUser::where('correo', 'demo.lock@test.com')->first();
+        $this->assertNotNull($proveedor);
+
+        Mail::assertSent(BienvenidaProveedor::class, function (BienvenidaProveedor $mail) {
+            return $mail->correo === 'demo.lock@test.com'
+                && $mail->nombreProveedor === 'Demo SA'
+                && $mail->hasTo('demo.lock@test.com');
+        });
+
+        $this->assertDatabaseHas('alertas', [
+            'tipo' => 'bienvenida',
+            'destinatario_tipo' => 'proveedor',
+            'destinatario_id' => $proveedor->id,
+            'titulo' => '¡Bienvenido al Portal de Proveedores!',
+        ]);
+
+        $this->assertTrue(
+            Alerta::where('destinatario_tipo', 'proveedor')
+                ->where('destinatario_id', $proveedor->id)
+                ->where('tipo', 'bienvenida')
+                ->exists()
+        );
     }
 
     public function test_inactivo_puede_ver_onboarding(): void

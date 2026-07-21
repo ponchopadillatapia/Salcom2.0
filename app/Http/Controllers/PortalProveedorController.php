@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AdminUser;
 use App\Models\ContactoProveedor;
 use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
 use App\Models\Factura;
 use App\Models\ProveedorUser;
+use App\Models\SolicitudAlta;
 use App\Services\AltaFacturaValidationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
@@ -29,121 +33,122 @@ class PortalProveedorController extends Controller
 
     public function mostrarOnboarding()
     {
-      try {
-        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        try {
+            $proveedor = ProveedorUser::find(session('proveedor_id'));
 
-        // Si entró como admin, proveedor_id antes era el id de admin_users (sin fila en proveedores_users).
-        // No redirigir a login: eso causa rebote (login -> portal) y parece que onboarding no carga.
-        if (! $proveedor) {
-            $admin = \App\Models\AdminUser::find(session('proveedor_id'));
-            if ($admin && $admin->rol === 'admin') {
-                $existente = ProveedorUser::where('usuario', $admin->usuario)->first();
-                if ($existente) {
-                    $proveedor = $existente;
-                } else {
-                    $datos = [
-                        'usuario' => $admin->usuario,
-                        'nombre' => $admin->nombre,
-                        'correo' => $admin->correo ?: ($admin->usuario.'@salcom.local'),
-                        'password' => $admin->password,
-                        'tipo_persona' => 'Persona Moral',
-                        'activo' => true,
-                    ];
-                    if (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'id_proveedor')) {
-                        $datos['id_proveedor'] = 'ADMIN-'.$admin->id;
-                    } elseif (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'codigo_compras')) {
-                        $datos['codigo_compras'] = 'ADMIN-'.$admin->id;
+            // Si entró como admin, proveedor_id antes era el id de admin_users (sin fila en proveedores_users).
+            // No redirigir a login: eso causa rebote (login -> portal) y parece que onboarding no carga.
+            if (! $proveedor) {
+                $admin = AdminUser::find(session('proveedor_id'));
+                if ($admin && $admin->rol === 'admin') {
+                    $existente = ProveedorUser::where('usuario', $admin->usuario)->first();
+                    if ($existente) {
+                        $proveedor = $existente;
+                    } else {
+                        $datos = [
+                            'usuario' => $admin->usuario,
+                            'nombre' => $admin->nombre,
+                            'correo' => $admin->correo ?: ($admin->usuario.'@salcom.local'),
+                            'password' => $admin->password,
+                            'tipo_persona' => 'Persona Moral',
+                            'activo' => true,
+                        ];
+                        if (Schema::hasColumn('proveedores_users', 'id_proveedor')) {
+                            $datos['id_proveedor'] = 'ADMIN-'.$admin->id;
+                        } elseif (Schema::hasColumn('proveedores_users', 'codigo_compras')) {
+                            $datos['codigo_compras'] = 'ADMIN-'.$admin->id;
+                        }
+                        $proveedor = new ProveedorUser;
+                        $proveedor->forceFill($datos)->save();
+                        $proveedor = $proveedor->fresh();
                     }
-                    $proveedor = new ProveedorUser;
-                    $proveedor->forceFill($datos)->save();
-                    $proveedor = $proveedor->fresh();
+
+                    session([
+                        'proveedor_id' => $proveedor->id,
+                        'proveedor_nombre' => $proveedor->nombre ?? $admin->nombre,
+                        'proveedor_codigo' => $proveedor->id_proveedor ?? $proveedor->codigo_compras ?? ('ADMIN-'.$admin->id),
+                        'proveedor_correo' => $proveedor->correo ?? $admin->correo,
+                    ]);
                 }
-
-                session([
-                    'proveedor_id' => $proveedor->id,
-                    'proveedor_nombre' => $proveedor->nombre ?? $admin->nombre,
-                    'proveedor_codigo' => $proveedor->id_proveedor ?? $proveedor->codigo_compras ?? ('ADMIN-'.$admin->id),
-                    'proveedor_correo' => $proveedor->correo ?? $admin->correo,
-                ]);
             }
-        }
 
-        if (! $proveedor) {
-            return redirect('/portal-proveedor')
-                ->with('error', 'No se pudo cargar el onboarding. Cierra sesión e inicia de nuevo.');
-        }
+            if (! $proveedor) {
+                return redirect('/portal-proveedor')
+                    ->with('error', 'No se pudo cargar el onboarding. Cierra sesión e inicia de nuevo.');
+            }
 
-        try {
-            $proveedor->load(['documentos', 'contactos']);
+            try {
+                $proveedor->load(['documentos', 'contactos']);
+            } catch (\Exception $e) {
+                // Si falla, el proveedor seguirá sin documentos cargados
+            }
+
+            $pasoRegistro = true;
+            try {
+                $pasoBancarios = $proveedor->tieneFormularioDatosBancarios();
+            } catch (\Exception $e) {
+                $pasoBancarios = false;
+            }
+            try {
+                $pasoDocs = $proveedor->documentosFiscalesCompletos();
+            } catch (\Exception $e) {
+                $pasoDocs = false;
+            }
+            try {
+                $pasoDocsRenovar = $proveedor->documentosPorRenovar();
+            } catch (\Exception $e) {
+                $pasoDocsRenovar = false;
+            }
+            try {
+                $numContactos = $proveedor->relationLoaded('contactos')
+                    ? $proveedor->contactos->count()
+                    : $proveedor->contactos()->count();
+            } catch (\Exception $e) {
+                $numContactos = 0;
+            }
+            $pasoContactos = $numContactos >= 2;
+            $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos;
+            $pasoActivo = (bool) $proveedor->activo;
+
+            $completados = (int) $pasoRegistro + (int) $pasoBancarios + (int) $pasoDocs + (int) $pasoContactos + (int) ($pasoListoDireccion && $pasoActivo ? 1 : 0);
+            $totalPasos = 5;
+            $pct = (int) round(100 * $completados / $totalPasos);
+
+            return view('proveedores.onboarding', compact(
+                'proveedor',
+                'pasoRegistro',
+                'pasoBancarios',
+                'pasoDocs',
+                'pasoDocsRenovar',
+                'numContactos',
+                'pasoContactos',
+                'pasoListoDireccion',
+                'pasoActivo',
+                'completados',
+                'totalPasos',
+                'pct'
+            ));
+
         } catch (\Exception $e) {
-            // Si falla, el proveedor seguirá sin documentos cargados
-        }
+            Log::error('Onboarding error: '.$e->getMessage().' | '.$e->getFile().':'.$e->getLine());
+            // Fallback: mostrar onboarding básico sin datos calculados
+            $proveedor = ProveedorUser::find(session('proveedor_id'));
 
-        $pasoRegistro = true;
-        try {
-            $pasoBancarios = $proveedor->tieneFormularioDatosBancarios();
-        } catch (\Exception $e) {
-            $pasoBancarios = false;
+            return view('proveedores.onboarding', [
+                'proveedor' => $proveedor,
+                'pasoRegistro' => true,
+                'pasoBancarios' => false,
+                'pasoDocs' => false,
+                'pasoDocsRenovar' => false,
+                'numContactos' => 0,
+                'pasoContactos' => false,
+                'pasoListoDireccion' => false,
+                'pasoActivo' => false,
+                'completados' => 1,
+                'totalPasos' => 5,
+                'pct' => 20,
+            ]);
         }
-        try {
-            $pasoDocs = $proveedor->documentosFiscalesCompletos();
-        } catch (\Exception $e) {
-            $pasoDocs = false;
-        }
-        try {
-            $pasoDocsRenovar = $proveedor->documentosPorRenovar();
-        } catch (\Exception $e) {
-            $pasoDocsRenovar = false;
-        }
-        try {
-            $numContactos = $proveedor->relationLoaded('contactos')
-                ? $proveedor->contactos->count()
-                : $proveedor->contactos()->count();
-        } catch (\Exception $e) {
-            $numContactos = 0;
-        }
-        $pasoContactos = $numContactos >= 2;
-        $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos;
-        $pasoActivo = (bool) $proveedor->activo;
-
-        $completados = (int) $pasoRegistro + (int) $pasoBancarios + (int) $pasoDocs + (int) $pasoContactos + (int) ($pasoListoDireccion && $pasoActivo ? 1 : 0);
-        $totalPasos = 5;
-        $pct = (int) round(100 * $completados / $totalPasos);
-
-        return view('proveedores.onboarding', compact(
-            'proveedor',
-            'pasoRegistro',
-            'pasoBancarios',
-            'pasoDocs',
-            'pasoDocsRenovar',
-            'numContactos',
-            'pasoContactos',
-            'pasoListoDireccion',
-            'pasoActivo',
-            'completados',
-            'totalPasos',
-            'pct'
-        ));
-
-      } catch (\Exception $e) {
-        \Illuminate\Support\Facades\Log::error('Onboarding error: ' . $e->getMessage() . ' | ' . $e->getFile() . ':' . $e->getLine());
-        // Fallback: mostrar onboarding básico sin datos calculados
-        $proveedor = ProveedorUser::find(session('proveedor_id'));
-        return view('proveedores.onboarding', [
-            'proveedor' => $proveedor,
-            'pasoRegistro' => true,
-            'pasoBancarios' => false,
-            'pasoDocs' => false,
-            'pasoDocsRenovar' => false,
-            'numContactos' => 0,
-            'pasoContactos' => false,
-            'pasoListoDireccion' => false,
-            'pasoActivo' => false,
-            'completados' => 1,
-            'totalPasos' => 5,
-            'pct' => 20,
-        ]);
-      }
     }
 
     public function mostrarBusiness()
@@ -200,7 +205,7 @@ class PortalProveedorController extends Controller
         ]);
 
         $proveedor = ProveedorUser::find(session('proveedor_id'));
-        if (!$proveedor) {
+        if (! $proveedor) {
             return back()->with('error', 'Proveedor no encontrado.');
         }
 
@@ -397,13 +402,34 @@ class PortalProveedorController extends Controller
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         $identificacion = session('identificacion_proveedor')
-            ?? ($proveedor?->datos_identificacion ?? []);
+            ?? ($proveedor !== null ? ($proveedor->datos_identificacion ?? []) : []);
+        if (! is_array($identificacion)) {
+            $identificacion = $proveedor !== null
+                ? ($proveedor->datos_identificacion ?? [])
+                : [];
+        }
+
+        // Precargar tipo de persona desde el registro de la cuenta
+        if (empty($identificacion['tipo_persona']) && $proveedor !== null && $proveedor->tipo_persona) {
+            $identificacion['tipo_persona'] = $this->normalizarTipoPersona($proveedor->tipo_persona);
+        }
 
         if ($identificacion && ! session('identificacion_proveedor')) {
             session(['identificacion_proveedor' => $identificacion]);
         }
 
-        return view('proveedores.identificacion_proveedor', compact('identificacion'));
+        $tieneDocsAprobados = false;
+        if ($proveedor) {
+            try {
+                $tieneDocsAprobados = $proveedor->documentos()
+                    ->where('estatus', 'aprobado')
+                    ->exists();
+            } catch (\Exception $e) {
+                $tieneDocsAprobados = false;
+            }
+        }
+
+        return view('proveedores.identificacion_proveedor', compact('identificacion', 'proveedor', 'tieneDocsAprobados'));
     }
 
     public function guardarIdentificacion(Request $request)
@@ -480,51 +506,78 @@ class PortalProveedorController extends Controller
 
         session(['identificacion_proveedor' => $payload]);
 
-        // Guardar solicitud de alta en la BD para el panel admin
+        // Guardar / actualizar solicitud de alta (una por proveedor)
         try {
-            \App\Models\SolicitudAlta::create([
-                'proveedor_id' => session('proveedor_id'),
-                'tipo_persona' => $data['tipo_persona'],
-                'nombre_completo' => $nombreEsperado,
-                'razon_social' => $data['razon_social'] ?? null,
-                'apellido_paterno' => $data['apellido_paterno'] ?? null,
-                'apellido_materno' => $data['apellido_materno'] ?? null,
-                'nombres' => $data['nombres'] ?? null,
-                'calle' => $data['calle'] ?? null,
-                'num_exterior' => $data['num_exterior'] ?? null,
-                'num_interior' => $data['num_interior'] ?? null,
-                'colonia' => $data['colonia'] ?? null,
-                'municipio' => $data['municipio'] ?? null,
-                'estado' => $data['estado'] ?? null,
-                'ciudad' => $data['ciudad'] ?? null,
-                'pais' => $data['pais'] ?? null,
-                'cp' => $data['cp'] ?? null,
-                'telefono' => $data['telefono'] ?? null,
-                'celular' => $data['celular'] ?? null,
-                'telefono2' => $data['telefono2'] ?? null,
-                'extension' => $data['extension'] ?? null,
-                'correo' => $data['correo'] ?? null,
-                'clabe' => $data['clabe'] ?? null,
-                'cuenta' => $data['cuenta'] ?? null,
-                'banco' => $data['banco'] ?? null,
-                'docs_marcados' => $data['docs'] ?? [],
-                'nombre_firma' => $data['nombre_firma'] ?? null,
-            ]);
+            SolicitudAlta::updateOrCreate(
+                ['proveedor_id' => session('proveedor_id')],
+                [
+                    'tipo_persona' => $data['tipo_persona'],
+                    'nombre_completo' => $nombreEsperado,
+                    'razon_social' => $data['razon_social'] ?? null,
+                    'apellido_paterno' => $data['apellido_paterno'] ?? null,
+                    'apellido_materno' => $data['apellido_materno'] ?? null,
+                    'nombres' => $data['nombres'] ?? null,
+                    'calle' => $data['calle'] ?? null,
+                    'num_exterior' => $data['num_exterior'] ?? null,
+                    'num_interior' => $data['num_interior'] ?? null,
+                    'colonia' => $data['colonia'] ?? null,
+                    'municipio' => $data['municipio'] ?? null,
+                    'estado' => $data['estado'] ?? null,
+                    'ciudad' => $data['ciudad'] ?? null,
+                    'pais' => $data['pais'] ?? null,
+                    'cp' => $data['cp'] ?? null,
+                    'telefono' => $data['telefono'] ?? null,
+                    'celular' => $data['celular'] ?? null,
+                    'telefono2' => $data['telefono2'] ?? null,
+                    'extension' => $data['extension'] ?? null,
+                    'correo' => $data['correo'] ?? null,
+                    'clabe' => $data['clabe'] ?? null,
+                    'cuenta' => $data['cuenta'] ?? null,
+                    'banco' => $data['banco'] ?? null,
+                    'docs_marcados' => $data['docs'] ?? [],
+                    'nombre_firma' => $data['nombre_firma'] ?? null,
+                ]
+            );
         } catch (\Exception $e) {
             // La tabla aún no existe — se creará al correr migraciones
         }
 
         $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $yaTenia = $proveedor && $proveedor->tieneFormularioDatosBancarios();
+        $datosAnteriores = is_array($proveedor?->datos_identificacion) ? $proveedor->datos_identificacion : [];
+        $cambioCritico = $yaTenia && $this->cambioCriticoIdentificacion($datosAnteriores, $payload);
+        $docsInvalidated = false;
+
         if ($proveedor) {
             try {
-                $proveedor->update(['datos_identificacion' => $payload]);
+                $proveedor->update([
+                    'datos_identificacion' => $payload,
+                    'tipo_persona' => $data['tipo_persona'],
+                ]);
             } catch (\Exception $e) {
                 // La columna datos_identificacion puede no existir aún en producción
+                try {
+                    $proveedor->update(['tipo_persona' => $data['tipo_persona']]);
+                } catch (\Exception $e2) {
+                    // ignore
+                }
+            }
+
+            // Si cambió banco/CLABE/nombre/tipo y ya tenía docs aprobados → invalidar para forzar revalidación
+            if ($cambioCritico) {
+                $docsInvalidated = $this->invalidarDocumentosTrasCambioIdentificacion($proveedor->id);
             }
         }
 
-        return redirect()->route('proveedores.onboarding')
-            ->with('mensaje', 'Formulario de datos bancarios guardado. Ya puedes continuar con la validación de documentos.');
+        $mensaje = $yaTenia
+            ? 'Datos bancarios actualizados correctamente.'
+            : 'Formulario de datos bancarios guardado. Ya puedes continuar con la validación de documentos.';
+
+        if ($docsInvalidated) {
+            $mensaje .= ' Como cambiaste datos críticos (banco, CLABE, nombre o tipo de persona), los documentos previamente validados quedaron pendientes: vuelve a Validar documentos.';
+        }
+
+        return redirect()->route('proveedores.onboarding')->with('mensaje', $mensaje);
     }
 
     public function mostrarValidacionFiscal()
@@ -873,5 +926,76 @@ class PortalProveedorController extends Controller
             'aprobado' => false,
             'mensaje' => 'El documento fue rechazado. Errores: '.implode(' ', $errores).' Corrige y vuelve a subir.',
         ]);
+    }
+
+    private function normalizarTipoPersona(?string $tipo): string
+    {
+        $tipo = trim((string) $tipo);
+        if ($tipo === 'Persona Física' || $tipo === 'Persona Moral') {
+            return $tipo;
+        }
+
+        $lower = mb_strtolower($tipo);
+        if (str_contains($lower, 'moral')) {
+            return 'Persona Moral';
+        }
+        if (str_contains($lower, 'fís') || str_contains($lower, 'fis')) {
+            return 'Persona Física';
+        }
+
+        return $tipo;
+    }
+
+    /** Campos que, si cambian, invalidan la validación fiscal ya hecha. */
+    private function firmaCriticaIdentificacion(array $datos): array
+    {
+        $esMoral = ($datos['tipo_persona'] ?? '') === 'Persona Moral';
+        $nombre = $esMoral
+            ? trim((string) ($datos['razon_social'] ?? $datos['nombre_esperado'] ?? ''))
+            : trim(implode(' ', array_filter([
+                $datos['apellido_paterno'] ?? '',
+                $datos['apellido_materno'] ?? '',
+                $datos['nombres'] ?? '',
+            ])));
+
+        if ($nombre === '' && ! empty($datos['nombre_esperado'])) {
+            $nombre = trim((string) $datos['nombre_esperado']);
+        }
+
+        return [
+            'tipo_persona' => trim((string) ($datos['tipo_persona'] ?? '')),
+            'banco' => mb_strtolower(trim((string) ($datos['banco'] ?? ''))),
+            'clabe' => preg_replace('/\D/', '', (string) ($datos['clabe'] ?? '')),
+            'cuenta' => preg_replace('/\D/', '', (string) ($datos['cuenta'] ?? '')),
+            'nombre' => mb_strtolower(preg_replace('/\s+/', ' ', $nombre)),
+            'cp' => preg_replace('/\D/', '', (string) ($datos['cp'] ?? '')),
+        ];
+    }
+
+    private function cambioCriticoIdentificacion(array $antes, array $despues): bool
+    {
+        if ($antes === []) {
+            return false;
+        }
+
+        return $this->firmaCriticaIdentificacion($antes) !== $this->firmaCriticaIdentificacion($despues);
+    }
+
+    /** @return bool true si invalidó al menos un documento aprobado */
+    private function invalidarDocumentosTrasCambioIdentificacion(int $proveedorId): bool
+    {
+        try {
+            $afectados = DocumentoProveedor::where('proveedor_id', $proveedorId)
+                ->where('estatus', 'aprobado')
+                ->update([
+                    'estatus' => 'pendiente',
+                    'notas_revision' => 'Invalidado automáticamente: el proveedor modificó datos bancarios o de identidad después de la validación. Debe volver a validar documentos.',
+                    'revisado_at' => null,
+                ]);
+
+            return $afectados > 0;
+        } catch (\Exception $e) {
+            return false;
+        }
     }
 }

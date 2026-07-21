@@ -104,6 +104,16 @@
     </div>
 @endif
 
+@if(!empty($tieneDocsAprobados))
+    <div class="id-card" style="border-color:#F59E0B;background:#FFFBEB;margin-bottom:16px;">
+        <p style="color:#92400E;font-size:13px;font-weight:600;margin:0;">Aviso importante</p>
+        <p style="color:#78350F;font-size:12px;margin:8px 0 0;line-height:1.5;">
+            Ya validaste documentos fiscales. Si cambias <strong>banco, CLABE, cuenta, nombre/razón social, C.P. o tipo de persona</strong>,
+            esos documentos se invalidan y tendrás que volver a validarlos para que coincidan con los nuevos datos.
+        </p>
+    </div>
+@endif
+
 <form method="POST" action="{{ route('proveedores.identificacion.guardar') }}" id="formIdentificacion" novalidate>
     @csrf
     @php $d = $identificacion ?? []; @endphp
@@ -124,11 +134,25 @@
             <div class="form-group">
                 <label for="tipo_persona">Tipo de persona</label>
                 <select id="tipo_persona" name="tipo_persona" required>
-                    @php $tp = old('tipo_persona', $d['tipo_persona'] ?? ''); @endphp
+                    @php
+                        $tpRegistro = isset($proveedor) ? ($proveedor->tipo_persona ?? '') : '';
+                        $tp = old('tipo_persona', $d['tipo_persona'] ?? $tpRegistro);
+                        if ($tp && ! in_array($tp, ['Persona Física', 'Persona Moral'], true)) {
+                            $tpLower = mb_strtolower($tp);
+                            if (str_contains($tpLower, 'moral')) {
+                                $tp = 'Persona Moral';
+                            } elseif (str_contains($tpLower, 'fís') || str_contains($tpLower, 'fis')) {
+                                $tp = 'Persona Física';
+                            }
+                        }
+                    @endphp
                     <option value="" disabled {{ $tp ? '' : 'selected' }}>Selecciona una opción</option>
                     <option value="Persona Física" {{ $tp == 'Persona Física' ? 'selected' : '' }}>Persona Física</option>
                     <option value="Persona Moral" {{ $tp == 'Persona Moral' ? 'selected' : '' }}>Persona Moral</option>
                 </select>
+                @if($tpRegistro)
+                    <span style="font-size:11px;color:var(--gray-muted);margin-top:4px;">Según tu registro de cuenta. Puedes corregirlo si fue un error.</span>
+                @endif
             </div>
         </div>
 
@@ -361,7 +385,9 @@
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn-submit">Enviar identificación</button>
+            <button type="submit" class="btn-submit">
+                {{ !empty($d['banco']) || !empty($d['clabe']) ? 'Guardar cambios' : 'Enviar identificación' }}
+            </button>
         </div>
     </div>
 </form>

@@ -7,8 +7,6 @@ use App\Models\ClienteUser;
 use App\Models\Encuesta;
 use App\Models\Pedido;
 use App\Models\Producto;
-use App\Models\ProductoProveedorPrecio;
-use App\Models\ProveedorUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;

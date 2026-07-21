@@ -203,7 +203,7 @@ class AuthAdminController extends Controller
         ]);
 
         $admin = AdminUser::find(session('admin_id'));
-        if (!$admin) {
+        if (! $admin) {
             abort(404);
         }
 
