@@ -146,10 +146,11 @@ class EmpresaApiController extends Controller
                 if ($nombreEsperado !== '') {
                     $nombreDoc = (string) ($cif['datos']['nombre'] ?? '');
                     if ($nombreDoc === '') {
-                        $cif['errores'][] = 'No se pudo verificar el nombre del formulario contra el CIF (nombre no detectado en el documento)';
-                        $cif['valida'] = false;
+                        // No marcar error — mostrar el nombre del formulario como referencia
+                        $etiqueta = $declaroMoral ? 'Razón Social' : 'Nombre';
+                        $cif['hallazgos'][] = $etiqueta . ' (del formulario): ' . $nombreEsperado;
                     } elseif ($this->nombresCoinciden($nombreEsperado, $nombreDoc)) {
-                        $cif['hallazgos'][] = 'Nombre/Razón Social coincide con el formulario de identificación';
+                        $cif['hallazgos'][] = 'Nombre/Razón Social coincide con el formulario de identificación ✓';
                     } else {
                         $etiqueta = $declaroMoral ? 'Razón Social' : 'Nombre';
                         $cif['errores'][] = "{$etiqueta} del formulario (\"{$nombreEsperado}\") no coincide con el CIF (\"{$nombreDoc}\")";
@@ -279,6 +280,10 @@ class EmpresaApiController extends Controller
                 $estado = 'rojo';
             }
 
+            // ════════════════════════════════════════
+            // VALIDACIÓN CRUZADA CON IA — se ejecuta después
+            // ════════════════════════════════════════
+
             // Guardar copias en expediente fiscal — SOLO si validación correcta
             if ($todoOk) {
                 $proveedorId = session('proveedor_id');
@@ -321,6 +326,60 @@ class EmpresaApiController extends Controller
             }
             if ($poder) {
                 $response['poder'] = $poder;
+            }
+
+            // ════════════════════════════════════════
+            // VALIDACIÓN CRUZADA CON IA (Compliance)
+            // ════════════════════════════════════════
+            if (!empty(config('services.ia.aws_access_key')) && strlen($textos['cif'] ?? '') > 50) {
+                try {
+                    $iaService = app(\App\Services\IaService::class);
+
+                    $resumenDocs = "DATOS DEL FORMULARIO BANCARIO:\n" .
+                        "- Nombre/Razón Social declarado: " . ($nombreEsperado ?: 'No proporcionado') . "\n" .
+                        "- CLABE: " . ($request->input('clabe_esperada', '') ?: 'No proporcionada') . "\n" .
+                        "- Banco: " . ($request->input('banco_esperado', '') ?: 'No proporcionado') . "\n\n" .
+                        "DATOS EXTRAÍDOS DEL CIF:\n" .
+                        "- RFC: " . ($cif['datos']['rfc'] ?? 'No detectado') . "\n" .
+                        "- Tipo persona: " . ($cif['datos']['tipo_persona'] ?? 'No detectado') . "\n\n" .
+                        "DATOS DE LA OPINIÓN SAT:\n" .
+                        "- Sentido: " . ($opinion['datos']['sentido'] ?? 'No detectado') . "\n" .
+                        "- RFC en opinión: " . ($opinion['datos']['rfc_encontrado'] ?? 'No detectado') . "\n\n" .
+                        "DATOS DE LA CARÁTULA BANCARIA:\n" .
+                        "- Banco detectado: " . ($banco['datos']['banco'] ?? 'No detectado') . "\n" .
+                        "- CLABE: " . ($banco['datos']['clabe'] ?? 'No detectada') . "\n" .
+                        "- Titular: " . ($banco['datos']['titular'] ?? 'No detectado') . "\n\n";
+
+                    if ($acta && !empty($acta['datos']['nombre_acta'])) {
+                        $resumenDocs .= "DATOS DEL ACTA CONSTITUTIVA:\n" .
+                            "- Razón Social: " . $acta['datos']['nombre_acta'] . "\n" .
+                            "- Tipo sociedad: " . ($acta['datos']['tipo_sociedad'] ?? 'No detectado') . "\n\n";
+                    }
+
+                    $resultadoCruce = $iaService->llamarClaude(
+                        "Actúa como un experto en auditoría financiera, legal y validación (Compliance) de proveedores en México.\n\n" .
+                        "Tarea: Analiza la información extraída de los documentos y realiza validaciones cruzadas.\n\n" .
+                        "INFORMACIÓN:\n{$resumenDocs}\n" .
+                        "Reglas:\n" .
+                        "1. Si es Persona Moral: verifica que el nombre en la cuenta bancaria coincida con la razón social del acta y del CIF.\n" .
+                        "2. Verifica que el RFC del CIF coincida con el de la Opinión SAT.\n" .
+                        "3. Verifica que la CLABE del formulario coincida con la de la carátula.\n" .
+                        "4. Verifica que el banco declarado coincida con el detectado.\n\n" .
+                        "Responde ÚNICAMENTE con JSON (sin markdown):\n" .
+                        "{\"nombre_coincide\":true/false,\"rfc_coincide\":true/false,\"clabe_coincide\":true/false,\"banco_coincide\":true/false,\"alertas\":[\"alertas\"],\"resumen\":\"resumen\"}"
+                    );
+
+                    if ($resultadoCruce['success'] && $resultadoCruce['content']) {
+                        if (preg_match('/\{.*\}/s', $resultadoCruce['content'], $jsonCruce)) {
+                            $cruceData = json_decode($jsonCruce[0], true);
+                            if ($cruceData) {
+                                $response['validacion_cruzada'] = $cruceData;
+                            }
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // IA no disponible para cruce
+                }
             }
 
             return response()->json($response);
@@ -387,8 +446,7 @@ class EmpresaApiController extends Controller
             || str_contains($textoUpper, 'HACIENDA')) {
             $hallazgos[] = 'Sello del SAT detectado';
         } else {
-            // No marcar como error — el OCR puede no leerlo
-            $hallazgos[] = 'Sello SAT no detectado por OCR (verificar visualmente)';
+            $hallazgos[] = 'Sello SAT — no detectado por OCR';
         }
 
         // RFC — buscar con patrones más flexibles
@@ -414,6 +472,49 @@ class EmpresaApiController extends Controller
 
         // Nombre / Razón social — no se extrae del CIF por OCR poco confiable
         $datos['nombre'] = null;
+
+        // Para Persona Física: extraer nombre desde el texto del CIF
+        if (!$esMoral) {
+            $nombreFisico = '';
+            // Buscar "Primer Apellido:" o "Apellido Paterno:"
+            $ap1 = '';
+            $ap2 = '';
+            $nombres = '';
+
+            if (preg_match('/PRIMER\s*APELLIDO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $textoUpper, $apM)) {
+                $ap1 = trim($apM[1]);
+            } elseif (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $textoUpper, $apM)) {
+                $ap1 = trim($apM[1]);
+            }
+
+            if (preg_match('/SEGUNDO\s*APELLIDO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $textoUpper, $apM2)) {
+                $ap2 = trim($apM2[1]);
+            } elseif (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $textoUpper, $apM2)) {
+                $ap2 = trim($apM2[1]);
+            }
+
+            if (preg_match('/NOMBRE\s*\(?S?\)?[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $textoUpper, $nmM)) {
+                $nombres = trim($nmM[1]);
+            }
+
+            if ($ap1 || $nombres) {
+                $nombreFisico = trim(implode(' ', array_filter([$nombres, $ap1, $ap2])));
+            }
+
+            // Filtrar basura
+            $noEsNombre = ['FISCAL', 'CONTRIBUYENTE', 'IDENTIFICACION', 'CONSTANCIA', 'SITUACION', 'RFC', 'CURP', 'DOMICILIO'];
+            foreach ($noEsNombre as $pb) {
+                if (str_contains($nombreFisico, $pb)) {
+                    $nombreFisico = '';
+                    break;
+                }
+            }
+
+            if (strlen($nombreFisico) > 3) {
+                $datos['nombre'] = $nombreFisico;
+                $hallazgos[] = 'Nombre: ' . $nombreFisico;
+            }
+        }
 
         // Fecha de nacimiento (solo Persona Física)
         if (! $esMoral) {
@@ -454,8 +555,7 @@ class EmpresaApiController extends Controller
                 || str_contains($textoUpper, 'SIMPLIFICADO DE CONFIANZA')) {
             $hallazgos[] = 'Régimen Fiscal detectado';
         } else {
-            // No marcar como error — el OCR puede no leerlo correctamente
-            $hallazgos[] = 'Régimen Fiscal no detectado por OCR (verificar visualmente)';
+            $hallazgos[] = 'Régimen Fiscal — no detectado por OCR';
         }
 
         // Domicilio fiscal — buscar con variaciones
@@ -468,8 +568,7 @@ class EmpresaApiController extends Controller
             || preg_match('/C\.?P\.?\s*\d{5}/', $textoUpper)) {
             $hallazgos[] = 'Domicilio Fiscal detectado';
         } else {
-            // No marcar como error
-            $hallazgos[] = 'Domicilio Fiscal no detectado por OCR (verificar visualmente)';
+            $hallazgos[] = 'Domicilio Fiscal — no detectado por OCR';
         }
 
         // Código postal
@@ -544,8 +643,7 @@ class EmpresaApiController extends Controller
             || str_contains($textoUpper, 'SHCP')) {
             $hallazgos[] = 'Sello del SAT detectado';
         } else {
-            // No marcar como error — el OCR puede no leerlo
-            $hallazgos[] = 'Sello SAT no detectado por OCR (verificar visualmente)';
+            $hallazgos[] = 'Sello SAT — no detectado por OCR';
         }
 
         // RFC en la opinión — buscar con patrones más flexibles
@@ -562,8 +660,7 @@ class EmpresaApiController extends Controller
             $datos['rfc_encontrado'] = $rfcEncontrado;
             $hallazgos[] = 'RFC: ' . $rfcEncontrado;
         } else {
-            // No marcar como error si el OCR no lo lee
-            $hallazgos[] = 'RFC no extraído por OCR (verificar visualmente)';
+            $hallazgos[] = 'RFC — no detectado por OCR';
         }
 
         // Sentido (POSITIVA / NEGATIVA) — esto es lo más importante
@@ -635,8 +732,27 @@ class EmpresaApiController extends Controller
         }
 
         if (strlen($texto) < 20) {
-            $hallazgos[] = 'PDF escaneado — no se pudo extraer texto automáticamente';
-            $errores[] = 'Documento escaneado sin texto extraíble — se requiere PDF con texto seleccionable o validación manual';
+            // Intentar OCR con IA (AWS Textract ya se intentó en extraerTexto)
+            // Si aún así no hay texto, usar Claude para analizar la imagen directamente
+            $hallazgos[] = 'PDF escaneado — texto insuficiente para análisis automático';
+
+            // Intentar análisis con IA si hay credenciales AWS
+            if (!empty(config('services.ia.aws_access_key'))) {
+                try {
+                    $iaService = app(\App\Services\IaService::class);
+                    $resultado = $iaService->llamarClaude(
+                        "El sistema intentó leer un Acta Constitutiva en PDF pero no pudo extraer texto (es un documento escaneado). " .
+                        "Por favor indica que se requiere subir el documento en formato PDF con texto seleccionable (no escaneado) " .
+                        "o que el administrador debe validarlo manualmente. Responde en formato JSON con: " .
+                        "{\"requiere_manual\": true, \"mensaje\": \"texto para el usuario\"}"
+                    );
+                    if ($resultado['success'] && $resultado['content']) {
+                        $hallazgos[] = 'IA: Se requiere validación manual o PDF con texto seleccionable';
+                    }
+                } catch (\Exception $e) {}
+            }
+
+            $errores[] = 'Documento escaneado — sube un PDF con texto seleccionable o solicita validación manual al administrador';
 
             return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
         }
@@ -703,7 +819,7 @@ class EmpresaApiController extends Controller
                 }
             }
         } else {
-            $hallazgos[] = 'No se pudo extraer el nombre de la sociedad del Acta (verificar visualmente)';
+            $hallazgos[] = 'Nombre de la sociedad pendiente de validación por IA';
         }
 
         // ── Sello del Registro Público de la Propiedad y del Comercio ──
@@ -717,7 +833,8 @@ class EmpresaApiController extends Controller
             $datos['registro_publico'] = true;
             $hallazgos[] = 'Sello/Inscripción del Registro Público detectado ✓';
         } else {
-            $errores[] = 'No se detectó sello o inscripción del Registro Público de la Propiedad y del Comercio';
+            // No marcar como error bloqueante — la IA puede detectarlo después
+            $hallazgos[] = 'Sello RPPC: pendiente de confirmación por IA';
         }
 
         // ── Duración de la sociedad ──
@@ -731,7 +848,7 @@ class EmpresaApiController extends Controller
             $datos['duracion'] = 99;
             $hallazgos[] = 'Duración: indefinida o mencionada';
         } else {
-            $hallazgos[] = 'No se detectó cláusula de duración (verificar visualmente)';
+            $hallazgos[] = 'Cláusula de duración pendiente de validación por IA';
         }
 
         // ── Constitución ──
@@ -739,6 +856,123 @@ class EmpresaApiController extends Controller
             $hallazgos[] = 'Contiene cláusula de Constitución';
         } else {
             $errores[] = 'No se encontró referencia a Constitución de la sociedad';
+        }
+
+        // ── Análisis con IA (si hay credenciales y texto suficiente) ──
+        if (strlen($texto) > 50 && !empty(config('services.ia.aws_access_key'))) {
+            try {
+                $iaService = app(\App\Services\IaService::class);
+                $fragmento = substr($texto, 0, 10000); // Enviar máximo texto posible
+                $resultado = $iaService->llamarClaude(
+                    "Actúa como un experto legal especializado en derecho corporativo mexicano y análisis de documentos notariales.\n\n" .
+                    "Tarea: Analiza el texto proporcionado del documento adjunto (Acta Constitutiva) y extrae de manera exacta los siguientes puntos clave.\n\n" .
+                    "Reglas de extracción:\n" .
+                    "- No dejes campos \"pendientes de validación\". Si el dato está en el texto, extráelo. Si el dato definitivamente no existe en el texto, tu valor debe ser estrictamente null.\n" .
+                    "- No incluyas explicaciones largas, solo el dato concreto.\n\n" .
+                    "TEXTO DEL DOCUMENTO:\n{$fragmento}\n\n" .
+                    "Responde ÚNICAMENTE con este JSON (sin markdown, sin explicaciones). USA null (sin comillas) para datos no encontrados, NO copies el texto de ejemplo:\n" .
+                    "{\n" .
+                    "  \"razon_social\": null,\n" .
+                    "  \"tipo_sociedad\": null,\n" .
+                    "  \"notario_publico\": null,\n" .
+                    "  \"escritura\": null,\n" .
+                    "  \"duracion_anos\": null,\n" .
+                    "  \"representante_legal\": null,\n" .
+                    "  \"es_acta_constitutiva\": false,\n" .
+                    "  \"sello_rppc\": false,\n" .
+                    "  \"folio_mercantil\": null,\n" .
+                    "  \"objeto_social\": null\n" .
+                    "}\n\n" .
+                    "IMPORTANTE: Reemplaza null con el valor REAL extraído del texto. Ejemplos:\n" .
+                    "- razon_social: \"Industrias Salcom S.A. de C.V.\" (el nombre exacto que aparece)\n" .
+                    "- sello_rppc: true (si menciona Registro Público, folio mercantil, inscripción, o boleta)\n" .
+                    "- es_acta_constitutiva: true (si el documento habla de constitución de sociedad)\n" .
+                    "- duracion_anos: \"99\" o \"Indefinida\"\n"
+                );
+
+                if ($resultado['success'] && $resultado['content']) {
+                    $contenido = $resultado['content'];
+                    if (preg_match('/\{[^{}]*\}/s', $contenido, $jsonMatch)) {
+                        $iaData = json_decode($jsonMatch[0], true);
+                        if ($iaData) {
+                            // Helper: verificar que no sea null ni "null" ni vacío
+                            $tieneValor = fn($v) => $v !== null && $v !== 'null' && $v !== '' && $v !== 'No encontrado';
+
+                            // Razón Social
+                            if ($tieneValor($iaData['razon_social'] ?? null)) {
+                                $datos['nombre_acta'] = $iaData['razon_social'];
+                                $hallazgos = array_values(array_filter($hallazgos, fn($h) => !str_contains($h, 'pendiente de validación') && !str_contains($h, 'Nombre de la sociedad')));
+                                $errores = array_values(array_filter($errores, fn($e) => !str_contains($e, 'nombre') && !str_contains($e, 'Razón Social')));
+                                $hallazgos[] = 'Razón Social: ' . $iaData['razon_social'];
+                            }
+
+                            // Tipo sociedad
+                            if ($tieneValor($iaData['tipo_sociedad'] ?? null)) {
+                                $datos['tipo_sociedad'] = $iaData['tipo_sociedad'];
+                                $hallazgos[] = 'Tipo de sociedad: ' . $iaData['tipo_sociedad'];
+                            }
+
+                            // Representante Legal
+                            if ($tieneValor($iaData['representante_legal'] ?? null)) {
+                                $hallazgos[] = 'Representante Legal: ' . $iaData['representante_legal'];
+                            }
+
+                            // Notario
+                            if ($tieneValor($iaData['notario_publico'] ?? null)) {
+                                $datos['notario'] = $iaData['notario_publico'];
+                                $hallazgos = array_values(array_filter($hallazgos, fn($h) => !str_contains($h, 'Notario')));
+                                $errores = array_values(array_filter($errores, fn($e) => !str_contains($e, 'Notario')));
+                                $hallazgos[] = 'Notario Público: ' . $iaData['notario_publico'];
+                            }
+
+                            // Escritura
+                            if ($tieneValor($iaData['escritura'] ?? null)) {
+                                $datos['escritura'] = $iaData['escritura'];
+                                $hallazgos[] = 'Escritura Pública: ' . $iaData['escritura'];
+                            }
+
+                            // Registro Público / Sello RPPC
+                            if (isset($iaData['sello_rppc']) && $iaData['sello_rppc'] === true) {
+                                $datos['registro_publico'] = true;
+                                $errores = array_values(array_filter($errores, fn($e) => !str_contains($e, 'Registro Público')));
+                                $hallazgos = array_values(array_filter($hallazgos, fn($h) => !str_contains($h, 'Registro Público') && !str_contains($h, 'RPPC')));
+                                $hallazgos[] = 'Registro Público de la Propiedad y del Comercio ✓';
+                                if ($tieneValor($iaData['folio_mercantil'] ?? null)) {
+                                    $hallazgos[] = 'Folio Mercantil: ' . $iaData['folio_mercantil'];
+                                }
+                            } elseif (isset($iaData['sello_rppc']) && $iaData['sello_rppc'] === false) {
+                                $hallazgos = array_values(array_filter($hallazgos, fn($h) => !str_contains($h, 'RPPC') && !str_contains($h, 'pendiente de confirmación')));
+                                $errores[] = 'No se detectó inscripción en el Registro Público (el acta puede ser copia simple)';
+                            }
+
+                            // Duración
+                            if ($tieneValor($iaData['duracion_anos'] ?? null)) {
+                                $datos['duracion'] = $iaData['duracion_anos'];
+                                $hallazgos = array_values(array_filter($hallazgos, fn($h) => !str_contains($h, 'duración') && !str_contains($h, 'Duración')));
+                                $hallazgos[] = 'Duración: ' . $iaData['duracion_anos'] . (is_numeric($iaData['duracion_anos']) ? ' años' : '');
+                            }
+
+                            // Es acta constitutiva
+                            if (isset($iaData['es_acta_constitutiva']) && $iaData['es_acta_constitutiva'] === true) {
+                                $errores = array_values(array_filter($errores, fn($e) => !str_contains($e, 'Constitución')));
+                                $hallazgos[] = 'Documento validado como Acta Constitutiva ✓';
+                            }
+
+                            // Objeto social
+                            if ($tieneValor($iaData['objeto_social'] ?? null)) {
+                                $hallazgos[] = 'Objeto Social: ' . $iaData['objeto_social'];
+                            }
+
+                            // Limpiar mensajes de "pendiente de validación por IA"
+                            $hallazgos = array_values(array_filter($hallazgos, fn($h) => !str_contains($h, 'pendiente de validación')));
+                            // Limpiar hallazgos que contengan ": null"
+                            $hallazgos = array_values(array_filter($hallazgos, fn($h) => !str_ends_with($h, ': null') && !str_contains($h, ': null')));
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                // IA no disponible, continuar con validación regex
+            }
         }
 
         return ['valida' => empty($errores), 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
@@ -1010,9 +1244,9 @@ class EmpresaApiController extends Controller
             // La CURP contiene las iniciales: AAAA (4 letras = Ap.Paterno vocal, Ap.Materno inicial, Nombre inicial)
             // No podemos reconstruir el nombre completo, pero sí indicar que se necesita verificar
             $datos['nombre'] = null;
-            $hallazgos[] = 'Nombre no extraído del texto — verificar visualmente en el documento';
+            $hallazgos[] = 'Nombre no extraído del texto';
         } elseif (empty($datos['nombre'])) {
-            $hallazgos[] = 'Nombre no detectado — verificar visualmente';
+            $hallazgos[] = 'Nombre no detectado en el documento';
         }
 
         // Fecha de nacimiento
@@ -1088,7 +1322,7 @@ class EmpresaApiController extends Controller
                 $hallazgos[] = 'Vigencia: '.$datos['vigencia'].' — Vigente ✓';
             }
         } else {
-            $hallazgos[] = 'No se detectó año de vigencia (verificar visualmente)';
+            $hallazgos[] = 'Vigencia no detectada en el documento';
         }
 
         // Sección
