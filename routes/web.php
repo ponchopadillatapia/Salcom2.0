@@ -53,10 +53,8 @@ Route::get('/proveedor/inventario', function () {
 })->name('proveedores.inventario')->middleware('auth.proveedor');
 Route::get('/proveedor/inventario/excel', [PortalProveedorController::class, 'exportarInventarioExcel'])->name('proveedores.inventario.excel')->middleware('auth.proveedor');
 Route::get('/validacion-fiscal', [PortalProveedorController::class, 'mostrarValidacionFiscal'])->name('proveedores.validacion-fiscal')->middleware('auth.proveedor');
-Route::get('/proveedor/fiscal', function () {
-    return view('proveedores.fiscal');
-})->name('proveedores.fiscal')->middleware('auth.proveedor');
-Route::post('/proveedor/fiscal/subir', [PortalProveedorController::class, 'subirDocumentoFiscal'])->name('proveedores.fiscal.subir')->middleware('auth.proveedor');
+Route::get('/proveedor/fiscal', [PortalProveedorController::class, 'mostrarAltaFacturas'])->name('proveedores.fiscal')->middleware('auth.proveedor');
+Route::post('/proveedor/fiscal/subir', [PortalProveedorController::class, 'altaFactura'])->name('proveedores.fiscal.subir')->middleware('auth.proveedor');
 Route::get('/proveedor/adjunto-documentos', [PortalProveedorController::class, 'mostrarAdjuntoDocumentos'])->name('proveedores.adjunto-documentos')->middleware('auth.proveedor');
 Route::post('/proveedor/adjunto-documentos/subir', [PortalProveedorController::class, 'subirAdjuntoDocumentos'])->name('proveedores.adjunto-documentos.subir')->middleware('auth.proveedor');
 Route::get('/identificacion-proveedor', [PortalProveedorController::class, 'mostrarIdentificacion'])->name('proveedores.identificacion')->middleware('auth.proveedor');
