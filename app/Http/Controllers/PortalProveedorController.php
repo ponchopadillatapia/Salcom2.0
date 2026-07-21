@@ -507,7 +507,7 @@ class PortalProveedorController extends Controller
 
         // Guardar / actualizar solicitud de alta (una por proveedor)
         try {
-            \App\Models\SolicitudAlta::updateOrCreate(
+            SolicitudAlta::updateOrCreate(
                 ['proveedor_id' => session('proveedor_id')],
                 [
                     'tipo_persona' => $data['tipo_persona'],
@@ -984,7 +984,7 @@ class PortalProveedorController extends Controller
     private function invalidarDocumentosTrasCambioIdentificacion(int $proveedorId): bool
     {
         try {
-            $afectados = \App\Models\DocumentoProveedor::where('proveedor_id', $proveedorId)
+            $afectados = DocumentoProveedor::where('proveedor_id', $proveedorId)
                 ->where('estatus', 'aprobado')
                 ->update([
                     'estatus' => 'pendiente',
