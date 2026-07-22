@@ -347,13 +347,16 @@ class AuthProveedorController extends Controller
             ]);
         }
 
-        try {
-            Mail::to($correo)->send(new BienvenidaProveedor($nombre, $correo));
-        } catch (\Exception $e) {
-            Log::warning('No se pudo enviar correo de bienvenida', [
-                'correo' => $correo,
-                'error' => $e->getMessage(),
-            ]);
-        }
+        // El correo se envía después de responder al navegador para no retrasar el registro.
+        dispatch(function () use ($nombre, $correo) {
+            try {
+                Mail::to($correo)->send(new BienvenidaProveedor($nombre, $correo));
+            } catch (\Exception $e) {
+                Log::warning('No se pudo enviar correo de bienvenida', [
+                    'correo' => $correo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        })->afterResponse();
     }
 }
