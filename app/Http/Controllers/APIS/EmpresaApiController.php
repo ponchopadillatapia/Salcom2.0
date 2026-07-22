@@ -758,7 +758,6 @@ class EmpresaApiController extends Controller
         }
 
         if (strlen($texto) < 20) {
-<<<<<<< HEAD
             // PDF escaneado — intentar OCR con AWS Textract directamente
             if (!empty(config('services.ia.aws_access_key')) && $archivoPath && file_exists($archivoPath)) {
                 try {
@@ -766,25 +765,6 @@ class EmpresaApiController extends Controller
                     if (strlen($textoTextract) > 50) {
                         $texto = $textoTextract;
                         $hallazgos[] = 'Texto extraído con AWS Textract (OCR en la nube)';
-                        // Continuar con la validación normal
-=======
-            // Intentar OCR con IA (AWS Textract ya se intentó en extraerTexto)
-            // Si aún así no hay texto, usar Claude para analizar la imagen directamente
-            $hallazgos[] = 'PDF escaneado — texto insuficiente para análisis automático';
-
-            // Intentar análisis con IA si hay credenciales AWS
-            if (! empty(config('services.ia.aws_access_key'))) {
-                try {
-                    $iaService = app(IaService::class);
-                    $resultado = $iaService->llamarClaude(
-                        'El sistema intentó leer un Acta Constitutiva en PDF pero no pudo extraer texto (es un documento escaneado). '.
-                        'Por favor indica que se requiere subir el documento en formato PDF con texto seleccionable (no escaneado) '.
-                        'o que el administrador debe validarlo manualmente. Responde en formato JSON con: '.
-                        '{"requiere_manual": true, "mensaje": "texto para el usuario"}'
-                    );
-                    if ($resultado['success'] && $resultado['content']) {
-                        $hallazgos[] = 'IA: Se requiere validación manual o PDF con texto seleccionable';
->>>>>>> 25a41f80d04700a55d987d4b13e2bccb95dceb8d
                     }
                 } catch (\Exception $e) {
                 }
