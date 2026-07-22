@@ -44,6 +44,11 @@
             {{ session('mensaje') }}
         </div>
     @endif
+    @if(session('error'))
+        <div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--red);font-weight:600;">
+            {{ session('error') }}
+        </div>
+    @endif
 
 
     {{-- Filtros --}}
@@ -79,15 +84,20 @@
             </div>
 
             <div class="sol-actions">
-                <a href="{{ route('admin.solicitudes.revisar', $prov->id) }}" class="btn-revisar">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    Revisar documentos
-                </a>
-                <form method="POST" action="{{ route('admin.solicitudes-alta.aprobar') }}">
+                <form method="POST" action="{{ route('admin.solicitudes-alta.aprobar') }}" onsubmit="return confirm('¿Aprobar y activar a {{ addslashes($prov->nombre ?? $prov->usuario) }}?');">
                     @csrf
                     <input type="hidden" name="proveedor_id" value="{{ $prov->id }}">
                     <button type="submit" class="btn-aprobar">✓ Aprobar</button>
                 </form>
+                <form method="POST" action="{{ route('admin.solicitudes-alta.rechazar') }}" onsubmit="return confirm('¿Rechazar la solicitud de {{ addslashes($prov->nombre ?? $prov->usuario) }}? Quedará fuera de pendientes.');">
+                    @csrf
+                    <input type="hidden" name="proveedor_id" value="{{ $prov->id }}">
+                    <button type="submit" class="btn-rechazar">✕ Rechazar</button>
+                </form>
+                <a href="{{ route('admin.solicitudes-alta.ver', $prov->id) }}" class="btn-revisar">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Ver
+                </a>
             </div>
         </div>
     @empty

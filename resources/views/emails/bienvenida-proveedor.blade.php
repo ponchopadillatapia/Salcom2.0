@@ -15,8 +15,9 @@
         <div style="background: #f3eafa; border-left: 4px solid #6B3FA0; padding: 15px; margin: 20px 0; border-radius: 4px;">
             <p style="margin: 0 0 8px;"><strong>Datos de acceso</strong></p>
             <ul style="margin: 0; padding-left: 20px;">
-                <li>Usuario: <strong>{{ $correo }}</strong></li>
-                <li>Inicia sesión en el portal con el correo y la contraseña que registraste.</li>
+                <li>Usuario: <strong>{{ $usuario !== '' ? $usuario : $correo }}</strong></li>
+                <li>Correo: <strong>{{ $correo }}</strong></li>
+                <li>Puedes iniciar sesión con tu usuario o con tu correo, y la contraseña que registraste.</li>
             </ul>
         </div>
 

@@ -15,6 +15,7 @@ class BienvenidaProveedor extends Mailable
     public function __construct(
         public string $nombreProveedor,
         public string $correo,
+        public string $usuario = '',
     ) {}
 
     public function envelope(): Envelope

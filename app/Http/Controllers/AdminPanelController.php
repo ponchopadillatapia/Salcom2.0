@@ -2177,27 +2177,6 @@ class AdminPanelController extends Controller
         ));
     }
 
-    public function detalleSolicitudAlta(ProveedorUser $proveedor)
-    {
-        if ($proveedor->activo) {
-            return redirect()->route('admin.solicitudes-alta')
-                ->with('mensaje', 'Este proveedor ya está activo.');
-        }
-
-        $proveedor->load(['documentos', 'contactos']);
-        $identificacion = $proveedor->datos_identificacion ?? [];
-        $tiposLabel = [
-            'cif' => 'CIF / Constancia fiscal',
-            'opinion' => 'Opinión SAT',
-            'acta' => 'Acta constitutiva',
-            'rep_legal' => 'INE Rep. legal',
-            'contribuyente' => 'INE Contribuyente',
-            'caratula_banco' => 'Carátula bancaria',
-        ];
-
-        return view('admin.solicitud-alta-detalle', compact('proveedor', 'identificacion', 'tiposLabel'));
-    }
-
     public function aprobarSolicitudAlta(Request $request)
     {
         $request->validate(['proveedor_id' => 'required|integer']);
@@ -2220,6 +2199,53 @@ class AdminPanelController extends Controller
 
         return redirect()->route('admin.solicitudes-alta')
             ->with('mensaje', "Proveedor {$prov->nombre} aprobado y activado. Ya puede usar el portal completo.");
+    }
+
+    public function rechazarSolicitudAlta(Request $request)
+    {
+        $request->validate(['proveedor_id' => 'required|integer']);
+
+        $prov = ProveedorUser::findOrFail($request->proveedor_id);
+
+        if ($prov->activo) {
+            return back()->with('error', 'Este proveedor ya está activo; no se puede rechazar como solicitud pendiente.');
+        }
+
+        try {
+            SolicitudAlta::where('proveedor_id', $prov->id)->update([
+                'estatus' => 'rechazada',
+                'notas_admin' => $request->input('notas', 'Rechazado desde panel de solicitudes de alta.'),
+            ]);
+        } catch (\Exception $e) {
+            // Tabla puede no existir
+        }
+
+        $nombre = $prov->nombre ?? $prov->usuario;
+        $prov->delete(); // Soft delete: sale de pendientes
+
+        return redirect()->route('admin.solicitudes-alta')
+            ->with('mensaje', "Solicitud de {$nombre} rechazada.");
+    }
+
+    /** Solo documentos ya validados correctamente (aprobados). */
+    public function verDocumentosAprobadosSolicitud(ProveedorUser $proveedor)
+    {
+        $tiposLabel = [
+            'cif' => 'Constancia de Situación Fiscal (CIF)',
+            'opinion' => 'Opinión de Cumplimiento SAT',
+            'acta' => 'Acta Constitutiva',
+            'rep_legal' => 'ID Representante Legal',
+            'contribuyente' => 'ID Contribuyente',
+            'caratula_banco' => 'Carátula de Banco',
+            'poder' => 'Poder Notarial',
+        ];
+
+        $docsAprobados = $proveedor->documentos()
+            ->where('estatus', 'aprobado')
+            ->orderBy('tipo')
+            ->get();
+
+        return view('admin.solicitud-docs-ver', compact('proveedor', 'docsAprobados', 'tiposLabel'));
     }
 
     public function autorizarCosto(Request $request)
