@@ -134,14 +134,22 @@ class AuthProveedorController extends Controller
     public function guardar(Request $request)
     {
         try {
+            $esMoral = $request->input('tipo_persona') === 'Persona Moral';
+
             $request->validate([
-                'nombre' => 'required|string|max:255',
-                'tipo_persona' => 'required|string|max:255',
+                'tipo_persona' => 'required|in:Persona Física,Persona Moral',
+                'nombres' => ($esMoral ? 'nullable' : 'required').'|string|max:150',
+                'apellido_paterno' => ($esMoral ? 'nullable' : 'required').'|string|max:100',
+                'apellido_materno' => 'nullable|string|max:100',
+                'razon_social' => ($esMoral ? 'required' : 'nullable').'|string|max:255',
                 'telefono' => 'required|string|max:20',
                 'correo' => 'required|email',
                 'password' => 'required|min:8|confirmed',
             ], [
-                'nombre.required' => 'El nombre es obligatorio.',
+                'tipo_persona.required' => 'Selecciona el tipo de persona.',
+                'nombres.required' => 'El nombre es obligatorio.',
+                'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
+                'razon_social.required' => 'La razón social es obligatoria.',
                 'correo.required' => 'El correo es obligatorio.',
                 'correo.email' => 'El correo no es válido.',
                 'password.required' => 'La contraseña es obligatoria.',
@@ -149,10 +157,12 @@ class AuthProveedorController extends Controller
                 'password.confirmed' => 'Las contraseñas no coinciden.',
             ]);
 
-            // Verificar si ya existe
+            $correo = strtolower(trim((string) $request->correo));
+
+            // Verificar si ya existe por correo
             $existe = DB::table('proveedores_users')
-                ->where('correo', $request->correo)
-                ->orWhere('usuario', $request->correo)
+                ->where('correo', $correo)
+                ->orWhere('usuario', $correo)
                 ->exists();
 
             if ($existe) {
@@ -169,14 +179,31 @@ class AuthProveedorController extends Controller
                 }
             }
 
+            if ($esMoral) {
+                $nombre = trim((string) $request->razon_social);
+                $baseUsuario = $this->slugUsuarioRazonSocial($nombre);
+            } else {
+                $nombres = trim((string) $request->nombres);
+                $apellidoPaterno = trim((string) $request->apellido_paterno);
+                $apellidoMaterno = trim((string) ($request->apellido_materno ?? ''));
+                $nombre = trim(implode(' ', array_filter([$nombres, $apellidoPaterno, $apellidoMaterno])));
+                $baseUsuario = $this->slugUsuarioPersona($nombres, $apellidoPaterno);
+            }
+
+            if ($baseUsuario === '') {
+                $baseUsuario = 'proveedor';
+            }
+
+            $usuario = $this->generarUsuarioUnico($baseUsuario, $correo);
+
             // Insertar proveedor
             $proveedorId = DB::table('proveedores_users')->insertGetId([
-                'usuario' => $request->correo,
+                'usuario' => $usuario,
                 'password' => bcrypt($request->password),
-                'nombre' => $request->nombre,
+                'nombre' => $nombre,
                 'tipo_persona' => $request->tipo_persona,
                 'telefono' => $request->telefono,
-                'correo' => $request->correo,
+                'correo' => $correo,
                 'activo' => false,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -184,11 +211,15 @@ class AuthProveedorController extends Controller
 
             $this->enviarBienvenidaRegistro(
                 (int) $proveedorId,
-                $request->nombre,
-                $request->correo
+                $nombre,
+                $correo,
+                $usuario
             );
 
-            return redirect('/login-proveedor')->with('mensaje', 'Registro exitoso. Revisa tu correo e inicia sesión para completar tu onboarding.');
+            return redirect('/login-proveedor')->with(
+                'mensaje',
+                'Registro exitoso. Revisa tu correo e inicia sesión.'
+            );
 
         } catch (ValidationException $e) {
             throw $e; // Re-lanzar para que Laravel muestre los errores de validación
@@ -245,7 +276,9 @@ class AuthProveedorController extends Controller
 
     private function loginViaLocal(string $codigo, string $pwd): ?array
     {
-        $proveedor = ProveedorUser::where('usuario', $codigo)->first();
+        $proveedor = ProveedorUser::where(function ($q) use ($codigo) {
+            $q->where('usuario', $codigo)->orWhere('correo', $codigo);
+        })->first();
         if ($proveedor && Hash::check($pwd, $proveedor->password)) {
             return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->id_proveedor, 'correo' => $proveedor->correo, 'token' => null];
         }
@@ -325,10 +358,10 @@ class AuthProveedorController extends Controller
     /**
      * Correo de bienvenida + alerta en la campana del portal.
      */
-    private function enviarBienvenidaRegistro(int $proveedorId, string $nombre, string $correo): void
+    private function enviarBienvenidaRegistro(int $proveedorId, string $nombre, string $correo, string $usuario): void
     {
         $titulo = '¡Bienvenido al Portal de Proveedores!';
-        $contenido = 'Hola '.$nombre.'. Tu registro fue exitoso. Completa tu onboarding (identificación, contactos y documentos) para que Dirección active tu cuenta.';
+        $contenido = 'Hola '.$nombre.'. Tu registro fue exitoso. Tu usuario es '.$usuario.'. Completa tu onboarding (identificación, contactos y documentos) para que Dirección active tu cuenta.';
 
         try {
             app(AlertEngineService::class)->crearAlerta([
@@ -348,9 +381,9 @@ class AuthProveedorController extends Controller
         }
 
         // El correo se envía después de responder al navegador para no retrasar el registro.
-        dispatch(function () use ($nombre, $correo) {
+        dispatch(function () use ($nombre, $correo, $usuario) {
             try {
-                Mail::to($correo)->send(new BienvenidaProveedor($nombre, $correo));
+                Mail::to($correo)->send(new BienvenidaProveedor($nombre, $correo, $usuario));
             } catch (\Exception $e) {
                 Log::warning('No se pudo enviar correo de bienvenida', [
                     'correo' => $correo,
@@ -358,5 +391,79 @@ class AuthProveedorController extends Controller
                 ]);
             }
         })->afterResponse();
+    }
+
+    private function slugUsuarioPersona(string $nombres, string $apellidoPaterno): string
+    {
+        $primerNombre = explode(' ', trim($nombres))[0] ?? '';
+        $n = $this->slugParte($primerNombre);
+        $a = $this->slugParte($apellidoPaterno);
+
+        if ($n !== '' && $a !== '') {
+            return $n.'.'.$a;
+        }
+
+        return $n !== '' ? $n : $a;
+    }
+
+    private function slugUsuarioRazonSocial(string $razonSocial): string
+    {
+        $slug = $this->quitarAcentos(mb_strtolower(trim($razonSocial)));
+        $slug = preg_replace('/[^a-z0-9]+/', '.', $slug) ?? '';
+        $slug = trim($slug, '.');
+        $slug = preg_replace('/\.{2,}/', '.', $slug) ?? '';
+
+        return substr($slug, 0, 40);
+    }
+
+    private function slugParte(string $texto): string
+    {
+        $slug = $this->quitarAcentos(mb_strtolower(trim($texto)));
+        $slug = preg_replace('/[^a-z0-9]+/', '', $slug) ?? '';
+
+        return substr($slug, 0, 40);
+    }
+
+    private function quitarAcentos(string $texto): string
+    {
+        $map = [
+            'á' => 'a', 'à' => 'a', 'ä' => 'a', 'â' => 'a', 'ã' => 'a',
+            'é' => 'e', 'è' => 'e', 'ë' => 'e', 'ê' => 'e',
+            'í' => 'i', 'ì' => 'i', 'ï' => 'i', 'î' => 'i',
+            'ó' => 'o', 'ò' => 'o', 'ö' => 'o', 'ô' => 'o', 'õ' => 'o',
+            'ú' => 'u', 'ù' => 'u', 'ü' => 'u', 'û' => 'u',
+            'ñ' => 'n', 'ç' => 'c',
+            'Á' => 'a', 'À' => 'a', 'Ä' => 'a', 'Â' => 'a', 'Ã' => 'a',
+            'É' => 'e', 'È' => 'e', 'Ë' => 'e', 'Ê' => 'e',
+            'Í' => 'i', 'Ì' => 'i', 'Ï' => 'i', 'Î' => 'i',
+            'Ó' => 'o', 'Ò' => 'o', 'Ö' => 'o', 'Ô' => 'o', 'Õ' => 'o',
+            'Ú' => 'u', 'Ù' => 'u', 'Ü' => 'u', 'Û' => 'u',
+            'Ñ' => 'n', 'Ç' => 'c',
+        ];
+
+        return strtr($texto, $map);
+    }
+
+    private function generarUsuarioUnico(string $base, string $correo): string
+    {
+        $candidato = $base;
+        $i = 2;
+
+        while (
+            DB::table('proveedores_users')
+                ->where(function ($q) use ($candidato) {
+                    $q->where('usuario', $candidato)->orWhere('correo', $candidato);
+                })
+                ->exists()
+        ) {
+            $candidato = $base.$i;
+            $i++;
+            if ($i > 9999) {
+                $candidato = $base.'.'.substr(md5($correo.microtime()), 0, 6);
+                break;
+            }
+        }
+
+        return $candidato;
     }
 }
