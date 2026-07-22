@@ -1498,6 +1498,19 @@ class EmpresaApiController extends Controller
         }
 
         try {
+            $fileSize = filesize($path);
+            $fileBytes = file_get_contents($path);
+
+            if (empty($fileBytes)) {
+                return '';
+            }
+
+            // Si es mayor a 5MB, no intentar API síncrona
+            if ($fileSize > 5000000) {
+                Log::info('Textract: archivo muy grande (' . round($fileSize/1024/1024, 1) . 'MB), excede límite síncrono');
+                return '';
+            }
+
             $client = new \Aws\Textract\TextractClient([
                 'region' => $region,
                 'version' => 'latest',
@@ -1505,45 +1518,65 @@ class EmpresaApiController extends Controller
                     'key' => $accessKey,
                     'secret' => $secretKey,
                 ],
-                'http' => ['timeout' => 60],
+                'http' => ['timeout' => 90],
             ]);
 
-            $fileSize = filesize($path);
+            // Intentar detectDocumentText primero (funciona con imágenes y PDFs de 1 página)
+            try {
+                $response = $client->detectDocumentText([
+                    'Document' => [
+                        'Bytes' => $fileBytes,
+                    ],
+                ]);
 
-            // Si es mayor a 4.5MB, no enviar (límite Textract síncrono es 5MB)
-            if ($fileSize > 4500000) {
-                Log::info('Textract: archivo muy grande (' . round($fileSize/1024/1024, 1) . 'MB), intentando reducir');
-                // Intentar leer solo una porción del archivo (primeros 4MB)
-                $fileBytes = file_get_contents($path, false, null, 0, 4500000);
-            } else {
-                $fileBytes = file_get_contents($path);
-            }
-
-            if (empty($fileBytes)) {
-                return '';
-            }
-
-            $response = $client->detectDocumentText([
-                'Document' => [
-                    'Bytes' => $fileBytes,
-                ],
-            ]);
-
-            $texto = '';
-            foreach ($response['Blocks'] as $block) {
-                if ($block['BlockType'] === 'LINE') {
-                    $texto .= $block['Text'] . ' ';
+                $texto = '';
+                foreach ($response['Blocks'] as $block) {
+                    if ($block['BlockType'] === 'LINE') {
+                        $texto .= $block['Text'] . ' ';
+                    }
                 }
+
+                if (strlen(trim($texto)) > 30) {
+                    $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
+                    $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
+                    $texto = preg_replace('/\s+/', ' ', $texto);
+                    return strtoupper(trim($texto));
+                }
+            } catch (\Exception $e) {
+                Log::info('Textract detectDocumentText falló, intentando analyzeDocument', ['error' => $e->getMessage()]);
             }
 
-            $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
-            $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
-            $texto = preg_replace('/\s+/', ' ', $texto);
+            // Intentar analyzeDocument (más potente, detecta tablas y formularios)
+            try {
+                $response = $client->analyzeDocument([
+                    'Document' => [
+                        'Bytes' => $fileBytes,
+                    ],
+                    'FeatureTypes' => ['TABLES', 'FORMS'],
+                ]);
 
-            return strtoupper(trim($texto));
+                $texto = '';
+                foreach ($response['Blocks'] as $block) {
+                    if (in_array($block['BlockType'], ['LINE', 'WORD'])) {
+                        if ($block['BlockType'] === 'LINE') {
+                            $texto .= $block['Text'] . ' ';
+                        }
+                    }
+                }
+
+                $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
+                $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
+                $texto = preg_replace('/\s+/', ' ', $texto);
+                return strtoupper(trim($texto));
+
+            } catch (\Exception $e) {
+                Log::warning('Textract analyzeDocument falló', ['error' => $e->getMessage()]);
+            }
+
+            return '';
 
         } catch (\Exception $e) {
-            Log::warning('Textract OCR falló', ['error' => $e->getMessage(), 'path' => $path, 'size' => filesize($path)]);
+            Log::warning('Textract OCR falló completamente', ['error' => $e->getMessage(), 'path' => $path, 'size' => filesize($path)]);
             return '';
         }
     }

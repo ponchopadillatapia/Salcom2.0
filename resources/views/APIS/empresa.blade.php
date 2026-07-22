@@ -952,30 +952,8 @@ function renderResultado(data) {
         ? `RFC: ${rfc} · ${tipoPersona === 'moral' ? 'Persona Moral' : 'Persona Física'} · Todos los documentos válidos`
         : `RFC: ${rfc} · ${tipoPersona === 'moral' ? 'Persona Moral' : 'Persona Física'} · Documentos con errores: ${docsConError.join(', ')}`;
 
-    // Validación cruzada con IA
+    // Validación cruzada — desactivada
     let cruceHtml = '';
-    if (data.validacion_cruzada) {
-        const vc = data.validacion_cruzada;
-        let items = '';
-        if (vc.nombre_coincide !== undefined) items += `<div class="detalle-item ${vc.nombre_coincide ? 'ok' : 'err'}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${vc.nombre_coincide ? '#059669' : '#DC2626'}" stroke-width="3"><polyline points="${vc.nombre_coincide ? '20 6 9 17 4 12' : '18 6 6 18'}"/>${!vc.nombre_coincide ? '<line x1="6" y1="6" x2="18" y2="18"/>' : ''}</svg> Nombre/Razón Social ${vc.nombre_coincide ? 'coincide ✓' : 'NO coincide'}</div>`;
-        if (vc.rfc_coincide !== undefined) items += `<div class="detalle-item ${vc.rfc_coincide ? 'ok' : 'err'}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${vc.rfc_coincide ? '#059669' : '#DC2626'}" stroke-width="3"><polyline points="${vc.rfc_coincide ? '20 6 9 17 4 12' : '18 6 6 18'}"/>${!vc.rfc_coincide ? '<line x1="6" y1="6" x2="18" y2="18"/>' : ''}</svg> RFC ${vc.rfc_coincide ? 'coincide ✓' : 'NO coincide'}</div>`;
-        if (vc.clabe_coincide !== undefined) items += `<div class="detalle-item ${vc.clabe_coincide ? 'ok' : 'err'}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${vc.clabe_coincide ? '#059669' : '#DC2626'}" stroke-width="3"><polyline points="${vc.clabe_coincide ? '20 6 9 17 4 12' : '18 6 6 18'}"/>${!vc.clabe_coincide ? '<line x1="6" y1="6" x2="18" y2="18"/>' : ''}</svg> CLABE ${vc.clabe_coincide ? 'coincide ✓' : 'NO coincide'}</div>`;
-        if (vc.banco_coincide !== undefined) items += `<div class="detalle-item ${vc.banco_coincide ? 'ok' : 'err'}"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="${vc.banco_coincide ? '#059669' : '#DC2626'}" stroke-width="3"><polyline points="${vc.banco_coincide ? '20 6 9 17 4 12' : '18 6 6 18'}"/>${!vc.banco_coincide ? '<line x1="6" y1="6" x2="18" y2="18"/>' : ''}</svg> Banco ${vc.banco_coincide ? 'coincide ✓' : 'NO coincide'}</div>`;
-        if (vc.alertas && vc.alertas.length) {
-            vc.alertas.forEach(a => { if (a && a.length > 3) items += `<div class="detalle-item err"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> ⚠ ${a}</div>`; });
-        }
-        if (vc.resumen) items += `<div class="detalle-item ok" style="margin-top:6px;font-style:italic;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg> ${vc.resumen}</div>`;
-
-        cruceHtml = `
-        <div class="seccion-doc ${(!vc.alertas || !vc.alertas.length) ? 'seccion-ok' : 'seccion-err'}" style="margin-top:10px;">
-            <div class="seccion-header">
-                <span class="seccion-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="${(!vc.alertas || !vc.alertas.length) ? '#059669' : '#CA8A04'}" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span>
-                <span class="seccion-titulo">Validación Cruzada (IA)</span>
-                <span class="status-pill ${(!vc.alertas || !vc.alertas.length) ? 'ok' : 'err'}">${(!vc.alertas || !vc.alertas.length) ? 'OK' : 'Alertas'}</span>
-            </div>
-            <div class="seccion-detalles">${items}</div>
-        </div>`;
-    }
 
     const seccionesHtml = secciones.map(s => {
         if (!s.doc) return '';
