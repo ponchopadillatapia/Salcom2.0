@@ -88,7 +88,8 @@ class EmpresaApiController extends Controller
             $acta = null;
             if (isset($textos['acta'])) {
                 $nombreParaCruce = $nombreEsperado !== '' ? $nombreEsperado : ($cif['datos']['nombre'] ?? null);
-                $acta = $this->validarActa($textos['acta'], $cif['datos']['es_moral'], $nombreParaCruce);
+                $actaPath = isset($archivos['acta']) ? storage_path('app/private/' . $archivos['acta']) : null;
+                $acta = $this->validarActa($textos['acta'], $cif['datos']['es_moral'], $nombreParaCruce, $actaPath);
             } elseif ($tipoPersona === 'fisica') {
                 $acta = ['valida' => true, 'datos' => [], 'errores' => [], 'hallazgos' => ['Persona Física — Acta Constitutiva no requerida']];
             }
@@ -719,7 +720,7 @@ class EmpresaApiController extends Controller
         return ['valida' => $esValida, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
     }
 
-    private function validarActa(string $texto, bool $esMoral, ?string $nombreEsperado = null): array
+    private function validarActa(string $texto, bool $esMoral, ?string $nombreEsperado = null, ?string $archivoPath = null): array
     {
         $datos = [
             'notario' => null,
@@ -740,29 +741,24 @@ class EmpresaApiController extends Controller
         }
 
         if (strlen($texto) < 20) {
-            // Intentar OCR con IA (AWS Textract ya se intentó en extraerTexto)
-            // Si aún así no hay texto, usar Claude para analizar la imagen directamente
-            $hallazgos[] = 'PDF escaneado — texto insuficiente para análisis automático';
-
-            // Intentar análisis con IA si hay credenciales AWS
-            if (!empty(config('services.ia.aws_access_key'))) {
+            // PDF escaneado — intentar OCR con AWS Textract directamente
+            if (!empty(config('services.ia.aws_access_key')) && $archivoPath && file_exists($archivoPath)) {
                 try {
-                    $iaService = app(\App\Services\IaService::class);
-                    $resultado = $iaService->llamarClaude(
-                        "El sistema intentó leer un Acta Constitutiva en PDF pero no pudo extraer texto (es un documento escaneado). " .
-                        "Por favor indica que se requiere subir el documento en formato PDF con texto seleccionable (no escaneado) " .
-                        "o que el administrador debe validarlo manualmente. Responde en formato JSON con: " .
-                        "{\"requiere_manual\": true, \"mensaje\": \"texto para el usuario\"}"
-                    );
-                    if ($resultado['success'] && $resultado['content']) {
-                        $hallazgos[] = 'IA: Se requiere validación manual o PDF con texto seleccionable';
+                    $textoTextract = $this->ocrConTextract($archivoPath);
+                    if (strlen($textoTextract) > 50) {
+                        $texto = $textoTextract;
+                        $hallazgos[] = 'Texto extraído con AWS Textract (OCR en la nube)';
+                        // Continuar con la validación normal
                     }
                 } catch (\Exception $e) {}
             }
 
-            $errores[] = 'Documento escaneado — sube un PDF con texto seleccionable o solicita validación manual al administrador';
-
-            return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+            // Si aún no hay texto suficiente
+            if (strlen($texto) < 20) {
+                $hallazgos[] = 'PDF escaneado — no se pudo extraer texto';
+                $errores[] = 'Documento escaneado sin texto extraíble — sube un PDF con texto seleccionable';
+                return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+            }
         }
 
         // Normalizar texto
@@ -1472,8 +1468,7 @@ class EmpresaApiController extends Controller
      */
     private function ocrConTextract(string $path): string
     {
-        // Verificar que AWS SDK esté disponible
-        if (! class_exists('\Aws\Textract\TextractClient')) {
+        if (!class_exists('\Aws\Textract\TextractClient')) {
             return '';
         }
 
@@ -1486,17 +1481,30 @@ class EmpresaApiController extends Controller
         }
 
         try {
-            $client = new TextractClient([
+            $client = new \Aws\Textract\TextractClient([
                 'region' => $region,
                 'version' => 'latest',
                 'credentials' => [
                     'key' => $accessKey,
                     'secret' => $secretKey,
                 ],
-                'http' => ['timeout' => 30],
+                'http' => ['timeout' => 60],
             ]);
 
-            $fileBytes = file_get_contents($path);
+            $fileSize = filesize($path);
+
+            // Si es mayor a 4.5MB, no enviar (límite Textract síncrono es 5MB)
+            if ($fileSize > 4500000) {
+                Log::info('Textract: archivo muy grande (' . round($fileSize/1024/1024, 1) . 'MB), intentando reducir');
+                // Intentar leer solo una porción del archivo (primeros 4MB)
+                $fileBytes = file_get_contents($path, false, null, 0, 4500000);
+            } else {
+                $fileBytes = file_get_contents($path);
+            }
+
+            if (empty($fileBytes)) {
+                return '';
+            }
 
             $response = $client->detectDocumentText([
                 'Document' => [
@@ -1507,7 +1515,7 @@ class EmpresaApiController extends Controller
             $texto = '';
             foreach ($response['Blocks'] as $block) {
                 if ($block['BlockType'] === 'LINE') {
-                    $texto .= $block['Text'].' ';
+                    $texto .= $block['Text'] . ' ';
                 }
             }
 
@@ -1518,8 +1526,7 @@ class EmpresaApiController extends Controller
             return strtoupper(trim($texto));
 
         } catch (\Exception $e) {
-            Log::warning('Textract OCR falló', ['error' => $e->getMessage(), 'path' => $path]);
-
+            Log::warning('Textract OCR falló', ['error' => $e->getMessage(), 'path' => $path, 'size' => filesize($path)]);
             return '';
         }
     }
