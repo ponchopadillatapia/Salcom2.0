@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\AdminUser;
+use App\Models\Alerta;
 use App\Models\ContactoProveedor;
 use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
@@ -159,6 +160,39 @@ class PortalProveedorController extends Controller
     public function mostrarPaymentHistory()
     {
         return view('proveedores.payment-history');
+    }
+
+    /** Campanita: alertas recientes en JSON (polling sin recargar). */
+    public function alertasRecientesJson()
+    {
+        $proveedorId = session('proveedor_id');
+        if (! $proveedorId) {
+            return response()->json(['sin_leer' => 0, 'items' => []], 401);
+        }
+
+        $sinLeer = Alerta::where('destinatario_tipo', 'proveedor')
+            ->where('destinatario_id', $proveedorId)
+            ->where('estatus', '!=', 'leida')
+            ->where('estatus', '!=', 'accionada')
+            ->count();
+
+        $items = Alerta::where('destinatario_tipo', 'proveedor')
+            ->where('destinatario_id', $proveedorId)
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get(['id', 'titulo', 'contenido', 'estatus', 'created_at'])
+            ->map(fn (Alerta $a) => [
+                'id' => $a->id,
+                'titulo' => $a->titulo,
+                'contenido' => $a->contenido,
+                'estatus' => $a->estatus,
+                'leida' => in_array($a->estatus, ['leida', 'accionada'], true),
+                'hace' => optional($a->created_at)->diffForHumans(),
+            ]);
+
+        return response()
+            ->json(['sin_leer' => $sinLeer, 'items' => $items])
+            ->header('Cache-Control', 'no-store, max-age=0');
     }
 
     public function mostrarEncuesta()
@@ -401,6 +435,12 @@ class PortalProveedorController extends Controller
     public function mostrarIdentificacion()
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
+
+        // Si admin rechazó y limpió datos, no reutilizar sesión vieja
+        if ($proveedor && empty($proveedor->datos_identificacion)) {
+            session()->forget('identificacion_proveedor');
+        }
+
         $identificacion = session('identificacion_proveedor')
             ?? ($proveedor !== null ? ($proveedor->datos_identificacion ?? []) : []);
         if (! is_array($identificacion)) {
@@ -511,6 +551,8 @@ class PortalProveedorController extends Controller
             SolicitudAlta::updateOrCreate(
                 ['proveedor_id' => session('proveedor_id')],
                 [
+                    'estatus' => 'pendiente',
+                    'notas_admin' => null,
                     'tipo_persona' => $data['tipo_persona'],
                     'nombre_completo' => $nombreEsperado,
                     'razon_social' => $data['razon_social'] ?? null,
@@ -550,10 +592,14 @@ class PortalProveedorController extends Controller
 
         if ($proveedor) {
             try {
-                $proveedor->update([
+                $updateDatos = [
                     'datos_identificacion' => $payload,
                     'tipo_persona' => $data['tipo_persona'],
-                ]);
+                ];
+                if (Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
+                    $updateDatos['solicitud_alta_estatus'] = 'pendiente';
+                }
+                $proveedor->update($updateDatos);
             } catch (\Exception $e) {
                 // La columna datos_identificacion puede no existir aún en producción
                 try {

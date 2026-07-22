@@ -37,31 +37,27 @@
 </style>
 @endpush
 @section('content')
-<div class="sol-grid">
+<div class="sol-grid" id="solGrid">
 
-    @if(session('mensaje'))
-        <div style="background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--green);font-weight:600;">
-            {{ session('mensaje') }}
-        </div>
-    @endif
-    @if(session('error'))
-        <div style="background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--red);font-weight:600;">
-            {{ session('error') }}
-        </div>
-    @endif
-
+    <div id="solFlashOk" style="display:{{ session('mensaje') ? 'block' : 'none' }};background:var(--green-bg);border:1px solid var(--green);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--green);font-weight:600;">
+        {{ session('mensaje') }}
+    </div>
+    <div id="solFlashErr" style="display:{{ session('error') ? 'block' : 'none' }};background:var(--red-bg);border:1px solid var(--red);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--red);font-weight:600;">
+        {{ session('error') }}
+    </div>
 
     {{-- Filtros --}}
     <div class="sol-filtros">
-        <a href="{{ route('admin.solicitudes-alta', ['filtro' => 'todas']) }}" class="sol-filtro-btn {{ ($filtro ?? 'todas') === 'todas' ? 'active' : '' }}">Todas ({{ ($pendientes ?? collect())->count() }})</a>
-        <a href="{{ route('admin.solicitudes-alta', ['filtro' => 'con_datos']) }}" class="sol-filtro-btn {{ ($filtro ?? '') === 'con_datos' ? 'active' : '' }}">Con datos ({{ $conteoConDatos ?? 0 }})</a>
-        <a href="{{ route('admin.solicitudes-alta', ['filtro' => 'sin_datos']) }}" class="sol-filtro-btn {{ ($filtro ?? '') === 'sin_datos' ? 'active' : '' }}">Sin datos ({{ $conteoSinDatos ?? 0 }})</a>
+        <a href="{{ route('admin.solicitudes-alta', ['filtro' => 'todas']) }}" class="sol-filtro-btn {{ ($filtro ?? 'todas') === 'todas' ? 'active' : '' }}" data-filtro-todas>Todas (<span id="solCountTodas">{{ ($pendientes ?? collect())->count() }}</span>)</a>
+        <a href="{{ route('admin.solicitudes-alta', ['filtro' => 'con_datos']) }}" class="sol-filtro-btn {{ ($filtro ?? '') === 'con_datos' ? 'active' : '' }}">Con datos (<span id="solCountCon">{{ $conteoConDatos ?? 0 }}</span>)</a>
+        <a href="{{ route('admin.solicitudes-alta', ['filtro' => 'sin_datos']) }}" class="sol-filtro-btn {{ ($filtro ?? '') === 'sin_datos' ? 'active' : '' }}">Sin datos (<span id="solCountSin">{{ $conteoSinDatos ?? 0 }}</span>)</a>
     </div>
 
     {{-- Lista de proveedores pendientes --}}
+    <div id="solCards">
     @forelse($pendientes ?? collect() as $item)
         @php $prov = $item->proveedor; @endphp
-        <div class="sol-card pendiente">
+        <div class="sol-card pendiente" data-proveedor-id="{{ $prov->id }}" data-con-datos="{{ $item->con_datos ? '1' : '0' }}">
             <div class="sol-head">
                 <div>
                     <div class="sol-nombre">{{ $prov->nombre ?? $prov->usuario }}</div>
@@ -84,12 +80,12 @@
             </div>
 
             <div class="sol-actions">
-                <form method="POST" action="{{ route('admin.solicitudes-alta.aprobar') }}" onsubmit="return confirm('¿Aprobar y activar a {{ addslashes($prov->nombre ?? $prov->usuario) }}?');">
+                <form method="POST" action="{{ route('admin.solicitudes-alta.aprobar') }}" class="sol-action-form" data-confirm="¿Aprobar y activar a {{ addslashes($prov->nombre ?? $prov->usuario) }}?">
                     @csrf
                     <input type="hidden" name="proveedor_id" value="{{ $prov->id }}">
                     <button type="submit" class="btn-aprobar">✓ Aprobar</button>
                 </form>
-                <form method="POST" action="{{ route('admin.solicitudes-alta.rechazar') }}" onsubmit="return confirm('¿Rechazar la solicitud de {{ addslashes($prov->nombre ?? $prov->usuario) }}? Quedará fuera de pendientes.');">
+                <form method="POST" action="{{ route('admin.solicitudes-alta.rechazar') }}" class="sol-action-form" data-confirm="¿Rechazar la solicitud de {{ addslashes($prov->nombre ?? $prov->usuario) }}?&#10;&#10;No se elimina la cuenta: el proveedor sigue registrado e inactivo y deberá volver a llenar datos bancarios y documentos.">
                     @csrf
                     <input type="hidden" name="proveedor_id" value="{{ $prov->id }}">
                     <button type="submit" class="btn-rechazar">✕ Rechazar</button>
@@ -101,10 +97,91 @@
             </div>
         </div>
     @empty
-        <div class="sol-empty">
+        <div class="sol-empty" id="solEmpty">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             <p style="margin-top:12px;">No hay proveedores pendientes de aprobación.</p>
         </div>
     @endforelse
+    </div>
 </div>
 @endsection
+@push('scripts')
+<script>
+(function () {
+    // Si el navegador restaura la página desde caché, forzar recarga limpia.
+    window.addEventListener('pageshow', function (e) {
+        if (e.persisted) location.reload();
+    });
+
+    function showFlash(ok, text) {
+        var okEl = document.getElementById('solFlashOk');
+        var errEl = document.getElementById('solFlashErr');
+        if (okEl) { okEl.style.display = ok ? 'block' : 'none'; if (ok) okEl.textContent = text; }
+        if (errEl) { errEl.style.display = ok ? 'none' : 'block'; if (!ok) errEl.textContent = text; }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function refreshCounts() {
+        var cards = document.querySelectorAll('#solCards .sol-card');
+        var con = 0, sin = 0;
+        cards.forEach(function (c) {
+            if (c.getAttribute('data-con-datos') === '1') con++; else sin++;
+        });
+        var t = document.getElementById('solCountTodas');
+        var cEl = document.getElementById('solCountCon');
+        var sEl = document.getElementById('solCountSin');
+        if (t) t.textContent = String(cards.length);
+        if (cEl) cEl.textContent = String(con);
+        if (sEl) sEl.textContent = String(sin);
+
+        if (cards.length === 0) {
+            var wrap = document.getElementById('solCards');
+            if (wrap && !document.getElementById('solEmpty')) {
+                wrap.innerHTML = '<div class="sol-empty" id="solEmpty"><p style="margin-top:12px;">No hay proveedores pendientes de aprobación.</p></div>';
+            }
+        }
+    }
+
+    document.querySelectorAll('.sol-action-form').forEach(function (form) {
+        form.addEventListener('submit', function (ev) {
+            ev.preventDefault();
+            var msg = form.getAttribute('data-confirm');
+            if (msg && !window.confirm(msg)) return;
+
+            var card = form.closest('.sol-card');
+            var btn = form.querySelector('button[type="submit"]');
+            if (btn) btn.disabled = true;
+
+            var fd = new FormData(form);
+            fetch(form.action, {
+                method: 'POST',
+                body: fd,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            }).then(function (res) {
+                return res.json().then(function (data) {
+                    return { status: res.status, data: data };
+                }).catch(function () {
+                    return { status: res.status, data: { ok: false, mensaje: 'No se pudo procesar la solicitud.' } };
+                });
+            }).then(function (r) {
+                if (r.data && r.data.ok) {
+                    showFlash(true, r.data.mensaje || 'Listo.');
+                    if (card) card.remove();
+                    refreshCounts();
+                } else {
+                    showFlash(false, (r.data && r.data.mensaje) || 'No se pudo completar la acción.');
+                    if (btn) btn.disabled = false;
+                }
+            }).catch(function () {
+                showFlash(false, 'Error de red. Intenta de nuevo.');
+                if (btn) btn.disabled = false;
+            });
+        });
+    });
+})();
+</script>
+@endpush

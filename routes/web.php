@@ -147,6 +147,7 @@ Route::post('/admin/ia/inventario', [IaDashboardController::class, 'adminInventa
 Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'adminProveedor'])->name('admin.ia.proveedor')->middleware('auth.admin');
 
 // ── Contactos del proveedor ──
+Route::get('/proveedor/alertas/recientes', [PortalProveedorController::class, 'alertasRecientesJson'])->name('proveedores.alertas.recientes')->middleware('auth.proveedor');
 Route::post('/proveedor/contactos', [PortalProveedorController::class, 'guardarContacto'])->name('proveedores.contactos.guardar')->middleware('auth.proveedor');
 Route::delete('/proveedor/contactos/{contacto}', [PortalProveedorController::class, 'eliminarContacto'])->name('proveedores.contactos.eliminar')->middleware('auth.proveedor');
 

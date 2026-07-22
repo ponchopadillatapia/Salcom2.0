@@ -14,11 +14,14 @@ use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
+use App\Services\AlertEngineService;
 use App\Services\InventarioCalculoService;
 use App\Services\PedidoProveedorSyncService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Schema;
 
 class AdminPanelController extends Controller
 {
@@ -2128,8 +2131,27 @@ class AdminPanelController extends Controller
     {
         $filtro = $request->input('filtro', 'todas'); // todas | con_datos | sin_datos
 
+        // Rechazadas no aparecen hasta que el proveedor vuelva a enviar (estatus → pendiente).
+        $rechazadosIds = [];
+        try {
+            $rechazadosIds = SolicitudAlta::where('estatus', 'rechazada')
+                ->pluck('proveedor_id')
+                ->filter()
+                ->all();
+        } catch (\Exception $e) {
+            // Tabla puede no existir
+        }
+
         $pendientes = ProveedorUser::with(['documentos', 'contactos'])
             ->where('activo', false)
+            ->when(
+                Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus'),
+                fn ($q) => $q->where(function ($q2) {
+                    $q2->whereNull('solicitud_alta_estatus')
+                        ->orWhere('solicitud_alta_estatus', '!=', 'rechazada');
+                })
+            )
+            ->when($rechazadosIds !== [], fn ($q) => $q->whereNotIn('id', $rechazadosIds))
             ->orderByDesc('created_at')
             ->get()
             ->map(function (ProveedorUser $p) {
@@ -2162,19 +2184,23 @@ class AdminPanelController extends Controller
         $solicitudes = collect();
         try {
             $solicitudes = SolicitudAlta::with('proveedor')
+                ->where('estatus', '!=', 'rechazada')
                 ->orderByDesc('created_at')
                 ->get();
         } catch (\Exception $e) {
             // La tabla no existe aún en este servidor
         }
 
-        return view('admin.solicitudes-alta', compact(
-            'pendientes',
-            'filtro',
-            'conteoConDatos',
-            'conteoSinDatos',
-            'solicitudes'
-        ));
+        return response()
+            ->view('admin.solicitudes-alta', compact(
+                'pendientes',
+                'filtro',
+                'conteoConDatos',
+                'conteoSinDatos',
+                'solicitudes'
+            ))
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
     }
 
     public function aprobarSolicitudAlta(Request $request)
@@ -2184,21 +2210,33 @@ class AdminPanelController extends Controller
         $prov = ProveedorUser::with('contactos')->findOrFail($request->proveedor_id);
 
         if ($prov->activo) {
-            return back()->with('error', 'Este proveedor ya está activo.');
+            return $this->respuestaSolicitudAlta($request, 'Este proveedor ya está activo.', false);
         }
 
         if (! $prov->contactosSuficientes()) {
-            return back()->with('error', 'No se puede aprobar: faltan contactos. El proveedor debe registrar mínimo 2 contactos.');
+            return $this->respuestaSolicitudAlta($request, 'No se puede aprobar: faltan contactos. El proveedor debe registrar mínimo 2 contactos.', false);
         }
 
         if (! $prov->tieneFormularioDatosBancarios()) {
-            return back()->with('error', 'No se puede aprobar: faltan datos bancarios.');
+            return $this->respuestaSolicitudAlta($request, 'No se puede aprobar: faltan datos bancarios.', false);
         }
 
         $prov->update(['activo' => true]);
 
-        return redirect()->route('admin.solicitudes-alta')
-            ->with('mensaje', "Proveedor {$prov->nombre} aprobado y activado. Ya puede usar el portal completo.");
+        if (Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
+            $prov->update(['solicitud_alta_estatus' => 'aprobada']);
+        }
+
+        try {
+            SolicitudAlta::where('proveedor_id', $prov->id)->update(['estatus' => 'aprobada']);
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        return $this->respuestaSolicitudAlta(
+            $request,
+            "Proveedor {$prov->nombre} aprobado y activado. Ya puede usar el portal completo."
+        );
     }
 
     public function rechazarSolicitudAlta(Request $request)
@@ -2208,23 +2246,97 @@ class AdminPanelController extends Controller
         $prov = ProveedorUser::findOrFail($request->proveedor_id);
 
         if ($prov->activo) {
-            return back()->with('error', 'Este proveedor ya está activo; no se puede rechazar como solicitud pendiente.');
+            return $this->respuestaSolicitudAlta(
+                $request,
+                'Este proveedor ya está activo; no se puede rechazar como solicitud pendiente.',
+                false
+            );
         }
 
+        $notas = $request->input('notas', 'Rechazado desde panel de solicitudes de alta. Debe volver a completar formulario y documentos.');
+
         try {
-            SolicitudAlta::where('proveedor_id', $prov->id)->update([
-                'estatus' => 'rechazada',
-                'notas_admin' => $request->input('notas', 'Rechazado desde panel de solicitudes de alta.'),
+            SolicitudAlta::updateOrCreate(
+                ['proveedor_id' => $prov->id],
+                [
+                    'estatus' => 'rechazada',
+                    'notas_admin' => $notas,
+                    'tipo_persona' => $prov->tipo_persona ?? 'Persona Moral',
+                    'nombre_completo' => $prov->nombre ?? $prov->usuario,
+                ]
+            );
+        } catch (\Exception $e) {
+            Log::warning('No se pudo marcar SolicitudAlta como rechazada', [
+                'proveedor_id' => $prov->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Marca en el proveedor (no depende de la tabla solicitudes_alta).
+        $updateProv = [
+            'activo' => false,
+            'datos_identificacion' => null,
+        ];
+        if (Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
+            $updateProv['solicitud_alta_estatus'] = 'rechazada';
+        }
+        $prov->update($updateProv);
+
+        try {
+            DocumentoProveedor::where('proveedor_id', $prov->id)->update([
+                'estatus' => 'rechazado',
+                'notas_revision' => 'Invalidado por rechazo de solicitud de alta. Debe volver a validar documentos.',
+                'revisado_at' => null,
+                'resultado_validacion' => null,
             ]);
         } catch (\Exception $e) {
-            // Tabla puede no existir
+            // ignore
         }
 
         $nombre = $prov->nombre ?? $prov->usuario;
-        $prov->delete(); // Soft delete: sale de pendientes
+        $titulo = 'Tu solicitud de alta fue rechazada';
+        $contenido = 'Hola '.$nombre.'. Tu solicitud de alta fue rechazada. Puedes seguir iniciando sesión; debes volver a completar datos bancarios y documentos para que Dirección la revise de nuevo.';
 
-        return redirect()->route('admin.solicitudes-alta')
-            ->with('mensaje', "Solicitud de {$nombre} rechazada.");
+        try {
+            app(AlertEngineService::class)->alertar([
+                'tipo' => 'solicitud_rechazada',
+                'modulo' => 'onboarding',
+                'destinatario_tipo' => 'proveedor',
+                'destinatario_id' => $prov->id,
+                'titulo' => $titulo,
+                'contenido' => $contenido,
+                'nivel' => 'warning',
+            ], 'portal');
+        } catch (\Exception $e) {
+            Log::warning('No se pudo notificar rechazo de solicitud de alta', [
+                'proveedor_id' => $prov->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $this->respuestaSolicitudAlta(
+            $request,
+            "Solicitud de {$nombre} rechazada. La cuenta no se elimina: sigue registrado (inactivo) y debe volver a llenar datos bancarios y documentos."
+        );
+    }
+
+    /** Respuesta JSON (AJAX) o redirect con anti-caché. */
+    private function respuestaSolicitudAlta(Request $request, string $mensaje, bool $ok = true)
+    {
+        if ($request->expectsJson() || $request->ajax() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json([
+                'ok' => $ok,
+                'mensaje' => $mensaje,
+            ], $ok ? 200 : 422);
+        }
+
+        $redirect = redirect()
+            ->route('admin.solicitudes-alta')
+            ->with($ok ? 'mensaje' : 'error', $mensaje)
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache');
+
+        return $redirect;
     }
 
     /** Solo documentos ya validados correctamente (aprobados). */

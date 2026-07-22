@@ -3,11 +3,14 @@
 namespace Tests\Feature;
 
 use App\Models\AdminUser;
+use App\Models\Alerta;
 use App\Models\ContactoProveedor;
 use App\Models\DocumentoProveedor;
 use App\Models\ProveedorUser;
+use App\Models\SolicitudAlta;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class SolicitudesAltaAdminTest extends TestCase
@@ -197,16 +200,98 @@ class SolicitudesAltaAdminTest extends TestCase
         $this->assertTrue($fresh->tieneFormularioDatosBancarios());
     }
 
-    public function test_rechaza_solicitud_y_sale_de_pendientes(): void
+    public function test_rechaza_solicitud_sin_eliminar_cuenta(): void
     {
+        Mail::fake();
         $this->withSession($this->sesionAdmin());
-        $p = $this->proveedorPendiente();
+        $p = $this->proveedorPendiente([
+            'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
+        ]);
+        DocumentoProveedor::create([
+            'proveedor_id' => $p->id,
+            'tipo' => 'cif',
+            'archivo' => 'expediente_fiscal/cif/ok.pdf',
+            'estatus' => 'aprobado',
+        ]);
 
         $this->post(route('admin.solicitudes-alta.rechazar'), [
             'proveedor_id' => $p->id,
         ])->assertRedirect(route('admin.solicitudes-alta'));
 
-        $this->assertSoftDeleted('proveedores_users', ['id' => $p->id]);
+        $fresh = $p->fresh();
+        $this->assertNotNull($fresh);
+        $this->assertFalse($fresh->activo);
+        $this->assertNull($fresh->datos_identificacion);
+        $this->assertSame('rechazado', $fresh->documentos()->first()->estatus);
+
+        $this->assertSame(
+            'rechazada',
+            SolicitudAlta::where('proveedor_id', $p->id)->value('estatus')
+        );
+
+        $this->get(route('admin.solicitudes-alta'))
+            ->assertOk()
+            ->assertSee('No hay proveedores pendientes de aprobación.');
+
+        $alerta = Alerta::where('destinatario_tipo', 'proveedor')
+            ->where('destinatario_id', $p->id)
+            ->where('tipo', 'solicitud_rechazada')
+            ->first();
+        $this->assertNotNull($alerta);
+        $this->assertStringContainsString('rechazada', strtolower($alerta->titulo));
+        $this->assertNotSame('pendiente', $alerta->estatus);
+    }
+
+    public function test_rechazada_vuelve_a_lista_al_reenviar_formulario(): void
+    {
+        $adminSession = $this->sesionAdmin();
+        $this->withSession($adminSession);
+        $p = $this->proveedorPendiente([
+            'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
+        ]);
+
+        $this->post(route('admin.solicitudes-alta.rechazar'), [
+            'proveedor_id' => $p->id,
+        ])->assertRedirect(route('admin.solicitudes-alta'));
+
+        $this->get(route('admin.solicitudes-alta'))
+            ->assertSee('No hay proveedores pendientes de aprobación.');
+
+        $this->withSession([
+            'proveedor_id' => $p->id,
+            'proveedor_nombre' => $p->nombre,
+            'proveedor_correo' => $p->correo,
+        ])->post(route('proveedores.identificacion.guardar'), [
+            'fecha' => '2026-07-15',
+            'tipo_persona' => 'Persona Moral',
+            'razon_social' => 'Empresa Demo SA de CV',
+            'calle' => 'Calle 1',
+            'num_exterior' => '100',
+            'colonia' => 'Centro',
+            'municipio' => 'Guadalajara',
+            'estado' => 'Jalisco',
+            'ciudad' => 'Guadalajara',
+            'pais' => 'México',
+            'cp' => '44100',
+            'telefono' => '3312345678',
+            'celular' => '3387654321',
+            'correo' => 'solicitante@test.com',
+            'banco' => 'Banorte',
+            'clabe' => '012345678901234567',
+            'cuenta' => '99887766',
+            'nombre_firma' => 'Juan Perez',
+        ])->assertRedirect(route('proveedores.onboarding'));
+
+        $this->assertSame(
+            'pendiente',
+            SolicitudAlta::where('proveedor_id', $p->id)->value('estatus')
+        );
+
+        $this->withSession($adminSession)
+            ->get(route('admin.solicitudes-alta'))
+            ->assertOk()
+            ->assertSee('Solicitante SA')
+            ->assertSee('data-proveedor-id="'.$p->id.'"', false);
     }
 
     public function test_ver_solo_muestra_documentos_aprobados(): void

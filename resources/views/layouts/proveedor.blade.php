@@ -342,20 +342,17 @@
                 ->limit(5)
                 ->get();
         @endphp
-        <div class="notif-wrapper" style="position:relative;margin-right:16px;">
-            <button type="button" class="notif-bell" onclick="document.getElementById('notifDropdown').classList.toggle('show')" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $alertasSinLeer > 0 ? 'var(--purple)' : 'var(--gray-muted)' }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                @if($alertasSinLeer > 0)
-                <span style="position:absolute;top:-2px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;">{{ $alertasSinLeer > 9 ? '9+' : $alertasSinLeer }}</span>
-                @endif
+        <div class="notif-wrapper" style="position:relative;margin-right:16px;" data-alertas-url="{{ route('proveedores.alertas.recientes') }}">
+            <button type="button" class="notif-bell" id="notifBellBtn" onclick="document.getElementById('notifDropdown').classList.toggle('show')" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;">
+                <svg id="notifBellIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $alertasSinLeer > 0 ? 'var(--purple)' : 'var(--gray-muted)' }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <span id="notifBadge" style="position:absolute;top:-2px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;{{ $alertasSinLeer > 0 ? 'display:flex' : 'display:none' }};align-items:center;justify-content:center;">{{ $alertasSinLeer > 9 ? '9+' : $alertasSinLeer }}</span>
             </button>
             <div id="notifDropdown" class="notif-dropdown">
                 <div class="notif-header">
                     <span>Notificaciones</span>
-                    @if($alertasSinLeer > 0)
-                    <span class="notif-count">{{ $alertasSinLeer }} nuevas</span>
-                    @endif
+                    <span class="notif-count" id="notifCountLabel" style="{{ $alertasSinLeer > 0 ? '' : 'display:none;' }}">{{ $alertasSinLeer }} nuevas</span>
                 </div>
+                <div id="notifItems">
                 @forelse($alertasRecientes as $notif)
                 <div class="notif-item {{ in_array($notif->estatus, ['leida','accionada']) ? 'read' : '' }}">
                     <div class="notif-item-title">{{ Str::limit($notif->titulo, 50) }}</div>
@@ -365,6 +362,7 @@
                 @empty
                 <div class="notif-empty">Sin notificaciones</div>
                 @endforelse
+                </div>
                 <a href="{{ route('proveedores.ia') }}" class="notif-footer">Ver todas</a>
             </div>
         </div>
@@ -507,6 +505,61 @@ document.addEventListener('click', function(e) {
         dropdown.classList.remove('show');
     }
 });
+
+(function () {
+    var wrap = document.querySelector('.notif-wrapper');
+    if (!wrap) return;
+    var url = wrap.getAttribute('data-alertas-url');
+    if (!url) return;
+
+    function esc(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function render(data) {
+        var n = data.sin_leer || 0;
+        var badge = document.getElementById('notifBadge');
+        var icon = document.getElementById('notifBellIcon');
+        var label = document.getElementById('notifCountLabel');
+        var items = document.getElementById('notifItems');
+        if (badge) {
+            badge.style.display = n > 0 ? 'flex' : 'none';
+            badge.textContent = n > 9 ? '9+' : String(n);
+        }
+        if (icon) icon.setAttribute('stroke', n > 0 ? 'var(--purple)' : 'var(--gray-muted)');
+        if (label) {
+            label.style.display = n > 0 ? '' : 'none';
+            label.textContent = n + ' nuevas';
+        }
+        if (!items) return;
+        var list = data.items || [];
+        if (!list.length) {
+            items.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
+            return;
+        }
+        items.innerHTML = list.map(function (it) {
+            return '<div class="notif-item ' + (it.leida ? 'read' : '') + '">'
+                + '<div class="notif-item-title">' + esc((it.titulo || '').substring(0, 50)) + '</div>'
+                + '<div class="notif-item-desc">' + esc((it.contenido || '').substring(0, 80)) + '</div>'
+                + '<div class="notif-item-time">' + esc(it.hace || '') + '</div>'
+                + '</div>';
+        }).join('');
+    }
+
+    function poll() {
+        if (document.hidden) return;
+        fetch(url, { headers: { 'Accept': 'application/json' }, credentials: 'same-origin', cache: 'no-store' })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) { if (data) render(data); })
+            .catch(function () {});
+    }
+
+    setInterval(poll, 15000);
+    document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
+    window.addEventListener('focus', poll);
+})();
 </script>
 @stack('scripts')
 </body>
