@@ -1497,20 +1497,12 @@ class EmpresaApiController extends Controller
             return '';
         }
 
+        $fileSize = filesize($path);
+        if ($fileSize > 10000000) { // Mayor a 10MB, no intentar
+            return '';
+        }
+
         try {
-            $fileSize = filesize($path);
-            $fileBytes = file_get_contents($path);
-
-            if (empty($fileBytes)) {
-                return '';
-            }
-
-            // Si es mayor a 5MB, no intentar API síncrona
-            if ($fileSize > 5000000) {
-                Log::info('Textract: archivo muy grande (' . round($fileSize/1024/1024, 1) . 'MB), excede límite síncrono');
-                return '';
-            }
-
             $client = new \Aws\Textract\TextractClient([
                 'region' => $region,
                 'version' => 'latest',
@@ -1521,12 +1513,24 @@ class EmpresaApiController extends Controller
                 'http' => ['timeout' => 90],
             ]);
 
-            // Intentar detectDocumentText primero (funciona con imágenes y PDFs de 1 página)
+            // Para PDFs multi-página: convertir a imágenes con Imagick si está disponible
+            $isPdf = strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'pdf' ||
+                     str_starts_with(file_get_contents($path, false, null, 0, 5), '%PDF');
+
+            if ($isPdf && extension_loaded('imagick')) {
+                return $this->ocrTextractConImagick($client, $path);
+            }
+
+            // Para imágenes o PDFs de 1 página: enviar directo
+            $fileBytes = file_get_contents($path);
+            if (empty($fileBytes)) {
+                return '';
+            }
+
+            // Si es PDF multi-página sin Imagick, intentar de todos modos
             try {
                 $response = $client->detectDocumentText([
-                    'Document' => [
-                        'Bytes' => $fileBytes,
-                    ],
+                    'Document' => ['Bytes' => $fileBytes],
                 ]);
 
                 $texto = '';
@@ -1537,48 +1541,80 @@ class EmpresaApiController extends Controller
                 }
 
                 if (strlen(trim($texto)) > 30) {
-                    $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
-                    $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
-                    $texto = preg_replace('/\s+/', ' ', $texto);
-                    return strtoupper(trim($texto));
+                    return $this->limpiarTextoOcr($texto);
                 }
             } catch (\Exception $e) {
-                Log::info('Textract detectDocumentText falló, intentando analyzeDocument', ['error' => $e->getMessage()]);
-            }
-
-            // Intentar analyzeDocument (más potente, detecta tablas y formularios)
-            try {
-                $response = $client->analyzeDocument([
-                    'Document' => [
-                        'Bytes' => $fileBytes,
-                    ],
-                    'FeatureTypes' => ['TABLES', 'FORMS'],
-                ]);
-
-                $texto = '';
-                foreach ($response['Blocks'] as $block) {
-                    if (in_array($block['BlockType'], ['LINE', 'WORD'])) {
-                        if ($block['BlockType'] === 'LINE') {
-                            $texto .= $block['Text'] . ' ';
-                        }
-                    }
-                }
-
-                $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
-                $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
-                $texto = preg_replace('/\s+/', ' ', $texto);
-                return strtoupper(trim($texto));
-
-            } catch (\Exception $e) {
-                Log::warning('Textract analyzeDocument falló', ['error' => $e->getMessage()]);
+                \Illuminate\Support\Facades\Log::info('Textract detectDocumentText falló', ['error' => $e->getMessage()]);
             }
 
             return '';
 
         } catch (\Exception $e) {
-            Log::warning('Textract OCR falló completamente', ['error' => $e->getMessage(), 'path' => $path, 'size' => filesize($path)]);
+            \Illuminate\Support\Facades\Log::warning('Textract OCR falló', ['error' => $e->getMessage()]);
             return '';
         }
+    }
+
+    /**
+     * Convierte páginas del PDF a imágenes con Imagick y las envía a Textract una por una.
+     */
+    private function ocrTextractConImagick(\Aws\Textract\TextractClient $client, string $pdfPath): string
+    {
+        $textoTotal = '';
+        $tmpDir = sys_get_temp_dir();
+
+        try {
+            $imagick = new \Imagick();
+            $imagick->setResolution(300, 300);
+            // Leer solo las primeras 3 páginas para no tardar demasiado
+            $imagick->readImage($pdfPath . '[0-2]');
+
+            $numPages = $imagick->getNumberImages();
+            $paginas = min($numPages, 3);
+
+            for ($i = 0; $i < $paginas; $i++) {
+                $imagick->setIteratorIndex($i);
+                $imagick->setImageFormat('png');
+
+                $tmpPng = $tmpDir . '/salcom_textract_' . uniqid() . '.png';
+                $imagick->writeImage($tmpPng);
+
+                $imgBytes = file_get_contents($tmpPng);
+                @unlink($tmpPng);
+
+                if (empty($imgBytes)) continue;
+
+                try {
+                    $response = $client->detectDocumentText([
+                        'Document' => ['Bytes' => $imgBytes],
+                    ]);
+
+                    foreach ($response['Blocks'] as $block) {
+                        if ($block['BlockType'] === 'LINE') {
+                            $textoTotal .= $block['Text'] . ' ';
+                        }
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::info('Textract página ' . ($i+1) . ' falló', ['error' => $e->getMessage()]);
+                }
+            }
+
+            $imagick->clear();
+            $imagick->destroy();
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Imagick+Textract falló', ['error' => $e->getMessage()]);
+        }
+
+        return $this->limpiarTextoOcr($textoTotal);
+    }
+
+    private function limpiarTextoOcr(string $texto): string
+    {
+        $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
+        $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
+        $texto = preg_replace('/\s+/', ' ', $texto);
+        return strtoupper(trim($texto));
     }
 
     /**
