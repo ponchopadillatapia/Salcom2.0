@@ -65,7 +65,6 @@
                         {{ $prov->tipo_persona ?? '—' }} ·
                         Código: {{ $prov->id_proveedor ?? '—' }} ·
                         Registrado: {{ $prov->created_at?->format('d/m/Y H:i') ?? '—' }}
-                        · Intento {{ $item->intento ?? 1 }}/5
                     </div>
                 </div>
                 <span class="sol-badge {{ ($item->docs_ok ?? false) ? 'con-datos' : 'pendiente' }}">{{ ($item->docs_ok ?? false) ? 'Listo' : 'Con validación' }}</span>

@@ -229,7 +229,14 @@ class SolicitudesAltaAdminTest extends TestCase
             'clabe' => '012345678901234567',
             'cuenta' => '99887766',
             'nombre_firma' => 'Juan Perez',
-            'docs' => ['id_rep_legal', 'id_contribuyente'],
+            'docs' => [
+                'acta_constitutiva',
+                'id_rep_legal',
+                'id_contribuyente',
+                'constancia_fiscal',
+                'opinion_cumplimiento',
+                'caratula_banco',
+            ],
         ])->assertRedirect(route('proveedores.onboarding'));
 
         $fresh = $p->fresh();
@@ -285,7 +292,6 @@ class SolicitudesAltaAdminTest extends TestCase
         $this->withSession($adminSession);
         $p = $this->proveedorPendiente([
             'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
-            'solicitud_alta_intentos' => 1,
         ]);
         $this->completarDocsFiscales($p);
         $this->completarContactos($p);
@@ -322,14 +328,20 @@ class SolicitudesAltaAdminTest extends TestCase
             'clabe' => '012345678901234567',
             'cuenta' => '99887766',
             'nombre_firma' => 'Juan Perez',
-            'docs' => ['id_rep_legal', 'id_contribuyente'],
+            'docs' => [
+                'acta_constitutiva',
+                'id_rep_legal',
+                'id_contribuyente',
+                'constancia_fiscal',
+                'opinion_cumplimiento',
+                'caratula_banco',
+            ],
         ])->assertRedirect(route('proveedores.onboarding'));
 
         $this->assertSame(
             'pendiente',
             SolicitudAlta::where('proveedor_id', $p->id)->value('estatus')
         );
-        $this->assertSame(2, (int) $p->fresh()->solicitud_alta_intentos);
 
         // Tras rechazo los docs quedan rechazados: no reaparece hasta revalidar docs.
         $this->withSession($adminSession)

@@ -7,7 +7,8 @@ use Illuminate\Support\Facades\Route;
 
 // ── Validación fiscal (usa sesión web del proveedor para guardar expediente) ──
 Route::middleware(['web', 'auth.proveedor'])->group(function () {
-    Route::post('/empresa', [EmpresaApiController::class, 'validar']);
+    Route::post('/empresa', [EmpresaApiController::class, 'validar'])
+        ->name('proveedores.validacion-fiscal.api');
 });
 
 // ── Búsqueda de código postal ──

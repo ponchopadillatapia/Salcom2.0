@@ -2159,7 +2159,6 @@ class AdminPanelController extends Controller
                     'num_contactos' => $contactosN,
                     'listo' => $listo,
                     'con_datos' => $conDatos,
-                    'intento' => $p->solicitudAltaIntentoActual(),
                 ];
             })
             ->filter(fn ($item) => $item->con_datos)
@@ -2314,9 +2313,6 @@ class AdminPanelController extends Controller
         if (Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
             $updateProv['solicitud_alta_estatus'] = 'rechazada';
         }
-        if (Schema::hasColumn('proveedores_users', 'solicitud_alta_intentos')) {
-            $updateProv['solicitud_alta_intentos'] = max(1, (int) ($prov->solicitud_alta_intentos ?? 0));
-        }
         $prov->update($updateProv);
 
         try {
@@ -2331,13 +2327,8 @@ class AdminPanelController extends Controller
         }
 
         $nombre = $prov->nombre ?? $prov->usuario;
-        $intento = (int) ($updateProv['solicitud_alta_intentos'] ?? $prov->solicitud_alta_intentos ?? 1);
-        $max = ProveedorUser::SOLICITUD_ALTA_MAX_INTENTOS;
-        $restantes = max(0, $max - $intento);
         $titulo = 'Tu solicitud de alta fue rechazada';
-        $contenido = $restantes > 0
-            ? "Hola {$nombre}. Tu solicitud fue rechazada (intento {$intento}/{$max}). Debes volver a completar datos bancarios y documentos. Te quedan {$restantes} intento(s)."
-            : "Hola {$nombre}. Tu solicitud fue rechazada y agotaste los {$max} intentos. Contacta a Dirección.";
+        $contenido = "Hola {$nombre}. Tu solicitud fue rechazada. Debes volver a completar datos bancarios y documentos para que Dirección la revise de nuevo.";
 
         try {
             app(AlertEngineService::class)->alertar([
@@ -2348,7 +2339,6 @@ class AdminPanelController extends Controller
                 'titulo' => $titulo,
                 'contenido' => $contenido,
                 'nivel' => 'warning',
-                'datos' => ['intento' => $intento, 'max' => $max],
             ], 'portal');
         } catch (\Exception $e) {
             Log::warning('No se pudo notificar rechazo de solicitud de alta', [
@@ -2359,7 +2349,7 @@ class AdminPanelController extends Controller
 
         return $this->respuestaSolicitudAlta(
             $request,
-            "Solicitud de {$nombre} rechazada (intento {$intento}/{$max}). La cuenta no se elimina: debe volver a llenar datos bancarios y documentos."
+            "Solicitud de {$nombre} rechazada. La cuenta no se elimina: debe volver a llenar datos bancarios y documentos."
         );
     }
 

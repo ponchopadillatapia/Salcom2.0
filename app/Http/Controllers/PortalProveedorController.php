@@ -111,9 +111,6 @@ class PortalProveedorController extends Controller
             $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos;
             $pasoActivo = (bool) $proveedor->activo;
             $onboardingBloqueado = $proveedor->onboardingEdicionBloqueada();
-            $intentoActual = $proveedor->solicitudAltaIntentoActual();
-            $maxIntentos = ProveedorUser::SOLICITUD_ALTA_MAX_INTENTOS;
-            $agotóIntentos = $proveedor->solicitudAltaAgotoIntentos();
             $estatusAlta = $proveedor->solicitud_alta_estatus ?? null;
 
             $completados = (int) $pasoRegistro + (int) $pasoBancarios + (int) $pasoDocs + (int) $pasoContactos + (int) ($pasoListoDireccion && $pasoActivo ? 1 : 0);
@@ -131,9 +128,6 @@ class PortalProveedorController extends Controller
                 'pasoListoDireccion',
                 'pasoActivo',
                 'onboardingBloqueado',
-                'intentoActual',
-                'maxIntentos',
-                'agotóIntentos',
                 'estatusAlta',
                 'completados',
                 'totalPasos',
@@ -156,9 +150,6 @@ class PortalProveedorController extends Controller
                 'pasoListoDireccion' => false,
                 'pasoActivo' => false,
                 'onboardingBloqueado' => false,
-                'intentoActual' => 1,
-                'maxIntentos' => ProveedorUser::SOLICITUD_ALTA_MAX_INTENTOS,
-                'agotóIntentos' => false,
                 'estatusAlta' => null,
                 'completados' => 1,
                 'totalPasos' => 5,
@@ -210,8 +201,6 @@ class PortalProveedorController extends Controller
         $onboarding = [
             'activo' => (bool) ($proveedor?->activo),
             'estatus' => $proveedor?->solicitud_alta_estatus,
-            'intento' => $proveedor?->solicitudAltaIntentoActual() ?? 1,
-            'max_intentos' => ProveedorUser::SOLICITUD_ALTA_MAX_INTENTOS,
             'bloqueado' => $proveedor?->onboardingEdicionBloqueada() ?? false,
         ];
 
@@ -461,11 +450,6 @@ class PortalProveedorController extends Controller
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
 
-        if ($proveedor && $proveedor->solicitudAltaAgotoIntentos()) {
-            return redirect()->route('proveedores.onboarding')
-                ->with('error', 'Agotaste los '.ProveedorUser::SOLICITUD_ALTA_MAX_INTENTOS.' intentos de solicitud de alta. Contacta a Dirección.');
-        }
-
         if ($proveedor && $proveedor->onboardingEdicionBloqueada() && $proveedor->tieneFormularioDatosBancarios()) {
             return redirect()->route('proveedores.onboarding')
                 ->with('error', 'Tu expediente está en revisión o ya fue aprobado. No puedes editar el formulario hasta que Dirección rechace o autorice cambios.');
@@ -504,25 +488,16 @@ class PortalProveedorController extends Controller
             }
         }
 
-        $intentoActual = $proveedor?->solicitudAltaIntentoActual() ?? 1;
-        $maxIntentos = ProveedorUser::SOLICITUD_ALTA_MAX_INTENTOS;
-
         return view('proveedores.identificacion_proveedor', compact(
             'identificacion',
             'proveedor',
-            'tieneDocsAprobados',
-            'intentoActual',
-            'maxIntentos'
+            'tieneDocsAprobados'
         ));
     }
 
     public function guardarIdentificacion(Request $request)
     {
         $proveedorPre = ProveedorUser::find(session('proveedor_id'));
-        if ($proveedorPre && $proveedorPre->solicitudAltaAgotoIntentos()) {
-            return redirect()->route('proveedores.onboarding')
-                ->with('error', 'Agotaste los '.ProveedorUser::SOLICITUD_ALTA_MAX_INTENTOS.' intentos de solicitud de alta.');
-        }
         if ($proveedorPre && $proveedorPre->onboardingEdicionBloqueada() && $proveedorPre->tieneFormularioDatosBancarios()) {
             return redirect()->route('proveedores.onboarding')
                 ->with('error', 'No puedes modificar el formulario: tu solicitud está en revisión o ya fue aprobada.');
@@ -557,13 +532,26 @@ class PortalProveedorController extends Controller
             'docs' => [
                 'required',
                 'array',
-                function (string $attribute, mixed $value, \Closure $fail) {
+                function (string $attribute, mixed $value, \Closure $fail) use ($esMoral) {
                     $docs = is_array($value) ? $value : [];
-                    if (! in_array('id_rep_legal', $docs, true)) {
-                        $fail('Debes marcar Identificación oficial del representante legal.');
+                    $requeridos = [
+                        'id_rep_legal' => 'Identificación oficial del representante legal',
+                        'id_contribuyente' => 'Identificación oficial del contribuyente',
+                        'constancia_fiscal' => 'Constancia de Situación Fiscal',
+                        'opinion_cumplimiento' => 'Opinión de Cumplimiento',
+                        'caratula_banco' => 'Carátula de banco',
+                    ];
+                    if ($esMoral) {
+                        $requeridos = ['acta_constitutiva' => 'Acta Constitutiva'] + $requeridos;
                     }
-                    if (! in_array('id_contribuyente', $docs, true)) {
-                        $fail('Debes marcar Identificación oficial del contribuyente.');
+                    $faltan = [];
+                    foreach ($requeridos as $clave => $etiqueta) {
+                        if (! in_array($clave, $docs, true)) {
+                            $faltan[] = $etiqueta;
+                        }
+                    }
+                    if ($faltan !== []) {
+                        $fail('Debes marcar todos los documentos obligatorios. Faltan: '.implode(', ', $faltan).'.');
                     }
                 },
             ],
@@ -586,7 +574,7 @@ class PortalProveedorController extends Controller
 
         $data = $request->validate($rules, [
             'required' => 'El campo :attribute es obligatorio.',
-            'docs.required' => 'Debes marcar Identificación oficial del representante legal y del contribuyente.',
+            'docs.required' => 'Debes marcar todos los documentos obligatorios.',
             'regex' => 'El campo :attribute tiene un formato inválido.',
             'telefono.regex' => 'El teléfono debe tener exactamente 10 dígitos numéricos.',
             'celular.regex' => 'El celular debe tener exactamente 10 dígitos numéricos.',
@@ -665,20 +653,6 @@ class PortalProveedorController extends Controller
                 ];
                 if (Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
                     $updateDatos['solicitud_alta_estatus'] = 'pendiente';
-                }
-                if (Schema::hasColumn('proveedores_users', 'solicitud_alta_intentos')) {
-                    $prevIntentos = (int) ($proveedor->solicitud_alta_intentos ?? 0);
-                    $estatusPrevio = $proveedor->solicitud_alta_estatus ?? null;
-                    if ($estatusPrevio === 'rechazada') {
-                        $nuevoIntento = $prevIntentos + 1;
-                        if ($nuevoIntento > ProveedorUser::SOLICITUD_ALTA_MAX_INTENTOS) {
-                            return redirect()->route('proveedores.onboarding')
-                                ->with('error', 'Agotaste los '.ProveedorUser::SOLICITUD_ALTA_MAX_INTENTOS.' intentos de solicitud de alta.');
-                        }
-                        $updateDatos['solicitud_alta_intentos'] = $nuevoIntento;
-                    } elseif ($prevIntentos < 1) {
-                        $updateDatos['solicitud_alta_intentos'] = 1;
-                    }
                 }
                 $proveedor->update($updateDatos);
             } catch (\Exception $e) {
