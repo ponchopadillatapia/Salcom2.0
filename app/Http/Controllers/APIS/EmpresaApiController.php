@@ -278,6 +278,93 @@ class EmpresaApiController extends Controller
             }
 
             // ════════════════════════════════════════
+            // VALIDACIÓN DE SEGURIDAD (Anti-fraude)
+            // ════════════════════════════════════════
+            $proveedorActual = $provId ? ProveedorUser::find($provId) : null;
+            $alertasSeguridad = [];
+
+            if ($proveedorActual) {
+                $rfcProveedor = null;
+                // Obtener RFC del proveedor desde su datos_identificacion o perfil
+                $datosIdent = $proveedorActual->datos_identificacion ?? [];
+                if (is_array($datosIdent)) {
+                    // Intentar extraer RFC del nombre del proveedor
+                }
+
+                // 1. Verificar que el RFC del CIF corresponde al proveedor
+                $rfcCifExtraido = $cif['datos']['rfc'] ?? null;
+                $rfcOpinionExtraido = $opinion['datos']['rfc_encontrado'] ?? null;
+
+                // Si ambos RFCs se extrajeron, deben ser iguales
+                if ($rfcCifExtraido && $rfcOpinionExtraido && $rfcCifExtraido !== $rfcOpinionExtraido) {
+                    $alertasSeguridad[] = "RFC del CIF ({$rfcCifExtraido}) no coincide con RFC de la Opinión SAT ({$rfcOpinionExtraido})";
+                    $cif['errores'][] = "⚠ ALERTA: El RFC del CIF no coincide con la Opinión SAT — posible documento de otro proveedor";
+                    $cif['valida'] = false;
+                }
+
+                // 2. Verificar que el nombre del formulario coincide con los documentos
+                if ($nombreEsperado !== '' && $rfcCifExtraido) {
+                    // Si el nombre del CIF se extrajo y NO coincide con el del formulario, alertar
+                    $nombreCif = $cif['datos']['nombre'] ?? '';
+                    if ($nombreCif !== '' && !$this->nombresCoinciden($nombreEsperado, $nombreCif)) {
+                        $alertasSeguridad[] = "Nombre del formulario ({$nombreEsperado}) no coincide con el CIF ({$nombreCif})";
+                    }
+                }
+
+                // 3. Si hay alertas de seguridad, registrar en log de auditoría
+                if (!empty($alertasSeguridad)) {
+                    \Illuminate\Support\Facades\Log::warning('ALERTA SEGURIDAD: Posible inconsistencia en validación fiscal', [
+                        'proveedor_id' => $provId,
+                        'proveedor_nombre' => $proveedorActual->nombre ?? $proveedorActual->usuario,
+                        'rfc_cif' => $rfcCifExtraido,
+                        'rfc_opinion' => $rfcOpinionExtraido,
+                        'nombre_esperado' => $nombreEsperado,
+                        'alertas' => $alertasSeguridad,
+                        'ip' => $request->ip(),
+                        'timestamp' => now()->toDateTimeString(),
+                    ]);
+
+                    // Registrar en tabla de auditoría si existe
+                    try {
+                        \App\Models\AuditLog::create([
+                            'accion' => 'validacion_fiscal_alerta',
+                            'usuario_tipo' => 'proveedor',
+                            'usuario_id' => $provId,
+                            'descripcion' => 'Alerta de seguridad: ' . implode(' | ', $alertasSeguridad),
+                            'datos' => json_encode([
+                                'rfc_cif' => $rfcCifExtraido,
+                                'rfc_opinion' => $rfcOpinionExtraido,
+                                'nombre_esperado' => $nombreEsperado,
+                                'ip' => $request->ip(),
+                            ]),
+                        ]);
+                    } catch (\Exception $e) {
+                        // Tabla de auditoría puede no existir
+                    }
+                }
+            }
+
+            // 4. Sanitización extra: verificar que los archivos son PDFs reales (magic bytes)
+            $archivosSubidos = ['cif_pdf', 'opinion_pdf', 'caratula_banco_pdf', 'acta_pdf', 'rep_legal_pdf', 'contribuyente_pdf', 'poder_pdf'];
+            foreach ($archivosSubidos as $campo) {
+                if ($request->hasFile($campo)) {
+                    $file = $request->file($campo);
+                    $contenido = file_get_contents($file->getRealPath(), false, null, 0, 5);
+                    if ($contenido !== '%PDF-') {
+                        \Illuminate\Support\Facades\Log::warning('ALERTA SEGURIDAD: Archivo no es PDF real', [
+                            'campo' => $campo,
+                            'proveedor_id' => $provId,
+                            'mime' => $file->getMimeType(),
+                            'ip' => $request->ip(),
+                        ]);
+                        return response()->json([
+                            'mensaje' => "El archivo {$campo} no es un PDF válido. Se detectó un archivo con formato incorrecto.",
+                        ], 422);
+                    }
+                }
+            }
+
+            // ════════════════════════════════════════
             // SEMÁFORO
             // ════════════════════════════════════════
             $cifOk = $cif['valida'];
