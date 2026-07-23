@@ -963,7 +963,7 @@ class EmpresaApiController extends Controller
                                 }
                             } elseif (isset($iaData['sello_rppc']) && $iaData['sello_rppc'] === false) {
                                 $hallazgos = array_values(array_filter($hallazgos, fn ($h) => ! str_contains($h, 'RPPC') && ! str_contains($h, 'pendiente de confirmación')));
-                                $errores[] = 'No se detectó inscripción en el Registro Público (el acta puede ser copia simple)';
+                                $hallazgos[] = 'Registro Público: no detectado en el documento (puede ser copia simple)';
                             }
 
                             // Duración
