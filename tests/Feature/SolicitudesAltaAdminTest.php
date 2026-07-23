@@ -347,6 +347,26 @@ class SolicitudesAltaAdminTest extends TestCase
             ->assertSee('data-proveedor-id="'.$p->id.'"', false);
     }
 
+    public function test_aparece_con_formulario_y_docs_sin_contactos(): void
+    {
+        $this->withSession($this->sesionAdmin());
+        $p = $this->proveedorPendiente([
+            'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567', 'correo' => 'solicitante@test.com'],
+        ]);
+        $this->completarDocsFiscales($p);
+
+        $this->get(route('admin.solicitudes-alta'))
+            ->assertOk()
+            ->assertSee('Solicitante SA')
+            ->assertSee('data-proveedor-id="'.$p->id.'"', false);
+
+        $this->get(route('admin.solicitudes-alta.ver', $p))
+            ->assertOk()
+            ->assertSee('DATOS DEL FORMULARIO')
+            ->assertSee('BBVA')
+            ->assertSee('DOCUMENTOS CORRECTOS');
+    }
+
     public function test_ver_solo_muestra_documentos_aprobados(): void
     {
         $this->withSession($this->sesionAdmin());

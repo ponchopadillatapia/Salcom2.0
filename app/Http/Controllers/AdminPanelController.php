@@ -2159,11 +2159,15 @@ class AdminPanelController extends Controller
                 $formulario = $p->tieneFormularioIdentificacion();
                 $bancarios = $p->tieneFormularioDatosBancarios();
                 $docsOk = $p->documentosFiscalesCompletos();
-                $docsCount = $p->documentos->where('estatus', 'aprobado')->count();
+                $docsAprobados = $p->documentos->where('estatus', 'aprobado');
+                $docsCount = $docsAprobados->count();
+                $tieneValidacion = $docsAprobados->contains(function ($doc) {
+                    return ! empty($doc->resultado_validacion) || ($doc->notas_revision && str_contains(strtolower((string) $doc->notas_revision), 'validación'));
+                }) || $docsCount > 0;
                 $contactosN = $p->contactos->count();
                 $listo = $p->listoParaDireccion();
-                // Solo expediente con formulario + docs correctos (listo para Dirección).
-                $conDatos = $bancarios && $docsOk && $contactosN >= 2;
+                // Llega a admin cuando hay formulario bancario + al menos un doc validado/aprobado.
+                $conDatos = $bancarios && $tieneValidacion;
 
                 return (object) [
                     'proveedor' => $p,
@@ -2177,7 +2181,7 @@ class AdminPanelController extends Controller
                     'intento' => $p->solicitudAltaIntentoActual(),
                 ];
             })
-            // Admin solo ve solicitudes listas para revisar (formulario + docs + contactos).
+            // Admin ve solicitudes con formulario + validación de documentos hecha.
             ->filter(fn ($item) => $item->con_datos)
             ->values();
 

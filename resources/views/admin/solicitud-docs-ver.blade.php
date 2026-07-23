@@ -103,6 +103,12 @@
                 @php
                     $resultado = is_array($doc->resultado_validacion) ? $doc->resultado_validacion : [];
                     $hallazgos = $resultado['hallazgos'] ?? [];
+                    if ($hallazgos === [] && isset($resultado['checklist']) && is_array($resultado['checklist'])) {
+                        $hallazgos = array_values(array_filter($resultado['checklist'], fn ($x) => is_string($x)));
+                    }
+                    if ($hallazgos === [] && ! empty($doc->notas_revision)) {
+                        $hallazgos = [$doc->notas_revision];
+                    }
                     $href = $doc->archivo
                         ? route('admin.expediente-fiscal.descargar', $doc)
                         : '#';
@@ -116,27 +122,15 @@
                     @forelse($hallazgos as $h)
                         <div class="detalle-item">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            {{ $h }}
+                            {{ is_array($h) ? json_encode($h, JSON_UNESCAPED_UNICODE) : $h }}
                         </div>
                     @empty
-                        <div class="detalle-item">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            {{ $doc->notas_revision ?: 'Validación correcta' }}
-                        </div>
-                        <div class="detalle-item">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            Sin observaciones
-                        </div>
+                        <div class="detalle-item">Validación automática aprobada</div>
                     @endforelse
-                    @if($doc->revisado_at)
-                        <div class="detalle-item" style="color:var(--gray-muted);">
-                            Revisado: {{ $doc->revisado_at->format('d/m/Y H:i') }}
-                        </div>
-                    @endif
-                    <span class="doc-dl-hint">
+                    <div class="doc-dl-hint">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                         Clic para descargar PDF
-                    </span>
+                    </div>
                 </a>
             @endforeach
         </div>

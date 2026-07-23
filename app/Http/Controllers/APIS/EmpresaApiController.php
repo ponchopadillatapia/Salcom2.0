@@ -333,6 +333,26 @@ class EmpresaApiController extends Controller
                                 }
                             }
                         }
+
+                        // Tras validación en verde, la solicitud queda visible para Dirección.
+                        $prov = ProveedorUser::find($proveedorId);
+                        if ($prov && ! $prov->activo) {
+                            $updateProv = [];
+                            if (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')
+                                && ($prov->solicitud_alta_estatus ?? null) !== 'rechazada') {
+                                $updateProv['solicitud_alta_estatus'] = 'pendiente';
+                            }
+                            if ($updateProv !== []) {
+                                $prov->update($updateProv);
+                            }
+                            try {
+                                \App\Models\SolicitudAlta::where('proveedor_id', $proveedorId)
+                                    ->where('estatus', '!=', 'rechazada')
+                                    ->update(['estatus' => 'pendiente']);
+                            } catch (\Exception $e) {
+                                // ignore
+                            }
+                        }
                     } catch (\Exception $e) {
                         // No bloquear la respuesta
                     }
