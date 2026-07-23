@@ -554,7 +554,19 @@ class PortalProveedorController extends Controller
             'clabe' => ['required', 'regex:/^[0-9]{18}$/'],
             'cuenta' => ['required', 'regex:/^[0-9]{5,20}$/'],
             'banco' => 'required|string|max:255|not_in:Otro',
-            'docs' => 'nullable|array',
+            'docs' => [
+                'required',
+                'array',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    $docs = is_array($value) ? $value : [];
+                    if (! in_array('id_rep_legal', $docs, true)) {
+                        $fail('Debes marcar Identificación oficial del representante legal.');
+                    }
+                    if (! in_array('id_contribuyente', $docs, true)) {
+                        $fail('Debes marcar Identificación oficial del contribuyente.');
+                    }
+                },
+            ],
             'nombre_firma' => $soloTexto,
         ];
 
@@ -574,6 +586,7 @@ class PortalProveedorController extends Controller
 
         $data = $request->validate($rules, [
             'required' => 'El campo :attribute es obligatorio.',
+            'docs.required' => 'Debes marcar Identificación oficial del representante legal y del contribuyente.',
             'regex' => 'El campo :attribute tiene un formato inválido.',
             'telefono.regex' => 'El teléfono debe tener exactamente 10 dígitos numéricos.',
             'celular.regex' => 'El celular debe tener exactamente 10 dígitos numéricos.',

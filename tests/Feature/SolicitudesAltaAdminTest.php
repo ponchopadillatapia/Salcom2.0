@@ -229,6 +229,7 @@ class SolicitudesAltaAdminTest extends TestCase
             'clabe' => '012345678901234567',
             'cuenta' => '99887766',
             'nombre_firma' => 'Juan Perez',
+            'docs' => ['id_rep_legal', 'id_contribuyente'],
         ])->assertRedirect(route('proveedores.onboarding'));
 
         $fresh = $p->fresh();
@@ -321,6 +322,7 @@ class SolicitudesAltaAdminTest extends TestCase
             'clabe' => '012345678901234567',
             'cuenta' => '99887766',
             'nombre_firma' => 'Juan Perez',
+            'docs' => ['id_rep_legal', 'id_contribuyente'],
         ])->assertRedirect(route('proveedores.onboarding'));
 
         $this->assertSame(

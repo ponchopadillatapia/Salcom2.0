@@ -325,7 +325,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Documentos agregados
         </h3>
-        <p class="card-desc">Marca los documentos que estás anexando a este formato.</p>
+        <p class="card-desc">Marca los documentos que estás anexando a este formato. Los marcados con <span style="color:#DC2626">*</span> son obligatorios.</p>
 
         <div class="docs-grid">
             <label class="doc-check" id="doc-acta-constitutiva">
@@ -334,11 +334,11 @@
             </label>
             <label class="doc-check">
                 <input type="checkbox" name="docs[]" value="id_rep_legal" {{ in_array('id_rep_legal', old('docs', $d['docs'] ?? [])) ? 'checked' : '' }}>
-                Identificación oficial del representante legal
+                Identificación oficial del representante legal <span style="color:#DC2626">*</span>
             </label>
             <label class="doc-check">
                 <input type="checkbox" name="docs[]" value="id_contribuyente" {{ in_array('id_contribuyente', old('docs', $d['docs'] ?? [])) ? 'checked' : '' }}>
-                Identificación oficial del contribuyente
+                Identificación oficial del contribuyente <span style="color:#DC2626">*</span>
             </label>
             <label class="doc-check">
                 <input type="checkbox" name="docs[]" value="constancia_fiscal" {{ in_array('constancia_fiscal', old('docs', $d['docs'] ?? [])) ? 'checked' : '' }}>
@@ -353,6 +353,15 @@
                 Carátula de banco
             </label>
         </div>
+        @error('docs')
+            <p style="color:#DC2626;font-size:12px;font-weight:600;margin-top:10px;">{{ $message }}</p>
+        @enderror
+        @error('docs.id_rep_legal')
+            <p style="color:#DC2626;font-size:12px;font-weight:600;margin-top:10px;">{{ $message }}</p>
+        @enderror
+        @error('docs.id_contribuyente')
+            <p style="color:#DC2626;font-size:12px;font-weight:600;margin-top:10px;">{{ $message }}</p>
+        @enderror
     </div>
 
     {{-- Declaración y firma --}}
