@@ -35,7 +35,7 @@ class PortalProveedorController extends Controller
     public function mostrarOnboarding()
     {
         try {
-            $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
 
             // Si entró como admin, proveedor_id antes era el id de admin_users (sin fila en proveedores_users).
             // No redirigir a login: eso causa rebote (login -> portal) y parece que onboarding no carga.
@@ -80,9 +80,9 @@ class PortalProveedorController extends Controller
 
             try {
                 $proveedor->load(['documentos', 'contactos']);
-            } catch (\Exception $e) {
-                // Si falla, el proveedor seguirá sin documentos cargados
-            }
+        } catch (\Exception $e) {
+            // Si falla, el proveedor seguirá sin documentos cargados
+        }
 
             $pasoRegistro = true;
             try {
@@ -595,8 +595,8 @@ class PortalProveedorController extends Controller
             ])));
 
         $payload = array_merge($data, [
-            'tipo_clave' => $esMoral ? 'moral' : 'fisica',
-            'nombre_esperado' => $nombreEsperado,
+                'tipo_clave' => $esMoral ? 'moral' : 'fisica',
+                'nombre_esperado' => $nombreEsperado,
         ]);
 
         session(['identificacion_proveedor' => $payload]);

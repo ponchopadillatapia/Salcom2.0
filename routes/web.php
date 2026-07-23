@@ -206,6 +206,7 @@ Route::get('/admin/facturas', [AdminPanelController::class, 'facturas'])->name('
 Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel'])->name('admin.facturas.excel')->middleware('auth.admin');
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal', [AdminPanelController::class, 'expedienteFiscal'])->name('admin.expediente-fiscal')->middleware('auth.admin');
+Route::get('/admin/expediente-fiscal/proveedor/{proveedor}', [AdminPanelController::class, 'expedienteFiscalVer'])->name('admin.expediente-fiscal.ver')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal/{documento}/descargar', [AdminPanelController::class, 'descargarDocumentoFiscal'])->name('admin.expediente-fiscal.descargar')->middleware('auth.admin');
 Route::get('/admin/documentos/excel', [AdminPanelController::class, 'documentosExcel'])->name('admin.documentos.excel')->middleware('auth.admin');
 Route::get('/admin/negocio', [AdminPanelController::class, 'negocio'])->name('admin.negocio')->middleware('auth.admin');

@@ -2724,6 +2724,7 @@ class AdminPanelController extends Controller
             'rep_legal' => 'INE Rep. legal',
             'contribuyente' => 'INE Contribuyente',
             'caratula_banco' => 'Carátula bancaria',
+            'poder' => 'Poder notarial',
         ];
 
         $query = DocumentoProveedor::with('proveedor')->orderByDesc('created_at');
@@ -2736,7 +2737,8 @@ class AdminPanelController extends Controller
             $b = $request->busqueda;
             $query->whereHas('proveedor', function ($q) use ($b) {
                 $q->where('nombre', 'like', "%{$b}%")
-                    ->orWhere('usuario', 'like', "%{$b}%");
+                    ->orWhere('usuario', 'like', "%{$b}%")
+                    ->orWhere('id_proveedor', 'like', "%{$b}%");
             });
         }
 
@@ -2753,18 +2755,96 @@ class AdminPanelController extends Controller
             });
         }
 
+        if ($request->filled('mes') && preg_match('/^\d{4}-\d{2}$/', (string) $request->mes)) {
+            [$anio, $mesNum] = explode('-', (string) $request->mes);
+            $query->whereYear('created_at', (int) $anio)->whereMonth('created_at', (int) $mesNum);
+        }
+
+        if ($request->filled('estatus')) {
+            $query->where('estatus', $request->estatus);
+        }
+
         $documentos = $query->get();
 
-        // Agrupar por proveedor
-        $proveedoresConDocs = $documentos->groupBy('proveedor_id')->map(function ($docs) {
-            return [
-                'proveedor' => $docs->first()->proveedor,
-                'documentos' => $docs,
-            ];
-        })->filter(fn ($item) => $item['proveedor'] !== null)->values();
+        $mesesDisponibles = DocumentoProveedor::query()
+            ->whereNotNull('created_at')
+            ->orderByDesc('created_at')
+            ->pluck('created_at')
+            ->map(fn ($d) => \Carbon\Carbon::parse($d)->format('Y-m'))
+            ->unique()
+            ->values();
 
-        return view('admin.expediente-fiscal', compact('proveedoresConDocs', 'tipos'));
+        // Una fila por proveedor (lista plana, sin agrupar por mes aquí)
+        $proveedoresConDocs = $documentos->groupBy('proveedor_id')->map(function ($docs) {
+            $prov = $docs->first()->proveedor;
+            if (! $prov) {
+                return null;
+            }
+            $ultimo = $docs->sortByDesc('created_at')->first();
+            $aprobados = $docs->where('estatus', 'aprobado')->count();
+            $pendientes = $docs->where('estatus', 'pendiente')->count();
+            $rechazados = $docs->where('estatus', 'rechazado')->count();
+
+            return [
+                'proveedor' => $prov,
+                'documentos' => $docs,
+                'total' => $docs->count(),
+                'aprobados' => $aprobados,
+                'pendientes' => $pendientes,
+                'rechazados' => $rechazados,
+                'ultimo_at' => $ultimo?->created_at,
+                'meses' => $docs->map(fn ($d) => $d->created_at?->format('Y-m'))->filter()->unique()->count(),
+            ];
+        })->filter()->sortBy(fn ($item) => mb_strtoupper($item['proveedor']->nombre ?? $item['proveedor']->usuario ?? ''))->values();
+
+        return view('admin.expediente-fiscal', compact('proveedoresConDocs', 'tipos', 'mesesDisponibles'));
     }
+
+    public function expedienteFiscalVer(Request $request, ProveedorUser $proveedor)
+    {
+        $tiposLabel = [
+            'cif' => 'Constancia de Situación Fiscal (CIF)',
+            'opinion' => 'Opinión de Cumplimiento SAT',
+            'acta' => 'Acta Constitutiva',
+            'rep_legal' => 'ID Representante Legal',
+            'contribuyente' => 'ID Contribuyente',
+            'caratula_banco' => 'Carátula de Banco',
+            'poder' => 'Poder Notarial',
+        ];
+
+        $docsQuery = $proveedor->documentos()->orderByDesc('created_at');
+
+        if ($request->filled('tipo')) {
+            $docsQuery->where('tipo', $request->tipo);
+        }
+        if ($request->filled('estatus')) {
+            $docsQuery->where('estatus', $request->estatus);
+        }
+        if ($request->filled('mes') && preg_match('/^\d{4}-\d{2}$/', (string) $request->mes)) {
+            [$anio, $mesNum] = explode('-', (string) $request->mes);
+            $docsQuery->whereYear('created_at', (int) $anio)->whereMonth('created_at', (int) $mesNum);
+        }
+
+        $docs = $docsQuery->get();
+
+        // Dentro del proveedor: expedientes agrupados mes por mes (más reciente primero)
+        $docsPorMes = $docs->groupBy(fn ($d) => $d->created_at?->format('Y-m') ?? '0000-00')
+            ->sortKeysDesc();
+
+        $proveedor->load('contactos');
+        $datosIdent = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+        $filtrosQuery = $request->only(['busqueda', 'persona', 'tipo', 'mes', 'estatus']);
+
+        return view('admin.expediente-fiscal-ver', compact(
+            'proveedor',
+            'docs',
+            'docsPorMes',
+            'tiposLabel',
+            'datosIdent',
+            'filtrosQuery'
+        ));
+    }
+
 
     public function descargarDocumentoFiscal(DocumentoProveedor $documento)
     {
