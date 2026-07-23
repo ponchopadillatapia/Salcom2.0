@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\OpinionPositivaAviso;
+use App\Mail\SolicitudAltaAprobada;
 use App\Models\AlertaConfiguracion;
 use App\Models\ClienteUser;
 use App\Models\DocumentoProveedor;
@@ -2244,14 +2245,18 @@ class AdminPanelController extends Controller
             // ignore
         }
 
+        $nombre = $prov->nombre ?? $prov->usuario;
+        $titulo = 'Tu solicitud de alta fue aprobada';
+        $contenido = 'Hola '.$nombre.'. Tu solicitud de alta fue aceptada. Ya puedes iniciar sesión y navegar el Portal de Proveedores completo.';
+
         try {
             app(AlertEngineService::class)->alertar([
                 'tipo' => 'solicitud_aprobada',
                 'modulo' => 'onboarding',
                 'destinatario_tipo' => 'proveedor',
                 'destinatario_id' => $prov->id,
-                'titulo' => 'Tu solicitud de alta fue aprobada',
-                'contenido' => 'Hola '.($prov->nombre ?? $prov->usuario).'. Dirección activó tu cuenta. Ya puedes usar el portal completo.',
+                'titulo' => $titulo,
+                'contenido' => $contenido,
                 'nivel' => 'info',
             ], 'portal');
         } catch (\Exception $e) {
@@ -2259,6 +2264,23 @@ class AdminPanelController extends Controller
                 'proveedor_id' => $prov->id,
                 'error' => $e->getMessage(),
             ]);
+        }
+
+        if (! empty($prov->correo)) {
+            try {
+                Mail::to($prov->correo)->send(new SolicitudAltaAprobada(
+                    $nombre,
+                    $prov->correo,
+                    (string) ($prov->usuario ?? ''),
+                    route('proveedores.login'),
+                ));
+            } catch (\Exception $e) {
+                Log::warning('No se pudo enviar correo de solicitud de alta aprobada', [
+                    'proveedor_id' => $prov->id,
+                    'correo' => $prov->correo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $this->respuestaSolicitudAlta(

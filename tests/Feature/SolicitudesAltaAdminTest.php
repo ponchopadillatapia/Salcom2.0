@@ -8,6 +8,7 @@ use App\Models\ContactoProveedor;
 use App\Models\DocumentoProveedor;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
+use App\Mail\SolicitudAltaAprobada;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -155,6 +156,7 @@ class SolicitudesAltaAdminTest extends TestCase
 
     public function test_aprueba_con_bancarios_y_dos_contactos(): void
     {
+        Mail::fake();
         $this->withSession($this->sesionAdmin());
         $p = $this->proveedorPendiente([
             'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
@@ -167,6 +169,18 @@ class SolicitudesAltaAdminTest extends TestCase
         ])->assertRedirect(route('admin.solicitudes-alta'));
 
         $this->assertTrue($p->fresh()->activo);
+
+        Mail::assertSent(SolicitudAltaAprobada::class, function ($mail) use ($p) {
+            return $mail->hasTo($p->correo)
+                && $mail->nombreProveedor === 'Solicitante SA';
+        });
+
+        $alerta = Alerta::where('destinatario_tipo', 'proveedor')
+            ->where('destinatario_id', $p->id)
+            ->where('tipo', 'solicitud_aprobada')
+            ->first();
+        $this->assertNotNull($alerta);
+        $this->assertStringContainsString('aprobada', strtolower($alerta->titulo));
     }
 
     public function test_activo_sin_contactos_no_entra_a_operaciones(): void
