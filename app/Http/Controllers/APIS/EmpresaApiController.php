@@ -546,38 +546,59 @@ class EmpresaApiController extends Controller
             $ap2 = '';
             $nombres = '';
 
-            if (preg_match('/PRIMER\s*APELLIDO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $textoUpper, $apM)) {
+            // El OCR puede pegar "PRIMERAPELLIDO" como una sola palabra, manejar ambos casos
+            if (preg_match('/PRIMER\s*APELLIDO[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $textoUpper, $apM)) {
                 $ap1 = trim($apM[1]);
-            } elseif (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $textoUpper, $apM)) {
+                // Filtrar si capturó una etiqueta
+                $ap1 = preg_replace('/^(SEGUNDO|NOMBRE|APELLIDO|MATERNO|PATERNO).*$/i', '', $ap1);
+                $ap1 = trim($ap1);
+            } elseif (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $textoUpper, $apM)) {
                 $ap1 = trim($apM[1]);
+                $ap1 = preg_replace('/^(SEGUNDO|NOMBRE|APELLIDO|MATERNO).*$/i', '', $ap1);
+                $ap1 = trim($ap1);
             }
 
-            if (preg_match('/SEGUNDO\s*APELLIDO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $textoUpper, $apM2)) {
+            if (preg_match('/SEGUNDO\s*APELLIDO[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $textoUpper, $apM2)) {
                 $ap2 = trim($apM2[1]);
-            } elseif (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+)/u', $textoUpper, $apM2)) {
+                $ap2 = preg_replace('/^(NOMBRE|FECHA|INICIO|PRIMER).*$/i', '', $ap2);
+                $ap2 = trim($ap2);
+            } elseif (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $textoUpper, $apM2)) {
                 $ap2 = trim($apM2[1]);
+                $ap2 = preg_replace('/^(NOMBRE|FECHA|INICIO).*$/i', '', $ap2);
+                $ap2 = trim($ap2);
             }
 
-            if (preg_match('/NOMBRE\s*\(?S?\)?[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $textoUpper, $nmM)) {
+            if (preg_match('/NOMBRE\s*\(?S?\)?[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+){0,2})/u', $textoUpper, $nmM)) {
                 $nombres = trim($nmM[1]);
+                // Filtrar si capturó etiquetas
+                $nombres = preg_replace('/^(PRIMER|SEGUNDO|APELLIDO|PATERNO|MATERNO|FECHA).*$/i', '', $nombres);
+                // Separar palabras pegadas tipo "CARLOSISAAC" → queda como está (no podemos saber dónde cortar)
+                $nombres = trim($nombres);
             }
 
+            // Armar nombre en formato: Apellido Paterno + Apellido Materno + Nombre(s)
             if ($ap1 || $nombres) {
-                $nombreFisico = trim(implode(' ', array_filter([$nombres, $ap1, $ap2])));
+                // Filtrar "PRIMERAPELLIDO", "SEGUNDOAPELLIDO" que el OCR capturó como valor
+                $ap1 = preg_replace('/PRIMER.*APELLIDO/i', '', $ap1);
+                $ap2 = preg_replace('/SEGUNDO.*APELLIDO/i', '', $ap2);
+                $ap1 = trim($ap1);
+                $ap2 = trim($ap2);
+
+                $nombreFisico = trim(implode(' ', array_filter([$ap1, $ap2, $nombres])));
             }
 
             // Filtrar basura
-            $noEsNombre = ['FISCAL', 'CONTRIBUYENTE', 'IDENTIFICACION', 'CONSTANCIA', 'SITUACION', 'RFC', 'CURP', 'DOMICILIO'];
+            $noEsNombre = ['FISCAL', 'CONTRIBUYENTE', 'IDENTIFICACION', 'CONSTANCIA', 'SITUACION', 'RFC', 'CURP', 'DOMICILIO', 'PRIMERAPELLIDO', 'SEGUNDOAPELLIDO'];
             foreach ($noEsNombre as $pb) {
                 if (str_contains($nombreFisico, $pb)) {
-                    $nombreFisico = '';
-                    break;
+                    $nombreFisico = str_replace($pb, '', $nombreFisico);
                 }
             }
+            $nombreFisico = preg_replace('/\s+/', ' ', trim($nombreFisico));
 
             if (strlen($nombreFisico) > 3) {
                 $datos['nombre'] = $nombreFisico;
-                $hallazgos[] = 'Nombre: '.$nombreFisico;
+                $hallazgos[] = 'Nombre: ' . $nombreFisico;
             }
         }
 
@@ -1889,17 +1910,36 @@ class EmpresaApiController extends Controller
         // Comparar tokens (orden flexible)
         $tokensA = array_values(array_filter(explode(' ', $a), fn ($t) => strlen($t) > 1));
         $tokensB = array_values(array_filter(explode(' ', $b), fn ($t) => strlen($t) > 1));
+
+        // Manejar palabras pegadas: "CARLOSISAAC" contiene "CARLOS" y "ISAAC"
+        $tokensAExpanded = $tokensA;
+        $tokensBExpanded = $tokensB;
+        foreach ($tokensA as $t) {
+            foreach ($tokensB as $tb) {
+                if (strlen($t) > strlen($tb) && str_contains($t, $tb)) {
+                    $tokensAExpanded[] = $tb;
+                }
+            }
+        }
+        foreach ($tokensB as $t) {
+            foreach ($tokensA as $ta) {
+                if (strlen($t) > strlen($ta) && str_contains($t, $ta)) {
+                    $tokensBExpanded[] = $ta;
+                }
+            }
+        }
+
         if (count($tokensA) >= 2 && count($tokensB) >= 2) {
-            $inter = array_intersect($tokensA, $tokensB);
+            $inter = array_intersect($tokensAExpanded, $tokensBExpanded);
             $umbral = min(count($tokensA), count($tokensB));
-            if ($umbral > 0 && count($inter) / $umbral >= 0.75) {
+            if ($umbral > 0 && count($inter) / $umbral >= 0.6) {
                 return true;
             }
         }
 
         similar_text($a, $b, $pct);
 
-        return $pct >= 80;
+        return $pct >= 70;
     }
 
     private function mesEnEspanol(int $mes): string
