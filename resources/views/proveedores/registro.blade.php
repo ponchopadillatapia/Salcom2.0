@@ -86,7 +86,7 @@
                 <label>Usuario de acceso</label>
                 <input type="text" id="reg_usuario_preview" class="usuario-preview" value="{{ old('usuario_sugerido', '') }}" readonly tabindex="-1" aria-live="polite">
                 <input type="hidden" name="usuario_sugerido" id="reg_usuario_sugerido" value="{{ old('usuario_sugerido', '') }}">
-                <span class="hint" id="reg_usuario_hint">Se genera solo: primer nombre + apellido paterno (ej. juan.garcia). También podrás entrar con tu correo.</span>
+                <span class="hint" id="reg_usuario_hint">Se genera automaticamente: (ej. juan.garcia). También podrás entrar con tu correo.</span>
             </div>
 
             <div class="form-row">

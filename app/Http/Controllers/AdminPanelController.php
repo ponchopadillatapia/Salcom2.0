@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\OpinionPositivaAviso;
+use App\Mail\SolicitudAltaAprobada;
 use App\Models\AlertaConfiguracion;
 use App\Models\ClienteUser;
 use App\Models\DocumentoProveedor;
@@ -2231,6 +2232,48 @@ class AdminPanelController extends Controller
             SolicitudAlta::where('proveedor_id', $prov->id)->update(['estatus' => 'aprobada']);
         } catch (\Exception $e) {
             // ignore
+        }
+
+        $nombre = $prov->nombre ?? $prov->usuario;
+        $titulo = 'Tu solicitud de alta fue aprobada';
+        $contenido = 'Hola '.$nombre.'. Tu solicitud de alta fue aceptada. Ya puedes iniciar sesión y navegar el Portal de Proveedores completo.';
+
+        try {
+            $alerta = app(AlertEngineService::class)->crearAlerta([
+                'tipo' => 'solicitud_aprobada',
+                'modulo' => 'onboarding',
+                'destinatario_tipo' => 'proveedor',
+                'destinatario_id' => $prov->id,
+                'titulo' => $titulo,
+                'contenido' => $contenido,
+                'nivel' => 'info',
+            ]);
+            $alerta->update([
+                'canal_enviado' => 'portal',
+                'estatus' => 'enviada',
+            ]);
+        } catch (\Exception $e) {
+            Log::warning('No se pudo notificar aprobación de solicitud de alta en portal', [
+                'proveedor_id' => $prov->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        if (! empty($prov->correo)) {
+            try {
+                Mail::to($prov->correo)->send(new SolicitudAltaAprobada(
+                    $nombre,
+                    $prov->correo,
+                    (string) ($prov->usuario ?? ''),
+                    route('proveedores.login'),
+                ));
+            } catch (\Exception $e) {
+                Log::warning('No se pudo enviar correo de solicitud de alta aprobada', [
+                    'proveedor_id' => $prov->id,
+                    'correo' => $prov->correo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $this->respuestaSolicitudAlta(
