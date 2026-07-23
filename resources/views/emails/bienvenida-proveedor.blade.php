@@ -19,7 +19,16 @@
                 <li>Correo: <strong>{{ $correo }}</strong></li>
                 <li>Puedes iniciar sesión con tu usuario o con tu correo, y la contraseña que registraste.</li>
             </ul>
-        </div>
+        </div> 
+
+        @if($urlLogin !== '')
+            <p style="text-align: center; margin: 28px 0;">
+                <a href="{{ $urlLogin }}"
+                   style="display: inline-block; background: #6B3FA0; color: #fff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 700;">
+                    Confirmar registro
+                </a>
+            </p>
+        @endif
 
         <p>El siguiente paso es completar tu <strong>onboarding</strong> (datos de identificación, contactos y documentos fiscales) para que Dirección pueda activar tu cuenta.</p>
 
