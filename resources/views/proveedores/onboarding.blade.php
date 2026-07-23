@@ -62,9 +62,23 @@
     <div class="ob-ok">{{ session('mensaje') }}</div>
     @endif
 
+    @if(($agotóIntentos ?? false))
+    <div class="ob-aviso">
+        Agotaste los {{ $maxIntentos ?? 5 }} intentos de solicitud de alta. Contacta a Dirección Salcom.
+    </div>
+    @elseif(($estatusAlta ?? null) === 'rechazada')
+    <div class="ob-aviso">
+        Tu solicitud fue rechazada. Vuelve a completar el formulario de datos bancarios y los documentos.
+        Intento disponible: <strong>{{ $intentoActual ?? 1 }}/{{ $maxIntentos ?? 5 }}</strong>.
+    </div>
+    @endif
+
     @if(!($pasoActivo ?? false))
     <div class="ob-aviso">
         Completa los pasos y espera la aprobación de Dirección. El resto del portal está bloqueado.
+        @unless($agotóIntentos ?? false)
+            · Intento <strong>{{ $intentoActual ?? 1 }}/{{ $maxIntentos ?? 5 }}</strong>
+        @endunless
     </div>
     @else
     <div class="ob-ok">Tu cuenta ya está activa. Puedes usar todo el portal.</div>
@@ -83,7 +97,7 @@
         <div class="progress-wrap">
             <div class="progress-label">
                 <span>Progreso de onboarding</span>
-                <span>{{ $completados }} de {{ $totalPasos }} pasos</span>
+                <span>{{ $completados }} de {{ $totalPasos }} pasos · Intento {{ $intentoActual ?? 1 }}/{{ $maxIntentos ?? 5 }}</span>
             </div>
             <div class="progress-bar">
                 <div class="progress-fill" style="width: {{ $pct }}%"></div>
@@ -91,7 +105,7 @@
         </div>
     </div>
 
-    <div class="pasos-grid">
+    <div class="pasos-grid" data-onboarding-estatus="{{ $estatusAlta ?? '' }}" data-onboarding-activo="{{ ($pasoActivo ?? false) ? '1' : '0' }}">
 
         {{-- 1 Registro --}}
         <div class="paso-card completado">
@@ -104,20 +118,32 @@
         </div>
 
         {{-- 2 Datos bancarios --}}
+        @php
+            $bancariosBloqueados = ($onboardingBloqueado ?? false) && ($pasoBancarios ?? false);
+            $sinIntentos = $agotóIntentos ?? false;
+        @endphp
         <div class="paso-card {{ $pasoBancarios ? 'completado' : 'pendiente' }}">
             <div class="paso-icono {{ $pasoBancarios ? 'verde' : 'ambar' }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ $pasoBancarios ? '#059669' : '#D97706' }}" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Formulario datos bancarios</div>
                 <div class="paso-desc">
-                    @if($pasoBancarios)
+                    @if($pasoBancarios && $bancariosBloqueados)
+                        Datos enviados. En revisión: no puedes editarlos hasta que Dirección rechace o apruebe.
+                    @elseif($pasoBancarios)
                         Ya registraste tus datos. Puedes revisarlos o corregirlos si hubo un error.
+                    @elseif($sinIntentos)
+                        Sin intentos disponibles. Contacta a Dirección.
                     @else
-                        Captura tu institución financiera y datos bancarios en Identificación.
+                        Captura tu institución financiera y datos bancarios (intento {{ $intentoActual ?? 1 }}/{{ $maxIntentos ?? 5 }}).
                     @endif
                 </div>
             </div>
             <span class="paso-badge {{ $pasoBancarios ? 'badge-completado' : 'badge-pendiente' }}">{{ $pasoBancarios ? 'Completado' : 'Pendiente' }}</span>
-            @if($pasoBancarios)
+            @if($sinIntentos)
+                <span class="btn-ver disabled">Sin intentos</span>
+            @elseif($bancariosBloqueados)
+                <span class="btn-ver disabled">En revisión</span>
+            @elseif($pasoBancarios)
                 <a href="{{ route('proveedores.identificacion') }}" class="btn-ver">Ver / editar</a>
             @else
                 <a href="{{ route('proveedores.identificacion') }}" class="btn-ver">Llenar</a>
@@ -136,12 +162,15 @@
             <span class="btn-ver disabled">Validar</span>
         </div>
         @else
+        @php $docsBloqueados = ($onboardingBloqueado ?? false) && ($pasoDocs ?? false); @endphp
         <div class="paso-card {{ $pasoDocs ? 'completado' : 'pendiente' }}">
             <div class="paso-icono {{ $pasoDocs ? 'verde' : 'ambar' }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ $pasoDocs ? '#059669' : '#D97706' }}" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Validación de documentos</div>
                 <div class="paso-desc">
-                    @if($pasoDocsRenovar)
+                    @if($docsBloqueados)
+                        Documentos aprobados y en revisión. No puedes volver a subirlos hasta un rechazo de Dirección.
+                    @elseif($pasoDocsRenovar)
                         Documentos vigentes, pero próximos a renovar (ciclo ~21 días). Actualízalos cuando puedas.
                     @elseif($pasoDocs)
                         Documentos aprobados. Puedes renovarlos cuando el sistema te avise.
@@ -153,7 +182,11 @@
             <span class="paso-badge {{ $pasoDocs ? 'badge-completado' : 'badge-pendiente' }}">
                 {{ $pasoDocsRenovar ? 'Por renovar' : ($pasoDocs ? 'Completado' : 'Pendiente') }}
             </span>
-            <a href="{{ route('proveedores.validacion-fiscal') }}" class="btn-ver">{{ $pasoDocs ? 'Ver / renovar' : 'Validar' }}</a>
+            @if($docsBloqueados)
+                <span class="btn-ver disabled">En revisión</span>
+            @else
+                <a href="{{ route('proveedores.validacion-fiscal') }}" class="btn-ver">{{ $pasoDocs ? 'Ver / renovar' : 'Validar' }}</a>
+            @endif
         </div>
         @endif
 
@@ -189,7 +222,7 @@
             <div class="paso-icono ambar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Espera validación de Dirección</div>
-                <div class="paso-desc">Ya completaste datos bancarios, documentos y contactos. Tu solicitud está en revisión. El resto del sistema sigue bloqueado hasta que te den de alta.</div>
+                <div class="paso-desc">Ya completaste datos bancarios, documentos y contactos (intento {{ $intentoActual ?? 1 }}/{{ $maxIntentos ?? 5 }}). Tu solicitud está en revisión. No puedes editar el expediente hasta que te aprueben o rechacen.</div>
             </div>
             <span class="paso-badge badge-pendiente">En revisión</span>
             <span class="btn-ver disabled">Esperar</span>
@@ -209,3 +242,16 @@
     </div>
 
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    // Si el polling detecta rechazo/aprobación, recargar onboarding para quitar "pendiente".
+    var grid = document.querySelector('[data-onboarding-estatus]');
+    if (!grid) return;
+    var estatusInicial = grid.getAttribute('data-onboarding-estatus') || '';
+    var activoInicial = grid.getAttribute('data-onboarding-activo') || '0';
+    window.__salcomOnboardingWatch = { estatus: estatusInicial, activo: activoInicial };
+})();
+</script>
+@endpush

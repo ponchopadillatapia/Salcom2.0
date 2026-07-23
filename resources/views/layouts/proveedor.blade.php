@@ -533,19 +533,34 @@ document.addEventListener('click', function(e) {
             label.style.display = n > 0 ? '' : 'none';
             label.textContent = n + ' nuevas';
         }
-        if (!items) return;
-        var list = data.items || [];
-        if (!list.length) {
-            items.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
-            return;
+        if (items) {
+            var list = data.items || [];
+            if (!list.length) {
+                items.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
+            } else {
+                items.innerHTML = list.map(function (it) {
+                    return '<div class="notif-item ' + (it.leida ? 'read' : '') + '">'
+                        + '<div class="notif-item-title">' + esc((it.titulo || '').substring(0, 50)) + '</div>'
+                        + '<div class="notif-item-desc">' + esc((it.contenido || '').substring(0, 80)) + '</div>'
+                        + '<div class="notif-item-time">' + esc(it.hace || '') + '</div>'
+                        + '</div>';
+                }).join('');
+            }
         }
-        items.innerHTML = list.map(function (it) {
-            return '<div class="notif-item ' + (it.leida ? 'read' : '') + '">'
-                + '<div class="notif-item-title">' + esc((it.titulo || '').substring(0, 50)) + '</div>'
-                + '<div class="notif-item-desc">' + esc((it.contenido || '').substring(0, 80)) + '</div>'
-                + '<div class="notif-item-time">' + esc(it.hace || '') + '</div>'
-                + '</div>';
-        }).join('');
+
+        // Sin recargar a mano: si cambió estatus de alta (rechazo/aprobación), refrescar onboarding.
+        if (data.onboarding && window.__salcomOnboardingWatch) {
+            var o = data.onboarding;
+            var w = window.__salcomOnboardingWatch;
+            var nuevoEstatus = o.estatus || '';
+            var nuevoActivo = o.activo ? '1' : '0';
+            if (nuevoEstatus !== w.estatus || nuevoActivo !== w.activo) {
+                window.__salcomOnboardingWatch = { estatus: nuevoEstatus, activo: nuevoActivo };
+                if (window.location.pathname.indexOf('onboarding') !== -1) {
+                    window.location.reload();
+                }
+            }
+        }
     }
 
     function poll() {
@@ -556,7 +571,7 @@ document.addEventListener('click', function(e) {
             .catch(function () {});
     }
 
-    setInterval(poll, 15000);
+    setInterval(poll, 8000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
     window.addEventListener('focus', poll);
 })();

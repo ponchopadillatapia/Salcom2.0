@@ -47,6 +47,35 @@
 <div class="ver-wrap">
     <a href="{{ route('admin.solicitudes-alta') }}" class="ver-back">← Volver a solicitudes</a>
 
+    @php $datosIdent = $datosIdent ?? []; @endphp
+    <div class="resultado-card" style="border-color:#ddd6fe;background:#f5f3ff;margin-bottom:1rem;">
+        <div class="resultado-header">
+            <div>
+                <div class="resultado-empresa" style="color:var(--purple);">DATOS DEL FORMULARIO</div>
+                <div class="resultado-rfc">{{ $proveedor->nombre ?? $proveedor->usuario }} · {{ $proveedor->tipo_persona ?? '—' }}</div>
+            </div>
+        </div>
+        <hr class="resultado-divider">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:13px;">
+            <div><strong>Correo:</strong> {{ $datosIdent['correo'] ?? $proveedor->correo ?? '—' }}</div>
+            <div><strong>Teléfono:</strong> {{ $datosIdent['telefono'] ?? $proveedor->telefono ?? '—' }}</div>
+            <div><strong>Banco:</strong> {{ $datosIdent['banco'] ?? '—' }}</div>
+            <div><strong>CLABE:</strong> {{ $datosIdent['clabe'] ?? '—' }}</div>
+            <div><strong>Cuenta:</strong> {{ $datosIdent['cuenta'] ?? '—' }}</div>
+            <div><strong>CP:</strong> {{ $datosIdent['cp'] ?? '—' }}</div>
+            <div style="grid-column:1/-1;"><strong>Dirección:</strong>
+                {{ trim(implode(', ', array_filter([
+                    $datosIdent['calle'] ?? null,
+                    $datosIdent['num_exterior'] ?? null,
+                    $datosIdent['colonia'] ?? null,
+                    $datosIdent['municipio'] ?? null,
+                    $datosIdent['estado'] ?? null,
+                ]))) ?: '—' }}
+            </div>
+            <div style="grid-column:1/-1;"><strong>Contactos:</strong> {{ $proveedor->contactos->count() }} registrados</div>
+        </div>
+    </div>
+
     @if($docsAprobados->isEmpty())
         <div class="ver-empty">
             <p style="font-weight:600;color:var(--gray-text);margin-bottom:6px;">Sin documentos correctos aún</p>

@@ -50,10 +50,38 @@ class SolicitudesAltaAdminTest extends TestCase
         ], $extra));
     }
 
+    private function completarDocsFiscales(ProveedorUser $p): void
+    {
+        foreach (array_keys($p->documentosRequeridos()) as $tipo) {
+            DocumentoProveedor::create([
+                'proveedor_id' => $p->id,
+                'tipo' => $tipo,
+                'archivo' => "expediente_fiscal/{$tipo}/ok.pdf",
+                'estatus' => 'aprobado',
+            ]);
+        }
+    }
+
+    private function completarContactos(ProveedorUser $p): void
+    {
+        ContactoProveedor::create([
+            'proveedor_id' => $p->id, 'nombre' => 'Uno', 'rol' => 'ventas',
+            'telefono' => '3311111111', 'correo' => 'u1@t.com',
+        ]);
+        ContactoProveedor::create([
+            'proveedor_id' => $p->id, 'nombre' => 'Dos', 'rol' => 'compras',
+            'telefono' => '3322222222', 'correo' => 'u2@t.com',
+        ]);
+    }
+
     public function test_pagina_solicitudes_carga(): void
     {
         $this->withSession($this->sesionAdmin());
-        $this->proveedorPendiente();
+        $p = $this->proveedorPendiente([
+            'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
+        ]);
+        $this->completarDocsFiscales($p);
+        $this->completarContactos($p);
 
         $this->get(route('admin.solicitudes-alta'))
             ->assertOk()
@@ -131,14 +159,8 @@ class SolicitudesAltaAdminTest extends TestCase
         $p = $this->proveedorPendiente([
             'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
         ]);
-        ContactoProveedor::create([
-            'proveedor_id' => $p->id, 'nombre' => 'Uno', 'rol' => 'ventas',
-            'telefono' => '3311111111', 'correo' => 'u1@t.com',
-        ]);
-        ContactoProveedor::create([
-            'proveedor_id' => $p->id, 'nombre' => 'Dos', 'rol' => 'compras',
-            'telefono' => '3322222222', 'correo' => 'u2@t.com',
-        ]);
+        $this->completarContactos($p);
+        $this->completarDocsFiscales($p);
 
         $this->post(route('admin.solicitudes-alta.aprobar'), [
             'proveedor_id' => $p->id,
@@ -248,7 +270,10 @@ class SolicitudesAltaAdminTest extends TestCase
         $this->withSession($adminSession);
         $p = $this->proveedorPendiente([
             'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
+            'solicitud_alta_intentos' => 1,
         ]);
+        $this->completarDocsFiscales($p);
+        $this->completarContactos($p);
 
         $this->post(route('admin.solicitudes-alta.rechazar'), [
             'proveedor_id' => $p->id,
@@ -256,6 +281,8 @@ class SolicitudesAltaAdminTest extends TestCase
 
         $this->get(route('admin.solicitudes-alta'))
             ->assertSee('No hay proveedores pendientes de aprobación.');
+
+        $this->assertFalse($p->fresh()->tieneFormularioDatosBancarios());
 
         $this->withSession([
             'proveedor_id' => $p->id,
@@ -286,6 +313,16 @@ class SolicitudesAltaAdminTest extends TestCase
             'pendiente',
             SolicitudAlta::where('proveedor_id', $p->id)->value('estatus')
         );
+        $this->assertSame(2, (int) $p->fresh()->solicitud_alta_intentos);
+
+        // Tras rechazo los docs quedan rechazados: no reaparece hasta revalidar docs.
+        $this->withSession($adminSession)
+            ->get(route('admin.solicitudes-alta'))
+            ->assertOk()
+            ->assertSee('No hay proveedores pendientes de aprobación.');
+
+        // Re-aprobar docs para que vuelva a la lista.
+        DocumentoProveedor::where('proveedor_id', $p->id)->update(['estatus' => 'aprobado']);
 
         $this->withSession($adminSession)
             ->get(route('admin.solicitudes-alta'))

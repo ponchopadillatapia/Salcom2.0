@@ -4,6 +4,7 @@ namespace App\Http\Controllers\APIS;
 
 use App\Http\Controllers\Controller;
 use App\Models\DocumentoProveedor;
+use App\Models\ProveedorUser;
 use App\Services\IaService;
 use Aws\Textract\TextractClient;
 use Illuminate\Http\Request;
@@ -17,6 +18,17 @@ class EmpresaApiController extends Controller
     public function validar(Request $request)
     {
         try {
+            $provId = session('proveedor_id');
+            if ($provId) {
+                $provLock = ProveedorUser::find($provId);
+                if ($provLock && $provLock->onboardingEdicionBloqueada() && $provLock->documentosFiscalesCompletos()) {
+                    return response()->json([
+                        'ok' => false,
+                        'mensaje' => 'Tu expediente está en revisión o aprobado. No puedes volver a validar documentos hasta un rechazo de Dirección.',
+                    ], 423);
+                }
+            }
+
             $tipoPersona = $request->input('tipo_persona', 'moral'); // moral | fisica
 
             // Reglas de validación dinámicas
