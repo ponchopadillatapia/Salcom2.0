@@ -257,8 +257,7 @@ class EmpresaApiController extends Controller
                     if ($pctCoincidencia >= 0.6) {
                         $repLegal['hallazgos'][] = 'Nombre del representante legal aparece en el Acta Constitutiva ✓';
                     } else {
-                        $repLegal['errores'][] = 'El nombre del representante legal no se encontró en el Acta Constitutiva';
-                        $repLegal['valida'] = false;
+                        $repLegal['hallazgos'][] = 'Nombre del representante legal no detectado en el Acta (verificar manualmente)';
                     }
                 }
             }
