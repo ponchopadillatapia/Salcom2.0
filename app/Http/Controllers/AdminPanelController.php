@@ -2132,27 +2132,11 @@ class AdminPanelController extends Controller
     {
         $filtro = $request->input('filtro', 'todas'); // todas | con_datos | sin_datos
 
-        // Rechazadas no aparecen hasta que el proveedor vuelva a enviar (estatus → pendiente).
-        $rechazadosIds = [];
-        try {
-            $rechazadosIds = SolicitudAlta::where('estatus', 'rechazada')
-                ->pluck('proveedor_id')
-                ->filter()
-                ->all();
-        } catch (\Exception $e) {
-            // Tabla puede no existir
-        }
-
+        // Criterio: inactivo + formulario bancario + al menos 1 documento aprobado (validación hecha).
+        // Si fue rechazado y aún no reenvía formulario, no tiene bancarios → no aparece.
         $pendientes = ProveedorUser::with(['documentos', 'contactos'])
             ->where('activo', false)
-            ->when(
-                Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus'),
-                fn ($q) => $q->where(function ($q2) {
-                    $q2->whereNull('solicitud_alta_estatus')
-                        ->orWhere('solicitud_alta_estatus', '!=', 'rechazada');
-                })
-            )
-            ->when($rechazadosIds !== [], fn ($q) => $q->whereNotIn('id', $rechazadosIds))
+            ->orderByDesc('updated_at')
             ->orderByDesc('created_at')
             ->get()
             ->map(function (ProveedorUser $p) {
@@ -2161,12 +2145,9 @@ class AdminPanelController extends Controller
                 $docsOk = $p->documentosFiscalesCompletos();
                 $docsAprobados = $p->documentos->where('estatus', 'aprobado');
                 $docsCount = $docsAprobados->count();
-                $tieneValidacion = $docsAprobados->contains(function ($doc) {
-                    return ! empty($doc->resultado_validacion) || ($doc->notas_revision && str_contains(strtolower((string) $doc->notas_revision), 'validación'));
-                }) || $docsCount > 0;
+                $tieneValidacion = $docsCount > 0;
                 $contactosN = $p->contactos->count();
                 $listo = $p->listoParaDireccion();
-                // Llega a admin cuando hay formulario bancario + al menos un doc validado/aprobado.
                 $conDatos = $bancarios && $tieneValidacion;
 
                 return (object) [
@@ -2181,7 +2162,6 @@ class AdminPanelController extends Controller
                     'intento' => $p->solicitudAltaIntentoActual(),
                 ];
             })
-            // Admin ve solicitudes con formulario + validación de documentos hecha.
             ->filter(fn ($item) => $item->con_datos)
             ->values();
 

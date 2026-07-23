@@ -338,23 +338,34 @@ class EmpresaApiController extends Controller
                         $prov = ProveedorUser::find($proveedorId);
                         if ($prov && ! $prov->activo) {
                             $updateProv = [];
-                            if (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')
-                                && ($prov->solicitud_alta_estatus ?? null) !== 'rechazada') {
+                            if (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
                                 $updateProv['solicitud_alta_estatus'] = 'pendiente';
                             }
                             if ($updateProv !== []) {
                                 $prov->update($updateProv);
                             }
                             try {
-                                \App\Models\SolicitudAlta::where('proveedor_id', $proveedorId)
-                                    ->where('estatus', '!=', 'rechazada')
-                                    ->update(['estatus' => 'pendiente']);
+                                \App\Models\SolicitudAlta::updateOrCreate(
+                                    ['proveedor_id' => $proveedorId],
+                                    [
+                                        'estatus' => 'pendiente',
+                                        'tipo_persona' => $prov->tipo_persona ?? 'Persona Moral',
+                                        'nombre_completo' => $prov->nombre ?? $prov->usuario,
+                                    ]
+                                );
                             } catch (\Exception $e) {
                                 // ignore
                             }
+                            Log::info('Solicitud de alta lista para admin tras validación fiscal', [
+                                'proveedor_id' => $proveedorId,
+                                'docs_aprobados' => DocumentoProveedor::where('proveedor_id', $proveedorId)->where('estatus', 'aprobado')->count(),
+                            ]);
                         }
                     } catch (\Exception $e) {
-                        // No bloquear la respuesta
+                        Log::warning('No se pudieron guardar docs/expediente tras validación', [
+                            'proveedor_id' => $proveedorId ?? null,
+                            'error' => $e->getMessage(),
+                        ]);
                     }
                 }
             }
