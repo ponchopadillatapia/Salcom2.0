@@ -123,6 +123,21 @@ class OnboardingLockTest extends TestCase
             ->assertSee('Validar');
     }
 
+    public function test_inactivo_puede_postear_api_empresa_sin_redirect(): void
+    {
+        $p = $this->crearInactivo();
+        $this->sesion($p);
+
+        // Sin archivos: debe devolver JSON 422, NO redirect HTML al onboarding
+        $this->withSession([
+            'proveedor_id' => $p->id,
+            'proveedor_nombre' => $p->nombre,
+        ])->postJson(route('proveedores.validacion-fiscal.api'), [
+            'tipo_persona' => 'moral',
+        ])->assertStatus(422)
+            ->assertJsonStructure(['mensaje']);
+    }
+
     public function test_inactivo_no_puede_acceder_operaciones(): void
     {
         $p = $this->crearInactivo();

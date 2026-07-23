@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\OpinionPositivaAviso;
+use App\Mail\SolicitudAltaAprobada;
 use App\Models\AlertaConfiguracion;
 use App\Models\ClienteUser;
 use App\Models\DocumentoProveedor;
@@ -2131,53 +2132,43 @@ class AdminPanelController extends Controller
     {
         $filtro = $request->input('filtro', 'todas'); // todas | con_datos | sin_datos
 
-        // Rechazadas no aparecen hasta que el proveedor vuelva a enviar (estatus → pendiente).
-        $rechazadosIds = [];
-        try {
-            $rechazadosIds = SolicitudAlta::where('estatus', 'rechazada')
-                ->pluck('proveedor_id')
-                ->filter()
-                ->all();
-        } catch (\Exception $e) {
-            // Tabla puede no existir
-        }
-
+        // Criterio: inactivo + formulario bancario + al menos 1 documento aprobado (validación hecha).
+        // Si fue rechazado y aún no reenvía formulario, no tiene bancarios → no aparece.
         $pendientes = ProveedorUser::with(['documentos', 'contactos'])
             ->where('activo', false)
-            ->when(
-                Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus'),
-                fn ($q) => $q->where(function ($q2) {
-                    $q2->whereNull('solicitud_alta_estatus')
-                        ->orWhere('solicitud_alta_estatus', '!=', 'rechazada');
-                })
-            )
-            ->when($rechazadosIds !== [], fn ($q) => $q->whereNotIn('id', $rechazadosIds))
+            ->orderByDesc('updated_at')
             ->orderByDesc('created_at')
             ->get()
             ->map(function (ProveedorUser $p) {
                 $formulario = $p->tieneFormularioIdentificacion();
                 $bancarios = $p->tieneFormularioDatosBancarios();
-                $docsCount = $p->documentos->count();
+                $docsOk = $p->documentosFiscalesCompletos();
+                $docsAprobados = $p->documentos->where('estatus', 'aprobado');
+                $docsCount = $docsAprobados->count();
+                $tieneValidacion = $docsCount > 0;
                 $contactosN = $p->contactos->count();
-                $conDatos = $formulario || $docsCount > 0 || $contactosN > 0;
+                $listo = $p->listoParaDireccion();
+                $conDatos = $bancarios && $tieneValidacion;
 
                 return (object) [
                     'proveedor' => $p,
                     'formulario' => $formulario,
                     'bancarios' => $bancarios,
                     'docs_count' => $docsCount,
+                    'docs_ok' => $docsOk,
                     'num_contactos' => $contactosN,
+                    'listo' => $listo,
                     'con_datos' => $conDatos,
                 ];
-            });
+            })
+            ->filter(fn ($item) => $item->con_datos)
+            ->values();
 
-        $conteoConDatos = $pendientes->where('con_datos', true)->count();
-        $conteoSinDatos = $pendientes->where('con_datos', false)->count();
+        $conteoConDatos = $pendientes->count();
+        $conteoSinDatos = 0;
 
-        if ($filtro === 'con_datos') {
-            $pendientes = $pendientes->where('con_datos', true)->values();
-        } elseif ($filtro === 'sin_datos') {
-            $pendientes = $pendientes->where('con_datos', false)->values();
+        if ($filtro === 'sin_datos') {
+            $pendientes = collect();
         }
 
         // Cargar solicitudes de la tabla nueva (si existe)
@@ -2221,6 +2212,10 @@ class AdminPanelController extends Controller
             return $this->respuestaSolicitudAlta($request, 'No se puede aprobar: faltan datos bancarios.', false);
         }
 
+        if (! $prov->documentosFiscalesCompletos()) {
+            return $this->respuestaSolicitudAlta($request, 'No se puede aprobar: faltan documentos fiscales aprobados.', false);
+        }
+
         $prov->update(['activo' => true]);
 
         if (Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
@@ -2231,6 +2226,44 @@ class AdminPanelController extends Controller
             SolicitudAlta::where('proveedor_id', $prov->id)->update(['estatus' => 'aprobada']);
         } catch (\Exception $e) {
             // ignore
+        }
+
+        $nombre = $prov->nombre ?? $prov->usuario;
+        $titulo = 'Tu solicitud de alta fue aprobada';
+        $contenido = 'Hola '.$nombre.'. Tu solicitud de alta fue aceptada. Ya puedes iniciar sesión y navegar el Portal de Proveedores completo.';
+
+        try {
+            app(AlertEngineService::class)->alertar([
+                'tipo' => 'solicitud_aprobada',
+                'modulo' => 'onboarding',
+                'destinatario_tipo' => 'proveedor',
+                'destinatario_id' => $prov->id,
+                'titulo' => $titulo,
+                'contenido' => $contenido,
+                'nivel' => 'info',
+            ], 'portal');
+        } catch (\Exception $e) {
+            Log::warning('No se pudo notificar aprobación de solicitud', [
+                'proveedor_id' => $prov->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        if (! empty($prov->correo)) {
+            try {
+                Mail::to($prov->correo)->send(new SolicitudAltaAprobada(
+                    $nombre,
+                    $prov->correo,
+                    (string) ($prov->usuario ?? ''),
+                    route('proveedores.login'),
+                ));
+            } catch (\Exception $e) {
+                Log::warning('No se pudo enviar correo de solicitud de alta aprobada', [
+                    'proveedor_id' => $prov->id,
+                    'correo' => $prov->correo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return $this->respuestaSolicitudAlta(
@@ -2295,7 +2328,7 @@ class AdminPanelController extends Controller
 
         $nombre = $prov->nombre ?? $prov->usuario;
         $titulo = 'Tu solicitud de alta fue rechazada';
-        $contenido = 'Hola '.$nombre.'. Tu solicitud de alta fue rechazada. Puedes seguir iniciando sesión; debes volver a completar datos bancarios y documentos para que Dirección la revise de nuevo.';
+        $contenido = "Hola {$nombre}. Tu solicitud fue rechazada. Debes volver a completar datos bancarios y documentos para que Dirección la revise de nuevo.";
 
         try {
             app(AlertEngineService::class)->alertar([
@@ -2316,7 +2349,7 @@ class AdminPanelController extends Controller
 
         return $this->respuestaSolicitudAlta(
             $request,
-            "Solicitud de {$nombre} rechazada. La cuenta no se elimina: sigue registrado (inactivo) y debe volver a llenar datos bancarios y documentos."
+            "Solicitud de {$nombre} rechazada. La cuenta no se elimina: debe volver a llenar datos bancarios y documentos."
         );
     }
 
@@ -2339,7 +2372,7 @@ class AdminPanelController extends Controller
         return $redirect;
     }
 
-    /** Solo documentos ya validados correctamente (aprobados). */
+    /** Solo documentos ya validados correctamente (aprobados) + datos del formulario. */
     public function verDocumentosAprobadosSolicitud(ProveedorUser $proveedor)
     {
         $tiposLabel = [
@@ -2357,7 +2390,15 @@ class AdminPanelController extends Controller
             ->orderBy('tipo')
             ->get();
 
-        return view('admin.solicitud-docs-ver', compact('proveedor', 'docsAprobados', 'tiposLabel'));
+        $datosIdent = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+        $proveedor->load('contactos');
+
+        return view('admin.solicitud-docs-ver', compact(
+            'proveedor',
+            'docsAprobados',
+            'tiposLabel',
+            'datosIdent'
+        ));
     }
 
     public function autorizarCosto(Request $request)

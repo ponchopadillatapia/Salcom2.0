@@ -22,7 +22,7 @@ class ProveedorUser extends Authenticatable
     protected $fillable = [
         'usuario', 'password', 'id_proveedor', 'codigo_compras', 'nombre',
         'tipo_persona', 'telefono', 'correo', 'foto', 'activo',
-        'solicitud_alta_estatus',
+        'solicitud_alta_estatus', 'solicitud_alta_intentos',
         'datos_identificacion',
         'score_entrega', 'score_puntualidad', 'score_total',
         'aviso_privacidad_aceptado', 'aviso_privacidad_fecha',
@@ -33,12 +33,15 @@ class ProveedorUser extends Authenticatable
     protected $casts = [
         'activo' => 'boolean',
         'datos_identificacion' => 'array',
+        'solicitud_alta_intentos' => 'integer',
         'score_entrega' => 'decimal:2',
         'score_puntualidad' => 'decimal:2',
         'score_total' => 'decimal:2',
         'aviso_privacidad_aceptado' => 'boolean',
         'aviso_privacidad_fecha' => 'datetime',
     ];
+
+    public const SOLICITUD_ALTA_MAX_INTENTOS = 5;
 
     /**
      * Compatibilidad: si la columna id_proveedor no existe, usar codigo_compras.
@@ -154,22 +157,14 @@ class ProveedorUser extends Authenticatable
 
     public function tieneFormularioDatosBancarios(): bool
     {
-        // Solo completado si llenó el formulario de identificación con datos bancarios reales
+        // Solo con datos bancarios reales en el formulario (no contar SolicitudAlta rechazada).
         $db = $this->datos_identificacion ?? [];
-        if (is_array($db) && (! empty(trim((string) ($db['banco'] ?? ''))) || ! empty(trim((string) ($db['clabe'] ?? ''))))) {
-            return true;
+        if (! is_array($db)) {
+            return false;
         }
 
-        // Verificar si hay una solicitud de alta guardada para este proveedor
-        try {
-            if (SolicitudAlta::where('proveedor_id', $this->id)->exists()) {
-                return true;
-            }
-        } catch (\Exception $e) {
-            // Tabla puede no existir aún
-        }
-
-        return false;
+        return ! empty(trim((string) ($db['banco'] ?? '')))
+            || ! empty(trim((string) ($db['clabe'] ?? '')));
     }
 
     /** Hay formulario de identificación guardado (para revisión de Contabilidad/Dirección). */
@@ -178,6 +173,54 @@ class ProveedorUser extends Authenticatable
         $db = $this->datos_identificacion;
 
         return is_array($db) && count(array_filter($db)) > 0;
+    }
+
+    /**
+     * Intento actual a mostrar (1..5). Tras un rechazo, el siguiente reenvío es intentos+1.
+     */
+    public function solicitudAltaIntentoActual(): int
+    {
+        $usados = (int) ($this->solicitud_alta_intentos ?? 0);
+        $estatus = $this->solicitud_alta_estatus ?? null;
+
+        if ($estatus === 'rechazada') {
+            return min($usados + 1, self::SOLICITUD_ALTA_MAX_INTENTOS);
+        }
+
+        if ($usados < 1) {
+            return 1;
+        }
+
+        return min($usados, self::SOLICITUD_ALTA_MAX_INTENTOS);
+    }
+
+    public function solicitudAltaAgotoIntentos(): bool
+    {
+        return (int) ($this->solicitud_alta_intentos ?? 0) >= self::SOLICITUD_ALTA_MAX_INTENTOS
+            && ($this->solicitud_alta_estatus ?? null) === 'rechazada';
+    }
+
+    /**
+     * En revisión o ya aprobado: no puede reeditar bancarios/docs
+     * (hasta que Dirección rechace o quede activo con renovación aparte).
+     */
+    public function onboardingEdicionBloqueada(): bool
+    {
+        if ($this->activo) {
+            return true;
+        }
+
+        $estatus = $this->solicitud_alta_estatus ?? null;
+        if ($estatus === 'aprobada') {
+            return true;
+        }
+
+        if ($estatus === 'rechazada') {
+            return false;
+        }
+
+        // Pendiente de Dirección con expediente completo → solo espera.
+        return $this->listoParaDireccion();
     }
 
     public function documentosFiscalesCompletos(): bool

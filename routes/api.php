@@ -5,8 +5,11 @@ use App\Http\Controllers\APIS\SalcomApiController;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Route;
 
-// ── Validación fiscal de empresa (sin token, acceso interno) ──
-Route::post('/empresa', [EmpresaApiController::class, 'validar']);
+// ── Validación fiscal (usa sesión web del proveedor para guardar expediente) ──
+Route::middleware(['web', 'auth.proveedor'])->group(function () {
+    Route::post('/empresa', [EmpresaApiController::class, 'validar'])
+        ->name('proveedores.validacion-fiscal.api');
+});
 
 // ── Búsqueda de código postal ──
 Route::get('/codigo-postal/{cp}', function (string $cp) {

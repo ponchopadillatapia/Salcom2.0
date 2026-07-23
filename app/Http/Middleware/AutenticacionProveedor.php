@@ -17,6 +17,7 @@ class AutenticacionProveedor
         'proveedores.contactos.guardar',
         'proveedores.contactos.eliminar',
         'proveedores.validacion-fiscal',
+        'proveedores.validacion-fiscal.api',
         'proveedores.identificacion',
         'proveedores.identificacion.guardar',
         'proveedores.actualizacion',
@@ -43,13 +44,16 @@ class AutenticacionProveedor
     public function handle(Request $request, Closure $next)
     {
         if (! session('proveedor_id')) {
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['mensaje' => 'Sesión expirada. Vuelve a iniciar sesión.'], 401);
+            }
+
             return redirect('/login-proveedor')
                 ->with('error', 'Debes iniciar sesión para acceder al portal');
         }
 
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         $activo = $proveedor ? (bool) $proveedor->activo : false;
-        $contactosOk = $proveedor ? $proveedor->contactosSuficientes() : false;
         $debeContactos = $this->debeCompletarContactos($proveedor);
 
         View::share('proveedorPortalActivo', $activo && ! $debeContactos);
@@ -65,6 +69,12 @@ class AutenticacionProveedor
             );
 
             if (! $permitida) {
+                if ($request->expectsJson() || $request->ajax()) {
+                    return response()->json([
+                        'mensaje' => 'Tu cuenta aún no está activa. Completa el onboarding y espera la aprobación de Dirección.',
+                    ], 403);
+                }
+
                 return redirect()
                     ->route('proveedores.onboarding')
                     ->with('error', 'Tu cuenta aún no está activa. Completa el onboarding y espera la aprobación de Dirección.');
@@ -72,6 +82,12 @@ class AutenticacionProveedor
         } elseif ($debeContactos) {
             $permitida = $ruta && in_array($ruta, $this->rutasSoloContactos, true);
             if (! $permitida) {
+                if ($request->expectsJson() || $request->ajax()) {
+                    return response()->json([
+                        'mensaje' => 'Debes registrar mínimo 2 contactos antes de usar el resto del portal.',
+                    ], 403);
+                }
+
                 return redirect()
                     ->route('proveedores.perfil')
                     ->with('error_contacto', 'Debes registrar mínimo 2 contactos antes de usar el resto del portal.');

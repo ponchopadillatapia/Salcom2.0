@@ -110,6 +110,8 @@ class PortalProveedorController extends Controller
             $pasoContactos = $numContactos >= 2;
             $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos;
             $pasoActivo = (bool) $proveedor->activo;
+            $onboardingBloqueado = $proveedor->onboardingEdicionBloqueada();
+            $estatusAlta = $proveedor->solicitud_alta_estatus ?? null;
 
             $completados = (int) $pasoRegistro + (int) $pasoBancarios + (int) $pasoDocs + (int) $pasoContactos + (int) ($pasoListoDireccion && $pasoActivo ? 1 : 0);
             $totalPasos = 5;
@@ -125,6 +127,8 @@ class PortalProveedorController extends Controller
                 'pasoContactos',
                 'pasoListoDireccion',
                 'pasoActivo',
+                'onboardingBloqueado',
+                'estatusAlta',
                 'completados',
                 'totalPasos',
                 'pct'
@@ -145,6 +149,8 @@ class PortalProveedorController extends Controller
                 'pasoContactos' => false,
                 'pasoListoDireccion' => false,
                 'pasoActivo' => false,
+                'onboardingBloqueado' => false,
+                'estatusAlta' => null,
                 'completados' => 1,
                 'totalPasos' => 5,
                 'pct' => 20,
@@ -180,18 +186,26 @@ class PortalProveedorController extends Controller
             ->where('destinatario_id', $proveedorId)
             ->orderByDesc('created_at')
             ->limit(5)
-            ->get(['id', 'titulo', 'contenido', 'estatus', 'created_at'])
+            ->get(['id', 'titulo', 'contenido', 'estatus', 'tipo', 'created_at'])
             ->map(fn (Alerta $a) => [
                 'id' => $a->id,
                 'titulo' => $a->titulo,
                 'contenido' => $a->contenido,
                 'estatus' => $a->estatus,
+                'tipo' => $a->tipo,
                 'leida' => in_array($a->estatus, ['leida', 'accionada'], true),
                 'hace' => optional($a->created_at)->diffForHumans(),
             ]);
 
+        $proveedor = ProveedorUser::find($proveedorId);
+        $onboarding = [
+            'activo' => (bool) ($proveedor?->activo),
+            'estatus' => $proveedor?->solicitud_alta_estatus,
+            'bloqueado' => $proveedor?->onboardingEdicionBloqueada() ?? false,
+        ];
+
         return response()
-            ->json(['sin_leer' => $sinLeer, 'items' => $items])
+            ->json(['sin_leer' => $sinLeer, 'items' => $items, 'onboarding' => $onboarding])
             ->header('Cache-Control', 'no-store, max-age=0');
     }
 
@@ -436,6 +450,11 @@ class PortalProveedorController extends Controller
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
 
+        if ($proveedor && $proveedor->onboardingEdicionBloqueada() && $proveedor->tieneFormularioDatosBancarios()) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('error', 'Tu expediente está en revisión o ya fue aprobado. No puedes editar el formulario hasta que Dirección rechace o autorice cambios.');
+        }
+
         // Si admin rechazó y limpió datos, no reutilizar sesión vieja
         if ($proveedor && empty($proveedor->datos_identificacion)) {
             session()->forget('identificacion_proveedor');
@@ -469,11 +488,21 @@ class PortalProveedorController extends Controller
             }
         }
 
-        return view('proveedores.identificacion_proveedor', compact('identificacion', 'proveedor', 'tieneDocsAprobados'));
+        return view('proveedores.identificacion_proveedor', compact(
+            'identificacion',
+            'proveedor',
+            'tieneDocsAprobados'
+        ));
     }
 
     public function guardarIdentificacion(Request $request)
     {
+        $proveedorPre = ProveedorUser::find(session('proveedor_id'));
+        if ($proveedorPre && $proveedorPre->onboardingEdicionBloqueada() && $proveedorPre->tieneFormularioDatosBancarios()) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('error', 'No puedes modificar el formulario: tu solicitud está en revisión o ya fue aprobada.');
+        }
+
         $esFisica = $request->input('tipo_persona') === 'Persona Física';
         $esMoral = $request->input('tipo_persona') === 'Persona Moral';
 
@@ -500,7 +529,32 @@ class PortalProveedorController extends Controller
             'clabe' => ['required', 'regex:/^[0-9]{18}$/'],
             'cuenta' => ['required', 'regex:/^[0-9]{5,20}$/'],
             'banco' => 'required|string|max:255|not_in:Otro',
-            'docs' => 'nullable|array',
+            'docs' => [
+                'required',
+                'array',
+                function (string $attribute, mixed $value, \Closure $fail) use ($esMoral) {
+                    $docs = is_array($value) ? $value : [];
+                    $requeridos = [
+                        'id_rep_legal' => 'Identificación oficial del representante legal',
+                        'id_contribuyente' => 'Identificación oficial del contribuyente',
+                        'constancia_fiscal' => 'Constancia de Situación Fiscal',
+                        'opinion_cumplimiento' => 'Opinión de Cumplimiento',
+                        'caratula_banco' => 'Carátula de banco',
+                    ];
+                    if ($esMoral) {
+                        $requeridos = ['acta_constitutiva' => 'Acta Constitutiva'] + $requeridos;
+                    }
+                    $faltan = [];
+                    foreach ($requeridos as $clave => $etiqueta) {
+                        if (! in_array($clave, $docs, true)) {
+                            $faltan[] = $etiqueta;
+                        }
+                    }
+                    if ($faltan !== []) {
+                        $fail('Debes marcar todos los documentos obligatorios. Faltan: '.implode(', ', $faltan).'.');
+                    }
+                },
+            ],
             'nombre_firma' => $soloTexto,
         ];
 
@@ -520,6 +574,7 @@ class PortalProveedorController extends Controller
 
         $data = $request->validate($rules, [
             'required' => 'El campo :attribute es obligatorio.',
+            'docs.required' => 'Debes marcar todos los documentos obligatorios.',
             'regex' => 'El campo :attribute tiene un formato inválido.',
             'telefono.regex' => 'El teléfono debe tener exactamente 10 dígitos numéricos.',
             'celular.regex' => 'El celular debe tener exactamente 10 dígitos numéricos.',
@@ -633,6 +688,10 @@ class PortalProveedorController extends Controller
             return redirect()->route('proveedores.onboarding')
                 ->with('error', 'Primero completa el formulario de datos bancarios.');
         }
+        if ($proveedor && $proveedor->onboardingEdicionBloqueada() && $proveedor->documentosFiscalesCompletos()) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('error', 'Tu expediente está en revisión o ya fue aprobado. No puedes volver a subir documentos hasta un rechazo de Dirección.');
+        }
 
         $identificacion = session('identificacion_proveedor');
         if (! $identificacion) {
@@ -643,8 +702,9 @@ class PortalProveedorController extends Controller
         }
 
         $solicitudId = null;
+        $onboardingBloqueado = $proveedor?->onboardingEdicionBloqueada() ?? false;
 
-        return view('APIS.empresa', compact('identificacion', 'solicitudId'));
+        return view('APIS.empresa', compact('identificacion', 'solicitudId', 'onboardingBloqueado'));
     }
 
     public function mostrarAdjuntoDocumentos()
@@ -653,6 +713,10 @@ class PortalProveedorController extends Controller
         if ($proveedor && ! $proveedor->tieneFormularioDatosBancarios()) {
             return redirect()->route('proveedores.onboarding')
                 ->with('error', 'Primero completa el formulario de datos bancarios.');
+        }
+        if ($proveedor && $proveedor->onboardingEdicionBloqueada()) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('error', 'Tu expediente está en revisión. No puedes subir documentos nuevos.');
         }
 
         $documentos = $proveedor ? $proveedor->documentos()->orderByDesc('created_at')->get() : collect();
@@ -675,6 +739,10 @@ class PortalProveedorController extends Controller
         if ($proveedor && ! $proveedor->tieneFormularioDatosBancarios()) {
             return redirect()->route('proveedores.onboarding')
                 ->with('error', 'Primero completa el formulario de datos bancarios.');
+        }
+        if ($proveedor && $proveedor->onboardingEdicionBloqueada()) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('error', 'Tu expediente está en revisión. No puedes subir documentos nuevos.');
         }
 
         $tipos = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'caratula_banco'];
@@ -903,6 +971,15 @@ class PortalProveedorController extends Controller
      */
     public function subirDocumentoFiscal(Request $request)
     {
+        $provId = session('proveedor_id');
+        $proveedorLock = ProveedorUser::find($provId);
+        if ($proveedorLock && $proveedorLock->onboardingEdicionBloqueada()) {
+            return response()->json([
+                'ok' => false,
+                'mensaje' => 'Tu expediente está en revisión o aprobado. No puedes subir documentos hasta un rechazo de Dirección.',
+            ], 423);
+        }
+
         $request->validate([
             'tipo_documento' => 'required|string',
             'archivo' => 'required|file|mimes:pdf|max:10240',
@@ -911,7 +988,6 @@ class PortalProveedorController extends Controller
         $tipo = $request->input('tipo_documento');
         $rfc = $request->input('rfc', '');
         $notas = $request->input('notas', '');
-        $provId = session('proveedor_id');
 
         $path = $request->file('archivo')->store('documentos-fiscales', 'public');
 

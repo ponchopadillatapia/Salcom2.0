@@ -4,6 +4,7 @@ namespace App\Http\Controllers\APIS;
 
 use App\Http\Controllers\Controller;
 use App\Models\DocumentoProveedor;
+use App\Models\ProveedorUser;
 use App\Services\IaService;
 use Aws\Textract\TextractClient;
 use Illuminate\Http\Request;
@@ -17,27 +18,41 @@ class EmpresaApiController extends Controller
     public function validar(Request $request)
     {
         try {
+            @set_time_limit(180);
+            @ini_set('max_execution_time', '180');
+
+            $provId = session('proveedor_id');
+            if ($provId) {
+                $provLock = ProveedorUser::find($provId);
+                if ($provLock && $provLock->onboardingEdicionBloqueada() && $provLock->documentosFiscalesCompletos()) {
+                    return response()->json([
+                        'ok' => false,
+                        'mensaje' => 'Tu expediente está en revisión o aprobado. No puedes volver a validar documentos hasta un rechazo de Dirección.',
+                    ], 423);
+                }
+            }
+
             $tipoPersona = $request->input('tipo_persona', 'moral'); // moral | fisica
 
-            // Reglas de validación dinámicas
+            // Reglas de validación dinámicas (hasta 20MB por PDF)
             $rules = [
-                'cif_pdf' => 'required|mimes:pdf|max:10240',
-                'opinion_pdf' => 'required|mimes:pdf|max:10240',
-                'caratula_banco_pdf' => 'required|mimes:pdf|max:10240',
-                'rep_legal_pdf' => 'nullable|mimes:pdf|max:10240',
-                'contribuyente_pdf' => 'nullable|mimes:pdf|max:10240',
-                'poder_pdf' => 'nullable|mimes:pdf|max:10240',
+                'cif_pdf' => 'required|mimes:pdf|max:20480',
+                'opinion_pdf' => 'required|mimes:pdf|max:20480',
+                'caratula_banco_pdf' => 'required|mimes:pdf|max:20480',
+                'rep_legal_pdf' => 'nullable|mimes:pdf|max:20480',
+                'contribuyente_pdf' => 'nullable|mimes:pdf|max:20480',
+                'poder_pdf' => 'nullable|mimes:pdf|max:20480',
             ];
 
             // Acta constitutiva: para Persona Moral es obligatoria SALVO que suba poder notarial
             if ($tipoPersona === 'moral') {
                 if ($request->hasFile('poder_pdf') && ! $request->hasFile('acta_pdf')) {
-                    $rules['acta_pdf'] = 'nullable|mimes:pdf|max:10240';
+                    $rules['acta_pdf'] = 'nullable|mimes:pdf|max:20480';
                 } else {
-                    $rules['acta_pdf'] = 'nullable|mimes:pdf|max:10240';
+                    $rules['acta_pdf'] = 'nullable|mimes:pdf|max:20480';
                 }
             } else {
-                $rules['acta_pdf'] = 'nullable|mimes:pdf|max:10240';
+                $rules['acta_pdf'] = 'nullable|mimes:pdf|max:20480';
             }
 
             $request->validate($rules);
@@ -320,8 +335,39 @@ class EmpresaApiController extends Controller
                                 }
                             }
                         }
+
+                        // Tras validación en verde, la solicitud queda visible para Dirección.
+                        $prov = ProveedorUser::find($proveedorId);
+                        if ($prov && ! $prov->activo) {
+                            $updateProv = [];
+                            if (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
+                                $updateProv['solicitud_alta_estatus'] = 'pendiente';
+                            }
+                            if ($updateProv !== []) {
+                                $prov->update($updateProv);
+                            }
+                            try {
+                                \App\Models\SolicitudAlta::updateOrCreate(
+                                    ['proveedor_id' => $proveedorId],
+                                    [
+                                        'estatus' => 'pendiente',
+                                        'tipo_persona' => $prov->tipo_persona ?? 'Persona Moral',
+                                        'nombre_completo' => $prov->nombre ?? $prov->usuario,
+                                    ]
+                                );
+                            } catch (\Exception $e) {
+                                // ignore
+                            }
+                            Log::info('Solicitud de alta lista para admin tras validación fiscal', [
+                                'proveedor_id' => $proveedorId,
+                                'docs_aprobados' => DocumentoProveedor::where('proveedor_id', $proveedorId)->where('estatus', 'aprobado')->count(),
+                            ]);
+                        }
                     } catch (\Exception $e) {
-                        // No bloquear la respuesta
+                        Log::warning('No se pudieron guardar docs/expediente tras validación', [
+                            'proveedor_id' => $proveedorId ?? null,
+                            'error' => $e->getMessage(),
+                        ]);
                     }
                 }
             }
@@ -1509,7 +1555,7 @@ class EmpresaApiController extends Controller
                     'key' => $accessKey,
                     'secret' => $secretKey,
                 ],
-                'http' => ['timeout' => 90],
+                'http' => ['timeout' => 25, 'connect_timeout' => 5],
             ]);
 
             // Para PDFs multi-página: convertir a imágenes con Imagick si está disponible
@@ -1564,12 +1610,12 @@ class EmpresaApiController extends Controller
 
         try {
             $imagick = new \Imagick();
-            $imagick->setResolution(300, 300);
-            // Leer solo las primeras 3 páginas para no tardar demasiado
-            $imagick->readImage($pdfPath . '[0-2]');
+            // 150 DPI + 2 páginas máx: evita timeouts del proxy de SiteGround
+            $imagick->setResolution(150, 150);
+            $imagick->readImage($pdfPath . '[0-1]');
 
             $numPages = $imagick->getNumberImages();
-            $paginas = min($numPages, 3);
+            $paginas = min($numPages, 2);
 
             for ($i = 0; $i < $paginas; $i++) {
                 $imagick->setIteratorIndex($i);

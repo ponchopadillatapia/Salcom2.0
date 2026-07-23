@@ -67,7 +67,7 @@
                         Registrado: {{ $prov->created_at?->format('d/m/Y H:i') ?? '—' }}
                     </div>
                 </div>
-                <span class="sol-badge {{ $item->con_datos ? 'con-datos' : 'sin-datos' }}">{{ $item->con_datos ? 'Con datos' : 'Sin datos' }}</span>
+                <span class="sol-badge {{ ($item->docs_ok ?? false) ? 'con-datos' : 'pendiente' }}">{{ ($item->docs_ok ?? false) ? 'Listo' : 'Con validación' }}</span>
             </div>
 
             <div class="sol-datos">
@@ -75,7 +75,7 @@
                 <div><span class="sol-dato-label">Teléfono:</span> <span class="sol-dato-value">{{ $prov->telefono ?? '—' }}</span></div>
                 <div><span class="sol-dato-label">Formulario:</span> <span class="sol-dato-value">{{ $item->formulario ? '✓ Enviado' : '✕ Pendiente' }}</span></div>
                 <div><span class="sol-dato-label">Datos bancarios:</span> <span class="sol-dato-value">{{ $item->bancarios ? '✓ Completo' : '✕ Pendiente' }}</span></div>
-                <div><span class="sol-dato-label">Documentos:</span> <span class="sol-dato-value">{{ $item->docs_count }} subidos</span></div>
+                <div><span class="sol-dato-label">Documentos:</span> <span class="sol-dato-value">{{ $item->docs_count }} aprobado(s){{ ($item->docs_ok ?? false) ? ' ✓' : '' }}</span></div>
                 <div><span class="sol-dato-label">Contactos:</span> <span class="sol-dato-value">{{ $item->num_contactos }} registrados</span></div>
             </div>
 

@@ -903,10 +903,30 @@ function enviar() {
 
     fetch('/api/empresa', {
         method: 'POST',
-        headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content },
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',
         body: formData
     })
-    .then(res => res.json())
+    .then(async res => {
+        const raw = await res.text();
+        let data = null;
+        try {
+            data = raw ? JSON.parse(raw) : null;
+        } catch (e) {
+            throw new Error(res.status >= 500
+                ? 'El servidor tardó demasiado o falló al leer los PDFs. Intenta con archivos más ligeros.'
+                : 'Respuesta inválida del servidor (código ' + res.status + ').');
+        }
+        if (!data) {
+            throw new Error('Sin respuesta del servidor (código ' + res.status + ').');
+        }
+        data.__httpStatus = res.status;
+        return data;
+    })
     .then(data => {
         btn.disabled       = false;
         spin.style.display = 'none';
@@ -916,12 +936,12 @@ function enviar() {
         if (data.mensaje) { mostrarError(data.mensaje); return; }
         renderResultado(data);
     })
-    .catch(() => {
+    .catch(err => {
         btn.disabled       = false;
         spin.style.display = 'none';
         icon.style.display = 'inline';
         texto.textContent  = Object.keys(archivosValidos).length ? 'Revalidar documentos' : 'Validar Documentos';
-        mostrarError('Error de conexión. Intenta de nuevo.');
+        mostrarError(err && err.message ? err.message : 'Error de conexión. Intenta de nuevo.');
     });
 }
 
