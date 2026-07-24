@@ -209,6 +209,36 @@ class PortalProveedorController extends Controller
             ->header('Cache-Control', 'no-store, max-age=0');
     }
 
+    /** Marca una alerta como leída al hacer clic en la campanita. */
+    public function marcarAlertaLeida(Alerta $alerta)
+    {
+        $proveedorId = (int) session('proveedor_id');
+        if (! $proveedorId
+            || $alerta->destinatario_tipo !== 'proveedor'
+            || (int) $alerta->destinatario_id !== $proveedorId) {
+            return response()->json(['ok' => false, 'mensaje' => 'No autorizado'], 403);
+        }
+
+        if (! in_array($alerta->estatus, ['leida', 'accionada'], true)) {
+            $alerta->update([
+                'estatus' => 'leida',
+                'leida_at' => now(),
+            ]);
+        }
+
+        $sinLeer = Alerta::where('destinatario_tipo', 'proveedor')
+            ->where('destinatario_id', $proveedorId)
+            ->where('estatus', '!=', 'leida')
+            ->where('estatus', '!=', 'accionada')
+            ->count();
+
+        return response()->json([
+            'ok' => true,
+            'sin_leer' => $sinLeer,
+            'id' => $alerta->id,
+        ]);
+    }
+
     public function mostrarEncuesta()
     {
         return view('proveedores.encuesta');

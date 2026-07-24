@@ -492,7 +492,7 @@
         <div class="toggle-row">
             <div class="toggle-info">
                 <div class="ti-title">¿Es fletera?</div>
-                <div class="ti-sub" id="fleteraHint">Retenciones según el régimen del XML</div>
+                <div class="ti-sub" id="fleteraHint">Flete = retención IVA siempre · Comisión = solo persona física</div>
             </div>
             <div class="seg" id="fleteraSeg">
                 <label>
@@ -628,8 +628,8 @@
         var checked = document.querySelector('input[name="es_fletera"]:checked');
         if (!hint || !checked) return;
         hint.textContent = checked.value === '1'
-            ? 'Se validan retenciones IVA 4% + ISR 1.25%'
-            : 'Retenciones según el régimen del XML';
+            ? 'Flete/fletera: se exige retención de IVA (y ISR típico 1.25%)'
+            : 'Flete = IVA siempre · Comisión = solo persona física · resto por régimen';
     }
     document.querySelectorAll('input[name="es_fletera"]').forEach(function (r) {
         r.addEventListener('change', updateHint);

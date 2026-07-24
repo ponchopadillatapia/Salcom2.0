@@ -26,6 +26,8 @@ class AutenticacionProveedor
         'proveedores.adjunto-documentos.subir',
         'proveedores.logout',
         'proveedores.aviso.aceptar',
+        'proveedores.alertas.recientes',
+        'proveedores.alertas.leer',
         'aviso.privacidad',
     ];
 
@@ -38,6 +40,8 @@ class AutenticacionProveedor
         'proveedores.contactos.eliminar',
         'proveedores.logout',
         'proveedores.aviso.aceptar',
+        'proveedores.alertas.recientes',
+        'proveedores.alertas.leer',
         'aviso.privacidad',
     ];
 

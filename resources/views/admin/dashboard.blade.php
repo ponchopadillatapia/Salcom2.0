@@ -206,72 +206,45 @@
         </div></a>
     </div>
 
-    {{-- Proveedores — Documentos fiscales pendientes --}}
-    <div class="pp-section-title">Proveedores — Documentación Fiscal</div>
-    <a href="{{ route('admin.documentos') }}" style="text-decoration:none;color:inherit;display:block;">
-    <div class="pp-card pp-activity-card" style="cursor:pointer;transition:var(--transition);" onmouseover="this.style.borderColor='var(--purple-dark)';this.style.boxShadow='var(--shadow-md)'" onmouseout="this.style.borderColor='var(--purple)';this.style.boxShadow='var(--shadow-sm)'">
-        <div class="pp-activity-head" style="display:flex;align-items:center;justify-content:space-between;">
-            <span>Documentos faltantes o pendientes de validar</span>
-            <span class="pp-detail-link">Ver detalle →</span>
-        </div>
-        <div style="max-height:380px;overflow-y:auto;">
-        <table class="pp-tbl">
-            <thead><tr><th>Proveedor</th><th>Código</th><th>Documentos faltantes / pendientes</th><th>Estado</th></tr></thead>
-            <tbody>
-            @php
-                $tiposRequeridos = ['cif' => 'CIF', 'opinion' => 'Opinión SAT', 'caratula_banco' => 'Carátula bancaria'];
-                $proveedoresConFaltantes = $proveedoresActivosList->filter(function($prov) use ($tiposRequeridos) {
-                    try {
-                        $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
-                    } catch (\Exception $e) {
-                        return true;
-                    }
-                    return count(array_intersect(array_keys($tiposRequeridos), $docsAprobados)) < count($tiposRequeridos);
-                });
-            @endphp
-            @forelse($proveedoresConFaltantes as $prov)
-                @php
-                    try {
-                        $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
-                        $docsPendientes = $prov->documentos->where('estatus', 'pendiente')->pluck('tipo')->unique()->toArray();
-                    } catch (\Exception $e) {
-                        $docsAprobados = [];
-                        $docsPendientes = [];
-                    }
-                    $faltantes = [];
-                    $pendientesValidar = [];
-                    foreach ($tiposRequeridos as $tipo => $label) {
-                        if (in_array($tipo, $docsAprobados)) continue;
-                        if (in_array($tipo, $docsPendientes)) {
-                            $pendientesValidar[] = $label;
-                        } else {
-                            $faltantes[] = $label;
-                        }
-                    }
-                    $completos = count(array_intersect(array_keys($tiposRequeridos), $docsAprobados));
-                @endphp
-                <tr>
-                    <td>{{ $prov->nombre ?? $prov->usuario }}</td>
-                    <td>{{ $prov->id_proveedor ?? '—' }}</td>
-                    <td style="font-size:11px;">
-                        @if(count($faltantes))
-                            <span style="color:var(--red);font-weight:600;">No subidos:</span> {{ implode(', ', $faltantes) }}
+    {{-- Documentación fiscal: mismo tamaño que los KPI de arriba --}}
+    @php
+        $tiposRequeridosDash = ['cif' => 'CIF', 'opinion' => 'Opinión SAT', 'caratula_banco' => 'Carátula'];
+        $proveedoresConFaltantes = ($proveedoresActivosList ?? collect())->filter(function ($prov) use ($tiposRequeridosDash) {
+            try {
+                $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
+            } catch (\Exception $e) {
+                return true;
+            }
+
+            return count(array_intersect(array_keys($tiposRequeridosDash), $docsAprobados)) < count($tiposRequeridosDash);
+        });
+        $nFaltantes = $proveedoresConFaltantes->count();
+        $nombresFaltantes = $proveedoresConFaltantes->take(3)->map(fn ($p) => $p->nombre ?? $p->usuario)->values();
+    @endphp
+    <div class="pp-kpi-section" style="margin-bottom:14px;">
+        <a href="{{ route('admin.documentos') }}" style="text-decoration:none;color:inherit;">
+            <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
+                <h4>Docs. fiscales</h4>
+                <div class="pp-negocio-row">
+                    <div class="pp-negocio-label">Proveedores incompletos</div>
+                    <div class="pp-negocio-value" style="color:{{ $nFaltantes > 0 ? 'var(--amber)' : 'var(--green)' }};font-size:26px;">{{ $nFaltantes }}</div>
+                </div>
+                <div class="pp-negocio-sub" style="flex:1;overflow:hidden;">
+                    @if($nFaltantes === 0)
+                        Documentación completa ✓
+                    @else
+                        @foreach($nombresFaltantes as $nom)
+                            <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $nom }}</div>
+                        @endforeach
+                        @if($nFaltantes > 3)
+                            <div>+{{ $nFaltantes - 3 }} más…</div>
                         @endif
-                        @if(count($faltantes) && count($pendientesValidar))<br>@endif
-                        @if(count($pendientesValidar))
-                            <span style="color:var(--amber);font-weight:600;">Por validar:</span> {{ implode(', ', $pendientesValidar) }}
-                        @endif
-                    </td>
-                    <td><span style="font-size:11px;font-weight:600;color:var(--amber);">{{ $completos }}/{{ count($tiposRequeridos) }}</span></td>
-                </tr>
-            @empty
-                <tr><td colspan="4" style="text-align:center;color:var(--green);font-weight:600;">Todos los proveedores tienen documentación completa ✓</td></tr>
-            @endforelse
-            </tbody>
-        </table>
-        </div>
+                    @endif
+                </div>
+                <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
+            </div>
+        </a>
     </div>
-    </a>
 
     {{-- Accesos directos --}}
     <div class="pp-section-title">Accesos directos</div>

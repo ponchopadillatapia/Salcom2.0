@@ -93,7 +93,7 @@
         .notif-dropdown.show{display:block}
         .notif-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-light);font-size:13px;font-weight:700;color:var(--gray-text)}
         .notif-count{font-size:11px;font-weight:600;color:var(--purple);background:var(--purple-subtle);padding:2px 8px;border-radius:999px}
-        .notif-item{padding:12px 16px;border-bottom:1px solid var(--border-light);cursor:default;transition:background .15s}
+        .notif-item{padding:12px 16px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background .15s}
         .notif-item:hover{background:var(--purple-subtle)}
         .notif-item.read{opacity:.6}
         .notif-item-title{font-size:12px;font-weight:600;color:var(--gray-text);margin-bottom:3px}
@@ -342,7 +342,10 @@
                 ->limit(5)
                 ->get();
         @endphp
-        <div class="notif-wrapper" style="position:relative;margin-right:16px;" data-alertas-url="{{ route('proveedores.alertas.recientes') }}">
+        <div class="notif-wrapper" style="position:relative;margin-right:16px;"
+             data-alertas-url="{{ route('proveedores.alertas.recientes') }}"
+             data-alertas-leer-url="{{ url('/proveedor/alertas') }}"
+             data-csrf="{{ csrf_token() }}">
             <button type="button" class="notif-bell" id="notifBellBtn" onclick="document.getElementById('notifDropdown').classList.toggle('show')" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;">
                 <svg id="notifBellIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $alertasSinLeer > 0 ? 'var(--purple)' : 'var(--gray-muted)' }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                 <span id="notifBadge" style="position:absolute;top:-2px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;{{ $alertasSinLeer > 0 ? 'display:flex' : 'display:none' }};align-items:center;justify-content:center;">{{ $alertasSinLeer > 9 ? '9+' : $alertasSinLeer }}</span>
@@ -354,7 +357,7 @@
                 </div>
                 <div id="notifItems">
                 @forelse($alertasRecientes as $notif)
-                <div class="notif-item {{ in_array($notif->estatus, ['leida','accionada']) ? 'read' : '' }}">
+                <div class="notif-item {{ in_array($notif->estatus, ['leida','accionada']) ? 'read' : '' }}" data-alerta-id="{{ $notif->id }}" data-leida="{{ in_array($notif->estatus, ['leida','accionada']) ? '1' : '0' }}">
                     <div class="notif-item-title">{{ Str::limit($notif->titulo, 50) }}</div>
                     <div class="notif-item-desc">{{ Str::limit($notif->contenido, 80) }}</div>
                     <div class="notif-item-time">{{ $notif->created_at->diffForHumans() }}</div>
@@ -401,17 +404,15 @@
                 $lockHref = route('proveedores.onboarding');
                 $lockAttr = ! $portalOk ? 'style="opacity:.45" title="Completa onboarding"' : '';
             @endphp
-            <div class="sb-section">Principal</div>
+
+            <div class="sb-section">Inicio</div>
             <a href="{{ $portalOk ? route('proveedores.portal') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.portal') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                 <span class="sb-text">Inicio</span>
             </a>
-            <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.dashboard') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></div>
-                <span class="sb-text">Dashboard</span>
-            </a>
+
             <div class="sb-hr"></div>
-            <div class="sb-section">Operaciones</div>
+            <div class="sb-section">Altas</div>
             <a href="{{ $portalOk ? route('proveedores.alta-producto') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.alta-producto') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
                 <span class="sb-text">Alta de producto</span>
@@ -420,17 +421,23 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
                 <span class="sb-text">Alta Facturas</span>
             </a>
-            <a href="{{ $portalOk ? route('proveedores.ia') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.ia*') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V6a4 4 0 0 1 4-4z"/><path d="M16 11v1a4 4 0 0 1-8 0v-1"/><line x1="12" y1="16" x2="12" y2="20"/><line x1="8" y1="20" x2="16" y2="20"/></svg></div>
-                <span class="sb-text">Módulo IA</span>
+
+            <div class="sb-hr"></div>
+            <div class="sb-section">Mi empresa</div>
+            <a href="{{ route('proveedores.onboarding') }}" class="sb-link {{ request()->routeIs('proveedores.onboarding') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
+                <span class="sb-text">Onboarding</span>
             </a>
-            <a href="{{ $portalOk ? route('proveedores.forecast') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.forecast') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-                <span class="sb-text">Forecast</span>
+            <a href="{{ $portalOk ? route('proveedores.business') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.business') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+                <span class="sb-text">Business</span>
             </a>
-            <a href="{{ $portalOk ? route('proveedores.otif') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.otif') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <span class="sb-text">OTIF</span>
+
+            <div class="sb-hr"></div>
+            <div class="sb-section">Operación</div>
+            <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.dashboard') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></div>
+                <span class="sb-text">Dashboard</span>
             </a>
             <a href="{{ $portalOk ? route('proveedores.oc') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.oc') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
@@ -440,28 +447,33 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                 <span class="sb-text">Inventario</span>
             </a>
+            <a href="{{ $portalOk ? route('proveedores.otif') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.otif') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                <span class="sb-text">OTIF</span>
+            </a>
+            <a href="{{ $portalOk ? route('proveedores.forecast') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.forecast') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                <span class="sb-text">Forecast</span>
+            </a>
             <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
                 <span class="sb-text">Facturas</span>
             </a>
-            <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-                <span class="sb-text">Pagos</span>
-            </a>
+
             <div class="sb-hr"></div>
-            <div class="sb-section">Mi empresa</div>
-            <a href="{{ route('proveedores.onboarding') }}" class="sb-link {{ request()->routeIs('proveedores.onboarding') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
-                <span class="sb-text">Onboarding</span>
-            </a>
+            <div class="sb-section">Finanzas</div>
             <a href="{{ $portalOk ? route('proveedores.payment-history') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.payment-history') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-                <span class="sb-text">Historial de pagos</span>
+                <span class="sb-text">Pagos / Historial</span>
             </a>
-            <a href="{{ $portalOk ? route('proveedores.business') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.business') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
-                <span class="sb-text">Business</span>
+
+            <div class="sb-hr"></div>
+            <div class="sb-section">Inteligencia</div>
+            <a href="{{ $portalOk ? route('proveedores.ia') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.ia*') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V6a4 4 0 0 1 4-4z"/><path d="M16 11v1a4 4 0 0 1-8 0v-1"/><line x1="12" y1="16" x2="12" y2="20"/><line x1="8" y1="20" x2="16" y2="20"/></svg></div>
+                <span class="sb-text">Módulo IA</span>
             </a>
+
             <div class="sb-hr"></div>
             <div class="sb-section">Cuenta</div>
             <a href="{{ route('proveedores.perfil') }}" class="sb-link {{ request()->routeIs('proveedores.perfil') ? 'active' : '' }}">
@@ -510,6 +522,8 @@ document.addEventListener('click', function(e) {
     var wrap = document.querySelector('.notif-wrapper');
     if (!wrap) return;
     var url = wrap.getAttribute('data-alertas-url');
+    var leerBase = wrap.getAttribute('data-alertas-leer-url');
+    var csrf = wrap.getAttribute('data-csrf') || '';
     if (!url) return;
 
     function esc(s) {
@@ -518,12 +532,11 @@ document.addEventListener('click', function(e) {
             .replace(/"/g, '&quot;');
     }
 
-    function render(data) {
-        var n = data.sin_leer || 0;
+    function updateBadge(n) {
+        n = Math.max(0, parseInt(n, 10) || 0);
         var badge = document.getElementById('notifBadge');
         var icon = document.getElementById('notifBellIcon');
         var label = document.getElementById('notifCountLabel');
-        var items = document.getElementById('notifItems');
         if (badge) {
             badge.style.display = n > 0 ? 'flex' : 'none';
             badge.textContent = n > 9 ? '9+' : String(n);
@@ -533,13 +546,18 @@ document.addEventListener('click', function(e) {
             label.style.display = n > 0 ? '' : 'none';
             label.textContent = n + ' nuevas';
         }
+    }
+
+    function render(data) {
+        updateBadge(data.sin_leer || 0);
+        var items = document.getElementById('notifItems');
         if (items) {
             var list = data.items || [];
             if (!list.length) {
                 items.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
             } else {
                 items.innerHTML = list.map(function (it) {
-                    return '<div class="notif-item ' + (it.leida ? 'read' : '') + '">'
+                    return '<div class="notif-item ' + (it.leida ? 'read' : '') + '" data-alerta-id="' + esc(it.id) + '" data-leida="' + (it.leida ? '1' : '0') + '">'
                         + '<div class="notif-item-title">' + esc((it.titulo || '').substring(0, 50)) + '</div>'
                         + '<div class="notif-item-desc">' + esc((it.contenido || '').substring(0, 80)) + '</div>'
                         + '<div class="notif-item-time">' + esc(it.hace || '') + '</div>'
@@ -548,7 +566,6 @@ document.addEventListener('click', function(e) {
             }
         }
 
-        // Sin recargar a mano: si cambió estatus de alta (rechazo/aprobación), refrescar onboarding.
         if (data.onboarding && window.__salcomOnboardingWatch) {
             var o = data.onboarding;
             var w = window.__salcomOnboardingWatch;
@@ -561,6 +578,48 @@ document.addEventListener('click', function(e) {
                 }
             }
         }
+    }
+
+    function marcarLeida(el) {
+        if (!el || el.getAttribute('data-leida') === '1') return;
+        var id = el.getAttribute('data-alerta-id');
+        if (!id || !leerBase) return;
+
+        el.setAttribute('data-leida', '1');
+        el.classList.add('read');
+
+        var badge = document.getElementById('notifBadge');
+        var actual = badge && badge.style.display !== 'none'
+            ? (parseInt(badge.textContent, 10) || 0)
+            : 0;
+        if (actual > 0) updateBadge(actual - 1);
+
+        fetch(leerBase + '/' + id + '/leer', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (data && typeof data.sin_leer !== 'undefined') {
+                    updateBadge(data.sin_leer);
+                }
+            })
+            .catch(function () {});
+    }
+
+    var itemsBox = document.getElementById('notifItems');
+    if (itemsBox) {
+        itemsBox.addEventListener('click', function (e) {
+            var item = e.target.closest('.notif-item');
+            if (!item || !itemsBox.contains(item)) return;
+            e.stopPropagation();
+            marcarLeida(item);
+        });
     }
 
     function poll() {

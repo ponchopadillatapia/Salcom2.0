@@ -44,6 +44,9 @@ class AltaFacturaValidationService
             'fecha' => null,
             'tipo_comprobante' => null,
             'es_fletera' => $esFletera,
+            'tiene_concepto_flete' => false,
+            'tiene_concepto_comision' => false,
+            'es_persona_fisica' => null,
             'retencion_esperada' => null,
         ];
 
@@ -153,14 +156,27 @@ class AltaFacturaValidationService
             $checklist['totales']['ok'] = true;
         }
 
+        // Conceptos: flete / comisión (ClaveProdServ o descripción)
+        $conceptos = $this->detectarConceptos($xml);
+        $datos['tiene_concepto_flete'] = $conceptos['flete'];
+        $datos['tiene_concepto_comision'] = $conceptos['comision'];
+
         // Régimen
         $this->validarRegimen($datos, $errores, $checklist);
 
-        // Fletera (indicador del formulario)
+        // Fletera (indicador del formulario) vs concepto flete en XML
         $checklist['fletera']['ok'] = true;
-        $checklist['fletera']['label'] = $esFletera ? 'Marcada como fletera' : 'No es fletera';
+        if ($esFletera && ! $datos['tiene_concepto_flete']) {
+            $advertencias[] = 'Marcó fletera, pero en el XML no se detectó clave/descripción de flete. Se validará con reglas de fletera de todos modos.';
+            $checklist['fletera']['label'] = 'Marcada como fletera (sin clave flete en XML)';
+        } elseif (! $esFletera && $datos['tiene_concepto_flete']) {
+            $advertencias[] = 'El XML trae concepto de flete: la retención de IVA aplica aunque no haya marcado fletera.';
+            $checklist['fletera']['label'] = 'Concepto flete detectado en XML';
+        } else {
+            $checklist['fletera']['label'] = $esFletera ? 'Marcada como fletera' : 'No es fletera';
+        }
 
-        // Retenciones según régimen + fletera
+        // Retenciones: flete siempre IVA; comisión solo persona física; resto por régimen
         $this->validarRetenciones($datos, $esFletera, $errores, $advertencias, $checklist);
 
         $aprobado = empty($errores);
@@ -170,7 +186,7 @@ class AltaFacturaValidationService
 
     private function validarRegimen(array &$datos, array &$errores, array &$checklist): void
     {
-        $regimenes = config('facturas.regimenes_aceptados', []);
+        $regimenes = config('facturas.regimenes', []);
         $codigo = $datos['regimen_fiscal'];
 
         if (! $codigo) {
@@ -185,27 +201,28 @@ class AltaFacturaValidationService
             return;
         }
 
-        $datos['regimen_nombre'] = $regimenes[$codigo];
+        $meta = $regimenes[$codigo];
+        $datos['regimen_nombre'] = $meta['nombre'];
 
-        // Coherencia persona moral (12) vs física (13)
         $rfc = $datos['rfc_emisor'] ?? '';
         $len = strlen($rfc);
-        $regimenesMoral = ['601', '603', '620', '622', '623', '624'];
-        $regimenesFisica = ['605', '606', '608', '611', '612', '614', '615', '616', '621', '625'];
+        $esFisica = $len === 13;
+        $esMoral = $len === 12;
+        $datos['es_persona_fisica'] = $esFisica ?: ($esMoral ? false : null);
 
-        if ($len === 12 && in_array($codigo, $regimenesFisica, true)) {
-            $errores[] = "El régimen {$codigo} ({$regimenes[$codigo]}) es de persona física, pero el RFC emisor es de persona moral.";
+        if ($esMoral && empty($meta['moral'])) {
+            $errores[] = "El régimen {$codigo} ({$meta['nombre']}) no aplica a persona moral, pero el RFC emisor es moral (12 caracteres).";
 
             return;
         }
-        if ($len === 13 && in_array($codigo, $regimenesMoral, true)) {
-            $errores[] = "El régimen {$codigo} ({$regimenes[$codigo]}) es de persona moral, pero el RFC emisor es de persona física.";
+        if ($esFisica && empty($meta['fisica'])) {
+            $errores[] = "El régimen {$codigo} ({$meta['nombre']}) no aplica a persona física, pero el RFC emisor es física (13 caracteres).";
 
             return;
         }
 
         $checklist['regimen']['ok'] = true;
-        $checklist['regimen']['label'] = "Régimen {$codigo} — {$regimenes[$codigo]}";
+        $checklist['regimen']['label'] = "Régimen {$codigo} — {$meta['nombre']}";
     }
 
     private function validarRetenciones(array &$datos, bool $esFletera, array &$errores, array &$advertencias, array &$checklist): void
@@ -213,19 +230,32 @@ class AltaFacturaValidationService
         $cfg = config('facturas.retenciones', []);
         $tol = (float) config('facturas.tolerancia_monto', 1);
 
-        if ($esFletera) {
-            $regla = $cfg['fletera'] ?? ['iva' => 0.04, 'isr' => 0.0125, 'requiere_retencion' => true];
+        $aplicaFlete = $esFletera || ! empty($datos['tiene_concepto_flete']);
+        $aplicaComision = ! empty($datos['tiene_concepto_comision']) && ($datos['es_persona_fisica'] === true);
+
+        if ($aplicaFlete) {
+            $regla = $cfg['flete'] ?? ($cfg['fletera'] ?? ['iva' => 0.04, 'isr' => 0.0125, 'requiere_retencion' => true]);
+            $origen = 'flete';
+        } elseif ($aplicaComision) {
+            $regla = $cfg['comision_fisica'] ?? ['iva' => 0.106667, 'isr' => 0.10, 'requiere_retencion' => true];
+            $origen = 'comision_fisica';
+        } elseif (! empty($datos['tiene_concepto_comision']) && $datos['es_persona_fisica'] === false) {
+            // Comisión en persona moral: Contabilidad indica que NO aplica retención
+            $regla = ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false];
+            $origen = 'comision_moral_sin_retencion';
+            $advertencias[] = 'Concepto de comisión en persona moral: según Contabilidad no aplica retención de IVA por comisión.';
         } else {
             $porRegimen = $cfg['por_regimen'] ?? [];
             $codigo = $datos['regimen_fiscal'] ?? '_default';
             $regla = $porRegimen[$codigo] ?? ($porRegimen['_default'] ?? ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false]);
+            $origen = 'regimen_'.$datos['regimen_fiscal'];
         }
 
         $datos['retencion_esperada'] = [
             'iva_tasa' => $regla['iva'],
             'isr_tasa' => $regla['isr'],
             'requiere' => (bool) $regla['requiere_retencion'],
-            'origen' => $esFletera ? 'fletera' : 'regimen_'.$datos['regimen_fiscal'],
+            'origen' => $origen,
         ];
 
         $base = (float) $datos['subtotal'];
@@ -237,31 +267,36 @@ class AltaFacturaValidationService
         $erroresRet = [];
 
         if ($regla['requiere_retencion']) {
-            if ($ivaXml <= 0 && $isrXml <= 0) {
-                $erroresRet[] = $esFletera
-                    ? 'Al marcar fletera, el XML debe incluir retenciones de IVA (4%) e ISR (1.25%).'
+            if ($aplicaFlete && $ivaXml <= 0) {
+                // Regla Contabilidad: flete siempre retención IVA
+                $erroresRet[] = 'Concepto flete / fletera: el XML debe incluir retención de IVA (no importa el régimen).';
+            } elseif ($ivaXml <= 0 && $isrXml <= 0) {
+                $erroresRet[] = $origen === 'comision_fisica'
+                    ? 'Comisión en persona física: el XML debe incluir retenciones.'
                     : "El régimen {$datos['regimen_fiscal']} requiere retenciones y el XML no las trae.";
-            } else {
-                if (abs($ivaXml - $ivaEsp) > $tol && $regla['iva'] > 0) {
-                    $erroresRet[] = sprintf(
-                        'Retención IVA incorrecta: se esperaba $%s (%.4f%%) y el XML trae $%s.',
-                        number_format($ivaEsp, 2),
-                        $regla['iva'] * 100,
-                        number_format($ivaXml, 2)
-                    );
-                }
-                if (abs($isrXml - $isrEsp) > $tol && $regla['isr'] > 0) {
-                    $erroresRet[] = sprintf(
-                        'Retención ISR incorrecta: se esperaba $%s (%.4f%%) y el XML trae $%s.',
-                        number_format($isrEsp, 2),
-                        $regla['isr'] * 100,
-                        number_format($isrXml, 2)
-                    );
-                }
+            }
+
+            if ($ivaXml > 0 && abs($ivaXml - $ivaEsp) > $tol && $regla['iva'] > 0) {
+                $erroresRet[] = sprintf(
+                    'Retención IVA incorrecta: se esperaba $%s (%.4f%%) y el XML trae $%s.',
+                    number_format($ivaEsp, 2),
+                    $regla['iva'] * 100,
+                    number_format($ivaXml, 2)
+                );
+            }
+            if ($isrXml > 0 && abs($isrXml - $isrEsp) > $tol && $regla['isr'] > 0) {
+                $erroresRet[] = sprintf(
+                    'Retención ISR incorrecta: se esperaba $%s (%.4f%%) y el XML trae $%s.',
+                    number_format($isrEsp, 2),
+                    $regla['isr'] * 100,
+                    number_format($isrXml, 2)
+                );
+            } elseif ($aplicaFlete && $regla['isr'] > 0 && $isrXml <= 0) {
+                $advertencias[] = 'Flete: se esperaba también ISR retenido ('.($regla['isr'] * 100).'%); el XML no lo trae.';
             }
         } elseif ($ivaXml > $tol || $isrXml > $tol) {
             $advertencias[] = sprintf(
-                'El régimen no exige retenciones, pero el XML trae IVA ret. $%s / ISR ret. $%s. Se registrarán tal cual.',
+                'No se exige retención para este caso, pero el XML trae IVA ret. $%s / ISR ret. $%s. Se registrarán tal cual.',
                 number_format($ivaXml, 2),
                 number_format($isrXml, 2)
             );
@@ -276,9 +311,53 @@ class AltaFacturaValidationService
             $pctIva = $regla['iva'] * 100;
             $pctIsr = $regla['isr'] * 100;
             $checklist['retenciones']['label'] = $regla['requiere_retencion']
-                ? sprintf('Retenciones OK (IVA %.2f%% / ISR %.2f%%)', $pctIva, $pctIsr)
+                ? sprintf('Retenciones OK (IVA %.2f%% / ISR %.2f%% · %s)', $pctIva, $pctIsr, $origen)
                 : 'Sin retención requerida';
         }
+    }
+
+    /**
+     * @return array{flete: bool, comision: bool}
+     */
+    private function detectarConceptos(SimpleXMLElement $xml): array
+    {
+        $cfg = config('facturas.conceptos', []);
+        $flete = false;
+        $comision = false;
+
+        $nodos = $xml->xpath("//*[local-name()='Concepto']") ?: [];
+        foreach ($nodos as $nodo) {
+            $attrs = $nodo->attributes();
+            $clave = trim((string) ($attrs['ClaveProdServ'] ?? ''));
+            $desc = mb_strtolower((string) ($attrs['Descripcion'] ?? ''), 'UTF-8');
+            $descAscii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $desc) ?: $desc;
+
+            if ($this->conceptoCoincide($clave, $descAscii, $cfg['flete'] ?? [])) {
+                $flete = true;
+            }
+            if ($this->conceptoCoincide($clave, $descAscii, $cfg['comision'] ?? [])) {
+                $comision = true;
+            }
+        }
+
+        return ['flete' => $flete, 'comision' => $comision];
+    }
+
+    private function conceptoCoincide(string $clave, string $descAscii, array $cfg): bool
+    {
+        foreach ($cfg['claves'] ?? [] as $c) {
+            if ($clave !== '' && $clave === (string) $c) {
+                return true;
+            }
+        }
+        foreach ($cfg['palabras'] ?? [] as $p) {
+            $pAscii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', mb_strtolower((string) $p, 'UTF-8')) ?: $p;
+            if ($pAscii !== '' && str_contains($descAscii, $pAscii)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function parseXml(string $content): ?SimpleXMLElement

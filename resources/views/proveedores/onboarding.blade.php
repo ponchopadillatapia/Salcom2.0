@@ -109,7 +109,24 @@
             <span class="paso-badge badge-completado">Completado</span>
         </div>
 
-        {{-- 2 Datos bancarios --}}
+        {{-- 2 Contactos --}}
+        <div class="paso-card {{ $pasoContactos ? 'completado' : 'pendiente' }}">
+            <div class="paso-icono {{ $pasoContactos ? 'verde' : 'ambar' }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ $pasoContactos ? '#059669' : '#D97706' }}" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+            <div class="paso-info">
+                <div class="paso-titulo">Registro de contactos</div>
+                <div class="paso-desc">
+                    @if($pasoContactos)
+                        Ya registraste {{ $numContactos }} contactos (mínimo 2 cumplido).
+                    @else
+                        <strong>Obligatorio:</strong> mínimo 2 contactos. Llevas {{ $numContactos }}/2.
+                    @endif
+                </div>
+            </div>
+            <span class="paso-badge {{ $pasoContactos ? 'badge-completado' : 'badge-pendiente' }}">{{ $pasoContactos ? 'Completado' : 'Pendiente' }}</span>
+            <a href="{{ route('proveedores.perfil') }}" class="btn-ver">{{ $pasoContactos ? 'Ver' : 'Registrar' }}</a>
+        </div>
+
+        {{-- 3 Datos bancarios --}}
         @php
             $bancariosBloqueados = ($onboardingBloqueado ?? false) && ($pasoBancarios ?? false);
         @endphp
@@ -137,7 +154,7 @@
             @endif
         </div>
 
-        {{-- 3 Docs (bloqueado hasta llenar datos bancarios) --}}
+        {{-- 4 Docs (bloqueado hasta llenar datos bancarios) --}}
         @if(! $pasoBancarios)
         <div class="paso-card bloqueado">
             <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
@@ -177,23 +194,6 @@
         </div>
         @endif
 
-        {{-- 4 Contactos --}}
-        <div class="paso-card {{ $pasoContactos ? 'completado' : 'pendiente' }}">
-            <div class="paso-icono {{ $pasoContactos ? 'verde' : 'ambar' }}"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{{ $pasoContactos ? '#059669' : '#D97706' }}" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
-            <div class="paso-info">
-                <div class="paso-titulo">Registro de contactos</div>
-                <div class="paso-desc">
-                    @if($pasoContactos)
-                        Ya registraste {{ $numContactos }} contactos (mínimo 2 cumplido).
-                    @else
-                        <strong>Obligatorio:</strong> mínimo 2 contactos. Llevas {{ $numContactos }}/2.
-                    @endif
-                </div>
-            </div>
-            <span class="paso-badge {{ $pasoContactos ? 'badge-completado' : 'badge-pendiente' }}">{{ $pasoContactos ? 'Completado' : 'Pendiente' }}</span>
-            <a href="{{ route('proveedores.perfil') }}" class="btn-ver">{{ $pasoContactos ? 'Ver' : 'Registrar' }}</a>
-        </div>
-
         {{-- 5 Direccion / activo --}}
         @if($pasoActivo)
         <div class="paso-card completado">
@@ -209,7 +209,7 @@
             <div class="paso-icono ambar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Espera validación de Dirección</div>
-                <div class="paso-desc">Ya completaste datos bancarios, documentos y contactos. Tu solicitud está en revisión. No puedes editar el expediente hasta que te aprueben o rechacen.</div>
+                <div class="paso-desc">Ya completaste contactos, datos bancarios y documentos. Tu solicitud está en revisión. No puedes editar el expediente hasta que te aprueben o rechacen.</div>
             </div>
             <span class="paso-badge badge-pendiente">En revisión</span>
             <span class="btn-ver disabled">Esperar</span>
@@ -219,7 +219,7 @@
             <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Espera validación de Dirección</div>
-                <div class="paso-desc">Se desbloquea cuando completes datos bancarios, documentos y al menos 2 contactos.</div>
+                <div class="paso-desc">Se desbloquea cuando completes contactos (mín. 2), datos bancarios y documentos.</div>
             </div>
             <span class="paso-badge badge-bloqueado">Bloqueado</span>
             <span class="btn-ver disabled">—</span>

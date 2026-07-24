@@ -216,8 +216,8 @@
                 </select>
             </div>
             <div class="form-group">
-                <label for="municipio">Delegación / Municipio <span style="color:#DC2626">*</span></label>
-                <input type="text" id="municipio" name="municipio" value="{{ old('municipio', $d['municipio'] ?? '') }}" placeholder="Se llena con C.P." required readonly style="background:#f9fafb;" class="no-emoji">
+                <label for="municipio">Municipio <span style="color:#DC2626">*</span></label>
+                <input type="text" id="municipio" name="municipio" value="{{ old('municipio', $d['municipio'] ?? '') }}" placeholder="Municipio (editable si el C.P. no coincide)" required class="no-emoji">
             </div>
             <div class="form-group">
                 <label for="estado">Entidad Federativa / Estado <span style="color:#DC2626">*</span></label>
