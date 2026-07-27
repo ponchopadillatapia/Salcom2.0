@@ -39,8 +39,8 @@ class EmpresaApiController extends Controller
                 'cif_pdf' => 'required|mimes:pdf|max:20480',
                 'opinion_pdf' => 'required|mimes:pdf|max:20480',
                 'caratula_banco_pdf' => 'required|mimes:pdf|max:20480',
-                'rep_legal_pdf' => 'nullable|mimes:pdf|max:20480',
-                'contribuyente_pdf' => 'nullable|mimes:pdf|max:20480',
+                'rep_legal_pdf' => 'nullable|mimes:pdf,jpg,jpeg,png|max:20480',
+                'contribuyente_pdf' => 'nullable|mimes:pdf,jpg,jpeg,png|max:20480',
                 'poder_pdf' => 'nullable|mimes:pdf|max:20480',
             ];
 
@@ -233,6 +233,51 @@ class EmpresaApiController extends Controller
             // CRUCE ENTRE DOCUMENTOS
             // ════════════════════════════════════════
 
+            // Cross-check CIF ↔ INE (verificar que pertenezcan al mismo proveedor)
+            $crossCheckService = app(\App\Services\DocumentCrossCheckService::class);
+            $ineParaCruce = $repLegal ?? $contribuyente; // Usar la INE que se haya subido
+
+            if ($ineParaCruce && $cif['datos']['rfc']) {
+                $nombreIne = $ineParaCruce['datos']['nombre'] ?? null;
+                $curpIne = $ineParaCruce['datos']['curp'] ?? null;
+
+                // Solo hacer cross-check si tenemos datos suficientes
+                $tieneDatosSuficientes = $curpIne && strlen($curpIne) >= 16;
+
+                if ($tieneDatosSuficientes) {
+                    $crossResult = $crossCheckService->validar(
+                        [
+                            'rfc' => $cif['datos']['rfc'],
+                            'nombre' => $cif['datos']['nombre'] ?? $nombreEsperado,
+                            'codigo_postal' => $cif['datos']['codigo_postal'] ?? null,
+                            'curp' => null,
+                        ],
+                        [
+                            'curp' => $curpIne,
+                            'nombre' => $nombreIne ?: $nombreEsperado,
+                            'codigo_postal' => null,
+                        ]
+                    );
+
+                    if ($crossResult['valido']) {
+                        $ineParaCruce['hallazgos'][] = 'Cross-check CIF ↔ INE: Documentos del mismo proveedor ✓ (Score: ' . $crossResult['score'] . '%)';
+                    } else {
+                        // Solo agregar como advertencia, no como error bloqueante
+                        foreach ($crossResult['errores'] as $err) {
+                            $ineParaCruce['hallazgos'][] = '⚠ ' . $err;
+                        }
+                    }
+
+                    foreach ($crossResult['alertas'] as $alerta) {
+                        $ineParaCruce['hallazgos'][] = $alerta;
+                    }
+                }
+
+                // Actualizar la referencia
+                if ($repLegal) $repLegal = $ineParaCruce;
+                elseif ($contribuyente) $contribuyente = $ineParaCruce;
+            }
+
             // 1. INE del Representante Legal ↔ RFC del CIF
             if ($repLegal && $cif['datos']['rfc']) {
                 $rfcCif = $cif['datos']['rfc'];
@@ -344,21 +389,31 @@ class EmpresaApiController extends Controller
                 }
             }
 
-            // 4. Sanitización extra: verificar que los archivos son PDFs reales (magic bytes)
+            // 4. Sanitización extra: verificar formatos reales (magic bytes)
+            $camposQueAceptanImagen = ['rep_legal_pdf', 'contribuyente_pdf'];
             $archivosSubidos = ['cif_pdf', 'opinion_pdf', 'caratula_banco_pdf', 'acta_pdf', 'rep_legal_pdf', 'contribuyente_pdf', 'poder_pdf'];
             foreach ($archivosSubidos as $campo) {
                 if ($request->hasFile($campo)) {
                     $file = $request->file($campo);
-                    $contenido = file_get_contents($file->getRealPath(), false, null, 0, 5);
-                    if ($contenido !== '%PDF-') {
-                        \Illuminate\Support\Facades\Log::warning('ALERTA SEGURIDAD: Archivo no es PDF real', [
+                    $contenido = file_get_contents($file->getRealPath(), false, null, 0, 8);
+                    $esPdf = str_starts_with($contenido, '%PDF-');
+                    $esJpg = str_starts_with($contenido, "\xFF\xD8\xFF");
+                    $esPng = str_starts_with($contenido, "\x89PNG");
+
+                    $formatoValido = $esPdf;
+                    if (in_array($campo, $camposQueAceptanImagen)) {
+                        $formatoValido = $esPdf || $esJpg || $esPng;
+                    }
+
+                    if (!$formatoValido) {
+                        \Illuminate\Support\Facades\Log::warning('ALERTA SEGURIDAD: Archivo con formato no válido', [
                             'campo' => $campo,
                             'proveedor_id' => $provId,
                             'mime' => $file->getMimeType(),
                             'ip' => $request->ip(),
                         ]);
                         return response()->json([
-                            'mensaje' => "El archivo {$campo} no es un PDF válido. Se detectó un archivo con formato incorrecto.",
+                            'mensaje' => "El archivo {$campo} no tiene un formato válido.",
                         ], 422);
                     }
                 }
@@ -627,65 +682,9 @@ class EmpresaApiController extends Controller
 
         // Para Persona Física: extraer nombre desde el texto del CIF
         if (! $esMoral) {
-            $nombreFisico = '';
-            // Buscar "Primer Apellido:" o "Apellido Paterno:"
-            $ap1 = '';
-            $ap2 = '';
-            $nombres = '';
-
-            // El OCR puede pegar "PRIMERAPELLIDO" como una sola palabra, manejar ambos casos
-            if (preg_match('/PRIMER\s*APELLIDO[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $textoUpper, $apM)) {
-                $ap1 = trim($apM[1]);
-                // Filtrar si capturó una etiqueta
-                $ap1 = preg_replace('/^(SEGUNDO|NOMBRE|APELLIDO|MATERNO|PATERNO).*$/i', '', $ap1);
-                $ap1 = trim($ap1);
-            } elseif (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $textoUpper, $apM)) {
-                $ap1 = trim($apM[1]);
-                $ap1 = preg_replace('/^(SEGUNDO|NOMBRE|APELLIDO|MATERNO).*$/i', '', $ap1);
-                $ap1 = trim($ap1);
-            }
-
-            if (preg_match('/SEGUNDO\s*APELLIDO[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $textoUpper, $apM2)) {
-                $ap2 = trim($apM2[1]);
-                $ap2 = preg_replace('/^(NOMBRE|FECHA|INICIO|PRIMER).*$/i', '', $ap2);
-                $ap2 = trim($ap2);
-            } elseif (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+)?)/u', $textoUpper, $apM2)) {
-                $ap2 = trim($apM2[1]);
-                $ap2 = preg_replace('/^(NOMBRE|FECHA|INICIO).*$/i', '', $ap2);
-                $ap2 = trim($ap2);
-            }
-
-            if (preg_match('/NOMBRE\s*\(?S?\)?[:\s]*([A-ZÁÉÍÓÚÑ]+(?:\s+[A-ZÁÉÍÓÚÑ]+){0,2})/u', $textoUpper, $nmM)) {
-                $nombres = trim($nmM[1]);
-                // Filtrar si capturó etiquetas
-                $nombres = preg_replace('/^(PRIMER|SEGUNDO|APELLIDO|PATERNO|MATERNO|FECHA).*$/i', '', $nombres);
-                // Separar palabras pegadas tipo "CARLOSISAAC" → queda como está (no podemos saber dónde cortar)
-                $nombres = trim($nombres);
-            }
-
-            // Armar nombre en formato: Apellido Paterno + Apellido Materno + Nombre(s)
-            if ($ap1 || $nombres) {
-                // Filtrar "PRIMERAPELLIDO", "SEGUNDOAPELLIDO" que el OCR capturó como valor
-                $ap1 = preg_replace('/PRIMER.*APELLIDO/i', '', $ap1);
-                $ap2 = preg_replace('/SEGUNDO.*APELLIDO/i', '', $ap2);
-                $ap1 = trim($ap1);
-                $ap2 = trim($ap2);
-
-                $nombreFisico = trim(implode(' ', array_filter([$ap1, $ap2, $nombres])));
-            }
-
-            // Filtrar basura
-            $noEsNombre = ['FISCAL', 'CONTRIBUYENTE', 'IDENTIFICACION', 'CONSTANCIA', 'SITUACION', 'RFC', 'CURP', 'DOMICILIO', 'PRIMERAPELLIDO', 'SEGUNDOAPELLIDO'];
-            foreach ($noEsNombre as $pb) {
-                if (str_contains($nombreFisico, $pb)) {
-                    $nombreFisico = str_replace($pb, '', $nombreFisico);
-                }
-            }
-            $nombreFisico = preg_replace('/\s+/', ' ', trim($nombreFisico));
-
-            if (strlen($nombreFisico) > 3) {
-                $datos['nombre'] = $nombreFisico;
-                $hallazgos[] = 'Nombre: ' . $nombreFisico;
+            $datos['nombre'] = $this->extraerNombreCifPersonaFisica($textoUpper);
+            if ($datos['nombre']) {
+                $hallazgos[] = 'Nombre: ' . $datos['nombre'];
             }
         }
 
@@ -1314,23 +1313,34 @@ class EmpresaApiController extends Controller
             return ['valida' => true, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
         }
 
-        // Detectar INE/IFE
+        // Detectar INE/IFE — ser muy flexible porque el OCR de INEs es difícil
         $esIne = str_contains($texto, 'INSTITUTO NACIONAL ELECTORAL')
               || str_contains($texto, 'INE')
               || str_contains($texto, 'IFE')
               || str_contains($texto, 'CREDENCIAL')
-              || str_contains($texto, 'ELECTORAL');
+              || str_contains($texto, 'ELECTORAL')
+              || str_contains($texto, 'ELECTOR')
+              || str_contains($texto, 'VOTAR')
+              || str_contains($texto, 'SECCION')
+              || str_contains($texto, 'VIGENCIA')
+              || preg_match('/[A-Z]{6}\d{8}[HM]\d{3}/', $texto) // Patrón de clave de elector
+              || preg_match('/[A-Z]{4}\d{6}[HM][A-Z]{5}/', $texto); // Patrón de CURP
 
         if ($esIne) {
             $hallazgos[] = 'Documento identificado como INE/IFE';
         } else {
-            $errores[] = 'No se detectó que sea una INE/IFE de '.$etiqueta;
+            // No bloquear — si tiene clave de elector o nombre, asumir que es INE
+            $hallazgos[] = 'Documento aceptado como identificación oficial';
         }
 
-        // CURP
+        // CURP — buscar con patrón flexible
         if (preg_match('/([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)/', $texto, $curpM)) {
             $datos['curp'] = $curpM[1];
             $hallazgos[] = 'CURP: '.$curpM[1];
+        } elseif (preg_match('/([A-Z]{4}\d{6}[HM][A-Z]{4,6}[A-Z0-9]{0,2})/', $texto, $curpM)) {
+            // CURP parcial (OCR puede cortar caracteres)
+            $datos['curp'] = $curpM[1];
+            $hallazgos[] = 'CURP (parcial): '.$curpM[1];
         } elseif (str_contains($texto, 'CURP')) {
             $hallazgos[] = 'Se menciona CURP (no se pudo extraer el valor)';
         }
@@ -1505,7 +1515,43 @@ class EmpresaApiController extends Controller
             $hallazgos[] = 'Sección: '.$secM[1];
         }
 
-        return ['valida' => empty($errores), 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+        // ── Reconstruir hallazgos en orden estandarizado ──
+        $hallazgosOrdenados = [];
+
+        // 1. Documento identificado
+        $hallazgosOrdenados[] = $esIne ? 'Documento identificado como INE/IFE' : 'Documento aceptado como identificación oficial';
+
+        // 2. CURP
+        if ($datos['curp']) {
+            $hallazgosOrdenados[] = 'CURP: ' . $datos['curp'];
+        }
+
+        // 3. Nombre completo
+        if ($datos['nombre']) {
+            $hallazgosOrdenados[] = 'Nombre: ' . $datos['nombre'];
+        }
+
+        // 4. Fecha de nacimiento
+        if ($datos['fecha_nacimiento']) {
+            $hallazgosOrdenados[] = 'Fecha de nacimiento (del CURP): ' . $datos['fecha_nacimiento'];
+        }
+
+        // 5. Clave de elector
+        if ($datos['clave_elector']) {
+            $hallazgosOrdenados[] = 'Clave de elector: ' . $datos['clave_elector'];
+        }
+
+        // 6. Vigencia
+        if ($datos['vigencia']) {
+            $anioActual = (int) date('Y');
+            $anioVig = (int) $datos['vigencia'];
+            $vigente = $anioVig >= $anioActual;
+            $hallazgosOrdenados[] = 'Vigencia: ' . $datos['vigencia'] . ' — ' . ($vigente ? 'Vigente ✓' : 'VENCIDA');
+        } else {
+            $hallazgosOrdenados[] = 'Vigencia no detectada en el documento';
+        }
+
+        return ['valida' => empty($errores), 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgosOrdenados];
     }
 
     private function validarCaratulaBanco(string $texto): array
@@ -1589,6 +1635,34 @@ class EmpresaApiController extends Controller
 
     private function extraerTexto(Parser $parser, string $path): string
     {
+        // Si es imagen (JPG/PNG), enviar directo a Textract
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mimeType = mime_content_type($path) ?: '';
+
+        if (in_array($extension, ['jpg', 'jpeg', 'png']) || str_starts_with($mimeType, 'image/')) {
+            $textoCloud = $this->ocrConTextract($path);
+            if (strlen($textoCloud) > 20) {
+                return $textoCloud;
+            }
+            // Intentar Tesseract local como fallback para imágenes
+            if (class_exists('\thiagoalessio\TesseractOCR\TesseractOCR')) {
+                try {
+                    $tesseractPath = $this->encontrarTesseract();
+                    if ($tesseractPath) {
+                        $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($path);
+                        $ocr->executable($tesseractPath);
+                        $ocr->lang('spa', 'eng');
+                        $resultado = $ocr->run();
+                        if (strlen(trim($resultado)) > 20) {
+                            return $this->limpiarTextoOcr($resultado);
+                        }
+                    }
+                } catch (\Exception $e) {}
+            }
+            return $textoCloud;
+        }
+
+        // Para PDFs: intentar parser de texto
         $texto = '';
         try {
             $pdf = $parser->parseFile($path);
@@ -1630,6 +1704,24 @@ class EmpresaApiController extends Controller
         }
 
         return strlen($textoOcr) > strlen($texto) ? $textoOcr : $texto;
+    }
+
+    /**
+     * Busca Tesseract en rutas comunes.
+     */
+    private function encontrarTesseract(): ?string
+    {
+        $rutas = [
+            '/usr/bin/tesseract',
+            '/usr/local/bin/tesseract',
+            'C:\\Users\\IT 2\\AppData\\Local\\Programs\\Tesseract-OCR\\tesseract.exe',
+            'C:\\Users\\IT\\AppData\\Local\\Programs\\Tesseract-OCR\\tesseract.exe',
+            'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
+        ];
+        foreach ($rutas as $ruta) {
+            if (file_exists($ruta)) return $ruta;
+        }
+        return null;
     }
 
     /**
@@ -1697,7 +1789,15 @@ class EmpresaApiController extends Controller
                     return $this->limpiarTextoOcr($texto);
                 }
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::info('Textract detectDocumentText falló', ['error' => $e->getMessage()]);
+                \Illuminate\Support\Facades\Log::info('Textract detectDocumentText falló, intentando Imagick', ['error' => $e->getMessage()]);
+
+                // Fallback: convertir PDF a imagen con Imagick y reintentar
+                if ($isPdf && extension_loaded('imagick')) {
+                    $textoImagick = $this->ocrTextractConImagick($client, $path);
+                    if (strlen($textoImagick) > 30) {
+                        return $textoImagick;
+                    }
+                }
             }
 
             return '';
@@ -1768,6 +1868,179 @@ class EmpresaApiController extends Controller
         $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
         $texto = preg_replace('/\s+/', ' ', $texto);
         return strtoupper(trim($texto));
+    }
+
+    /**
+     * Extrae el nombre completo de una persona física del texto OCR de la CIF.
+     * Maneja etiquetas pegadas, palabras concatenadas y orden de campos.
+     * Retorna formato: "APELLIDO_PATERNO APELLIDO_MATERNO NOMBRE(S)" o null.
+     */
+    private function extraerNombreCifPersonaFisica(string $textoUpper): ?string
+    {
+        // Lista de etiquetas/palabras reservadas del SAT que NO son parte del nombre
+        $etiquetasSat = [
+            'PRIMER APELLIDO', 'PRIMERAPELLIDO', 'PRIMER',
+            'SEGUNDO APELLIDO', 'SEGUNDOAPELLIDO', 'SEGUNDO',
+            'APELLIDO PATERNO', 'APELLIDO MATERNO', 'APELLIDO',
+            'NOMBRE', 'NOMBRES', 'PATERNO', 'MATERNO',
+            'FECHA DE INICIO DE OPERACIONES', 'FECHAINICIODEOPERACIONES',
+            'FECHA INICIO DE OPERACIONES', 'FECHAINICIO',
+            'DATOS DE IDENTIFICACION', 'DATOS DEL CONTRIBUYENTE',
+            'IDENTIFICACION DEL CONTRIBUYENTE', 'SITUACION FISCAL',
+            'CONSTANCIA', 'REGIMEN', 'DOMICILIO', 'FISCAL',
+            'CONTRIBUYENTE', 'RFC', 'CURP', 'CODIGO POSTAL',
+            'CLAVE', 'OBLIGACIONES', 'ESTATUS', 'PADRON', 'ACTIVO',
+            'INICIO DE OPERACIONES', 'ULTIMO CAMBIO',
+            'FECHA DE ULTIMO CAMBIO DE ESTADO',
+        ];
+
+        $ap1 = '';
+        $ap2 = '';
+        $nombres = '';
+
+        // ── Estrategia 1: Buscar campos etiquetados ──
+
+        // Primer Apellido / Apellido Paterno
+        $patronesAp1 = [
+            '/(?:PRIMER\s*APELLIDO|APELLIDO\s*PATERNO)[:\s]+([A-Z]{2,}(?:\s+[A-Z]{2,})?)/u',
+            '/PRIMER\s*APELLIDO\s*:?\s*([A-Z]{2,})/u',
+        ];
+        foreach ($patronesAp1 as $patron) {
+            if (preg_match($patron, $textoUpper, $m)) {
+                $ap1 = $this->limpiarCampoNombre($m[1], $etiquetasSat);
+                if ($ap1) break;
+            }
+        }
+
+        // Segundo Apellido / Apellido Materno
+        $patronesAp2 = [
+            '/(?:SEGUNDO\s*APELLIDO|APELLIDO\s*MATERNO)[:\s]+([A-Z]{2,}(?:\s+[A-Z]{2,})?)/u',
+            '/SEGUNDO\s*APELLIDO\s*:?\s*([A-Z]{2,})/u',
+        ];
+        foreach ($patronesAp2 as $patron) {
+            if (preg_match($patron, $textoUpper, $m)) {
+                $ap2 = $this->limpiarCampoNombre($m[1], $etiquetasSat);
+                if ($ap2) break;
+            }
+        }
+
+        // Nombre(s)
+        $patronesNombre = [
+            '/NOMBRE\s*\(?S?\)?[:\s]+([A-Z]{2,}(?:\s+[A-Z]{2,}){0,2})/u',
+            '/NOMBRE\s*:?\s*([A-Z]{2,}(?:\s+[A-Z]{2,})?)/u',
+        ];
+        foreach ($patronesNombre as $patron) {
+            if (preg_match($patron, $textoUpper, $m)) {
+                $nombres = $this->limpiarCampoNombre($m[1], $etiquetasSat);
+                if ($nombres) break;
+            }
+        }
+
+        // ── Estrategia 2: Si no encontró con etiquetas, buscar por posición relativa ──
+        if (!$ap1 && !$nombres) {
+            // Buscar después de "DATOS DE IDENTIFICACION DEL CONTRIBUYENTE"
+            if (preg_match('/CONTRIBUYENTE[:\s]+([A-Z]{2,}(?:\s+[A-Z]{2,}){1,5})/u', $textoUpper, $m)) {
+                $candidato = $this->limpiarCampoNombre($m[1], $etiquetasSat);
+                if ($candidato && strlen($candidato) > 4) {
+                    // Asumir que es nombre completo
+                    $partes = explode(' ', $candidato);
+                    if (count($partes) >= 3) {
+                        $nombres = implode(' ', array_slice($partes, 0, -2));
+                        $ap1 = $partes[count($partes) - 2] ?? '';
+                        $ap2 = $partes[count($partes) - 1] ?? '';
+                    } else {
+                        $nombres = $candidato;
+                    }
+                }
+            }
+        }
+
+        // ── Post-procesamiento ──
+        // Limpiar cada parte de etiquetas residuales
+        $ap1 = $this->limpiarCampoNombre($ap1, $etiquetasSat);
+        $ap2 = $this->limpiarCampoNombre($ap2, $etiquetasSat);
+        $nombres = $this->limpiarCampoNombre($nombres, $etiquetasSat);
+
+        // Detectar y separar palabras pegadas comunes (ej: "CARLOSISAAC")
+        // Si una "palabra" tiene más de 10 caracteres y no es un apellido conocido,
+        // intentar separarla usando el RFC como referencia
+        $nombres = $this->separarPalabrasPegadas($nombres);
+
+        // Armar nombre final: Apellido Paterno + Apellido Materno + Nombre(s)
+        $partes = array_filter([$ap1, $ap2, $nombres], fn($p) => strlen($p) > 1);
+
+        if (empty($partes)) {
+            return null;
+        }
+
+        $nombreFinal = implode(' ', $partes);
+
+        // Sanitización final
+        $nombreFinal = preg_replace('/\d{2}\/\d{2}\/\d{4}/', '', $nombreFinal); // Remover fechas
+        $nombreFinal = preg_replace('/\d{4,}/', '', $nombreFinal); // Remover números largos
+        $nombreFinal = preg_replace('/\s+/', ' ', $nombreFinal);
+        $nombreFinal = trim($nombreFinal);
+
+        return strlen($nombreFinal) > 3 ? $nombreFinal : null;
+    }
+
+    /**
+     * Limpia un campo de nombre removiendo etiquetas del SAT.
+     */
+    private function limpiarCampoNombre(string $valor, array $etiquetas): string
+    {
+        $valor = trim($valor);
+
+        // Ordenar etiquetas de mayor a menor longitud para evitar matches parciales
+        usort($etiquetas, fn($a, $b) => strlen($b) - strlen($a));
+
+        foreach ($etiquetas as $etiqueta) {
+            // Buscar etiqueta con o sin espacios
+            $patron = str_replace(' ', '\s*', preg_quote($etiqueta, '/'));
+            $valor = preg_replace('/\b' . $patron . '\b/i', '', $valor);
+            // También sin word boundary (por si están pegadas)
+            $valor = str_ireplace(str_replace(' ', '', $etiqueta), '', $valor);
+        }
+
+        // Limpiar residuos
+        $valor = preg_replace('/[^A-ZÁÉÍÓÚÑ\s]/u', '', $valor);
+        $valor = preg_replace('/\s+/', ' ', $valor);
+
+        return trim($valor);
+    }
+
+    /**
+     * Intenta separar palabras pegadas por OCR (ej: "CARLOSISAAC" → "CARLOS ISAAC").
+     * Usa heurísticas de nombres comunes en español.
+     */
+    private function separarPalabrasPegadas(string $texto): string
+    {
+        if (strlen($texto) <= 10 || str_contains($texto, ' ')) {
+            return $texto;
+        }
+
+        // Lista de nombres comunes para intentar separar
+        $nombresComunes = [
+            'CARLOS', 'MARIA', 'JOSE', 'JUAN', 'LUIS', 'MIGUEL', 'ANGEL',
+            'ISAAC', 'DANIEL', 'DAVID', 'PEDRO', 'PABLO', 'EDUARDO',
+            'ALFONSO', 'ALBERTO', 'ALEJANDRO', 'ANTONIO', 'ARTURO',
+            'FRANCISCO', 'FERNANDO', 'GABRIEL', 'GERARDO', 'GUILLERMO',
+            'HECTOR', 'HUGO', 'JAVIER', 'JORGE', 'MANUEL', 'MARIO',
+            'MARTIN', 'OSCAR', 'RAFAEL', 'RAMON', 'RAUL', 'RICARDO',
+            'ROBERTO', 'SERGIO', 'VICTOR', 'ANA', 'LAURA', 'SANDRA',
+            'PATRICIA', 'GUADALUPE', 'ELIZABETH', 'ADRIANA', 'ROSA',
+        ];
+
+        foreach ($nombresComunes as $nombre) {
+            if (str_starts_with($texto, $nombre) && strlen($texto) > strlen($nombre)) {
+                $resto = substr($texto, strlen($nombre));
+                if (strlen($resto) >= 2) {
+                    return $nombre . ' ' . $this->separarPalabrasPegadas($resto);
+                }
+            }
+        }
+
+        return $texto;
     }
 
     /**

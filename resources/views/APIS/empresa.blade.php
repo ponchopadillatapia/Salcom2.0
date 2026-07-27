@@ -526,17 +526,17 @@
 
         <div class="doc-row" id="row_rep_legal" style="display:none;">
             <label class="doc-label" for="rep_legal"><i class="bi bi-person-badge"></i> ID Oficial del Representante Legal</label>
-            <p class="doc-hint">INE/IFE vigente del representante legal · PDF</p>
-            <input type="file" id="rep_legal" accept=".pdf" onchange="verArchivo('rep_legal')">
-            <label for="rep_legal" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
+            <p class="doc-hint">INE/IFE vigente del representante legal · PDF o imagen (JPG/PNG)</p>
+            <input type="file" id="rep_legal" accept=".pdf,.jpg,.jpeg,.png" onchange="verArchivo('rep_legal')">
+            <label for="rep_legal" class="file-btn"><i class="bi bi-upload"></i> Seleccionar archivo</label>
             <span id="rep_legal_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
         <div class="doc-row" id="row_contribuyente">
             <label class="doc-label" for="contribuyente"><i class="bi bi-person-check"></i> ID Oficial del Contribuyente</label>
-            <p class="doc-hint">INE/IFE vigente del contribuyente · PDF</p>
-            <input type="file" id="contribuyente" accept=".pdf" onchange="verArchivo('contribuyente')">
-            <label for="contribuyente" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
+            <p class="doc-hint">INE/IFE vigente del contribuyente · PDF o imagen (JPG/PNG)</p>
+            <input type="file" id="contribuyente" accept=".pdf,.jpg,.jpeg,.png" onchange="verArchivo('contribuyente')">
+            <label for="contribuyente" class="file-btn"><i class="bi bi-upload"></i> Seleccionar archivo</label>
             <span id="contribuyente_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
@@ -762,8 +762,9 @@ function verArchivo(campo) {
         return;
     }
 
-    if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
-        label.textContent = '⚠ Ese archivo no es un PDF. Selecciona un PDF válido.';
+    if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')
+        && !archivo.type.startsWith('image/') && !archivo.name.toLowerCase().match(/\.(jpg|jpeg|png)$/)) {
+        label.textContent = '⚠ Formato no válido. Acepta PDF, JPG o PNG.';
         label.className   = 'file-name pdf-err';
         row.classList.remove('has-file');
         row.classList.add('error-file');
@@ -842,14 +843,17 @@ function enviar() {
     }
 
     const requeridos = getCamposRequeridos();
+    const camposImagen = ['rep_legal', 'contribuyente']; // Estos aceptan imágenes
     for (const campo of requeridos) {
         const archivo = getArchivo(campo);
         if (!archivo) {
             mostrarError(`Falta el documento: ${nombresDocs[campo] || campo}`);
             return;
         }
-        if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
-            mostrarError(`El archivo de "${nombresDocs[campo] || campo}" no es un PDF válido. Solo se aceptan archivos PDF.`);
+        const esPdf = archivo.type === 'application/pdf' || archivo.name.toLowerCase().endsWith('.pdf');
+        const esImagen = archivo.type.startsWith('image/') || archivo.name.toLowerCase().match(/\.(jpg|jpeg|png)$/);
+        if (!esPdf && !(camposImagen.includes(campo) && esImagen)) {
+            mostrarError(`El archivo de "${nombresDocs[campo] || campo}" no es válido. Acepta PDF${camposImagen.includes(campo) ? ', JPG o PNG' : ''}.`);
             return;
         }
     }
@@ -857,8 +861,10 @@ function enviar() {
     for (const campo of Object.keys(campos)) {
         const archivo = getArchivo(campo);
         if (archivo) {
-            if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
-                mostrarError(`El archivo de "${nombresDocs[campo] || campo}" no es un PDF válido. Solo se aceptan archivos PDF.`);
+            const esPdf = archivo.type === 'application/pdf' || archivo.name.toLowerCase().endsWith('.pdf');
+            const esImagen = archivo.type.startsWith('image/') || archivo.name.toLowerCase().match(/\.(jpg|jpeg|png)$/);
+            if (!esPdf && !(camposImagen.includes(campo) && esImagen)) {
+                mostrarError(`El archivo de "${nombresDocs[campo] || campo}" no es válido.`);
                 return;
             }
         }
@@ -934,6 +940,7 @@ function enviar() {
         texto.textContent  = Object.keys(archivosValidos).length ? 'Revalidar documentos' : 'Validar Documentos';
 
         if (data.mensaje) { mostrarError(data.mensaje); return; }
+        if (!data.cif && !data.estado) { mostrarError('Respuesta inesperada del servidor. Intenta de nuevo.'); return; }
         renderResultado(data);
     })
     .catch(err => {
@@ -950,8 +957,8 @@ function renderResultado(data) {
 
     const estado = data.estado;
     const sem    = semaforos[estado] || semaforos.rojo;
-    const cif    = data.cif;
-    const rfc    = cif.datos.rfc || 'No detectado';
+    const cif    = data.cif || {};
+    const rfc    = (cif.datos && cif.datos.rfc) ? cif.datos.rfc : 'No detectado';
 
     const secciones = [
         { titulo: 'Constancia de Situación Fiscal (CIF)', doc: data.cif },
