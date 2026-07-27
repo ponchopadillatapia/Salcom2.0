@@ -124,6 +124,35 @@ XML;
         $this->assertTrue($result['datos']['tiene_concepto_flete']);
     }
 
+    public function test_marca_fletera_sin_concepto_en_xml_se_trata_como_no_fletera(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $service = new AltaFacturaValidationService;
+        // Régimen 626 (RESICO): sin retención requerida si NO es fletera
+        $xml = $this->cfdiXml([
+            'rfc_emisor' => 'CUPL6007224D1',
+            'regimen' => '626',
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'subtotal' => '24500.00',
+            'iva' => '3920.00',
+            'ret_iva' => '5223.40',
+            'ret_isr' => '612.50',
+            'total' => '25502.05',
+            'uuid' => 'E711959E-17B5-4BAD-A59D-AF17E53970E1',
+        ]);
+
+        // Marcó fletera en el formulario, pero el XML no trae flete
+        $result = $service->validar($xml, true, 'CUPL6007224D1');
+
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+        $this->assertFalse($result['datos']['tiene_concepto_flete']);
+        $this->assertFalse($result['datos']['es_fletera']);
+        $this->assertTrue($result['checklist']['retenciones']['ok']);
+        $this->assertStringContainsString('sin flete en XML', $result['checklist']['fletera']['label']);
+    }
+
     public function test_comision_persona_moral_no_exige_retencion(): void
     {
         config(['facturas.rfc_receptor' => '']);

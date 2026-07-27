@@ -833,13 +833,17 @@ class PortalProveedorController extends Controller
     {
         $request->validate([
             'archivo' => 'required|file|mimes:pdf|max:10240',
-            'archivo_xml' => 'required|file|mimes:xml|max:5120',
+            // extensions evita falsos negativos en Windows (MIME text/plain u octet-stream)
+            'archivo_xml' => 'required|file|extensions:xml|max:5120',
             'archivo_oc' => 'nullable|file|mimes:pdf|max:10240',
             'es_fletera' => 'required|in:0,1',
             'notas' => 'nullable|string|max:500',
         ], [
             'archivo.required' => 'La factura en PDF es obligatoria.',
+            'archivo.mimes' => 'La factura debe ser un archivo PDF.',
             'archivo_xml.required' => 'El XML de la factura es obligatorio.',
+            'archivo_xml.extensions' => 'El archivo CFDI debe ser un XML válido (.xml).',
+            'archivo_oc.mimes' => 'La orden de compra debe ser un archivo PDF.',
             'es_fletera.required' => 'Indica si la factura es de fletera o no.',
         ]);
 
@@ -861,7 +865,29 @@ class PortalProveedorController extends Controller
             ]);
         }
 
+        if ($xmlFile->getSize() < 1) {
+            return back()->withInput()->with('fiscal_resultado', [
+                'aprobado' => false,
+                'mensaje' => 'La factura fue rechazada por validación fiscal',
+                'errores' => [
+                    'El archivo XML está vacío (0 bytes). Descarga de nuevo el CFDI desde el portal del emisor o el SAT; el PDF solo no sirve para validar.',
+                ],
+                'checklist' => [],
+            ]);
+        }
+
         $xmlContent = file_get_contents($xmlFile->getRealPath());
+        if ($xmlContent === false || trim($xmlContent) === '' || ! str_contains($xmlContent, '<')) {
+            return back()->withInput()->with('fiscal_resultado', [
+                'aprobado' => false,
+                'mensaje' => 'La factura fue rechazada por validación fiscal',
+                'errores' => [
+                    'El archivo XML no contiene un CFDI legible. Verifica que sea el XML timbrado (no un archivo vacío ni un PDF renombrado).',
+                ],
+                'checklist' => [],
+            ]);
+        }
+
         $esFletera = $request->input('es_fletera') === '1';
         $rfcProveedor = $this->rfcProveedorSesion($proveedor);
 

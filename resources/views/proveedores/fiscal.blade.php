@@ -63,9 +63,14 @@
 
     .form-row { display: grid; gap: 14px; margin-bottom: 16px; }
     .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
-    .form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .form-row.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
-    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        min-width: 0;
+    }
     .form-group label { font-size: 12px; font-weight: 600; color: var(--gray-muted); }
     .form-group label .req { color: var(--red); }
     .form-group input[type="text"] {
@@ -92,16 +97,20 @@
         border: 1.5px dashed var(--border);
         border-radius: 12px;
         background: var(--gray-soft);
-        padding: 22px 16px;
+        padding: 18px 12px;
         text-align: center;
         cursor: pointer;
         transition: var(--transition);
-        min-height: 110px;
+        min-height: 118px;
+        height: 100%;
+        width: 100%;
+        box-sizing: border-box;
+        overflow: hidden;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 6px;
+        gap: 4px;
     }
     .dropzone:hover,
     .dropzone.dragover {
@@ -127,20 +136,33 @@
         background: var(--white);
         display: flex; align-items: center; justify-content: center;
         box-shadow: var(--shadow-sm);
-        margin-bottom: 4px;
+        margin-bottom: 2px;
+        flex-shrink: 0;
     }
-    .dz-title { font-size: 13px; font-weight: 700; color: var(--gray-text); }
-    .dz-sub { font-size: 11px; color: var(--gray-muted); }
+    .dz-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--gray-text);
+        flex-shrink: 0;
+    }
+    .dz-sub {
+        font-size: 11px;
+        color: var(--gray-muted);
+        flex-shrink: 0;
+    }
     .dz-file {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
         color: var(--purple);
         margin-top: 2px;
+        width: 100%;
         max-width: 100%;
+        min-width: 0;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
-        padding: 0 8px;
+        padding: 0 4px;
+        box-sizing: border-box;
     }
 
     /* Toggle fletera */
@@ -596,7 +618,19 @@
             dz.classList.add('has-file');
             nameEl.hidden = false;
             nameEl.textContent = file.name;
-            if (subEl) subEl.textContent = (file.size / 1024).toFixed(0) + ' KB';
+            nameEl.title = file.name;
+            if (subEl) {
+                if (file.size < 1) {
+                    subEl.textContent = 'Vacío (0 B) — no válido';
+                    subEl.style.color = '#dc2626';
+                } else {
+                    subEl.style.color = '';
+                    var kb = file.size / 1024;
+                    subEl.textContent = kb < 1
+                        ? Math.max(file.size, 0) + ' B'
+                        : (kb < 10 ? kb.toFixed(1) : kb.toFixed(0)) + ' KB';
+                }
+            }
         }
 
         input.addEventListener('change', function () {

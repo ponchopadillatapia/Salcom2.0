@@ -164,15 +164,21 @@ class AltaFacturaValidationService
         // Régimen
         $this->validarRegimen($datos, $errores, $checklist);
 
-        // Fletera (indicador del formulario) vs concepto flete en XML
-        $checklist['fletera']['ok'] = true;
+        // Fletera: el XML manda. Si marcaron Sí pero no hay flete en el CFDI, se trata como No.
         if ($esFletera && ! $datos['tiene_concepto_flete']) {
-            $advertencias[] = 'Marcó fletera, pero en el XML no se detectó clave/descripción de flete. Se validará con reglas de fletera de todos modos.';
-            $checklist['fletera']['label'] = 'Marcada como fletera (sin clave flete en XML)';
+            $esFletera = false;
+            $datos['es_fletera'] = false;
+            $advertencias[] = 'Marcó fletera, pero el XML no trae clave/descripción de flete. Se validó como no fletera (según régimen).';
+            $checklist['fletera']['ok'] = true;
+            $checklist['fletera']['label'] = 'No es fletera (corregido: sin flete en XML)';
         } elseif (! $esFletera && $datos['tiene_concepto_flete']) {
-            $advertencias[] = 'El XML trae concepto de flete: la retención de IVA aplica aunque no haya marcado fletera.';
+            $esFletera = true;
+            $datos['es_fletera'] = true;
+            $advertencias[] = 'El XML trae concepto de flete: se aplican reglas de fletera aunque no lo haya marcado.';
+            $checklist['fletera']['ok'] = true;
             $checklist['fletera']['label'] = 'Concepto flete detectado en XML';
         } else {
+            $checklist['fletera']['ok'] = true;
             $checklist['fletera']['label'] = $esFletera ? 'Marcada como fletera' : 'No es fletera';
         }
 
