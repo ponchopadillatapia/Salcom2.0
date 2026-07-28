@@ -262,10 +262,14 @@ class EmpresaApiController extends Controller
                     if ($crossResult['valido']) {
                         $ineParaCruce['hallazgos'][] = 'Cross-check CIF ↔ INE: Documentos del mismo proveedor ✓ (Score: ' . $crossResult['score'] . '%)';
                     } else {
-                        // Solo agregar como advertencia, no como error bloqueante
+                        // RFC no coincide = BLOQUEAR — es documento de otra persona
                         foreach ($crossResult['errores'] as $err) {
-                            $ineParaCruce['hallazgos'][] = '⚠ ' . $err;
+                            // Solo mostrar errores de RFC, no de nombre
+                            if (!str_contains($err, 'Nombre NO coincide')) {
+                                $ineParaCruce['errores'][] = '⚠ ' . $err;
+                            }
                         }
+                        $ineParaCruce['valida'] = false;
                     }
 
                     foreach ($crossResult['alertas'] as $alerta) {

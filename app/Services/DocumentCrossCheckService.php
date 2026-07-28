@@ -53,7 +53,7 @@ class DocumentCrossCheckService
         $checks['codigo_postal'] = $checkCp;
 
         // ─── Calcular resultado final ───
-        $criticos = ['rfc_curp', 'nombre'];
+        $criticos = ['rfc_curp']; // Solo RFC↔CURP es bloqueante
         $todoCriticoOk = true;
         foreach ($criticos as $campo) {
             if (!$checks[$campo]['coincide']) {
