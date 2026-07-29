@@ -5,7 +5,7 @@
 @section('hero')
 <div class="hero-band">
     <h1>Alta Facturas</h1>
-    <p>PDF + XML · validación de régimen, retenciones y fletera</p>
+    <p>PDF + XML · valida primero, luego sube · OC solo para ME/MP</p>
 </div>
 @endsection
 
@@ -230,7 +230,29 @@
         transition: var(--transition);
     }
     .btn-submit:hover { background: var(--purple-dark); transform: translateY(-1px); }
-    .btn-submit:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+    .btn-submit:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+    .btn-outline {
+        padding: 10px 24px;
+        background: var(--white);
+        color: var(--purple);
+        border: 1.5px solid var(--purple);
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        font-family: inherit;
+        transition: var(--transition);
+    }
+    .btn-outline:hover { background: var(--purple-light); }
+    .btn-outline:disabled { opacity: .45; cursor: not-allowed; }
+    .oc-wrap { display: none; }
+    .oc-wrap.is-visible { display: flex; flex-direction: column; gap: 6px; }
+    .step-hint {
+        font-size: 12px;
+        color: var(--gray-muted);
+        margin-right: auto;
+        align-self: center;
+    }
 
     .result-box {
         margin-top: 16px;
@@ -394,9 +416,17 @@
 </div>
 @endif
 
+@php
+    $puedeSubir = $puedeSubir ?? false;
+    $resTitulo = 'Factura rechazada';
+    if (!empty($res['aprobado'])) {
+        $resTitulo = !empty($res['registrada']) ? 'Factura registrada' : 'Validación correcta';
+    }
+@endphp
+
 @if($res)
 <div class="result-box {{ $res['aprobado'] ? 'ok' : 'fail' }}" style="margin-bottom:20px;margin-top:0;">
-    <div class="result-title">{{ $res['aprobado'] ? 'Factura registrada' : 'Factura rechazada' }}</div>
+    <div class="result-title">{{ $resTitulo }}</div>
     <div class="result-msg">{{ $res['mensaje'] ?? '' }}</div>
 
     @if(!empty($res['checklist']))
@@ -458,19 +488,19 @@
 </div>
 @endif
 
-<form method="POST" action="{{ route('proveedores.fiscal.subir') }}" enctype="multipart/form-data" id="formFiscal">
+<form method="POST" action="{{ route('proveedores.fiscal.validar') }}" enctype="multipart/form-data" id="formFiscal">
     @csrf
 
     <div class="id-card">
         <h3>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-            Subir factura
+            Alta de factura
         </h3>
-        <p class="card-desc">Adjunta el XML y el PDF. El sistema valida régimen y retenciones antes de registrar.</p>
+        <p class="card-desc">Adjunta PDF + XML, valida y luego sube. La OC solo aplica si es producto ME o MP.</p>
 
         <div class="section-label">Archivos</div>
 
-        <div class="form-row cols-3">
+        <div class="form-row cols-3" id="archivosRow">
             <div class="form-group">
                 <label>Factura PDF <span class="req">*</span></label>
                 <div class="dropzone" data-dz="archivo">
@@ -495,21 +525,38 @@
                     <div class="dz-file" hidden></div>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Orden de compra</label>
+            <div class="form-group oc-wrap" id="ocWrap">
+                <label>Orden de compra <span class="req">*</span></label>
                 <div class="dropzone" data-dz="archivo_oc">
                     <input type="file" name="archivo_oc" id="archivo_oc" accept=".pdf,application/pdf">
                     <div class="dz-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gray-muted)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     </div>
-                    <div class="dz-title">OC (opcional)</div>
-                    <div class="dz-sub">PDF</div>
+                    <div class="dz-title">OC</div>
+                    <div class="dz-sub">Obligatoria ME/MP</div>
                     <div class="dz-file" hidden></div>
                 </div>
             </div>
         </div>
 
         <div class="section-label">Datos</div>
+
+        <div class="toggle-row">
+            <div class="toggle-info">
+                <div class="ti-title">¿Es producto ME o MP?</div>
+                <div class="ti-sub">Si es Material Empaque (ME) o Materia Prima (MP), se pide la OC</div>
+            </div>
+            <div class="seg" id="meMpSeg">
+                <label>
+                    <input type="radio" name="es_me_mp" value="0" {{ old('es_me_mp', '0') === '0' ? 'checked' : '' }} required>
+                    <span>No</span>
+                </label>
+                <label>
+                    <input type="radio" name="es_me_mp" value="1" {{ old('es_me_mp') === '1' ? 'checked' : '' }}>
+                    <span>Sí</span>
+                </label>
+            </div>
+        </div>
 
         <div class="toggle-row">
             <div class="toggle-info">
@@ -528,13 +575,16 @@
             </div>
         </div>
 
-        <div class="form-group" style="margin-bottom:0;">
-            <label>Notas</label>
-            <input type="text" name="notas" value="{{ old('notas') }}" placeholder="Ej. Factura OC #10045" maxlength="500">
-        </div>
-
         <div class="form-actions">
-            <button type="submit" class="btn-submit" id="btnSubmit">Subir y validar</button>
+            <span class="step-hint" id="stepHint">
+                @if($puedeSubir)
+                    Validación OK — ya puedes subir.
+                @else
+                    1) Validar archivos · 2) Subir si todo está correcto
+                @endif
+            </span>
+            <button type="submit" class="btn-outline" id="btnValidar" formaction="{{ route('proveedores.fiscal.validar') }}">Validar</button>
+            <button type="submit" class="btn-submit" id="btnSubir" formaction="{{ route('proveedores.fiscal.subir') }}" formnovalidate {{ $puedeSubir ? '' : 'disabled' }}>Subir</button>
         </div>
     </div>
 </form>
@@ -542,10 +592,10 @@
 <div class="card">
     <div class="card-head">
         <h3>Facturas recientes</h3>
-        <span style="font-size:12px;color:var(--gray-muted);">{{ $facturas->count() }} registros</span>
+        <span style="font-size:12px;color:var(--gray-muted);">{{ $facturas->count() }} subidas</span>
     </div>
     @if($facturas->isEmpty())
-        <div class="empty-state">Aún no has dado de alta facturas.</div>
+        <div class="empty-state">Aún no has subido facturas.</div>
     @else
         <div style="overflow-x:auto;">
             <table class="tabla">
@@ -607,10 +657,57 @@
 @push('scripts')
 <script>
 (function () {
+    var form = document.getElementById('formFiscal');
+    var btnValidar = document.getElementById('btnValidar');
+    var btnSubir = document.getElementById('btnSubir');
+    var ocWrap = document.getElementById('ocWrap');
+    var ocInput = document.getElementById('archivo_oc');
+    var archivosRow = document.getElementById('archivosRow');
+    var stepHint = document.getElementById('stepHint');
+    var puedeSubir = {{ $puedeSubir ? 'true' : 'false' }};
+
+    function toggleOc() {
+        var checked = document.querySelector('input[name="es_me_mp"]:checked');
+        var needsOc = checked && checked.value === '1';
+        if (!ocWrap) return;
+        ocWrap.classList.toggle('is-visible', needsOc);
+        if (ocInput) {
+            ocInput.required = !!needsOc;
+            if (!needsOc) {
+                ocInput.value = '';
+                var dz = ocWrap.querySelector('.dropzone');
+                if (dz) {
+                    dz.classList.remove('has-file');
+                    var fileEl = dz.querySelector('.dz-file');
+                    var subEl = dz.querySelector('.dz-sub');
+                    if (fileEl) { fileEl.hidden = true; fileEl.textContent = ''; }
+                    if (subEl) { subEl.textContent = 'Obligatoria ME/MP'; subEl.style.color = ''; }
+                }
+            }
+        }
+        if (archivosRow) {
+            archivosRow.classList.toggle('cols-3', needsOc);
+            archivosRow.classList.toggle('cols-2', !needsOc);
+        }
+    }
+    document.querySelectorAll('input[name="es_me_mp"]').forEach(function (r) {
+        r.addEventListener('change', function () {
+            toggleOc();
+            invalidatePending();
+        });
+    });
+    toggleOc();
+
+    function invalidatePending() {
+        if (!puedeSubir || !btnSubir) return;
+        puedeSubir = false;
+        btnSubir.disabled = true;
+        if (stepHint) stepHint.textContent = 'Cambiaste datos — vuelve a validar antes de subir.';
+    }
+
     document.querySelectorAll('.dropzone').forEach(function (dz) {
         var input = dz.querySelector('input[type="file"]');
         var nameEl = dz.querySelector('.dz-file');
-        var titleEl = dz.querySelector('.dz-title');
         var subEl = dz.querySelector('.dz-sub');
 
         function showFile(file) {
@@ -631,6 +728,7 @@
                         : (kb < 10 ? kb.toFixed(1) : kb.toFixed(0)) + ' KB';
                 }
             }
+            invalidatePending();
         }
 
         input.addEventListener('change', function () {
@@ -666,16 +764,28 @@
             : 'Flete = IVA siempre · Comisión = solo persona física · resto por régimen';
     }
     document.querySelectorAll('input[name="es_fletera"]').forEach(function (r) {
-        r.addEventListener('change', updateHint);
+        r.addEventListener('change', function () {
+            updateHint();
+            invalidatePending();
+        });
     });
     updateHint();
 
-    var form = document.getElementById('formFiscal');
-    var btn = document.getElementById('btnSubmit');
-    if (form && btn) {
-        form.addEventListener('submit', function () {
-            btn.disabled = true;
-            btn.textContent = 'Validando…';
+    if (form && btnValidar) {
+        form.addEventListener('submit', function (e) {
+            var submitter = e.submitter || document.activeElement;
+            if (submitter === btnSubir) {
+                if (!puedeSubir) {
+                    e.preventDefault();
+                    return;
+                }
+                btnSubir.disabled = true;
+                btnSubir.textContent = 'Subiendo…';
+                return;
+            }
+            btnValidar.disabled = true;
+            btnValidar.textContent = 'Validando…';
+            if (btnSubir) btnSubir.disabled = true;
         });
     }
 })();

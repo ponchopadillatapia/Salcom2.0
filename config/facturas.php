@@ -7,7 +7,7 @@ return [
     | RFC receptor (Industrias Salcom)
     |--------------------------------------------------------------------------
     */
-    'rfc_receptor' => env('SALCOM_RFC', ''),
+    'rfc_receptor' => env('SALCOM_RFC', 'ISA951017A10'),
 
     'razon_social_receptor' => env('SALCOM_RAZON_SOCIAL', 'INDUSTRIAS SALCOM'),
 
