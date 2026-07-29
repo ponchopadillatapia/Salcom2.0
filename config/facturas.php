@@ -63,6 +63,35 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Catálogos SAT usados al confirmar pago (admin)
+    |--------------------------------------------------------------------------
+    */
+    'formas_pago' => [
+        '01' => '01 — Efectivo',
+        '02' => '02 — Cheque nominativo',
+        '03' => '03 — Transferencia electrónica de fondos',
+        '04' => '04 — Tarjeta de crédito',
+        '28' => '28 — Tarjeta de débito',
+        '99' => '99 — Por definir',
+    ],
+
+    'metodos_pago' => [
+        'PUE' => 'PUE — Pago en una sola exhibición',
+        'PPD' => 'PPD — Pago en parcialidades o diferido',
+    ],
+
+    'usos_cfdi' => [
+        'G01' => 'G01 — Adquisición de mercancías',
+        'G02' => 'G02 — Devoluciones, descuentos o bonificaciones',
+        'G03' => 'G03 — Gastos en general',
+        'I01' => 'I01 — Construcciones',
+        'I08' => 'I08 — Otra maquinaria y equipo',
+        'P01' => 'P01 — Por definir',
+        'S01' => 'S01 — Sin efectos fiscales',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Detección de conceptos (ClaveProdServ SAT / palabras en descripción)
     |--------------------------------------------------------------------------
     | Fletes: retención de IVA siempre, sin importar el régimen.

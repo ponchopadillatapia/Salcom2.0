@@ -58,6 +58,9 @@
         }
         .nav-right { display: flex; align-items: center; gap: 16px; }
         .nav-user { font-size: 13px; color: var(--gray-text); font-weight: 600; letter-spacing: -0.2px; }
+        .sb-badge{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+        .sidebar.collapsed .sb-badge{display:none}
+        .sidebar.collapsed:hover .sb-badge{display:inline-flex}
         .btn-logout {
             font-size: 12px;
             color: var(--gray-muted);
@@ -229,6 +232,12 @@
         <span>Panel Administrativo</span>
     </div>
     <div class="nav-right">
+        @php
+            $adminPagosSinLeer = \App\Models\Alerta::where('destinatario_tipo', 'admin')
+                ->where('tipo', 'factura_pago_pendiente')
+                ->whereNotIn('estatus', ['leida', 'accionada'])
+                ->count();
+        @endphp
         <a href="{{ route('admin.perfil') }}" class="nav-user" title="{{ session('admin_usuario', '') }}" style="text-decoration:none;color:inherit;">{{ session('admin_nombre', 'Usuario') }}</a>
         <form method="POST" action="/logout-admin" style="margin:0;">
             @csrf
@@ -275,6 +284,9 @@
             <a href="{{ route('admin.pagos') }}" class="sb-link {{ request()->is('admin/pagos*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
                 <span class="sb-text">Pagos</span>
+                @if(($adminPagosSinLeer ?? 0) > 0)
+                    <span class="sb-badge">{{ $adminPagosSinLeer > 9 ? '9+' : $adminPagosSinLeer }}</span>
+                @endif
             </a>
             <a href="{{ route('admin.proveedores') }}" class="sb-link {{ request()->is('admin/proveedores') || request()->is('admin/proveedores/*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>

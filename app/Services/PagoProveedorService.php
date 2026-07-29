@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Alerta;
 use App\Models\Factura;
 use App\Models\PagoProveedor;
 use App\Models\PagoProveedorFactura;
@@ -132,10 +133,7 @@ class PagoProveedorService
         ?string $notas,
         ?int $adminId
     ): PagoProveedor {
-        $exp = $this->evaluarExpediente($proveedor);
-        if (! $exp['ok']) {
-            throw new InvalidArgumentException('No se puede armar el pago: '.implode('; ', $exp['motivos']));
-        }
+        // El expediente bloquea solo al confirmar; el borrador se puede armar para revisar.
 
         $facturaIds = array_values(array_unique(array_map('intval', $facturaIds)));
         if ($facturaIds === []) {
@@ -218,21 +216,34 @@ class PagoProveedorService
         });
     }
 
-    public function confirmar(PagoProveedor $pago, ?int $adminId): PagoProveedor
-    {
+    public function confirmar(
+        PagoProveedor $pago,
+        ?int $adminId,
+        array $comprobantes = [],
+        ?string $fechaPago = null,
+        array $datosConfirmacion = []
+    ): PagoProveedor {
         if (! $pago->esBorrador()) {
-            throw new InvalidArgumentException('Solo se pueden confirmar lotes en borrador.');
+            throw new InvalidArgumentException('Solo se pueden confirmar pagos en borrador.');
         }
 
-        $pago->load('lineas.factura', 'proveedor');
-        if ($pago->proveedor) {
-            $exp = $this->evaluarExpediente($pago->proveedor);
-            if (! $exp['ok']) {
-                throw new InvalidArgumentException('Expediente bloquea la confirmación: '.implode('; ', $exp['motivos']));
+        if ($comprobantes === []) {
+            throw new InvalidArgumentException('Sube al menos un documento para confirmar el pago.');
+        }
+
+        foreach (['forma_pago', 'metodo_pago', 'uso_cfdi', 'regimen', 'producto'] as $campo) {
+            if (trim((string) ($datosConfirmacion[$campo] ?? '')) === '') {
+                throw new InvalidArgumentException('Completa forma de pago, método de pago, uso CFDI, régimen y producto.');
             }
         }
 
-        return DB::transaction(function () use ($pago, $adminId) {
+        $pago->load('lineas.factura', 'proveedor');
+
+        return DB::transaction(function () use ($pago, $adminId, $comprobantes, $fechaPago, $datosConfirmacion) {
+            if ($fechaPago) {
+                $pago->fecha_pago = $fechaPago;
+            }
+
             $nuevoEstatusFactura = $pago->fecha_pago ? 'pagada' : 'programada';
 
             foreach ($pago->lineas as $linea) {
@@ -245,8 +256,11 @@ class PagoProveedorService
 
             $pago->update([
                 'estatus' => 'confirmado',
+                'comprobantes' => $comprobantes,
+                'datos_confirmacion' => $datosConfirmacion,
                 'confirmado_por' => $adminId,
                 'confirmado_at' => now(),
+                'fecha_pago' => $pago->fecha_pago,
             ]);
 
             return $pago->fresh(['lineas', 'proveedor']);
@@ -273,10 +287,17 @@ class PagoProveedorService
             ->where('estatus', 'pendiente')
             ->whereNotNull('codigo_proveedor')
             ->groupBy('codigo_proveedor')
+            ->orderByDesc('num_facturas')
             ->orderByDesc('monto_total')
             ->get()
             ->map(function ($row) {
                 $prov = ProveedorUser::whereCodigo('=', $row->codigo_proveedor)->first();
+                $notifSinLeer = Alerta::query()
+                    ->where('destinatario_tipo', 'admin')
+                    ->where('tipo', 'factura_pago_pendiente')
+                    ->where('datos->codigo_proveedor', $row->codigo_proveedor)
+                    ->whereNotIn('estatus', ['leida', 'accionada'])
+                    ->count();
 
                 return (object) [
                     'codigo' => $row->codigo_proveedor,
@@ -285,6 +306,7 @@ class PagoProveedorService
                     'num_facturas' => (int) $row->num_facturas,
                     'monto_total' => (float) $row->monto_total,
                     'expediente' => $prov ? $this->evaluarExpediente($prov) : ['ok' => false, 'motivos' => ['Proveedor no encontrado']],
+                    'notif_sin_leer' => $notifSinLeer,
                 ];
             });
     }

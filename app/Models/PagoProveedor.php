@@ -17,6 +17,8 @@ class PagoProveedor extends Model
         'estatus',
         'fecha_pago',
         'notas',
+        'comprobantes',
+        'datos_confirmacion',
         'num_facturas',
         'monto_subtotal',
         'monto_iva',
@@ -32,6 +34,8 @@ class PagoProveedor extends Model
     protected $casts = [
         'fecha_pago' => 'date',
         'confirmado_at' => 'datetime',
+        'comprobantes' => 'array',
+        'datos_confirmacion' => 'array',
         'monto_subtotal' => 'decimal:2',
         'monto_iva' => 'decimal:2',
         'monto_retencion_iva' => 'decimal:2',

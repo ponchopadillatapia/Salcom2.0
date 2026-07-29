@@ -956,6 +956,26 @@ class PortalProveedorController extends Controller
                 ],
             ]);
 
+            try {
+                $nombreProv = $proveedor->nombre ?: $codigoProv;
+                $totalFmt = number_format((float) ($datos['total'] ?: ($datos['subtotal'] + $datos['iva'])), 2);
+                app(\App\Services\AlertEngineService::class)->crearAlerta([
+                    'tipo' => 'factura_pago_pendiente',
+                    'modulo' => 'pagos',
+                    'destinatario_tipo' => 'admin',
+                    'destinatario_id' => 1,
+                    'titulo' => "Nueva factura de {$nombreProv}",
+                    'contenido' => "Folio {$folioCfdi} · \${$totalFmt} · pendiente de pago",
+                    'datos' => [
+                        'codigo_proveedor' => (string) $codigoProv,
+                        'folio_cfdi' => $folioCfdi,
+                    ],
+                    'nivel' => 'info',
+                ]);
+            } catch (\Throwable $e) {
+                // No bloquear el alta de factura si falla la notificación
+            }
+
             return back()->with('fiscal_resultado', [
                 'aprobado' => true,
                 'mensaje' => 'Factura validada y registrada correctamente. Queda pendiente de revisión contable.',

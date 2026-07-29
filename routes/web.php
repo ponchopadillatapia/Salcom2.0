@@ -209,6 +209,8 @@ Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel
 use App\Http\Controllers\AdminPagosController;
 
 Route::get('/admin/pagos', [AdminPagosController::class, 'index'])->name('admin.pagos')->middleware('auth.admin');
+Route::get('/admin/pagos/alertas', [AdminPagosController::class, 'alertasJson'])->name('admin.pagos.alertas')->middleware('auth.admin');
+Route::post('/admin/pagos/alertas/{alerta}/leer', [AdminPagosController::class, 'marcarAlertaLeida'])->name('admin.pagos.alertas.leer')->middleware('auth.admin');
 Route::get('/admin/pagos/proveedor/{codigo}', [AdminPagosController::class, 'proveedor'])->name('admin.pagos.proveedor')->middleware('auth.admin');
 Route::post('/admin/pagos', [AdminPagosController::class, 'store'])->name('admin.pagos.store')->middleware('auth.admin');
 Route::get('/admin/pagos/{pago}', [AdminPagosController::class, 'show'])->name('admin.pagos.show')->middleware('auth.admin');
