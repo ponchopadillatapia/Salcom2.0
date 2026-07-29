@@ -65,6 +65,7 @@
 
     .badge-est{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
     .badge-est.pendiente{background:var(--amber-bg);color:var(--amber)}
+    .badge-est.programada{background:var(--purple-subtle);color:var(--purple)}
     .badge-est.pagada{background:var(--green-bg);color:var(--green)}
     .badge-est.cancelada{background:var(--red-bg);color:var(--red)}
     .badge-vencida{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--red-bg);color:var(--red)}

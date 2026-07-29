@@ -206,6 +206,17 @@ Route::get('/admin/migracion-masiva/template', [AltaProductoController::class, '
 
 Route::get('/admin/facturas', [AdminPanelController::class, 'facturas'])->name('admin.facturas')->middleware('auth.admin');
 Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel'])->name('admin.facturas.excel')->middleware('auth.admin');
+
+use App\Http\Controllers\AdminPagosController;
+
+Route::get('/admin/pagos', [AdminPagosController::class, 'index'])->name('admin.pagos')->middleware('auth.admin');
+Route::get('/admin/pagos/proveedor/{codigo}', [AdminPagosController::class, 'proveedor'])->name('admin.pagos.proveedor')->middleware('auth.admin');
+Route::post('/admin/pagos', [AdminPagosController::class, 'store'])->name('admin.pagos.store')->middleware('auth.admin');
+Route::get('/admin/pagos/{pago}', [AdminPagosController::class, 'show'])->name('admin.pagos.show')->middleware('auth.admin');
+Route::post('/admin/pagos/{pago}/confirmar', [AdminPagosController::class, 'confirmar'])->name('admin.pagos.confirmar')->middleware('auth.admin');
+Route::post('/admin/pagos/{pago}/cancelar', [AdminPagosController::class, 'cancelar'])->name('admin.pagos.cancelar')->middleware('auth.admin');
+Route::get('/admin/pagos/{pago}/excel', [AdminPagosController::class, 'excel'])->name('admin.pagos.excel')->middleware('auth.admin');
+
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal', [AdminPanelController::class, 'expedienteFiscal'])->name('admin.expediente-fiscal')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal/proveedor/{proveedor}', [AdminPanelController::class, 'expedienteFiscalVer'])->name('admin.expediente-fiscal.ver')->middleware('auth.admin');
