@@ -232,7 +232,9 @@ class AuthProveedorController extends Controller
 
     public function mostrarActualizacion()
     {
-        return view('proveedores.actualizacion');
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+
+        return view('proveedores.actualizacion', compact('proveedor'));
     }
 
     public function guardarActualizacion(Request $request)
@@ -249,13 +251,24 @@ class AuthProveedorController extends Controller
 
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         if ($proveedor) {
-            $proveedor->update(['nombre' => $request->nombre, 'tipo_persona' => $request->tipo_persona, 'telefono' => $request->telefono, 'correo' => $request->correo]);
+            $proveedor->update([
+                'nombre' => $request->nombre,
+                'tipo_persona' => $request->tipo_persona,
+                'telefono' => $request->telefono,
+                'correo' => $request->correo,
+            ]);
             if ($request->password) {
                 $proveedor->update(['password' => bcrypt($request->password)]);
             }
+
+            // Mantener el header / sesión alineados con el perfil
+            session([
+                'proveedor_nombre' => $proveedor->nombre,
+                'proveedor_correo' => $proveedor->correo,
+            ]);
         }
 
-        return redirect('/empresa')->with('mensaje', 'Datos actualizados, ahora sube tus documentos fiscales');
+        return redirect()->route('proveedores.perfil')->with('mensaje', 'Datos actualizados correctamente.');
     }
 
     public function cerrarSesion()

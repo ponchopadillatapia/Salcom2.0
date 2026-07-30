@@ -42,18 +42,19 @@
 
         <form method="POST" action="{{ route('proveedores.actualizacion.guardar') }}">
             @csrf @method('PUT')
-            <div class="ios-field"><label>Nombre completo <span class="req">*</span></label><input type="text" name="nombre" placeholder="Tu nombre completo" value="{{ old('nombre') }}" required>@error('nombre')<span class="error-msg">{{ $message }}</span>@enderror</div>
+            <div class="ios-field"><label>Nombre completo <span class="req">*</span></label><input type="text" name="nombre" placeholder="Tu nombre completo" value="{{ old('nombre', $proveedor->nombre ?? '') }}" required>@error('nombre')<span class="error-msg">{{ $message }}</span>@enderror</div>
             <div class="ios-field"><label>Tipo de persona <span class="req">*</span></label>
                 <select name="tipo_persona" required>
-                    <option value="" disabled {{ old('tipo_persona') ? '' : 'selected' }}>Selecciona una opción</option>
-                    <option value="Persona Física" {{ old('tipo_persona')=='Persona Física'?'selected':'' }}>Persona Física</option>
-                    <option value="Persona Moral" {{ old('tipo_persona')=='Persona Moral'?'selected':'' }}>Persona Moral</option>
+                    @php $tipoActual = old('tipo_persona', $proveedor->tipo_persona ?? ''); @endphp
+                    <option value="" disabled {{ $tipoActual ? '' : 'selected' }}>Selecciona una opción</option>
+                    <option value="Persona Física" {{ $tipoActual=='Persona Física'?'selected':'' }}>Persona Física</option>
+                    <option value="Persona Moral" {{ $tipoActual=='Persona Moral'?'selected':'' }}>Persona Moral</option>
                 </select>
                 @error('tipo_persona')<span class="error-msg">{{ $message }}</span>@enderror
             </div>
             <div class="form-row">
-                <div class="ios-field"><label>Teléfono <span class="req">*</span></label><input type="tel" name="telefono" placeholder="33 1234 5678" value="{{ old('telefono') }}" required>@error('telefono')<span class="error-msg">{{ $message }}</span>@enderror</div>
-                <div class="ios-field"><label>Correo electrónico <span class="req">*</span></label><input type="email" name="correo" placeholder="tu@correo.com" value="{{ old('correo') }}" required>@error('correo')<span class="error-msg">{{ $message }}</span>@enderror</div>
+                <div class="ios-field"><label>Teléfono <span class="req">*</span></label><input type="tel" name="telefono" placeholder="33 1234 5678" value="{{ old('telefono', $proveedor->telefono ?? '') }}" required>@error('telefono')<span class="error-msg">{{ $message }}</span>@enderror</div>
+                <div class="ios-field"><label>Correo electrónico <span class="req">*</span></label><input type="email" name="correo" placeholder="tu@correo.com" value="{{ old('correo', $proveedor->correo ?? '') }}" required>@error('correo')<span class="error-msg">{{ $message }}</span>@enderror</div>
             </div>
             <div class="divider">Cambiar contraseña (opcional)</div>
             <div class="form-row">

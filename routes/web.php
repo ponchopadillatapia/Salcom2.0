@@ -24,10 +24,13 @@ Route::put('/proveedor/actualizacion', [AuthProveedorController::class, 'guardar
 // ── Portal / Dashboard / Onboarding / Business ──
 Route::get('/portal-proveedor', [PortalProveedorController::class, 'mostrarPortal'])->name('proveedores.portal')->middleware('auth.proveedor');
 Route::get('/dashboard-proveedor', [PortalProveedorController::class, 'mostrarDashboard'])->name('proveedores.dashboard')->middleware('auth.proveedor');
+Route::get('/proveedor/facturas', [PortalProveedorController::class, 'mostrarFacturas'])->name('proveedores.facturas')->middleware('auth.proveedor');
+Route::get('/proveedor/facturas/excel', [PortalProveedorController::class, 'facturasExcel'])->name('proveedores.facturas.excel')->middleware('auth.proveedor');
 Route::get('/onboarding', [PortalProveedorController::class, 'mostrarOnboarding'])->name('proveedores.onboarding')->middleware('auth.proveedor');
 Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->name('proveedores.business')->middleware('auth.proveedor');
 Route::get('/payment-history', [PortalProveedorController::class, 'mostrarPaymentHistory'])->name('proveedores.payment-history')->middleware('auth.proveedor');
 Route::get('/perfil', [PortalProveedorController::class, 'mostrarPerfil'])->name('proveedores.perfil')->middleware('auth.proveedor');
+Route::post('/perfil', [PortalProveedorController::class, 'actualizarPerfil'])->name('proveedores.perfil.actualizar')->middleware('auth.proveedor');
 Route::post('/perfil/foto', [PortalProveedorController::class, 'subirFoto'])->name('proveedores.perfil.foto')->middleware('auth.proveedor');
 Route::get('/forecast', function () {
     return view('proveedores.forecast');

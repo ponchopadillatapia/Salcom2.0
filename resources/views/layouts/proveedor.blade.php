@@ -369,7 +369,21 @@
                 <a href="{{ route('proveedores.ia') }}" class="notif-footer">Ver todas</a>
             </div>
         </div>
-        <span class="nav-user">{{ session('proveedor_nombre', 'Proveedor') }}</span>
+        <span class="nav-user">
+            @php
+                $navNombre = session('proveedor_nombre', 'Proveedor');
+                if (session('proveedor_id')) {
+                    $navProv = \App\Models\ProveedorUser::find(session('proveedor_id'));
+                    if ($navProv && $navProv->nombre) {
+                        $navNombre = $navProv->nombre;
+                        if (session('proveedor_nombre') !== $navProv->nombre) {
+                            session(['proveedor_nombre' => $navProv->nombre]);
+                        }
+                    }
+                }
+            @endphp
+            {{ $navNombre }}
+        </span>
         <form method="POST" action="{{ route('proveedores.logout') }}" style="display:inline;">
             @csrf
             <button type="submit" class="btn-logout">Cerrar sesión</button>
@@ -455,7 +469,7 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
                 <span class="sb-text">Forecast</span>
             </a>
-            <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link" {!! $lockAttr !!}>
+            <a href="{{ $portalOk ? route('proveedores.facturas') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.facturas*') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
                 <span class="sb-text">Facturas</span>
             </a>

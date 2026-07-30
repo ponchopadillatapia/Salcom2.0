@@ -22,6 +22,20 @@
     .perfil-actions { margin-left: auto; }
     .btn-edit { padding: 8px 20px; border: 1px solid var(--purple); border-radius: 8px; background: none; color: var(--purple); font-size: 13px; font-family: inherit; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: all .15s; }
     .btn-edit:hover { background: var(--purple); color: var(--white); }
+    .btn-lapiz{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid var(--border);border-radius:8px;background:var(--white);color:var(--purple);cursor:pointer;margin-left:auto;transition:all .15s}
+    .btn-lapiz:hover{border-color:var(--purple);background:var(--purple-subtle)}
+    .perfil-card h3{justify-content:flex-start}
+    .perfil-edit-form{display:none;margin-top:4px}
+    .perfil-edit-form.open{display:block}
+    .perfil-view.hidden{display:none}
+    .edit-field{display:flex;flex-direction:column;gap:4px;padding:10px 0;border-bottom:1px solid var(--border)}
+    .edit-field:last-of-type{border-bottom:none}
+    .edit-field label{font-size:11px;font-weight:600;color:var(--gray-muted);text-transform:uppercase}
+    .edit-field input,.edit-field select{border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;color:var(--gray-text);outline:none;background:#fff}
+    .edit-field input:focus,.edit-field select:focus{border-color:var(--purple);box-shadow:0 0 0 3px rgba(107,63,160,.1)}
+    .edit-actions{display:flex;gap:8px;margin-top:14px;justify-content:flex-end}
+    .btn-save{padding:8px 16px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+    .btn-cancel{padding:8px 16px;background:#fff;color:var(--gray-text);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 
     .perfil-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
     .perfil-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
@@ -89,45 +103,97 @@
                 · {{ $proveedor->correo ?? session('proveedor_correo', '—') }}
             </div>
         </div>
-        <div class="perfil-actions">
-            <a href="{{ route('proveedores.actualizacion') }}" class="btn-edit">Editar datos</a>
-        </div>
     </div>
+
+    @if(session('mensaje'))
+        <div class="alert alert-success">{{ session('mensaje') }}</div>
+    @endif
+    @if ($errors->any())
+        <div class="alert" style="background:var(--red-bg);border:1px solid #fca5a5;color:var(--red)">
+            <ul style="margin:0;padding-left:18px;">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+        </div>
+    @endif
 
     <div class="perfil-grid">
         <div class="perfil-card">
             <h3>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 Información General
+                <button type="button" class="btn-lapiz" id="btnEditarPerfil" title="Editar datos" onclick="toggleEditarPerfil(true)">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                </button>
             </h3>
-            <div class="info-row">
-                <span class="info-label">Nombre</span>
-                <span class="info-value">{{ $proveedor->nombre ?? '—' }}</span>
+
+            <div class="perfil-view {{ $errors->any() ? 'hidden' : '' }}" id="perfilView">
+                <div class="info-row">
+                    <span class="info-label">Nombre</span>
+                    <span class="info-value">{{ $proveedor->nombre ?? '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Usuario</span>
+                    <span class="info-value">{{ $proveedor->usuario ?? '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Correo</span>
+                    <span class="info-value">{{ $proveedor->correo ?? '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Teléfono</span>
+                    <span class="info-value">{{ $proveedor->telefono ?? '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Tipo de persona</span>
+                    <span class="info-value">{{ $proveedor->tipo_persona ?? '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">ID sistema</span>
+                    <span class="info-value">#{{ $proveedor->id ?? '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">ID Proveedor</span>
+                    <span class="info-value">{{ $proveedor->id_proveedor ?? '—' }}</span>
+                </div>
             </div>
-            <div class="info-row">
-                <span class="info-label">Usuario</span>
-                <span class="info-value">{{ $proveedor->usuario ?? '—' }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Correo</span>
-                <span class="info-value">{{ $proveedor->correo ?? '—' }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Teléfono</span>
-                <span class="info-value">{{ $proveedor->telefono ?? '—' }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Tipo de persona</span>
-                <span class="info-value">{{ $proveedor->tipo_persona ?? '—' }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">ID sistema</span>
-                <span class="info-value">#{{ $proveedor->id ?? '—' }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">ID Proveedor</span>
-                <span class="info-value">{{ $proveedor->id_proveedor ?? '—' }}</span>
-            </div>
+
+            <form method="POST" action="{{ route('proveedores.perfil.actualizar') }}" class="perfil-edit-form {{ $errors->any() ? 'open' : '' }}" id="perfilEditForm">
+                @csrf
+                <div class="edit-field">
+                    <label>Nombre</label>
+                    <input type="text" name="nombre" value="{{ old('nombre', $proveedor->nombre ?? '') }}" required maxlength="255">
+                </div>
+                <div class="edit-field">
+                    <label>Usuario (no editable)</label>
+                    <input type="text" value="{{ $proveedor->usuario ?? '—' }}" disabled>
+                </div>
+                <div class="edit-field">
+                    <label>Correo</label>
+                    <input type="email" name="correo" value="{{ old('correo', $proveedor->correo ?? '') }}" required>
+                </div>
+                <div class="edit-field">
+                    <label>Teléfono</label>
+                    <input type="tel" name="telefono" value="{{ old('telefono', $proveedor->telefono ?? '') }}" required maxlength="20">
+                </div>
+                <div class="edit-field">
+                    <label>Tipo de persona</label>
+                    @php $tipo = old('tipo_persona', $proveedor->tipo_persona ?? ''); @endphp
+                    <select name="tipo_persona" required>
+                        <option value="Persona Física" {{ $tipo === 'Persona Física' ? 'selected' : '' }}>Persona Física</option>
+                        <option value="Persona Moral" {{ $tipo === 'Persona Moral' ? 'selected' : '' }}>Persona Moral</option>
+                    </select>
+                </div>
+                <div class="edit-field">
+                    <label>Nueva contraseña (opcional)</label>
+                    <input type="password" name="password" placeholder="Dejar vacío para no cambiar" autocomplete="new-password">
+                </div>
+                <div class="edit-field">
+                    <label>Confirmar contraseña</label>
+                    <input type="password" name="password_confirmation" placeholder="Repite la nueva contraseña" autocomplete="new-password">
+                </div>
+                <div class="edit-actions">
+                    <button type="button" class="btn-cancel" onclick="toggleEditarPerfil(false)">Cancelar</button>
+                    <button type="submit" class="btn-save">Guardar</button>
+                </div>
+            </form>
         </div>
 
         <div class="perfil-card">
@@ -189,13 +255,10 @@
             <div class="alert alert-success" style="margin-bottom:14px;">Ya tienes {{ $nContactos }} contactos (mínimo cumplido).</div>
         @endif
 
-        @if(session('mensaje'))
-            <div class="alert alert-success">{{ session('mensaje') }}</div>
-        @endif
         @if(session('error_contacto'))
             <div class="alert" style="background:var(--red-bg);border:1px solid #fca5a5;color:var(--red)">{{ session('error_contacto') }}</div>
         @endif
-        @if ($errors->any())
+        @if ($errors->any() && old('rol'))
             <div class="alert" style="background:var(--red-bg);border:1px solid #fca5a5;color:var(--red)">
                 <ul style="margin:0;padding-left:18px;">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
             </div>
@@ -291,6 +354,28 @@
 
 @push('scripts')
 <script>
+function toggleEditarPerfil(abrir) {
+    var view = document.getElementById('perfilView');
+    var form = document.getElementById('perfilEditForm');
+    var btn = document.getElementById('btnEditarPerfil');
+    if (!view || !form) return;
+    if (abrir) {
+        view.classList.add('hidden');
+        form.classList.add('open');
+        if (btn) btn.style.display = 'none';
+    } else {
+        view.classList.remove('hidden');
+        form.classList.remove('open');
+        if (btn) btn.style.display = '';
+    }
+}
+
+@if($errors->any())
+document.addEventListener('DOMContentLoaded', function () {
+    toggleEditarPerfil(true);
+});
+@endif
+
 let deleteContactId = null;
 
 function confirmarEliminar(id, nombre) {

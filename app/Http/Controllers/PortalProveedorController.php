@@ -168,6 +168,87 @@ class PortalProveedorController extends Controller
         return view('proveedores.payment-history');
     }
 
+    /** Listado de todas las facturas del proveedor (menú Facturas). */
+    public function mostrarFacturas(Request $request)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+
+        $query = Factura::query()
+            ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo))
+            ->where('estatus', '!=', 'rechazada');
+
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('created_at', '>=', $request->input('fecha_desde'));
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('created_at', '<=', $request->input('fecha_hasta'));
+        }
+
+        $buscar = trim((string) $request->input('q', ''));
+        $campo = $request->input('campo', 'folio');
+        if ($buscar !== '') {
+            if ($campo === 'monto') {
+                $query->where('total', 'like', '%'.str_replace([',', '$'], '', $buscar).'%');
+            } elseif ($campo === 'estatus') {
+                $query->where('estatus', 'like', '%'.$buscar.'%');
+            } else {
+                $query->where(function ($q) use ($buscar) {
+                    $q->where('folio_cfdi', 'like', '%'.$buscar.'%')
+                        ->orWhere('uuid_cfdi', 'like', '%'.$buscar.'%');
+                });
+            }
+        }
+
+        $facturas = $query->orderByDesc('created_at')->paginate(30)->withQueryString();
+
+        $filtros = [
+            'fecha_desde' => $request->input('fecha_desde', ''),
+            'fecha_hasta' => $request->input('fecha_hasta', ''),
+            'q' => $buscar,
+            'campo' => $campo,
+        ];
+
+        return view('proveedores.facturas', compact('proveedor', 'facturas', 'filtros', 'codigo'));
+    }
+
+    public function facturasExcel(Request $request)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+
+        $query = Factura::query()
+            ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo))
+            ->where('estatus', '!=', 'rechazada')
+            ->orderByDesc('created_at');
+
+        if ($request->filled('fecha_desde')) {
+            $query->whereDate('created_at', '>=', $request->input('fecha_desde'));
+        }
+        if ($request->filled('fecha_hasta')) {
+            $query->whereDate('created_at', '<=', $request->input('fecha_hasta'));
+        }
+
+        $rows = $query->get();
+        $filename = 'Facturas_'.($codigo ?: 'proveedor').'_'.now()->format('Y-m-d').'.csv';
+        $output = "\xEF\xBB\xBF";
+        $output .= "Fecha,Folio,UUID,Flete,Total,Estatus\r\n";
+        foreach ($rows as $f) {
+            $output .= implode(',', [
+                $f->created_at?->format('d/m/Y') ?? '',
+                '"'.str_replace('"', '""', (string) $f->folio_cfdi).'"',
+                '"'.str_replace('"', '""', (string) $f->uuid_cfdi).'"',
+                $f->es_fletera ? 'Si' : 'No',
+                number_format((float) $f->total, 2, '.', ''),
+                $f->estatus,
+            ])."\r\n";
+        }
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
     /** Campanita: alertas recientes en JSON (polling sin recargar). */
     public function alertasRecientesJson()
     {
@@ -274,6 +355,48 @@ class PortalProveedorController extends Controller
         $faltanContactos = max(0, $minContactos - $contactos->count());
 
         return view('proveedores.perfil', compact('proveedor', 'contactos', 'minContactos', 'faltanContactos'));
+    }
+
+    public function actualizarPerfil(Request $request)
+    {
+        $request->validate([
+            'nombre' => 'required|string|max:255',
+            'tipo_persona' => 'required|in:Persona Física,Persona Moral',
+            'telefono' => 'required|string|max:20',
+            'correo' => 'required|email|max:255',
+            'password' => 'nullable|min:8|confirmed',
+        ], [
+            'nombre.required' => 'El nombre es obligatorio.',
+            'tipo_persona.required' => 'El tipo de persona es obligatorio.',
+            'telefono.required' => 'El teléfono es obligatorio.',
+            'correo.required' => 'El correo es obligatorio.',
+            'correo.email' => 'El correo no es válido.',
+            'password.min' => 'La contraseña debe tener mínimo 8 caracteres.',
+            'password.confirmed' => 'Las contraseñas no coinciden.',
+        ]);
+
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor) {
+            return back()->with('error', 'Proveedor no encontrado.');
+        }
+
+        $proveedor->update([
+            'nombre' => $request->nombre,
+            'tipo_persona' => $request->tipo_persona,
+            'telefono' => $request->telefono,
+            'correo' => $request->correo,
+        ]);
+
+        if ($request->filled('password')) {
+            $proveedor->update(['password' => bcrypt($request->password)]);
+        }
+
+        session([
+            'proveedor_nombre' => $proveedor->nombre,
+            'proveedor_correo' => $proveedor->correo,
+        ]);
+
+        return redirect()->route('proveedores.perfil')->with('mensaje', 'Datos actualizados correctamente.');
     }
 
     public function subirFoto(Request $request)
@@ -680,15 +803,31 @@ class PortalProveedorController extends Controller
                 $updateDatos = [
                     'datos_identificacion' => $payload,
                     'tipo_persona' => $data['tipo_persona'],
+                    'nombre' => $nombreEsperado !== '' ? $nombreEsperado : $proveedor->nombre,
                 ];
+                if (! empty($data['correo'])) {
+                    $updateDatos['correo'] = $data['correo'];
+                }
+                if (! empty($data['telefono'])) {
+                    $updateDatos['telefono'] = $data['telefono'];
+                }
                 if (Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
                     $updateDatos['solicitud_alta_estatus'] = 'pendiente';
                 }
                 $proveedor->update($updateDatos);
+                $proveedor->refresh();
+                session([
+                    'proveedor_nombre' => $proveedor->nombre,
+                    'proveedor_correo' => $proveedor->correo,
+                ]);
             } catch (\Exception $e) {
                 // La columna datos_identificacion puede no existir aún en producción
                 try {
-                    $proveedor->update(['tipo_persona' => $data['tipo_persona']]);
+                    $proveedor->update([
+                        'tipo_persona' => $data['tipo_persona'],
+                        'nombre' => $nombreEsperado !== '' ? $nombreEsperado : $proveedor->nombre,
+                    ]);
+                    session(['proveedor_nombre' => $proveedor->fresh()->nombre]);
                 } catch (\Exception $e2) {
                     // ignore
                 }
