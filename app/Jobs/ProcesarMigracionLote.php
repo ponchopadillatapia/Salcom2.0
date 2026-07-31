@@ -110,7 +110,9 @@ CAMPOS A LLENAR:
 - TIPO_PRODUCTO: MPI (Materia Prima Importacion), ME (Material Empaque), MN (Mantenimiento). Si es limpieza/aerosol/quimico = MN, si es empaque/envase/accesorio = ME, si es materia prima = MPI. Por default MN.
 
 REGLAS:
-- Todo en MAYUSCULAS
+- RESPETA mayusculas y minusculas EXACTAS del NOMBRE original (NO fuerces MAYUSCULAS)
+- NO inventes, NO traduzcas, NO corrijas typos (si dice HIPOCHICLE dejalo HIPOCHICLE)
+- NO omitas letras, codigos ni identificadores del nombre original
 - Si el nombre empieza con un numero largo (ej: 20012420), ese codigo va al INICIO de NOMBRE_MODELO seguido del grupo
 - C/12, C/6 Pzas, etc. van en NOMBRE_MEDIDA (es la presentacion)
 - NOMBRE_MODELO SIEMPRE se llena con el grupo del sistema viejo. Si no hay grupo, dejarlo vacio.

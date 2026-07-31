@@ -10,7 +10,7 @@ class FormatearNombresProductos extends Command
 {
     protected $signature = 'productos:formatear {--limit=50 : Cantidad de productos a procesar} {--offset=0 : Desde qué producto empezar} {--categoria= : Filtrar por categoría} {--dry-run : Solo muestra sin guardar}';
 
-    protected $description = 'Reformatear nombres de productos al formato: TIPO MARCA MODELO MEDIDA ESPECIFICACION (todo mayúsculas, ordenado)';
+    protected $description = 'Reformatear nombres al formato TIPO MARCA MODELO MEDIDA ESPECIFICACION (sin cambiar casing ni inventar palabras)';
 
     public function handle(): int
     {
@@ -44,31 +44,32 @@ class FormatearNombresProductos extends Command
                 $ids[] = $prod->id;
             }
 
-            $prompt = "Reordena cada nombre de producto al formato: TIPO MARCA MODELO MEDIDA ESPECIFICACION. Todo en MAYUSCULAS.
+            $prompt = "Reordena cada nombre de producto al formato: TIPO MARCA MODELO MEDIDA ESPECIFICACION.
 
 FORMATO FINAL: TIPO + MARCA + MODELO + MEDIDA + ESPECIFICACION (concatenados con espacio)
 
 CAMPOS:
-- TIPO = Que es (AEROSOL, ABRILLANTADOR DE MUEBLES, LUSTRADOR, PC, SWITCH, etc.)
+- TIPO = Que es (Aerosol, Abrillantador de Muebles, LUSTRADOR, PC, SWITCH, etc.)
 - MARCA = Fabricante (WIESE, NILODOR, DELL, GREAT VALUE, etc.)
 - MODELO = Referencia alfanumerica del fabricante (ej: OPTIPLEX 7020, TW-680)
 - MEDIDA = Peso/volumen/presentacion con numeros (ej: 9.5OZ C/12, 323G C/6, 16GB)
-- ESPECIFICACION = Aroma/color/detalle extra + codigos del fabricante al final (ej: LEMON 15AEL, NARANJA, LIGHT GREY 3004450990NS)
+- ESPECIFICACION = Aroma/color/detalle extra + codigos del fabricante al final
 
-REGLAS:
-- TODO en MAYUSCULAS
-- Si el nombre empieza con un codigo alfanumerico (ej: 15AEL, 3004450990NS, REM00260, 20012420), MOVERLO AL FINAL como parte de la especificacion
+REGLAS ESTRICTAS:
+- RESPETA mayusculas y minusculas EXACTAS del original (no fuerces MAYUSCULAS)
 - NO agregar palabras que no esten en el original
-- NO corregir typos
+- NO omitir letras, palabras ni identificadores (ej: HIPOCHICLE, version2, b/p)
+- NO corregir typos ni “arreglar” nombres (si dice HIPOCHICLE dejalo HIPOCHICLE; NUNCA lo cambies a hipoclorito u otro)
 - NO traducir
-- Si el nombre ya esta bien ordenado, dejarlo igual solo en mayusculas
-- Quitar caracteres sueltos como / al final
+- Solo reordena tokens del original
+- Si el nombre ya esta bien ordenado, dejalo igual con el mismo casing
+- Quitar solo un slash suelto al final si existe
 
 PRODUCTOS:
 {$productosTexto}
 
 Responde UNICAMENTE JSON valido sin markdown:
-{\"productos\": [{\"id\": 36301, \"nombre\": \"NOMBRE FORMATEADO\"}]}";
+{\"productos\": [{\"id\": 36301, \"nombre\": \"Nombre Formateado\"}]}";
 
             $resultado = $iaService->llamarClaude($prompt);
 
@@ -98,8 +99,16 @@ Responde UNICAMENTE JSON valido sin markdown:
                 if ($iaResult && isset($iaResult['productos'])) {
                     foreach ($iaResult['productos'] as $item) {
                         $id = (int) ($item['id'] ?? 0);
-                        $nuevoNombre = strtoupper(trim($item['nombre'] ?? ''));
+                        $nuevoNombre = trim($item['nombre'] ?? '');
                         if ($id && $nuevoNombre) {
+                            $original = $lote->firstWhere('id', $id);
+                            // Rechaza si la IA inventó/omitió tokens (p.ej. hipochicle→hipoclorito)
+                            if ($original && ! $this->mismosTokens((string) $original->nombre, $nuevoNombre)) {
+                                $this->warn("  [{$id}] rechazado: tokens no coinciden con el original");
+                                $errores++;
+
+                                continue;
+                            }
                             if (! $dryRun) {
                                 Producto::where('id', $id)->update(['nombre' => $nuevoNombre]);
                             }
@@ -137,5 +146,22 @@ Responde UNICAMENTE JSON valido sin markdown:
         $this->info("Errores: {$errores}");
 
         return 0;
+    }
+
+    private function mismosTokens(string $original, string $nuevo): bool
+    {
+        $norm = static function (string $t): array {
+            $t = trim(preg_replace('/\s+/u', ' ', $t) ?? $t);
+            if ($t === '') {
+                return [];
+            }
+            preg_match_all('/\S+/u', $t, $m);
+            $tokens = array_map(fn ($x) => mb_strtolower($x), $m[0] ?? []);
+            sort($tokens);
+
+            return $tokens;
+        };
+
+        return $norm($original) === $norm($nuevo);
     }
 }

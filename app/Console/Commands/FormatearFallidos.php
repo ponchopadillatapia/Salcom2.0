@@ -40,31 +40,29 @@ class FormatearFallidos extends Command
                 $productosTexto .= "{$prod->id}. {$prod->nombre}\n";
             }
 
-            $prompt = "Reordena cada nombre de producto al formato: TIPO MARCA MODELO MEDIDA ESPECIFICACION. Todo en MAYUSCULAS.
+            $prompt = "Reordena cada nombre de producto al formato: TIPO MARCA MODELO MEDIDA ESPECIFICACION.
 
 FORMATO FINAL: TIPO + MARCA + MODELO + MEDIDA + ESPECIFICACION (concatenados con espacio)
 
 CAMPOS:
-- TIPO = Que es (AEROSOL, ABRILLANTADOR DE MUEBLES, LUSTRADOR, PC, SWITCH, etc.)
-- MARCA = Fabricante (WIESE, NILODOR, DELL, GREAT VALUE, etc.)
-- MODELO = Referencia alfanumerica del fabricante (ej: OPTIPLEX 7020, TW-680)
-- MEDIDA = Peso/volumen/presentacion con numeros (ej: 9.5OZ C/12, 323G C/6, 16GB)
-- ESPECIFICACION = Aroma/color/detalle extra + codigos del fabricante al final (ej: LEMON 15AEL, NARANJA, LIGHT GREY 3004450990NS)
+- TIPO = Que es
+- MARCA = Fabricante
+- MODELO = Referencia alfanumerica del fabricante
+- MEDIDA = Peso/volumen/presentacion con numeros
+- ESPECIFICACION = Aroma/color/detalle extra + codigos
 
-REGLAS:
-- TODO en MAYUSCULAS
-- Si el nombre empieza con un codigo alfanumerico (ej: 15AEL, 3004450990NS, REM00260, 20012420), MOVERLO AL FINAL como parte de la especificacion
-- NO agregar palabras que no esten en el original
-- NO corregir typos
+REGLAS ESTRICTAS:
+- RESPETA mayusculas y minusculas EXACTAS del original
+- NO agregar ni omitir palabras/letras/identificadores
+- NO corregir typos (HIPOCHICLE se queda HIPOCHICLE)
 - NO traducir
-- Si el nombre ya esta bien ordenado, dejarlo igual solo en mayusculas
-- Quitar caracteres sueltos como / al final
+- Solo reordena tokens del original
 
 PRODUCTOS:
 {$productosTexto}
 
 Responde UNICAMENTE JSON valido sin markdown:
-{\"productos\": [{\"id\": 36301, \"nombre\": \"NOMBRE FORMATEADO\"}]}";
+{\"productos\": [{\"id\": 36301, \"nombre\": \"Nombre Formateado\"}]}";
 
             $resultado = $iaService->llamarClaude($prompt);
 
@@ -83,10 +81,14 @@ Responde UNICAMENTE JSON valido sin markdown:
                 if ($iaResult && isset($iaResult['productos'])) {
                     foreach ($iaResult['productos'] as $item) {
                         $id = (int) ($item['id'] ?? 0);
-                        $nuevoNombre = strtoupper(trim($item['nombre'] ?? ''));
-                        if ($id && $nuevoNombre) {
+                        $nuevoNombre = trim($item['nombre'] ?? '');
+                        $original = $lote->firstWhere('id', $id);
+                        if ($id && $nuevoNombre && $original && $this->mismosTokens((string) $original->nombre, $nuevoNombre)) {
                             Producto::where('id', $id)->update(['nombre' => $nuevoNombre]);
                             $procesados++;
+                        } elseif ($id) {
+                            $errores++;
+                            $nuevosFallidos[] = $id;
                         }
                     }
                 } else {
@@ -105,10 +107,9 @@ Responde UNICAMENTE JSON valido sin markdown:
             $this->info("Progreso: {$procesados} OK, {$errores} errores");
         }
 
-        // Guardar los que siguen fallando
         if (! empty($nuevosFallidos)) {
-            file_put_contents($file, implode("\n", $nuevosFallidos));
-            $this->warn('Quedan '.count($nuevosFallidos).' que siguen fallando.');
+            file_put_contents($file, implode("\n", array_unique($nuevosFallidos)));
+            $this->warn('Quedan '.count(array_unique($nuevosFallidos)).' que siguen fallando.');
         } else {
             unlink($file);
             $this->info('Todos procesados. Archivo de fallidos eliminado.');
@@ -117,5 +118,22 @@ Responde UNICAMENTE JSON valido sin markdown:
         $this->info("=== RESULTADO: {$procesados} formateados, {$errores} errores ===");
 
         return 0;
+    }
+
+    private function mismosTokens(string $original, string $nuevo): bool
+    {
+        $norm = static function (string $t): array {
+            $t = trim(preg_replace('/\s+/u', ' ', $t) ?? $t);
+            if ($t === '') {
+                return [];
+            }
+            preg_match_all('/\S+/u', $t, $m);
+            $tokens = array_map(fn ($x) => mb_strtolower($x), $m[0] ?? []);
+            sort($tokens);
+
+            return $tokens;
+        };
+
+        return $norm($original) === $norm($nuevo);
     }
 }

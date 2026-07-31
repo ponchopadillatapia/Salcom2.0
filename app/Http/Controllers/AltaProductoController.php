@@ -344,7 +344,7 @@ class AltaProductoController extends Controller
             'MN = Mantenimiento - Motores, refacciones, herramientas',
             '',
             '=== REGLAS GENERALES ===',
-            'Todo en MAYUSCULAS, sin acentos ni caracteres especiales',
+            'Todo en el casing original (mayúsculas/minúsculas como vengan); no inventar ni corregir nombres',
             'NOMBRE_TIPO debe tener MINIMO 2 PALABRAS (ej: PINTURA VINILICA, no solo PINTURA)',
             'NOMBRE_MEDIDA debe tener numeros (500ML, 3HP, 30CMX30CM, 40X30X25). Para dimensiones usa X sin espacios: 30CMX30CM',
             'NOMBRE_ESPECIFICACION no debe repetir datos de otros campos',
@@ -1889,13 +1889,8 @@ Si todo correcto: {"errores_ia": []}';
 
         foreach ($partesNombre as $campo => $info) {
             if (! empty($info['valor'])) {
-                if ($info['valor'] !== strtoupper($info['valor']) && ! $esModuloCompras) {
-                    $errores[] = [
-                        'fila' => $fila,
-                        'campo' => $campo,
-                        'error' => "Debe estar en MAYUSCULAS sin acentos. Recibido: '{$info['valor']}'. COMO CORREGIR: {$info['desc']}",
-                    ];
-                }
+                // Ya no se fuerza MAYUSCULAS: se respeta el casing del proveedor/SAP
+                // (identificadores como HIPOCHICLE / version2 deben pasar intactos).
                 // No caracteres especiales
                 if (preg_match('/[#$%&*=+{}\[\]|\\\\<>~`"\'?_@^!]/', $info['valor'])) {
                     $errores[] = [
@@ -1906,8 +1901,10 @@ Si todo correcto: {"errores_ia": []}';
                 }
                 // Detectar texto basura (consonantes sin vocales)
                 // Excluir medidas con formato de dimensiones (30CMX30CM, 40X30X25, etc.)
+                // Excluir MODELO/ESPECIFICACION: ahi van identificadores (HIPOCHICLE, SKUs sin vocales, etc.)
                 $esFormatoDimensiones = preg_match('/\d+\s*(CM|MM|MT|LT|ML|KG|GR|PZA)?\s*X\s*\d+/i', $info['valor']);
-                if (! $esFormatoDimensiones) {
+                $esCampoIdentificador = in_array($campo, ['NOMBRE_MODELO', 'NOMBRE_ESPECIFICACION', 'NOMBRE_MARCA'], true);
+                if (! $esFormatoDimensiones && ! $esCampoIdentificador) {
                     // Intentar limpiar espacios - si sin espacios es un formato valido, sugerir correccion
                     $valorSinEspacios = strtoupper(str_replace(' ', '', $info['valor']));
                     $esFormatoDimensionesLimpio = preg_match('/^\d+(CM|MM|MT|LT|ML|KG|GR|PZA)?X\d+(CM|MM|MT|LT|ML|KG|GR|PZA)?$/i', $valorSinEspacios);
@@ -3102,16 +3099,27 @@ Si todo correcto: {"errores_ia": []}';
 
     private function datosProductoDesdeExcel(array $prod): array
     {
-        $nombreCompleto = trim(
-            strtoupper(trim($prod['NOMBRE_TIPO'] ?? '')).' '.
-            strtoupper(trim($prod['NOMBRE_MARCA'] ?? '')).' '.
-            strtoupper(trim($prod['NOMBRE_MODELO'] ?? '')).' '.
-            strtoupper(trim($prod['NOMBRE_MEDIDA'] ?? '')).' '.
-            strtoupper(trim($prod['NOMBRE_ESPECIFICACION'] ?? ''))
-        );
+        $nombreTipo = trim($prod['NOMBRE_TIPO'] ?? '');
+        $nombreMarca = trim($prod['NOMBRE_MARCA'] ?? '');
+        $nombreModelo = trim($prod['NOMBRE_MODELO'] ?? '');
+        $nombreMedida = trim($prod['NOMBRE_MEDIDA'] ?? '');
+        $nombreEspec = trim($prod['NOMBRE_ESPECIFICACION'] ?? '');
+
+        $nombreCompleto = trim(implode(' ', array_filter([
+            $nombreTipo,
+            $nombreMarca,
+            $nombreModelo,
+            $nombreMedida,
+            $nombreEspec,
+        ], fn ($v) => $v !== '')));
 
         return [
             'nombre' => $nombreCompleto,
+            'nombre_tipo' => $nombreTipo !== '' ? $nombreTipo : null,
+            'nombre_marca' => $nombreMarca !== '' ? $nombreMarca : null,
+            'nombre_modelo' => $nombreModelo !== '' ? $nombreModelo : null,
+            'nombre_medida' => $nombreMedida !== '' ? $nombreMedida : null,
+            'nombre_especificacion' => $nombreEspec !== '' ? $nombreEspec : null,
             'categoria' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
             'familia' => strtoupper(trim($prod['FAMILIA'] ?? '')),
             'tipo_producto' => strtoupper(trim($prod['TIPO_PRODUCTO'] ?? '')),
