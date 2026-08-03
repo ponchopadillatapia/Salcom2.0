@@ -5,7 +5,7 @@
 @section('hero')
 <div class="hero-band">
     <h1>Alta Facturas</h1>
-    <p>PDF + XML · valida primero, luego sube · OC solo para ME/MP</p>
+    <p>Clasifica · PDF + XML · valida y sube · OC obligatoria en ME/MP</p>
 </div>
 @endsection
 
@@ -253,6 +253,80 @@
         margin-right: auto;
         align-self: center;
     }
+    .wizard-steps {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 18px;
+    }
+    .wizard-pill {
+        flex: 1;
+        text-align: center;
+        padding: 8px 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--gray-muted);
+        background: var(--gray-soft);
+        border: 1px solid var(--border-light);
+    }
+    .wizard-pill.active {
+        color: var(--purple);
+        background: var(--purple-light);
+        border-color: var(--purple-mid);
+    }
+    .wizard-pill.done {
+        color: #059669;
+        background: var(--green-bg);
+        border-color: #bbf7d0;
+    }
+    .wizard-panel { display: none; }
+    .wizard-panel.active { display: block; }
+    .tipo-producto-wrap { display: none; margin-bottom: 18px; }
+    .tipo-producto-wrap.is-visible { display: block; }
+    .choice-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    .choice-grid label {
+        position: relative;
+        cursor: pointer;
+        margin: 0;
+    }
+    .choice-grid input { position: absolute; opacity: 0; pointer-events: none; }
+    .choice-card {
+        display: block;
+        padding: 14px 12px;
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--white);
+        text-align: center;
+        transition: var(--transition);
+    }
+    .choice-card .cc-title { font-size: 13px; font-weight: 700; color: var(--gray-text); }
+    .choice-card .cc-sub { font-size: 11px; color: var(--gray-muted); margin-top: 4px; }
+    .choice-grid label:has(input:checked) .choice-card {
+        border-color: var(--purple);
+        background: var(--purple-light);
+        box-shadow: 0 0 0 3px rgba(107, 63, 160, .1);
+    }
+    .summary-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .summary-chip {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: var(--purple-light);
+        color: var(--purple);
+    }
+    @media (max-width: 900px) {
+        .choice-grid { grid-template-columns: 1fr; }
+    }
 
     .result-box {
         margin-top: 16px;
@@ -422,6 +496,9 @@
     if (!empty($res['aprobado'])) {
         $resTitulo = !empty($res['registrada']) ? 'Factura registrada' : 'Validación correcta';
     }
+    $abrirDocumentos = $puedeSubir
+        || old('naturaleza')
+        || (!empty($res) && empty($res['registrada']));
 @endphp
 
 @if($res)
@@ -496,95 +573,141 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             Alta de factura
         </h3>
-        <p class="card-desc">Adjunta PDF + XML, valida y luego sube. La OC solo aplica si es producto ME o MP.</p>
+        <p class="card-desc">Primero clasifica la factura; después adjunta PDF + XML (OC obligatoria en ME/MP; opcional en Mantenimiento).</p>
 
-        <div class="section-label">Archivos</div>
+        <div class="wizard-steps" id="wizardSteps">
+            <div class="wizard-pill active" data-pill="1">1. Clasificación</div>
+            <div class="wizard-pill" data-pill="2">2. Documentos</div>
+        </div>
 
-        <div class="form-row cols-3" id="archivosRow">
-            <div class="form-group">
-                <label>Factura PDF <span class="req">*</span></label>
-                <div class="dropzone" data-dz="archivo">
-                    <input type="file" name="archivo" id="archivo" accept=".pdf,application/pdf" required>
-                    <div class="dz-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                    </div>
-                    <div class="dz-title">PDF</div>
-                    <div class="dz-sub">Arrastra o haz clic</div>
-                    <div class="dz-file" hidden></div>
+        {{-- PASO 1: clasificación --}}
+        <div class="wizard-panel active" id="panelClasificacion">
+            <div class="section-label">¿Qué estás facturando?</div>
+
+            <div class="toggle-row" style="margin-bottom:18px;">
+                <div class="toggle-info">
+                    <div class="ti-title">¿Qué vas a facturar?</div>
+                    <div class="ti-sub">Producto o servicio</div>
+                </div>
+                <div class="seg" id="naturalezaSeg">
+                    <label>
+                        <input type="radio" name="naturaleza" value="producto" {{ old('naturaleza', '') === 'producto' ? 'checked' : '' }} required>
+                        <span>Producto</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="naturaleza" value="servicio" {{ old('naturaleza') === 'servicio' ? 'checked' : '' }}>
+                        <span>Servicio</span>
+                    </label>
                 </div>
             </div>
-            <div class="form-group">
-                <label>XML CFDI <span class="req">*</span></label>
-                <div class="dropzone" data-dz="archivo_xml">
-                    <input type="file" name="archivo_xml" id="archivo_xml" accept=".xml,text/xml,application/xml" required>
-                    <div class="dz-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                    </div>
-                    <div class="dz-title">XML</div>
-                    <div class="dz-sub">Arrastra o haz clic</div>
-                    <div class="dz-file" hidden></div>
+
+            <div class="tipo-producto-wrap" id="tipoProductoWrap">
+                <div class="section-label" style="margin-top:0;">Tipo de producto</div>
+                <div class="choice-grid" id="tipoProductoGrid">
+                    <label>
+                        <input type="radio" name="tipo_producto" value="ME" {{ old('tipo_producto') === 'ME' ? 'checked' : '' }}>
+                        <span class="choice-card">
+                            <span class="cc-title">ME</span>
+                            <span class="cc-sub">Material de empaque · requiere OC</span>
+                        </span>
+                    </label>
+                    <label>
+                        <input type="radio" name="tipo_producto" value="MP" {{ old('tipo_producto') === 'MP' ? 'checked' : '' }}>
+                        <span class="choice-card">
+                            <span class="cc-title">MP</span>
+                            <span class="cc-sub">Materia prima · requiere OC</span>
+                        </span>
+                    </label>
+                    <label>
+                        <input type="radio" name="tipo_producto" value="MN" {{ old('tipo_producto') === 'MN' ? 'checked' : '' }}>
+                        <span class="choice-card">
+                            <span class="cc-title">Mantenimiento</span>
+                            <span class="cc-sub">MN · OC opcional</span>
+                        </span>
+                    </label>
                 </div>
             </div>
-            <div class="form-group oc-wrap" id="ocWrap">
-                <label>Orden de compra <span class="req">*</span></label>
-                <div class="dropzone" data-dz="archivo_oc">
-                    <input type="file" name="archivo_oc" id="archivo_oc" accept=".pdf,application/pdf">
-                    <div class="dz-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gray-muted)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    </div>
-                    <div class="dz-title">OC</div>
-                    <div class="dz-sub">Obligatoria ME/MP</div>
-                    <div class="dz-file" hidden></div>
+
+            <div class="toggle-row">
+                <div class="toggle-info">
+                    <div class="ti-title">¿Viene con flete?</div>
+                    <div class="ti-sub" id="fleteraHint">Si es flete se validan retenciones de IVA típicas de fletera</div>
                 </div>
+                <div class="seg" id="fleteraSeg">
+                    <label>
+                        <input type="radio" name="es_fletera" value="0" {{ old('es_fletera', '0') === '0' ? 'checked' : '' }} required>
+                        <span>No</span>
+                    </label>
+                    <label>
+                        <input type="radio" name="es_fletera" value="1" {{ old('es_fletera') === '1' ? 'checked' : '' }}>
+                        <span>Sí</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-actions">
+                <span class="step-hint">Completa la clasificación para continuar</span>
+                <button type="button" class="btn-submit" id="btnContinuar">Continuar a documentos</button>
             </div>
         </div>
 
-        <div class="section-label">Datos</div>
+        {{-- PASO 2: documentos --}}
+        <div class="wizard-panel" id="panelDocumentos">
+            <div class="summary-chips" id="summaryChips"></div>
 
-        <div class="toggle-row">
-            <div class="toggle-info">
-                <div class="ti-title">¿Es producto ME o MP?</div>
-                <div class="ti-sub">Si es Material Empaque (ME) o Materia Prima (MP), se pide la OC</div>
-            </div>
-            <div class="seg" id="meMpSeg">
-                <label>
-                    <input type="radio" name="es_me_mp" value="0" {{ old('es_me_mp', '0') === '0' ? 'checked' : '' }} required>
-                    <span>No</span>
-                </label>
-                <label>
-                    <input type="radio" name="es_me_mp" value="1" {{ old('es_me_mp') === '1' ? 'checked' : '' }}>
-                    <span>Sí</span>
-                </label>
-            </div>
-        </div>
+            <div class="section-label">Archivos</div>
 
-        <div class="toggle-row">
-            <div class="toggle-info">
-                <div class="ti-title">¿Es fletera?</div>
-                <div class="ti-sub" id="fleteraHint">Flete = retención IVA siempre · Comisión = solo persona física</div>
+            <div class="form-row cols-2" id="archivosRow">
+                <div class="form-group">
+                    <label>Factura PDF <span class="req">*</span></label>
+                    <div class="dropzone" data-dz="archivo">
+                        <input type="file" name="archivo" id="archivo" accept=".pdf,application/pdf">
+                        <div class="dz-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        </div>
+                        <div class="dz-title">PDF</div>
+                        <div class="dz-sub">Arrastra o haz clic</div>
+                        <div class="dz-file" hidden></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>XML CFDI <span class="req">*</span></label>
+                    <div class="dropzone" data-dz="archivo_xml">
+                        <input type="file" name="archivo_xml" id="archivo_xml" accept=".xml,text/xml,application/xml">
+                        <div class="dz-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                        </div>
+                        <div class="dz-title">XML</div>
+                        <div class="dz-sub">Arrastra o haz clic</div>
+                        <div class="dz-file" hidden></div>
+                    </div>
+                </div>
+                <div class="form-group oc-wrap" id="ocWrap">
+                    <label>Orden de compra <span class="req">*</span></label>
+                    <div class="dropzone" data-dz="archivo_oc">
+                        <input type="file" name="archivo_oc" id="archivo_oc" accept=".pdf,application/pdf">
+                        <div class="dz-icon">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gray-muted)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                        </div>
+                        <div class="dz-title">OC</div>
+                        <div class="dz-sub">Obligatoria ME/MP</div>
+                        <div class="dz-file" hidden></div>
+                    </div>
+                </div>
             </div>
-            <div class="seg" id="fleteraSeg">
-                <label>
-                    <input type="radio" name="es_fletera" value="0" {{ old('es_fletera', '0') === '0' ? 'checked' : '' }} required>
-                    <span>No</span>
-                </label>
-                <label>
-                    <input type="radio" name="es_fletera" value="1" {{ old('es_fletera') === '1' ? 'checked' : '' }}>
-                    <span>Sí</span>
-                </label>
-            </div>
-        </div>
 
-        <div class="form-actions">
-            <span class="step-hint" id="stepHint">
-                @if($puedeSubir)
-                    Validación OK — ya puedes subir.
-                @else
-                    1) Validar archivos · 2) Subir si todo está correcto
-                @endif
-            </span>
-            <button type="submit" class="btn-outline" id="btnValidar" formaction="{{ route('proveedores.fiscal.validar') }}">Validar</button>
-            <button type="submit" class="btn-submit" id="btnSubir" formaction="{{ route('proveedores.fiscal.subir') }}" formnovalidate {{ $puedeSubir ? '' : 'disabled' }}>Subir</button>
+            <div class="form-actions">
+                <button type="button" class="btn-outline" id="btnVolver">Volver</button>
+                <span class="step-hint" id="stepHint">
+                    @if($puedeSubir)
+                        Validación OK — ya puedes subir.
+                    @else
+                        Valida y luego sube
+                    @endif
+                </span>
+                <button type="submit" class="btn-outline" id="btnValidar" formaction="{{ route('proveedores.fiscal.validar') }}">Validar</button>
+                <button type="submit" class="btn-submit" id="btnSubir" formaction="{{ route('proveedores.fiscal.subir') }}" formnovalidate {{ $puedeSubir ? '' : 'disabled' }}>Subir</button>
+            </div>
         </div>
     </div>
 </form>
@@ -660,43 +783,177 @@
     var form = document.getElementById('formFiscal');
     var btnValidar = document.getElementById('btnValidar');
     var btnSubir = document.getElementById('btnSubir');
+    var btnContinuar = document.getElementById('btnContinuar');
+    var btnVolver = document.getElementById('btnVolver');
+    var panel1 = document.getElementById('panelClasificacion');
+    var panel2 = document.getElementById('panelDocumentos');
+    var pill1 = document.querySelector('.wizard-pill[data-pill="1"]');
+    var pill2 = document.querySelector('.wizard-pill[data-pill="2"]');
+    var tipoWrap = document.getElementById('tipoProductoWrap');
     var ocWrap = document.getElementById('ocWrap');
     var ocInput = document.getElementById('archivo_oc');
+    var pdfInput = document.getElementById('archivo');
+    var xmlInput = document.getElementById('archivo_xml');
     var archivosRow = document.getElementById('archivosRow');
     var stepHint = document.getElementById('stepHint');
+    var summaryChips = document.getElementById('summaryChips');
     var puedeSubir = {{ $puedeSubir ? 'true' : 'false' }};
+    var startOnDocs = {{ $abrirDocumentos ? 'true' : 'false' }};
 
-    function toggleOc() {
-        var checked = document.querySelector('input[name="es_me_mp"]:checked');
-        var needsOc = checked && checked.value === '1';
-        if (!ocWrap) return;
-        ocWrap.classList.toggle('is-visible', needsOc);
+    function naturaleza() {
+        var el = document.querySelector('input[name="naturaleza"]:checked');
+        return el ? el.value : null;
+    }
+    function tipoProducto() {
+        var el = document.querySelector('input[name="tipo_producto"]:checked');
+        return el ? el.value : null;
+    }
+    function needsOc() {
+        var t = tipoProducto();
+        return naturaleza() === 'producto' && (t === 'ME' || t === 'MP');
+    }
+    function showOc() {
+        var t = tipoProducto();
+        return naturaleza() === 'producto' && (t === 'ME' || t === 'MP' || t === 'MN');
+    }
+
+    function syncTipoProducto() {
+        var isProducto = naturaleza() === 'producto';
+        if (tipoWrap) tipoWrap.classList.toggle('is-visible', isProducto);
+        if (!isProducto) {
+            document.querySelectorAll('input[name="tipo_producto"]').forEach(function (r) {
+                r.checked = false;
+                r.required = false;
+            });
+        } else {
+            document.querySelectorAll('input[name="tipo_producto"]').forEach(function (r) {
+                r.required = true;
+            });
+        }
+        syncOc();
+    }
+
+    function syncOc() {
+        var visible = showOc();
+        var required = needsOc();
+        if (ocWrap) ocWrap.classList.toggle('is-visible', visible);
+        var ocLabel = ocWrap && ocWrap.querySelector('label');
+        if (ocLabel) {
+            ocLabel.innerHTML = required
+                ? 'Orden de compra <span class="req">*</span>'
+                : 'Orden de compra <span style="color:var(--gray-muted);font-weight:500;">(opcional)</span>';
+        }
         if (ocInput) {
-            ocInput.required = !!needsOc;
-            if (!needsOc) {
+            ocInput.required = required && panel2 && panel2.classList.contains('active');
+            if (!visible) {
                 ocInput.value = '';
-                var dz = ocWrap.querySelector('.dropzone');
+                var dz = ocWrap && ocWrap.querySelector('.dropzone');
                 if (dz) {
                     dz.classList.remove('has-file');
                     var fileEl = dz.querySelector('.dz-file');
                     var subEl = dz.querySelector('.dz-sub');
                     if (fileEl) { fileEl.hidden = true; fileEl.textContent = ''; }
-                    if (subEl) { subEl.textContent = 'Obligatoria ME/MP'; subEl.style.color = ''; }
+                    if (subEl) { subEl.textContent = required ? 'Obligatoria ME/MP' : 'Opcional MN'; subEl.style.color = ''; }
+                }
+            } else {
+                var sub = ocWrap && ocWrap.querySelector('.dz-sub');
+                if (sub && !ocWrap.querySelector('.dropzone.has-file')) {
+                    sub.textContent = required ? 'Obligatoria ME/MP' : 'Opcional';
                 }
             }
         }
         if (archivosRow) {
-            archivosRow.classList.toggle('cols-3', needsOc);
-            archivosRow.classList.toggle('cols-2', !needsOc);
+            archivosRow.classList.toggle('cols-3', visible);
+            archivosRow.classList.toggle('cols-2', !visible);
         }
     }
-    document.querySelectorAll('input[name="es_me_mp"]').forEach(function (r) {
+
+    function updateSummary() {
+        if (!summaryChips) return;
+        var chips = [];
+        var nat = naturaleza();
+        if (nat === 'producto') {
+            chips.push('Producto');
+            var t = tipoProducto();
+            if (t === 'ME') chips.push('ME · Empaque');
+            else if (t === 'MP') chips.push('MP · Materia prima');
+            else if (t === 'MN') chips.push('Mantenimiento');
+        } else if (nat === 'servicio') {
+            chips.push('Servicio');
+        }
+        var fletera = document.querySelector('input[name="es_fletera"]:checked');
+        chips.push(fletera && fletera.value === '1' ? 'Flete: Sí' : 'Flete: No');
+        if (needsOc()) chips.push('OC requerida');
+        else if (showOc()) chips.push('OC opcional');
+        summaryChips.innerHTML = chips.map(function (c) {
+            return '<span class="summary-chip">' + c + '</span>';
+        }).join('');
+    }
+
+    function goStep(n) {
+        var onDocs = n === 2;
+        if (panel1) panel1.classList.toggle('active', !onDocs);
+        if (panel2) panel2.classList.toggle('active', onDocs);
+        if (pill1) {
+            pill1.classList.toggle('active', !onDocs);
+            pill1.classList.toggle('done', onDocs);
+        }
+        if (pill2) pill2.classList.toggle('active', onDocs);
+        if (pdfInput) pdfInput.required = onDocs;
+        if (xmlInput) xmlInput.required = onDocs;
+        syncOc();
+        if (onDocs) updateSummary();
+    }
+
+    function clasificacionOk() {
+        var nat = naturaleza();
+        if (!nat) {
+            alert('Selecciona si es Producto o Servicio.');
+            return false;
+        }
+        if (nat === 'producto' && !tipoProducto()) {
+            alert('Selecciona el tipo de producto: ME, MP o Mantenimiento.');
+            return false;
+        }
+        if (!document.querySelector('input[name="es_fletera"]:checked')) {
+            alert('Indica si es flete.');
+            return false;
+        }
+        return true;
+    }
+
+    document.querySelectorAll('input[name="naturaleza"]').forEach(function (r) {
         r.addEventListener('change', function () {
-            toggleOc();
+            syncTipoProducto();
             invalidatePending();
         });
     });
-    toggleOc();
+    document.querySelectorAll('input[name="tipo_producto"]').forEach(function (r) {
+        r.addEventListener('change', function () {
+            syncOc();
+            invalidatePending();
+        });
+    });
+    syncTipoProducto();
+
+    if (btnContinuar) {
+        btnContinuar.addEventListener('click', function () {
+            if (!clasificacionOk()) return;
+            goStep(2);
+        });
+    }
+    if (btnVolver) {
+        btnVolver.addEventListener('click', function () {
+            goStep(1);
+        });
+    }
+
+    // Si ya había validación / old input / puede subir → abrir documentos
+    if (startOnDocs && naturaleza()) {
+        goStep(2);
+    } else {
+        goStep(1);
+    }
 
     function invalidatePending() {
         if (!puedeSubir || !btnSubir) return;
@@ -760,8 +1017,8 @@
         var checked = document.querySelector('input[name="es_fletera"]:checked');
         if (!hint || !checked) return;
         hint.textContent = checked.value === '1'
-            ? 'Flete/fletera: se exige retención de IVA (y ISR típico 1.25%)'
-            : 'Flete = IVA siempre · Comisión = solo persona física · resto por régimen';
+            ? 'Flete: se exige retención de IVA (y ISR típico 1.25%)'
+            : 'Si no es flete, las retenciones se validan según régimen';
     }
     document.querySelectorAll('input[name="es_fletera"]').forEach(function (r) {
         r.addEventListener('change', function () {
@@ -774,6 +1031,11 @@
     if (form && btnValidar) {
         form.addEventListener('submit', function (e) {
             var submitter = e.submitter || document.activeElement;
+            if (!clasificacionOk()) {
+                e.preventDefault();
+                goStep(1);
+                return;
+            }
             if (submitter === btnSubir) {
                 if (!puedeSubir) {
                     e.preventDefault();
@@ -781,6 +1043,24 @@
                 }
                 btnSubir.disabled = true;
                 btnSubir.textContent = 'Subiendo…';
+                return;
+            }
+            if (pdfInput && !pdfInput.files.length && !puedeSubir) {
+                e.preventDefault();
+                alert('Adjunta el PDF de la factura.');
+                goStep(2);
+                return;
+            }
+            if (xmlInput && !xmlInput.files.length && !puedeSubir) {
+                e.preventDefault();
+                alert('Adjunta el XML CFDI.');
+                goStep(2);
+                return;
+            }
+            if (needsOc() && ocInput && !ocInput.files.length && !puedeSubir) {
+                e.preventDefault();
+                alert('Para ME o MP la orden de compra es obligatoria.');
+                goStep(2);
                 return;
             }
             btnValidar.disabled = true;

@@ -990,24 +990,32 @@ class PortalProveedorController extends Controller
      */
     public function validarAltaFactura(Request $request, AltaFacturaValidationService $validator)
     {
-        $esMeMp = $request->input('es_me_mp') === '1';
+        $naturaleza = $request->input('naturaleza'); // producto | servicio
+        $tipoProducto = strtoupper((string) $request->input('tipo_producto', ''));
+        $requiereOc = $naturaleza === 'producto' && in_array($tipoProducto, ['ME', 'MP'], true);
 
         $request->validate([
+            'naturaleza' => 'required|in:producto,servicio',
+            'tipo_producto' => 'required_if:naturaleza,producto|nullable|in:ME,MP,MN',
             'archivo' => 'required|file|mimes:pdf|max:10240',
             'archivo_xml' => 'required|file|extensions:xml|max:5120',
-            'archivo_oc' => ($esMeMp ? 'required' : 'nullable').'|file|mimes:pdf|max:10240',
+            'archivo_oc' => ($requiereOc ? 'required' : 'nullable').'|file|mimes:pdf|max:10240',
             'es_fletera' => 'required|in:0,1',
-            'es_me_mp' => 'required|in:0,1',
         ], [
+            'naturaleza.required' => 'Indica si es producto o servicio.',
+            'tipo_producto.required_if' => 'Selecciona el tipo de producto (ME, MP o Mantenimiento).',
             'archivo.required' => 'La factura en PDF es obligatoria.',
             'archivo.mimes' => 'La factura debe ser un archivo PDF.',
             'archivo_xml.required' => 'El XML de la factura es obligatorio.',
             'archivo_xml.extensions' => 'El archivo CFDI debe ser un XML válido (.xml).',
             'archivo_oc.required' => 'Para productos ME o MP la orden de compra (OC) es obligatoria.',
             'archivo_oc.mimes' => 'La orden de compra debe ser un archivo PDF.',
-            'es_fletera.required' => 'Indica si la factura es de fletera o no.',
-            'es_me_mp.required' => 'Indica si la factura es de producto ME o MP.',
+            'es_fletera.required' => 'Indica si la factura es de flete o no.',
         ]);
+
+        if ($naturaleza === 'servicio') {
+            $tipoProducto = 'SERVICIO';
+        }
 
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         if (! $proveedor) {
@@ -1088,13 +1096,16 @@ class PortalProveedorController extends Controller
                 'path_xml' => $pathXml,
                 'path_oc' => $pathOc,
                 'es_fletera' => $esFleteraEfectivo,
-                'es_me_mp' => $esMeMp,
+                'es_me_mp' => $requiereOc,
+                'requiere_oc' => $requiereOc,
+                'naturaleza' => $naturaleza,
+                'tipo_producto' => $tipoProducto,
                 'resultado' => $resultado,
                 'expires_at' => now()->addMinutes(30)->timestamp,
             ],
         ]);
 
-        return back()->with('fiscal_resultado', [
+        return back()->withInput()->with('fiscal_resultado', [
             'aprobado' => true,
             'mensaje' => 'Validación correcta. Revisa el resumen y pulsa «Subir» para registrar la factura.',
             'errores' => [],
@@ -1205,6 +1216,8 @@ class PortalProveedorController extends Controller
                 'retencion_esperada' => $datos['retencion_esperada'] ?? null,
                 'rfc_emisor' => $datos['rfc_emisor'] ?? null,
                 'regimen_nombre' => $datos['regimen_nombre'] ?? null,
+                'naturaleza' => $pendiente['naturaleza'] ?? null,
+                'tipo_producto' => $pendiente['tipo_producto'] ?? null,
                 'es_me_mp' => (bool) ($pendiente['es_me_mp'] ?? false),
                 'validado_at' => now()->toIso8601String(),
             ],
