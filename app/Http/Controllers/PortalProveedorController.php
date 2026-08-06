@@ -1026,7 +1026,8 @@ class PortalProveedorController extends Controller
         $puedeSubir = is_array($pendiente)
             && ! empty($pendiente['aprobado'])
             && ! empty($pendiente['token'])
-            && ($pendiente['proveedor_id'] ?? null) === ($proveedor?->id);
+            && ($pendiente['proveedor_id'] ?? null) === ($proveedor?->id)
+            && ($pendiente['expires_at'] ?? 0) >= now()->timestamp;
 
         return view('proveedores.fiscal', compact(
             'facturas',
@@ -1042,32 +1043,18 @@ class PortalProveedorController extends Controller
      */
     public function validarAltaFactura(Request $request, AltaFacturaValidationService $validator)
     {
-        $naturaleza = $request->input('naturaleza'); // producto | servicio
-        $tipoProducto = strtoupper((string) $request->input('tipo_producto', ''));
-        $requiereOc = $naturaleza === 'producto' && in_array($tipoProducto, ['ME', 'MP'], true);
-
         $request->validate([
-            'naturaleza' => 'required|in:producto,servicio',
-            'tipo_producto' => 'required_if:naturaleza,producto|nullable|in:ME,MP,MN',
-            'archivo' => 'required|file|mimes:pdf|max:10240',
+            'archivo' => 'required|file|extensions:pdf|max:10240',
             'archivo_xml' => 'required|file|extensions:xml|max:5120',
-            'archivo_oc' => ($requiereOc ? 'required' : 'nullable').'|file|mimes:pdf|max:10240',
-            'es_fletera' => 'required|in:0,1',
+            'archivo_oc' => 'nullable|file|extensions:pdf|max:10240',
+            'es_fletera' => 'nullable|in:0,1',
         ], [
-            'naturaleza.required' => 'Indica si es producto o servicio.',
-            'tipo_producto.required_if' => 'Selecciona el tipo de producto (ME, MP o Mantenimiento).',
             'archivo.required' => 'La factura en PDF es obligatoria.',
-            'archivo.mimes' => 'La factura debe ser un archivo PDF.',
+            'archivo.extensions' => 'La factura debe ser un archivo PDF.',
             'archivo_xml.required' => 'El XML de la factura es obligatorio.',
             'archivo_xml.extensions' => 'El archivo CFDI debe ser un XML válido (.xml).',
-            'archivo_oc.required' => 'Para productos ME o MP la orden de compra (OC) es obligatoria.',
-            'archivo_oc.mimes' => 'La orden de compra debe ser un archivo PDF.',
-            'es_fletera.required' => 'Indica si la factura es de flete o no.',
+            'archivo_oc.extensions' => 'La orden de compra debe ser un archivo PDF.',
         ]);
-
-        if ($naturaleza === 'servicio') {
-            $tipoProducto = 'SERVICIO';
-        }
 
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         if (! $proveedor) {
@@ -1112,6 +1099,7 @@ class PortalProveedorController extends Controller
             ]);
         }
 
+        // El flete se detecta del XML; el formulario ya no pregunta clasificación
         $esFletera = $request->input('es_fletera') === '1';
         $rfcProveedor = $this->rfcProveedorSesion($proveedor);
         $ocBinary = $request->hasFile('archivo_oc')
@@ -1151,54 +1139,30 @@ class PortalProveedorController extends Controller
             'path_xml' => $pathXml,
             'path_oc' => $pathOc,
             'es_fletera' => $esFleteraEfectivo,
-            'es_me_mp' => $requiereOc,
-            'requiere_oc' => $requiereOc,
-            'naturaleza' => $naturaleza,
-            'tipo_producto' => $tipoProducto,
+            'es_me_mp' => false,
+            'requiere_oc' => false,
+            'naturaleza' => null,
+            'tipo_producto' => null,
             'resultado' => $resultado,
             'expires_at' => now()->addMinutes(30)->timestamp,
         ];
 
-        // Validación en verde → registrar de inmediato como pendiente
-        try {
-            $this->registrarFacturaDesdePendiente($proveedor, $pendiente);
-        } catch (\InvalidArgumentException $e) {
-            Storage::disk('local')->deleteDirectory($tempDir);
+        session(['fiscal_pendiente' => $pendiente]);
 
-            return back()->withInput()->with('fiscal_resultado', [
-                'aprobado' => false,
-                'estatus' => 'rechazada',
-                'mensaje' => 'La factura no se pudo registrar.',
-                'errores' => [$e->getMessage()],
-                'advertencias' => $resultado['advertencias'],
-                'checklist' => $resultado['checklist'],
-                'datos' => $resultado['datos'],
-            ]);
-        } catch (\Throwable $e) {
-            Storage::disk('local')->deleteDirectory($tempDir);
-            Log::error('[AltaFactura] Error al registrar: '.$e->getMessage());
-
-            return back()->withInput()->withErrors([
-                'archivo' => 'Error al guardar la factura. Intenta de nuevo.',
-            ]);
-        }
-
-        Storage::disk('local')->deleteDirectory($tempDir);
-        session()->forget('fiscal_pendiente');
-
-        $estatus = $resultado['estatus'] ?? 'aprobada';
-        $msgExito = match ($estatus) {
-            'aprobada_con_observaciones' => 'Factura registrada con observaciones (sin OC). Queda en estatus pendiente.',
-            default => 'Factura validada y registrada. Queda en estatus pendiente.',
-        };
-
-        return redirect()
-            ->route('proveedores.facturas')
-            ->with('exito', $msgExito);
+        return back()->with('fiscal_resultado', [
+            'aprobado' => true,
+            'estatus' => $resultado['estatus'] ?? 'aprobada',
+            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta.').' Revisa el resumen y pulsa «Subir» para registrar.',
+            'errores' => [],
+            'advertencias' => $resultado['advertencias'] ?? [],
+            'checklist' => $resultado['checklist'] ?? [],
+            'datos' => $resultado['datos'] ?? [],
+            'listo_para_subir' => true,
+        ]);
     }
 
     /**
-     * Compat: ruta antigua «Subir». Reenvía a validar+registrar si aún hay sesión.
+     * Paso 2: registrar factura ya validada (archivos temporales de sesión).
      */
     public function altaFactura(Request $request)
     {
@@ -1215,9 +1179,11 @@ class PortalProveedorController extends Controller
             || ($pendiente['expires_at'] ?? 0) < now()->timestamp
         ) {
             return back()->withErrors([
-                'archivo' => 'Adjunta PDF + XML y pulsa «Validar y registrar».',
+                'archivo' => 'Primero valida la factura. Adjunta PDF + XML y pulsa «Validar».',
             ]);
         }
+
+        $resultado = $pendiente['resultado'] ?? [];
 
         try {
             $this->registrarFacturaDesdePendiente($proveedor, $pendiente);
@@ -1226,10 +1192,12 @@ class PortalProveedorController extends Controller
 
             return back()->with('fiscal_resultado', [
                 'aprobado' => false,
+                'estatus' => 'rechazada',
                 'mensaje' => 'La factura no se pudo registrar.',
                 'errores' => [$e->getMessage()],
-                'checklist' => $pendiente['resultado']['checklist'] ?? [],
-                'datos' => $pendiente['resultado']['datos'] ?? [],
+                'advertencias' => $resultado['advertencias'] ?? [],
+                'checklist' => $resultado['checklist'] ?? [],
+                'datos' => $resultado['datos'] ?? [],
             ]);
         } catch (\Throwable $e) {
             $this->limpiarFiscalPendiente();
@@ -1240,9 +1208,19 @@ class PortalProveedorController extends Controller
 
         $this->limpiarFiscalPendiente();
 
-        return redirect()
-            ->route('proveedores.facturas')
-            ->with('exito', 'Factura registrada. Queda en estatus pendiente.');
+        $estatus = $resultado['estatus'] ?? 'aprobada';
+        $mensaje = 'Factura registrada correctamente. Queda pendiente de revisión contable.';
+
+        return back()->with('fiscal_resultado', [
+            'aprobado' => true,
+            'estatus' => $estatus,
+            'mensaje' => $mensaje,
+            'errores' => [],
+            'advertencias' => $resultado['advertencias'] ?? [],
+            'checklist' => $resultado['checklist'] ?? [],
+            'datos' => $resultado['datos'] ?? [],
+            'registrada' => true,
+        ]);
     }
 
     /**

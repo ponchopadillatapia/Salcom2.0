@@ -49,7 +49,14 @@ class AltaFacturaValidationServiceTest extends TestCase
   <cfdi:Emisor Rfc="{$rfcEmisor}" Nombre="PROVEEDOR DEMO" RegimenFiscal="{$regimen}"/>
   <cfdi:Receptor Rfc="{$rfcReceptor}" Nombre="INDUSTRIAS SALCOM" UsoCFDI="G03"/>
   <cfdi:Conceptos>
-    <cfdi:Concepto ClaveProdServ="{$clave}" Cantidad="1" ClaveUnidad="E48" Descripcion="{$desc}" ValorUnitario="{$subtotal}" Importe="{$subtotal}"/>
+    <cfdi:Concepto ClaveProdServ="{$clave}" Cantidad="1" ClaveUnidad="E48" Descripcion="{$desc}" ValorUnitario="{$subtotal}" Importe="{$subtotal}">
+      <cfdi:Impuestos>
+        {$retenciones}
+        <cfdi:Traslados>
+          <cfdi:Traslado Base="{$subtotal}" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="{$iva}"/>
+        </cfdi:Traslados>
+      </cfdi:Impuestos>
+    </cfdi:Concepto>
   </cfdi:Conceptos>
   <cfdi:Impuestos TotalImpuestosTrasladados="{$iva}" TotalImpuestosRetenidos="0">
     {$retenciones}
@@ -85,6 +92,9 @@ XML;
                 : 100.00,
             'total' => (float) ($xmlOpts['total'] ?? 953.33),
             'conceptos' => [strtoupper($xmlOpts['descripcion'] ?? 'Servicio general')],
+            'claves_prod_serv' => array_key_exists('claves_pdf', $xmlOpts)
+                ? (array) $xmlOpts['claves_pdf']
+                : [($xmlOpts['clave'] ?? '01010101')],
         ];
 
         $mock = $this->createMock(FacturaDocumentoExtractor::class);
@@ -107,11 +117,41 @@ XML;
         $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
-        $this->assertSame('aprobada_con_observaciones', $result['estatus']);
+        $this->assertSame('aprobada', $result['estatus']);
         $this->assertTrue($result['checklist']['regimen']['ok']);
         $this->assertTrue($result['checklist']['retenciones']['ok']);
         $this->assertSame('612', $result['datos']['regimen_fiscal']);
         $this->assertFalse($result['datos']['tiene_concepto_flete']);
+        // Impuestos de concepto + globales en el XML fixture: no deben duplicarse.
+        $this->assertSame(160.0, (float) $result['datos']['iva']);
+        $this->assertSame(106.67, (float) $result['datos']['retencion_iva']);
+        $this->assertSame(100.0, (float) $result['datos']['retencion_isr']);
+        $this->assertFalse(collect($result['advertencias'])->contains(
+            fn ($a) => str_contains((string) $a, 'No se adjuntó Orden de Compra')
+        ));
+    }
+
+    public function test_impuestos_solo_del_nodo_global_no_duplican_conceptos(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'iva' => '160.00',
+            'ret_iva' => '40.00',
+            'ret_isr' => '12.50',
+            'total' => '1107.50',
+            'uuid' => 'D1B2C3D4-E5F6-7890-ABCD-EF1234567801',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+
+        $this->assertSame(160.0, (float) $result['datos']['iva']);
+        $this->assertSame(40.0, (float) $result['datos']['retencion_iva']);
+        $this->assertSame(12.5, (float) $result['datos']['retencion_isr']);
+        $this->assertNotSame(320.0, (float) $result['datos']['iva']);
+        $this->assertNotSame(80.0, (float) $result['datos']['retencion_iva']);
     }
 
     public function test_flete_exige_retencion_iva_sin_importar_regimen(): void
@@ -187,8 +227,49 @@ XML;
         $this->assertFalse($result['datos']['tiene_concepto_flete']);
         $this->assertFalse($result['datos']['es_fletera']);
         $this->assertTrue($result['checklist']['retenciones']['ok']);
-        $this->assertStringContainsString('sin flete en XML', $result['checklist']['fletera']['label']);
-        $this->assertSame('aprobada_con_observaciones', $result['estatus']);
+        $this->assertStringContainsString('sin ClaveProdServ de flete', $result['checklist']['fletera']['label']);
+        $this->assertSame('aprobada', $result['estatus']);
+    }
+
+    public function test_flete_se_detecta_por_clave_sat_sin_palabra_flete(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'rfc_emisor' => 'AAA010101AAA',
+            'regimen' => '601',
+            'clave' => '78101800',
+            'descripcion' => 'Servicio logistico unidad 01',
+            'ret_iva' => '40.00',
+            'ret_isr' => '12.50',
+            'total' => '1107.50',
+            'uuid' => 'C1B2C3D4-E5F6-7890-ABCD-EF1234567899',
+            'iva' => '160.00',
+            'subtotal' => '1000.00',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null);
+
+        $this->assertTrue($result['datos']['tiene_concepto_flete']);
+        $this->assertSame('clave', $result['datos']['deteccion_conceptos']['flete']);
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+    }
+
+    public function test_clave_sat_pdf_distinta_rechaza(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'claves_pdf' => ['99999999'],
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+
+        $this->assertFalse($result['aprobado']);
+        $this->assertSame('rechazada', $result['estatus']);
+        $this->assertTrue(collect($result['errores'])->contains(fn ($e) => str_contains($e, 'ClaveProdServ')));
     }
 
     public function test_resico_persona_moral_no_exige_isr_125(): void

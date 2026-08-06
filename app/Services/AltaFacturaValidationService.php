@@ -38,10 +38,11 @@ class AltaFacturaValidationService
         $checklist = [
             'xml' => ['ok' => false, 'label' => 'XML CFDI válido'],
             'pdf_xml' => ['ok' => false, 'label' => 'Factura PDF ↔ XML'],
-            'oc_xml' => ['ok' => true, 'label' => 'OC omitida'],
+            'oc_xml' => ['ok' => true, 'label' => 'OC no adjunta (opcional)'],
             'emisor' => ['ok' => false, 'label' => 'RFC emisor'],
             'receptor' => ['ok' => false, 'label' => 'RFC receptor Salcom'],
             'uuid' => ['ok' => false, 'label' => 'UUID único'],
+            'claves_sat' => ['ok' => false, 'label' => 'ClaveProdServ SAT'],
             'regimen' => ['ok' => false, 'label' => 'Régimen fiscal'],
             'fletera' => ['ok' => false, 'label' => 'Indicador fletera'],
             'retenciones' => ['ok' => false, 'label' => 'Retenciones'],
@@ -68,6 +69,8 @@ class AltaFacturaValidationService
             'fecha' => null,
             'tipo_comprobante' => null,
             'conceptos' => [],
+            'claves_prod_serv' => [],
+            'deteccion_conceptos' => [],
             'es_fletera' => $esFletera,
             'tiene_concepto_flete' => false,
             'tiene_concepto_comision' => false,
@@ -149,26 +152,33 @@ class AltaFacturaValidationService
             $checklist['totales']['ok'] = true;
         }
 
-        $conceptos = $this->detectarConceptos($xml);
+        $conceptos = $this->detectarConceptos($xml, $errores, $advertencias);
         $datos['tiene_concepto_flete'] = $conceptos['flete'];
         $datos['tiene_concepto_comision'] = $conceptos['comision'];
         $datos['conceptos'] = $conceptos['descripciones'];
+        $datos['claves_prod_serv'] = $conceptos['claves'];
+        $datos['deteccion_conceptos'] = $conceptos['deteccion'];
+        $checklist['claves_sat']['ok'] = $conceptos['claves_ok'];
+        $checklist['claves_sat']['label'] = $conceptos['claves_ok']
+            ? ('ClaveProdServ: '.implode(', ', $conceptos['claves'] ?: ['—']))
+            : 'ClaveProdServ faltante o inválida';
 
         $this->validarRegimen($datos, $errores, $checklist);
 
-        // Fletera: el XML manda
+        // Fletera: ClaveProdServ SAT manda (flete)
         if ($esFletera && ! $datos['tiene_concepto_flete']) {
             $esFletera = false;
             $datos['es_fletera'] = false;
-            $advertencias[] = 'Marcó fletera, pero el XML no trae clave/descripción de flete. Se validó como no fletera (según régimen).';
+            $advertencias[] = 'Marcó fletera, pero el XML no trae ClaveProdServ de flete. Se validó como no fletera (según régimen).';
             $checklist['fletera']['ok'] = true;
-            $checklist['fletera']['label'] = 'No es fletera (corregido: sin flete en XML)';
+            $checklist['fletera']['label'] = 'No es fletera (sin ClaveProdServ de flete)';
         } elseif (! $esFletera && $datos['tiene_concepto_flete']) {
             $esFletera = true;
             $datos['es_fletera'] = true;
-            $advertencias[] = 'El XML trae concepto de flete: se aplican reglas de fletera aunque no lo haya marcado.';
+            $via = ($conceptos['deteccion']['flete'] ?? '') === 'clave' ? 'ClaveProdServ' : 'descripción';
+            $advertencias[] = "El XML trae concepto de flete (detectado por {$via}): se aplican reglas de fletera.";
             $checklist['fletera']['ok'] = true;
-            $checklist['fletera']['label'] = 'Concepto flete detectado en XML';
+            $checklist['fletera']['label'] = 'Flete detectado por '.$via;
         } else {
             $checklist['fletera']['ok'] = true;
             $checklist['fletera']['label'] = $esFletera ? 'Marcada como fletera' : 'No es fletera';
@@ -184,13 +194,12 @@ class AltaFacturaValidationService
             $checklist['pdf_xml']['ok'] = false;
         }
 
-        // Cruce OC ↔ XML (solo si hay OC)
+        // Cruce OC ↔ XML (solo si hay OC; sin OC no es observación ni error)
         if ($datos['tiene_oc']) {
             $this->cruzarOcConXml($ocContent, $datos, $errores, $advertencias, $checklist);
         } else {
             $checklist['oc_xml']['ok'] = true;
-            $checklist['oc_xml']['label'] = 'Sin OC (validación omitida)';
-            $advertencias[] = 'No se adjuntó Orden de Compra. Se omitió el cruce OC ↔ XML.';
+            $checklist['oc_xml']['label'] = 'OC no adjunta (opcional)';
         }
 
         return $this->resultado($errores, $advertencias, $checklist, $datos);
@@ -299,7 +308,7 @@ class AltaFacturaValidationService
         $this->compararMonto('Retención ISR', $datos['retencion_isr'], $pdf['retencion_isr'] ?? null, $tol, $mismatches, false);
         $this->compararMonto('Total', $datos['total'], $pdf['total'] ?? null, $tol, $mismatches);
 
-        // Conceptos: si el PDF trae descripciones, al menos una debe aparecer en el XML
+        // Conceptos: descripción y ClaveProdServ SAT
         $pdfConceptos = $pdf['conceptos'] ?? [];
         if ($pdfConceptos && $datos['conceptos']) {
             $xmlBlob = mb_strtolower(implode(' | ', $datos['conceptos']), 'UTF-8');
@@ -314,6 +323,21 @@ class AltaFacturaValidationService
             if (! $hit) {
                 $mismatches[] = 'Conceptos / descripción: no se encontró coincidencia entre la factura PDF y el XML.';
             }
+        }
+
+        $pdfClaves = array_values(array_filter(array_map('strval', $pdf['claves_prod_serv'] ?? [])));
+        $xmlClaves = array_values(array_filter(array_map('strval', $datos['claves_prod_serv'] ?? [])));
+        if ($pdfClaves !== [] && $xmlClaves !== []) {
+            $faltanEnXml = array_values(array_diff($pdfClaves, $xmlClaves));
+            if ($faltanEnXml !== []) {
+                $mismatches[] = 'ClaveProdServ SAT: en PDF ('.implode(', ', $faltanEnXml).') no aparecen en el XML.';
+            }
+            $faltanEnPdf = array_values(array_diff($xmlClaves, $pdfClaves));
+            if ($faltanEnPdf !== []) {
+                $advertencias[] = 'ClaveProdServ SAT del XML ('.implode(', ', $faltanEnPdf).') no se detectó en el PDF; se usó el XML como fuente oficial.';
+            }
+        } elseif ($xmlClaves !== [] && $pdfClaves === [] && ! $extraido['escaneado']) {
+            $advertencias[] = 'No se detectó ClaveProdServ en el PDF; se validó solo con las claves del XML ('.implode(', ', $xmlClaves).').';
         }
 
         if ($mismatches) {
@@ -599,16 +623,42 @@ class AltaFacturaValidationService
     }
 
     /**
-     * @return array{flete: bool, comision: bool, descripciones: list<string>}
+     * Detecta flete/comisión priorizando ClaveProdServ SAT; la descripción es respaldo.
+     *
+     * @return array{
+     *   flete: bool,
+     *   comision: bool,
+     *   descripciones: list<string>,
+     *   claves: list<string>,
+     *   claves_ok: bool,
+     *   deteccion: array{flete: ?string, comision: ?string}
+     * }
      */
-    private function detectarConceptos(SimpleXMLElement $xml): array
+    private function detectarConceptos(SimpleXMLElement $xml, array &$errores, array &$advertencias): array
     {
         $cfg = config('facturas.conceptos', []);
         $flete = false;
         $comision = false;
         $descripciones = [];
+        $claves = [];
+        $clavesOk = true;
+        $deteccion = ['flete' => null, 'comision' => null];
 
         $nodos = $xml->xpath("//*[local-name()='Concepto']") ?: [];
+        if (! $nodos) {
+            $errores[] = 'El XML no trae nodos Concepto con ClaveProdServ.';
+            $clavesOk = false;
+
+            return [
+                'flete' => false,
+                'comision' => false,
+                'descripciones' => [],
+                'claves' => [],
+                'claves_ok' => false,
+                'deteccion' => $deteccion,
+            ];
+        }
+
         foreach ($nodos as $nodo) {
             $attrs = $nodo->attributes();
             $clave = trim((string) ($attrs['ClaveProdServ'] ?? ''));
@@ -616,26 +666,64 @@ class AltaFacturaValidationService
             if ($desc !== '') {
                 $descripciones[] = $desc;
             }
+
+            if ($clave === '' || ! preg_match('/^\d{8}$/', $clave)) {
+                $errores[] = 'Hay un concepto en el XML sin ClaveProdServ SAT válida (8 dígitos). Es obligatoria para clasificar el bien o servicio.';
+                $clavesOk = false;
+                continue;
+            }
+
+            $claves[] = $clave;
             $descAscii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', mb_strtolower($desc, 'UTF-8')) ?: mb_strtolower($desc, 'UTF-8');
 
-            if ($this->conceptoCoincide($clave, $descAscii, $cfg['flete'] ?? [])) {
-                $flete = true;
+            if (! $flete) {
+                if ($this->coincidePorClave($clave, $cfg['flete'] ?? [])) {
+                    $flete = true;
+                    $deteccion['flete'] = 'clave';
+                } elseif ($this->coincidePorDescripcion($descAscii, $cfg['flete'] ?? [])) {
+                    $flete = true;
+                    $deteccion['flete'] = 'descripcion';
+                    $advertencias[] = "Flete detectado solo por descripción («{$desc}»), no por ClaveProdServ ({$clave}). Prefiere claves SAT de flete.";
+                }
             }
-            if ($this->conceptoCoincide($clave, $descAscii, $cfg['comision'] ?? [])) {
-                $comision = true;
+
+            if (! $comision) {
+                if ($this->coincidePorClave($clave, $cfg['comision'] ?? [])) {
+                    $comision = true;
+                    $deteccion['comision'] = 'clave';
+                } elseif ($this->coincidePorDescripcion($descAscii, $cfg['comision'] ?? [])) {
+                    $comision = true;
+                    $deteccion['comision'] = 'descripcion';
+                    $advertencias[] = "Comisión detectada solo por descripción («{$desc}»), no por ClaveProdServ ({$clave}). Prefiere claves SAT de comisión.";
+                }
             }
         }
 
-        return ['flete' => $flete, 'comision' => $comision, 'descripciones' => $descripciones];
+        $claves = array_values(array_unique($claves));
+
+        return [
+            'flete' => $flete,
+            'comision' => $comision,
+            'descripciones' => $descripciones,
+            'claves' => $claves,
+            'claves_ok' => $clavesOk && $claves !== [],
+            'deteccion' => $deteccion,
+        ];
     }
 
-    private function conceptoCoincide(string $clave, string $descAscii, array $cfg): bool
+    private function coincidePorClave(string $clave, array $cfg): bool
     {
         foreach ($cfg['claves'] ?? [] as $c) {
             if ($clave !== '' && $clave === (string) $c) {
                 return true;
             }
         }
+
+        return false;
+    }
+
+    private function coincidePorDescripcion(string $descAscii, array $cfg): bool
+    {
         foreach ($cfg['palabras'] ?? [] as $p) {
             $pAscii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', mb_strtolower((string) $p, 'UTF-8')) ?: $p;
             if ($pAscii !== '' && str_contains($descAscii, $pAscii)) {
@@ -701,6 +789,9 @@ class AltaFacturaValidationService
     }
 
     /**
+     * Lee solo impuestos del nodo global /cfdi:Comprobante/cfdi:Impuestos.
+     * Ignora por completo Impuestos anidados en Conceptos (evita duplicar importes).
+     *
      * @return array{iva_trasladado: float, retencion_iva: float, retencion_isr: float}
      */
     private function extraerImpuestos(SimpleXMLElement $xml): array
@@ -709,7 +800,15 @@ class AltaFacturaValidationService
         $retIva = 0.0;
         $retIsr = 0.0;
 
-        $traslados = $xml->xpath("//*[local-name()='Traslado']");
+        // Rutas directas bajo Comprobante/Impuestos (no Conceptos/*/Impuestos).
+        $traslados = $xml->xpath(
+            "/*[local-name()='Comprobante']/*[local-name()='Impuestos']/*[local-name()='Traslados']/*[local-name()='Traslado']"
+        );
+        if (! $traslados) {
+            $traslados = $xml->xpath(
+                "*[local-name()='Impuestos']/*[local-name()='Traslados']/*[local-name()='Traslado']"
+            );
+        }
         if ($traslados) {
             foreach ($traslados as $t) {
                 $imp = (string) ($t->attributes()['Impuesto'] ?? '');
@@ -720,9 +819,13 @@ class AltaFacturaValidationService
             }
         }
 
-        $retenciones = $xml->xpath("//*[local-name()='Retenciones']/*[local-name()='Retencion']");
+        $retenciones = $xml->xpath(
+            "/*[local-name()='Comprobante']/*[local-name()='Impuestos']/*[local-name()='Retenciones']/*[local-name()='Retencion']"
+        );
         if (! $retenciones) {
-            $retenciones = $xml->xpath("//*[local-name()='Retencion']");
+            $retenciones = $xml->xpath(
+                "*[local-name()='Impuestos']/*[local-name()='Retenciones']/*[local-name()='Retencion']"
+            );
         }
         if ($retenciones) {
             foreach ($retenciones as $r) {
@@ -746,14 +849,10 @@ class AltaFacturaValidationService
     private function resultado(array $errores, array $advertencias, array $checklist, array $datos): array
     {
         $aprobado = empty($errores);
-        $tieneOc = ! empty($datos['tiene_oc']);
 
         if (! $aprobado) {
             $estatus = 'rechazada';
             $mensaje = 'La factura fue rechazada: hay diferencias entre documentos o no cumple las reglas fiscales.';
-        } elseif (! $tieneOc) {
-            $estatus = 'aprobada_con_observaciones';
-            $mensaje = 'Aprobada con observaciones: factura y XML son consistentes y válidos, pero no se adjuntó Orden de Compra.';
         } else {
             $estatus = 'aprobada';
             $mensaje = 'Aprobada: los documentos coinciden y cumplen las reglas fiscales.';

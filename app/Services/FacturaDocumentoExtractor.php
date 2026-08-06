@@ -84,6 +84,7 @@ class FacturaDocumentoExtractor
             'retencion_isr' => null,
             'total' => null,
             'conceptos' => [],
+            'claves_prod_serv' => [],
         ];
 
         // UUID
@@ -127,11 +128,19 @@ class FacturaDocumentoExtractor
             $campos['fecha'] = $m[1];
         }
 
-        // Régimen
-        if (preg_match('/R[EÉ]GIMEN\s*FISCAL\s*[:\.]?\s*(\d{3})/', $t, $m)) {
-            $campos['regimen_fiscal'] = $m[1];
-        } elseif (preg_match('/\b(60[1-9]|61[0-6]|62[0-6])\b/', $t, $m) && str_contains($t, 'REGIMEN')) {
-            $campos['regimen_fiscal'] = $m[1];
+        // Régimen fiscal del emisor: SOLO la primera "RÉGIMEN FISCAL" del documento.
+        // Se busca el código en el tramo hasta la siguiente aparición (ignora el del cliente).
+        if (preg_match('/R[EÉ]GIMEN\s*FISCAL\b/u', $t, $mLabel, PREG_OFFSET_CAPTURE)) {
+            $inicio = $mLabel[0][1] + strlen($mLabel[0][0]);
+            $tramo = substr($t, $inicio);
+            if (preg_match('/R[EÉ]GIMEN\s*FISCAL\b/u', $tramo, $mNext, PREG_OFFSET_CAPTURE)) {
+                $tramo = substr($tramo, 0, $mNext[0][1]);
+            }
+            if (preg_match('/\b(60[1-9]|61[0-6]|62[0-6])\b/', $tramo, $mCode)) {
+                $campos['regimen_fiscal'] = $mCode[1];
+            } elseif (preg_match('/^\s*[:\.\-]?\s*(\d{3})\b/', $tramo, $mCode)) {
+                $campos['regimen_fiscal'] = $mCode[1];
+            }
         }
 
         // Método / forma de pago
@@ -154,8 +163,8 @@ class FacturaDocumentoExtractor
 
         // Montos
         $campos['subtotal'] = $this->extraerMonto($t, ['SUBTOTAL', 'SUB TOTAL', 'SUB-TOTAL']);
-        $campos['total'] = $this->extraerMonto($t, ['TOTAL']);
-        $campos['iva'] = $this->extraerMonto($t, ['IVA TRASLADADO', 'IMPUESTO TRASLADADO', 'IVA 16', ' I\.V\.A\. ', ' IVA ']);
+        $campos['total'] = $this->extraerTotal($t);
+        $campos['iva'] = $this->extraerIvaTrasladado($t);
         $campos['retencion_iva'] = $this->extraerMonto($t, ['RETENCION IVA', 'RETENCI[OÓ]N.*IVA', 'IVA RETENIDO', 'RET\.?\s*IVA']);
         $campos['retencion_isr'] = $this->extraerMonto($t, ['RETENCION ISR', 'RETENCI[OÓ]N.*ISR', 'ISR RETENIDO', 'RET\.?\s*ISR']);
 
@@ -164,7 +173,83 @@ class FacturaDocumentoExtractor
             $campos['conceptos'] = array_values(array_unique(array_map('trim', $m[1])));
         }
 
+        // ClaveProdServ SAT (8 dígitos) — criterio principal para tipo de bien/servicio
+        $claves = [];
+        if (preg_match_all('/(?:CLAVE\s*(?:PROD(?:UCTO)?\s*SERV(?:ICIO)?|PROD\.?\s*SERV\.?|SAT)|CLAVEPRODSERV)\s*[:\.]?\s*(\d{8})/', $t, $m)) {
+            $claves = array_merge($claves, $m[1]);
+        }
+        // También claves de 8 dígitos cerca de la palabra CLAVE
+        if (preg_match_all('/CLAVE[^0-9]{0,40}(\d{8})/', $t, $m)) {
+            $claves = array_merge($claves, $m[1]);
+        }
+        $campos['claves_prod_serv'] = array_values(array_unique($claves));
+
         return $campos;
+    }
+
+    /**
+     * Extrae el monto de la etiqueta TOTAL (no SUBTOTAL / SUB-TOTAL).
+     */
+    private function extraerTotal(string $texto): ?float
+    {
+        $monto = '\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{2})?|[0-9]+(?:\.[0-9]{2})?)';
+
+        // 1) TOTAL al inicio de línea (ignora mayúsculas/minúsculas).
+        if (preg_match('/(?:^|[\n\r])\s*TOTAL\b\s*[:\.]?\s*'.$monto.'/imu', $texto, $m)) {
+            return $this->parseMonto($m[1]);
+        }
+
+        // 2) Palabra completa TOTAL; lookbehind evita SUBTOTAL y SUB-TOTAL.
+        if (preg_match('/(?<!SUB)(?<!SUB-)\bTOTAL\b\s*[:\.]?\s*'.$monto.'/iu', $texto, $m)) {
+            return $this->parseMonto($m[1]);
+        }
+
+        return null;
+    }
+
+    /**
+     * Extrae IVA trasladado; ignora líneas con RETENCIÓN/RETENCION.
+     */
+    private function extraerIvaTrasladado(string $texto): ?float
+    {
+        $monto = '\$?\s*([0-9]{1,3}(?:,[0-9]{3})*(?:\.[0-9]{2})?|[0-9]+(?:\.[0-9]{2})?)';
+
+        $lineas = preg_split('/\R+/u', $texto) ?: [$texto];
+        $sinRetencion = [];
+        foreach ($lineas as $linea) {
+            if (preg_match('/RETENCI[OÓ]N/u', $linea)) {
+                continue;
+            }
+            $sinRetencion[] = $linea;
+        }
+        $filtrado = implode("\n", $sinRetencion);
+
+        $patrones = [
+            '/TRASLADOS?\s*(?:DE\s*)?IVA\b\s*[:\.]?\s*'.$monto.'/iu',
+            '/IVA\s*TRASLADADOS?\b\s*[:\.]?\s*'.$monto.'/iu',
+            '/IMPUESTO\s*TRASLADADO\b\s*[:\.]?\s*'.$monto.'/iu',
+            '/IVA\s*TASA\s*0\.16(?:0{1,4})?\b[^\$0-9]{0,60}'.$monto.'/iu',
+            '/\bIVA\s*16(?:\.00)?\s*%?\b\s*[:\.]?\s*'.$monto.'/iu',
+        ];
+
+        foreach ($patrones as $pattern) {
+            if (preg_match($pattern, $filtrado, $m)) {
+                return $this->parseMonto($m[1]);
+            }
+        }
+
+        // Monto antes de la etiqueta (p. ej. "$3,920.00 TRASLADO IVA")
+        $patronesInv = [
+            '/'.$monto.'\s*TRASLADOS?\s*(?:DE\s*)?IVA\b/iu',
+            '/'.$monto.'\s*IVA\s*TRASLADADOS?\b/iu',
+        ];
+        foreach ($patronesInv as $pattern) {
+            if (preg_match($pattern, $filtrado, $m)) {
+                return $this->parseMonto($m[1]);
+            }
+        }
+
+        return null;
     }
 
     /**
