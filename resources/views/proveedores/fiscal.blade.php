@@ -335,9 +335,11 @@
         border: 1px solid transparent;
     }
     .result-box.ok { background: var(--green-bg); border-color: #bbf7d0; }
+    .result-box.warn { background: #fffbeb; border-color: #fde68a; }
     .result-box.fail { background: var(--red-bg); border-color: #fecaca; }
     .result-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
     .result-box.ok .result-title { color: #059669; }
+    .result-box.warn .result-title { color: #b45309; }
     .result-box.fail .result-title { color: #dc2626; }
     .result-msg { font-size: 12px; color: var(--gray-text); margin-bottom: 10px; }
 
@@ -492,9 +494,21 @@
 
 @php
     $puedeSubir = $puedeSubir ?? false;
-    $resTitulo = 'Factura rechazada';
-    if (!empty($res['aprobado'])) {
-        $resTitulo = !empty($res['registrada']) ? 'Factura registrada' : 'Validación correcta';
+    $estatusRes = $res['estatus'] ?? null;
+    if (!empty($res['registrada'])) {
+        $resTitulo = match ($estatusRes) {
+            'aprobada_con_observaciones' => 'Factura registrada (con observaciones)',
+            'rechazada' => 'Factura rechazada',
+            default => 'Factura registrada',
+        };
+    } elseif (!empty($res['aprobado'])) {
+        $resTitulo = match ($estatusRes) {
+            'aprobada_con_observaciones' => 'Aprobada con observaciones',
+            'aprobada' => 'Aprobada',
+            default => 'Validación correcta',
+        };
+    } else {
+        $resTitulo = 'Rechazada';
     }
     $abrirDocumentos = $puedeSubir
         || old('naturaleza')
@@ -502,7 +516,12 @@
 @endphp
 
 @if($res)
-<div class="result-box {{ $res['aprobado'] ? 'ok' : 'fail' }}" style="margin-bottom:20px;margin-top:0;">
+@php
+    $boxClass = !empty($res['aprobado'])
+        ? (($res['estatus'] ?? '') === 'aprobada_con_observaciones' ? 'warn' : 'ok')
+        : 'fail';
+@endphp
+<div class="result-box {{ $boxClass }}" style="margin-bottom:20px;margin-top:0;">
     <div class="result-title">{{ $resTitulo }}</div>
     <div class="result-msg">{{ $res['mensaje'] ?? '' }}</div>
 

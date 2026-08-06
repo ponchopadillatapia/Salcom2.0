@@ -1062,7 +1062,10 @@ class PortalProveedorController extends Controller
 
         $esFletera = $request->input('es_fletera') === '1';
         $rfcProveedor = $this->rfcProveedorSesion($proveedor);
-        $resultado = $validator->validar($xmlContent, $esFletera, $rfcProveedor);
+        $ocBinary = $request->hasFile('archivo_oc')
+            ? file_get_contents($request->file('archivo_oc')->getRealPath())
+            : null;
+        $resultado = $validator->validar($xmlContent, $esFletera, $rfcProveedor, $pdfContent, $ocBinary);
 
         // Usar el indicador efectivo tras corrección por conceptos del XML
         $esFleteraEfectivo = (bool) ($resultado['datos']['es_fletera'] ?? $esFletera);
@@ -1070,7 +1073,8 @@ class PortalProveedorController extends Controller
         if (! $resultado['aprobado']) {
             return back()->withInput()->with('fiscal_resultado', [
                 'aprobado' => false,
-                'mensaje' => 'La factura no pasó la validación. Corrige los errores y vuelve a validar.',
+                'estatus' => $resultado['estatus'] ?? 'rechazada',
+                'mensaje' => $resultado['mensaje'] ?? 'La factura no pasó la validación. Corrige los errores y vuelve a validar.',
                 'errores' => $resultado['errores'],
                 'advertencias' => $resultado['advertencias'],
                 'checklist' => $resultado['checklist'],
@@ -1107,7 +1111,8 @@ class PortalProveedorController extends Controller
 
         return back()->withInput()->with('fiscal_resultado', [
             'aprobado' => true,
-            'mensaje' => 'Validación correcta. Revisa el resumen y pulsa «Subir» para registrar la factura.',
+            'estatus' => $resultado['estatus'] ?? 'aprobada',
+            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta').' Pulsa «Subir» para registrar.',
             'errores' => [],
             'advertencias' => $resultado['advertencias'],
             'checklist' => $resultado['checklist'],
@@ -1211,6 +1216,7 @@ class PortalProveedorController extends Controller
             'archivo_oc' => $finalOc,
             'notas' => null,
             'validacion_detalle' => [
+                'estatus' => $resultado['estatus'] ?? null,
                 'checklist' => $resultado['checklist'] ?? [],
                 'advertencias' => $resultado['advertencias'] ?? [],
                 'retencion_esperada' => $datos['retencion_esperada'] ?? null,
@@ -1247,7 +1253,8 @@ class PortalProveedorController extends Controller
 
         return back()->with('fiscal_resultado', [
             'aprobado' => true,
-            'mensaje' => 'Factura registrada correctamente. Queda pendiente de revisión contable.',
+            'estatus' => $resultado['estatus'] ?? 'aprobada',
+            'mensaje' => ($resultado['mensaje'] ?? 'Factura registrada correctamente.').' Queda pendiente de revisión contable.',
             'errores' => [],
             'advertencias' => $resultado['advertencias'] ?? [],
             'checklist' => $resultado['checklist'] ?? [],

@@ -125,11 +125,23 @@ return [
     */
     'retenciones' => [
 
-        // Flete / fletera: IVA siempre (indicación Contabilidad Salcom)
+        // Flete / fletera: IVA 4% siempre
         'flete' => [
             'iva' => 0.04,
             'isr' => 0.0125,
             'requiere_retencion' => true,
+        ],
+
+        // RESICO (626)
+        'resico_fisica' => [
+            'iva' => 0.0,
+            'isr' => 0.0125,
+            'requiere_retencion' => true,
+        ],
+        'resico_moral' => [
+            'iva' => 0.0,
+            'isr' => 0.0,
+            'requiere_retencion' => false,
         ],
 
         // Comisiones: solo persona física
@@ -142,7 +154,7 @@ return [
         'por_regimen' => [
             '601' => ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false],
             '603' => ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false],
-            '626' => ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false],
+            // 626 se resuelve en código (PF vs PM)
             '612' => ['iva' => 0.106667, 'isr' => 0.10, 'requiere_retencion' => true],
             '621' => ['iva' => 0.106667, 'isr' => 0.0125, 'requiere_retencion' => true],
             '625' => ['iva' => 0.106667, 'isr' => 0.01, 'requiere_retencion' => true],
