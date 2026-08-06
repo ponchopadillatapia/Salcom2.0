@@ -20,7 +20,7 @@ class ProveedorUser extends Authenticatable
     protected $table = 'proveedores_users';
 
     protected $fillable = [
-        'usuario', 'password', 'id_proveedor', 'codigo_compras', 'nombre',
+        'usuario', 'password', 'id_proveedor', 'codigo_compras', 'codigo', 'nombre',
         'tipo_persona', 'telefono', 'correo', 'foto', 'activo',
         'solicitud_alta_estatus', 'solicitud_alta_intentos',
         'datos_identificacion',

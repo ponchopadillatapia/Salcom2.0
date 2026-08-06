@@ -146,7 +146,11 @@
                                 ISR ${{ number_format((float)($f->retencion_isr ?? 0), 2) }}
                             </td>
                             <td class="monto">${{ number_format((float)$f->neto_pago, 2) }}</td>
-                            <td style="font-size:12px;color:var(--gray-muted);">{{ $f->created_at?->format('H:i') ?? '—' }}</td>
+                            <td style="text-align:right;white-space:nowrap;">
+                                <span style="display:inline-flex;padding:3px 8px;border-radius:999px;background:var(--purple-subtle);color:var(--purple);font-size:11px;font-weight:700;">
+                                    {{ $f->created_at?->format('h:i a') ?? '—' }}
+                                </span>
+                            </td>
                             <td>
                                 @forelse($f->avisos_pago as $a)
                                     <span class="aviso">• {{ $a }}</span>

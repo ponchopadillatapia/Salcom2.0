@@ -45,21 +45,28 @@
             font-weight: 700;
             letter-spacing: -0.3px;
             line-height: 1.1;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
         }
-        .nav-logo span {
+        .nav-logo span.nav-title {
             display: block;
             font-family: 'Inter', sans-serif;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 600;
-            letter-spacing: 2.5px;
+            letter-spacing: 1.6px;
             color: var(--purple-mid);
             text-transform: uppercase;
-            margin-top: 1px;
+            max-width: min(420px, 42vw);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .nav-right {
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 12px;
             flex-shrink: 0;
         }
         .nav-notif-wrap {
@@ -73,20 +80,19 @@
             transition: background .15s;
         }
         .nav-notif-wrap:hover { background: var(--purple-subtle); }
-        .nav-user {
-            font-size: 13px;
-            color: var(--gray-text);
-            font-weight: 600;
-            letter-spacing: -0.2px;
-            max-width: min(380px, 42vw);
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
+        .nav-user { display: none; }
         .btn-logout {
             font-size: 12px;
             color: var(--gray-muted);
-            padding: 6px 16px;
+            padding: 6px 14px;
+            border: 1px solid var(--border-light);
+            border-radius: 20px;
+            background: transparent;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 500;
+            transition: var(--transition);
+        }
             border: 1px solid var(--border-light);
             border-radius: 20px;
             background: var(--gray-soft);
@@ -176,18 +182,18 @@
         .sidebar.collapsed:hover .sb-text,
         .sidebar.collapsed:hover .sb-section { display: block; }
         .sidebar.collapsed:hover .sb-link { justify-content: flex-start; padding: 8px 16px; margin: 1px 8px; }
-        .sidebar.collapsed:hover .sb-toggle { justify-content: flex-end; padding: 0 16px; }
         .sb-toggle {
-            height: 44px;
-            min-height: 44px;
-            display: flex;
+            height: 28px;
+            width: 28px;
+            min-height: 28px;
+            display: inline-flex;
             align-items: center;
-            justify-content: flex-end;
-            padding: 0 16px;
+            justify-content: center;
+            padding: 0;
+            margin-left: auto;
             border: none;
-            border-bottom: 1px solid var(--border-light);
+            border-radius: 8px;
             background: transparent;
-            width: 100%;
             font: inherit;
             color: inherit;
             cursor: pointer;
@@ -196,14 +202,16 @@
         }
         .sb-toggle:hover { background: var(--purple-subtle); }
         .sb-toggle svg { transition: transform 0.2s ease; flex-shrink: 0; color: var(--gray-muted); }
-        .sidebar.collapsed .sb-toggle { justify-content: center; padding: 0; }
+        .sidebar.collapsed .sb-toggle { display: none; }
+        .sidebar.collapsed:hover .sb-toggle { display: inline-flex; }
         .sidebar.collapsed .sb-toggle svg { transform: rotate(180deg); }
-        /* Bloque identidad cliente: alineado con ítems al colapsar; mismo icono 40×40 */
+        .sidebar.collapsed .sb-client-icon { cursor: pointer; }
+        /* Bloque identidad cliente */
         .sb-client {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 14px 16px 10px;
+            padding: 14px 12px 10px 16px;
             border-bottom: 1px solid var(--border-light);
             margin-bottom: 6px;
             flex-shrink: 0;
@@ -217,7 +225,7 @@
         }
         .sidebar.collapsed:hover .sb-client {
             justify-content: flex-start;
-            padding: 14px 16px 10px;
+            padding: 14px 12px 10px 16px;
             margin-bottom: 6px;
             gap: 12px;
         }
@@ -230,10 +238,21 @@
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            overflow: hidden;
         }
-        .sb-client-meta { min-width: 0; }
+        .sb-client-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .sb-client-meta { min-width: 0; display: flex; align-items: center; flex: 1; }
+        .sb-client-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--gray-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
         .sidebar.collapsed .sb-client-meta { display: none; }
-        .sidebar.collapsed:hover .sb-client-meta { display: block; }
+        .sidebar.collapsed:hover .sb-client-meta { display: flex; }
         .sb-nav {
             flex: 1;
             overflow-y: auto;
@@ -372,10 +391,13 @@
 </head>
 <body>
 <a href="#contenido-principal" class="skip-to-content">Saltar al contenido</a>
+@php
+    $navClienteNombre = session('cliente_nombre', 'Cliente');
+@endphp
 <nav class="top-nav">
-    <div class="nav-logo" style="display:flex;align-items:center;gap:14px;">
+    <div class="nav-logo">
         @include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])
-        <span>Portal de Clientes</span>
+        <span class="nav-title">Portal de Clientes</span>
     </div>
     <div class="nav-right">
         <a href="{{ route('clientes.pedidos') }}" class="nav-pedidos-quick" id="navPedidosQuick" title="Pedidos" aria-label="Ir a pedidos y carrito">
@@ -412,26 +434,23 @@
                 @endforelse
             </div>
         </div>
-        <span class="nav-user" title="{{ session('cliente_nombre', 'Cliente') }}">{{ session('cliente_nombre', 'Cliente') }}</span>
         <form method="POST" action="{{ route('clientes.logout') }}" style="display:inline;">
             @csrf
-            <button type="submit" class="btn-logout">Cerrar sesión</button>
+            <button type="submit" class="btn-logout">Salir</button>
         </form>
     </div>
 </nav>
 @yield('hero')
 <div class="wrapper">
         <div class="sidebar" id="appSidebar">
-        <button type="button" class="sb-toggle" aria-expanded="true" aria-label="Contraer o expandir menú lateral" onclick="(function(){var s=document.getElementById('appSidebar');s.classList.toggle('collapsed');this.setAttribute('aria-expanded',s.classList.contains('collapsed')?'false':'true');}).call(this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></button>
-        {{-- Logo/Rol badge (estilo Apple Music) — icono igual; layout adaptable al sidebar colapsado --}}
         <div class="sb-client">
-            <div class="sb-client-icon">
+            <div class="sb-client-icon" title="Expandir menú" onclick="if(document.getElementById('appSidebar')?.classList.contains('collapsed')){document.getElementById('sbToggleBtnCliente')?.click();}">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             </div>
             <div class="sb-client-meta">
-                <div style="font-size:14px;font-weight:700;color:var(--gray-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Cliente</div>
-                <div style="font-size:11px;color:var(--gray-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Portal de Clientes</div>
+                <span class="sb-client-name" title="{{ $navClienteNombre }}">{{ $navClienteNombre }}</span>
             </div>
+            <button type="button" class="sb-toggle" id="sbToggleBtnCliente" aria-expanded="true" aria-label="Contraer o expandir menú lateral" onclick="(function(){var s=document.getElementById('appSidebar');s.classList.toggle('collapsed');this.setAttribute('aria-expanded',s.classList.contains('collapsed')?'false':'true');}).call(this)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg></button>
         </div>
         <nav class="sb-nav">
             <div class="sb-section">Principal</div>

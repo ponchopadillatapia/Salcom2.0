@@ -39,6 +39,15 @@
     .pill.aprobada, .pill.validada { background: var(--purple-light); color: var(--purple); }
     .empty { text-align: center; padding: 48px 20px; color: var(--gray-muted); font-size: 14px; }
     .pagination-wrap { padding: 16px; display: flex; justify-content: center; }
+
+    .inv-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+    .inv-metric{background:var(--white);border:1px solid var(--border-light, var(--border));border-radius:14px;padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block}
+    .inv-metric:hover{border-color:var(--purple-mid,#c4b5e0)}
+    .inv-metric .accent{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:14px 0 0 14px}
+    .inv-metric-label{font-size:12px;color:var(--gray-muted);font-weight:600;margin-bottom:6px}
+    .inv-metric-val{font-size:28px;font-weight:700;color:var(--gray-text);line-height:1}
+    .inv-metric-sub{font-size:12px;color:var(--gray-muted);margin-top:6px}
+    @media(max-width:768px){.inv-metrics{grid-template-columns:1fr 1fr}}
 </style>
 @endpush
 
@@ -63,6 +72,47 @@
         <button type="submit" class="btn-filter" style="padding:6px 14px;font-size:12px;">Aplicar</button>
         <a href="{{ route('proveedores.facturas', request()->except(['fecha_desde','fecha_hasta'])) }}" class="btn-clear" style="padding:6px 14px;font-size:12px;">Quitar fechas</a>
     </form>
+</div>
+
+@php
+    $kpis = $kpis ?? ['pendientes' => 0, 'programadas' => 0, 'pagadas' => 0, 'totales' => 0];
+    $baseKpiQuery = array_filter([
+        'fecha_desde' => $filtros['fecha_desde'] ?: null,
+        'fecha_hasta' => $filtros['fecha_hasta'] ?: null,
+    ]);
+@endphp
+
+@if(session('exito'))
+<div class="ph-info" style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;">
+    <strong>{{ session('exito') }}</strong>
+</div>
+@endif
+
+<div class="inv-metrics">
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pendiente'])) }}">
+        <div class="accent" style="background:var(--red, #dc2626)"></div>
+        <div class="inv-metric-label">Pendientes</div>
+        <div class="inv-metric-val">{{ $kpis['pendientes'] }}</div>
+        <div class="inv-metric-sub">Por pagar</div>
+    </a>
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'programada'])) }}">
+        <div class="accent" style="background:var(--amber, #d97706)"></div>
+        <div class="inv-metric-label">Programadas</div>
+        <div class="inv-metric-val">{{ $kpis['programadas'] }}</div>
+        <div class="inv-metric-sub">En proceso de pago</div>
+    </a>
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pagada'])) }}">
+        <div class="accent" style="background:var(--green, #16a34a)"></div>
+        <div class="inv-metric-label">Pagadas</div>
+        <div class="inv-metric-val">{{ $kpis['pagadas'] }}</div>
+        <div class="inv-metric-sub">Ya liquidadas</div>
+    </a>
+    <a class="inv-metric" href="{{ route('proveedores.facturas', $baseKpiQuery) }}">
+        <div class="accent" style="background:var(--purple, #6B3FA0)"></div>
+        <div class="inv-metric-label">Facturas totales</div>
+        <div class="inv-metric-val">{{ $kpis['totales'] }}</div>
+        <div class="inv-metric-sub">En el período</div>
+    </a>
 </div>
 
 <form method="GET" action="{{ route('proveedores.facturas') }}" class="ph-toolbar">

@@ -420,6 +420,7 @@ class AdminPanelController extends Controller
             'codigo' => $request->input('f_codigo'),
             'correo' => $request->input('f_correo'),
             'activo' => $request->input('f_activo', ''),
+            'rendimiento' => $request->input('rendimiento', ''),
         ];
         $filtrosOc = [
             'proveedor' => $request->input('f_oc_proveedor'),
@@ -444,6 +445,7 @@ class AdminPanelController extends Controller
             'codigo' => 'f_codigo',
             'correo' => 'f_correo',
             'activo' => 'f_activo',
+            'rendimiento' => 'rendimiento',
         ]);
         $preserveOc = $this->filtrosAQuery($filtrosOc, [
             'proveedor' => 'f_oc_proveedor',
@@ -488,6 +490,20 @@ class AdminPanelController extends Controller
         if ($filtrosProv['activo'] !== '') {
             $query->where('activo', $filtrosProv['activo'] === '1');
         }
+        match ($filtrosProv['rendimiento']) {
+            'alto' => $query->where('score_total', '>=', 80),
+            'bajo' => $query->where('score_total', '<', 60),
+            'facturas' => $query->whereIn('id_proveedor', Factura::where('estatus', 'pendiente')
+                ->whereNotNull('codigo_proveedor')
+                ->distinct()
+                ->pluck('codigo_proveedor')),
+            'ocs' => $query->whereIn('id', OcBorrador::where('estatus', '!=', 'completada')
+                ->where('created_at', '<=', now()->subDays(30))
+                ->whereNotNull('proveedor_id')
+                ->distinct()
+                ->pluck('proveedor_id')),
+            default => null,
+        };
 
         $proveedores = $query->orderBy('score_total', 'desc')->paginate(20)->withQueryString();
         $metricasProveedores = $this->buildProveedoresMetricas($proveedores->getCollection());
@@ -579,6 +595,18 @@ class AdminPanelController extends Controller
             ->sum('total');
         $proveedoresAltoScore = ProveedorUser::where('activo', true)->where('score_total', '>=', 80)->count();
         $proveedoresBajoScore = ProveedorUser::where('activo', true)->where('score_total', '<', 60)->count();
+        $proveedoresConFacturasPend = ProveedorUser::whereIn(
+            'id_proveedor',
+            Factura::where('estatus', 'pendiente')->whereNotNull('codigo_proveedor')->distinct()->pluck('codigo_proveedor')
+        )->count();
+        $proveedoresConOcVencidas = ProveedorUser::whereIn(
+            'id',
+            OcBorrador::where('estatus', '!=', 'completada')
+                ->where('created_at', '<=', now()->subDays(30))
+                ->whereNotNull('proveedor_id')
+                ->distinct()
+                ->pluck('proveedor_id')
+        )->count();
         $comprasTrimTotal = (float) Factura::whereNotNull('codigo_proveedor')
             ->where('estatus', '!=', 'cancelada')
             ->where('created_at', '>=', now()->subMonths(3))
@@ -617,6 +645,8 @@ class AdminPanelController extends Controller
             'montoFacturasPendientes',
             'proveedoresAltoScore',
             'proveedoresBajoScore',
+            'proveedoresConFacturasPend',
+            'proveedoresConOcVencidas',
             'comprasTrimTotal',
         ));
     }
@@ -1120,6 +1150,7 @@ class AdminPanelController extends Controller
     {
         return [
             'pendiente' => 'Pendiente',
+            'programada' => 'Programada',
             'pagada' => 'Pagada',
             'cancelada' => 'Cancelada',
             'rechazada' => 'Rechazada',
@@ -1150,6 +1181,8 @@ class AdminPanelController extends Controller
 
         if ($vencidas) {
             $query->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
+        } elseif ($estatus === 'programada') {
+            $query->whereIn('estatus', ['programada', 'aprobada', 'validada']);
         } elseif ($estatus && array_key_exists($estatus, $estatusOpciones)) {
             $query->where('estatus', $estatus);
         }

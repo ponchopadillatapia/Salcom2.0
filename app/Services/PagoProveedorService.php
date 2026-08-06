@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\PagoConfirmadoProveedor;
 use App\Models\Alerta;
 use App\Models\Factura;
 use App\Models\PagoProveedor;
@@ -9,6 +10,8 @@ use App\Models\PagoProveedorFactura;
 use App\Models\ProveedorUser;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use InvalidArgumentException;
 
 class PagoProveedorService
@@ -239,7 +242,7 @@ class PagoProveedorService
 
         $pago->load('lineas.factura', 'proveedor');
 
-        return DB::transaction(function () use ($pago, $adminId, $comprobantes, $fechaPago, $datosConfirmacion) {
+        $pagoConfirmado = DB::transaction(function () use ($pago, $adminId, $comprobantes, $fechaPago, $datosConfirmacion) {
             if ($fechaPago) {
                 $pago->fecha_pago = $fechaPago;
             }
@@ -265,6 +268,68 @@ class PagoProveedorService
 
             return $pago->fresh(['lineas', 'proveedor']);
         });
+
+        $this->notificarPagoConfirmadoAlProveedor($pagoConfirmado);
+
+        return $pagoConfirmado;
+    }
+
+    /**
+     * Campanita + correo al proveedor cuando Contabilidad confirma el lote.
+     */
+    private function notificarPagoConfirmadoAlProveedor(PagoProveedor $pago): void
+    {
+        $proveedor = $pago->proveedor;
+        if (! $proveedor) {
+            return;
+        }
+
+        $estatusFactura = $pago->fecha_pago ? 'pagada' : 'programada';
+        $titulo = $estatusFactura === 'pagada'
+            ? 'Pago confirmado'
+            : 'Pago programado';
+        $montoFmt = number_format((float) $pago->monto_total, 2);
+        $contenido = $estatusFactura === 'pagada'
+            ? "Salcom confirmó el pago de {$pago->num_facturas} factura(s) por \${$montoFmt}."
+            : "Salcom programó el pago de {$pago->num_facturas} factura(s) por \${$montoFmt}.";
+
+        try {
+            app(AlertEngineService::class)->crearAlerta([
+                'tipo' => 'pago_confirmado',
+                'modulo' => 'pagos',
+                'destinatario_tipo' => 'proveedor',
+                'destinatario_id' => $proveedor->id,
+                'titulo' => $titulo,
+                'contenido' => $contenido,
+                'datos' => [
+                    'pago_id' => $pago->id,
+                    'estatus_factura' => $estatusFactura,
+                    'num_facturas' => (int) $pago->num_facturas,
+                    'monto_total' => (float) $pago->monto_total,
+                ],
+                'nivel' => 'info',
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('[PagoProveedor] No se pudo crear alerta de pago confirmado: '.$e->getMessage());
+        }
+
+        $correo = trim((string) ($proveedor->correo ?? ''));
+        if ($correo === '') {
+            return;
+        }
+
+        try {
+            Mail::to($correo)->send(new PagoConfirmadoProveedor(
+                nombreProveedor: (string) ($proveedor->nombre ?: $proveedor->usuario ?: 'Proveedor'),
+                estatusFactura: $estatusFactura,
+                numFacturas: (int) $pago->num_facturas,
+                montoTotal: (float) $pago->monto_total,
+                fechaPago: $pago->fecha_pago?->format('d/m/Y'),
+                urlPagos: route('proveedores.payment-history'),
+            ));
+        } catch (\Throwable $e) {
+            Log::warning('[PagoProveedor] No se pudo enviar correo de pago confirmado: '.$e->getMessage());
+        }
     }
 
     public function cancelarBorrador(PagoProveedor $pago): void
@@ -283,12 +348,11 @@ class PagoProveedorService
     public function proveedoresConPendientes(): Collection
     {
         return Factura::query()
-            ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(total) as monto_total')
+            ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(total) as monto_total, max(created_at) as ultima_factura_at')
             ->where('estatus', 'pendiente')
             ->whereNotNull('codigo_proveedor')
             ->groupBy('codigo_proveedor')
-            ->orderByDesc('num_facturas')
-            ->orderByDesc('monto_total')
+            ->orderByDesc('ultima_factura_at')
             ->get()
             ->map(function ($row) {
                 $prov = ProveedorUser::whereCodigo('=', $row->codigo_proveedor)->first();
@@ -299,12 +363,17 @@ class PagoProveedorService
                     ->whereNotIn('estatus', ['leida', 'accionada'])
                     ->count();
 
+                $ultimaAt = $row->ultima_factura_at
+                    ? \Illuminate\Support\Carbon::parse($row->ultima_factura_at)
+                    : null;
+
                 return (object) [
                     'codigo' => $row->codigo_proveedor,
                     'proveedor' => $prov,
                     'nombre' => $prov?->nombre ?? $row->codigo_proveedor,
                     'num_facturas' => (int) $row->num_facturas,
                     'monto_total' => (float) $row->monto_total,
+                    'ultima_factura_at' => $ultimaAt,
                     'expediente' => $prov ? $this->evaluarExpediente($prov) : ['ok' => false, 'motivos' => ['Proveedor no encontrado']],
                     'notif_sin_leer' => $notifSinLeer,
                 ];

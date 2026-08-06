@@ -2,12 +2,7 @@
 
 @section('title', 'Inicio')
 
-@section('hero')
-<div class="hero-band">
-    <h1>Hola, {{ session('proveedor_nombre', 'Proveedor') }}</h1>
-    <p>Bienvenido al Portal de Proveedores de Industrias Salcom</p>
-</div>
-@endsection
+{{-- sin hero: el nombre ya va en la barra superior --}}
 
 @push('styles')
 <style>
