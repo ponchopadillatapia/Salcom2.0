@@ -627,7 +627,7 @@
 
             <div class="form-actions">
                 <span class="step-hint">Completa la clasificación para continuar</span>
-                <button type="button" class="btn-submit" id="btnContinuar">Continuar a documentos</button>
+                <button type="button" class="btn-submit" id="btnContinuar">Continuar</button>
             </div>
         </div>
 
