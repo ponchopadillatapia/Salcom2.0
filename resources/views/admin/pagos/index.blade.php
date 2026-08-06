@@ -207,8 +207,8 @@
                         <th>Proveedor</th>
                         <th>Facturas pendientes</th>
                         <th>Monto</th>
-                        <th>Expediente</th>
-                        <th>Última factura</th>
+                        <th>Estatus</th>
+                        <th>Alta</th>
                     </tr>
                 </thead>
                 <tbody>

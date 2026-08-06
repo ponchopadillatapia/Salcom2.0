@@ -32,10 +32,13 @@
     .admin-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border)}
     .admin-table td{padding:12px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:top}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
+    .admin-table tfoot td{background:var(--gray-soft);font-weight:700;border-bottom:none;border-top:2px solid var(--border);font-size:12px}
+    .admin-table .meta-muted{font-weight:600;color:var(--gray-muted);font-size:12px}
     .pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px}
     .pill.ok{background:var(--green-bg);color:var(--green)}
     .pill.warn{background:var(--amber-bg);color:var(--amber)}
     .aviso{color:var(--amber);font-size:11px;display:block}
+    .monto{font-variant-numeric:tabular-nums}
     .confirm-box{padding:18px}
     .form-row{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:14px}
     .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
@@ -71,134 +74,60 @@
 @endif
 
 <div class="pag-actions anim">
-    <a class="btn btn-export" href="{{ route('admin.pagos.excel', $pago) }}">Excel de folios (opcional)</a>
+    <a class="btn btn-primary" href="{{ route('admin.pagos.reporte-resumen', ['pago' => $pago, 'ver' => 1]) }}" target="_blank" rel="noopener">Ver reporte resumen</a>
     @if($pago->esBorrador())
         <form method="POST" action="{{ route('admin.pagos.cancelar', $pago) }}" onsubmit="return confirm('¿Cancelar este borrador?');">
             @csrf
             <button type="submit" class="btn btn-danger">Cancelar borrador</button>
         </form>
     @endif
-    @if($pago->codigo_proveedor)
-        <a class="btn btn-outline" href="{{ route('admin.pagos.proveedor', $pago->codigo_proveedor) }}">Ver más facturas</a>
+    @if($tieneMasFacturasPendientes && $pago->codigo_proveedor)
+        <a class="btn btn-outline" href="{{ route('admin.pagos.proveedor', $pago->codigo_proveedor) }}">Más facturas pendientes</a>
     @endif
 </div>
 
-<div class="adm-section anim">
-    <div class="adm-section-head">
-        <h4>Resumen</h4>
-        <span class="pill {{ $pago->estatus === 'confirmado' ? 'ok' : 'warn' }}">{{ $pago->estatus }}</span>
-    </div>
-    <div class="stats">
-        <div class="stat"><label>Facturas</label><strong>{{ $pago->num_facturas }}</strong></div>
-        <div class="stat"><label>Subtotal</label><strong>${{ number_format((float)$pago->monto_subtotal, 2) }}</strong></div>
-        <div class="stat"><label>IVA</label><strong>${{ number_format((float)$pago->monto_iva, 2) }}</strong></div>
-        <div class="stat"><label>Ret. IVA</label><strong>${{ number_format((float)$pago->monto_retencion_iva, 2) }}</strong></div>
-        <div class="stat"><label>Ret. ISR</label><strong>${{ number_format((float)$pago->monto_retencion_isr, 2) }}</strong></div>
-        <div class="stat"><label>Total CFDI</label><strong>${{ number_format((float)$pago->monto_total, 2) }}</strong></div>
-        <div class="stat"><label>Neto estimado</label><strong>${{ number_format((float)$pago->monto_neto, 2) }}</strong></div>
-        <div class="stat"><label>Fecha pago</label><strong>{{ $pago->fecha_pago?->format('d/m/Y') ?? '—' }}</strong></div>
-    </div>
-    @if($pago->notas)
-        <p style="padding:0 18px 16px;font-size:13px;color:var(--gray-muted);margin:0;"><strong>Notas:</strong> {{ $pago->notas }}</p>
-    @endif
-</div>
+@php
+    $dc = $pago->esBorrador() ? ($datosAuto ?? []) : ($pago->datos_confirmacion ?? []);
+@endphp
 
 @if($pago->esBorrador())
-@php
-    $formas = config('facturas.formas_pago', []);
-    $metodos = config('facturas.metodos_pago', []);
-    $usos = config('facturas.usos_cfdi', []);
-    $regimenes = config('facturas.regimenes_aceptados', []);
-@endphp
 <div class="adm-section anim">
     <div class="adm-section-head">
         <div>
             <h4>Confirmar pago</h4>
-            <div class="adm-section-meta">Completa datos fiscales y sube comprobante(s)</div>
+            <div class="adm-section-meta">Datos fiscales tomados del XML — sin formulario manual</div>
         </div>
     </div>
-    <form method="POST" action="{{ route('admin.pagos.confirmar', $pago) }}" enctype="multipart/form-data" class="confirm-box" onsubmit="return confirm('¿Confirmar este pago? Las facturas cambiarán de estatus.');">
-        @csrf
-        <p class="hint">Obligatorio: forma de pago, método, uso CFDI, régimen, producto y al menos un documento.</p>
-        <div class="form-grid">
-            <div class="form-field">
-                <label>Forma de pago *</label>
-                <select name="forma_pago" required>
-                    <option value="">Selecciona…</option>
-                    @foreach($formas as $code => $label)
-                        <option value="{{ $code }}" @selected(old('forma_pago', $prefill['forma_pago'] ?? '') === $code)>{{ $label }}</option>
-                    @endforeach
-                </select>
+    <div class="confirm-box">
+        @if(!empty($errorDatosAuto))
+            <div class="pag-alert err" style="margin:0 0 14px;">{{ $errorDatosAuto }}</div>
+        @endif
+        <form method="POST" action="{{ route('admin.pagos.confirmar', $pago) }}" enctype="multipart/form-data" onsubmit="return confirm('¿Confirmar este pago? Las facturas cambiarán de estatus.');">
+            @csrf
+            <div class="form-grid">
+                <div class="form-field">
+                    <label>Fecha de pago (opcional)</label>
+                    <input type="date" name="fecha_pago" value="{{ old('fecha_pago', $pago->fecha_pago?->format('Y-m-d')) }}">
+                </div>
+                <div class="form-field">
+                    <label>Comprobantes (opcional)</label>
+                    <input type="file" name="comprobantes[]" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple>
+                </div>
             </div>
-            <div class="form-field">
-                <label>Método de pago *</label>
-                <select name="metodo_pago" required>
-                    <option value="">Selecciona…</option>
-                    @foreach($metodos as $code => $label)
-                        <option value="{{ $code }}" @selected(old('metodo_pago', $prefill['metodo_pago'] ?? '') === $code)>{{ $label }}</option>
-                    @endforeach
-                </select>
+            <p class="hint" style="margin-top:12px;">Si indicas fecha, las facturas pasan a «pagada»; si no, a «programada».</p>
+            <div style="margin-top:14px;">
+                <button type="submit" class="btn btn-primary" @disabled(!empty($errorDatosAuto))>Confirmar pago</button>
             </div>
-            <div class="form-field">
-                <label>Uso de CFDI *</label>
-                <select name="uso_cfdi" required>
-                    <option value="">Selecciona…</option>
-                    @foreach($usos as $code => $label)
-                        <option value="{{ $code }}" @selected(old('uso_cfdi', $prefill['uso_cfdi'] ?? '') === $code)>{{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="form-field">
-                <label>Régimen *</label>
-                <select name="regimen" required>
-                    <option value="">Selecciona…</option>
-                    @foreach($regimenes as $code => $label)
-                        <option value="{{ $code }}" @selected(old('regimen', $prefill['regimen'] ?? '') === (string) $code)>{{ $code }} — {{ $label }}</option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="form-field" style="grid-column:1 / -1;">
-                <label>Producto / concepto *</label>
-                <input type="text" name="producto" value="{{ old('producto', $prefill['producto'] ?? '') }}" maxlength="255" placeholder="Ej. Materiales, flete, servicios…" required>
-            </div>
-            <div class="form-field">
-                <label>Fecha de pago (opcional)</label>
-                <input type="date" name="fecha_pago" value="{{ old('fecha_pago', $pago->fecha_pago?->format('Y-m-d')) }}">
-            </div>
-            <div class="form-field">
-                <label>Documentos *</label>
-                <input type="file" name="comprobantes[]" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple required>
-            </div>
-        </div>
-        <div style="margin-top:14px;">
-            <button type="submit" class="btn btn-primary">Confirmar pago</button>
-        </div>
-    </form>
-</div>
-@elseif(!empty($pago->comprobantes) || !empty($pago->datos_confirmacion))
-<div class="adm-section anim">
-    <div class="adm-section-head"><h4>Datos de confirmación</h4></div>
-    @if(!empty($pago->datos_confirmacion))
-        <div class="stats" style="border-bottom:1px solid var(--border);">
-            <div class="stat"><label>Forma pago</label><strong>{{ $pago->datos_confirmacion['forma_pago'] ?? '—' }}</strong></div>
-            <div class="stat"><label>Método</label><strong>{{ $pago->datos_confirmacion['metodo_pago'] ?? '—' }}</strong></div>
-            <div class="stat"><label>Uso CFDI</label><strong>{{ $pago->datos_confirmacion['uso_cfdi'] ?? '—' }}</strong></div>
-            <div class="stat"><label>Régimen</label><strong>{{ $pago->datos_confirmacion['regimen'] ?? '—' }}</strong></div>
-            <div class="stat"><label>Producto</label><strong>{{ $pago->datos_confirmacion['producto'] ?? '—' }}</strong></div>
-        </div>
-    @endif
-    @if(!empty($pago->comprobantes))
-        <div class="doc-list">
-            @foreach($pago->comprobantes as $i => $path)
-                <a class="doc-link" href="{{ asset('storage/'.$path) }}" target="_blank">Documento {{ $i + 1 }}</a>
-            @endforeach
-        </div>
-    @endif
+        </form>
+    </div>
 </div>
 @endif
 
 <div class="adm-section anim">
-    <div class="adm-section-head"><h4>Facturas de este pago</h4></div>
+    <div class="adm-section-head">
+        <h4>Detalle del pago</h4>
+        <span class="pill {{ $pago->estatus === 'confirmado' ? 'ok' : 'warn' }}">{{ $pago->estatus }}</span>
+    </div>
     <div style="overflow-x:auto;">
         <table class="admin-table">
             <thead>
@@ -207,6 +136,9 @@
                     <th>UUID</th>
                     <th>Flete</th>
                     <th>Régimen</th>
+                    <th>Forma</th>
+                    <th>Método</th>
+                    <th>Uso CFDI</th>
                     <th>Total</th>
                     <th>Retenciones</th>
                     <th>Neto</th>
@@ -219,10 +151,13 @@
                         <td>{{ $l->folio_cfdi ?: '—' }}</td>
                         <td style="font-size:11px;color:var(--gray-muted);">{{ $l->uuid_cfdi ?: '—' }}</td>
                         <td>{{ $l->es_fletera ? 'Sí' : 'No' }}</td>
-                        <td>{{ $l->regimen_fiscal ?: '—' }}</td>
-                        <td>${{ number_format((float)$l->total, 2) }}</td>
-                        <td>IVA ${{ number_format((float)$l->retencion_iva, 2) }} / ISR ${{ number_format((float)$l->retencion_isr, 2) }}</td>
-                        <td>${{ number_format((float)$l->neto, 2) }}</td>
+                        <td>{{ $l->regimen_fiscal ?: ($dc['regimen'] ?? '—') }}</td>
+                        <td>{{ $dc['forma_pago'] ?? '—' }}</td>
+                        <td>{{ $dc['metodo_pago'] ?? '—' }}</td>
+                        <td>{{ $dc['uso_cfdi'] ?? '—' }}</td>
+                        <td class="monto">${{ number_format((float)$l->total, 2) }}</td>
+                        <td class="monto">IVA ${{ number_format((float)$l->retencion_iva, 2) }} / ISR ${{ number_format((float)$l->retencion_isr, 2) }}</td>
+                        <td class="monto">${{ number_format((float)$l->neto, 2) }}</td>
                         <td>
                             @forelse(($l->avisos ?? []) as $a)
                                 <span class="aviso">• {{ $a }}</span>
@@ -233,7 +168,43 @@
                     </tr>
                 @endforeach
             </tbody>
+            <tfoot>
+                <tr>
+                    <td colspan="7" class="meta-muted">
+                        {{ $pago->num_facturas }} factura{{ $pago->num_facturas === 1 ? '' : 's' }}
+                        · Subtotal ${{ number_format((float)$pago->monto_subtotal, 2) }}
+                        · IVA ${{ number_format((float)$pago->monto_iva, 2) }}
+                        · Fecha {{ $pago->fecha_pago?->format('d/m/Y') ?? '—' }}
+                        @if(!empty($dc['producto']))
+                            · {{ $dc['producto'] }}
+                        @endif
+                    </td>
+                    <td class="monto">${{ number_format((float)$pago->monto_total, 2) }}</td>
+                    <td class="monto">IVA ${{ number_format((float)$pago->monto_retencion_iva, 2) }} / ISR ${{ number_format((float)$pago->monto_retencion_isr, 2) }}</td>
+                    <td class="monto">${{ number_format((float)$pago->monto_neto, 2) }}</td>
+                    <td></td>
+                </tr>
+            </tfoot>
         </table>
     </div>
+    @if($pago->notas)
+        <p style="padding:12px 18px 0;font-size:13px;color:var(--gray-muted);margin:0;"><strong>Notas:</strong> {{ $pago->notas }}</p>
+    @endif
+    @if(!empty($pago->comprobantes))
+        <div class="doc-list">
+            @foreach($pago->comprobantes as $i => $path)
+                <a class="doc-link" href="{{ asset('storage/'.$path) }}" target="_blank">Documento {{ $i + 1 }}</a>
+            @endforeach
+        </div>
+    @endif
 </div>
 @endsection
+@push('scripts')
+@if(request('descargar_reporte'))
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    window.location.href = @json(route('admin.pagos.reporte-resumen', $pago));
+});
+</script>
+@endif
+@endpush

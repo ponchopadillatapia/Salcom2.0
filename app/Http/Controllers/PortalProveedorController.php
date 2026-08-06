@@ -1271,14 +1271,14 @@ class PortalProveedorController extends Controller
             Storage::disk('public')->put($finalOc, $disk->get($pendiente['path_oc']));
         }
 
-        $folio = $uuid
-            ?: trim(($datos['serie'] ?? '').($datos['folio'] ?? ''))
-            ?: ('TMP-'.uniqid());
-        $folioCfdi = $folio;
+        $folioFactura = trim(($datos['serie'] ?? '').($datos['folio'] ?? ''));
+        if ($folioFactura === '') {
+            $folioFactura = $uuid ?: ('TMP-'.uniqid());
+        }
+        $folioCfdi = $folioFactura;
         if (Factura::where('folio_cfdi', $folioCfdi)->exists()) {
             $folioCfdi = $folioCfdi.'-'.substr(uniqid(), -4);
         }
-
         $dias = (int) config('facturas.dias_vencimiento', 30);
         $codigoProv = $proveedor->id_proveedor ?: session('proveedor_codigo') ?: ('P'.$proveedor->id);
         $esFletera = (bool) ($pendiente['es_fletera'] ?? false);
@@ -1307,6 +1307,12 @@ class PortalProveedorController extends Controller
                 'retencion_esperada' => $datos['retencion_esperada'] ?? null,
                 'rfc_emisor' => $datos['rfc_emisor'] ?? null,
                 'regimen_nombre' => $datos['regimen_nombre'] ?? null,
+                'serie' => $datos['serie'] ?? null,
+                'folio' => $datos['folio'] ?? null,
+                'forma_pago' => $datos['forma_pago'] ?? null,
+                'metodo_pago' => $datos['metodo_pago'] ?? null,
+                'uso_cfdi' => $datos['uso_cfdi'] ?? null,
+                'producto' => $datos['producto'] ?? null,
                 'naturaleza' => $pendiente['naturaleza'] ?? null,
                 'tipo_producto' => $pendiente['tipo_producto'] ?? null,
                 'es_me_mp' => (bool) ($pendiente['es_me_mp'] ?? false),

@@ -504,6 +504,30 @@
                 <div class="dl">Fletera</div>
                 <div class="dv">{{ !empty($res['datos']['es_fletera']) ? 'Sí' : 'No' }}</div>
             </div>
+            @if(!empty($res['datos']['forma_pago']))
+                <div class="dato-chip">
+                    <div class="dl">Forma de pago</div>
+                    <div class="dv">{{ $res['datos']['forma_pago'] }}{{ !empty(config('facturas.formas_pago')[$res['datos']['forma_pago']]) ? ' — '.str_replace($res['datos']['forma_pago'].' — ', '', config('facturas.formas_pago')[$res['datos']['forma_pago']]) : '' }}</div>
+                </div>
+            @endif
+            @if(!empty($res['datos']['metodo_pago']))
+                <div class="dato-chip">
+                    <div class="dl">Método de pago</div>
+                    <div class="dv">{{ $res['datos']['metodo_pago'] }}</div>
+                </div>
+            @endif
+            @if(!empty($res['datos']['uso_cfdi']))
+                <div class="dato-chip">
+                    <div class="dl">Uso CFDI</div>
+                    <div class="dv">{{ $res['datos']['uso_cfdi'] }}</div>
+                </div>
+            @endif
+            @if(!empty($res['datos']['producto']))
+                <div class="dato-chip">
+                    <div class="dl">Concepto</div>
+                    <div class="dv">{{ $res['datos']['producto'] }}</div>
+                </div>
+            @endif
             @if(!empty($res['datos']['rfc_emisor']))
                 <div class="dato-chip">
                     <div class="dl">RFC emisor</div>

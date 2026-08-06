@@ -97,6 +97,7 @@ class PagosFakeSeeder extends Seeder
                         'forma_pago' => '03',
                         'metodo_pago' => 'PUE',
                         'uso_cfdi' => 'G03',
+                        'producto' => 'Materiales / servicios de prueba FAKE',
                     ],
                 ]);
                 $factura->timestamps = false;

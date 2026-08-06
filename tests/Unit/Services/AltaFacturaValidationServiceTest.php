@@ -40,7 +40,8 @@ class AltaFacturaValidationServiceTest extends TestCase
 <?xml version="1.0" encoding="UTF-8"?>
 <cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
     Version="4.0" Serie="A" Folio="1" Fecha="2026-07-17T10:00:00"
-    SubTotal="{$subtotal}" Total="{$total}" TipoDeComprobante="I" Moneda="MXN">
+    SubTotal="{$subtotal}" Total="{$total}" TipoDeComprobante="I" Moneda="MXN"
+    FormaPago="03" MetodoPago="PUE">
   <cfdi:Emisor Rfc="{$rfcEmisor}" Nombre="PROVEEDOR DEMO" RegimenFiscal="{$regimen}"/>
   <cfdi:Receptor Rfc="{$rfcReceptor}" Nombre="INDUSTRIAS SALCOM" UsoCFDI="G03"/>
   <cfdi:Conceptos>
@@ -72,7 +73,13 @@ XML;
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertTrue($result['checklist']['regimen']['ok']);
         $this->assertTrue($result['checklist']['retenciones']['ok']);
+        $this->assertTrue($result['checklist']['pago_cfdi']['ok']);
+        $this->assertTrue($result['checklist']['producto']['ok']);
         $this->assertSame('612', $result['datos']['regimen_fiscal']);
+        $this->assertSame('03', $result['datos']['forma_pago']);
+        $this->assertSame('PUE', $result['datos']['metodo_pago']);
+        $this->assertSame('G03', $result['datos']['uso_cfdi']);
+        $this->assertSame('Servicio profesional', $result['datos']['producto']);
         $this->assertFalse($result['datos']['tiene_concepto_flete']);
     }
 

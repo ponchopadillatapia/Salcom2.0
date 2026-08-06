@@ -112,18 +112,48 @@ class PagoProveedorService
 
     public function netoFactura(Factura $factura): float
     {
-        $total = (float) $factura->total;
-        $ret = (float) ($factura->retencion_iva ?? 0) + (float) ($factura->retencion_isr ?? 0);
+        // Total CFDI ya viene neto (SubTotal + IVA − retenciones). No restar retenciones otra vez.
+        return round((float) $factura->total, 2);
+    }
 
-        // Si total ya viene neto del CFDI, no restar de nuevo: usamos total como base de pago
-        // y reportamos retenciones aparte. Neto mostrado = total - retenciones solo si total parece bruto.
-        // Convención v1: neto a pagar = total (CFDI) ; retenciones informativas.
-        // Contabilidad puede ajustar. Preferimos: total - retenciones si retenciones > 0 y total >= ret.
-        if ($ret > 0 && $total >= $ret) {
-            return round($total - $ret, 2);
+    /** Suma de facturas aún adeudadas al proveedor (pendiente / programada). */
+    public function saldoPendienteProveedor(?string $codigo): float
+    {
+        if (! $codigo) {
+            return 0.0;
         }
 
-        return round($total, 2);
+        return round((float) Factura::query()
+            ->where('codigo_proveedor', $codigo)
+            ->whereIn('estatus', ['pendiente', 'programada'])
+            ->sum('total'), 2);
+    }
+
+    /** Folio de factura (Serie+Folio), nunca el UUID fiscal. */
+    public function folioFacturaDisplay(Factura $factura): string
+    {
+        $det = is_array($factura->validacion_detalle) ? $factura->validacion_detalle : [];
+        $serie = trim((string) ($det['serie'] ?? ''));
+        $folio = trim((string) ($det['folio'] ?? ''));
+        $compuesto = trim($serie.$folio);
+        if ($compuesto !== '') {
+            return $compuesto;
+        }
+
+        $stored = trim((string) ($factura->folio_cfdi ?? ''));
+        if ($stored !== '' && ! $this->pareceUuid($stored)) {
+            return $stored;
+        }
+
+        return '—';
+    }
+
+    private function pareceUuid(string $valor): bool
+    {
+        return (bool) preg_match(
+            '/^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i',
+            $valor
+        );
     }
 
     /**
@@ -230,17 +260,19 @@ class PagoProveedorService
             throw new InvalidArgumentException('Solo se pueden confirmar pagos en borrador.');
         }
 
-        if ($comprobantes === []) {
-            throw new InvalidArgumentException('Sube al menos un documento para confirmar el pago.');
+        $pago->load('lineas.factura', 'proveedor');
+
+        if ($datosConfirmacion === []) {
+            $datosConfirmacion = $this->datosConfirmacionDesdeFacturas($pago);
         }
 
         foreach (['forma_pago', 'metodo_pago', 'uso_cfdi', 'regimen', 'producto'] as $campo) {
             if (trim((string) ($datosConfirmacion[$campo] ?? '')) === '') {
-                throw new InvalidArgumentException('Completa forma de pago, método de pago, uso CFDI, régimen y producto.');
+                throw new InvalidArgumentException(
+                    'Faltan datos fiscales en las facturas (forma, método, uso CFDI, régimen o concepto). Vuelve a dar de alta con un XML completo.'
+                );
             }
         }
-
-        $pago->load('lineas.factura', 'proveedor');
 
         $pagoConfirmado = DB::transaction(function () use ($pago, $adminId, $comprobantes, $fechaPago, $datosConfirmacion) {
             if ($fechaPago) {
@@ -259,7 +291,7 @@ class PagoProveedorService
 
             $pago->update([
                 'estatus' => 'confirmado',
-                'comprobantes' => $comprobantes,
+                'comprobantes' => $comprobantes !== [] ? $comprobantes : ($pago->comprobantes ?? []),
                 'datos_confirmacion' => $datosConfirmacion,
                 'confirmado_por' => $adminId,
                 'confirmado_at' => now(),
@@ -272,6 +304,74 @@ class PagoProveedorService
         $this->notificarPagoConfirmadoAlProveedor($pagoConfirmado);
 
         return $pagoConfirmado;
+    }
+
+    /**
+     * Arma datos fiscales del lote desde las facturas (deben ser homogéneos).
+     *
+     * @return array{forma_pago: string, metodo_pago: string, uso_cfdi: string, regimen: string, producto: string}
+     */
+    public function datosConfirmacionDesdeFacturas(PagoProveedor $pago): array
+    {
+        $pago->loadMissing('lineas.factura');
+        $filas = [];
+
+        foreach ($pago->lineas as $linea) {
+            $f = $linea->factura;
+            if (! $f) {
+                continue;
+            }
+            $det = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
+            $filas[] = [
+                'forma_pago' => trim((string) ($det['forma_pago'] ?? '')),
+                'metodo_pago' => trim((string) ($det['metodo_pago'] ?? '')),
+                'uso_cfdi' => trim((string) ($det['uso_cfdi'] ?? '')),
+                'regimen' => trim((string) ($f->regimen_fiscal ?: ($det['regimen_fiscal'] ?? ''))),
+                'producto' => trim((string) ($det['producto'] ?? $det['descripcion'] ?? '')),
+                'folio' => (string) ($f->folio_cfdi ?: $f->id),
+            ];
+        }
+
+        if ($filas === []) {
+            throw new InvalidArgumentException('El lote no tiene facturas válidas.');
+        }
+
+        foreach (['forma_pago', 'metodo_pago', 'uso_cfdi'] as $campo) {
+            $vals = array_unique(array_filter(array_column($filas, $campo)));
+            if (count($vals) > 1) {
+                $label = match ($campo) {
+                    'forma_pago' => 'forma de pago',
+                    'metodo_pago' => 'método de pago',
+                    default => 'uso CFDI',
+                };
+                throw new InvalidArgumentException(
+                    "Las facturas del lote tienen distinta {$label}. Selecciona facturas homogéneas o corrige el alta."
+                );
+            }
+            if ($vals === []) {
+                throw new InvalidArgumentException(
+                    "Hay facturas sin {$campo} (dato del XML en Alta). No se puede confirmar automáticamente."
+                );
+            }
+        }
+
+        $productos = array_values(array_unique(array_filter(array_column($filas, 'producto'))));
+        $producto = match (count($productos)) {
+            0 => 'Varios conceptos',
+            1 => $productos[0],
+            default => \Illuminate\Support\Str::limit(implode(' · ', $productos), 250),
+        };
+
+        $regimenes = array_values(array_unique(array_filter(array_column($filas, 'regimen'))));
+        $regimen = $regimenes[0] ?? '';
+
+        return [
+            'forma_pago' => $filas[0]['forma_pago'],
+            'metodo_pago' => $filas[0]['metodo_pago'],
+            'uso_cfdi' => $filas[0]['uso_cfdi'],
+            'regimen' => $regimen,
+            'producto' => $producto,
+        ];
     }
 
     /**
@@ -441,5 +541,48 @@ class PagoProveedorService
         ];
 
         return $lines;
+    }
+
+    /**
+     * Datos para PDF «REPORTE RESUMEN DE PAGOS» (1 fila = 1 pago con N folios).
+     *
+     * @return array<string, mixed>
+     */
+    public function datosReporteResumen(PagoProveedor $pago): array
+    {
+        $pago->loadMissing(['lineas.factura', 'proveedor']);
+        $prov = $pago->proveedor;
+        $db = is_array($prov?->datos_identificacion) ? $prov->datos_identificacion : [];
+
+        $folios = [];
+        foreach ($pago->lineas as $linea) {
+            $f = $linea->factura;
+            if ($f) {
+                $folios[] = $this->folioFacturaDisplay($f);
+            } elseif (! empty($linea->folio_cfdi) && ! $this->pareceUuid((string) $linea->folio_cfdi)) {
+                $folios[] = (string) $linea->folio_cfdi;
+            }
+        }
+        $folios = array_values(array_unique(array_filter($folios, fn ($v) => $v !== '—' && $v !== '')));
+
+        $importe = (float) $pago->monto_neto;
+        if ($importe <= 0) {
+            $importe = (float) $pago->monto_total;
+        }
+
+        return [
+            'pago' => $pago,
+            'banco' => trim((string) ($db['banco'] ?? '')),
+            'cuenta' => preg_replace('/\D/', '', (string) ($db['cuenta'] ?? '')) ?: '',
+            'clabe' => preg_replace('/\D/', '', (string) ($db['clabe'] ?? '')) ?: '',
+            'swift' => trim((string) ($db['swift'] ?? $db['Swift'] ?? '')),
+            'rfc' => strtoupper(trim((string) ($db['rfc'] ?? $db['RFC'] ?? ''))),
+            'nombreProveedor' => (string) ($prov?->nombre ?: $pago->codigo_proveedor),
+            'foliosGenerales' => implode(', ', $folios),
+            'importe' => $importe,
+            'iva' => (float) $pago->monto_iva,
+            'totalBanco' => $importe,
+            'totalPagar' => $importe,
+        ];
     }
 }

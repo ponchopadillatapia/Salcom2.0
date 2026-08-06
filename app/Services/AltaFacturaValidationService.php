@@ -22,6 +22,8 @@ class AltaFacturaValidationService
             'receptor' => ['ok' => false, 'label' => 'RFC receptor Salcom'],
             'uuid' => ['ok' => false, 'label' => 'UUID único'],
             'regimen' => ['ok' => false, 'label' => 'Régimen fiscal'],
+            'pago_cfdi' => ['ok' => false, 'label' => 'Forma / método / uso CFDI'],
+            'producto' => ['ok' => false, 'label' => 'Concepto / producto'],
             'fletera' => ['ok' => false, 'label' => 'Indicador fletera'],
             'retenciones' => ['ok' => false, 'label' => 'Retenciones'],
             'totales' => ['ok' => false, 'label' => 'Totales coherentes'],
@@ -36,6 +38,10 @@ class AltaFacturaValidationService
             'rfc_receptor' => null,
             'regimen_fiscal' => null,
             'regimen_nombre' => null,
+            'forma_pago' => null,
+            'metodo_pago' => null,
+            'uso_cfdi' => null,
+            'producto' => null,
             'subtotal' => 0.0,
             'iva' => 0.0,
             'retencion_iva' => 0.0,
@@ -66,6 +72,8 @@ class AltaFacturaValidationService
         $datos['serie'] = (string) ($attrs['Serie'] ?? '');
         $datos['fecha'] = (string) ($attrs['Fecha'] ?? '');
         $datos['tipo_comprobante'] = (string) ($attrs['TipoDeComprobante'] ?? '');
+        $datos['forma_pago'] = $this->normalizarCodigoPago((string) ($attrs['FormaPago'] ?? ''), 2);
+        $datos['metodo_pago'] = strtoupper(trim((string) ($attrs['MetodoPago'] ?? ''))) ?: null;
 
         if ($datos['tipo_comprobante'] !== '' && strtoupper($datos['tipo_comprobante']) !== 'I') {
             $errores[] = 'Solo se aceptan CFDI de tipo Ingreso (I). Tipo recibido: '.$datos['tipo_comprobante'];
@@ -90,6 +98,7 @@ class AltaFacturaValidationService
         if ($receptor) {
             $rAttrs = $receptor->attributes();
             $datos['rfc_receptor'] = strtoupper(trim((string) ($rAttrs['Rfc'] ?? '')));
+            $datos['uso_cfdi'] = strtoupper(trim((string) ($rAttrs['UsoCFDI'] ?? ''))) ?: null;
         } else {
             $errores[] = 'No se encontró el nodo Receptor en el XML.';
         }
@@ -156,13 +165,17 @@ class AltaFacturaValidationService
             $checklist['totales']['ok'] = true;
         }
 
-        // Conceptos: flete / comisión (ClaveProdServ o descripción)
+        // Conceptos: flete / comisión (ClaveProdServ o descripción) + texto producto
         $conceptos = $this->detectarConceptos($xml);
         $datos['tiene_concepto_flete'] = $conceptos['flete'];
         $datos['tiene_concepto_comision'] = $conceptos['comision'];
+        $datos['producto'] = $conceptos['producto'] !== '' ? $conceptos['producto'] : null;
 
         // Régimen
         $this->validarRegimen($datos, $errores, $checklist);
+
+        // Forma / método / uso CFDI + concepto (requeridos para pago automático)
+        $this->validarDatosPagoCfdi($datos, $errores, $checklist);
 
         // Fletera: el XML manda. Si marcaron Sí pero no hay flete en el CFDI, se trata como No.
         if ($esFletera && ! $datos['tiene_concepto_flete']) {
@@ -323,20 +336,26 @@ class AltaFacturaValidationService
     }
 
     /**
-     * @return array{flete: bool, comision: bool}
+     * @return array{flete: bool, comision: bool, producto: string}
      */
     private function detectarConceptos(SimpleXMLElement $xml): array
     {
         $cfg = config('facturas.conceptos', []);
         $flete = false;
         $comision = false;
+        $descripciones = [];
 
         $nodos = $xml->xpath("//*[local-name()='Concepto']") ?: [];
         foreach ($nodos as $nodo) {
             $attrs = $nodo->attributes();
             $clave = trim((string) ($attrs['ClaveProdServ'] ?? ''));
-            $desc = mb_strtolower((string) ($attrs['Descripcion'] ?? ''), 'UTF-8');
+            $descRaw = trim((string) ($attrs['Descripcion'] ?? ''));
+            $desc = mb_strtolower($descRaw, 'UTF-8');
             $descAscii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $desc) ?: $desc;
+
+            if ($descRaw !== '') {
+                $descripciones[] = $descRaw;
+            }
 
             if ($this->conceptoCoincide($clave, $descAscii, $cfg['flete'] ?? [])) {
                 $flete = true;
@@ -346,7 +365,70 @@ class AltaFacturaValidationService
             }
         }
 
-        return ['flete' => $flete, 'comision' => $comision];
+        $producto = implode(' · ', array_slice(array_unique($descripciones), 0, 5));
+        if (mb_strlen($producto) > 255) {
+            $producto = mb_substr($producto, 0, 252).'…';
+        }
+
+        return ['flete' => $flete, 'comision' => $comision, 'producto' => $producto];
+    }
+
+    private function validarDatosPagoCfdi(array &$datos, array &$errores, array &$checklist): void
+    {
+        $formas = config('facturas.formas_pago', []);
+        $metodos = config('facturas.metodos_pago', []);
+        $usos = config('facturas.usos_cfdi', []);
+        $okPago = true;
+
+        if (! $datos['forma_pago']) {
+            $errores[] = 'El XML no indica FormaPago (requerida para alta y pago automático).';
+            $okPago = false;
+        } elseif (! array_key_exists($datos['forma_pago'], $formas)) {
+            $errores[] = "FormaPago '{$datos['forma_pago']}' del XML no está en el catálogo aceptado.";
+            $okPago = false;
+        }
+
+        if (! $datos['metodo_pago']) {
+            $errores[] = 'El XML no indica MetodoPago (PUE/PPD).';
+            $okPago = false;
+        } elseif (! array_key_exists($datos['metodo_pago'], $metodos)) {
+            $errores[] = "MetodoPago '{$datos['metodo_pago']}' del XML no está en el catálogo aceptado.";
+            $okPago = false;
+        }
+
+        if (! $datos['uso_cfdi']) {
+            $errores[] = 'El XML no indica UsoCFDI del receptor.';
+            $okPago = false;
+        } elseif (! array_key_exists($datos['uso_cfdi'], $usos)) {
+            $errores[] = "UsoCFDI '{$datos['uso_cfdi']}' del XML no está en el catálogo aceptado.";
+            $okPago = false;
+        }
+
+        $checklist['pago_cfdi']['ok'] = $okPago;
+        if ($okPago) {
+            $checklist['pago_cfdi']['label'] = "Forma {$datos['forma_pago']} · {$datos['metodo_pago']} · Uso {$datos['uso_cfdi']}";
+        }
+
+        if (! $datos['producto']) {
+            $errores[] = 'El XML no trae descripción en Conceptos (producto/concepto requerido).';
+            $checklist['producto']['ok'] = false;
+        } else {
+            $checklist['producto']['ok'] = true;
+            $checklist['producto']['label'] = 'Concepto: '.\Illuminate\Support\Str::limit($datos['producto'], 60);
+        }
+    }
+
+    private function normalizarCodigoPago(string $valor, int $pad): ?string
+    {
+        $valor = trim($valor);
+        if ($valor === '') {
+            return null;
+        }
+        if (ctype_digit($valor)) {
+            return str_pad($valor, $pad, '0', STR_PAD_LEFT);
+        }
+
+        return $valor;
     }
 
     private function conceptoCoincide(string $clave, string $descAscii, array $cfg): bool
@@ -422,6 +504,10 @@ class AltaFacturaValidationService
     }
 
     /**
+     * Lee IVA/retenciones del nodo Impuestos del Comprobante (resumen SAT).
+     * Si no existe, cae a traslados/retenciones solo bajo Conceptos (nunca ambos:
+     * en CFDI 4.0 se repiten y duplican el importe).
+     *
      * @return array{iva_trasladado: float, retencion_iva: float, retencion_isr: float}
      */
     private function extraerImpuestos(SimpleXMLElement $xml): array
@@ -430,9 +516,12 @@ class AltaFacturaValidationService
         $retIva = 0.0;
         $retIsr = 0.0;
 
-        // Traslados IVA (002)
-        $traslados = $xml->xpath("//*[local-name()='Traslado']");
-        if ($traslados) {
+        $impRoot = $xml->xpath("/*[local-name()='Comprobante']/*[local-name()='Impuestos']");
+        $nodo = ($impRoot && isset($impRoot[0])) ? $impRoot[0] : null;
+
+        if ($nodo !== null) {
+            $totTras = (float) ($nodo->attributes()['TotalImpuestosTrasladados'] ?? 0);
+            $traslados = $nodo->xpath("./*[local-name()='Traslados']/*[local-name()='Traslado']") ?: [];
             foreach ($traslados as $t) {
                 $imp = (string) ($t->attributes()['Impuesto'] ?? '');
                 $importe = (float) ($t->attributes()['Importe'] ?? 0);
@@ -440,14 +529,31 @@ class AltaFacturaValidationService
                     $ivaTrasladado += $importe;
                 }
             }
-        }
+            if ($ivaTrasladado <= 0 && $totTras > 0) {
+                $ivaTrasladado = $totTras;
+            }
 
-        // Retenciones (Impuesto 001 = ISR, 002 = IVA)
-        $retenciones = $xml->xpath("//*[local-name()='Retenciones']/*[local-name()='Retencion']");
-        if (! $retenciones) {
-            $retenciones = $xml->xpath("//*[local-name()='Retencion']");
-        }
-        if ($retenciones) {
+            $retenciones = $nodo->xpath("./*[local-name()='Retenciones']/*[local-name()='Retencion']") ?: [];
+            foreach ($retenciones as $r) {
+                $imp = (string) ($r->attributes()['Impuesto'] ?? '');
+                $importe = (float) ($r->attributes()['Importe'] ?? 0);
+                if ($imp === '002') {
+                    $retIva += $importe;
+                } elseif ($imp === '001') {
+                    $retIsr += $importe;
+                }
+            }
+        } else {
+            // Fallback: solo conceptos (XMLs incompletos / pruebas)
+            $traslados = $xml->xpath("/*[local-name()='Comprobante']/*[local-name()='Conceptos']//*[local-name()='Traslado']") ?: [];
+            foreach ($traslados as $t) {
+                $imp = (string) ($t->attributes()['Impuesto'] ?? '');
+                $importe = (float) ($t->attributes()['Importe'] ?? 0);
+                if ($imp === '002') {
+                    $ivaTrasladado += $importe;
+                }
+            }
+            $retenciones = $xml->xpath("/*[local-name()='Comprobante']/*[local-name()='Conceptos']//*[local-name()='Retencion']") ?: [];
             foreach ($retenciones as $r) {
                 $imp = (string) ($r->attributes()['Impuesto'] ?? '');
                 $importe = (float) ($r->attributes()['Importe'] ?? 0);

@@ -1126,6 +1126,21 @@ class AdminPanelController extends Controller
 
         $filtrosActivos = $this->filtrosTienenValor($filtros);
 
+        $codigosPagina = $facturas->getCollection()
+            ->pluck('codigo_proveedor')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $saldosPendientesProveedor = $codigosPagina->isEmpty()
+            ? collect()
+            : Factura::query()
+                ->whereIn('codigo_proveedor', $codigosPagina)
+                ->whereIn('estatus', ['pendiente', 'programada'])
+                ->groupBy('codigo_proveedor')
+                ->selectRaw('codigo_proveedor, COALESCE(SUM(total), 0) as saldo')
+                ->pluck('saldo', 'codigo_proveedor');
+
         return view('admin.facturas', compact(
             'facturas',
             'estatus',
@@ -1143,6 +1158,7 @@ class AdminPanelController extends Controller
             'pctPagadas',
             'filtros',
             'filtrosActivos',
+            'saldosPendientesProveedor',
         ));
     }
 

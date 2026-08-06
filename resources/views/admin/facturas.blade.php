@@ -50,6 +50,9 @@
     .admin-table td{padding:12px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border)}
     .admin-table tr:last-child td{border-bottom:none}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
+    .admin-table tbody tr.date-row:hover td{background:var(--purple-subtle)!important}
+    .date-row td{background:var(--purple-subtle)!important;font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)}
+    .hora-pill{display:inline-flex;padding:3px 8px;border-radius:999px;background:var(--purple-subtle);color:var(--purple);font-size:11px;font-weight:700;white-space:nowrap}
     .tbl-wrap{overflow-x:auto}
 
     .badge-est{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
@@ -58,8 +61,35 @@
     .badge-est.pagada{background:var(--green-bg);color:var(--green)}
     .badge-est.cancelada{background:var(--red-bg);color:var(--red)}
     .badge-vencida{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--red-bg);color:var(--red)}
-    .fact-link{font-size:12px;font-weight:600;color:var(--purple);text-decoration:none}
-    .fact-link:hover{text-decoration:underline}
+    .fact-row{cursor:pointer}
+    .fact-row:focus{outline:2px solid rgba(107,63,160,.35);outline-offset:-2px}
+    .admin-table tbody tr.fact-row.prov-match td{background:rgba(107,63,160,.09)!important;box-shadow:inset 3px 0 0 var(--purple)}
+    .admin-table tbody tr.fact-row.prov-pinned td{background:rgba(107,63,160,.14)!important;box-shadow:inset 3px 0 0 var(--purple)}
+    .prov-chip{display:inline-flex;align-items:center;margin-top:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--purple);background:var(--purple-subtle);border:1px solid rgba(107,63,160,.28);cursor:pointer;font-family:inherit;line-height:1.3}
+    .prov-chip:hover{border-color:var(--purple);background:#efe8f8}
+    .prov-chip.is-active{background:var(--purple);color:#fff;border-color:var(--purple)}
+    .monto{font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)}
+    .pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;display:inline-block}
+    .pill.ok{background:var(--green-bg);color:var(--green)}
+    .pill.warn{background:var(--amber-bg);color:var(--amber)}
+    .pill.neut{background:var(--purple-subtle);color:var(--purple)}
+
+    .fact-modal-overlay{position:fixed;inset:0;background:rgba(15,10,30,.45);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
+    .fact-modal-overlay.open{display:flex}
+    .fact-modal{background:#fff;border-radius:14px;width:min(980px,100%);max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.22)}
+    .fact-modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border-light);background:var(--gray-soft);position:sticky;top:0}
+    .fact-modal-head h3{margin:0;font-size:16px;font-weight:700;color:var(--gray-text)}
+    .fact-modal-head p{margin:4px 0 0;font-size:12px;color:var(--gray-muted)}
+    .fact-modal-close{border:none;background:transparent;font-size:22px;line-height:1;cursor:pointer;color:var(--gray-muted);padding:4px 8px;border-radius:8px}
+    .fact-modal-close:hover{background:var(--purple-subtle);color:var(--purple)}
+    .fact-modal-body{padding:16px 20px 20px}
+    .fact-modal-table{width:100%;border-collapse:collapse}
+    .fact-modal-table th{font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.4px;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);background:#fff}
+    .fact-modal-table td{padding:12px;font-size:13px;border-bottom:1px solid var(--border-light);vertical-align:top}
+    .fact-docs{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+    .fact-doc{display:inline-flex;align-items:center;gap:6px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;color:var(--purple);text-decoration:none;background:#fff}
+    .fact-doc:hover{border-color:var(--purple);background:var(--purple-subtle)}
+    .fact-doc.off{opacity:.45;pointer-events:none;color:var(--gray-muted)}
 
     .pagination-wrap{padding:16px;display:flex;justify-content:center}
     .empty-state{text-align:center;padding:48px 20px;color:var(--gray-muted)}
@@ -170,6 +200,7 @@
             <h4>Listado de facturas</h4>
             <div class="adm-section-meta">
                 {{ $facturas->total() }} resultado{{ $facturas->total() !== 1 ? 's' : '' }}
+                · lo más reciente arriba · agrupado por fecha de alta
                 @if($filtrosActivos)
                     · monto filtrado: <strong style="color:var(--green)">${{ number_format($montoFiltrado, 2) }}</strong>
                 @endif
@@ -187,28 +218,64 @@
         <table class="admin-table" id="tableFacturas">
             <thead>
                 <tr>
-                    <th>Folio CFDI</th>
+                    <th>Folio</th>
                     <th>Proveedor</th>
                     <th>Monto</th>
                     <th>IVA</th>
                     <th>Total</th>
                     <th>Estatus</th>
                     <th>Vencimiento</th>
-                    <th></th>
+                    <th style="text-align:right;">Alta</th>
                 </tr>
             </thead>
             <tbody>
+            @php
+                $pagosSvc = app(\App\Services\PagoProveedorService::class);
+                $lastDate = null;
+            @endphp
             @foreach($facturas as $f)
                 @php
                     $vencida = $f->estatus === 'pendiente' && $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
                     $diasVencido = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
+                    $folioDisp = $pagosSvc->folioFacturaDisplay($f);
+                    $saldoProv = (float) ($saldosPendientesProveedor[$f->codigo_proveedor] ?? 0);
+                    $det = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
+                    $currentDate = $f->created_at ? $f->created_at->format('Y-m-d') : null;
                 @endphp
-                <tr>
-                    <td style="font-weight:700;color:var(--purple)">{{ $f->folio_cfdi ?? '—' }}</td>
+                @if($currentDate !== $lastDate)
+                    <tr class="date-row">
+                        <td colspan="8">
+                            {{ $f->created_at ? $f->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}
+                        </td>
+                    </tr>
+                    @php $lastDate = $currentDate; @endphp
+                @endif
+                <tr class="fact-row"
+                    tabindex="0"
+                    data-folio="{{ $folioDisp }}"
+                    data-vencimiento="{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}"
+                    data-vencido="{{ $vencida ? '1' : '0' }}"
+                    data-flete="{{ $f->es_fletera ? '1' : '0' }}"
+                    data-regimen="{{ $f->regimen_fiscal ?: '—' }}"
+                    data-proveedor="{{ $f->proveedor?->nombre ?? $f->codigo_proveedor ?? '—' }}"
+                    data-codigo="{{ $f->codigo_proveedor ?? '' }}"
+                    data-ret-iva="{{ number_format((float)($f->retencion_iva ?? 0), 2) }}"
+                    data-ret-isr="{{ number_format((float)($f->retencion_isr ?? 0), 2) }}"
+                    data-subtotal="{{ number_format((float)$f->monto, 2) }}"
+                    data-total="{{ number_format((float)$f->total, 2) }}"
+                    data-saldo="{{ number_format($saldoProv, 2) }}"
+                    data-estatus="{{ $estatusOpciones[$f->estatus] ?? ucfirst($f->estatus) }}"
+                    data-estatus-slug="{{ $f->estatus }}"
+                    data-pdf="{{ $f->archivo_pdf ? asset('storage/'.$f->archivo_pdf) : '' }}"
+                    data-xml="{{ $f->archivo_xml ? asset('storage/'.$f->archivo_xml) : '' }}"
+                    data-oc="{{ $f->archivo_oc ? asset('storage/'.$f->archivo_oc) : '' }}"
+                    data-producto="{{ $det['producto'] ?? '' }}"
+                >
+                    <td style="font-weight:700;color:var(--purple)">{{ $folioDisp }}</td>
                     <td>
                         <div style="font-weight:600">{{ $f->proveedor?->nombre ?? $f->codigo_proveedor ?? '—' }}</div>
                         @if($f->codigo_proveedor)
-                            <div style="font-size:11px;color:var(--gray-muted)">{{ $f->codigo_proveedor }}</div>
+                            <button type="button" class="prov-chip" data-codigo-chip="{{ $f->codigo_proveedor }}" title="Resaltar facturas de este proveedor">{{ $f->codigo_proveedor }}</button>
                         @endif
                     </td>
                     <td style="font-variant-numeric:tabular-nums">${{ number_format($f->monto, 2) }}</td>
@@ -223,10 +290,8 @@
                     <td style="color:{{ $vencida ? 'var(--red)' : 'var(--gray-muted)' }};font-weight:{{ $vencida ? '700' : '400' }};white-space:nowrap">
                         {{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}
                     </td>
-                    <td>
-                        @if($f->codigo_proveedor)
-                            <a href="{{ route('admin.proveedor-facturas', $f->codigo_proveedor) }}" class="fact-link">Detalle →</a>
-                        @endif
+                    <td style="text-align:right;">
+                        <span class="hora-pill">{{ $f->created_at?->format('h:i a') ?? '—' }}</span>
                     </td>
                 </tr>
             @endforeach
@@ -246,4 +311,182 @@
     </div>
     @endif
 </div>
+
+<div class="fact-modal-overlay" id="factModal" aria-hidden="true">
+    <div class="fact-modal" role="dialog" aria-modal="true" aria-labelledby="factModalTitle">
+        <div class="fact-modal-head">
+            <div>
+                <h3 id="factModalTitle">Detalle de factura</h3>
+                <p id="factModalSub">—</p>
+            </div>
+            <button type="button" class="fact-modal-close" id="factModalClose" aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="fact-modal-body">
+            <div style="overflow-x:auto;">
+                <table class="fact-modal-table">
+                    <thead>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Vencimiento</th>
+                            <th>Flete</th>
+                            <th>Régimen</th>
+                            <th>Proveedor</th>
+                            <th>Retenciones</th>
+                            <th>Subtotal</th>
+                            <th>Total</th>
+                            <th>Saldo proveedor</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td id="mFolio" style="font-weight:700;color:var(--purple)"></td>
+                            <td id="mVenc"></td>
+                            <td id="mFlete"></td>
+                            <td id="mRegimen"></td>
+                            <td id="mProv"></td>
+                            <td id="mRet" style="font-size:12px;white-space:nowrap"></td>
+                            <td id="mSub" class="monto"></td>
+                            <td id="mTotal" class="monto"></td>
+                            <td id="mSaldo" class="monto"></td>
+                            <td id="mStatus"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p id="mProducto" style="margin:12px 0 0;font-size:12px;color:var(--gray-muted);display:none;"></p>
+            <div class="fact-docs" id="mDocs"></div>
+        </div>
+    </div>
+</div>
 @endsection
+@push('scripts')
+<script>
+(function () {
+    var overlay = document.getElementById('factModal');
+    if (!overlay) return;
+    var closeBtn = document.getElementById('factModalClose');
+    var table = document.getElementById('tableFacturas');
+    var pinnedCodigo = null;
+
+    function rows() {
+        return Array.prototype.slice.call(document.querySelectorAll('#tableFacturas .fact-row'));
+    }
+
+    function setHighlight(codigo, mode) {
+        rows().forEach(function (r) {
+            var same = !!codigo && r.dataset.codigo === codigo;
+            r.classList.toggle('prov-match', mode === 'hover' && same);
+            r.classList.toggle('prov-pinned', mode === 'pin' && same);
+        });
+        document.querySelectorAll('.prov-chip').forEach(function (chip) {
+            chip.classList.toggle('is-active', mode === 'pin' && chip.getAttribute('data-codigo-chip') === codigo);
+        });
+    }
+
+    function clearHover() {
+        if (pinnedCodigo) return;
+        rows().forEach(function (r) { r.classList.remove('prov-match'); });
+    }
+
+    function openModal(row) {
+        var d = row.dataset;
+        document.getElementById('factModalTitle').textContent = 'Factura ' + (d.folio || '');
+        document.getElementById('factModalSub').textContent = (d.proveedor || '') + (d.codigo ? ' · ' + d.codigo : '');
+        document.getElementById('mFolio').textContent = d.folio || '—';
+        var venc = document.getElementById('mVenc');
+        venc.textContent = d.vencimiento || '—';
+        venc.style.color = d.vencido === '1' ? 'var(--red)' : '';
+        venc.style.fontWeight = d.vencido === '1' ? '700' : '';
+        document.getElementById('mFlete').innerHTML = d.flete === '1'
+            ? '<span class="pill warn">Sí</span>'
+            : '<span class="pill neut">No</span>';
+        document.getElementById('mRegimen').textContent = d.regimen || '—';
+        document.getElementById('mProv').innerHTML =
+            '<div style="font-weight:600;font-size:12px;">' + (d.proveedor || '—') + '</div>' +
+            (d.codigo ? '<div style="font-size:10px;color:var(--gray-muted);">' + d.codigo + '</div>' : '');
+        document.getElementById('mRet').innerHTML = 'IVA $' + (d.retIva || '0.00') + '<br>ISR $' + (d.retIsr || '0.00');
+        document.getElementById('mSub').textContent = '$' + (d.subtotal || '0.00');
+        document.getElementById('mTotal').textContent = '$' + (d.total || '0.00');
+        document.getElementById('mSaldo').textContent = '$' + (d.saldo || '0.00');
+        document.getElementById('mStatus').innerHTML =
+            '<span class="badge-est ' + (d.estatusSlug || '') + '">' + (d.estatus || '—') + '</span>';
+        var prod = document.getElementById('mProducto');
+        if (d.producto) {
+            prod.style.display = 'block';
+            prod.textContent = 'Concepto: ' + d.producto;
+        } else {
+            prod.style.display = 'none';
+            prod.textContent = '';
+        }
+        var docs = document.getElementById('mDocs');
+        docs.innerHTML = '';
+        [
+            { label: 'PDF', href: d.pdf },
+            { label: 'XML', href: d.xml },
+            { label: 'Orden de compra', href: d.oc }
+        ].forEach(function (doc) {
+            var a = document.createElement(doc.href ? 'a' : 'span');
+            a.className = 'fact-doc' + (doc.href ? '' : ' off');
+            a.textContent = doc.href ? doc.label : (doc.label + ' (no adjunto)');
+            if (doc.href) {
+                a.href = doc.href;
+                a.target = '_blank';
+                a.rel = 'noopener';
+            }
+            docs.appendChild(a);
+        });
+        overlay.classList.add('open');
+        overlay.setAttribute('aria-hidden', 'false');
+    }
+
+    function closeModal() {
+        overlay.classList.remove('open');
+        overlay.setAttribute('aria-hidden', 'true');
+    }
+
+    rows().forEach(function (row) {
+        row.addEventListener('mouseenter', function () {
+            if (pinnedCodigo) return;
+            if (!row.dataset.codigo) return;
+            setHighlight(row.dataset.codigo, 'hover');
+        });
+        row.addEventListener('mouseleave', clearHover);
+        row.addEventListener('click', function () { openModal(row); });
+        row.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openModal(row);
+            }
+        });
+    });
+
+    document.querySelectorAll('.prov-chip').forEach(function (chip) {
+        chip.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var codigo = chip.getAttribute('data-codigo-chip') || '';
+            if (!codigo) return;
+            if (pinnedCodigo === codigo) {
+                pinnedCodigo = null;
+                setHighlight(null, 'pin');
+            } else {
+                pinnedCodigo = codigo;
+                setHighlight(codigo, 'pin');
+            }
+        });
+    });
+
+    if (table) {
+        table.addEventListener('mouseleave', clearHover);
+    }
+
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', function (e) {
+        if (e.target === overlay) closeModal();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && overlay.classList.contains('open')) closeModal();
+    });
+})();
+</script>
+@endpush

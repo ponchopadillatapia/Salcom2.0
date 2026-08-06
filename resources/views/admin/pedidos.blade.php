@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 @section('title', 'Pedidos')
 @section('hero')
 <div class="hero-band">
