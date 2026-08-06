@@ -22,13 +22,13 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* ── NAVBAR (frosted glass) ── */
+        /* ── NAVBAR (frosted glass, igual que proveedores) ── */
         nav.top-nav {
-            background: rgba(255,255,255,0.82);
+            background: rgba(255,255,255,0.72);
             -webkit-backdrop-filter: saturate(180%) blur(20px);
             backdrop-filter: saturate(180%) blur(20px);
             padding: 0 28px;
-            height: 58px;
+            height: 56px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -45,29 +45,36 @@
             font-weight: 700;
             letter-spacing: -0.3px;
             line-height: 1.1;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
         }
-        .nav-logo span {
+        .nav-logo span.nav-title {
             display: block;
             font-family: 'Inter', sans-serif;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 600;
-            letter-spacing: 2.5px;
+            letter-spacing: 1.6px;
             color: var(--purple-mid);
             text-transform: uppercase;
-            margin-top: 1px;
+            max-width: min(420px, 42vw);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .nav-right { display: flex; align-items: center; gap: 16px; }
-        .nav-user { font-size: 13px; color: var(--gray-text); font-weight: 600; letter-spacing: -0.2px; }
+        .nav-right { display: flex; align-items: center; gap: 12px; }
+        .nav-user { display: none; }
         .sb-badge{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--red);color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
         .sidebar.collapsed .sb-badge{display:none}
         .sidebar.collapsed:hover .sb-badge{display:inline-flex}
         .btn-logout {
             font-size: 12px;
             color: var(--gray-muted);
-            padding: 6px 16px;
+            padding: 6px 14px;
             border: 1px solid var(--border-light);
-            border-radius: var(--radius-pill);
-            background: var(--gray-soft);
+            border-radius: 20px;
+            background: transparent;
             cursor: pointer;
             font-family: inherit;
             font-weight: 500;
@@ -76,24 +83,38 @@
         .btn-logout:hover { background: var(--purple-light); color: var(--purple); border-color: var(--purple-mid); transform: scale(1.02); }
         .btn-logout:active { transform: scale(0.97); }
 
+        /* ── Dropdown notificaciones ── */
+        .notif-dropdown{display:none;position:absolute;top:calc(100% + 8px);right:0;width:320px;background:var(--white);border:1px solid var(--border-light);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.12);z-index:9999;overflow:hidden}
+        .notif-dropdown.show{display:block}
+        .notif-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border-light);font-size:13px;font-weight:700;color:var(--gray-text)}
+        .notif-count{font-size:11px;font-weight:600;color:var(--purple);background:var(--purple-subtle);padding:2px 8px;border-radius:999px}
+        .notif-item{padding:12px 16px;border-bottom:1px solid var(--border-light);cursor:pointer;transition:background .15s}
+        .notif-item:hover{background:var(--purple-subtle)}
+        .notif-item-title{font-size:12px;font-weight:600;color:var(--gray-text);margin-bottom:3px}
+        .notif-item-desc{font-size:11px;color:var(--gray-muted);line-height:1.4}
+        .notif-item-time{font-size:10px;color:var(--gray-muted);margin-top:4px}
+        .notif-empty{padding:24px;text-align:center;font-size:12px;color:var(--gray-muted)}
+        .notif-footer{display:block;text-align:center;padding:10px;font-size:12px;font-weight:600;color:var(--purple);text-decoration:none;border-top:1px solid var(--border-light)}
+        .notif-footer:hover{background:var(--purple-subtle)}
+
         /* ── HERO ── */
         .hero-band {
-            background: linear-gradient(135deg, var(--white) 0%, var(--purple-subtle) 100%);
-            padding: 28px 32px;
-            border-bottom: 1px solid var(--border-light);
+            background: transparent;
+            padding: 28px 32px 10px;
+            border-bottom: none;
             flex-shrink: 0;
         }
-        .hero-band h1 { font-size: 22px; color: var(--gray-text); font-weight: 700; letter-spacing: -0.4px; }
-        .hero-band p { color: var(--gray-muted); font-size: 14px; margin-top: 4px; font-weight: 500; }
+        .hero-band h1 { font-size: 24px; color: var(--gray-text); font-weight: 700; letter-spacing: -0.4px; margin: 0; }
+        .hero-band p { color: var(--gray-muted); font-size: 13px; margin-top: 4px; font-weight: 400; }
 
         /* ── WRAPPER ── */
         .wrapper { display: flex; flex: 1; }
 
         /* ── SIDEBAR (frosted glass) ── */
         .sidebar {
-            width: 230px;
-            min-width: 230px;
-            background: rgba(255,255,255,0.88);
+            width: 240px;
+            min-width: 240px;
+            background: rgba(255,255,255,0.8);
             -webkit-backdrop-filter: blur(20px);
             backdrop-filter: blur(20px);
             border-right: 1px solid var(--border-light);
@@ -101,33 +122,76 @@
             flex-direction: column;
             transition: width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1), box-shadow .3s;
             overflow: hidden;
+            flex-shrink: 0;
         }
-        .sidebar.collapsed { width: 56px; min-width: 56px; }
+        .sidebar.collapsed { width: 60px; min-width: 60px; }
         .sidebar.collapsed:hover {
-            width: 230px; min-width: 230px;
+            width: 240px; min-width: 240px;
             box-shadow: 8px 0 24px rgba(0,0,0,0.06);
         }
         .sidebar.collapsed:hover .sb-text { display: inline; }
         .sidebar.collapsed:hover .sb-link { justify-content: flex-start; padding: 8px 16px; margin: 1px 8px; }
-        .sidebar.collapsed:hover .sb-toggle { justify-content: flex-end; padding: 0 16px; }
 
         .sb-toggle {
-            display: flex;
+            height: 28px;
+            width: 28px;
+            min-height: 28px;
+            display: inline-flex;
             align-items: center;
-            justify-content: flex-end;
-            height: 44px;
-            min-height: 44px;
-            padding: 0 16px;
+            justify-content: center;
+            padding: 0;
+            margin-left: auto;
             border: none;
-            background: none;
+            border-radius: 8px;
+            background: transparent;
+            font: inherit;
+            color: inherit;
             cursor: pointer;
-            border-bottom: 1px solid var(--border-light);
+            flex-shrink: 0;
             transition: background .15s;
         }
         .sb-toggle:hover { background: var(--purple-subtle); }
         .sb-toggle svg { transition: transform .2s ease; flex-shrink: 0; color: var(--gray-muted); }
-        .sidebar.collapsed .sb-toggle { justify-content: center; padding: 0; }
+        .sidebar.collapsed .sb-toggle { display: none; }
+        .sidebar.collapsed:hover .sb-toggle { display: inline-flex; }
         .sidebar.collapsed .sb-toggle svg { transform: rotate(180deg); }
+        .sidebar.collapsed .sb-client-icon { cursor: pointer; }
+
+        .sb-client {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 12px 10px 16px;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 6px;
+            flex-shrink: 0;
+        }
+        .sidebar.collapsed .sb-client {
+            justify-content: center;
+            padding: 6px 4px 8px;
+            margin-bottom: 2px;
+            gap: 0;
+        }
+        .sidebar.collapsed:hover .sb-client {
+            justify-content: flex-start;
+            padding: 14px 12px 10px 16px;
+            margin-bottom: 6px;
+            gap: 12px;
+        }
+        .sb-client-icon {
+            width: 40px; height: 40px; border-radius: 50%;
+            background: linear-gradient(135deg, #6B3FA0, #9C6DD0);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; overflow: hidden;
+        }
+        .sb-client-icon img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .sb-client-meta { min-width: 0; display: flex; align-items: center; flex: 1; }
+        .sb-client-name {
+            font-size: 13px; font-weight: 700; color: var(--gray-text);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+        }
+        .sidebar.collapsed .sb-client-meta { display: none; }
+        .sidebar.collapsed:hover .sb-client-meta { display: flex; }
 
         .sb-nav { flex: 1; overflow-y: auto; padding: 12px 0; display: flex; flex-direction: column; }
         .sb-link {
@@ -226,10 +290,20 @@
 </head>
 <body>
 
+@php
+    $navAdminNombre = session('admin_nombre', 'Admin');
+    $navAdmin = null;
+    if (session('admin_id')) {
+        $navAdmin = \App\Models\AdminUser::find(session('admin_id'));
+        if ($navAdmin && $navAdmin->nombre) {
+            $navAdminNombre = $navAdmin->nombre;
+        }
+    }
+@endphp
 <nav class="top-nav">
-    <div class="nav-logo" style="display:flex;align-items:center;gap:14px;">
+    <div class="nav-logo">
         @include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])
-        <span>Panel Administrativo</span>
+        <span class="nav-title">Portal Administrativo</span>
     </div>
     <div class="nav-right">
         @php
@@ -237,11 +311,43 @@
                 ->where('tipo', 'factura_pago_pendiente')
                 ->whereNotIn('estatus', ['leida', 'accionada'])
                 ->count();
+            $adminAlertasRecientes = \App\Models\Alerta::where('destinatario_tipo', 'admin')
+                ->where('tipo', 'factura_pago_pendiente')
+                ->whereNotIn('estatus', ['leida', 'accionada'])
+                ->orderByDesc('created_at')
+                ->limit(8)
+                ->get();
         @endphp
-        <a href="{{ route('admin.perfil') }}" class="nav-user" title="{{ session('admin_usuario', '') }}" style="text-decoration:none;color:inherit;">{{ session('admin_nombre', 'Usuario') }}</a>
+        <div class="notif-wrapper" style="position:relative;"
+             data-alertas-url="{{ route('admin.pagos.alertas') }}"
+             data-alertas-leer-url="{{ url('/admin/pagos/alertas') }}"
+             data-csrf="{{ csrf_token() }}">
+            <button type="button" class="notif-bell" id="notifBellBtn" onclick="document.getElementById('notifDropdown').classList.toggle('show')" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;" title="Notificaciones" aria-label="Notificaciones">
+                <svg id="notifBellIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $adminPagosSinLeer > 0 ? 'var(--purple)' : 'var(--gray-muted)' }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                <span id="notifBadge" style="position:absolute;top:-2px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;{{ $adminPagosSinLeer > 0 ? 'display:flex' : 'display:none' }};align-items:center;justify-content:center;">{{ $adminPagosSinLeer > 9 ? '9+' : $adminPagosSinLeer }}</span>
+            </button>
+            <div id="notifDropdown" class="notif-dropdown">
+                <div class="notif-header">
+                    <span>Notificaciones</span>
+                    <span class="notif-count" id="notifCountLabel" style="{{ $adminPagosSinLeer > 0 ? '' : 'display:none;' }}">{{ $adminPagosSinLeer }} nuevas</span>
+                </div>
+                <div id="notifItems">
+                @forelse($adminAlertasRecientes as $notif)
+                <div class="notif-item" data-alerta-id="{{ $notif->id }}" data-url="{{ isset($notif->datos['codigo_proveedor']) ? route('admin.pagos.proveedor', $notif->datos['codigo_proveedor']) : route('admin.pagos') }}">
+                    <div class="notif-item-title">{{ \Illuminate\Support\Str::limit($notif->titulo, 50) }}</div>
+                    <div class="notif-item-desc">{{ \Illuminate\Support\Str::limit($notif->contenido, 80) }}</div>
+                    <div class="notif-item-time">{{ $notif->created_at->diffForHumans() }}</div>
+                </div>
+                @empty
+                <div class="notif-empty">Sin notificaciones nuevas</div>
+                @endforelse
+                </div>
+                <a href="{{ route('admin.pagos') }}" class="notif-footer">Ir a Pagos</a>
+            </div>
+        </div>
         <form method="POST" action="/logout-admin" style="margin:0;">
             @csrf
-            <button type="submit" class="btn-logout">Cerrar sesión</button>
+            <button type="submit" class="btn-logout">Salir</button>
         </form>
     </div>
 </nav>
@@ -249,112 +355,119 @@
 @yield('hero')
 
 <div class="wrapper">
-    <aside class="sidebar collapsed" id="sidebar">
-        <button type="button" class="sb-toggle" id="sbToggleBtn" aria-expanded="false" aria-label="Contraer o expandir menú lateral" onclick="sbToggle(this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
+    <aside class="sidebar" id="sidebar">
+        <div class="sb-client">
+            <div class="sb-client-icon" title="Expandir menú" onclick="if(document.getElementById('sidebar')?.classList.contains('collapsed')){sbToggle();}">
+                @if(!empty($navAdmin?->foto))
+                    <img src="{{ asset('storage/'.$navAdmin->foto) }}" alt="Foto">
+                @else
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                @endif
+            </div>
+            <div class="sb-client-meta">
+                <span class="sb-client-name" title="{{ $navAdminNombre }}">{{ $navAdminNombre }}</span>
+            </div>
+            <button type="button" class="sb-toggle" id="sbToggleBtn" aria-expanded="true" aria-label="Contraer o expandir menú lateral" onclick="sbToggle(this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+        </div>
         <nav class="sb-nav">
+            {{-- Orden alineado al portal de proveedores --}}
             <div class="sb-section">Inicio</div>
             <a href="{{ route('admin.dashboard') }}" class="sb-link {{ request()->is('admin/dashboard*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></div>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                 <span class="sb-text">Inicio</span>
             </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Altas de producto</div>
+            <div class="sb-section">Productos</div>
             <a href="{{ route('admin.alta-producto') }}" class="sb-link {{ request()->is('admin/alta-producto') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
                 <span class="sb-text">Alta Producto Compras</span>
             </a>
             <a href="{{ route('admin.alta-producto-mto') }}" class="sb-link {{ request()->is('admin/alta-producto-mto*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
                 <span class="sb-text">Alta Producto<br>Mantenimiento</span>
             </a>
             <a href="{{ route('admin.alta-producto-pt') }}" class="sb-link {{ request()->is('admin/alta-producto-pt*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>
                 <span class="sb-text">Alta Producto Comercial</span>
             </a>
             <a href="{{ route('admin.productos') }}" class="sb-link {{ request()->is('admin/productos*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
                 <span class="sb-text">Productos</span>
             </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Proveedores</div>
+            <div class="sb-section">Facturas</div>
+            <a href="{{ route('admin.facturas') }}" class="sb-link {{ request()->is('admin/facturas*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+                <span class="sb-text">Facturas</span>
+            </a>
+
+            <div class="sb-hr"></div>
+            <div class="sb-section">Pagos</div>
             <a href="{{ route('admin.pagos') }}" class="sb-link {{ request()->is('admin/pagos*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
                 <span class="sb-text">Pagos</span>
                 @if(($adminPagosSinLeer ?? 0) > 0)
                     <span class="sb-badge">{{ $adminPagosSinLeer > 9 ? '9+' : $adminPagosSinLeer }}</span>
                 @endif
             </a>
-            <a href="{{ route('admin.proveedores') }}" class="sb-link {{ request()->is('admin/proveedores') || request()->is('admin/proveedores/*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
-                <span class="sb-text">Proveedores / Score</span>
+
+            <div class="sb-hr"></div>
+            <div class="sb-section">Operación</div>
+            <a href="{{ route('admin.pedidos') }}" class="sb-link {{ request()->is('admin/pedidos*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+                <span class="sb-text">OC</span>
             </a>
-            <a href="{{ route('admin.solicitudes-alta') }}" class="sb-link {{ request()->is('admin/solicitudes-alta*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div>
-                <span class="sb-text">Solicitudes de alta</span>
-            </a>
-            <a href="{{ route('admin.documentos') }}" class="sb-link {{ request()->is('admin/documentos*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-                <span class="sb-text">Documentos</span>
-            </a>
-            <a href="{{ route('admin.expediente-fiscal') }}" class="sb-link {{ request()->is('admin/expediente-fiscal*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
-                <span class="sb-text">Expediente Fiscal</span>
-            </a>
-            <a href="{{ route('admin.opinion-positiva') }}" class="sb-link {{ request()->is('admin/opinion-positiva*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-                <span class="sb-text">Opinión Positiva</span>
-            </a>
-            <a href="{{ route('admin.reporte-proveedores') }}" class="sb-link {{ request()->is('admin/reporte-proveedores*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
-                <span class="sb-text">Reportes</span>
+            <a href="{{ route('admin.otif') }}" class="sb-link {{ request()->is('admin/otif*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                <span class="sb-text">OTIF</span>
             </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Compras y operación</div>
-            <a href="{{ route('admin.gestion-compras') }}" class="sb-link {{ request()->is('admin/gestion-compras*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5z"/><path d="M6 9.01V9"/></svg></div>
-                <span class="sb-text">Gestión Compras</span>
+            <div class="sb-section">Proveedores</div>
+            <a href="{{ route('admin.proveedores') }}" class="sb-link {{ request()->is('admin/proveedores') || request()->is('admin/proveedores/*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+                <span class="sb-text">Proveedores / Score</span>
             </a>
-            <a href="{{ route('admin.pedidos') }}" class="sb-link {{ request()->is('admin/pedidos*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-                <span class="sb-text">Pedidos</span>
+            <a href="{{ route('admin.solicitudes-alta') }}" class="sb-link {{ request()->is('admin/solicitudes-alta*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div>
+                <span class="sb-text">Solicitudes de alta</span>
             </a>
-            <a href="{{ route('admin.inventario') }}" class="sb-link {{ request()->is('admin/inventario*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
-                <span class="sb-text">Inventario</span>
+            <a href="{{ route('admin.expediente-fiscal') }}" class="sb-link {{ request()->is('admin/expediente-fiscal*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
+                <span class="sb-text">Expediente Fiscal</span>
             </a>
-            <a href="{{ route('admin.otif') }}" class="sb-link {{ request()->is('admin/otif*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <span class="sb-text">OTIF</span>
+            <a href="{{ route('admin.opinion-positiva') }}" class="sb-link {{ request()->is('admin/opinion-positiva*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                <span class="sb-text">Opinión Positiva</span>
             </a>
-            <a href="{{ route('admin.facturas') }}" class="sb-link {{ request()->is('admin/facturas*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
-                <span class="sb-text">Facturas</span>
+            <a href="{{ route('admin.reporte-proveedores') }}" class="sb-link {{ request()->is('admin/reporte-proveedores*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
+                <span class="sb-text">Reportes</span>
             </a>
 
             <div class="sb-hr"></div>
             <div class="sb-section">Negocio</div>
             <a href="{{ route('admin.clientes') }}" class="sb-link {{ request()->is('admin/clientes*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
                 <span class="sb-text">Clientes</span>
             </a>
             <a href="{{ route('admin.negocio') }}" class="sb-link {{ request()->is('admin/negocio*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
                 <span class="sb-text">Negocio</span>
             </a>
             <a href="{{ route('admin.fiscal') }}" class="sb-link {{ request()->is('admin/fiscal*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
                 <span class="sb-text">Fiscal</span>
             </a>
 
             <div class="sb-hr"></div>
             <div class="sb-section">Cuenta</div>
             <a href="{{ route('admin.perfil') }}" class="sb-link {{ request()->routeIs('admin.perfil') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
                 <span class="sb-text">Mi Perfil</span>
             </a>
         </nav>
@@ -386,6 +499,46 @@ function sbToggle(btn) {
     var el = btn || document.getElementById('sbToggleBtn');
     if (el) el.setAttribute('aria-expanded', s.classList.contains('collapsed') ? 'false' : 'true');
 }
+
+(function () {
+    document.addEventListener('click', function (e) {
+        var dropdown = document.getElementById('notifDropdown');
+        var wrapper = document.querySelector('.notif-wrapper');
+        if (dropdown && wrapper && !wrapper.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+
+    var wrap = document.querySelector('.notif-wrapper');
+    if (!wrap) return;
+    var leerBase = wrap.getAttribute('data-alertas-leer-url');
+    var csrf = wrap.getAttribute('data-csrf');
+
+    var itemsBox = document.getElementById('notifItems');
+    if (itemsBox) {
+        itemsBox.addEventListener('click', function (e) {
+            var item = e.target.closest('.notif-item');
+            if (!item) return;
+            var id = item.getAttribute('data-alerta-id');
+            var url = item.getAttribute('data-url') || @json(route('admin.pagos'));
+            if (id && leerBase) {
+                fetch(leerBase + '/' + id + '/leer', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': csrf || '',
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin'
+                }).finally(function () {
+                    window.location = url;
+                });
+            } else {
+                window.location = url;
+            }
+        });
+    }
+})();
 </script>
 </body>
 </html>

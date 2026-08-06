@@ -8,6 +8,7 @@ use App\Models\ContactoProveedor;
 use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
 use App\Models\Factura;
+use App\Models\PagoProveedor;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
 use App\Services\AltaFacturaValidationService;
@@ -163,9 +164,63 @@ class PortalProveedorController extends Controller
         return view('proveedores.business');
     }
 
-    public function mostrarPaymentHistory()
+    public function mostrarPaymentHistory(Request $request)
     {
-        return view('proveedores.payment-history');
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+
+        $base = PagoProveedor::query()
+            ->when($proveedor?->id, fn ($q) => $q->where('proveedor_id', $proveedor->id))
+            ->when(! $proveedor?->id && $codigo, fn ($q) => $q->where('codigo_proveedor', $codigo));
+
+        if ($request->filled('fecha_desde')) {
+            $base->whereDate('fecha_pago', '>=', $request->input('fecha_desde'));
+        }
+        if ($request->filled('fecha_hasta')) {
+            $base->whereDate('fecha_pago', '<=', $request->input('fecha_hasta'));
+        }
+
+        $kpis = [
+            'proceso' => (clone $base)->where('estatus', 'borrador')->count(),
+            'confirmados' => (clone $base)->where('estatus', 'confirmado')->count(),
+            'cancelados' => (clone $base)->where('estatus', 'cancelado')->count(),
+            'totales' => (clone $base)->count(),
+            'monto_pagado' => (float) (clone $base)->where('estatus', 'confirmado')->sum('monto_neto'),
+        ];
+
+        $query = clone $base;
+        $buscar = trim((string) $request->input('q', ''));
+        $campo = $request->input('campo', 'cheque');
+        if ($buscar !== '') {
+            if ($campo === 'monto') {
+                $clean = str_replace([',', '$'], '', $buscar);
+                $query->where(function ($q) use ($clean) {
+                    $q->where('monto_neto', 'like', '%'.$clean.'%')
+                        ->orWhere('monto_total', 'like', '%'.$clean.'%');
+                });
+            } elseif ($campo === 'facturas') {
+                $query->where('num_facturas', 'like', '%'.$buscar.'%');
+            } elseif ($campo === 'estatus') {
+                $query->where('estatus', 'like', '%'.$buscar.'%');
+            } else {
+                $query->where(function ($q) use ($buscar) {
+                    $q->where('id', 'like', '%'.$buscar.'%')
+                        ->orWhere('datos_confirmacion->numero_cheque', 'like', '%'.$buscar.'%')
+                        ->orWhere('datos_confirmacion->no_cheque', 'like', '%'.$buscar.'%');
+                });
+            }
+        }
+
+        $pagos = $query->orderByDesc('fecha_pago')->orderByDesc('id')->paginate(30)->withQueryString();
+
+        $filtros = [
+            'fecha_desde' => $request->input('fecha_desde', ''),
+            'fecha_hasta' => $request->input('fecha_hasta', ''),
+            'q' => $buscar,
+            'campo' => $campo,
+        ];
+
+        return view('proveedores.payment-history', compact('proveedor', 'pagos', 'kpis', 'filtros', 'codigo'));
     }
 
     /** Listado de todas las facturas del proveedor (menú Facturas). */
@@ -174,16 +229,25 @@ class PortalProveedorController extends Controller
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
 
-        $query = Factura::query()
+        $base = Factura::query()
             ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo))
             ->where('estatus', '!=', 'rechazada');
 
         if ($request->filled('fecha_desde')) {
-            $query->whereDate('created_at', '>=', $request->input('fecha_desde'));
+            $base->whereDate('created_at', '>=', $request->input('fecha_desde'));
         }
         if ($request->filled('fecha_hasta')) {
-            $query->whereDate('created_at', '<=', $request->input('fecha_hasta'));
+            $base->whereDate('created_at', '<=', $request->input('fecha_hasta'));
         }
+
+        $kpis = [
+            'pendientes' => (clone $base)->where('estatus', 'pendiente')->count(),
+            'programadas' => (clone $base)->whereIn('estatus', ['programada', 'aprobada', 'validada'])->count(),
+            'pagadas' => (clone $base)->where('estatus', 'pagada')->count(),
+            'totales' => (clone $base)->count(),
+        ];
+
+        $query = clone $base;
 
         $buscar = trim((string) $request->input('q', ''));
         $campo = $request->input('campo', 'folio');
@@ -209,7 +273,7 @@ class PortalProveedorController extends Controller
             'campo' => $campo,
         ];
 
-        return view('proveedores.facturas', compact('proveedor', 'facturas', 'filtros', 'codigo'));
+        return view('proveedores.facturas', compact('proveedor', 'facturas', 'filtros', 'codigo', 'kpis'));
     }
 
     public function facturasExcel(Request $request)
@@ -263,10 +327,13 @@ class PortalProveedorController extends Controller
             ->where('estatus', '!=', 'accionada')
             ->count();
 
+        // Solo no leídas: al marcar desaparecen del dropdown
         $items = Alerta::where('destinatario_tipo', 'proveedor')
             ->where('destinatario_id', $proveedorId)
+            ->where('estatus', '!=', 'leida')
+            ->where('estatus', '!=', 'accionada')
             ->orderByDesc('created_at')
-            ->limit(5)
+            ->limit(8)
             ->get(['id', 'titulo', 'contenido', 'estatus', 'tipo', 'created_at'])
             ->map(fn (Alerta $a) => [
                 'id' => $a->id,
@@ -274,7 +341,7 @@ class PortalProveedorController extends Controller
                 'contenido' => $a->contenido,
                 'estatus' => $a->estatus,
                 'tipo' => $a->tipo,
-                'leida' => in_array($a->estatus, ['leida', 'accionada'], true),
+                'leida' => false,
                 'hace' => optional($a->created_at)->diffForHumans(),
             ]);
 
@@ -954,20 +1021,6 @@ class PortalProveedorController extends Controller
             ->limit(15)
             ->get();
 
-        $stats = [
-            'total' => $facturas->count(),
-            'pendientes' => $facturas->where('estatus', 'pendiente')->count(),
-            'rechazadas' => 0,
-            'fleteras' => $facturas->where('es_fletera', true)->count(),
-        ];
-
-        // Contar rechazadas aparte (no se listan en recientes)
-        if ($codigo) {
-            $stats['rechazadas'] = Factura::where('codigo_proveedor', $codigo)
-                ->where('estatus', 'rechazada')
-                ->count();
-        }
-
         $rfcProveedor = $this->rfcProveedorSesion($proveedor);
         $pendiente = session('fiscal_pendiente');
         $puedeSubir = is_array($pendiente)
@@ -977,7 +1030,6 @@ class PortalProveedorController extends Controller
 
         return view('proveedores.fiscal', compact(
             'facturas',
-            'stats',
             'rfcProveedor',
             'proveedor',
             'puedeSubir',
@@ -1087,37 +1139,55 @@ class PortalProveedorController extends Controller
             $pathOc = $request->file('archivo_oc')->storeAs($tempDir, 'oc.pdf');
         }
 
-        session([
-            'fiscal_pendiente' => [
-                'token' => $token,
-                'proveedor_id' => $proveedor->id,
-                'aprobado' => true,
-                'path_pdf' => $pathPdf,
-                'path_xml' => $pathXml,
-                'path_oc' => $pathOc,
-                'es_fletera' => $esFleteraEfectivo,
-                'es_me_mp' => $requiereOc,
-                'requiere_oc' => $requiereOc,
-                'naturaleza' => $naturaleza,
-                'tipo_producto' => $tipoProducto,
-                'resultado' => $resultado,
-                'expires_at' => now()->addMinutes(30)->timestamp,
-            ],
-        ]);
-
-        return back()->withInput()->with('fiscal_resultado', [
+        $pendiente = [
+            'token' => $token,
+            'proveedor_id' => $proveedor->id,
             'aprobado' => true,
-            'mensaje' => 'Validación correcta. Revisa el resumen y pulsa «Subir» para registrar la factura.',
-            'errores' => [],
-            'advertencias' => $resultado['advertencias'],
-            'checklist' => $resultado['checklist'],
-            'datos' => $resultado['datos'],
-            'listo_para_subir' => true,
-        ]);
+            'path_pdf' => $pathPdf,
+            'path_xml' => $pathXml,
+            'path_oc' => $pathOc,
+            'es_fletera' => $esFleteraEfectivo,
+            'es_me_mp' => $requiereOc,
+            'requiere_oc' => $requiereOc,
+            'naturaleza' => $naturaleza,
+            'tipo_producto' => $tipoProducto,
+            'resultado' => $resultado,
+            'expires_at' => now()->addMinutes(30)->timestamp,
+        ];
+
+        // Validación en verde → registrar de inmediato como pendiente
+        try {
+            $this->registrarFacturaDesdePendiente($proveedor, $pendiente);
+        } catch (\InvalidArgumentException $e) {
+            Storage::disk('local')->deleteDirectory($tempDir);
+
+            return back()->withInput()->with('fiscal_resultado', [
+                'aprobado' => false,
+                'mensaje' => 'La factura no se pudo registrar.',
+                'errores' => [$e->getMessage()],
+                'advertencias' => $resultado['advertencias'],
+                'checklist' => $resultado['checklist'],
+                'datos' => $resultado['datos'],
+            ]);
+        } catch (\Throwable $e) {
+            Storage::disk('local')->deleteDirectory($tempDir);
+            Log::error('[AltaFactura] Error al registrar: '.$e->getMessage());
+
+            return back()->withInput()->withErrors([
+                'archivo' => 'Error al guardar la factura. Intenta de nuevo.',
+            ]);
+        }
+
+        Storage::disk('local')->deleteDirectory($tempDir);
+        session()->forget('fiscal_pendiente');
+
+        return redirect()
+            ->route('proveedores.facturas')
+            ->with('exito', 'Factura validada y registrada. Queda en estatus pendiente.');
     }
 
     /**
-     * Paso 2: registrar factura ya validada (archivos temporales de sesión).
+     * Compat: ruta antigua «Subir». Reenvía a validar+registrar si aún hay sesión.
      */
     public function altaFactura(Request $request)
     {
@@ -1134,46 +1204,66 @@ class PortalProveedorController extends Controller
             || ($pendiente['expires_at'] ?? 0) < now()->timestamp
         ) {
             return back()->withErrors([
-                'archivo' => 'Primero debes validar la factura. Adjunta los archivos y pulsa «Validar».',
+                'archivo' => 'Adjunta PDF + XML y pulsa «Validar y registrar».',
             ]);
         }
 
-        $resultado = $pendiente['resultado'] ?? null;
-        if (! is_array($resultado) || empty($resultado['aprobado'])) {
+        try {
+            $this->registrarFacturaDesdePendiente($proveedor, $pendiente);
+        } catch (\InvalidArgumentException $e) {
             $this->limpiarFiscalPendiente();
 
-            return back()->withErrors(['archivo' => 'La validación ya no es válida. Vuelve a validar.']);
+            return back()->with('fiscal_resultado', [
+                'aprobado' => false,
+                'mensaje' => 'La factura no se pudo registrar.',
+                'errores' => [$e->getMessage()],
+                'checklist' => $pendiente['resultado']['checklist'] ?? [],
+                'datos' => $pendiente['resultado']['datos'] ?? [],
+            ]);
+        } catch (\Throwable $e) {
+            $this->limpiarFiscalPendiente();
+            Log::error('[AltaFactura] Error al registrar: '.$e->getMessage());
+
+            return back()->withErrors(['archivo' => 'Error al guardar la factura. Intenta de nuevo.']);
+        }
+
+        $this->limpiarFiscalPendiente();
+
+        return redirect()
+            ->route('proveedores.facturas')
+            ->with('exito', 'Factura registrada. Queda en estatus pendiente.');
+    }
+
+    /**
+     * Persiste factura en estatus pendiente desde archivos temporales + resultado de validación.
+     *
+     * @param  array<string, mixed>  $pendiente
+     */
+    private function registrarFacturaDesdePendiente(ProveedorUser $proveedor, array $pendiente): Factura
+    {
+        $resultado = $pendiente['resultado'] ?? null;
+        if (! is_array($resultado) || empty($resultado['aprobado'])) {
+            throw new \InvalidArgumentException('La validación ya no es válida. Vuelve a validar.');
         }
 
         $datos = $resultado['datos'] ?? [];
         $uuid = $datos['uuid'] ?? null;
 
         if ($uuid && Factura::where('uuid_cfdi', $uuid)->exists()) {
-            $this->limpiarFiscalPendiente();
-
-            return back()->with('fiscal_resultado', [
-                'aprobado' => false,
-                'mensaje' => 'La factura no se pudo registrar.',
-                'errores' => ['Esta factura (UUID) ya fue registrada anteriormente.'],
-                'checklist' => $resultado['checklist'] ?? [],
-                'datos' => $datos,
-            ]);
+            throw new \InvalidArgumentException('Esta factura (UUID) ya fue registrada anteriormente.');
         }
 
         $disk = Storage::disk('local');
-        if (! $disk->exists($pendiente['path_pdf']) || ! $disk->exists($pendiente['path_xml'])) {
-            $this->limpiarFiscalPendiente();
-
-            return back()->withErrors(['archivo' => 'Los archivos temporales expiraron. Vuelve a validar.']);
+        if (empty($pendiente['path_pdf']) || empty($pendiente['path_xml'])
+            || ! $disk->exists($pendiente['path_pdf']) || ! $disk->exists($pendiente['path_xml'])) {
+            throw new \InvalidArgumentException('Los archivos temporales expiraron. Vuelve a validar.');
         }
 
         $dir = 'facturas-proveedor/'.$proveedor->id;
-        $pathPdf = $disk->get($pendiente['path_pdf']);
-        $pathXml = $disk->get($pendiente['path_xml']);
         $finalPdf = $dir.'/'.uniqid('pdf_', true).'.pdf';
         $finalXml = $dir.'/'.uniqid('xml_', true).'.xml';
-        Storage::disk('public')->put($finalPdf, $pathPdf);
-        Storage::disk('public')->put($finalXml, $pathXml);
+        Storage::disk('public')->put($finalPdf, $disk->get($pendiente['path_pdf']));
+        Storage::disk('public')->put($finalXml, $disk->get($pendiente['path_xml']));
 
         $finalOc = null;
         if (! empty($pendiente['path_oc']) && $disk->exists($pendiente['path_oc'])) {
@@ -1190,10 +1280,11 @@ class PortalProveedorController extends Controller
         }
 
         $dias = (int) config('facturas.dias_vencimiento', 30);
-        $codigoProv = $proveedor->id_proveedor ?: session('proveedor_codigo');
+        $codigoProv = $proveedor->id_proveedor ?: session('proveedor_codigo') ?: ('P'.$proveedor->id);
         $esFletera = (bool) ($pendiente['es_fletera'] ?? false);
+        $total = (float) (($datos['total'] ?? 0) ?: (($datos['subtotal'] ?? 0) + ($datos['iva'] ?? 0)));
 
-        Factura::create([
+        $factura = Factura::create([
             'folio_cfdi' => $folioCfdi,
             'uuid_cfdi' => $uuid,
             'codigo_proveedor' => $codigoProv,
@@ -1203,7 +1294,7 @@ class PortalProveedorController extends Controller
             'monto_iva' => $datos['iva'] ?? 0,
             'retencion_iva' => $datos['retencion_iva'] ?? 0,
             'retencion_isr' => $datos['retencion_isr'] ?? 0,
-            'total' => ($datos['total'] ?? 0) ?: (($datos['subtotal'] ?? 0) + ($datos['iva'] ?? 0)),
+            'total' => $total,
             'estatus' => 'pendiente',
             'fecha_vencimiento' => now()->addDays($dias)->toDateString(),
             'archivo_pdf' => $finalPdf,
@@ -1225,7 +1316,7 @@ class PortalProveedorController extends Controller
 
         try {
             $nombreProv = $proveedor->nombre ?: $codigoProv;
-            $totalFmt = number_format((float) (($datos['total'] ?? 0) ?: (($datos['subtotal'] ?? 0) + ($datos['iva'] ?? 0))), 2);
+            $totalFmt = number_format($total, 2);
             app(\App\Services\AlertEngineService::class)->crearAlerta([
                 'tipo' => 'factura_pago_pendiente',
                 'modulo' => 'pagos',
@@ -1240,20 +1331,10 @@ class PortalProveedorController extends Controller
                 'nivel' => 'info',
             ]);
         } catch (\Throwable $e) {
-            // No bloquear el alta de factura si falla la notificación
+            // No bloquear el alta si falla la notificación
         }
 
-        $this->limpiarFiscalPendiente();
-
-        return back()->with('fiscal_resultado', [
-            'aprobado' => true,
-            'mensaje' => 'Factura registrada correctamente. Queda pendiente de revisión contable.',
-            'errores' => [],
-            'advertencias' => $resultado['advertencias'] ?? [],
-            'checklist' => $resultado['checklist'] ?? [],
-            'datos' => $datos,
-            'registrada' => true,
-        ]);
+        return $factura;
     }
 
     private function limpiarFiscalPendiente(): void

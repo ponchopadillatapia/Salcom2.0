@@ -11,27 +11,16 @@
     @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
     .anim{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
 
-    .adm-summary{background:var(--white);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:22px 26px;margin-bottom:20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;box-shadow:var(--shadow-sm)}
-    .adm-summary-main{text-align:center;min-width:100px}
-    .adm-summary-pct{font-size:42px;font-weight:800;line-height:1;color:var(--purple)}
-    .adm-summary-label{font-size:12px;color:var(--gray-muted);margin-top:6px}
-    .adm-summary-metrics{flex:1;display:flex;gap:24px;flex-wrap:wrap}
-    .adm-metric-label{font-size:12px;color:var(--gray-muted);margin-bottom:4px}
-    .adm-metric-val{font-size:22px;font-weight:700;display:flex;align-items:center;gap:8px}
-    .adm-summary-badge{padding:10px 16px;border-radius:10px;font-size:12px;font-weight:600;line-height:1.4;text-decoration:none;transition:var(--transition)}
-    .adm-summary-badge:hover{opacity:.85}
+    .inv-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+    .inv-metric{background:var(--white);border:1px solid var(--border-light, var(--border));border-radius:14px;padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block}
+    .inv-metric:hover{border-color:var(--purple-mid,#c4b5e0);box-shadow:var(--shadow-sm)}
+    .inv-metric.is-active{border-color:var(--purple);box-shadow:0 0 0 2px rgba(107,63,160,.12)}
+    .inv-metric .accent{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:14px 0 0 14px}
+    .inv-metric-label{font-size:12px;color:var(--gray-muted);font-weight:600;margin-bottom:6px}
+    .inv-metric-val{font-size:28px;font-weight:700;color:var(--gray-text);line-height:1}
+    .inv-metric-sub{font-size:12px;color:var(--gray-muted);margin-top:6px}
 
     .toolbar{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
-    .toolbar-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-    .filter-group{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-    .filter-btn{padding:8px 14px;font-size:12px;font-weight:600;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--gray-text);cursor:pointer;font-family:inherit;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-    .filter-btn:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-subtle)}
-    .filter-btn.active{background:var(--purple);color:#fff;border-color:var(--purple)}
-    .filter-btn.warn.active{background:var(--amber);border-color:var(--amber)}
-    .filter-btn.ok.active{background:var(--green);border-color:var(--green)}
-    .filter-btn.danger.active{background:var(--red);border-color:var(--red)}
-    .filter-count{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(0,0,0,.08);line-height:1.2}
-    .filter-btn.active .filter-count{background:rgba(255,255,255,.25)}
     .filters-panel{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
     .filter-form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
     .filter-field{display:flex;flex-direction:column;gap:4px;min-width:140px;flex:1}
@@ -78,7 +67,7 @@
     .empty-state p{font-size:14px;font-weight:500}
 
     @media(max-width:768px){
-        .adm-summary{flex-direction:column;align-items:flex-start}
+        .inv-metrics{grid-template-columns:1fr 1fr}
         .filter-field{min-width:100%}
         .filter-form{flex-direction:column;align-items:stretch}
     }
@@ -94,74 +83,39 @@
     $chipActive = fn ($est = null, $venc = false) => (!$filtros['estatus'] && !$filtros['vencidas'] && !$est && !$venc)
         || ($est && $filtros['estatus'] === $est && !$filtros['vencidas'])
         || ($venc && $filtros['vencidas']);
-    $pctColor = $pctPagadas >= 70 ? 'var(--green)' : ($pctPagadas >= 40 ? 'var(--amber)' : 'var(--red)');
-    $pctBg = $pctPagadas >= 70 ? 'var(--green-bg)' : ($pctPagadas >= 40 ? 'var(--amber-bg)' : 'var(--red-bg)');
+    $conteoProgramadas = (int) (($conteosEstatus['programada'] ?? 0)
+        + ($conteosEstatus['aprobada'] ?? 0)
+        + ($conteosEstatus['validada'] ?? 0));
 @endphp
 
-<div class="adm-summary anim">
-    <div class="adm-summary-main">
-        <div class="adm-summary-pct">{{ $totalGeneral }}</div>
-        <div class="adm-summary-label">Facturas totales</div>
-    </div>
-    <div class="adm-summary-metrics">
-        <div>
-            <div class="adm-metric-label">Pendientes</div>
-            <div class="adm-metric-val" style="color:{{ $conteoPendientes > 0 ? 'var(--amber)' : 'var(--green)' }}">
-                {{ $conteoPendientes }}
-                <span style="font-size:14px;font-weight:600;color:var(--gray-muted)">${{ number_format($montoPendiente, 0) }}</span>
-            </div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Pagadas</div>
-            <div class="adm-metric-val" style="color:var(--green)">
-                {{ $conteoPagadas }}
-                <span style="font-size:14px;font-weight:600;color:var(--gray-muted)">${{ number_format($montoPagado, 0) }}</span>
-            </div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Vencidas</div>
-            <div class="adm-metric-val" style="color:{{ $conteoVencidas > 0 ? 'var(--red)' : 'var(--green)' }}">
-                {{ $conteoVencidas }}
-                @if($conteoVencidas > 0)
-                    <span style="font-size:14px;font-weight:600;color:var(--red)">${{ number_format($montoVencidas, 0) }}</span>
-                @endif
-            </div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Tasa de pago</div>
-            <div class="adm-metric-val" style="color:{{ $pctColor }}">{{ $pctPagadas }}%</div>
-        </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-        <div class="adm-summary-badge" style="background:{{ $pctBg }};color:{{ $pctColor }}">
-            {{ $conteoPagadas }} pagadas · {{ $conteoPendientes }} pendientes · {{ $conteosEstatus['cancelada'] ?? 0 }} canceladas
-        </div>
-        <a href="{{ route('admin.otif') }}" class="adm-summary-badge" style="background:var(--purple-subtle);color:var(--purple)">Ver dashboard OTIF →</a>
-    </div>
+<div class="inv-metrics anim">
+    <a class="inv-metric {{ $chipActive('pendiente') ? 'is-active' : '' }}" href="{{ route('admin.facturas', array_merge($baseQuery, ['estatus' => 'pendiente'])) }}">
+        <div class="accent" style="background:var(--red,#dc2626)"></div>
+        <div class="inv-metric-label">Pendientes</div>
+        <div class="inv-metric-val">{{ $conteoPendientes }}</div>
+        <div class="inv-metric-sub">Por pagar</div>
+    </a>
+    <a class="inv-metric {{ $chipActive('programada') ? 'is-active' : '' }}" href="{{ route('admin.facturas', array_merge($baseQuery, ['estatus' => 'programada'])) }}">
+        <div class="accent" style="background:var(--amber,#d97706)"></div>
+        <div class="inv-metric-label">Programadas</div>
+        <div class="inv-metric-val">{{ $conteoProgramadas }}</div>
+        <div class="inv-metric-sub">En proceso de pago</div>
+    </a>
+    <a class="inv-metric {{ $chipActive('pagada') ? 'is-active' : '' }}" href="{{ route('admin.facturas', array_merge($baseQuery, ['estatus' => 'pagada'])) }}">
+        <div class="accent" style="background:var(--green,#16a34a)"></div>
+        <div class="inv-metric-label">Pagadas</div>
+        <div class="inv-metric-val">{{ $conteoPagadas }}</div>
+        <div class="inv-metric-sub">Ya liquidadas</div>
+    </a>
+    <a class="inv-metric {{ $chipActive() ? 'is-active' : '' }}" href="{{ route('admin.facturas', $baseQuery) }}">
+        <div class="accent" style="background:var(--purple,#6B3FA0)"></div>
+        <div class="inv-metric-label">Todas</div>
+        <div class="inv-metric-val">{{ $totalGeneral }}</div>
+        <div class="inv-metric-sub">Facturas totales</div>
+    </a>
 </div>
 
 <div class="toolbar anim" style="animation-delay:.04s">
-    <div class="toolbar-top">
-        <div class="filter-group">
-            <a href="{{ route('admin.facturas', $baseQuery) }}" class="filter-btn {{ $chipActive() ? 'active' : '' }}">
-                Todas <span class="filter-count">{{ $totalGeneral }}</span>
-            </a>
-            <a href="{{ route('admin.facturas', array_merge($baseQuery, ['estatus' => 'pendiente'])) }}" class="filter-btn warn {{ $chipActive('pendiente') ? 'active' : '' }}">
-                Pendientes <span class="filter-count">{{ $conteosEstatus['pendiente'] ?? 0 }}</span>
-            </a>
-            <a href="{{ route('admin.facturas', array_merge($baseQuery, ['estatus' => 'pagada'])) }}" class="filter-btn ok {{ $chipActive('pagada') ? 'active' : '' }}">
-                Pagadas <span class="filter-count">{{ $conteosEstatus['pagada'] ?? 0 }}</span>
-            </a>
-            <a href="{{ route('admin.facturas', array_merge($baseQuery, ['estatus' => 'cancelada'])) }}" class="filter-btn danger {{ $chipActive('cancelada') ? 'active' : '' }}">
-                Canceladas <span class="filter-count">{{ $conteosEstatus['cancelada'] ?? 0 }}</span>
-            </a>
-            <a href="{{ route('admin.facturas', array_merge($baseQuery, ['vencidas' => '1'])) }}" class="filter-btn danger {{ $chipActive(null, true) ? 'active' : '' }}">
-                Vencidas <span class="filter-count">{{ $conteoVencidas }}</span>
-            </a>
-        </div>
-        <span class="badge-count">{{ $facturas->total() }} resultado{{ $facturas->total() !== 1 ? 's' : '' }}</span>
-    </div>
-
     <div class="filters-panel">
         <form method="GET" action="{{ route('admin.facturas') }}" class="filter-form">
             @if($filtros['vencidas'])

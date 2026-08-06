@@ -11,15 +11,14 @@
     @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
     .anim{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
 
-    .adm-summary{background:var(--white);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:22px 26px;margin-bottom:20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;box-shadow:var(--shadow-sm)}
-    .adm-summary-main{text-align:center;min-width:100px}
-    .adm-summary-pct{font-size:42px;font-weight:800;line-height:1;color:var(--purple)}
-    .adm-summary-label{font-size:12px;color:var(--gray-muted);margin-top:6px}
-    .adm-summary-metrics{flex:1;display:flex;gap:24px;flex-wrap:wrap}
-    .adm-metric-label{font-size:12px;color:var(--gray-muted);margin-bottom:4px}
-    .adm-metric-val{font-size:22px;font-weight:700;display:flex;align-items:center;gap:8px}
-    .adm-summary-badge{padding:10px 16px;border-radius:10px;font-size:12px;font-weight:600;line-height:1.4;text-decoration:none;transition:var(--transition)}
-    .adm-summary-badge:hover{opacity:.85}
+    .inv-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
+    .inv-metric{background:var(--white);border:1px solid var(--border-light, var(--border));border-radius:14px;padding:18px;position:relative;overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block}
+    .inv-metric:hover{border-color:var(--purple-mid,#c4b5e0);box-shadow:var(--shadow-sm)}
+    .inv-metric.is-active{border-color:var(--purple);box-shadow:0 0 0 2px rgba(107,63,160,.12)}
+    .inv-metric .accent{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:14px 0 0 14px}
+    .inv-metric-label{font-size:12px;color:var(--gray-muted);font-weight:600;margin-bottom:6px}
+    .inv-metric-val{font-size:26px;font-weight:700;color:var(--gray-text);line-height:1}
+    .inv-metric-sub{font-size:11px;color:var(--gray-muted);margin-top:6px}
 
     .adm-section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 22px;background:var(--gray-soft);border-bottom:1px solid var(--border-light)}
     .adm-section-head h4{font-size:14px;font-weight:700;color:var(--gray-text);margin:0}
@@ -106,7 +105,7 @@
     .fact-link{font-size:12px;font-weight:600;color:var(--purple);text-decoration:none}
     .fact-link:hover{text-decoration:underline}
 
-    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.filter-form{width:100%;flex-direction:column;align-items:stretch}.filter-field{min-width:100%}.filter-group{width:100%}.prov-tabs{width:100%;overflow-x:auto}.productos-grid{grid-template-columns:1fr}.adm-summary{flex-direction:column;align-items:flex-start}}
+    @media(max-width:768px){.admin-table-wrap{overflow-x:auto}.toolbar{flex-direction:column;align-items:stretch}.filter-form{width:100%;flex-direction:column;align-items:stretch}.filter-field{min-width:100%}.filter-group{width:100%}.prov-tabs{width:100%;overflow-x:auto}.productos-grid{grid-template-columns:1fr}.inv-metrics{grid-template-columns:1fr 1fr}}
 </style>
 @endpush
 @section('content')
@@ -117,44 +116,45 @@
 
 @php
     $tab = $tabActiva ?? 'proveedores';
-    $scoreColor = $scorePromedio >= 80 ? 'var(--green)' : ($scorePromedio >= 60 ? 'var(--amber)' : 'var(--red)');
-    $scoreBg = $scorePromedio >= 80 ? 'var(--green-bg)' : ($scorePromedio >= 60 ? 'var(--amber-bg)' : 'var(--red-bg)');
+    $rendimiento = $filtrosProv['rendimiento'] ?? '';
+    $chipBase = array_filter([
+        'busqueda' => $filtrosProv['busqueda'] ?: null,
+        'f_activo' => ($filtrosProv['activo'] ?? '') !== '' ? $filtrosProv['activo'] : null,
+        'tab' => 'proveedores',
+    ]);
 @endphp
 
-<div class="adm-summary anim">
-    <div class="adm-summary-main">
-        <div class="adm-summary-pct">{{ $conteoActivos }}</div>
-        <div class="adm-summary-label">Proveedores activos</div>
-    </div>
-    <div class="adm-summary-metrics">
-        <div>
-            <div class="adm-metric-label">Score OTIF promedio</div>
-            <div class="adm-metric-val" style="color:{{ $scoreColor }}">{{ number_format($scorePromedio, 1) }}%</div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Facturas pendientes</div>
-            <div class="adm-metric-val" style="color:{{ $conteoFacturasVencidas > 0 ? 'var(--red)' : 'var(--gray-text)' }}">
-                {{ $conteoFacturasPendientes }}
-                @if($conteoFacturasVencidas > 0)
-                    <span style="font-size:13px;font-weight:600;color:var(--red)">({{ $conteoFacturasVencidas }} vencidas)</span>
-                @endif
-            </div>
-        </div>
-        <div>
-            <div class="adm-metric-label">OCs vencidas</div>
-            <div class="adm-metric-val" style="color:{{ $conteoOcVencidas > 0 ? 'var(--red)' : 'var(--green)' }}">{{ $conteoOcVencidas }}</div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Compras último trimestre</div>
-            <div class="adm-metric-val" style="color:var(--green);font-size:20px">${{ number_format($comprasTrimTotal, 0) }}</div>
-        </div>
-    </div>
-    <div style="display:flex;flex-direction:column;gap:8px">
-        <div class="adm-summary-badge" style="background:{{ $scoreBg }};color:{{ $scoreColor }}">
-            {{ $proveedoresAltoScore }} alto rendimiento · {{ $proveedoresBajoScore }} bajo rendimiento
-        </div>
-        <a href="{{ route('admin.otif') }}" class="adm-summary-badge" style="background:var(--purple-subtle);color:var(--purple)">Ver dashboard OTIF →</a>
-    </div>
+<div class="inv-metrics anim">
+    <a class="inv-metric {{ $rendimiento === 'alto' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'alto'])) }}">
+        <div class="accent" style="background:var(--green,#16a34a)"></div>
+        <div class="inv-metric-label">Alto rendimiento</div>
+        <div class="inv-metric-val">{{ $proveedoresAltoScore }}</div>
+        <div class="inv-metric-sub">Score ≥ 80%</div>
+    </a>
+    <a class="inv-metric {{ $rendimiento === 'bajo' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'bajo'])) }}">
+        <div class="accent" style="background:var(--red,#dc2626)"></div>
+        <div class="inv-metric-label">Bajo rendimiento</div>
+        <div class="inv-metric-val">{{ $proveedoresBajoScore }}</div>
+        <div class="inv-metric-sub">Score &lt; 60%</div>
+    </a>
+    <a class="inv-metric {{ $rendimiento === 'facturas' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'facturas'])) }}">
+        <div class="accent" style="background:var(--amber,#d97706)"></div>
+        <div class="inv-metric-label">Con facturas pend.</div>
+        <div class="inv-metric-val">{{ $proveedoresConFacturasPend }}</div>
+        <div class="inv-metric-sub">{{ $conteoFacturasPendientes }} facturas</div>
+    </a>
+    <a class="inv-metric {{ $rendimiento === 'ocs' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'ocs'])) }}">
+        <div class="accent" style="background:var(--blue,#2563eb)"></div>
+        <div class="inv-metric-label">Con OCs vencidas</div>
+        <div class="inv-metric-val">{{ $proveedoresConOcVencidas }}</div>
+        <div class="inv-metric-sub">{{ $conteoOcVencidas }} órdenes</div>
+    </a>
+    <a class="inv-metric {{ $rendimiento === '' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', $chipBase) }}">
+        <div class="accent" style="background:var(--purple,#6B3FA0)"></div>
+        <div class="inv-metric-label">Todas</div>
+        <div class="inv-metric-val">{{ $totalProveedores }}</div>
+        <div class="inv-metric-sub">Proveedores totales</div>
+    </a>
 </div>
 
 <div class="toolbar anim" style="margin-bottom:14px;animation-delay:.04s">
@@ -187,6 +187,9 @@
     <div class="filters-panel">
         <form method="GET" action="{{ route('admin.proveedores') }}" class="filter-form">
             <input type="hidden" name="tab" value="proveedores">
+            @if($rendimiento)
+                <input type="hidden" name="rendimiento" value="{{ $rendimiento }}">
+            @endif
             @include('partials.prov-admin-preserve-filters', ['preserve' => $preserveOc])
             @include('partials.prov-admin-preserve-filters', ['preserve' => $preserveFact])
             <div class="filter-field search-field">
@@ -214,6 +217,10 @@
             @if($filtrosProv['busqueda'])<span class="active-tag">«{{ $filtrosProv['busqueda'] }}»</span>@endif
             @if(($filtrosProv['activo'] ?? '') === '1')<span class="active-tag">Activos</span>@endif
             @if(($filtrosProv['activo'] ?? '') === '0')<span class="active-tag">Inactivos</span>@endif
+            @if($rendimiento === 'alto')<span class="active-tag">Alto rendimiento</span>@endif
+            @if($rendimiento === 'bajo')<span class="active-tag">Bajo rendimiento</span>@endif
+            @if($rendimiento === 'facturas')<span class="active-tag">Con facturas pend.</span>@endif
+            @if($rendimiento === 'ocs')<span class="active-tag">Con OCs vencidas</span>@endif
         </div>
         @endif
     </div>

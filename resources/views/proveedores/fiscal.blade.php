@@ -11,22 +11,6 @@
 
 @push('styles')
 <style>
-    .metrics-row {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-        margin-bottom: 20px;
-    }
-    .metric-card {
-        background: var(--white);
-        border: 1px solid var(--border-light);
-        border-radius: 12px;
-        padding: 14px 16px;
-        box-shadow: var(--shadow-sm);
-    }
-    .metric-label { font-size: 11px; color: var(--gray-muted); font-weight: 600; margin-bottom: 4px; }
-    .metric-value { font-size: 22px; font-weight: 700; color: var(--gray-text); letter-spacing: -0.4px; line-height: 1.1; }
-
     .id-card {
         background: var(--white);
         border: 1px solid var(--border-light);
@@ -446,7 +430,6 @@
     }
 
     @media (max-width: 900px) {
-        .metrics-row { grid-template-columns: 1fr 1fr; }
         .form-row.cols-2, .form-row.cols-3, .checklist, .datos-grid { grid-template-columns: 1fr; }
         .toggle-row { flex-direction: column; align-items: stretch; }
         .seg { width: 100%; }
@@ -460,25 +443,6 @@
 
 @php $res = session('fiscal_resultado'); @endphp
 
-<div class="metrics-row">
-    <div class="metric-card">
-        <div class="metric-label">Recientes</div>
-        <div class="metric-value">{{ $stats['total'] ?? 0 }}</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-label">Pendientes</div>
-        <div class="metric-value" style="color:var(--amber)">{{ $stats['pendientes'] ?? 0 }}</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-label">Rechazadas</div>
-        <div class="metric-value" style="color:var(--red)">{{ $stats['rechazadas'] ?? 0 }}</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-label">Fleteras</div>
-        <div class="metric-value" style="color:var(--blue)">{{ $stats['fleteras'] ?? 0 }}</div>
-    </div>
-</div>
-
 @if($errors->any())
 <div class="id-card" style="border-color:#fecaca;background:#fef2f2;padding:16px 20px;">
     <p style="color:#dc2626;font-size:13px;font-weight:700;margin:0 0 6px;">Corrige lo siguiente</p>
@@ -491,14 +455,11 @@
 @endif
 
 @php
-    $puedeSubir = $puedeSubir ?? false;
     $resTitulo = 'Factura rechazada';
-    if (!empty($res['aprobado'])) {
-        $resTitulo = !empty($res['registrada']) ? 'Factura registrada' : 'Validación correcta';
+    if (! empty($res['aprobado'])) {
+        $resTitulo = ! empty($res['registrada']) ? 'Factura registrada' : 'Validación';
     }
-    $abrirDocumentos = $puedeSubir
-        || old('naturaleza')
-        || (!empty($res) && empty($res['registrada']));
+    $abrirDocumentos = old('naturaleza') || (! empty($res) && empty($res['registrada']));
 @endphp
 
 @if($res)
@@ -573,7 +534,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             Alta de factura
         </h3>
-        <p class="card-desc">Primero clasifica la factura; después adjunta PDF + XML (OC obligatoria en ME/MP; opcional en Mantenimiento).</p>
+        <p class="card-desc">Clasifica, adjunta PDF + XML y pulsa «Validar y registrar». Si todo está bien, queda en pendiente automáticamente.</p>
 
         <div class="wizard-steps" id="wizardSteps">
             <div class="wizard-pill active" data-pill="1">1. Clasificación</div>
@@ -698,15 +659,8 @@
 
             <div class="form-actions">
                 <button type="button" class="btn-outline" id="btnVolver">Volver</button>
-                <span class="step-hint" id="stepHint">
-                    @if($puedeSubir)
-                        Validación OK — ya puedes subir.
-                    @else
-                        Valida y luego sube
-                    @endif
-                </span>
-                <button type="submit" class="btn-outline" id="btnValidar" formaction="{{ route('proveedores.fiscal.validar') }}">Validar</button>
-                <button type="submit" class="btn-submit" id="btnSubir" formaction="{{ route('proveedores.fiscal.subir') }}" formnovalidate {{ $puedeSubir ? '' : 'disabled' }}>Subir</button>
+                <span class="step-hint" id="stepHint">Si el XML está bien, se registra sola en pendiente</span>
+                <button type="submit" class="btn-submit" id="btnValidar" formaction="{{ route('proveedores.fiscal.validar') }}">Validar y registrar</button>
             </div>
         </div>
     </div>
@@ -782,7 +736,6 @@
 (function () {
     var form = document.getElementById('formFiscal');
     var btnValidar = document.getElementById('btnValidar');
-    var btnSubir = document.getElementById('btnSubir');
     var btnContinuar = document.getElementById('btnContinuar');
     var btnVolver = document.getElementById('btnVolver');
     var panel1 = document.getElementById('panelClasificacion');
@@ -795,9 +748,7 @@
     var pdfInput = document.getElementById('archivo');
     var xmlInput = document.getElementById('archivo_xml');
     var archivosRow = document.getElementById('archivosRow');
-    var stepHint = document.getElementById('stepHint');
     var summaryChips = document.getElementById('summaryChips');
-    var puedeSubir = {{ $puedeSubir ? 'true' : 'false' }};
     var startOnDocs = {{ $abrirDocumentos ? 'true' : 'false' }};
 
     function naturaleza() {
@@ -923,16 +874,10 @@
     }
 
     document.querySelectorAll('input[name="naturaleza"]').forEach(function (r) {
-        r.addEventListener('change', function () {
-            syncTipoProducto();
-            invalidatePending();
-        });
+        r.addEventListener('change', syncTipoProducto);
     });
     document.querySelectorAll('input[name="tipo_producto"]').forEach(function (r) {
-        r.addEventListener('change', function () {
-            syncOc();
-            invalidatePending();
-        });
+        r.addEventListener('change', syncOc);
     });
     syncTipoProducto();
 
@@ -948,18 +893,10 @@
         });
     }
 
-    // Si ya había validación / old input / puede subir → abrir documentos
     if (startOnDocs && naturaleza()) {
         goStep(2);
     } else {
         goStep(1);
-    }
-
-    function invalidatePending() {
-        if (!puedeSubir || !btnSubir) return;
-        puedeSubir = false;
-        btnSubir.disabled = true;
-        if (stepHint) stepHint.textContent = 'Cambiaste datos — vuelve a validar antes de subir.';
     }
 
     document.querySelectorAll('.dropzone').forEach(function (dz) {
@@ -985,7 +922,6 @@
                         : (kb < 10 ? kb.toFixed(1) : kb.toFixed(0)) + ' KB';
                 }
             }
-            invalidatePending();
         }
 
         input.addEventListener('change', function () {
@@ -1021,43 +957,30 @@
             : 'Si no es flete, las retenciones se validan según régimen';
     }
     document.querySelectorAll('input[name="es_fletera"]').forEach(function (r) {
-        r.addEventListener('change', function () {
-            updateHint();
-            invalidatePending();
-        });
+        r.addEventListener('change', updateHint);
     });
     updateHint();
 
     if (form && btnValidar) {
         form.addEventListener('submit', function (e) {
-            var submitter = e.submitter || document.activeElement;
             if (!clasificacionOk()) {
                 e.preventDefault();
                 goStep(1);
                 return;
             }
-            if (submitter === btnSubir) {
-                if (!puedeSubir) {
-                    e.preventDefault();
-                    return;
-                }
-                btnSubir.disabled = true;
-                btnSubir.textContent = 'Subiendo…';
-                return;
-            }
-            if (pdfInput && !pdfInput.files.length && !puedeSubir) {
+            if (pdfInput && !pdfInput.files.length) {
                 e.preventDefault();
                 alert('Adjunta el PDF de la factura.');
                 goStep(2);
                 return;
             }
-            if (xmlInput && !xmlInput.files.length && !puedeSubir) {
+            if (xmlInput && !xmlInput.files.length) {
                 e.preventDefault();
                 alert('Adjunta el XML CFDI.');
                 goStep(2);
                 return;
             }
-            if (needsOc() && ocInput && !ocInput.files.length && !puedeSubir) {
+            if (needsOc() && ocInput && !ocInput.files.length) {
                 e.preventDefault();
                 alert('Para ME o MP la orden de compra es obligatoria.');
                 goStep(2);
@@ -1065,7 +988,6 @@
             }
             btnValidar.disabled = true;
             btnValidar.textContent = 'Validando…';
-            if (btnSubir) btnSubir.disabled = true;
         });
     }
 })();

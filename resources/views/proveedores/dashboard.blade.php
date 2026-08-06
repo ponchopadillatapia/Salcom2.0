@@ -4,8 +4,8 @@
 
 @section('hero')
 <div class="hero-band">
-    <h1>Bienvenido, {{ session('proveedor_nombre', 'Proveedor') }}</h1>
-    <p>ID Proveedor: {{ session('proveedor_codigo', '—') }} · #{{ session('proveedor_id', '—') }} — {{ now()->translatedFormat('d \d\e F, Y') }}</p>
+    <h1>Dashboard</h1>
+    <p>{{ now()->translatedFormat('d \d\e F, Y') }}</p>
 </div>
 @endsection
 
