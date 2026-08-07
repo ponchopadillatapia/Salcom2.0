@@ -38,6 +38,7 @@ class AltaFacturaValidationService
         $advertencias = [];
         $checklist = [
             'xml' => ['ok' => false, 'label' => 'XML CFDI válido'],
+            'periodo' => ['ok' => false, 'label' => 'Periodo (mes en curso)'],
             'pdf_xml' => ['ok' => false, 'label' => 'Factura PDF ↔ XML'],
             'oc_xml' => ['ok' => true, 'label' => 'OC no adjunta (opcional)'],
             'emisor' => ['ok' => false, 'label' => 'RFC emisor'],
@@ -95,6 +96,7 @@ class AltaFacturaValidationService
 
         $checklist['xml']['ok'] = true;
         $this->cargarDatosXml($xml, $datos, $errores);
+        $this->validarPeriodoMes($datos, $errores, $checklist);
 
         // UUID
         $datos['uuid'] = $this->extraerUuid($xml);
@@ -212,6 +214,62 @@ class AltaFacturaValidationService
         }
 
         return $this->resultado($errores, $advertencias, $checklist, $datos);
+    }
+
+    /**
+     * Solo se aceptan facturas del mes en curso. Si la Fecha del CFDI es de
+     * otro mes (periodo ya cerrado o futuro), no se puede validar ni subir.
+     *
+     * @param  array<string, mixed>  $datos
+     * @param  string[]  $errores
+     * @param  array<string, array{ok: bool, label: string}>  $checklist
+     */
+    private function validarPeriodoMes(array $datos, array &$errores, array &$checklist): void
+    {
+        if (! config('facturas.solo_mes_actual', true)) {
+            $checklist['periodo']['ok'] = true;
+            $checklist['periodo']['label'] = 'Periodo no restringido';
+
+            return;
+        }
+
+        $fechaRaw = trim((string) ($datos['fecha'] ?? ''));
+        if ($fechaRaw === '') {
+            $errores[] = 'El CFDI no tiene fecha de emisión. No se puede verificar el periodo.';
+            $checklist['periodo']['ok'] = false;
+            $checklist['periodo']['label'] = 'Sin fecha de emisión';
+
+            return;
+        }
+
+        try {
+            $fecha = \Carbon\Carbon::parse(substr($fechaRaw, 0, 19));
+        } catch (\Throwable) {
+            $errores[] = "La fecha de emisión del CFDI («{$fechaRaw}») no es válida.";
+            $checklist['periodo']['ok'] = false;
+            $checklist['periodo']['label'] = 'Fecha inválida';
+
+            return;
+        }
+
+        $ahora = now();
+        $mesActualLabel = $ahora->locale('es')->translatedFormat('F Y');
+
+        if ((int) $fecha->year !== (int) $ahora->year || (int) $fecha->month !== (int) $ahora->month) {
+            $mesFacturaLabel = $fecha->locale('es')->translatedFormat('F Y');
+            if ($fecha->lt($ahora->copy()->startOfMonth())) {
+                $errores[] = "La factura es de {$mesFacturaLabel} y ese periodo ya cerró. Solo se aceptan facturas del mes en curso ({$mesActualLabel}).";
+            } else {
+                $errores[] = "La factura es de {$mesFacturaLabel}. Solo se aceptan facturas del mes en curso ({$mesActualLabel}).";
+            }
+            $checklist['periodo']['ok'] = false;
+            $checklist['periodo']['label'] = 'Fuera del mes en curso';
+
+            return;
+        }
+
+        $checklist['periodo']['ok'] = true;
+        $checklist['periodo']['label'] = 'Mes en curso: '.$mesActualLabel;
     }
 
     private function cargarDatosXml(SimpleXMLElement $xml, array &$datos, array &$errores): void

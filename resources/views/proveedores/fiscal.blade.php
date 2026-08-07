@@ -431,6 +431,28 @@
         font-size: 13px;
     }
 
+    .periodo-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+        border-radius: 12px;
+        border: 1px solid #fde68a;
+        background: #fffbeb;
+    }
+    .periodo-banner .pb-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: #b45309;
+        margin-bottom: 2px;
+    }
+    .periodo-banner .pb-msg {
+        font-size: 12px;
+        color: #92400e;
+        line-height: 1.45;
+    }
+
     @media (max-width: 900px) {
         .form-row.cols-2, .form-row.cols-3, .checklist, .datos-grid { grid-template-columns: 1fr; }
         .toggle-row { flex-direction: column; align-items: stretch; }
@@ -578,6 +600,14 @@
             Alta de factura
         </h3>
         <p class="card-desc">Adjunta PDF + XML (OC opcional). Primero valida; si todo está bien, pulsa Subir para registrar.</p>
+
+        <div class="periodo-banner">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <div>
+                <div class="pb-title">Solo facturas de {{ $mesEnCurso ?? now()->locale('es')->translatedFormat('F Y') }}</div>
+                <div class="pb-msg">La fecha de emisión del CFDI debe ser del mes en curso. Si el archivo es de otro mes o ese periodo ya cerró, no se podrá validar ni subir.</div>
+            </div>
+        </div>
 
         <div class="section-label">Archivos</div>
 

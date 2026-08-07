@@ -176,4 +176,13 @@ return [
     'tolerancia_monto' => 1.00,
 
     'dias_vencimiento' => 30,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Periodo de carga (portal proveedor)
+    |--------------------------------------------------------------------------
+    | Si es true, solo se aceptan CFDI cuya Fecha de emisión sea del mes en curso.
+    | Facturas de meses anteriores (periodo ya cerrado) se rechazan.
+    */
+    'solo_mes_actual' => env('FACTURAS_SOLO_MES_ACTUAL', true),
 ];

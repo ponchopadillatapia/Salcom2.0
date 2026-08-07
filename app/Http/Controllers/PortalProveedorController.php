@@ -1029,13 +1029,15 @@ class PortalProveedorController extends Controller
             && ! empty($pendiente['token'])
             && ($pendiente['proveedor_id'] ?? null) === ($proveedor?->id)
             && ($pendiente['expires_at'] ?? 0) >= now()->timestamp;
+        $mesEnCurso = now()->locale('es')->translatedFormat('F Y');
 
         return view('proveedores.fiscal', compact(
             'facturas',
             'rfcProveedor',
             'proveedor',
             'puedeSubir',
-            'pendiente'
+            'pendiente',
+            'mesEnCurso'
         ));
     }
 

@@ -27,6 +27,8 @@ class AltaFacturaValidationServiceTest extends TestCase
         $metodo = $opts['metodo_pago'] ?? 'PUE';
         $forma = $opts['forma_pago'] ?? '03';
         $moneda = $opts['moneda'] ?? 'MXN';
+        $fecha = $opts['fecha'] ?? now()->format('Y-m-d').'T10:00:00';
+        $fechaTimbre = $opts['fecha_timbre'] ?? $fecha;
 
         $retenciones = '';
         if ($retIva !== null || $retIsr !== null) {
@@ -43,14 +45,9 @@ class AltaFacturaValidationServiceTest extends TestCase
         return <<<XML
 <?xml version="1.0" encoding="UTF-8"?>
 <cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
-    Version="4.0" Serie="A" Folio="1" Fecha="2026-07-17T10:00:00"
-<<<<<<< HEAD
-    SubTotal="{$subtotal}" Total="{$total}" TipoDeComprobante="I" Moneda="MXN"
-    FormaPago="03" MetodoPago="PUE">
-=======
+    Version="4.0" Serie="A" Folio="1" Fecha="{$fecha}"
     SubTotal="{$subtotal}" Total="{$total}" TipoDeComprobante="I" Moneda="{$moneda}"
     MetodoPago="{$metodo}" FormaPago="{$forma}">
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
   <cfdi:Emisor Rfc="{$rfcEmisor}" Nombre="PROVEEDOR DEMO" RegimenFiscal="{$regimen}"/>
   <cfdi:Receptor Rfc="{$rfcReceptor}" Nombre="INDUSTRIAS SALCOM" UsoCFDI="G03"/>
   <cfdi:Conceptos>
@@ -70,7 +67,7 @@ class AltaFacturaValidationServiceTest extends TestCase
     </cfdi:Traslados>
   </cfdi:Impuestos>
   <cfdi:Complemento>
-    <tfd:TimbreFiscalDigital UUID="{$uuid}" FechaTimbrado="2026-07-17T10:01:00" RfcProvCertif="SAT970701NN3" SelloCFD="x" NoCertificadoSAT="1" SelloSAT="y"/>
+    <tfd:TimbreFiscalDigital UUID="{$uuid}" FechaTimbrado="{$fechaTimbre}" RfcProvCertif="SAT970701NN3" SelloCFD="x" NoCertificadoSAT="1" SelloSAT="y"/>
   </cfdi:Complemento>
 </cfdi:Comprobante>
 XML;
@@ -78,11 +75,12 @@ XML;
 
     private function extractorMatching(array $xmlOpts, bool $conOc = false): FacturaDocumentoExtractor
     {
+        $fechaXml = $xmlOpts['fecha'] ?? now()->format('Y-m-d').'T10:00:00';
         $campos = [
             'rfc_emisor' => $xmlOpts['rfc_emisor'] ?? 'XAXX010101000',
             'rfc_receptor' => $xmlOpts['rfc_receptor'] ?? 'EKU9003173C9',
             'uuid' => strtoupper($xmlOpts['uuid'] ?? 'A1B2C3D4-E5F6-7890-ABCD-EF1234567890'),
-            'fecha' => '2026-07-17',
+            'fecha' => substr($fechaXml, 0, 10),
             'regimen_fiscal' => $xmlOpts['regimen'] ?? '612',
             'metodo_pago' => $xmlOpts['metodo_pago'] ?? 'PUE',
             'forma_pago' => $xmlOpts['forma_pago'] ?? '03',
@@ -108,6 +106,26 @@ XML;
         });
 
         return $mock;
+    }
+
+    public function test_factura_de_mes_anterior_se_rechaza(): void
+    {
+        config(['facturas.rfc_receptor' => '', 'facturas.solo_mes_actual' => true]);
+
+        $opts = [
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'fecha' => now()->subMonth()->format('Y-m-d').'T10:00:00',
+            'uuid' => 'A1B2C3D4-E5F6-7890-ABCD-EF123456789A',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+
+        $this->assertFalse($result['aprobado']);
+        $this->assertFalse($result['checklist']['periodo']['ok']);
+        $this->assertTrue(collect($result['errores'])->contains(
+            fn ($e) => str_contains((string) $e, 'periodo ya cerró') || str_contains((string) $e, 'mes en curso')
+        ));
     }
 
     public function test_valida_regimen_y_retenciones_persona_fisica(): void
