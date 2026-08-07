@@ -5,28 +5,12 @@
 @section('hero')
 <div class="hero-band">
     <h1>Alta Facturas</h1>
-    <p>PDF + XML · valida primero, luego sube · OC solo para ME/MP</p>
+    <p>PDF + XML · primero valida, luego sube · OC opcional</p>
 </div>
 @endsection
 
 @push('styles')
 <style>
-    .metrics-row {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 12px;
-        margin-bottom: 20px;
-    }
-    .metric-card {
-        background: var(--white);
-        border: 1px solid var(--border-light);
-        border-radius: 12px;
-        padding: 14px 16px;
-        box-shadow: var(--shadow-sm);
-    }
-    .metric-label { font-size: 11px; color: var(--gray-muted); font-weight: 600; margin-bottom: 4px; }
-    .metric-value { font-size: 22px; font-weight: 700; color: var(--gray-text); letter-spacing: -0.4px; line-height: 1.1; }
-
     .id-card {
         background: var(--white);
         border: 1px solid var(--border-light);
@@ -253,6 +237,80 @@
         margin-right: auto;
         align-self: center;
     }
+    .wizard-steps {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 18px;
+    }
+    .wizard-pill {
+        flex: 1;
+        text-align: center;
+        padding: 8px 10px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--gray-muted);
+        background: var(--gray-soft);
+        border: 1px solid var(--border-light);
+    }
+    .wizard-pill.active {
+        color: var(--purple);
+        background: var(--purple-light);
+        border-color: var(--purple-mid);
+    }
+    .wizard-pill.done {
+        color: #059669;
+        background: var(--green-bg);
+        border-color: #bbf7d0;
+    }
+    .wizard-panel { display: none; }
+    .wizard-panel.active { display: block; }
+    .tipo-producto-wrap { display: none; margin-bottom: 18px; }
+    .tipo-producto-wrap.is-visible { display: block; }
+    .choice-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+    .choice-grid label {
+        position: relative;
+        cursor: pointer;
+        margin: 0;
+    }
+    .choice-grid input { position: absolute; opacity: 0; pointer-events: none; }
+    .choice-card {
+        display: block;
+        padding: 14px 12px;
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        background: var(--white);
+        text-align: center;
+        transition: var(--transition);
+    }
+    .choice-card .cc-title { font-size: 13px; font-weight: 700; color: var(--gray-text); }
+    .choice-card .cc-sub { font-size: 11px; color: var(--gray-muted); margin-top: 4px; }
+    .choice-grid label:has(input:checked) .choice-card {
+        border-color: var(--purple);
+        background: var(--purple-light);
+        box-shadow: 0 0 0 3px rgba(107, 63, 160, .1);
+    }
+    .summary-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .summary-chip {
+        font-size: 11px;
+        font-weight: 600;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: var(--purple-light);
+        color: var(--purple);
+    }
+    @media (max-width: 900px) {
+        .choice-grid { grid-template-columns: 1fr; }
+    }
 
     .result-box {
         margin-top: 16px;
@@ -261,9 +319,11 @@
         border: 1px solid transparent;
     }
     .result-box.ok { background: var(--green-bg); border-color: #bbf7d0; }
+    .result-box.warn { background: #fffbeb; border-color: #fde68a; }
     .result-box.fail { background: var(--red-bg); border-color: #fecaca; }
     .result-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
     .result-box.ok .result-title { color: #059669; }
+    .result-box.warn .result-title { color: #b45309; }
     .result-box.fail .result-title { color: #dc2626; }
     .result-msg { font-size: 12px; color: var(--gray-text); margin-bottom: 10px; }
 
@@ -372,7 +432,6 @@
     }
 
     @media (max-width: 900px) {
-        .metrics-row { grid-template-columns: 1fr 1fr; }
         .form-row.cols-2, .form-row.cols-3, .checklist, .datos-grid { grid-template-columns: 1fr; }
         .toggle-row { flex-direction: column; align-items: stretch; }
         .seg { width: 100%; }
@@ -386,25 +445,6 @@
 
 @php $res = session('fiscal_resultado'); @endphp
 
-<div class="metrics-row">
-    <div class="metric-card">
-        <div class="metric-label">Recientes</div>
-        <div class="metric-value">{{ $stats['total'] ?? 0 }}</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-label">Pendientes</div>
-        <div class="metric-value" style="color:var(--amber)">{{ $stats['pendientes'] ?? 0 }}</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-label">Rechazadas</div>
-        <div class="metric-value" style="color:var(--red)">{{ $stats['rechazadas'] ?? 0 }}</div>
-    </div>
-    <div class="metric-card">
-        <div class="metric-label">Fleteras</div>
-        <div class="metric-value" style="color:var(--blue)">{{ $stats['fleteras'] ?? 0 }}</div>
-    </div>
-</div>
-
 @if($errors->any())
 <div class="id-card" style="border-color:#fecaca;background:#fef2f2;padding:16px 20px;">
     <p style="color:#dc2626;font-size:13px;font-weight:700;margin:0 0 6px;">Corrige lo siguiente</p>
@@ -417,15 +457,31 @@
 @endif
 
 @php
-    $puedeSubir = $puedeSubir ?? false;
-    $resTitulo = 'Factura rechazada';
-    if (!empty($res['aprobado'])) {
-        $resTitulo = !empty($res['registrada']) ? 'Factura registrada' : 'Validación correcta';
+    $estatusRes = $res['estatus'] ?? null;
+    if (!empty($res['registrada'])) {
+        $resTitulo = match ($estatusRes) {
+            'aprobada_con_observaciones' => 'Factura registrada (con observaciones)',
+            'rechazada' => 'Factura rechazada',
+            default => 'Factura registrada',
+        };
+    } elseif (!empty($res['aprobado'])) {
+        $resTitulo = match ($estatusRes) {
+            'aprobada_con_observaciones' => 'Aprobada con observaciones',
+            'aprobada' => 'Aprobada',
+            default => 'Validación correcta',
+        };
+    } else {
+        $resTitulo = 'Rechazada';
     }
 @endphp
 
 @if($res)
-<div class="result-box {{ $res['aprobado'] ? 'ok' : 'fail' }}" style="margin-bottom:20px;margin-top:0;">
+@php
+    $boxClass = !empty($res['aprobado'])
+        ? (($res['estatus'] ?? '') === 'aprobada_con_observaciones' ? 'warn' : 'ok')
+        : 'fail';
+@endphp
+<div class="result-box {{ $boxClass }}" style="margin-bottom:20px;margin-top:0;">
     <div class="result-title">{{ $resTitulo }}</div>
     <div class="result-msg">{{ $res['mensaje'] ?? '' }}</div>
 
@@ -466,6 +522,30 @@
                 <div class="dl">Fletera</div>
                 <div class="dv">{{ !empty($res['datos']['es_fletera']) ? 'Sí' : 'No' }}</div>
             </div>
+            @if(!empty($res['datos']['forma_pago']))
+                <div class="dato-chip">
+                    <div class="dl">Forma de pago</div>
+                    <div class="dv">{{ $res['datos']['forma_pago'] }}{{ !empty(config('facturas.formas_pago')[$res['datos']['forma_pago']]) ? ' — '.str_replace($res['datos']['forma_pago'].' — ', '', config('facturas.formas_pago')[$res['datos']['forma_pago']]) : '' }}</div>
+                </div>
+            @endif
+            @if(!empty($res['datos']['metodo_pago']))
+                <div class="dato-chip">
+                    <div class="dl">Método de pago</div>
+                    <div class="dv">{{ $res['datos']['metodo_pago'] }}</div>
+                </div>
+            @endif
+            @if(!empty($res['datos']['uso_cfdi']))
+                <div class="dato-chip">
+                    <div class="dl">Uso CFDI</div>
+                    <div class="dv">{{ $res['datos']['uso_cfdi'] }}</div>
+                </div>
+            @endif
+            @if(!empty($res['datos']['producto']))
+                <div class="dato-chip">
+                    <div class="dl">Concepto</div>
+                    <div class="dv">{{ $res['datos']['producto'] }}</div>
+                </div>
+            @endif
             @if(!empty($res['datos']['rfc_emisor']))
                 <div class="dato-chip">
                     <div class="dl">RFC emisor</div>
@@ -490,13 +570,14 @@
 
 <form method="POST" action="{{ route('proveedores.fiscal.validar') }}" enctype="multipart/form-data" id="formFiscal">
     @csrf
+    <input type="hidden" name="es_fletera" value="0">
 
     <div class="id-card">
         <h3>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             Alta de factura
         </h3>
-        <p class="card-desc">Adjunta PDF + XML, valida y luego sube. La OC solo aplica si es producto ME o MP.</p>
+        <p class="card-desc">Adjunta PDF + XML (OC opcional). Primero valida; si todo está bien, pulsa Subir para registrar.</p>
 
         <div class="section-label">Archivos</div>
 
@@ -504,7 +585,7 @@
             <div class="form-group">
                 <label>Factura PDF <span class="req">*</span></label>
                 <div class="dropzone" data-dz="archivo">
-                    <input type="file" name="archivo" id="archivo" accept=".pdf,application/pdf" required>
+                    <input type="file" name="archivo" id="archivo" accept=".pdf,application/pdf" {{ ($puedeSubir ?? false) ? '' : 'required' }}>
                     <div class="dz-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     </div>
@@ -516,7 +597,7 @@
             <div class="form-group">
                 <label>XML CFDI <span class="req">*</span></label>
                 <div class="dropzone" data-dz="archivo_xml">
-                    <input type="file" name="archivo_xml" id="archivo_xml" accept=".xml,text/xml,application/xml" required>
+                    <input type="file" name="archivo_xml" id="archivo_xml" accept=".xml,text/xml,application/xml" {{ ($puedeSubir ?? false) ? '' : 'required' }}>
                     <div class="dz-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                     </div>
@@ -525,66 +606,30 @@
                     <div class="dz-file" hidden></div>
                 </div>
             </div>
-            <div class="form-group oc-wrap" id="ocWrap">
-                <label>Orden de compra <span class="req">*</span></label>
+            <div class="form-group">
+                <label>Orden de compra <span style="color:var(--gray-muted);font-weight:500;">(opcional)</span></label>
                 <div class="dropzone" data-dz="archivo_oc">
                     <input type="file" name="archivo_oc" id="archivo_oc" accept=".pdf,application/pdf">
                     <div class="dz-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gray-muted)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     </div>
                     <div class="dz-title">OC</div>
-                    <div class="dz-sub">Obligatoria ME/MP</div>
+                    <div class="dz-sub">Opcional</div>
                     <div class="dz-file" hidden></div>
                 </div>
             </div>
         </div>
 
-        <div class="section-label">Datos</div>
-
-        <div class="toggle-row">
-            <div class="toggle-info">
-                <div class="ti-title">¿Es producto ME o MP?</div>
-                <div class="ti-sub">Si es Material Empaque (ME) o Materia Prima (MP), se pide la OC</div>
-            </div>
-            <div class="seg" id="meMpSeg">
-                <label>
-                    <input type="radio" name="es_me_mp" value="0" {{ old('es_me_mp', '0') === '0' ? 'checked' : '' }} required>
-                    <span>No</span>
-                </label>
-                <label>
-                    <input type="radio" name="es_me_mp" value="1" {{ old('es_me_mp') === '1' ? 'checked' : '' }}>
-                    <span>Sí</span>
-                </label>
-            </div>
-        </div>
-
-        <div class="toggle-row">
-            <div class="toggle-info">
-                <div class="ti-title">¿Es fletera?</div>
-                <div class="ti-sub" id="fleteraHint">Flete = retención IVA siempre · Comisión = solo persona física</div>
-            </div>
-            <div class="seg" id="fleteraSeg">
-                <label>
-                    <input type="radio" name="es_fletera" value="0" {{ old('es_fletera', '0') === '0' ? 'checked' : '' }} required>
-                    <span>No</span>
-                </label>
-                <label>
-                    <input type="radio" name="es_fletera" value="1" {{ old('es_fletera') === '1' ? 'checked' : '' }}>
-                    <span>Sí</span>
-                </label>
-            </div>
-        </div>
-
         <div class="form-actions">
             <span class="step-hint" id="stepHint">
-                @if($puedeSubir)
+                @if(!empty($puedeSubir))
                     Validación OK — ya puedes subir.
                 @else
-                    1) Validar archivos · 2) Subir si todo está correcto
+                    1) Validar · 2) Subir si todo está correcto
                 @endif
             </span>
             <button type="submit" class="btn-outline" id="btnValidar" formaction="{{ route('proveedores.fiscal.validar') }}">Validar</button>
-            <button type="submit" class="btn-submit" id="btnSubir" formaction="{{ route('proveedores.fiscal.subir') }}" formnovalidate {{ $puedeSubir ? '' : 'disabled' }}>Subir</button>
+            <button type="submit" class="btn-submit" id="btnSubir" formaction="{{ route('proveedores.fiscal.subir') }}" formnovalidate {{ !empty($puedeSubir) ? '' : 'disabled' }}>Subir</button>
         </div>
     </div>
 </form>
@@ -660,49 +705,14 @@
     var form = document.getElementById('formFiscal');
     var btnValidar = document.getElementById('btnValidar');
     var btnSubir = document.getElementById('btnSubir');
-    var ocWrap = document.getElementById('ocWrap');
-    var ocInput = document.getElementById('archivo_oc');
-    var archivosRow = document.getElementById('archivosRow');
     var stepHint = document.getElementById('stepHint');
-    var puedeSubir = {{ $puedeSubir ? 'true' : 'false' }};
-
-    function toggleOc() {
-        var checked = document.querySelector('input[name="es_me_mp"]:checked');
-        var needsOc = checked && checked.value === '1';
-        if (!ocWrap) return;
-        ocWrap.classList.toggle('is-visible', needsOc);
-        if (ocInput) {
-            ocInput.required = !!needsOc;
-            if (!needsOc) {
-                ocInput.value = '';
-                var dz = ocWrap.querySelector('.dropzone');
-                if (dz) {
-                    dz.classList.remove('has-file');
-                    var fileEl = dz.querySelector('.dz-file');
-                    var subEl = dz.querySelector('.dz-sub');
-                    if (fileEl) { fileEl.hidden = true; fileEl.textContent = ''; }
-                    if (subEl) { subEl.textContent = 'Obligatoria ME/MP'; subEl.style.color = ''; }
-                }
-            }
-        }
-        if (archivosRow) {
-            archivosRow.classList.toggle('cols-3', needsOc);
-            archivosRow.classList.toggle('cols-2', !needsOc);
-        }
-    }
-    document.querySelectorAll('input[name="es_me_mp"]').forEach(function (r) {
-        r.addEventListener('change', function () {
-            toggleOc();
-            invalidatePending();
-        });
-    });
-    toggleOc();
+    var puedeSubir = {{ !empty($puedeSubir) ? 'true' : 'false' }};
 
     function invalidatePending() {
         if (!puedeSubir || !btnSubir) return;
         puedeSubir = false;
         btnSubir.disabled = true;
-        if (stepHint) stepHint.textContent = 'Cambiaste datos — vuelve a validar antes de subir.';
+        if (stepHint) stepHint.textContent = 'Cambiaste archivos — vuelve a validar antes de subir.';
     }
 
     document.querySelectorAll('.dropzone').forEach(function (dz) {
@@ -755,22 +765,6 @@
         });
     });
 
-    var hint = document.getElementById('fleteraHint');
-    function updateHint() {
-        var checked = document.querySelector('input[name="es_fletera"]:checked');
-        if (!hint || !checked) return;
-        hint.textContent = checked.value === '1'
-            ? 'Flete/fletera: se exige retención de IVA (y ISR típico 1.25%)'
-            : 'Flete = IVA siempre · Comisión = solo persona física · resto por régimen';
-    }
-    document.querySelectorAll('input[name="es_fletera"]').forEach(function (r) {
-        r.addEventListener('change', function () {
-            updateHint();
-            invalidatePending();
-        });
-    });
-    updateHint();
-
     if (form && btnValidar) {
         form.addEventListener('submit', function (e) {
             var submitter = e.submitter || document.activeElement;
@@ -781,6 +775,18 @@
                 }
                 btnSubir.disabled = true;
                 btnSubir.textContent = 'Subiendo…';
+                return;
+            }
+            var pdf = document.getElementById('archivo');
+            var xml = document.getElementById('archivo_xml');
+            if (pdf && !pdf.files.length) {
+                e.preventDefault();
+                alert('Adjunta el PDF de la factura.');
+                return;
+            }
+            if (xml && !xml.files.length) {
+                e.preventDefault();
+                alert('Adjunta el XML CFDI.');
                 return;
             }
             btnValidar.disabled = true;

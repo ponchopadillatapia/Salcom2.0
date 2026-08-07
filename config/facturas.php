@@ -92,9 +92,11 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Detección de conceptos (ClaveProdServ SAT / palabras en descripción)
+    | Detección de conceptos (ClaveProdServ SAT = criterio principal)
     |--------------------------------------------------------------------------
-    | Fletes: retención de IVA siempre, sin importar el régimen.
+    | La ClaveProdServ identifica fletes, comisiones, etc. La descripción
+    | solo se usa como respaldo porque varía entre proveedores.
+    | Fletes: retención de IVA 4% siempre.
     | Comisiones: retención solo si el emisor es persona física.
     */
     'conceptos' => [
@@ -104,15 +106,23 @@ return [
                 '78101801',
                 '78101802',
                 '78101803',
-                '78101600',
-                '78141500',
+                '78101600', // Transporte de carga
+                '78141500', // Servicios de manejo de carga
+                '78101700',
+                '78101804',
+                '78101900',
             ],
             'palabras' => ['flete', 'fletes', 'fletera', 'autotransporte', 'transporte de carga'],
         ],
         'comision' => [
             'claves' => [
-                '80141500', // Servicios de gestión comercial / comisiones (aprox)
+                '80141500', // Servicios de gestión comercial
+                '80141600', // Administración de negocios
+                '80141700',
+                '80161500', // Acuerdos de ventas
+                '80161501', // Comisiones por ventas
                 '84121500',
+                '84101700', // Servicios de corretaje
             ],
             'palabras' => ['comision', 'comisión', 'comisiones'],
         ],
@@ -125,11 +135,23 @@ return [
     */
     'retenciones' => [
 
-        // Flete / fletera: IVA siempre (indicación Contabilidad Salcom)
+        // Flete / fletera: IVA 4% siempre
         'flete' => [
             'iva' => 0.04,
             'isr' => 0.0125,
             'requiere_retencion' => true,
+        ],
+
+        // RESICO (626)
+        'resico_fisica' => [
+            'iva' => 0.0,
+            'isr' => 0.0125,
+            'requiere_retencion' => true,
+        ],
+        'resico_moral' => [
+            'iva' => 0.0,
+            'isr' => 0.0,
+            'requiere_retencion' => false,
         ],
 
         // Comisiones: solo persona física
@@ -142,7 +164,7 @@ return [
         'por_regimen' => [
             '601' => ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false],
             '603' => ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false],
-            '626' => ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false],
+            // 626 se resuelve en código (PF vs PM)
             '612' => ['iva' => 0.106667, 'isr' => 0.10, 'requiere_retencion' => true],
             '621' => ['iva' => 0.106667, 'isr' => 0.0125, 'requiere_retencion' => true],
             '625' => ['iva' => 0.106667, 'isr' => 0.01, 'requiere_retencion' => true],

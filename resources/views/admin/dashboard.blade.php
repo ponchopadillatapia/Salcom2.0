@@ -1,11 +1,6 @@
 @extends('layouts.admin')
 @section('title', 'Dashboard')
-@section('hero')
-<div class="hero-band">
-    <h1>Dashboard — Panel Administrativo</h1>
-    <p>Resumen general de Industrias Salcom · {{ now()->format('d/m/Y') }}</p>
-</div>
-@endsection
+{{-- sin hero: el nombre del portal ya va en la barra superior --}}
 @push('styles')
 <style>
     .pp-wrap{max-width:1140px;margin:0 auto}
@@ -162,7 +157,7 @@
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
-        <a href="{{ route('admin.documentos') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('admin.expediente-fiscal') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
             <h4>Docs. pendientes</h4>
             <div class="pp-negocio-row">
@@ -222,7 +217,7 @@
         $nombresFaltantes = $proveedoresConFaltantes->take(3)->map(fn ($p) => $p->nombre ?? $p->usuario)->values();
     @endphp
     <div class="pp-kpi-section" style="margin-bottom:14px;">
-        <a href="{{ route('admin.documentos') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('admin.expediente-fiscal') }}" style="text-decoration:none;color:inherit;">
             <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
                 <h4>Docs. fiscales</h4>
                 <div class="pp-negocio-row">
@@ -253,19 +248,13 @@
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
             </div>
-            <div><div class="pp-quick-title">Pedidos</div><div class="pp-quick-sub">Órdenes de compra</div></div>
+            <div><div class="pp-quick-title">OC</div><div class="pp-quick-sub">Órdenes de compra</div></div>
         </a>
         <a href="{{ route('admin.reporte-proveedores') }}" class="pp-card pp-quick-card">
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
             </div>
             <div><div class="pp-quick-title">Reportes</div><div class="pp-quick-sub">Análisis de proveedores</div></div>
-        </a>
-        <a href="{{ route('admin.gestion-compras') }}" class="pp-card pp-quick-card">
-            <div class="pp-quick-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5z"/><path d="M6 9.01V9"/></svg>
-            </div>
-            <div><div class="pp-quick-title">Gestión Compras</div><div class="pp-quick-sub">Logística</div></div>
         </a>
         <a href="{{ route('admin.clientes') }}" class="pp-card pp-quick-card">
             <div class="pp-quick-icon">

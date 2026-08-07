@@ -48,31 +48,48 @@
             font-weight: 700;
             letter-spacing: -0.3px;
             line-height: 1.1;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            min-width: 0;
         }
-        .nav-logo span {
+        .nav-logo span.nav-title {
             display: block;
             font-family: 'Inter', sans-serif;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 600;
-            letter-spacing: 2.5px;
+            letter-spacing: 1.6px;
             color: var(--purple-mid);
             text-transform: uppercase;
-            margin-top: 1px;
+            max-width: min(420px, 42vw);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
-        .nav-right { display: flex; align-items: center; gap: 16px; }
-        .nav-user {
-            font-size: 13px;
-            color: var(--gray-text);
-            font-weight: 600;
-            letter-spacing: -0.2px;
+        .nav-chip { display: none; }
+        .nav-right { display: flex; align-items: center; gap: 12px; }
+        .nav-user { display: none; }
+        .nav-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--purple), #8b5cf6);
+            color: #fff;
+            font-size: 11px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            letter-spacing: 0.02em;
+            flex-shrink: 0;
         }
         .btn-logout {
             font-size: 12px;
             color: var(--gray-muted);
-            padding: 6px 16px;
+            padding: 6px 14px;
             border: 1px solid var(--border-light);
             border-radius: 20px;
-            background: var(--gray-soft);
+            background: transparent;
             cursor: pointer;
             font-family: inherit;
             font-weight: 500;
@@ -105,20 +122,21 @@
 
         /* ── HERO ── */
         .hero-band {
-            background: var(--white);
-            padding: 24px 32px;
-            border-bottom: 1px solid var(--border-light);
+            background: transparent;
+            padding: 28px 32px 10px;
+            border-bottom: none;
             flex-shrink: 0;
         }
         .hero-band h1 {
-            font-size: 22px;
+            font-size: 24px;
             color: var(--gray-text);
             font-weight: 700;
             letter-spacing: -0.4px;
+            margin: 0;
         }
         .hero-band p {
             color: var(--gray-muted);
-            font-size: 14px;
+            font-size: 13px;
             margin-top: 4px;
             font-weight: 400;
         }
@@ -146,19 +164,19 @@
         .sidebar.collapsed:hover .sb-text,
         .sidebar.collapsed:hover .sb-section { display: block; }
         .sidebar.collapsed:hover .sb-link { justify-content: flex-start; padding: 8px 16px; margin: 1px 8px; }
-        .sidebar.collapsed:hover .sb-toggle { justify-content: flex-end; padding: 0 16px; }
 
         .sb-toggle {
-            height: 44px;
-            min-height: 44px;
-            display: flex;
+            height: 28px;
+            width: 28px;
+            min-height: 28px;
+            display: inline-flex;
             align-items: center;
-            justify-content: flex-end;
-            padding: 0 16px;
+            justify-content: center;
+            padding: 0;
+            margin-left: auto;
             border: none;
-            border-bottom: 1px solid var(--border-light);
+            border-radius: 8px;
             background: transparent;
-            width: 100%;
             font: inherit;
             color: inherit;
             cursor: pointer;
@@ -167,14 +185,17 @@
         }
         .sb-toggle:hover { background: var(--purple-subtle); }
         .sb-toggle svg { transition: transform .2s ease; flex-shrink: 0; color: var(--gray-muted); }
-        .sidebar.collapsed .sb-toggle { justify-content: center; padding: 0; }
+        .sidebar.collapsed .sb-toggle { display: none; }
+        /* Al pasar el mouse se abre el menú (hover) y vuelve la flecha para fijarlo */
+        .sidebar.collapsed:hover .sb-toggle { display: inline-flex; }
         .sidebar.collapsed .sb-toggle svg { transform: rotate(180deg); }
-        /* Bloque identidad proveedor: alineado con ítems al colapsar; mismo icono 40×40 */
+        .sidebar.collapsed .sb-client-icon { cursor: pointer; }
+        /* Bloque identidad proveedor: foto + nombre + flecha en una fila */
         .sb-client {
             display: flex;
             align-items: center;
             gap: 12px;
-            padding: 14px 16px 10px;
+            padding: 14px 12px 10px 16px;
             border-bottom: 1px solid var(--border-light);
             margin-bottom: 6px;
             flex-shrink: 0;
@@ -185,26 +206,56 @@
             padding: 6px 4px 8px;
             margin-bottom: 2px;
             gap: 0;
+            flex-wrap: wrap;
         }
         .sidebar.collapsed:hover .sb-client {
             justify-content: flex-start;
-            padding: 14px 16px 10px;
+            padding: 14px 12px 10px 16px;
             margin-bottom: 6px;
             gap: 12px;
+            flex-wrap: nowrap;
         }
         .sb-client-icon {
             width: 40px;
             height: 40px;
-            border-radius: 12px;
+            border-radius: 50%;
             background: linear-gradient(135deg, #6B3FA0, #9C6DD0);
             display: flex;
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+            overflow: hidden;
         }
-        .sb-client-meta { min-width: 0; }
+        .sb-client-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .sb-client-meta {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        .sb-client-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--gray-text);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 0;
+        }
+        .sb-client-id {
+            font-size: 11px;
+            color: var(--gray-muted);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
         .sidebar.collapsed .sb-client-meta { display: none; }
-        .sidebar.collapsed:hover .sb-client-meta { display: block; }
+        .sidebar.collapsed:hover .sb-client-meta { display: flex; }
 
         .sb-nav {
             flex: 1;
@@ -323,10 +374,37 @@
 <body>
 
 {{-- NAVBAR --}}
+@php
+    $navNombre = session('proveedor_nombre', 'Proveedor');
+    $navProv = null;
+    if (session('proveedor_id')) {
+        $navProv = \App\Models\ProveedorUser::find(session('proveedor_id'));
+        if ($navProv && $navProv->nombre) {
+            $navNombre = $navProv->nombre;
+            if (session('proveedor_nombre') !== $navProv->nombre) {
+                session(['proveedor_nombre' => $navProv->nombre]);
+            }
+        }
+    }
+    $navPartes = preg_split('/\s+/u', trim($navNombre)) ?: [];
+    $navIniciales = '';
+    foreach (array_slice($navPartes, 0, 2) as $p) {
+        $navIniciales .= mb_strtoupper(mb_substr($p, 0, 1));
+    }
+    if ($navIniciales === '') {
+        $navIniciales = 'P';
+    }
+    $navCodigo = null;
+    if (isset($navProv) && $navProv) {
+        $navCodigo = $navProv->id_proveedor ?: session('proveedor_codigo');
+    } else {
+        $navCodigo = session('proveedor_codigo');
+    }
+@endphp
 <nav class="top-nav">
-    <div class="nav-logo" style="display:flex;align-items:center;gap:14px;">
+    <div class="nav-logo">
         @include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])
-        <span>Portal de Proveedores</span>
+        <span class="nav-title">Portal de Proveedores</span>
     </div>
     <div class="nav-right">
         {{-- Campanita de notificaciones con dropdown --}}
@@ -338,15 +416,17 @@
                 ->count();
             $alertasRecientes = \App\Models\Alerta::where('destinatario_tipo', 'proveedor')
                 ->where('destinatario_id', session('proveedor_id'))
+                ->where('estatus', '!=', 'leida')
+                ->where('estatus', '!=', 'accionada')
                 ->orderByDesc('created_at')
-                ->limit(5)
+                ->limit(8)
                 ->get();
         @endphp
-        <div class="notif-wrapper" style="position:relative;margin-right:16px;"
+        <div class="notif-wrapper" style="position:relative;"
              data-alertas-url="{{ route('proveedores.alertas.recientes') }}"
              data-alertas-leer-url="{{ url('/proveedor/alertas') }}"
              data-csrf="{{ csrf_token() }}">
-            <button type="button" class="notif-bell" id="notifBellBtn" onclick="document.getElementById('notifDropdown').classList.toggle('show')" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;">
+            <button type="button" class="notif-bell" id="notifBellBtn" onclick="document.getElementById('notifDropdown').classList.toggle('show')" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;" title="Notificaciones" aria-label="Notificaciones">
                 <svg id="notifBellIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $alertasSinLeer > 0 ? 'var(--purple)' : 'var(--gray-muted)' }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                 <span id="notifBadge" style="position:absolute;top:-2px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;{{ $alertasSinLeer > 0 ? 'display:flex' : 'display:none' }};align-items:center;justify-content:center;">{{ $alertasSinLeer > 9 ? '9+' : $alertasSinLeer }}</span>
             </button>
@@ -357,36 +437,21 @@
                 </div>
                 <div id="notifItems">
                 @forelse($alertasRecientes as $notif)
-                <div class="notif-item {{ in_array($notif->estatus, ['leida','accionada']) ? 'read' : '' }}" data-alerta-id="{{ $notif->id }}" data-leida="{{ in_array($notif->estatus, ['leida','accionada']) ? '1' : '0' }}">
+                <div class="notif-item" data-alerta-id="{{ $notif->id }}" data-leida="0">
                     <div class="notif-item-title">{{ Str::limit($notif->titulo, 50) }}</div>
                     <div class="notif-item-desc">{{ Str::limit($notif->contenido, 80) }}</div>
                     <div class="notif-item-time">{{ $notif->created_at->diffForHumans() }}</div>
                 </div>
                 @empty
-                <div class="notif-empty">Sin notificaciones</div>
+                <div class="notif-empty">Sin notificaciones nuevas</div>
                 @endforelse
                 </div>
-                <a href="{{ route('proveedores.ia') }}" class="notif-footer">Ver todas</a>
+                <a href="{{ route('proveedores.ia') }}" class="notif-footer">Ir a Módulo IA</a>
             </div>
         </div>
-        <span class="nav-user">
-            @php
-                $navNombre = session('proveedor_nombre', 'Proveedor');
-                if (session('proveedor_id')) {
-                    $navProv = \App\Models\ProveedorUser::find(session('proveedor_id'));
-                    if ($navProv && $navProv->nombre) {
-                        $navNombre = $navProv->nombre;
-                        if (session('proveedor_nombre') !== $navProv->nombre) {
-                            session(['proveedor_nombre' => $navProv->nombre]);
-                        }
-                    }
-                }
-            @endphp
-            {{ $navNombre }}
-        </span>
         <form method="POST" action="{{ route('proveedores.logout') }}" style="display:inline;">
             @csrf
-            <button type="submit" class="btn-logout">Cerrar sesión</button>
+            <button type="submit" class="btn-logout">Salir</button>
         </form>
     </div>
 </nav>
@@ -399,18 +464,21 @@
 
     {{-- SIDEBAR --}}
     <div class="sidebar" id="appSidebar">
-        <button type="button" class="sb-toggle" id="sbToggleBtn" aria-expanded="true" aria-label="Contraer o expandir menú lateral" onclick="sbToggle(this)">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
-        </button>
-        {{-- Logo/Rol badge (estilo Apple Music) — icono igual; layout adaptable al sidebar colapsado --}}
+        {{-- Foto + nombre + flecha en la misma fila --}}
         <div class="sb-client">
-            <div class="sb-client-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+            <div class="sb-client-icon" id="sbClientIcon" title="Expandir menú" onclick="if(document.getElementById('appSidebar')?.classList.contains('collapsed')){sbToggle();}">
+                @if(!empty($navProv?->foto))
+                    <img src="{{ asset('storage/'.$navProv->foto) }}" alt="Foto de perfil">
+                @else
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.9)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                @endif
             </div>
             <div class="sb-client-meta">
-                <div style="font-size:14px;font-weight:700;color:var(--gray-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Proveedor</div>
-                <div style="font-size:11px;color:var(--gray-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Portal de Proveedores</div>
+                <span class="sb-client-name" title="{{ $navNombre }}">{{ $navNombre }}</span>
             </div>
+            <button type="button" class="sb-toggle" id="sbToggleBtn" aria-expanded="true" aria-label="Contraer o expandir menú lateral" onclick="sbToggle(this)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
         </div>
         <nav class="sb-nav">
             @php
@@ -424,16 +492,53 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                 <span class="sb-text">Inicio</span>
             </a>
+            <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.dashboard') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></div>
+                <span class="sb-text">Dashboard</span>
+            </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Altas</div>
+            <div class="sb-section">Productos</div>
             <a href="{{ $portalOk ? route('proveedores.alta-producto') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.alta-producto') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
                 <span class="sb-text">Alta de producto</span>
             </a>
+            <a href="{{ $portalOk ? route('proveedores.inventario') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.inventario') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
+                <span class="sb-text">Inventario</span>
+            </a>
+
+            <div class="sb-hr"></div>
+            <div class="sb-section">Facturas</div>
             <a href="{{ $portalOk ? route('proveedores.fiscal') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.fiscal') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
                 <span class="sb-text">Alta Facturas</span>
+            </a>
+            <a href="{{ $portalOk ? route('proveedores.facturas') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.facturas*') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+                <span class="sb-text">Facturas</span>
+            </a>
+
+            <div class="sb-hr"></div>
+            <div class="sb-section">Pagos</div>
+            <a href="{{ $portalOk ? route('proveedores.payment-history') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.payment-history') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+                <span class="sb-text">Pagos</span>
+            </a>
+
+            <div class="sb-hr"></div>
+            <div class="sb-section">Operación</div>
+            <a href="{{ $portalOk ? route('proveedores.oc') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.oc') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+                <span class="sb-text">Órdenes de Compra</span>
+            </a>
+            <a href="{{ $portalOk ? route('proveedores.otif') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.otif') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+                <span class="sb-text">OTIF</span>
+            </a>
+            <a href="{{ $portalOk ? route('proveedores.forecast') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.forecast') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
+                <span class="sb-text">Forecast</span>
             </a>
 
             <div class="sb-hr"></div>
@@ -445,40 +550,6 @@
             <a href="{{ $portalOk ? route('proveedores.business') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.business') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                 <span class="sb-text">Business</span>
-            </a>
-
-            <div class="sb-hr"></div>
-            <div class="sb-section">Operación</div>
-            <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.dashboard') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></div>
-                <span class="sb-text">Dashboard</span>
-            </a>
-            <a href="{{ $portalOk ? route('proveedores.oc') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.oc') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-                <span class="sb-text">Órdenes de Compra</span>
-            </a>
-            <a href="{{ $portalOk ? route('proveedores.inventario') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.inventario') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
-                <span class="sb-text">Inventario</span>
-            </a>
-            <a href="{{ $portalOk ? route('proveedores.otif') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.otif') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <span class="sb-text">OTIF</span>
-            </a>
-            <a href="{{ $portalOk ? route('proveedores.forecast') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.forecast') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-                <span class="sb-text">Forecast</span>
-            </a>
-            <a href="{{ $portalOk ? route('proveedores.facturas') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.facturas*') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
-                <span class="sb-text">Facturas</span>
-            </a>
-
-            <div class="sb-hr"></div>
-            <div class="sb-section">Finanzas</div>
-            <a href="{{ $portalOk ? route('proveedores.payment-history') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.payment-history') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
-                <span class="sb-text">Pagos / Historial</span>
             </a>
 
             <div class="sb-hr"></div>
@@ -566,12 +637,12 @@ document.addEventListener('click', function(e) {
         updateBadge(data.sin_leer || 0);
         var items = document.getElementById('notifItems');
         if (items) {
-            var list = data.items || [];
+            var list = (data.items || []).filter(function (it) { return !it.leida; });
             if (!list.length) {
-                items.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
+                items.innerHTML = '<div class="notif-empty">Sin notificaciones nuevas</div>';
             } else {
                 items.innerHTML = list.map(function (it) {
-                    return '<div class="notif-item ' + (it.leida ? 'read' : '') + '" data-alerta-id="' + esc(it.id) + '" data-leida="' + (it.leida ? '1' : '0') + '">'
+                    return '<div class="notif-item" data-alerta-id="' + esc(it.id) + '" data-leida="0">'
                         + '<div class="notif-item-title">' + esc((it.titulo || '').substring(0, 50)) + '</div>'
                         + '<div class="notif-item-desc">' + esc((it.contenido || '').substring(0, 80)) + '</div>'
                         + '<div class="notif-item-time">' + esc(it.hace || '') + '</div>'
@@ -600,7 +671,9 @@ document.addEventListener('click', function(e) {
         if (!id || !leerBase) return;
 
         el.setAttribute('data-leida', '1');
-        el.classList.add('read');
+        el.style.transition = 'opacity .15s, transform .15s';
+        el.style.opacity = '0';
+        el.style.transform = 'translateX(8px)';
 
         var badge = document.getElementById('notifBadge');
         var actual = badge && badge.style.display !== 'none'
@@ -608,22 +681,38 @@ document.addEventListener('click', function(e) {
             : 0;
         if (actual > 0) updateBadge(actual - 1);
 
+        setTimeout(function () {
+            if (el && el.parentNode) el.remove();
+            var box = document.getElementById('notifItems');
+            if (box && !box.querySelector('.notif-item')) {
+                box.innerHTML = '<div class="notif-empty">Sin notificaciones nuevas</div>';
+            }
+        }, 160);
+
         fetch(leerBase + '/' + id + '/leer', {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
+                'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrf,
                 'X-Requested-With': 'XMLHttpRequest'
             },
-            credentials: 'same-origin'
+            credentials: 'same-origin',
+            body: JSON.stringify({ _token: csrf })
         })
-            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (r) {
+                if (!r.ok) throw new Error('mark-failed');
+                return r.json();
+            })
             .then(function (data) {
                 if (data && typeof data.sin_leer !== 'undefined') {
                     updateBadge(data.sin_leer);
                 }
             })
-            .catch(function () {});
+            .catch(function () {
+                // Si falló, el próximo poll restaura el badge/lista
+                poll();
+            });
     }
 
     var itemsBox = document.getElementById('notifItems');
@@ -644,7 +733,9 @@ document.addEventListener('click', function(e) {
             .catch(function () {});
     }
 
-    setInterval(poll, 8000);
+    // Al instante + cada 3s (no 8)
+    poll();
+    setInterval(poll, 3000);
     document.addEventListener('visibilitychange', function () { if (!document.hidden) poll(); });
     window.addEventListener('focus', poll);
 })();

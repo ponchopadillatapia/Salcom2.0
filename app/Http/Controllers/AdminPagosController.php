@@ -42,6 +42,7 @@ class AdminPagosController extends Controller
             ->map(function (Factura $f) {
                 $f->avisos_pago = $this->pagos->avisosFactura($f);
                 $f->neto_pago = $this->pagos->netoFactura($f);
+                $f->folio_display = $this->pagos->folioFacturaDisplay($f);
 
                 return $f;
             });
@@ -115,9 +116,11 @@ class AdminPagosController extends Controller
             'factura_ids.*' => 'integer',
             'fecha_pago' => 'nullable|date',
             'notas' => 'nullable|string|max:1000',
+            'confirmar' => 'nullable|boolean',
         ]);
 
         $proveedor = ProveedorUser::whereCodigo($data['codigo_proveedor'])->firstOrFail();
+        $autoConfirmar = $request->boolean('confirmar');
 
         try {
             $pago = $this->pagos->crearLote(
@@ -129,6 +132,27 @@ class AdminPagosController extends Controller
             );
         } catch (InvalidArgumentException $e) {
             return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        if ($autoConfirmar) {
+            try {
+                $this->pagos->confirmar(
+                    $pago,
+                    session('admin_id'),
+                    [],
+                    $data['fecha_pago'] ?? null,
+                    []
+                );
+                $pago = $pago->fresh();
+
+                return redirect()
+                    ->route('admin.pagos.show', ['pago' => $pago, 'descargar_reporte' => 1])
+                    ->with('mensaje', 'Pago confirmado automáticamente. Descargando reporte resumen…');
+            } catch (InvalidArgumentException $e) {
+                return redirect()
+                    ->route('admin.pagos.show', $pago)
+                    ->with('error', $e->getMessage());
+            }
         }
 
         return redirect()
@@ -143,50 +167,38 @@ class AdminPagosController extends Controller
             ? $this->pagos->evaluarExpediente($pago->proveedor)
             : ['ok' => false, 'motivos' => ['Sin proveedor']];
 
-        $prefill = [
-            'forma_pago' => '',
-            'metodo_pago' => '',
-            'uso_cfdi' => '',
-            'regimen' => '',
-            'producto' => '',
-        ];
-        $primera = $pago->lineas->first()?->factura;
-        if ($primera) {
-            $det = is_array($primera->validacion_detalle) ? $primera->validacion_detalle : [];
-            $prefill['forma_pago'] = (string) ($det['forma_pago'] ?? '');
-            $prefill['metodo_pago'] = (string) ($det['metodo_pago'] ?? '');
-            $prefill['uso_cfdi'] = (string) ($det['uso_cfdi'] ?? '');
-            $prefill['regimen'] = (string) ($primera->regimen_fiscal ?: ($det['regimen_fiscal'] ?? ''));
-            $prefill['producto'] = (string) ($det['producto'] ?? $det['descripcion'] ?? $primera->notas ?? '');
+        $datosAuto = null;
+        $errorDatosAuto = null;
+        if ($pago->esBorrador()) {
+            try {
+                $datosAuto = $this->pagos->datosConfirmacionDesdeFacturas($pago);
+            } catch (InvalidArgumentException $e) {
+                $errorDatosAuto = $e->getMessage();
+            }
         }
 
-        return view('admin.pagos.show', compact('pago', 'expediente', 'prefill'));
+        $tieneMasFacturasPendientes = $pago->codigo_proveedor
+            ? Factura::query()
+                ->where('codigo_proveedor', $pago->codigo_proveedor)
+                ->where('estatus', 'pendiente')
+                ->exists()
+            : false;
+
+        return view('admin.pagos.show', compact(
+            'pago',
+            'expediente',
+            'datosAuto',
+            'errorDatosAuto',
+            'tieneMasFacturasPendientes'
+        ));
     }
 
     public function confirmar(Request $request, PagoProveedor $pago)
     {
-        $formas = array_keys(config('facturas.formas_pago', []));
-        $metodos = array_keys(config('facturas.metodos_pago', []));
-        $usos = array_keys(config('facturas.usos_cfdi', []));
-        $regimenes = array_keys(config('facturas.regimenes_aceptados', []));
-
         $request->validate([
             'fecha_pago' => 'nullable|date',
-            'forma_pago' => 'required|string|in:'.implode(',', $formas ?: ['01', '02', '03', '04', '28', '99']),
-            'metodo_pago' => 'required|string|in:'.implode(',', $metodos ?: ['PUE', 'PPD']),
-            'uso_cfdi' => 'required|string|in:'.implode(',', $usos ?: ['G01', 'G03', 'P01']),
-            'regimen' => 'required|string|in:'.implode(',', $regimenes ?: array_keys(config('facturas.regimenes', []))),
-            'producto' => 'required|string|max:255',
-            'comprobantes' => 'required|array|min:1',
+            'comprobantes' => 'nullable|array',
             'comprobantes.*' => 'file|mimes:pdf,jpg,jpeg,png,xml|max:10240',
-        ], [
-            'forma_pago.required' => 'Selecciona la forma de pago.',
-            'metodo_pago.required' => 'Selecciona el método de pago.',
-            'uso_cfdi.required' => 'Selecciona el uso de CFDI.',
-            'regimen.required' => 'Selecciona el régimen.',
-            'producto.required' => 'Indica el producto / concepto.',
-            'comprobantes.required' => 'Sube al menos un documento para confirmar el pago.',
-            'comprobantes.min' => 'Sube al menos un documento para confirmar el pago.',
         ]);
 
         $paths = [];
@@ -194,27 +206,21 @@ class AdminPagosController extends Controller
             $paths[] = $file->store('pagos_comprobantes/'.$pago->id, 'public');
         }
 
-        $datos = [
-            'forma_pago' => $request->input('forma_pago'),
-            'metodo_pago' => $request->input('metodo_pago'),
-            'uso_cfdi' => $request->input('uso_cfdi'),
-            'regimen' => $request->input('regimen'),
-            'producto' => trim((string) $request->input('producto')),
-        ];
-
         try {
             $this->pagos->confirmar(
                 $pago,
                 session('admin_id'),
                 $paths,
                 $request->input('fecha_pago'),
-                $datos
+                []
             );
         } catch (InvalidArgumentException $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }
 
-        return back()->with('mensaje', 'Pago confirmado. Datos fiscales y documentos guardados.');
+        return redirect()
+            ->route('admin.pagos.show', ['pago' => $pago, 'descargar_reporte' => 1])
+            ->with('mensaje', 'Pago confirmado. Descargando reporte resumen…');
     }
 
     public function cancelar(PagoProveedor $pago)
@@ -248,5 +254,23 @@ class AdminPagosController extends Controller
         return response($output)
             ->header('Content-Type', 'text/csv; charset=UTF-8')
             ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
+    /** PDF «REPORTE RESUMEN DE PAGOS» (formato Contabilidad / FCONA). */
+    public function reporteResumen(PagoProveedor $pago)
+    {
+        $pago->load(['lineas.factura', 'proveedor']);
+        $data = $this->pagos->datosReporteResumen($pago);
+        $filename = 'Reporte_Resumen_Pagos_'.$pago->codigo_proveedor.'_lote'.$pago->id.'_'.now()->format('Y-m-d').'.pdf';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pagos.reporte-resumen-pdf', $data)
+            ->setPaper('letter', 'landscape');
+
+        // Auto-descarga al confirmar; botón "Ver" abre inline en el navegador.
+        if (request()->boolean('ver')) {
+            return $pdf->stream($filename);
+        }
+
+        return $pdf->download($filename);
     }
 }

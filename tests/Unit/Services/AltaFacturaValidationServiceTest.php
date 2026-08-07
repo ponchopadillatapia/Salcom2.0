@@ -3,6 +3,7 @@
 namespace Tests\Unit\Services;
 
 use App\Services\AltaFacturaValidationService;
+use App\Services\FacturaDocumentoExtractor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -23,6 +24,9 @@ class AltaFacturaValidationServiceTest extends TestCase
         $uuid = $opts['uuid'] ?? 'A1B2C3D4-E5F6-7890-ABCD-EF1234567890';
         $clave = $opts['clave'] ?? '01010101';
         $desc = $opts['descripcion'] ?? 'Servicio general';
+        $metodo = $opts['metodo_pago'] ?? 'PUE';
+        $forma = $opts['forma_pago'] ?? '03';
+        $moneda = $opts['moneda'] ?? 'MXN';
 
         $retenciones = '';
         if ($retIva !== null || $retIsr !== null) {
@@ -40,11 +44,24 @@ class AltaFacturaValidationServiceTest extends TestCase
 <?xml version="1.0" encoding="UTF-8"?>
 <cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
     Version="4.0" Serie="A" Folio="1" Fecha="2026-07-17T10:00:00"
-    SubTotal="{$subtotal}" Total="{$total}" TipoDeComprobante="I" Moneda="MXN">
+<<<<<<< HEAD
+    SubTotal="{$subtotal}" Total="{$total}" TipoDeComprobante="I" Moneda="MXN"
+    FormaPago="03" MetodoPago="PUE">
+=======
+    SubTotal="{$subtotal}" Total="{$total}" TipoDeComprobante="I" Moneda="{$moneda}"
+    MetodoPago="{$metodo}" FormaPago="{$forma}">
+>>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
   <cfdi:Emisor Rfc="{$rfcEmisor}" Nombre="PROVEEDOR DEMO" RegimenFiscal="{$regimen}"/>
   <cfdi:Receptor Rfc="{$rfcReceptor}" Nombre="INDUSTRIAS SALCOM" UsoCFDI="G03"/>
   <cfdi:Conceptos>
-    <cfdi:Concepto ClaveProdServ="{$clave}" Cantidad="1" ClaveUnidad="E48" Descripcion="{$desc}" ValorUnitario="{$subtotal}" Importe="{$subtotal}"/>
+    <cfdi:Concepto ClaveProdServ="{$clave}" Cantidad="1" ClaveUnidad="E48" Descripcion="{$desc}" ValorUnitario="{$subtotal}" Importe="{$subtotal}">
+      <cfdi:Impuestos>
+        {$retenciones}
+        <cfdi:Traslados>
+          <cfdi:Traslado Base="{$subtotal}" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="{$iva}"/>
+        </cfdi:Traslados>
+      </cfdi:Impuestos>
+    </cfdi:Concepto>
   </cfdi:Conceptos>
   <cfdi:Impuestos TotalImpuestosTrasladados="{$iva}" TotalImpuestosRetenidos="0">
     {$retenciones}
@@ -59,29 +76,100 @@ class AltaFacturaValidationServiceTest extends TestCase
 XML;
     }
 
+    private function extractorMatching(array $xmlOpts, bool $conOc = false): FacturaDocumentoExtractor
+    {
+        $campos = [
+            'rfc_emisor' => $xmlOpts['rfc_emisor'] ?? 'XAXX010101000',
+            'rfc_receptor' => $xmlOpts['rfc_receptor'] ?? 'EKU9003173C9',
+            'uuid' => strtoupper($xmlOpts['uuid'] ?? 'A1B2C3D4-E5F6-7890-ABCD-EF1234567890'),
+            'fecha' => '2026-07-17',
+            'regimen_fiscal' => $xmlOpts['regimen'] ?? '612',
+            'metodo_pago' => $xmlOpts['metodo_pago'] ?? 'PUE',
+            'forma_pago' => $xmlOpts['forma_pago'] ?? '03',
+            'moneda' => $xmlOpts['moneda'] ?? 'MXN',
+            'subtotal' => (float) ($xmlOpts['subtotal'] ?? 1000),
+            'iva' => (float) ($xmlOpts['iva'] ?? 160),
+            'retencion_iva' => array_key_exists('ret_iva', $xmlOpts)
+                ? (float) ($xmlOpts['ret_iva'] ?? 0)
+                : 106.67,
+            'retencion_isr' => array_key_exists('ret_isr', $xmlOpts)
+                ? (float) ($xmlOpts['ret_isr'] ?? 0)
+                : 100.00,
+            'total' => (float) ($xmlOpts['total'] ?? 953.33),
+            'conceptos' => [strtoupper($xmlOpts['descripcion'] ?? 'Servicio general')],
+            'claves_prod_serv' => array_key_exists('claves_pdf', $xmlOpts)
+                ? (array) $xmlOpts['claves_pdf']
+                : [($xmlOpts['clave'] ?? '01010101')],
+        ];
+
+        $mock = $this->createMock(FacturaDocumentoExtractor::class);
+        $mock->method('extraerDesdeContenido')->willReturnCallback(function () use ($campos) {
+            return ['texto' => 'PDF MOCK', 'campos' => $campos, 'escaneado' => false];
+        });
+
+        return $mock;
+    }
+
     public function test_valida_regimen_y_retenciones_persona_fisica(): void
     {
         config(['facturas.rfc_receptor' => '']);
 
-        $service = new AltaFacturaValidationService;
-        $result = $service->validar($this->cfdiXml([
+        $opts = [
             'clave' => '01010101',
             'descripcion' => 'Servicio profesional',
-        ]), false, 'XAXX010101000');
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+        $this->assertSame('aprobada', $result['estatus']);
         $this->assertTrue($result['checklist']['regimen']['ok']);
         $this->assertTrue($result['checklist']['retenciones']['ok']);
+        $this->assertTrue($result['checklist']['pago_cfdi']['ok']);
+        $this->assertTrue($result['checklist']['producto']['ok']);
         $this->assertSame('612', $result['datos']['regimen_fiscal']);
+        $this->assertSame('03', $result['datos']['forma_pago']);
+        $this->assertSame('PUE', $result['datos']['metodo_pago']);
+        $this->assertSame('G03', $result['datos']['uso_cfdi']);
+        $this->assertSame('Servicio profesional', $result['datos']['producto']);
         $this->assertFalse($result['datos']['tiene_concepto_flete']);
+        // Impuestos de concepto + globales en el XML fixture: no deben duplicarse.
+        $this->assertSame(160.0, (float) $result['datos']['iva']);
+        $this->assertSame(106.67, (float) $result['datos']['retencion_iva']);
+        $this->assertSame(100.0, (float) $result['datos']['retencion_isr']);
+        $this->assertFalse(collect($result['advertencias'])->contains(
+            fn ($a) => str_contains((string) $a, 'No se adjuntó Orden de Compra')
+        ));
+    }
+
+    public function test_impuestos_solo_del_nodo_global_no_duplican_conceptos(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'iva' => '160.00',
+            'ret_iva' => '40.00',
+            'ret_isr' => '12.50',
+            'total' => '1107.50',
+            'uuid' => 'D1B2C3D4-E5F6-7890-ABCD-EF1234567801',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+
+        $this->assertSame(160.0, (float) $result['datos']['iva']);
+        $this->assertSame(40.0, (float) $result['datos']['retencion_iva']);
+        $this->assertSame(12.5, (float) $result['datos']['retencion_isr']);
+        $this->assertNotSame(320.0, (float) $result['datos']['iva']);
+        $this->assertNotSame(80.0, (float) $result['datos']['retencion_iva']);
     }
 
     public function test_flete_exige_retencion_iva_sin_importar_regimen(): void
     {
         config(['facturas.rfc_receptor' => '']);
 
-        $service = new AltaFacturaValidationService;
-        $xml = $this->cfdiXml([
+        $opts = [
             'rfc_emisor' => 'AAA010101AAA',
             'regimen' => '601',
             'clave' => '78101800',
@@ -90,12 +178,12 @@ XML;
             'ret_isr' => '0',
             'total' => '1160.00',
             'uuid' => 'B1B2C3D4-E5F6-7890-ABCD-EF1234567891',
-        ]);
-
-        // Aunque no marque fletera, la clave de flete obliga retención IVA
-        $result = $service->validar($xml, false, 'AAA010101AAA');
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null);
 
         $this->assertFalse($result['aprobado']);
+        $this->assertSame('rechazada', $result['estatus']);
         $this->assertTrue($result['datos']['tiene_concepto_flete']);
         $this->assertFalse($result['checklist']['retenciones']['ok']);
     }
@@ -104,8 +192,7 @@ XML;
     {
         config(['facturas.rfc_receptor' => '']);
 
-        $service = new AltaFacturaValidationService;
-        $xml = $this->cfdiXml([
+        $opts = [
             'rfc_emisor' => 'AAA010101AAA',
             'regimen' => '601',
             'clave' => '78101800',
@@ -114,11 +201,14 @@ XML;
             'ret_isr' => '12.50',
             'total' => '1107.50',
             'uuid' => 'C1B2C3D4-E5F6-7890-ABCD-EF1234567892',
-        ]);
-
-        $result = $service->validar($xml, true, 'AAA010101AAA');
+            'iva' => '160.00',
+            'subtotal' => '1000.00',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), true, 'AAA010101AAA', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+        $this->assertSame('aprobada', $result['estatus']);
         $this->assertTrue($result['checklist']['retenciones']['ok']);
         $this->assertTrue($result['datos']['es_fletera']);
         $this->assertTrue($result['datos']['tiene_concepto_flete']);
@@ -128,37 +218,130 @@ XML;
     {
         config(['facturas.rfc_receptor' => '']);
 
-        $service = new AltaFacturaValidationService;
-        // Régimen 626 (RESICO): sin retención requerida si NO es fletera
-        $xml = $this->cfdiXml([
+        // RESICO PF: requiere ISR 1.25%
+        $opts = [
             'rfc_emisor' => 'CUPL6007224D1',
             'regimen' => '626',
             'clave' => '01010101',
             'descripcion' => 'Servicio profesional',
             'subtotal' => '24500.00',
             'iva' => '3920.00',
-            'ret_iva' => '5223.40',
-            'ret_isr' => '612.50',
-            'total' => '25502.05',
+            'ret_iva' => null,
+            'ret_isr' => '306.25',
+            'total' => '28113.75',
             'uuid' => 'E711959E-17B5-4BAD-A59D-AF17E53970E1',
-        ]);
-
-        // Marcó fletera en el formulario, pero el XML no trae flete
-        $result = $service->validar($xml, true, 'CUPL6007224D1');
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), true, 'CUPL6007224D1', 'PDF', null);
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertFalse($result['datos']['tiene_concepto_flete']);
         $this->assertFalse($result['datos']['es_fletera']);
         $this->assertTrue($result['checklist']['retenciones']['ok']);
-        $this->assertStringContainsString('sin flete en XML', $result['checklist']['fletera']['label']);
+        $this->assertStringContainsString('sin ClaveProdServ de flete', $result['checklist']['fletera']['label']);
+        $this->assertSame('aprobada', $result['estatus']);
+    }
+
+    public function test_flete_se_detecta_por_clave_sat_sin_palabra_flete(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'rfc_emisor' => 'AAA010101AAA',
+            'regimen' => '601',
+            'clave' => '78101800',
+            'descripcion' => 'Servicio logistico unidad 01',
+            'ret_iva' => '40.00',
+            'ret_isr' => '12.50',
+            'total' => '1107.50',
+            'uuid' => 'C1B2C3D4-E5F6-7890-ABCD-EF1234567899',
+            'iva' => '160.00',
+            'subtotal' => '1000.00',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null);
+
+        $this->assertTrue($result['datos']['tiene_concepto_flete']);
+        $this->assertSame('clave', $result['datos']['deteccion_conceptos']['flete']);
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+    }
+
+    public function test_clave_sat_pdf_distinta_rechaza(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'claves_pdf' => ['99999999'],
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+
+        $this->assertFalse($result['aprobado']);
+        $this->assertSame('rechazada', $result['estatus']);
+        $this->assertTrue(collect($result['errores'])->contains(fn ($e) => str_contains($e, 'ClaveProdServ')));
+    }
+
+    public function test_resico_persona_moral_no_exige_isr_125(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'rfc_emisor' => 'AAA010101AAA',
+            'regimen' => '626',
+            'clave' => '01010101',
+            'descripcion' => 'Servicio RESICO moral',
+            'ret_iva' => null,
+            'ret_isr' => null,
+            'total' => '1160.00',
+            'uuid' => 'F1B2C3D4-E5F6-7890-ABCD-EF1234567894',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null);
+
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+        $this->assertSame('resico_moral', $result['datos']['retencion_esperada']['origen']);
+    }
+
+    public function test_pdf_no_coincide_rfc_rechaza(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'rfc_emisor' => 'XAXX010101000',
+            'descripcion' => 'Servicio profesional',
+        ];
+        $bad = $this->createMock(FacturaDocumentoExtractor::class);
+        $bad->method('extraerDesdeContenido')->willReturn([
+            'texto' => 'PDF',
+            'campos' => [
+                'rfc_emisor' => 'BBB010101BBB',
+                'rfc_receptor' => 'EKU9003173C9',
+                'uuid' => 'A1B2C3D4-E5F6-7890-ABCD-EF1234567890',
+                'subtotal' => 1000.0,
+                'iva' => 160.0,
+                'retencion_iva' => 106.67,
+                'retencion_isr' => 100.0,
+                'total' => 953.33,
+                'conceptos' => ['SERVICIO PROFESIONAL'],
+            ],
+            'escaneado' => false,
+        ]);
+
+        $service = new AltaFacturaValidationService($bad);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+
+        $this->assertFalse($result['aprobado']);
+        $this->assertSame('rechazada', $result['estatus']);
+        $this->assertTrue(collect($result['errores'])->contains(fn ($e) => str_contains($e, 'RFC emisor')));
     }
 
     public function test_comision_persona_moral_no_exige_retencion(): void
     {
         config(['facturas.rfc_receptor' => '']);
 
-        $service = new AltaFacturaValidationService;
-        $xml = $this->cfdiXml([
+        $opts = [
             'rfc_emisor' => 'AAA010101AAA',
             'regimen' => '601',
             'clave' => '01010101',
@@ -167,9 +350,10 @@ XML;
             'ret_isr' => null,
             'total' => '1160.00',
             'uuid' => 'D1B2C3D4-E5F6-7890-ABCD-EF1234567893',
-        ]);
-
-        $result = $service->validar($xml, false, 'AAA010101AAA');
+            'iva' => '160.00',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null);
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertTrue($result['datos']['tiene_concepto_comision']);

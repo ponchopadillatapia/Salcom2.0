@@ -221,6 +221,7 @@ Route::get('/admin/pagos/{pago}', [AdminPagosController::class, 'show'])->name('
 Route::post('/admin/pagos/{pago}/confirmar', [AdminPagosController::class, 'confirmar'])->name('admin.pagos.confirmar')->middleware('auth.admin');
 Route::post('/admin/pagos/{pago}/cancelar', [AdminPagosController::class, 'cancelar'])->name('admin.pagos.cancelar')->middleware('auth.admin');
 Route::get('/admin/pagos/{pago}/excel', [AdminPagosController::class, 'excel'])->name('admin.pagos.excel')->middleware('auth.admin');
+Route::get('/admin/pagos/{pago}/reporte-resumen', [AdminPagosController::class, 'reporteResumen'])->name('admin.pagos.reporte-resumen')->middleware('auth.admin');
 
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal', [AdminPanelController::class, 'expedienteFiscal'])->name('admin.expediente-fiscal')->middleware('auth.admin');

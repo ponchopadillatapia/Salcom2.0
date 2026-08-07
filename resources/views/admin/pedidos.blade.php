@@ -1,4 +1,4 @@
-﻿@extends('layouts.admin')
+@extends('layouts.admin')
 @section('title', 'Pedidos')
 @section('hero')
 <div class="hero-band">
@@ -11,26 +11,16 @@
     @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
     .anim{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
 
-    .adm-summary{background:var(--white);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:22px 26px;margin-bottom:20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;box-shadow:var(--shadow-sm)}
-    .adm-summary-main{text-align:center;min-width:100px}
-    .adm-summary-pct{font-size:42px;font-weight:800;line-height:1;color:var(--purple)}
-    .adm-summary-label{font-size:12px;color:var(--gray-muted);margin-top:6px}
-    .adm-summary-metrics{flex:1;display:flex;gap:24px;flex-wrap:wrap}
-    .adm-metric-label{font-size:12px;color:var(--gray-muted);margin-bottom:4px}
-    .adm-metric-val{font-size:22px;font-weight:700;display:flex;align-items:center;gap:8px}
-    .adm-summary-badge{padding:10px 16px;border-radius:10px;font-size:12px;font-weight:600;line-height:1.4;background:var(--purple-subtle);color:var(--purple)}
+    .inv-metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
+    .inv-metric{background:var(--white);border:1px solid var(--border-light, var(--border));border-radius:14px;padding:18px;position:relative;overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block}
+    .inv-metric:hover{border-color:var(--purple-mid,#c4b5e0);box-shadow:var(--shadow-sm)}
+    .inv-metric.is-active{border-color:var(--purple);box-shadow:0 0 0 2px rgba(107,63,160,.12)}
+    .inv-metric .accent{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:14px 0 0 14px}
+    .inv-metric-label{font-size:12px;color:var(--gray-muted);font-weight:600;margin-bottom:6px}
+    .inv-metric-val{font-size:26px;font-weight:700;color:var(--gray-text);line-height:1}
+    .inv-metric-sub{font-size:11px;color:var(--gray-muted);margin-top:6px}
 
     .toolbar{display:flex;flex-direction:column;gap:14px;margin-bottom:20px}
-    .toolbar-top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
-    .filter-group{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
-    .filter-btn{padding:8px 14px;font-size:12px;font-weight:600;border:1.5px solid var(--border);border-radius:8px;background:var(--white);color:var(--gray-text);cursor:pointer;font-family:inherit;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-    .filter-btn:hover{border-color:var(--purple);color:var(--purple);background:var(--purple-subtle)}
-    .filter-btn.active{background:var(--purple);color:#fff;border-color:var(--purple)}
-    .filter-btn.warn.active{background:var(--amber);border-color:var(--amber)}
-    .filter-btn.ok.active{background:var(--green);border-color:var(--green)}
-    .filter-btn.danger.active{background:var(--red);border-color:var(--red)}
-    .filter-count{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:rgba(0,0,0,.08);line-height:1.2}
-    .filter-btn.active .filter-count{background:rgba(255,255,255,.25)}
     .filters-panel{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
     .filter-form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
     .filter-field{display:flex;flex-direction:column;gap:4px;min-width:140px;flex:1}
@@ -87,7 +77,7 @@
     .empty-state p{font-size:14px;font-weight:500}
 
     @media(max-width:768px){
-        .adm-summary{flex-direction:column;align-items:flex-start}
+        .inv-metrics{grid-template-columns:1fr 1fr}
         .filter-field{min-width:100%}
         .filter-form{flex-direction:column;align-items:stretch}
     }
@@ -104,67 +94,45 @@
     $chipActive = fn ($est = null, $grp = null) => (!$filtros['estatus'] && !$filtros['grupo'] && !$est && !$grp)
         || ($est && $filtros['estatus'] === $est)
         || ($grp && $filtros['grupo'] === $grp);
+    $conteoProcesando = (int) ($conteosEstatus['procesando'] ?? 0);
+    $conteoEnviado = (int) ($conteosEstatus['enviado'] ?? 0);
+    $conteoEntregado = (int) ($conteosEstatus['entregado'] ?? 0);
 @endphp
 
-<div class="adm-summary anim">
-    <div class="adm-summary-main">
-        <div class="adm-summary-pct">{{ $totalGeneral }}</div>
-        <div class="adm-summary-label">Pedidos totales</div>
-    </div>
-    <div class="adm-summary-metrics">
-        <div>
-            <div class="adm-metric-label">Pedidos este mes</div>
-            <div class="adm-metric-val" style="color:var(--gray-text)">
-                {{ $pedidosMes }}
-                @include('partials.trend-arrow', ['value' => $trendPedidosMes, 'size' => '12'])
-            </div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Monto del mes</div>
-            <div class="adm-metric-val" style="color:var(--green)">
-                ${{ number_format($montoMes, 0) }}
-                @include('partials.trend-arrow', ['value' => $trendMontoMes, 'size' => '12'])
-            </div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Pendientes</div>
-            <div class="adm-metric-val" style="color:{{ $conteoPendientes > 0 ? 'var(--amber)' : 'var(--green)' }}">{{ $conteoPendientes }}</div>
-        </div>
-        <div>
-            <div class="adm-metric-label">Tasa de entrega</div>
-            <div class="adm-metric-val" style="color:{{ $pctEntregados >= 70 ? 'var(--green)' : 'var(--amber)' }}">{{ $pctEntregados }}%</div>
-        </div>
-    </div>
-    @if($filtrosActivos)
-    <div class="adm-summary-badge">Monto filtrado: ${{ number_format($montoFiltrado, 2) }}</div>
-    @endif
+<div class="inv-metrics anim">
+    <a class="inv-metric {{ $chipActive(null, 'pendientes') ? 'is-active' : '' }}" href="{{ route('admin.pedidos', array_merge($baseQuery, ['grupo' => 'pendientes'])) }}">
+        <div class="accent" style="background:var(--red,#dc2626)"></div>
+        <div class="inv-metric-label">Pendientes</div>
+        <div class="inv-metric-val">{{ $conteoPendientes }}</div>
+        <div class="inv-metric-sub">Por atender</div>
+    </a>
+    <a class="inv-metric {{ $chipActive('procesando') ? 'is-active' : '' }}" href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'procesando'])) }}">
+        <div class="accent" style="background:var(--amber,#d97706)"></div>
+        <div class="inv-metric-label">En proceso</div>
+        <div class="inv-metric-val">{{ $conteoProcesando }}</div>
+        <div class="inv-metric-sub">En preparación</div>
+    </a>
+    <a class="inv-metric {{ $chipActive('enviado') ? 'is-active' : '' }}" href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'enviado'])) }}">
+        <div class="accent" style="background:var(--blue,#2563eb)"></div>
+        <div class="inv-metric-label">Enviados</div>
+        <div class="inv-metric-val">{{ $conteoEnviado }}</div>
+        <div class="inv-metric-sub">En camino</div>
+    </a>
+    <a class="inv-metric {{ $chipActive('entregado') ? 'is-active' : '' }}" href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'entregado'])) }}">
+        <div class="accent" style="background:var(--green,#16a34a)"></div>
+        <div class="inv-metric-label">Entregados</div>
+        <div class="inv-metric-val">{{ $conteoEntregado }}</div>
+        <div class="inv-metric-sub">Completados</div>
+    </a>
+    <a class="inv-metric {{ $chipActive() ? 'is-active' : '' }}" href="{{ route('admin.pedidos', $baseQuery) }}">
+        <div class="accent" style="background:var(--purple,#6B3FA0)"></div>
+        <div class="inv-metric-label">Todas</div>
+        <div class="inv-metric-val">{{ $totalGeneral }}</div>
+        <div class="inv-metric-sub">Pedidos totales</div>
+    </a>
 </div>
 
 <div class="toolbar anim" style="animation-delay:.04s">
-    <div class="toolbar-top">
-        <div class="filter-group">
-            <a href="{{ route('admin.pedidos', $baseQuery) }}" class="filter-btn {{ $chipActive() ? 'active' : '' }}">
-                Todos <span class="filter-count">{{ $totalGeneral }}</span>
-            </a>
-            <a href="{{ route('admin.pedidos', array_merge($baseQuery, ['grupo' => 'pendientes'])) }}" class="filter-btn warn {{ $chipActive(null, 'pendientes') ? 'active' : '' }}">
-                Pendientes <span class="filter-count">{{ $conteoPendientes }}</span>
-            </a>
-            <a href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'procesando'])) }}" class="filter-btn {{ $chipActive('procesando') ? 'active' : '' }}">
-                En proceso <span class="filter-count">{{ $conteosEstatus['procesando'] ?? 0 }}</span>
-            </a>
-            <a href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'enviado'])) }}" class="filter-btn {{ $chipActive('enviado') ? 'active' : '' }}">
-                Enviados <span class="filter-count">{{ $conteosEstatus['enviado'] ?? 0 }}</span>
-            </a>
-            <a href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'entregado'])) }}" class="filter-btn ok {{ $chipActive('entregado') ? 'active' : '' }}">
-                Entregados <span class="filter-count">{{ $conteosEstatus['entregado'] ?? 0 }}</span>
-            </a>
-            <a href="{{ route('admin.pedidos', array_merge($baseQuery, ['estatus' => 'cancelado'])) }}" class="filter-btn danger {{ $chipActive('cancelado') ? 'active' : '' }}">
-                Cancelados <span class="filter-count">{{ $conteosEstatus['cancelado'] ?? 0 }}</span>
-            </a>
-        </div>
-        <span class="badge-count">{{ $pedidos->total() }} resultado{{ $pedidos->total() !== 1 ? 's' : '' }}</span>
-    </div>
-
     <div class="filters-panel">
         <form method="GET" action="{{ route('admin.pedidos') }}" class="filter-form">
             @if($filtros['grupo'] && !$filtros['estatus'])
@@ -218,6 +186,9 @@
             @if($filtros['tipo_pago'])<span class="active-tag">{{ $filtros['tipo_pago'] === 'credito' ? 'Crédito' : 'Contado' }}</span>@endif
             @if($filtros['fecha_desde'])<span class="active-tag">Desde {{ $filtros['fecha_desde'] }}</span>@endif
             @if($filtros['fecha_hasta'])<span class="active-tag">Hasta {{ $filtros['fecha_hasta'] }}</span>@endif
+            @if($filtrosActivos)
+                <span class="active-tag">Monto filtrado: ${{ number_format($montoFiltrado, 2) }}</span>
+            @endif
         </div>
         @endif
     </div>
