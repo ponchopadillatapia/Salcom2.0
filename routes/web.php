@@ -255,6 +255,19 @@ Route::get('/admin/reporte-proveedores/corte/excel', [AdminPanelController::clas
 // ── Validación RFC (AJAX) ──
 Route::post('/admin/cliente/validar-rfc', [AdminClienteController::class, 'validarRfc'])->name('admin.cliente.validar-rfc')->middleware('auth.admin');
 
+// ── Admin: Reorden OC Materia Prima ──
+use App\Http\Controllers\ReordenOcController;
+
+Route::get('/admin/reorden-oc', [ReordenOcController::class, 'index'])->name('admin.reorden-oc')->middleware('auth.admin');
+Route::get('/admin/reorden-oc/{oc}', [ReordenOcController::class, 'show'])->name('admin.reorden-oc.show')->middleware('auth.admin');
+Route::post('/admin/reorden-oc/{oc}/aprobar', [ReordenOcController::class, 'aprobar'])->name('admin.reorden-oc.aprobar')->middleware('auth.admin');
+Route::post('/admin/reorden-oc/{oc}/rechazar', [ReordenOcController::class, 'rechazar'])->name('admin.reorden-oc.rechazar')->middleware('auth.admin');
+Route::put('/admin/reorden-oc/{oc}/productos', [ReordenOcController::class, 'actualizarProductos'])->name('admin.reorden-oc.actualizar-productos')->middleware('auth.admin');
+Route::delete('/admin/reorden-oc/{oc}/productos', [ReordenOcController::class, 'eliminarProducto'])->name('admin.reorden-oc.eliminar-producto')->middleware('auth.admin');
+Route::post('/admin/reorden-oc/{oc}/productos', [ReordenOcController::class, 'agregarProducto'])->name('admin.reorden-oc.agregar-producto')->middleware('auth.admin');
+Route::post('/admin/reorden-oc/ejecutar', [ReordenOcController::class, 'ejecutarReorden'])->name('admin.reorden-oc.ejecutar')->middleware('auth.admin');
+Route::post('/admin/reorden-oc/importar-minimos', [ReordenOcController::class, 'importarStockMinimos'])->name('admin.reorden-oc.importar-minimos')->middleware('auth.admin');
+
 // ── Gestión de Pedidos (estatus + notificaciones) ──
 use App\Http\Controllers\PedidoController;
 
