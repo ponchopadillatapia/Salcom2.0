@@ -16,12 +16,13 @@ class BienvenidaProveedor extends Mailable
         public string $nombreProveedor,
         public string $correo,
         public string $usuario = '',
+        public string $urlVerificacion = '',
     ) {}
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Bienvenido al Portal de Proveedores — Industrias Salcom',
+            subject: 'Confirma tu correo — Portal de Proveedores Salcom',
         );
     }
 
