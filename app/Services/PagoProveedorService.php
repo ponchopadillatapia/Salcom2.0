@@ -8,10 +8,12 @@ use App\Models\Factura;
 use App\Models\PagoProveedor;
 use App\Models\PagoProveedorFactura;
 use App\Models\ProveedorUser;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 
 class PagoProveedorService
@@ -276,7 +278,7 @@ class PagoProveedorService
 
         $pagoConfirmado = DB::transaction(function () use ($pago, $adminId, $comprobantes, $fechaPago, $datosConfirmacion) {
             if ($fechaPago) {
-                $pago->fecha_pago = $fechaPago;
+                $pago->fecha_pago = Carbon::parse($fechaPago);
             }
 
             $nuevoEstatusFactura = $pago->fecha_pago ? 'pagada' : 'programada';
@@ -359,7 +361,7 @@ class PagoProveedorService
         $producto = match (count($productos)) {
             0 => 'Varios conceptos',
             1 => $productos[0],
-            default => \Illuminate\Support\Str::limit(implode(' · ', $productos), 250),
+            default => Str::limit(implode(' · ', $productos), 250),
         };
 
         $regimenes = array_values(array_unique(array_filter(array_column($filas, 'regimen'))));
@@ -442,12 +444,11 @@ class PagoProveedorService
 
     /**
      * Proveedores con facturas pendientes (para lista).
-     *
-     * @return Collection<int, object>
      */
     public function proveedoresConPendientes(): Collection
     {
-        return Factura::query()
+        /** @var Collection $resultado */
+        $resultado = Factura::query()
             ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(total) as monto_total, max(created_at) as ultima_factura_at')
             ->where('estatus', 'pendiente')
             ->whereNotNull('codigo_proveedor')
@@ -464,7 +465,7 @@ class PagoProveedorService
                     ->count();
 
                 $ultimaAt = $row->ultima_factura_at
-                    ? \Illuminate\Support\Carbon::parse($row->ultima_factura_at)
+                    ? Carbon::parse($row->ultima_factura_at)
                     : null;
 
                 return (object) [
@@ -478,6 +479,8 @@ class PagoProveedorService
                     'notif_sin_leer' => $notifSinLeer,
                 ];
             });
+
+        return $resultado;
     }
 
     /**

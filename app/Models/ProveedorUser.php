@@ -115,6 +115,9 @@ class ProveedorUser extends Authenticatable
         return $this->hasMany(ContactoProveedor::class, 'proveedor_id');
     }
 
+    /**
+     * @return HasMany<DocumentoProveedor, $this>
+     */
     public function documentos(): HasMany
     {
         return $this->hasMany(DocumentoProveedor::class, 'proveedor_id');

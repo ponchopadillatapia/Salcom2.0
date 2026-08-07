@@ -31,7 +31,7 @@ class FacturaDocumentoExtractor
             }
             file_put_contents($tmp, $pdfBinary);
             try {
-                $texto = $this->parser->parseFile($tmp)->getText() ?? '';
+                $texto = $this->parser->parseFile($tmp)->getText();
             } finally {
                 @unlink($tmp);
             }

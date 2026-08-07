@@ -14,8 +14,8 @@ class DocumentCrossCheckService
     /**
      * Ejecuta la validación cruzada completa entre CIF e INE.
      *
-     * @param array $datosCif  Datos extraídos del CIF ['rfc', 'nombre', 'codigo_postal', 'tipo_persona']
-     * @param array $datosIne  Datos extraídos de la INE ['curp', 'nombre', 'clave_elector', 'fecha_nacimiento']
+     * @param  array  $datosCif  Datos extraídos del CIF ['rfc', 'nombre', 'codigo_postal', 'tipo_persona']
+     * @param  array  $datosIne  Datos extraídos de la INE ['curp', 'nombre', 'clave_elector', 'fecha_nacimiento']
      * @return array ['valido' => bool, 'score' => int, 'checks' => [...], 'alertas' => [...]]
      */
     public function validar(array $datosCif, array $datosIne): array
@@ -56,7 +56,7 @@ class DocumentCrossCheckService
         $criticos = ['rfc_curp']; // Solo RFC↔CURP es bloqueante
         $todoCriticoOk = true;
         foreach ($criticos as $campo) {
-            if (!$checks[$campo]['coincide']) {
+            if (! $checks[$campo]['coincide']) {
                 $todoCriticoOk = false;
                 $errores[] = $checks[$campo]['mensaje'];
             }
@@ -84,7 +84,7 @@ class DocumentCrossCheckService
      */
     private function compararRfcCurp(?string $rfc, ?string $curp): array
     {
-        if (!$rfc || !$curp) {
+        if (! $rfc || ! $curp) {
             return [
                 'coincide' => false,
                 'mensaje' => 'No se pudo comparar RFC con CURP — dato faltante',
@@ -117,7 +117,7 @@ class DocumentCrossCheckService
      */
     private function compararCurpExacta(?string $curpCif, ?string $curpIne): array
     {
-        if (!$curpCif || !$curpIne) {
+        if (! $curpCif || ! $curpIne) {
             return [
                 'coincide' => true, // No bloquear si no hay CURP en el CIF
                 'mensaje' => 'CURP no disponible en ambos documentos — no comparado',
@@ -145,7 +145,7 @@ class DocumentCrossCheckService
      */
     private function compararNombres(?string $nombreCif, ?string $nombreIne): array
     {
-        if (!$nombreCif || !$nombreIne) {
+        if (! $nombreCif || ! $nombreIne) {
             return [
                 'coincide' => false,
                 'mensaje' => 'Nombre no disponible en alguno de los documentos',
@@ -157,7 +157,7 @@ class DocumentCrossCheckService
         $b = $this->normalizar($nombreIne);
 
         if ($a === $b) {
-            return ['coincide' => true, 'mensaje' => "Nombre coincide exactamente ✓", 'similitud' => 100];
+            return ['coincide' => true, 'mensaje' => 'Nombre coincide exactamente ✓', 'similitud' => 100];
         }
 
         // Método 1: similar_text (porcentaje)
@@ -168,8 +168,8 @@ class DocumentCrossCheckService
         $levenshtein = $maxLen > 0 ? (1 - levenshtein($a, $b) / $maxLen) * 100 : 0;
 
         // Método 3: Comparación por tokens (ignora orden)
-        $tokensA = array_filter(explode(' ', $a), fn($t) => strlen($t) > 1);
-        $tokensB = array_filter(explode(' ', $b), fn($t) => strlen($t) > 1);
+        $tokensA = array_filter(explode(' ', $a), fn ($t) => strlen($t) > 1);
+        $tokensB = array_filter(explode(' ', $b), fn ($t) => strlen($t) > 1);
         $tokenScore = 0;
         if (count($tokensA) > 0 && count($tokensB) > 0) {
             $intersect = 0;
@@ -193,7 +193,7 @@ class DocumentCrossCheckService
             'coincide' => $coincide,
             'mensaje' => $coincide
                 ? "Nombre coincide ({$similitud}% similitud) ✓"
-                : "Nombre NO coincide: similitud {$similitud}% (mínimo requerido: " . self::NOMBRE_UMBRAL . "%)",
+                : "Nombre NO coincide: similitud {$similitud}% (mínimo requerido: ".self::NOMBRE_UMBRAL.'%)',
             'similitud' => $similitud,
             'detalle' => [
                 'similar_text' => round($pctSimilar),
@@ -210,7 +210,7 @@ class DocumentCrossCheckService
      */
     private function compararCodigoPostal(?string $cpCif, ?string $cpIne): array
     {
-        if (!$cpCif || !$cpIne) {
+        if (! $cpCif || ! $cpIne) {
             return [
                 'postal_code_mismatch' => false,
                 'mensaje' => 'Código postal no disponible en ambos documentos',
@@ -223,7 +223,7 @@ class DocumentCrossCheckService
         $coincide = $cpA === $cpB;
 
         return [
-            'postal_code_mismatch' => !$coincide,
+            'postal_code_mismatch' => ! $coincide,
             'mensaje' => $coincide
                 ? "Código postal coincide ✓ ({$cpA})"
                 : "⚠ Código postal difiere: CIF={$cpA} vs INE={$cpB} (revisión manual recomendada)",
@@ -241,7 +241,9 @@ class DocumentCrossCheckService
      */
     public function normalizar(?string $texto): string
     {
-        if (!$texto) return '';
+        if (! $texto) {
+            return '';
+        }
 
         // Mayúsculas
         $texto = mb_strtoupper($texto, 'UTF-8');
@@ -281,7 +283,7 @@ class DocumentCrossCheckService
             } elseif ($campo === 'nombre' && isset($checks[$campo]['similitud'])) {
                 // Score parcial para nombre basado en similitud
                 $score += round($peso * $checks[$campo]['similitud'] / 100);
-            } elseif ($campo === 'codigo_postal' && !($checks[$campo]['postal_code_mismatch'] ?? false)) {
+            } elseif ($campo === 'codigo_postal' && ! ($checks[$campo]['postal_code_mismatch'] ?? false)) {
                 $score += $peso;
             }
         }

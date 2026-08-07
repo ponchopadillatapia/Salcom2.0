@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\APIS;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\DocumentoProveedor;
 use App\Models\ProveedorUser;
+use App\Models\SolicitudAlta;
+use App\Services\DocumentCrossCheckService;
 use App\Services\IaService;
 use Aws\Textract\TextractClient;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 use Smalot\PdfParser\Parser;
 use thiagoalessio\TesseractOCR\TesseractOCR;
@@ -104,7 +108,7 @@ class EmpresaApiController extends Controller
             $acta = null;
             if (isset($textos['acta'])) {
                 $nombreParaCruce = $nombreEsperado !== '' ? $nombreEsperado : ($cif['datos']['nombre'] ?? null);
-                $actaPath = isset($archivos['acta']) ? storage_path('app/private/' . $archivos['acta']) : null;
+                $actaPath = isset($archivos['acta']) ? storage_path('app/private/'.$archivos['acta']) : null;
                 $acta = $this->validarActa($textos['acta'], $cif['datos']['es_moral'], $nombreParaCruce, $actaPath);
             } elseif ($tipoPersona === 'fisica') {
                 $acta = ['valida' => true, 'datos' => [], 'errores' => [], 'hallazgos' => ['Persona Física — Acta Constitutiva no requerida']];
@@ -234,7 +238,7 @@ class EmpresaApiController extends Controller
             // ════════════════════════════════════════
 
             // Cross-check CIF ↔ INE (verificar que pertenezcan al mismo proveedor)
-            $crossCheckService = app(\App\Services\DocumentCrossCheckService::class);
+            $crossCheckService = app(DocumentCrossCheckService::class);
             $ineParaCruce = $repLegal ?? $contribuyente; // Usar la INE que se haya subido
 
             if ($ineParaCruce && $cif['datos']['rfc']) {
@@ -260,13 +264,13 @@ class EmpresaApiController extends Controller
                     );
 
                     if ($crossResult['valido']) {
-                        $ineParaCruce['hallazgos'][] = 'Cross-check CIF ↔ INE: Documentos del mismo proveedor ✓ (Score: ' . $crossResult['score'] . '%)';
+                        $ineParaCruce['hallazgos'][] = 'Cross-check CIF ↔ INE: Documentos del mismo proveedor ✓ (Score: '.$crossResult['score'].'%)';
                     } else {
                         // RFC no coincide = BLOQUEAR — es documento de otra persona
                         foreach ($crossResult['errores'] as $err) {
                             // Solo mostrar errores de RFC, no de nombre
-                            if (!str_contains($err, 'Nombre NO coincide')) {
-                                $ineParaCruce['errores'][] = '⚠ ' . $err;
+                            if (! str_contains($err, 'Nombre NO coincide')) {
+                                $ineParaCruce['errores'][] = '⚠ '.$err;
                             }
                         }
                         $ineParaCruce['valida'] = false;
@@ -278,8 +282,11 @@ class EmpresaApiController extends Controller
                 }
 
                 // Actualizar la referencia
-                if ($repLegal) $repLegal = $ineParaCruce;
-                elseif ($contribuyente) $contribuyente = $ineParaCruce;
+                if ($repLegal) {
+                    $repLegal = $ineParaCruce;
+                } elseif ($contribuyente) {
+                    $contribuyente = $ineParaCruce;
+                }
             }
 
             // 1. INE del Representante Legal ↔ RFC del CIF
@@ -347,7 +354,7 @@ class EmpresaApiController extends Controller
                 // Si ambos RFCs se extrajeron, deben ser iguales
                 if ($rfcCifExtraido && $rfcOpinionExtraido && $rfcCifExtraido !== $rfcOpinionExtraido) {
                     $alertasSeguridad[] = "RFC del CIF ({$rfcCifExtraido}) no coincide con RFC de la Opinión SAT ({$rfcOpinionExtraido})";
-                    $cif['errores'][] = "⚠ ALERTA: El RFC del CIF no coincide con la Opinión SAT — posible documento de otro proveedor";
+                    $cif['errores'][] = '⚠ ALERTA: El RFC del CIF no coincide con la Opinión SAT — posible documento de otro proveedor';
                     $cif['valida'] = false;
                 }
 
@@ -355,14 +362,14 @@ class EmpresaApiController extends Controller
                 if ($nombreEsperado !== '' && $rfcCifExtraido) {
                     // Si el nombre del CIF se extrajo y NO coincide con el del formulario, alertar
                     $nombreCif = $cif['datos']['nombre'] ?? '';
-                    if ($nombreCif !== '' && !$this->nombresCoinciden($nombreEsperado, $nombreCif)) {
+                    if ($nombreCif !== '' && ! $this->nombresCoinciden($nombreEsperado, $nombreCif)) {
                         $alertasSeguridad[] = "Nombre del formulario ({$nombreEsperado}) no coincide con el CIF ({$nombreCif})";
                     }
                 }
 
                 // 3. Si hay alertas de seguridad, registrar en log de auditoría
-                if (!empty($alertasSeguridad)) {
-                    \Illuminate\Support\Facades\Log::warning('ALERTA SEGURIDAD: Posible inconsistencia en validación fiscal', [
+                if (! empty($alertasSeguridad)) {
+                    Log::warning('ALERTA SEGURIDAD: Posible inconsistencia en validación fiscal', [
                         'proveedor_id' => $provId,
                         'proveedor_nombre' => $proveedorActual->nombre ?? $proveedorActual->usuario,
                         'rfc_cif' => $rfcCifExtraido,
@@ -375,11 +382,11 @@ class EmpresaApiController extends Controller
 
                     // Registrar en tabla de auditoría si existe
                     try {
-                        \App\Models\AuditLog::create([
+                        AuditLog::create([
                             'accion' => 'validacion_fiscal_alerta',
                             'usuario_tipo' => 'proveedor',
                             'usuario_id' => $provId,
-                            'descripcion' => 'Alerta de seguridad: ' . implode(' | ', $alertasSeguridad),
+                            'descripcion' => 'Alerta de seguridad: '.implode(' | ', $alertasSeguridad),
                             'datos' => json_encode([
                                 'rfc_cif' => $rfcCifExtraido,
                                 'rfc_opinion' => $rfcOpinionExtraido,
@@ -409,13 +416,14 @@ class EmpresaApiController extends Controller
                         $formatoValido = $esPdf || $esJpg || $esPng;
                     }
 
-                    if (!$formatoValido) {
-                        \Illuminate\Support\Facades\Log::warning('ALERTA SEGURIDAD: Archivo con formato no válido', [
+                    if (! $formatoValido) {
+                        Log::warning('ALERTA SEGURIDAD: Archivo con formato no válido', [
                             'campo' => $campo,
                             'proveedor_id' => $provId,
                             'mime' => $file->getMimeType(),
                             'ip' => $request->ip(),
                         ]);
+
                         return response()->json([
                             'mensaje' => "El archivo {$campo} no tiene un formato válido.",
                         ], 422);
@@ -486,14 +494,14 @@ class EmpresaApiController extends Controller
                         $prov = ProveedorUser::find($proveedorId);
                         if ($prov && ! $prov->activo) {
                             $updateProv = [];
-                            if (\Illuminate\Support\Facades\Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
+                            if (Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
                                 $updateProv['solicitud_alta_estatus'] = 'pendiente';
                             }
                             if ($updateProv !== []) {
                                 $prov->update($updateProv);
                             }
                             try {
-                                \App\Models\SolicitudAlta::updateOrCreate(
+                                SolicitudAlta::updateOrCreate(
                                     ['proveedor_id' => $proveedorId],
                                     [
                                         'estatus' => 'pendiente',
@@ -511,7 +519,7 @@ class EmpresaApiController extends Controller
                         }
                     } catch (\Exception $e) {
                         Log::warning('No se pudieron guardar docs/expediente tras validación', [
-                            'proveedor_id' => $proveedorId ?? null,
+                            'proveedor_id' => $proveedorId,
                             'error' => $e->getMessage(),
                         ]);
                     }
@@ -688,7 +696,7 @@ class EmpresaApiController extends Controller
         if (! $esMoral) {
             $datos['nombre'] = $this->extraerNombreCifPersonaFisica($textoUpper);
             if ($datos['nombre']) {
-                $hallazgos[] = 'Nombre: ' . $datos['nombre'];
+                $hallazgos[] = 'Nombre: '.$datos['nombre'];
             }
         }
 
@@ -915,7 +923,7 @@ class EmpresaApiController extends Controller
 
         if (strlen($texto) < 20) {
             // PDF escaneado — intentar OCR con AWS Textract directamente
-            if (!empty(config('services.ia.aws_access_key')) && $archivoPath && file_exists($archivoPath)) {
+            if (! empty(config('services.ia.aws_access_key')) && $archivoPath && file_exists($archivoPath)) {
                 try {
                     $textoTextract = $this->ocrConTextract($archivoPath);
                     if (strlen($textoTextract) > 50) {
@@ -930,6 +938,7 @@ class EmpresaApiController extends Controller
             if (strlen($texto) < 20) {
                 $hallazgos[] = 'PDF escaneado — no se pudo extraer texto';
                 $errores[] = 'Documento escaneado sin texto extraíble — sube un PDF con texto seleccionable';
+
                 return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
             }
         }
@@ -1527,22 +1536,22 @@ class EmpresaApiController extends Controller
 
         // 2. CURP
         if ($datos['curp']) {
-            $hallazgosOrdenados[] = 'CURP: ' . $datos['curp'];
+            $hallazgosOrdenados[] = 'CURP: '.$datos['curp'];
         }
 
         // 3. Nombre completo
         if ($datos['nombre']) {
-            $hallazgosOrdenados[] = 'Nombre: ' . $datos['nombre'];
+            $hallazgosOrdenados[] = 'Nombre: '.$datos['nombre'];
         }
 
         // 4. Fecha de nacimiento
         if ($datos['fecha_nacimiento']) {
-            $hallazgosOrdenados[] = 'Fecha de nacimiento (del CURP): ' . $datos['fecha_nacimiento'];
+            $hallazgosOrdenados[] = 'Fecha de nacimiento (del CURP): '.$datos['fecha_nacimiento'];
         }
 
         // 5. Clave de elector
         if ($datos['clave_elector']) {
-            $hallazgosOrdenados[] = 'Clave de elector: ' . $datos['clave_elector'];
+            $hallazgosOrdenados[] = 'Clave de elector: '.$datos['clave_elector'];
         }
 
         // 6. Vigencia
@@ -1550,7 +1559,7 @@ class EmpresaApiController extends Controller
             $anioActual = (int) date('Y');
             $anioVig = (int) $datos['vigencia'];
             $vigente = $anioVig >= $anioActual;
-            $hallazgosOrdenados[] = 'Vigencia: ' . $datos['vigencia'] . ' — ' . ($vigente ? 'Vigente ✓' : 'VENCIDA');
+            $hallazgosOrdenados[] = 'Vigencia: '.$datos['vigencia'].' — '.($vigente ? 'Vigente ✓' : 'VENCIDA');
         } else {
             $hallazgosOrdenados[] = 'Vigencia no detectada en el documento';
         }
@@ -1653,7 +1662,7 @@ class EmpresaApiController extends Controller
                 try {
                     $tesseractPath = $this->encontrarTesseract();
                     if ($tesseractPath) {
-                        $ocr = new \thiagoalessio\TesseractOCR\TesseractOCR($path);
+                        $ocr = new TesseractOCR($path);
                         $ocr->executable($tesseractPath);
                         $ocr->lang('spa', 'eng');
                         $resultado = $ocr->run();
@@ -1661,8 +1670,10 @@ class EmpresaApiController extends Controller
                             return $this->limpiarTextoOcr($resultado);
                         }
                     }
-                } catch (\Exception $e) {}
+                } catch (\Exception $e) {
+                }
             }
+
             return $textoCloud;
         }
 
@@ -1723,8 +1734,11 @@ class EmpresaApiController extends Controller
             'C:\\Program Files\\Tesseract-OCR\\tesseract.exe',
         ];
         foreach ($rutas as $ruta) {
-            if (file_exists($ruta)) return $ruta;
+            if (file_exists($ruta)) {
+                return $ruta;
+            }
         }
+
         return null;
     }
 
@@ -1734,7 +1748,7 @@ class EmpresaApiController extends Controller
      */
     private function ocrConTextract(string $path): string
     {
-        if (!class_exists('\Aws\Textract\TextractClient')) {
+        if (! class_exists('\Aws\Textract\TextractClient')) {
             return '';
         }
 
@@ -1752,7 +1766,7 @@ class EmpresaApiController extends Controller
         }
 
         try {
-            $client = new \Aws\Textract\TextractClient([
+            $client = new TextractClient([
                 'region' => $region,
                 'version' => 'latest',
                 'credentials' => [
@@ -1785,7 +1799,7 @@ class EmpresaApiController extends Controller
                 $texto = '';
                 foreach ($response['Blocks'] as $block) {
                     if ($block['BlockType'] === 'LINE') {
-                        $texto .= $block['Text'] . ' ';
+                        $texto .= $block['Text'].' ';
                     }
                 }
 
@@ -1793,7 +1807,7 @@ class EmpresaApiController extends Controller
                     return $this->limpiarTextoOcr($texto);
                 }
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::info('Textract detectDocumentText falló, intentando Imagick', ['error' => $e->getMessage()]);
+                Log::info('Textract detectDocumentText falló, intentando Imagick', ['error' => $e->getMessage()]);
 
                 // Fallback: convertir PDF a imagen con Imagick y reintentar
                 if ($isPdf && extension_loaded('imagick')) {
@@ -1807,7 +1821,8 @@ class EmpresaApiController extends Controller
             return '';
 
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Textract OCR falló', ['error' => $e->getMessage()]);
+            Log::warning('Textract OCR falló', ['error' => $e->getMessage()]);
+
             return '';
         }
     }
@@ -1815,16 +1830,16 @@ class EmpresaApiController extends Controller
     /**
      * Convierte páginas del PDF a imágenes con Imagick y las envía a Textract una por una.
      */
-    private function ocrTextractConImagick(\Aws\Textract\TextractClient $client, string $pdfPath): string
+    private function ocrTextractConImagick(TextractClient $client, string $pdfPath): string
     {
         $textoTotal = '';
         $tmpDir = sys_get_temp_dir();
 
         try {
-            $imagick = new \Imagick();
+            $imagick = new \Imagick;
             // 150 DPI + 2 páginas máx: evita timeouts del proxy de SiteGround
             $imagick->setResolution(150, 150);
-            $imagick->readImage($pdfPath . '[0-1]');
+            $imagick->readImage($pdfPath.'[0-1]');
 
             $numPages = $imagick->getNumberImages();
             $paginas = min($numPages, 2);
@@ -1833,13 +1848,15 @@ class EmpresaApiController extends Controller
                 $imagick->setIteratorIndex($i);
                 $imagick->setImageFormat('png');
 
-                $tmpPng = $tmpDir . '/salcom_textract_' . uniqid() . '.png';
+                $tmpPng = $tmpDir.'/salcom_textract_'.uniqid().'.png';
                 $imagick->writeImage($tmpPng);
 
                 $imgBytes = file_get_contents($tmpPng);
                 @unlink($tmpPng);
 
-                if (empty($imgBytes)) continue;
+                if (empty($imgBytes)) {
+                    continue;
+                }
 
                 try {
                     $response = $client->detectDocumentText([
@@ -1848,11 +1865,11 @@ class EmpresaApiController extends Controller
 
                     foreach ($response['Blocks'] as $block) {
                         if ($block['BlockType'] === 'LINE') {
-                            $textoTotal .= $block['Text'] . ' ';
+                            $textoTotal .= $block['Text'].' ';
                         }
                     }
                 } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::info('Textract página ' . ($i+1) . ' falló', ['error' => $e->getMessage()]);
+                    Log::info('Textract página '.($i + 1).' falló', ['error' => $e->getMessage()]);
                 }
             }
 
@@ -1860,7 +1877,7 @@ class EmpresaApiController extends Controller
             $imagick->destroy();
 
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::warning('Imagick+Textract falló', ['error' => $e->getMessage()]);
+            Log::warning('Imagick+Textract falló', ['error' => $e->getMessage()]);
         }
 
         return $this->limpiarTextoOcr($textoTotal);
@@ -1871,6 +1888,7 @@ class EmpresaApiController extends Controller
         $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
         $texto = preg_replace('/[^\x20-\x7E\n]/', ' ', $texto);
         $texto = preg_replace('/\s+/', ' ', $texto);
+
         return strtoupper(trim($texto));
     }
 
@@ -1912,7 +1930,9 @@ class EmpresaApiController extends Controller
         foreach ($patronesAp1 as $patron) {
             if (preg_match($patron, $textoUpper, $m)) {
                 $ap1 = $this->limpiarCampoNombre($m[1], $etiquetasSat);
-                if ($ap1) break;
+                if ($ap1) {
+                    break;
+                }
             }
         }
 
@@ -1924,7 +1944,9 @@ class EmpresaApiController extends Controller
         foreach ($patronesAp2 as $patron) {
             if (preg_match($patron, $textoUpper, $m)) {
                 $ap2 = $this->limpiarCampoNombre($m[1], $etiquetasSat);
-                if ($ap2) break;
+                if ($ap2) {
+                    break;
+                }
             }
         }
 
@@ -1936,12 +1958,14 @@ class EmpresaApiController extends Controller
         foreach ($patronesNombre as $patron) {
             if (preg_match($patron, $textoUpper, $m)) {
                 $nombres = $this->limpiarCampoNombre($m[1], $etiquetasSat);
-                if ($nombres) break;
+                if ($nombres) {
+                    break;
+                }
             }
         }
 
         // ── Estrategia 2: Si no encontró con etiquetas, buscar por posición relativa ──
-        if (!$ap1 && !$nombres) {
+        if (! $ap1 && ! $nombres) {
             // Buscar después de "DATOS DE IDENTIFICACION DEL CONTRIBUYENTE"
             if (preg_match('/CONTRIBUYENTE[:\s]+([A-Z]{2,}(?:\s+[A-Z]{2,}){1,5})/u', $textoUpper, $m)) {
                 $candidato = $this->limpiarCampoNombre($m[1], $etiquetasSat);
@@ -1971,7 +1995,7 @@ class EmpresaApiController extends Controller
         $nombres = $this->separarPalabrasPegadas($nombres);
 
         // Armar nombre final: Apellido Paterno + Apellido Materno + Nombre(s)
-        $partes = array_filter([$ap1, $ap2, $nombres], fn($p) => strlen($p) > 1);
+        $partes = array_filter([$ap1, $ap2, $nombres], fn ($p) => strlen($p) > 1);
 
         if (empty($partes)) {
             return null;
@@ -1996,12 +2020,12 @@ class EmpresaApiController extends Controller
         $valor = trim($valor);
 
         // Ordenar etiquetas de mayor a menor longitud para evitar matches parciales
-        usort($etiquetas, fn($a, $b) => strlen($b) - strlen($a));
+        usort($etiquetas, fn ($a, $b) => strlen($b) - strlen($a));
 
         foreach ($etiquetas as $etiqueta) {
             // Buscar etiqueta con o sin espacios
             $patron = str_replace(' ', '\s*', preg_quote($etiqueta, '/'));
-            $valor = preg_replace('/\b' . $patron . '\b/i', '', $valor);
+            $valor = preg_replace('/\b'.$patron.'\b/i', '', $valor);
             // También sin word boundary (por si están pegadas)
             $valor = str_ireplace(str_replace(' ', '', $etiqueta), '', $valor);
         }
@@ -2039,7 +2063,7 @@ class EmpresaApiController extends Controller
             if (str_starts_with($texto, $nombre) && strlen($texto) > strlen($nombre)) {
                 $resto = substr($texto, strlen($nombre));
                 if (strlen($resto) >= 2) {
-                    return $nombre . ' ' . $this->separarPalabrasPegadas($resto);
+                    return $nombre.' '.$this->separarPalabrasPegadas($resto);
                 }
             }
         }

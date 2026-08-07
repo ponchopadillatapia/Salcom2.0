@@ -5,7 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
+/**
+ * @property-read ProveedorUser|null $proveedor
+ * @property-read Collection<int, PagoProveedorFactura> $lineas
+ */
 class PagoProveedor extends Model
 {
     protected $table = 'pagos_proveedor';
@@ -44,11 +49,13 @@ class PagoProveedor extends Model
         'monto_neto' => 'decimal:2',
     ];
 
+    /** @return BelongsTo<ProveedorUser, $this> */
     public function proveedor(): BelongsTo
     {
         return $this->belongsTo(ProveedorUser::class, 'proveedor_id');
     }
 
+    /** @return HasMany<PagoProveedorFactura, $this> */
     public function lineas(): HasMany
     {
         return $this->hasMany(PagoProveedorFactura::class, 'pago_id');

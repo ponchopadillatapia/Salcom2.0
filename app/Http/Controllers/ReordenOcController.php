@@ -189,7 +189,7 @@ class ReordenOcController extends Controller
             }
         }
 
-        if (!$productoEliminado) {
+        if (! $productoEliminado) {
             return redirect()->back()->with('error', "Producto con código {$codigo} no encontrado en la OC.");
         }
 
@@ -265,7 +265,7 @@ class ReordenOcController extends Controller
             ->where('proveedor_id', $oc->proveedor_id)
             ->first();
 
-        if (!$precioProveedor) {
+        if (! $precioProveedor) {
             return redirect()->back()->with('error', 'El producto no pertenece al proveedor de esta OC.');
         }
 
@@ -370,18 +370,20 @@ class ReordenOcController extends Controller
             }
 
             // Validate that stock_minimo is a positive number > 0
-            if (!is_numeric($stockMinimo) || (float) $stockMinimo <= 0) {
+            if (! is_numeric($stockMinimo) || (float) $stockMinimo <= 0) {
                 $fallidos++;
                 $errores[] = "Fila {$fila->getRowIndex()}: valor inválido para '{$codigo}' (debe ser > 0).";
+
                 continue;
             }
 
             // Find the product by code
             $producto = Producto::where('codigo', $codigo)->first();
 
-            if (!$producto) {
+            if (! $producto) {
                 $fallidos++;
                 $errores[] = "Fila {$fila->getRowIndex()}: producto '{$codigo}' no encontrado.";
+
                 continue;
             }
 
@@ -397,8 +399,8 @@ class ReordenOcController extends Controller
             $fallidos
         );
 
-        if (!empty($errores)) {
-            $mensaje .= ' Errores: ' . implode(' ', array_slice($errores, 0, 5));
+        if (! empty($errores)) {
+            $mensaje .= ' Errores: '.implode(' ', array_slice($errores, 0, 5));
             if (count($errores) > 5) {
                 $mensaje .= sprintf(' ... y %d más.', count($errores) - 5);
             }

@@ -2,13 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Mail\SolicitudAltaAprobada;
 use App\Models\AdminUser;
 use App\Models\Alerta;
 use App\Models\ContactoProveedor;
 use App\Models\DocumentoProveedor;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
-use App\Mail\SolicitudAltaAprobada;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;

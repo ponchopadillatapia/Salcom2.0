@@ -19,7 +19,7 @@ class ReordenCalculoService
      * del producto por mes, y divide entre la cantidad de meses con consumo (1 o 2).
      * Retorna 0 si no hay pedidos para el producto.
      *
-     * @param string $codigoProducto Código SKU del producto
+     * @param  string  $codigoProducto  Código SKU del producto
      * @return float Consumo promedio mensual
      */
     public function calcularConsumoPromedio(string $codigoProducto): float
@@ -68,8 +68,8 @@ class ReordenCalculoService
      *
      * Fórmula: ceil(ConsumoPromedio + ConsumoPromedio×0.50 + (ConsumoPromedio/30)×LeadTime)
      *
-     * @param float $consumoPromedio Consumo promedio mensual
-     * @param int $leadTimeDias Lead time en días del proveedor
+     * @param  float  $consumoPromedio  Consumo promedio mensual
+     * @param  int  $leadTimeDias  Lead time en días del proveedor
      * @return int Cantidad sugerida redondeada al entero superior
      */
     public function calcularCantidadSugerida(float $consumoPromedio, int $leadTimeDias): int
@@ -90,8 +90,8 @@ class ReordenCalculoService
      * Si no hay MOQ definido (null) o MOQ <= 0, retorna la cantidad sin cambios.
      * Si la cantidad ya es múltiplo del MOQ, la retorna tal cual.
      *
-     * @param int $cantidad Cantidad a ajustar
-     * @param int|null $moq Minimum Order Quantity del proveedor
+     * @param  int  $cantidad  Cantidad a ajustar
+     * @param  int|null  $moq  Minimum Order Quantity del proveedor
      * @return int Cantidad ajustada al múltiplo de MOQ superior
      */
     public function ajustarAMOQ(int $cantidad, ?int $moq): int
@@ -112,9 +112,9 @@ class ReordenCalculoService
      *
      * Fórmula: stock_minimo + (consumo_diario × lead_time_dias)
      *
-     * @param float $stockMinimo Stock mínimo configurado para el producto
-     * @param float $consumoDiario Consumo diario estimado (consumo_promedio / 30)
-     * @param int $leadTimeDias Lead time en días del proveedor
+     * @param  float  $stockMinimo  Stock mínimo configurado para el producto
+     * @param  float  $consumoDiario  Consumo diario estimado (consumo_promedio / 30)
+     * @param  int  $leadTimeDias  Lead time en días del proveedor
      * @return float Punto de reorden calculado
      */
     public function calcularPuntoReorden(float $stockMinimo, float $consumoDiario, int $leadTimeDias): float
@@ -127,9 +127,9 @@ class ReordenCalculoService
      *
      * Un producto requiere reorden si (stock_actual + pendiente_recibir) ≤ punto_reorden.
      *
-     * @param Producto $producto Modelo del producto a evaluar
-     * @param float $puntoReorden Punto de reorden calculado
-     * @param float $pendienteRecibir Cantidad pendiente de recibir (OC aprobadas/en_proceso)
+     * @param  Producto  $producto  Modelo del producto a evaluar
+     * @param  float  $puntoReorden  Punto de reorden calculado
+     * @param  float  $pendienteRecibir  Cantidad pendiente de recibir (OC aprobadas/en_proceso)
      * @return bool True si el producto requiere reorden
      */
     public function requiereReorden(Producto $producto, float $puntoReorden, float $pendienteRecibir): bool
@@ -145,7 +145,7 @@ class ReordenCalculoService
      * Busca en OC borradores con estatus 'aprobada' o 'en_proceso' y suma
      * las cantidades sugeridas del producto especificado.
      *
-     * @param string $codigoProducto Código SKU del producto
+     * @param  string  $codigoProducto  Código SKU del producto
      * @return float Cantidad total pendiente de recibir
      */
     public function obtenerPendienteRecibir(string $codigoProducto): float
@@ -175,7 +175,7 @@ class ReordenCalculoService
      * filtra por proveedores activos, y selecciona el de mayor score_total.
      * Si no encuentra ningún proveedor, registra una alerta de tipo producto_sin_proveedor.
      *
-     * @param Producto $producto Modelo del producto
+     * @param  Producto  $producto  Modelo del producto
      * @return ProveedorUser|null El proveedor con mayor score o null si no hay ninguno
      */
     public function seleccionarMejorProveedor(Producto $producto): ?ProveedorUser
@@ -212,7 +212,7 @@ class ReordenCalculoService
      * y cantidad sugerida, agrupa por proveedor, busca precios, y crea un OcBorrador
      * por cada proveedor con estatus pendiente y tipo automatica_reorden.
      *
-     * @param array $productosReorden Array de items con keys: producto, proveedor, cantidad_sugerida, punto_reorden, urgente
+     * @param  array  $productosReorden  Array de items con keys: producto, proveedor, cantidad_sugerida, punto_reorden, urgente
      * @return array Array de modelos OcBorrador creados
      */
     public function generarOCBorradores(array $productosReorden): array
@@ -280,8 +280,8 @@ class ReordenCalculoService
      *
      * Busca en producto_proveedor_precios; si no encuentra, usa producto.precio como fallback.
      *
-     * @param Producto $producto Modelo del producto
-     * @param int $proveedorId ID del proveedor
+     * @param  Producto  $producto  Modelo del producto
+     * @param  int  $proveedorId  ID del proveedor
      * @return float Precio unitario
      */
     private function obtenerPrecioProveedor(Producto $producto, int $proveedorId): float

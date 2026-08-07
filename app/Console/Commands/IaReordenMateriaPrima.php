@@ -2,6 +2,8 @@
 
 namespace App\Console\Commands;
 
+use App\Models\OcBorrador;
+use App\Models\Producto;
 use App\Services\AlertEngineService;
 use App\Services\ReordenCalculoService;
 use Illuminate\Console\Command;
@@ -44,7 +46,7 @@ class IaReordenMateriaPrima extends Command
         $this->info('🔍 Modo dry-run: simulando proceso de reorden sin crear OC...');
         $this->newLine();
 
-        $productos = \App\Models\Producto::where('activo', true)
+        $productos = Producto::where('activo', true)
             ->whereNotNull('stock_minimo')
             ->get();
 
@@ -140,7 +142,7 @@ class IaReordenMateriaPrima extends Command
         $this->info("   Productos evaluados: {$resultado['productos_evaluados']}");
         $this->info("   Productos con reorden: {$resultado['productos_reorden']}");
         $this->info("   OC generadas: {$resultado['oc_generadas']}");
-        $this->info('   Monto total estimado: $' . number_format($resultado['monto_total'], 2));
+        $this->info('   Monto total estimado: $'.number_format($resultado['monto_total'], 2));
 
         // Enviar alerta al admin con resumen
         $this->enviarAlertaAdmin($resultado);
@@ -162,7 +164,7 @@ class IaReordenMateriaPrima extends Command
             'destinatario_id' => 1,
             'titulo' => "📋 Reorden MP: {$resultado['oc_generadas']} OC generadas",
             'contenido' => "Se generaron {$resultado['oc_generadas']} borradores de OC por punto de reorden para {$resultado['productos_reorden']} productos. "
-                . 'Monto total estimado: $' . number_format($resultado['monto_total'], 2) . '. Requieren tu aprobación.',
+                .'Monto total estimado: $'.number_format($resultado['monto_total'], 2).'. Requieren tu aprobación.',
             'datos' => [
                 'productos_evaluados' => $resultado['productos_evaluados'],
                 'productos_reorden' => $resultado['productos_reorden'],
@@ -178,7 +180,7 @@ class IaReordenMateriaPrima extends Command
      */
     private function obtenerProductosConOcExistente(): array
     {
-        $ocExistentes = \App\Models\OcBorrador::whereIn('estatus', ['pendiente', 'aprobada'])
+        $ocExistentes = OcBorrador::whereIn('estatus', ['pendiente', 'aprobada'])
             ->get(['productos']);
 
         $codigosExistentes = [];

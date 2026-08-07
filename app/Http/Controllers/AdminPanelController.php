@@ -19,6 +19,7 @@ use App\Services\AlertEngineService;
 use App\Services\InventarioCalculoService;
 use App\Services\PedidoProveedorSyncService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -2819,7 +2820,7 @@ class AdminPanelController extends Controller
             ->whereNotNull('created_at')
             ->orderByDesc('created_at')
             ->pluck('created_at')
-            ->map(fn ($d) => \Carbon\Carbon::parse($d)->format('Y-m'))
+            ->map(fn ($d) => Carbon::parse($d)->format('Y-m'))
             ->unique()
             ->values();
 
@@ -2877,7 +2878,8 @@ class AdminPanelController extends Controller
         $docs = $docsQuery->get();
 
         // Dentro del proveedor: expedientes agrupados mes por mes (más reciente primero)
-        $docsPorMes = $docs->groupBy(fn ($d) => $d->created_at?->format('Y-m') ?? '0000-00')
+        /** @var Collection<int, DocumentoProveedor> $docs */
+        $docsPorMes = $docs->groupBy(fn (DocumentoProveedor $d) => $d->created_at?->format('Y-m') ?? '0000-00')
             ->sortKeysDesc();
 
         $proveedor->load('contactos');
@@ -2893,7 +2895,6 @@ class AdminPanelController extends Controller
             'filtrosQuery'
         ));
     }
-
 
     public function descargarDocumentoFiscal(DocumentoProveedor $documento)
     {
