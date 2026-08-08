@@ -21,7 +21,7 @@ class ProveedorUser extends Authenticatable
 
     protected $fillable = [
         'usuario', 'password', 'id_proveedor', 'codigo_compras', 'codigo', 'nombre',
-        'tipo_persona', 'telefono', 'correo', 'foto', 'activo',
+        'tipo_persona', 'telefono', 'correo', 'correo_verified_at', 'foto', 'activo',
         'solicitud_alta_estatus', 'solicitud_alta_intentos',
         'datos_identificacion',
         'score_entrega', 'score_puntualidad', 'score_total',
@@ -32,6 +32,7 @@ class ProveedorUser extends Authenticatable
 
     protected $casts = [
         'activo' => 'boolean',
+        'correo_verified_at' => 'datetime',
         'datos_identificacion' => 'array',
         'solicitud_alta_intentos' => 'integer',
         'score_entrega' => 'decimal:2',
@@ -41,7 +42,29 @@ class ProveedorUser extends Authenticatable
         'aviso_privacidad_fecha' => 'datetime',
     ];
 
+    public function hasVerifiedCorreo(): bool
+    {
+        return $this->correo_verified_at !== null;
+    }
+
+    public function markCorreoAsVerified(): bool
+    {
+        return $this->forceFill([
+            'correo_verified_at' => $this->freshTimestamp(),
+        ])->save();
+    }
+
     public const SOLICITUD_ALTA_MAX_INTENTOS = 5;
+
+    protected static function booted(): void
+    {
+        // Seeders/tests: verificados por defecto. El registro web inserta correo_verified_at = null vía Query Builder.
+        static::creating(function (self $proveedor) {
+            if (! array_key_exists('correo_verified_at', $proveedor->getAttributes())) {
+                $proveedor->correo_verified_at = now();
+            }
+        });
+    }
 
     /**
      * Compatibilidad: si la columna id_proveedor no existe, usar codigo_compras.
@@ -92,6 +115,9 @@ class ProveedorUser extends Authenticatable
         return $this->hasMany(ContactoProveedor::class, 'proveedor_id');
     }
 
+    /**
+     * @return HasMany<DocumentoProveedor, $this>
+     */
     public function documentos(): HasMany
     {
         return $this->hasMany(DocumentoProveedor::class, 'proveedor_id');

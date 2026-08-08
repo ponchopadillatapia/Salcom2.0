@@ -2,17 +2,18 @@
 
 namespace Tests\Unit;
 
-use Tests\TestCase;
 use App\Http\Controllers\APIS\EmpresaApiController;
 use ReflectionMethod;
+use Tests\TestCase;
 
 class CifNombreExtraccionTest extends TestCase
 {
     private function extraerNombre(string $texto): ?string
     {
-        $controller = new EmpresaApiController();
+        $controller = new EmpresaApiController;
         $method = new ReflectionMethod($controller, 'extraerNombreCifPersonaFisica');
         $method->setAccessible(true);
+
         return $method->invoke($controller, strtoupper($texto));
     }
 
@@ -81,7 +82,7 @@ class CifNombreExtraccionTest extends TestCase
 
     public function test_separa_palabras_pegadas(): void
     {
-        $controller = new EmpresaApiController();
+        $controller = new EmpresaApiController;
         $method = new ReflectionMethod($controller, 'separarPalabrasPegadas');
         $method->setAccessible(true);
 

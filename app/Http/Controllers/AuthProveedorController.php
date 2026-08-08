@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 
 class AuthProveedorController extends Controller
@@ -66,16 +67,8 @@ class AuthProveedorController extends Controller
 
         if ($modo === 'local') {
             $datos = $this->loginViaLocal($codigo, $pwd);
-            if ($datos) {
-                RateLimiter::clear($rateLimitKey);
-                $this->guardarSesion($datos, 'local', null);
 
-                return $this->redirectTrasLoginProveedor($datos['nombre']);
-            }
-            RateLimiter::hit($rateLimitKey, $decaySeconds);
-            Log::error('Login: fallo local', ['codigo' => $codigo, 'modo' => 'local']);
-
-            return back()->with('error', 'Credenciales incorrectas')->withInput();
+            return $this->respuestaLoginLocal($datos, $rateLimitKey, $decaySeconds, $codigo);
         }
 
         $apiResult = $this->apiService->loginApi($codigo, $pwd);
@@ -113,16 +106,8 @@ class AuthProveedorController extends Controller
         if (in_array($errorType, $erroresFallback)) {
             Log::warning('Login: fallback a BD local', ['codigo' => $codigo, 'error_type' => $errorType]);
             $datos = $this->loginViaLocal($codigo, $pwd);
-            if ($datos) {
-                RateLimiter::clear($rateLimitKey);
-                $this->guardarSesion($datos, 'local', null);
 
-                return $this->redirectTrasLoginProveedor($datos['nombre']);
-            }
-            RateLimiter::hit($rateLimitKey, $decaySeconds);
-            Log::error('Login: fallback local también falló', ['codigo' => $codigo]);
-
-            return back()->with('error', 'Credenciales incorrectas')->withInput();
+            return $this->respuestaLoginLocal($datos, $rateLimitKey, $decaySeconds, $codigo);
         }
 
         RateLimiter::hit($rateLimitKey, $decaySeconds);
@@ -196,7 +181,7 @@ class AuthProveedorController extends Controller
 
             $usuario = $this->generarUsuarioUnico($baseUsuario, $correo);
 
-            // Insertar proveedor
+            // Insertar proveedor (correo pendiente de verificación)
             $proveedorId = DB::table('proveedores_users')->insertGetId([
                 'usuario' => $usuario,
                 'password' => bcrypt($request->password),
@@ -204,6 +189,7 @@ class AuthProveedorController extends Controller
                 'tipo_persona' => $request->tipo_persona,
                 'telefono' => $request->telefono,
                 'correo' => $correo,
+                'correo_verified_at' => null,
                 'activo' => false,
                 'created_at' => now(),
                 'updated_at' => now(),
@@ -218,7 +204,7 @@ class AuthProveedorController extends Controller
 
             return redirect('/login-proveedor')->with(
                 'mensaje',
-                'Registro exitoso. Revisa tu correo e inicia sesión.'
+                'Registro exitoso. Revisa tu correo y confirma tu cuenta antes de iniciar sesión.'
             );
 
         } catch (ValidationException $e) {
@@ -278,6 +264,32 @@ class AuthProveedorController extends Controller
         return redirect('/login-proveedor')->with('mensaje', 'Sesión cerrada correctamente');
     }
 
+    /**
+     * Confirma el correo del proveedor mediante enlace firmado del mail de bienvenida.
+     */
+    public function verificarCorreo(Request $request, int $id)
+    {
+        if (! $request->hasValidSignature()) {
+            return redirect('/login-proveedor')
+                ->with('error', 'El enlace de verificación no es válido o ya expiró. Si necesitas uno nuevo, contacta a Compras.');
+        }
+
+        $proveedor = ProveedorUser::find($id);
+        if (! $proveedor) {
+            return redirect('/login-proveedor')
+                ->with('error', 'No se encontró la cuenta asociada a este enlace.');
+        }
+
+        if (! $proveedor->hasVerifiedCorreo()) {
+            $proveedor->markCorreoAsVerified();
+        }
+
+        return redirect('/login-proveedor')->with(
+            'mensaje',
+            'Correo confirmado. Ya puedes iniciar sesión con tu usuario o correo.'
+        );
+    }
+
     // ── Private helpers ──
 
     private function loginViaApi(array $apiResult): array
@@ -293,6 +305,10 @@ class AuthProveedorController extends Controller
             $q->where('usuario', $codigo)->orWhere('correo', $codigo);
         })->first();
         if ($proveedor && Hash::check($pwd, $proveedor->password)) {
+            if (! $proveedor->hasVerifiedCorreo()) {
+                return ['error' => 'correo_no_verificado'];
+            }
+
             return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->id_proveedor, 'correo' => $proveedor->correo, 'token' => null];
         }
 
@@ -317,6 +333,29 @@ class AuthProveedorController extends Controller
         return null;
     }
 
+    private function respuestaLoginLocal(?array $datos, string $rateLimitKey, int $decaySeconds, string $codigo)
+    {
+        if (is_array($datos) && ($datos['error'] ?? null) === 'correo_no_verificado') {
+            RateLimiter::clear($rateLimitKey);
+
+            return back()
+                ->with('error', 'Debes confirmar tu correo antes de iniciar sesión. Revisa tu bandeja de entrada (y spam).')
+                ->withInput();
+        }
+
+        if ($datos) {
+            RateLimiter::clear($rateLimitKey);
+            $this->guardarSesion($datos, 'local', null);
+
+            return $this->redirectTrasLoginProveedor($datos['nombre']);
+        }
+
+        RateLimiter::hit($rateLimitKey, $decaySeconds);
+        Log::error('Login: fallo local', ['codigo' => $codigo]);
+
+        return back()->with('error', 'Credenciales incorrectas')->withInput();
+    }
+
     private function asegurarProveedorEspejoAdmin(AdminUser $admin): ProveedorUser
     {
         $existente = ProveedorUser::where('usuario', $admin->usuario)->first();
@@ -331,6 +370,7 @@ class AuthProveedorController extends Controller
             'password' => $admin->password,
             'tipo_persona' => 'Persona Moral',
             'activo' => true,
+            'correo_verified_at' => now(),
         ];
 
         if (Schema::hasColumn('proveedores_users', 'id_proveedor')) {
@@ -369,12 +409,12 @@ class AuthProveedorController extends Controller
     }
 
     /**
-     * Correo de bienvenida + alerta en la campana del portal.
+     * Correo de bienvenida con enlace de verificación + alerta en la campana del portal.
      */
     private function enviarBienvenidaRegistro(int $proveedorId, string $nombre, string $correo, string $usuario): void
     {
         $titulo = '¡Bienvenido al Portal de Proveedores!';
-        $contenido = 'Hola '.$nombre.'. Tu registro fue exitoso. Tu usuario es '.$usuario.'. Completa tu onboarding (identificación, contactos y documentos) para que Dirección active tu cuenta.';
+        $contenido = 'Hola '.$nombre.'. Tu registro fue exitoso. Confirma tu correo para poder iniciar sesión. Tu usuario es '.$usuario.'.';
 
         try {
             app(AlertEngineService::class)->crearAlerta([
@@ -393,10 +433,16 @@ class AuthProveedorController extends Controller
             ]);
         }
 
+        $urlVerificacion = URL::temporarySignedRoute(
+            'proveedores.verificar-correo',
+            now()->addHours(48),
+            ['id' => $proveedorId]
+        );
+
         // El correo se envía después de responder al navegador para no retrasar el registro.
-        dispatch(function () use ($nombre, $correo, $usuario) {
+        dispatch(function () use ($nombre, $correo, $usuario, $urlVerificacion) {
             try {
-                Mail::to($correo)->send(new BienvenidaProveedor($nombre, $correo, $usuario));
+                Mail::to($correo)->send(new BienvenidaProveedor($nombre, $correo, $usuario, $urlVerificacion));
             } catch (\Exception $e) {
                 Log::warning('No se pudo enviar correo de bienvenida', [
                     'correo' => $correo,

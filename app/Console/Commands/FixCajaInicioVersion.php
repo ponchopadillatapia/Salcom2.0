@@ -167,7 +167,7 @@ class FixCajaInicioVersion extends Command
         }
         preg_match_all('/\S+/u', $texto, $m);
 
-        return $m[0] ?? [];
+        return $m[0];
     }
 
     private function esVersionToken(string $tok): bool

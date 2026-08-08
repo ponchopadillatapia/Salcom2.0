@@ -11,6 +11,7 @@ use App\Models\Factura;
 use App\Models\PagoProveedor;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
+use App\Services\AlertEngineService;
 use App\Services\AltaFacturaValidationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -36,7 +37,7 @@ class PortalProveedorController extends Controller
     public function mostrarOnboarding()
     {
         try {
-        $proveedor = ProveedorUser::find(session('proveedor_id'));
+            $proveedor = ProveedorUser::find(session('proveedor_id'));
 
             // Si entró como admin, proveedor_id antes era el id de admin_users (sin fila en proveedores_users).
             // No redirigir a login: eso causa rebote (login -> portal) y parece que onboarding no carga.
@@ -81,9 +82,9 @@ class PortalProveedorController extends Controller
 
             try {
                 $proveedor->load(['documentos', 'contactos']);
-        } catch (\Exception $e) {
-            // Si falla, el proveedor seguirá sin documentos cargados
-        }
+            } catch (\Exception $e) {
+                // Si falla, el proveedor seguirá sin documentos cargados
+            }
 
             $pasoRegistro = true;
             try {
@@ -815,8 +816,8 @@ class PortalProveedorController extends Controller
             ])));
 
         $payload = array_merge($data, [
-                'tipo_clave' => $esMoral ? 'moral' : 'fisica',
-                'nombre_esperado' => $nombreEsperado,
+            'tipo_clave' => $esMoral ? 'moral' : 'fisica',
+            'nombre_esperado' => $nombreEsperado,
         ]);
 
         session(['identificacion_proveedor' => $payload]);
@@ -1028,13 +1029,15 @@ class PortalProveedorController extends Controller
             && ! empty($pendiente['token'])
             && ($pendiente['proveedor_id'] ?? null) === ($proveedor?->id)
             && ($pendiente['expires_at'] ?? 0) >= now()->timestamp;
+        $mesEnCurso = now()->locale('es')->translatedFormat('F Y');
 
         return view('proveedores.fiscal', compact(
             'facturas',
             'rfcProveedor',
             'proveedor',
             'puedeSubir',
-            'pendiente'
+            'pendiente',
+            'mesEnCurso'
         ));
     }
 
@@ -1313,7 +1316,7 @@ class PortalProveedorController extends Controller
         try {
             $nombreProv = $proveedor->nombre ?: $codigoProv;
             $totalFmt = number_format($total, 2);
-            app(\App\Services\AlertEngineService::class)->crearAlerta([
+            app(AlertEngineService::class)->crearAlerta([
                 'tipo' => 'factura_pago_pendiente',
                 'modulo' => 'pagos',
                 'destinatario_tipo' => 'admin',

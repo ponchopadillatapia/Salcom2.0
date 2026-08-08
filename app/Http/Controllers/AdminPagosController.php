@@ -7,6 +7,7 @@ use App\Models\Factura;
 use App\Models\PagoProveedor;
 use App\Models\ProveedorUser;
 use App\Services\PagoProveedorService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 
@@ -263,7 +264,7 @@ class AdminPagosController extends Controller
         $data = $this->pagos->datosReporteResumen($pago);
         $filename = 'Reporte_Resumen_Pagos_'.$pago->codigo_proveedor.'_lote'.$pago->id.'_'.now()->format('Y-m-d').'.pdf';
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pagos.reporte-resumen-pdf', $data)
+        $pdf = Pdf::loadView('admin.pagos.reporte-resumen-pdf', $data)
             ->setPaper('letter', 'landscape');
 
         // Auto-descarga al confirmar; botón "Ver" abre inline en el navegador.

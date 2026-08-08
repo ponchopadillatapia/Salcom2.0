@@ -128,7 +128,7 @@ Responde UNICAMENTE JSON valido sin markdown:
                 return [];
             }
             preg_match_all('/\S+/u', $t, $m);
-            $tokens = array_map(fn ($x) => mb_strtolower($x), $m[0] ?? []);
+            $tokens = array_map(fn ($x) => mb_strtolower($x), $m[0]);
             sort($tokens);
 
             return $tokens;

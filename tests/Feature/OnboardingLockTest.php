@@ -8,19 +8,21 @@ use App\Models\ProveedorUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
 class OnboardingLockTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function crearInactivo(): ProveedorUser
+    private function crearInactivo(bool $correoVerificado = true): ProveedorUser
     {
         return ProveedorUser::create([
             'usuario' => 'nuevo@test.com',
             'password' => Hash::make('secret123'),
             'nombre' => 'Proveedor Nuevo',
             'correo' => 'nuevo@test.com',
+            'correo_verified_at' => $correoVerificado ? now() : null,
             'tipo_persona' => 'Persona Moral',
             'telefono' => '5551234567',
             'activo' => false,
@@ -37,31 +39,35 @@ class OnboardingLockTest extends TestCase
         ]);
     }
 
-    public function test_registro_crea_cuenta_inactiva(): void
+    public function test_registro_crea_cuenta_inactiva_y_pide_verificar_correo(): void
     {
         Mail::fake();
         config(['services.recaptcha.secret_key' => null]);
 
         $this->post('/proveedor/registro', [
-            'nombre' => 'Demo SA',
+            'razon_social' => 'Demo SA',
             'tipo_persona' => 'Persona Moral',
             'telefono' => '5559998877',
             'correo' => 'demo.lock@test.com',
             'password' => 'password12',
             'password_confirmation' => 'password12',
-        ])->assertRedirect('/login-proveedor');
+        ])->assertRedirect('/login-proveedor')
+            ->assertSessionHas('mensaje');
 
         $this->assertDatabaseHas('proveedores_users', [
             'correo' => 'demo.lock@test.com',
             'activo' => 0,
+            'correo_verified_at' => null,
         ]);
 
         $proveedor = ProveedorUser::where('correo', 'demo.lock@test.com')->first();
         $this->assertNotNull($proveedor);
+        $this->assertFalse($proveedor->hasVerifiedCorreo());
 
         Mail::assertSent(BienvenidaProveedor::class, function (BienvenidaProveedor $mail) {
             return $mail->correo === 'demo.lock@test.com'
                 && $mail->nombreProveedor === 'Demo SA'
+                && str_contains($mail->urlVerificacion, '/proveedor/verificar-correo/')
                 && $mail->hasTo('demo.lock@test.com');
         });
 
@@ -78,6 +84,43 @@ class OnboardingLockTest extends TestCase
                 ->where('tipo', 'bienvenida')
                 ->exists()
         );
+    }
+
+    public function test_sin_verificar_correo_no_puede_iniciar_sesion(): void
+    {
+        config(['services.proveedor_api.login_mode' => 'local']);
+        $this->crearInactivo(correoVerificado: false);
+
+        $this->post('/login-proveedor', [
+            'codigo' => 'nuevo@test.com',
+            'pwd' => 'secret123',
+        ])->assertRedirect()
+            ->assertSessionHas('error');
+
+        $this->assertNull(session('proveedor_id'));
+    }
+
+    public function test_verificar_correo_permite_login(): void
+    {
+        config(['services.proveedor_api.login_mode' => 'local']);
+        $p = $this->crearInactivo(correoVerificado: false);
+
+        $url = URL::temporarySignedRoute(
+            'proveedores.verificar-correo',
+            now()->addHours(48),
+            ['id' => $p->id]
+        );
+
+        $this->get($url)
+            ->assertRedirect('/login-proveedor')
+            ->assertSessionHas('mensaje');
+
+        $this->assertTrue($p->fresh()->hasVerifiedCorreo());
+
+        $this->post('/login-proveedor', [
+            'codigo' => 'nuevo@test.com',
+            'pwd' => 'secret123',
+        ])->assertRedirect(route('proveedores.onboarding'));
     }
 
     public function test_inactivo_puede_ver_onboarding(): void

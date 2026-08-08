@@ -12,7 +12,7 @@ class DocumentCrossCheckServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new DocumentCrossCheckService();
+        $this->service = new DocumentCrossCheckService;
     }
 
     // ═══════════════════════════════════════

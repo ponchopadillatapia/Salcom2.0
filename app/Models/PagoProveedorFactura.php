@@ -5,6 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property-read PagoProveedor|null $pago
+ * @property-read Factura|null $factura
+ */
 class PagoProveedorFactura extends Model
 {
     protected $table = 'pago_proveedor_facturas';
@@ -36,11 +40,13 @@ class PagoProveedorFactura extends Model
         'avisos' => 'array',
     ];
 
+    /** @return BelongsTo<PagoProveedor, $this> */
     public function pago(): BelongsTo
     {
         return $this->belongsTo(PagoProveedor::class, 'pago_id');
     }
 
+    /** @return BelongsTo<Factura, $this> */
     public function factura(): BelongsTo
     {
         return $this->belongsTo(Factura::class, 'factura_id');

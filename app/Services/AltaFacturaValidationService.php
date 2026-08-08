@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Factura;
+use Illuminate\Support\Str;
 use SimpleXMLElement;
 
 class AltaFacturaValidationService
@@ -37,6 +38,7 @@ class AltaFacturaValidationService
         $advertencias = [];
         $checklist = [
             'xml' => ['ok' => false, 'label' => 'XML CFDI válido'],
+            'periodo' => ['ok' => false, 'label' => 'Periodo (mes en curso)'],
             'pdf_xml' => ['ok' => false, 'label' => 'Factura PDF ↔ XML'],
             'oc_xml' => ['ok' => true, 'label' => 'OC no adjunta (opcional)'],
             'emisor' => ['ok' => false, 'label' => 'RFC emisor'],
@@ -60,16 +62,11 @@ class AltaFacturaValidationService
             'rfc_receptor' => null,
             'regimen_fiscal' => null,
             'regimen_nombre' => null,
-<<<<<<< HEAD
             'forma_pago' => null,
             'metodo_pago' => null,
             'uso_cfdi' => null,
-            'producto' => null,
-=======
-            'metodo_pago' => null,
-            'forma_pago' => null,
             'moneda' => null,
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
+            'producto' => null,
             'subtotal' => 0.0,
             'iva' => 0.0,
             'retencion_iva' => 0.0,
@@ -99,50 +96,9 @@ class AltaFacturaValidationService
 
         $checklist['xml']['ok'] = true;
         $this->cargarDatosXml($xml, $datos, $errores);
+        $this->validarPeriodoMes($datos, $errores, $checklist);
 
-<<<<<<< HEAD
-        $attrs = $xml->attributes();
-        $datos['subtotal'] = (float) ($attrs['SubTotal'] ?? 0);
-        $datos['total'] = (float) ($attrs['Total'] ?? 0);
-        $datos['folio'] = (string) ($attrs['Folio'] ?? '');
-        $datos['serie'] = (string) ($attrs['Serie'] ?? '');
-        $datos['fecha'] = (string) ($attrs['Fecha'] ?? '');
-        $datos['tipo_comprobante'] = (string) ($attrs['TipoDeComprobante'] ?? '');
-        $datos['forma_pago'] = $this->normalizarCodigoPago((string) ($attrs['FormaPago'] ?? ''), 2);
-        $datos['metodo_pago'] = strtoupper(trim((string) ($attrs['MetodoPago'] ?? ''))) ?: null;
-
-        if ($datos['tipo_comprobante'] !== '' && strtoupper($datos['tipo_comprobante']) !== 'I') {
-            $errores[] = 'Solo se aceptan CFDI de tipo Ingreso (I). Tipo recibido: '.$datos['tipo_comprobante'];
-        }
-
-        // Emisor
-        $emisor = $this->findChild($xml, 'Emisor');
-        if ($emisor) {
-            $eAttrs = $emisor->attributes();
-            $datos['rfc_emisor'] = strtoupper(trim((string) ($eAttrs['Rfc'] ?? '')));
-            $datos['nombre_emisor'] = (string) ($eAttrs['Nombre'] ?? '');
-            $datos['regimen_fiscal'] = str_pad(trim((string) ($eAttrs['RegimenFiscal'] ?? '')), 3, '0', STR_PAD_LEFT);
-            if ($datos['regimen_fiscal'] === '000') {
-                $datos['regimen_fiscal'] = null;
-            }
-        } else {
-            $errores[] = 'No se encontró el nodo Emisor en el XML.';
-        }
-
-        // Receptor
-        $receptor = $this->findChild($xml, 'Receptor');
-        if ($receptor) {
-            $rAttrs = $receptor->attributes();
-            $datos['rfc_receptor'] = strtoupper(trim((string) ($rAttrs['Rfc'] ?? '')));
-            $datos['uso_cfdi'] = strtoupper(trim((string) ($rAttrs['UsoCFDI'] ?? ''))) ?: null;
-        } else {
-            $errores[] = 'No se encontró el nodo Receptor en el XML.';
-        }
-
-        // UUID del timbre
-=======
         // UUID
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
         $datos['uuid'] = $this->extraerUuid($xml);
         if (! $datos['uuid']) {
             $errores[] = 'No se encontró el UUID del Timbre Fiscal Digital.';
@@ -203,16 +159,10 @@ class AltaFacturaValidationService
             $checklist['totales']['ok'] = true;
         }
 
-<<<<<<< HEAD
-        // Conceptos: flete / comisión (ClaveProdServ o descripción) + texto producto
-        $conceptos = $this->detectarConceptos($xml);
-        $datos['tiene_concepto_flete'] = $conceptos['flete'];
-        $datos['tiene_concepto_comision'] = $conceptos['comision'];
-        $datos['producto'] = $conceptos['producto'] !== '' ? $conceptos['producto'] : null;
-=======
         $conceptos = $this->detectarConceptos($xml, $errores, $advertencias);
         $datos['tiene_concepto_flete'] = $conceptos['flete'];
         $datos['tiene_concepto_comision'] = $conceptos['comision'];
+        $datos['producto'] = ($conceptos['producto'] ?? '') !== '' ? $conceptos['producto'] : null;
         $datos['conceptos'] = $conceptos['descripciones'];
         $datos['claves_prod_serv'] = $conceptos['claves'];
         $datos['deteccion_conceptos'] = $conceptos['deteccion'];
@@ -220,18 +170,13 @@ class AltaFacturaValidationService
         $checklist['claves_sat']['label'] = $conceptos['claves_ok']
             ? ('ClaveProdServ: '.implode(', ', $conceptos['claves'] ?: ['—']))
             : 'ClaveProdServ faltante o inválida';
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
 
         $this->validarRegimen($datos, $errores, $checklist);
 
-<<<<<<< HEAD
         // Forma / método / uso CFDI + concepto (requeridos para pago automático)
         $this->validarDatosPagoCfdi($datos, $errores, $checklist);
 
-        // Fletera: el XML manda. Si marcaron Sí pero no hay flete en el CFDI, se trata como No.
-=======
         // Fletera: ClaveProdServ SAT manda (flete)
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
         if ($esFletera && ! $datos['tiene_concepto_flete']) {
             $esFletera = false;
             $datos['es_fletera'] = false;
@@ -271,6 +216,62 @@ class AltaFacturaValidationService
         return $this->resultado($errores, $advertencias, $checklist, $datos);
     }
 
+    /**
+     * Solo se aceptan facturas del mes en curso. Si la Fecha del CFDI es de
+     * otro mes (periodo ya cerrado o futuro), no se puede validar ni subir.
+     *
+     * @param  array<string, mixed>  $datos
+     * @param  string[]  $errores
+     * @param  array<string, array{ok: bool, label: string}>  $checklist
+     */
+    private function validarPeriodoMes(array $datos, array &$errores, array &$checklist): void
+    {
+        if (! config('facturas.solo_mes_actual', true)) {
+            $checklist['periodo']['ok'] = true;
+            $checklist['periodo']['label'] = 'Periodo no restringido';
+
+            return;
+        }
+
+        $fechaRaw = trim((string) ($datos['fecha'] ?? ''));
+        if ($fechaRaw === '') {
+            $errores[] = 'El CFDI no tiene fecha de emisión. No se puede verificar el periodo.';
+            $checklist['periodo']['ok'] = false;
+            $checklist['periodo']['label'] = 'Sin fecha de emisión';
+
+            return;
+        }
+
+        try {
+            $fecha = \Carbon\Carbon::parse(substr($fechaRaw, 0, 19));
+        } catch (\Throwable) {
+            $errores[] = "La fecha de emisión del CFDI («{$fechaRaw}») no es válida.";
+            $checklist['periodo']['ok'] = false;
+            $checklist['periodo']['label'] = 'Fecha inválida';
+
+            return;
+        }
+
+        $ahora = now();
+        $mesActualLabel = $ahora->locale('es')->translatedFormat('F Y');
+
+        if ((int) $fecha->year !== (int) $ahora->year || (int) $fecha->month !== (int) $ahora->month) {
+            $mesFacturaLabel = $fecha->locale('es')->translatedFormat('F Y');
+            if ($fecha->lt($ahora->copy()->startOfMonth())) {
+                $errores[] = "La factura es de {$mesFacturaLabel} y ese periodo ya cerró. Solo se aceptan facturas del mes en curso ({$mesActualLabel}).";
+            } else {
+                $errores[] = "La factura es de {$mesFacturaLabel}. Solo se aceptan facturas del mes en curso ({$mesActualLabel}).";
+            }
+            $checklist['periodo']['ok'] = false;
+            $checklist['periodo']['label'] = 'Fuera del mes en curso';
+
+            return;
+        }
+
+        $checklist['periodo']['ok'] = true;
+        $checklist['periodo']['label'] = 'Mes en curso: '.$mesActualLabel;
+    }
+
     private function cargarDatosXml(SimpleXMLElement $xml, array &$datos, array &$errores): void
     {
         $attrs = $xml->attributes();
@@ -281,14 +282,8 @@ class AltaFacturaValidationService
         $datos['fecha'] = (string) ($attrs['Fecha'] ?? '');
         $datos['tipo_comprobante'] = (string) ($attrs['TipoDeComprobante'] ?? '');
         $datos['moneda'] = strtoupper((string) ($attrs['Moneda'] ?? 'MXN'));
-        $datos['metodo_pago'] = strtoupper((string) ($attrs['MetodoPago'] ?? ''));
-        $datos['forma_pago'] = str_pad(trim((string) ($attrs['FormaPago'] ?? '')), 2, '0', STR_PAD_LEFT);
-        if ($datos['forma_pago'] === '00') {
-            $datos['forma_pago'] = null;
-        }
-        if ($datos['metodo_pago'] === '') {
-            $datos['metodo_pago'] = null;
-        }
+        $datos['forma_pago'] = $this->normalizarCodigoPago((string) ($attrs['FormaPago'] ?? ''), 2);
+        $datos['metodo_pago'] = strtoupper(trim((string) ($attrs['MetodoPago'] ?? ''))) ?: null;
 
         if ($datos['tipo_comprobante'] !== '' && strtoupper($datos['tipo_comprobante']) !== 'I') {
             $errores[] = 'Solo se aceptan CFDI de tipo Ingreso (I). Tipo recibido: '.$datos['tipo_comprobante'];
@@ -311,6 +306,7 @@ class AltaFacturaValidationService
         if ($receptor) {
             $rAttrs = $receptor->attributes();
             $datos['rfc_receptor'] = strtoupper(trim((string) ($rAttrs['Rfc'] ?? '')));
+            $datos['uso_cfdi'] = strtoupper(trim((string) ($rAttrs['UsoCFDI'] ?? ''))) ?: null;
         } else {
             $errores[] = 'No se encontró el nodo Receptor en el XML.';
         }
@@ -689,20 +685,17 @@ class AltaFacturaValidationService
     }
 
     /**
-<<<<<<< HEAD
-     * @return array{flete: bool, comision: bool, producto: string}
-=======
      * Detecta flete/comisión priorizando ClaveProdServ SAT; la descripción es respaldo.
      *
      * @return array{
      *   flete: bool,
      *   comision: bool,
+     *   producto: string,
      *   descripciones: list<string>,
      *   claves: list<string>,
      *   claves_ok: bool,
      *   deteccion: array{flete: ?string, comision: ?string}
      * }
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
      */
     private function detectarConceptos(SimpleXMLElement $xml, array &$errores, array &$advertencias): array
     {
@@ -710,12 +703,9 @@ class AltaFacturaValidationService
         $flete = false;
         $comision = false;
         $descripciones = [];
-<<<<<<< HEAD
-=======
         $claves = [];
         $clavesOk = true;
         $deteccion = ['flete' => null, 'comision' => null];
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
 
         $nodos = $xml->xpath("//*[local-name()='Concepto']") ?: [];
         if (! $nodos) {
@@ -725,6 +715,7 @@ class AltaFacturaValidationService
             return [
                 'flete' => false,
                 'comision' => false,
+                'producto' => '',
                 'descripciones' => [],
                 'claves' => [],
                 'claves_ok' => false,
@@ -735,27 +726,15 @@ class AltaFacturaValidationService
         foreach ($nodos as $nodo) {
             $attrs = $nodo->attributes();
             $clave = trim((string) ($attrs['ClaveProdServ'] ?? ''));
-<<<<<<< HEAD
-            $descRaw = trim((string) ($attrs['Descripcion'] ?? ''));
-            $desc = mb_strtolower($descRaw, 'UTF-8');
-            $descAscii = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $desc) ?: $desc;
-
-            if ($descRaw !== '') {
-                $descripciones[] = $descRaw;
-            }
-
-            if ($this->conceptoCoincide($clave, $descAscii, $cfg['flete'] ?? [])) {
-                $flete = true;
-=======
             $desc = (string) ($attrs['Descripcion'] ?? '');
             if ($desc !== '') {
                 $descripciones[] = $desc;
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
             }
 
             if ($clave === '' || ! preg_match('/^\d{8}$/', $clave)) {
                 $errores[] = 'Hay un concepto en el XML sin ClaveProdServ SAT válida (8 dígitos). Es obligatoria para clasificar el bien o servicio.';
                 $clavesOk = false;
+
                 continue;
             }
 
@@ -785,13 +764,22 @@ class AltaFacturaValidationService
             }
         }
 
-<<<<<<< HEAD
+        $claves = array_values(array_unique($claves));
+
         $producto = implode(' · ', array_slice(array_unique($descripciones), 0, 5));
         if (mb_strlen($producto) > 255) {
             $producto = mb_substr($producto, 0, 252).'…';
         }
 
-        return ['flete' => $flete, 'comision' => $comision, 'producto' => $producto];
+        return [
+            'flete' => $flete,
+            'comision' => $comision,
+            'producto' => $producto,
+            'descripciones' => $descripciones,
+            'claves' => $claves,
+            'claves_ok' => $clavesOk && $claves !== [],
+            'deteccion' => $deteccion,
+        ];
     }
 
     private function validarDatosPagoCfdi(array &$datos, array &$errores, array &$checklist): void
@@ -835,7 +823,7 @@ class AltaFacturaValidationService
             $checklist['producto']['ok'] = false;
         } else {
             $checklist['producto']['ok'] = true;
-            $checklist['producto']['label'] = 'Concepto: '.\Illuminate\Support\Str::limit($datos['producto'], 60);
+            $checklist['producto']['label'] = 'Concepto: '.Str::limit($datos['producto'], 60);
         }
     }
 
@@ -850,18 +838,6 @@ class AltaFacturaValidationService
         }
 
         return $valor;
-=======
-        $claves = array_values(array_unique($claves));
-
-        return [
-            'flete' => $flete,
-            'comision' => $comision,
-            'descripciones' => $descripciones,
-            'claves' => $claves,
-            'claves_ok' => $clavesOk && $claves !== [],
-            'deteccion' => $deteccion,
-        ];
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
     }
 
     private function coincidePorClave(string $clave, array $cfg): bool
@@ -942,14 +918,9 @@ class AltaFacturaValidationService
     }
 
     /**
-<<<<<<< HEAD
      * Lee IVA/retenciones del nodo Impuestos del Comprobante (resumen SAT).
-     * Si no existe, cae a traslados/retenciones solo bajo Conceptos (nunca ambos:
-     * en CFDI 4.0 se repiten y duplican el importe).
-=======
-     * Lee solo impuestos del nodo global /cfdi:Comprobante/cfdi:Impuestos.
-     * Ignora por completo Impuestos anidados en Conceptos (evita duplicar importes).
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
+     * Ignora Impuestos anidados en Conceptos (evita duplicar importes en CFDI 4.0).
+     * Si no existe el nodo global, cae a traslados/retenciones bajo Conceptos.
      *
      * @return array{iva_trasladado: float, retencion_iva: float, retencion_isr: float}
      */
@@ -959,25 +930,12 @@ class AltaFacturaValidationService
         $retIva = 0.0;
         $retIsr = 0.0;
 
-<<<<<<< HEAD
         $impRoot = $xml->xpath("/*[local-name()='Comprobante']/*[local-name()='Impuestos']");
         $nodo = ($impRoot && isset($impRoot[0])) ? $impRoot[0] : null;
 
         if ($nodo !== null) {
             $totTras = (float) ($nodo->attributes()['TotalImpuestosTrasladados'] ?? 0);
             $traslados = $nodo->xpath("./*[local-name()='Traslados']/*[local-name()='Traslado']") ?: [];
-=======
-        // Rutas directas bajo Comprobante/Impuestos (no Conceptos/*/Impuestos).
-        $traslados = $xml->xpath(
-            "/*[local-name()='Comprobante']/*[local-name()='Impuestos']/*[local-name()='Traslados']/*[local-name()='Traslado']"
-        );
-        if (! $traslados) {
-            $traslados = $xml->xpath(
-                "*[local-name()='Impuestos']/*[local-name()='Traslados']/*[local-name()='Traslado']"
-            );
-        }
-        if ($traslados) {
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
             foreach ($traslados as $t) {
                 $imp = (string) ($t->attributes()['Impuesto'] ?? '');
                 $importe = (float) ($t->attributes()['Importe'] ?? 0);
@@ -989,7 +947,6 @@ class AltaFacturaValidationService
                 $ivaTrasladado = $totTras;
             }
 
-<<<<<<< HEAD
             $retenciones = $nodo->xpath("./*[local-name()='Retenciones']/*[local-name()='Retencion']") ?: [];
             foreach ($retenciones as $r) {
                 $imp = (string) ($r->attributes()['Impuesto'] ?? '');
@@ -1011,17 +968,6 @@ class AltaFacturaValidationService
                 }
             }
             $retenciones = $xml->xpath("/*[local-name()='Comprobante']/*[local-name()='Conceptos']//*[local-name()='Retencion']") ?: [];
-=======
-        $retenciones = $xml->xpath(
-            "/*[local-name()='Comprobante']/*[local-name()='Impuestos']/*[local-name()='Retenciones']/*[local-name()='Retencion']"
-        );
-        if (! $retenciones) {
-            $retenciones = $xml->xpath(
-                "*[local-name()='Impuestos']/*[local-name()='Retenciones']/*[local-name()='Retencion']"
-            );
-        }
-        if ($retenciones) {
->>>>>>> 9b3ba1197683350466c5b95bb04cdff7ab250df5
             foreach ($retenciones as $r) {
                 $imp = (string) ($r->attributes()['Impuesto'] ?? '');
                 $importe = (float) ($r->attributes()['Importe'] ?? 0);

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -12,6 +13,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read int|null $num_facturas
  * @property-read float|string|null $monto_total
  * @property-read string|null $ultima_factura
+ * @property-read string|Carbon|null $ultima_factura_at
+ * @property array|null $avisos_pago
+ * @property float|null $neto_pago
+ * @property string|null $folio_display
  */
 class Factura extends Model
 {
