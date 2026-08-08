@@ -18,6 +18,7 @@ use App\Models\SolicitudAlta;
 use App\Services\AlertEngineService;
 use App\Services\InventarioCalculoService;
 use App\Services\PedidoProveedorSyncService;
+use App\Services\ProveedorApiService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -508,7 +509,8 @@ class AdminPanelController extends Controller
         $proveedores = $query->orderBy('score_total', 'desc')->paginate(20)->withQueryString();
         $metricasProveedores = $this->buildProveedoresMetricas($proveedores->getCollection());
 
-        $ordenesQuery = OcBorrador::with('proveedor')->orderByDesc('created_at');
+        // Primero solo IDs (evita Out of sort memory al ordenar filas con JSON `productos`).
+        $ordenesQuery = OcBorrador::query()->orderByDesc('id');
         if ($filtrosOc['proveedor']) {
             $fp = $filtrosOc['proveedor'];
             $ordenesQuery->whereHas('proveedor', function ($pq) use ($fp) {
@@ -539,7 +541,13 @@ class AdminPanelController extends Controller
             $ordenesQuery->where('estatus', '!=', 'completada')
                 ->where('created_at', '<=', now()->subDays(30));
         }
-        $ordenes = $ordenesQuery->limit(50)->get();
+        $ordenesIds = (clone $ordenesQuery)->limit(50)->pluck('id');
+        $ordenes = $ordenesIds->isEmpty()
+            ? collect()
+            : OcBorrador::with('proveedor')
+                ->whereIn('id', $ordenesIds)
+                ->orderByDesc('id')
+                ->get();
 
         $facturasQuery = Factura::where('estatus', 'pendiente')->whereNotNull('codigo_proveedor');
         if ($filtrosFact['folio']) {
@@ -563,7 +571,7 @@ class AdminPanelController extends Controller
         if ($filtrosFact['vence_hasta']) {
             $facturasQuery->whereDate('fecha_vencimiento', '<=', $filtrosFact['vence_hasta']);
         }
-        $facturasPendientes = $facturasQuery->with('proveedor')->orderBy('fecha_vencimiento')->get();
+        $facturasPendientes = $facturasQuery->with('proveedor')->orderBy('fecha_vencimiento')->limit(100)->get();
 
         $estatusOc = ['pendiente', 'aprobada', 'en_proceso', 'completada'];
         $estatusOcLabels = [
@@ -653,10 +661,39 @@ class AdminPanelController extends Controller
 
     // ── Detalle facturas de un proveedor ──
 
-    public function proveedorFacturas(string $codigo)
+    public function proveedorFacturas(string $codigo, ProveedorApiService $wieseApi)
     {
-        $proveedor = ProveedorUser::where('id_proveedor', $codigo)->first();
+        $proveedor = ProveedorUser::whereCodigo($codigo)->first()
+            ?? ProveedorUser::where('codigo', $codigo)->first();
+
         $facturas = Factura::where('codigo_proveedor', $codigo)->orderBy('fecha_vencimiento', 'desc')->get();
+
+        // Código Wiese (campo codigo). Si vacío, se intenta con el de la URL.
+        $wieseCodigo = trim((string) ($proveedor?->codigo ?? ''));
+        if ($wieseCodigo === '') {
+            $wieseCodigo = $codigo;
+        }
+
+        $fechaInicio = (string) request('fecha_inicio', now()->subYear()->startOfYear()->format('Y-m-d'));
+        $fechaFin = (string) request('fecha_fin', now()->format('Y-m-d'));
+
+        $ocItems = collect();
+        $ocTotal = 0;
+        $ocError = null;
+        $ocLimit = 100;
+
+        if ($wieseCodigo === '') {
+            $ocError = 'Este proveedor no tiene código Wiese. Llénalo en el campo código.';
+        } else {
+            $ocResult = $wieseApi->listarDocumentosOCPorProveedorFechas($wieseCodigo, $fechaInicio, $fechaFin);
+            if ($ocResult['success'] ?? false) {
+                $all = collect($ocResult['data']['items'] ?? []);
+                $ocTotal = (int) ($ocResult['data']['total'] ?? $all->count());
+                $ocItems = $all->take($ocLimit);
+            } else {
+                $ocError = $ocResult['message'] ?? 'No se pudieron cargar las OC desde Wiese.';
+            }
+        }
 
         // Exportar a Excel si se pide
         if (request('export') === 'excel') {
@@ -705,7 +742,18 @@ class AdminPanelController extends Controller
                 ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
         }
 
-        return view('admin.proveedor-facturas', compact('proveedor', 'facturas', 'codigo'));
+        return view('admin.proveedor-facturas', compact(
+            'proveedor',
+            'facturas',
+            'codigo',
+            'wieseCodigo',
+            'fechaInicio',
+            'fechaFin',
+            'ocItems',
+            'ocTotal',
+            'ocError',
+            'ocLimit'
+        ));
     }
 
     // ── Exportar facturas pendientes a Excel ──
@@ -1926,10 +1974,14 @@ class AdminPanelController extends Controller
             ];
         }
 
-        // OC por proveedor — órdenes pendientes y atrasadas
+        // OC por proveedor — órdenes pendientes y atrasadas (limit + order by id: evita OOM sort)
+        $ocPendientesIds = OcBorrador::whereIn('estatus', ['pendiente', 'aprobada'])
+            ->orderByDesc('id')
+            ->limit(100)
+            ->pluck('id');
         $ocProveedores = OcBorrador::with('proveedor')
-            ->whereIn('estatus', ['pendiente', 'aprobada'])
-            ->orderBy('created_at', 'desc')
+            ->whereIn('id', $ocPendientesIds)
+            ->orderByDesc('id')
             ->get()
             ->map(function ($oc) {
                 $fechaOC = $oc->created_at;

@@ -15,8 +15,9 @@ class OrdenCompraController extends Controller
     {
         $provId = session('proveedor_id');
 
+        // orderBy id evita filesort del JSON `productos` (Out of sort memory en prod).
         $ordenes = OcBorrador::where('proveedor_id', $provId)
-            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->get();
 
         $stats = [

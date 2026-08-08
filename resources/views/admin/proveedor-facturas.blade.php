@@ -28,10 +28,20 @@
     .badge-vencida{background:#fef2f2;color:#dc2626}
     .dias-vencido{font-size:12px;font-weight:700;color:#dc2626}
     .empty{text-align:center;padding:32px;color:var(--gray-muted);font-size:13px}
+    .pag-back{display:inline-flex;align-items:center;gap:6px;margin-bottom:16px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none}
+    .oc-filters{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;padding:14px 20px;border-bottom:1px solid var(--border-light);background:#fafafa}
+    .oc-filters label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:600;color:var(--gray-muted);text-transform:uppercase}
+    .oc-filters input{border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit}
+    .btn-primary{padding:9px 16px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+    .oc-alert{margin:14px 20px;padding:12px 14px;border-radius:10px;font-size:13px;background:#fff7ed;color:#c2410c;border:1px solid #fdba74}
+    .oc-meta{padding:10px 20px;font-size:12px;color:var(--gray-muted);border-bottom:1px solid var(--border-light)}
+    .section-gap{margin-top:28px}
     @media(max-width:768px){.summary{grid-template-columns:1fr 1fr}.table-card{overflow-x:auto}}
 </style>
 @endpush
 @section('content')
+
+<a class="pag-back" href="{{ route('admin.proveedores', ['tab' => 'facturas']) }}">← Volver a proveedores</a>
 
 @php
     $pendientes = $facturas->where('estatus', 'pendiente');
@@ -49,7 +59,7 @@
 </div>
 
 <div class="toolbar-top">
-    <span style="font-size:13px;color:var(--gray-muted)">{{ $facturas->count() }} facturas totales</span>
+    <span style="font-size:13px;color:var(--gray-muted)">{{ $facturas->count() }} facturas totales · Código portal: {{ $codigo }}@if(!empty($wieseCodigo) && $wieseCodigo !== $codigo) · Wiese: {{ $wieseCodigo }}@endif</span>
     <a href="{{ route('admin.proveedor-facturas', $codigo) }}?export=excel" class="btn-export">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Exportar Excel
@@ -76,7 +86,6 @@
             @php
                 $vencida = $f->estatus === 'pendiente' && $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
                 $diasV = $vencida ? $f->fecha_vencimiento->diffInDays(now()) : 0;
-                // Buscar producto asociado (si hay pedido_id)
                 $producto = null;
                 if ($f->pedido_id) {
                     $pedido = \App\Models\Pedido::find($f->pedido_id);
@@ -117,6 +126,75 @@
     </table>
     @else
     <div class="empty">No hay facturas para este proveedor</div>
+    @endif
+</div>
+
+{{-- Órdenes de compra desde Wiese --}}
+<div class="table-card section-gap">
+    <div class="table-head">Órdenes de compra (Wiese)</div>
+    <form method="GET" action="{{ route('admin.proveedor-facturas', $codigo) }}" class="oc-filters">
+        <label>
+            Desde
+            <input type="date" name="fecha_inicio" value="{{ $fechaInicio }}">
+        </label>
+        <label>
+            Hasta
+            <input type="date" name="fecha_fin" value="{{ $fechaFin }}">
+        </label>
+        <button type="submit" class="btn-primary">Actualizar</button>
+    </form>
+
+    @if($ocError)
+        <div class="oc-alert">{{ $ocError }}</div>
+    @else
+        <div class="oc-meta">
+            Código Wiese: <strong>{{ $wieseCodigo }}</strong>
+            · {{ number_format($ocTotal) }} documento{{ $ocTotal === 1 ? '' : 's' }}
+            @if($ocTotal > $ocLimit)
+                · mostrando los primeros {{ $ocLimit }} (acorta el rango de fechas para ver menos)
+            @endif
+        </div>
+        @if($ocItems->count())
+        <div style="overflow-x:auto;">
+            <table class="tbl">
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Fecha</th>
+                        <th>Razón social</th>
+                        <th>RFC</th>
+                        <th>Total</th>
+                        <th>Pendiente</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @foreach($ocItems as $doc)
+                    @php
+                        $serie = $doc['cseriedocumento'] ?? '';
+                        $folio = $doc['cfolio'] ?? '';
+                        $folioDisp = trim($serie.(string)$folio) !== '' ? $serie.$folio : '—';
+                        $fecha = $doc['cfecha'] ?? null;
+                        try {
+                            $fechaFmt = $fecha ? \Illuminate\Support\Carbon::parse($fecha)->format('d/m/Y') : '—';
+                        } catch (\Throwable) {
+                            $fechaFmt = is_string($fecha) ? $fecha : '—';
+                        }
+                    @endphp
+                    <tr>
+                        <td style="font-weight:700;color:var(--purple)">{{ $folioDisp }}</td>
+                        <td>{{ $fechaFmt }}</td>
+                        <td>{{ $doc['crazonsocial'] ?? '—' }}</td>
+                        <td style="color:var(--gray-muted)">{{ $doc['crfc'] ?? '—' }}</td>
+                        <td style="font-weight:700;font-variant-numeric:tabular-nums">${{ number_format((float)($doc['ctotal'] ?? 0), 2) }}</td>
+                        <td style="font-variant-numeric:tabular-nums">${{ number_format((float)($doc['cpendiente'] ?? 0), 2) }}</td>
+                    </tr>
+                @endforeach
+                </tbody>
+            </table>
+        </div>
+        @else
+            <div class="empty">Sin OC en ese rango de fechas</div>
+        @endif
     @endif
 </div>
 

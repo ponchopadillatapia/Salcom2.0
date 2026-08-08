@@ -12,6 +12,8 @@ class ProveedorApiService
 {
     private string $baseUrl;
 
+    private string $docsUrl;
+
     private int $connectTimeout;
 
     private int $timeout;
@@ -20,7 +22,9 @@ class ProveedorApiService
 
     public function __construct()
     {
-        $this->baseUrl = config('services.proveedor_api.url', '');
+        $this->baseUrl = rtrim((string) config('services.proveedor_api.url', ''), '/');
+        $docs = (string) config('services.proveedor_api.docs_url', '');
+        $this->docsUrl = rtrim($docs !== '' ? $docs : $this->baseUrl, '/');
         $this->connectTimeout = config('services.proveedor_api.connect_timeout', 5);
         $this->timeout = config('services.proveedor_api.timeout', 15);
         $this->maxRetries = config('services.proveedor_api.max_retries', 3);
@@ -95,6 +99,165 @@ class ProveedorApiService
             ['codigo' => $codigo],
             $token
         );
+    }
+
+    /**
+     * Login con usuario de servicio (ej. web) contra la API de docs/Wiese.
+     * Body en minúsculas como exige el host 7186.
+     */
+    public function loginServicio(): array
+    {
+        $configError = $this->validarDocsConfiguracion();
+        if ($configError) {
+            return $configError;
+        }
+
+        $user = strtolower(trim((string) config('services.proveedor_api.service_user', '')));
+        $pwd = (string) config('services.proveedor_api.service_password', '');
+
+        if ($user === '' || $pwd === '') {
+            return $this->buildErrorResponse(
+                'Faltan PROVEEDOR_API_SERVICE_USER / PROVEEDOR_API_SERVICE_PASSWORD en .env',
+                ProveedorApiException::API_CAIDA
+            );
+        }
+
+        $endpoint = '/Login/Login';
+
+        try {
+            $response = Http::connectTimeout($this->connectTimeout)
+                ->timeout($this->timeout)
+                ->acceptJson()
+                ->asJson()
+                ->post($this->docsUrl.$endpoint, [
+                    'codigo' => $user,
+                    'pwd' => $pwd,
+                ]);
+
+            $result = $this->procesarRespuesta($response, $endpoint);
+            if (! ($result['success'] ?? false)) {
+                return $result;
+            }
+
+            $payload = is_array($result['data'] ?? null) ? $result['data'] : [];
+            $token = $this->extraerTokenLogin($payload);
+
+            if ($token === null) {
+                $claves = implode(', ', array_keys($payload));
+
+                return $this->buildErrorResponse(
+                    'Login OK pero no vino token. Claves recibidas: '.($claves !== '' ? $claves : '(ninguna)'),
+                    ProveedorApiException::ERROR_DESCONOCIDO
+                );
+            }
+
+            return $this->buildSuccessResponse([
+                'tokenCreado' => $token,
+                'usuario' => $payload['usuario'] ?? $payload['Usuario'] ?? null,
+            ]);
+        } catch (ConnectionException $e) {
+            Log::error('ProveedorAPI: conexión fallida (login servicio)', [
+                'endpoint' => $endpoint,
+                'url' => $this->docsUrl,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse(
+                'No se pudo conectar con la API Wiese (docs)',
+                ProveedorApiException::API_CAIDA
+            );
+        } catch (\Exception $e) {
+            Log::error('ProveedorAPI: error login servicio', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse(
+                'Ocurrió un error inesperado',
+                ProveedorApiException::ERROR_DESCONOCIDO
+            );
+        }
+    }
+
+    /**
+     * GET /Documento/ListaDocumentosOCPorProveedorFechas
+     * Si no pasas $token, hace loginServicio() automáticamente.
+     *
+     * @return array{success: bool, data?: array{items: list<mixed>, total: int}, message: string, error_type: ?string}
+     */
+    public function listarDocumentosOCPorProveedorFechas(
+        string $codigoProveedor,
+        string $fechaInicio,
+        string $fechaFin,
+        ?string $token = null
+    ): array {
+        if ($token === null || $token === '') {
+            $login = $this->loginServicio();
+            if (! ($login['success'] ?? false)) {
+                return $login;
+            }
+            $token = (string) $login['data']['tokenCreado'];
+        }
+
+        $configError = $this->validarDocsConfiguracion();
+        if ($configError) {
+            return $configError;
+        }
+
+        $endpoint = '/Documento/ListaDocumentosOCPorProveedorFechas';
+        $params = [
+            'codigoProveedor' => $codigoProveedor,
+            'fechaInicio' => $fechaInicio,
+            'fechaFin' => $fechaFin,
+        ];
+
+        try {
+            $response = Http::connectTimeout($this->connectTimeout)
+                ->timeout(max($this->timeout, 60))
+                ->withToken($token)
+                ->acceptJson()
+                ->get($this->docsUrl.$endpoint, $params);
+
+            if (! $response->successful()) {
+                return $this->procesarRespuesta($response, $endpoint);
+            }
+
+            $body = $response->json();
+            if (! is_array($body)) {
+                $body = [];
+            }
+
+            // La API regresa un array raíz; [] es válido (sin OC en el rango).
+            $items = array_is_list($body) ? $body : [$body];
+
+            return $this->buildSuccessResponse([
+                'items' => $items,
+                'total' => count($items),
+                'codigoProveedor' => $codigoProveedor,
+                'fechaInicio' => $fechaInicio,
+                'fechaFin' => $fechaFin,
+            ]);
+        } catch (ConnectionException $e) {
+            Log::error('ProveedorAPI: conexión fallida (listar OC)', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse(
+                'No se pudo conectar con la API Wiese (docs)',
+                ProveedorApiException::API_CAIDA
+            );
+        } catch (\Exception $e) {
+            Log::error('ProveedorAPI: error listar OC', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse(
+                'Ocurrió un error inesperado',
+                ProveedorApiException::ERROR_DESCONOCIDO
+            );
+        }
     }
 
     // ── Métodos privados ──
@@ -176,6 +339,50 @@ class ProveedorApiService
                 'La API del proveedor no está configurada',
                 ProveedorApiException::API_CAIDA
             );
+        }
+
+        return null;
+    }
+
+    private function validarDocsConfiguracion(): ?array
+    {
+        if (empty(trim($this->docsUrl))) {
+            return $this->buildErrorResponse(
+                'La API Wiese (docs) no está configurada (PROVEEDOR_API_DOCS_URL o PROVEEDOR_API_URL)',
+                ProveedorApiException::API_CAIDA
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * La API a veces manda tokenCreado / tokencreado / TokenCreado / token.
+     */
+    private function extraerTokenLogin(array $payload): ?string
+    {
+        $mapa = [];
+        foreach ($payload as $key => $valor) {
+            if (is_string($key)) {
+                $mapa[strtolower($key)] = $valor;
+            }
+        }
+
+        foreach (['tokencreado', 'token', 'accesstoken', 'jwt', 'bearertoken'] as $key) {
+            $valor = $mapa[$key] ?? null;
+            if (is_string($valor) && $valor !== '') {
+                return $valor;
+            }
+        }
+
+        // A veces viene anidado
+        foreach (['data', 'result', 'response'] as $wrap) {
+            if (isset($mapa[$wrap]) && is_array($mapa[$wrap])) {
+                $nested = $this->extraerTokenLogin($mapa[$wrap]);
+                if ($nested !== null) {
+                    return $nested;
+                }
+            }
         }
 
         return null;

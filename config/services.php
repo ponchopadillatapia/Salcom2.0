@@ -42,10 +42,15 @@ return [
 
     'proveedor_api' => [
         'url' => env('PROVEEDOR_API_URL', ''),
+        // Docs/OC (Swagger Wiese). Si vacío, usa la misma URL de proveedor.
+        'docs_url' => env('PROVEEDOR_API_DOCS_URL', env('PROVEEDOR_API_URL', '')),
         'connect_timeout' => (int) env('PROVEEDOR_API_CONNECT_TIMEOUT', 5),
         'timeout' => (int) env('PROVEEDOR_API_TIMEOUT', 15),
         'max_retries' => (int) env('PROVEEDOR_API_MAX_RETRIES', 3),
         'login_mode' => env('PROVEEDOR_LOGIN_MODE', 'fallback'),
+        // Usuario de servicio (ej. web) para llamadas server-to-server
+        'service_user' => env('PROVEEDOR_API_SERVICE_USER', ''),
+        'service_password' => env('PROVEEDOR_API_SERVICE_PASSWORD', ''),
     ],
 
     'cliente_api' => [

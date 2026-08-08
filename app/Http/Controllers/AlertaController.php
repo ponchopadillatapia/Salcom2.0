@@ -63,7 +63,7 @@ class AlertaController extends Controller
     public function ocBorradores()
     {
         $borradores = OcBorrador::with('proveedor')
-            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(15);
 
         $stats = [
