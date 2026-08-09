@@ -7,6 +7,8 @@ use App\Models\AuditLog;
 use App\Models\DocumentoProveedor;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
+use App\Models\SolicitudModificacionDatos;
+use App\Services\AlertEngineService;
 use App\Services\DocumentCrossCheckService;
 use App\Services\IaService;
 use Aws\Textract\TextractClient;
@@ -28,7 +30,10 @@ class EmpresaApiController extends Controller
             $provId = session('proveedor_id');
             if ($provId) {
                 $provLock = ProveedorUser::find($provId);
-                if ($provLock && $provLock->onboardingEdicionBloqueada() && $provLock->documentosFiscalesCompletos()) {
+                // Solo bloquea mientras espera Dirección (aún no activo). Activos pueden renovar/actualizar docs.
+                if ($provLock && ! $provLock->activo
+                    && $provLock->onboardingEdicionBloqueada()
+                    && $provLock->documentosFiscalesCompletos()) {
                     return response()->json([
                         'ok' => false,
                         'mensaje' => 'Tu expediente está en revisión o aprobado. No puedes volver a validar documentos hasta un rechazo de Dirección.',
@@ -516,6 +521,52 @@ class EmpresaApiController extends Controller
                                 'proveedor_id' => $proveedorId,
                                 'docs_aprobados' => DocumentoProveedor::where('proveedor_id', $proveedorId)->where('estatus', 'aprobado')->count(),
                             ]);
+                        }
+
+                        // Proveedor activo renovó/actualizó docs → petición al admin.
+                        if ($prov && $prov->activo) {
+                            try {
+                                $nombreCif = trim((string) data_get($cif, 'datos.nombre', ''));
+                                SolicitudModificacionDatos::create([
+                                    'proveedor_id' => $proveedorId,
+                                    'campo' => 'documentos_fiscales',
+                                    'valor_actual' => $prov->nombre,
+                                    'valor_propuesto' => $nombreCif !== '' ? $nombreCif : $prov->nombre,
+                                    'tipo_persona' => $prov->tipoPersonaNormalizado(),
+                                    'motivo' => 'Actualización / renovación de documentos fiscales (ciclo 21 días o cambio solicitado).',
+                                    'estatus' => 'pendiente',
+                                    'resultado_ia' => [
+                                        'estado_validacion' => 'verde',
+                                        'origen' => 'validacion_fiscal',
+                                    ],
+                                    'notas' => 'El proveedor subió y validó documentos. Revisar si hay cambio de nombre/razón social u otros datos.',
+                                ]);
+                            } catch (\Throwable $e) {
+                                Log::warning('No se pudo registrar solicitud de actualización de docs', [
+                                    'proveedor_id' => $proveedorId,
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
+
+                            try {
+                                app(AlertEngineService::class)->alertar([
+                                    'tipo' => 'actualizacion_documentos',
+                                    'modulo' => 'fiscal',
+                                    'destinatario_tipo' => 'admin',
+                                    'destinatario_id' => 1,
+                                    'titulo' => 'Actualización de docs: '.($prov->nombre ?? $prov->usuario),
+                                    'contenido' => 'El proveedor '.($prov->nombre ?? $prov->usuario).' subió documentación fiscal para actualizar/renovar. Revisa la solicitud en el panel.',
+                                    'datos' => [
+                                        'proveedor_id' => $proveedorId,
+                                        'proveedor_nombre' => $prov->nombre,
+                                    ],
+                                    'nivel' => 'info',
+                                ]);
+                            } catch (\Throwable $e) {
+                                Log::warning('No se pudo alertar admin por actualización de docs', [
+                                    'error' => $e->getMessage(),
+                                ]);
+                            }
                         }
                     } catch (\Exception $e) {
                         Log::warning('No se pudieron guardar docs/expediente tras validación', [

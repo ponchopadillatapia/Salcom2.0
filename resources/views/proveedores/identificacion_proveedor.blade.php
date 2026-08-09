@@ -133,26 +133,37 @@
             </div>
             <div class="form-group">
                 <label for="tipo_persona">Tipo de persona</label>
-                <select id="tipo_persona" name="tipo_persona" required>
-                    @php
-                        $tpRegistro = isset($proveedor) ? ($proveedor->tipo_persona ?? '') : '';
-                        $tp = old('tipo_persona', $d['tipo_persona'] ?? $tpRegistro);
-                        if ($tp && ! in_array($tp, ['Persona Física', 'Persona Moral'], true)) {
-                            $tpLower = mb_strtolower($tp);
-                            if (str_contains($tpLower, 'moral')) {
-                                $tp = 'Persona Moral';
-                            } elseif (str_contains($tpLower, 'fís') || str_contains($tpLower, 'fis')) {
-                                $tp = 'Persona Física';
-                            }
+                @php
+                    $tpRegistro = isset($proveedor) ? ($proveedor->tipo_persona ?? '') : '';
+                    $tipoBloqueado = isset($proveedor) && $proveedor && $proveedor->tipoPersonaBloqueado();
+                    $tp = old('tipo_persona', $d['tipo_persona'] ?? $tpRegistro);
+                    if ($tipoBloqueado) {
+                        $tp = $proveedor->tipoPersonaNormalizado();
+                    }
+                    if ($tp && ! in_array($tp, ['Persona Física', 'Persona Moral'], true)) {
+                        $tpLower = mb_strtolower($tp);
+                        if (str_contains($tpLower, 'moral')) {
+                            $tp = 'Persona Moral';
+                        } elseif (str_contains($tpLower, 'fís') || str_contains($tpLower, 'fis')) {
+                            $tp = 'Persona Física';
                         }
-                    @endphp
-                    <option value="" disabled {{ $tp ? '' : 'selected' }}>Selecciona una opción</option>
-                    <option value="Persona Física" {{ $tp == 'Persona Física' ? 'selected' : '' }}>Persona Física</option>
-                    <option value="Persona Moral" {{ $tp == 'Persona Moral' ? 'selected' : '' }}>Persona Moral</option>
-                </select>
-                @if($tpRegistro)
-                    <span style="font-size:11px;color:var(--gray-muted);margin-top:4px;">Según tu registro de cuenta. Puedes corregirlo si fue un error.</span>
+                    }
+                @endphp
+                @if($tipoBloqueado)
+                    <input type="hidden" name="tipo_persona" id="tipo_persona" value="{{ $tp }}">
+                    <select disabled aria-disabled="true">
+                        <option value="Persona Física" {{ $tp == 'Persona Física' ? 'selected' : '' }}>Persona Física</option>
+                        <option value="Persona Moral" {{ $tp == 'Persona Moral' ? 'selected' : '' }}>Persona Moral</option>
+                    </select>
+                    <span style="font-size:11px;color:var(--gray-muted);margin-top:4px;">Precargado desde tu registro. No se puede cambiar (como en el SAT). Si hay error, contacta a Compras.</span>
+                @else
+                    <select id="tipo_persona" name="tipo_persona" required>
+                        <option value="" disabled {{ $tp ? '' : 'selected' }}>Selecciona una opción</option>
+                        <option value="Persona Física" {{ $tp == 'Persona Física' ? 'selected' : '' }}>Persona Física</option>
+                        <option value="Persona Moral" {{ $tp == 'Persona Moral' ? 'selected' : '' }}>Persona Moral</option>
+                    </select>
                 @endif
+                @error('tipo_persona')<span class="error-msg" style="color:#DC2626;font-size:12px;">{{ $message }}</span>@enderror
             </div>
         </div>
 
@@ -408,32 +419,37 @@
     var emojiRe = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE00}-\u{FE0F}\u{200D}]/gu;
 
     function toggleCampos() {
-        var tipo = select.value;
+        var tipo = select ? select.value : '';
         var esFisica = tipo === 'Persona Física';
         var esMoral = tipo === 'Persona Moral';
+
+        if (!fisica || !moral) return;
 
         fisica.style.display = esFisica ? 'block' : 'none';
         moral.style.display = esMoral ? 'block' : 'none';
 
         fisica.querySelectorAll('input').forEach(function (el) {
             el.required = esFisica;
-            if (!esFisica) el.value = '';
+            // Si el tipo está bloqueado (input hidden), no vaciar al cargar.
+            if (!esFisica && select && select.tagName === 'SELECT' && !select.disabled) el.value = '';
         });
         moral.querySelectorAll('input').forEach(function (el) {
             el.required = esMoral;
-            if (!esMoral) el.value = '';
+            if (!esMoral && select && select.tagName === 'SELECT' && !select.disabled) el.value = '';
         });
 
         if (docActa) {
             docActa.style.display = esMoral ? 'flex' : 'none';
-            if (!esMoral) {
+            if (!esMoral && select && select.tagName === 'SELECT' && !select.disabled) {
                 var cb = docActa.querySelector('input');
                 if (cb) cb.checked = false;
             }
         }
     }
 
-    select.addEventListener('change', toggleCampos);
+    if (select && select.tagName === 'SELECT') {
+        select.addEventListener('change', toggleCampos);
+    }
     toggleCampos();
 
     // Solo dígitos

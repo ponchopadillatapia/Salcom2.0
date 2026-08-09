@@ -258,6 +258,26 @@ class ProveedorController extends Controller
 
     public function guardarActualizacion(Request $request)
     {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+
+        if ($proveedor && $proveedor->tipoPersonaBloqueado()) {
+            $enviado = trim((string) $request->input('tipo_persona', ''));
+            $actual = $proveedor->tipoPersonaNormalizado();
+            $enviadoNorm = $enviado;
+            $lower = mb_strtolower($enviado);
+            if (str_contains($lower, 'moral')) {
+                $enviadoNorm = 'Persona Moral';
+            } elseif (str_contains($lower, 'fís') || str_contains($lower, 'fis')) {
+                $enviadoNorm = 'Persona Física';
+            }
+            if ($enviadoNorm !== '' && $enviadoNorm !== $actual) {
+                return back()->withErrors([
+                    'tipo_persona' => 'El tipo de persona ya quedó fijado y no se puede cambiar (como en el SAT). Si hay un error de registro, contacta a Compras.',
+                ])->withInput();
+            }
+            $request->merge(['tipo_persona' => $actual]);
+        }
+
         $request->validate([
             'nombre' => 'required|string|max:255',
             'tipo_persona' => 'required|string|max:255',
@@ -273,15 +293,16 @@ class ProveedorController extends Controller
             'password.confirmed' => 'Las contraseñas no coinciden.',
         ]);
 
-        $proveedor = ProveedorUser::find(session('proveedor_id'));
-
         if ($proveedor) {
-            $proveedor->update([
+            $data = [
                 'nombre' => $request->nombre,
-                'tipo_persona' => $request->tipo_persona,
                 'telefono' => $request->telefono,
                 'correo' => $request->correo,
-            ]);
+            ];
+            if (! $proveedor->tipoPersonaBloqueado()) {
+                $data['tipo_persona'] = $request->tipo_persona;
+            }
+            $proveedor->update($data);
 
             if ($request->password) {
                 $proveedor->update(['password' => bcrypt($request->password)]);

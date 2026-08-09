@@ -39,6 +39,46 @@ class UsuariosProduccionSeeder extends Seeder
                 'rol' => 'compras_importacion',
                 'activo' => true,
             ],
+            [
+                'nombre' => 'Cinthya Martinez',
+                'correo' => 'cinthya.martinez@wiese.com.mx',
+                'usuario' => 'cinthya.martinez',
+                'password' => Hash::make('Ci.123'),
+                'rol' => 'compras_importacion',
+                'activo' => true,
+            ],
+            [
+                'nombre' => 'Cintia Barrera',
+                'correo' => 'cintia.barrera@wiese.com.mx',
+                'usuario' => 'cintia.barrera',
+                'password' => Hash::make('Ci.123'),
+                'rol' => 'comercial',
+                'activo' => true,
+            ],
+            [
+                'nombre' => 'Sandra Gutierrez',
+                'correo' => 'sandra.gutierrez@wiese.com.mx',
+                'usuario' => 'sandra.gutierrez',
+                'password' => Hash::make('sa.123'),
+                'rol' => 'admin', // contabilidad — admin temporal
+                'activo' => true,
+            ],
+            [
+                'nombre' => 'Karen Bravo',
+                'correo' => 'karen.bravo@wiese.com.mx',
+                'usuario' => 'karen.bravo',
+                'password' => Hash::make('ka.123'),
+                'rol' => 'admin',
+                'activo' => true,
+            ],
+            [
+                'nombre' => 'Aneso Cominu',
+                'correo' => 'aneso.cominu@salcom.mx',
+                'usuario' => 'aneso.cominu',
+                'password' => Hash::make('An.123'),
+                'rol' => 'admin',
+                'activo' => true,
+            ],
             // Admins (dueños — ven todo)
             [
                 'nombre' => 'Fred Cominu',
@@ -68,13 +108,11 @@ class UsuariosProduccionSeeder extends Seeder
 
         foreach ($usuarios as $u) {
             AdminUser::updateOrCreate(
-                ['correo' => $u['correo']],
+                ['usuario' => $u['usuario']],
                 $u
             );
         }
 
-        echo "✅ 6 usuarios de producción creados.\n";
-        echo "   - 3 compras/mantenimiento (alta de producto)\n";
-        echo "   - 3 admins (ven todo)\n";
+        echo '✅ '.count($usuarios)." usuarios de producción sincronizados.\n";
     }
 }

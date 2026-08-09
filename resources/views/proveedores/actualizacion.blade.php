@@ -44,12 +44,24 @@
             @csrf @method('PUT')
             <div class="ios-field"><label>Nombre completo <span class="req">*</span></label><input type="text" name="nombre" placeholder="Tu nombre completo" value="{{ old('nombre', $proveedor->nombre ?? '') }}" required>@error('nombre')<span class="error-msg">{{ $message }}</span>@enderror</div>
             <div class="ios-field"><label>Tipo de persona <span class="req">*</span></label>
-                <select name="tipo_persona" required>
-                    @php $tipoActual = old('tipo_persona', $proveedor->tipo_persona ?? ''); @endphp
-                    <option value="" disabled {{ $tipoActual ? '' : 'selected' }}>Selecciona una opción</option>
-                    <option value="Persona Física" {{ $tipoActual=='Persona Física'?'selected':'' }}>Persona Física</option>
-                    <option value="Persona Moral" {{ $tipoActual=='Persona Moral'?'selected':'' }}>Persona Moral</option>
-                </select>
+                @php
+                    $tipoActual = old('tipo_persona', $proveedor->tipo_persona ?? '');
+                    $tipoBloqueado = $proveedor && $proveedor->tipoPersonaBloqueado();
+                    if ($tipoBloqueado) {
+                        $tipoActual = $proveedor->tipoPersonaNormalizado();
+                    }
+                @endphp
+                @if($tipoBloqueado)
+                    <input type="hidden" name="tipo_persona" value="{{ $tipoActual }}">
+                    <input type="text" value="{{ $tipoActual }}" disabled>
+                    <span class="error-msg" style="color:#6b7280;">Fijado al registrarte. No se puede cambiar (como en el SAT).</span>
+                @else
+                    <select name="tipo_persona" required>
+                        <option value="" disabled {{ $tipoActual ? '' : 'selected' }}>Selecciona una opción</option>
+                        <option value="Persona Física" {{ $tipoActual=='Persona Física'?'selected':'' }}>Persona Física</option>
+                        <option value="Persona Moral" {{ $tipoActual=='Persona Moral'?'selected':'' }}>Persona Moral</option>
+                    </select>
+                @endif
                 @error('tipo_persona')<span class="error-msg">{{ $message }}</span>@enderror
             </div>
             <div class="form-row">

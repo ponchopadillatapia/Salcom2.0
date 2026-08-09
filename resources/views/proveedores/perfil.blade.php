@@ -98,9 +98,14 @@
         <div>
             <div class="perfil-name">{{ $proveedor->nombre ?? session('proveedor_nombre', '—') }}</div>
             <div class="perfil-meta">
-                ID Proveedor: {{ $proveedor->id_proveedor ?? session('proveedor_codigo', '—') }}
-                · #{{ $proveedor->id ?? session('proveedor_id', '—') }}
-                · {{ $proveedor->correo ?? session('proveedor_correo', '—') }}
+                @php
+                    $codigoPerfil = $proveedor->id_proveedor ?? session('proveedor_codigo');
+                    $esEspejoAdmin = is_string($codigoPerfil) && str_starts_with(strtoupper($codigoPerfil), 'ADMIN-');
+                @endphp
+                @if($codigoPerfil && ! $esEspejoAdmin)
+                    Código: {{ $codigoPerfil }} ·
+                @endif
+                {{ $proveedor->correo ?? session('proveedor_correo', '—') }}
             </div>
         </div>
     </div>
@@ -111,6 +116,17 @@
     @if ($errors->any())
         <div class="alert" style="background:var(--red-bg);border:1px solid #fca5a5;color:var(--red)">
             <ul style="margin:0;padding-left:18px;">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul>
+        </div>
+    @endif
+    @if($proveedor && method_exists($proveedor, 'documentosVencidos') && $proveedor->documentosVencidos())
+        <div class="alert" style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;margin-bottom:14px;">
+            Tus documentos fiscales llevan <strong>21 días o más</strong>. Actualízalos en
+            <a href="{{ route('proveedores.validacion-fiscal') }}" style="color:inherit;font-weight:700;text-decoration:underline;">cambio de docs</a>.
+        </div>
+    @elseif($proveedor && method_exists($proveedor, 'documentosPorRenovar') && $proveedor->documentosPorRenovar())
+        <div class="alert" style="background:#fffbeb;border:1px solid #fcd34d;color:#92400e;margin-bottom:14px;">
+            Tus documentos están por renovar (ciclo de 21 días).
+            <a href="{{ route('proveedores.validacion-fiscal') }}" style="color:inherit;font-weight:700;text-decoration:underline;">Actualizar ahora</a>
         </div>
     @endif
 
@@ -129,6 +145,12 @@
                     <span class="info-label">Nombre</span>
                     <span class="info-value">{{ $proveedor->nombre ?? '—' }}</span>
                 </div>
+                <div class="info-row" style="justify-content:flex-end;">
+                    <a href="{{ route('proveedores.validacion-fiscal') }}"
+                       style="color:var(--purple,#6B3FA0);font-weight:600;font-size:13px;text-decoration:none;">
+                        cambio de docs
+                    </a>
+                </div>
                 <div class="info-row">
                     <span class="info-label">Usuario</span>
                     <span class="info-value">{{ $proveedor->usuario ?? '—' }}</span>
@@ -145,21 +167,30 @@
                     <span class="info-label">Tipo de persona</span>
                     <span class="info-value">{{ $proveedor->tipo_persona ?? '—' }}</span>
                 </div>
+                @if($codigoPerfil && ! $esEspejoAdmin)
                 <div class="info-row">
-                    <span class="info-label">ID sistema</span>
-                    <span class="info-value">#{{ $proveedor->id ?? '—' }}</span>
+                    <span class="info-label">Código proveedor</span>
+                    <span class="info-value">{{ $codigoPerfil }}</span>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">ID Proveedor</span>
-                    <span class="info-value">{{ $proveedor->id_proveedor ?? '—' }}</span>
-                </div>
+                @endif
             </div>
 
             <form method="POST" action="{{ route('proveedores.perfil.actualizar') }}" class="perfil-edit-form {{ $errors->any() ? 'open' : '' }}" id="perfilEditForm">
                 @csrf
                 <div class="edit-field">
-                    <label>Nombre</label>
-                    <input type="text" name="nombre" value="{{ old('nombre', $proveedor->nombre ?? '') }}" required maxlength="255">
+                    <label>Nombre / razón social</label>
+                    @php $nombreBloqueado = $proveedor && filled(trim((string) $proveedor->nombre)); @endphp
+                    @if($nombreBloqueado)
+                        <input type="hidden" name="nombre" value="{{ $proveedor->nombre }}">
+                        <input type="text" value="{{ $proveedor->nombre }}" disabled>
+                        <span style="font-size:11px;color:var(--gray-muted);margin-top:4px;display:block;">
+                            No se cambia aquí.
+                            <a href="{{ route('proveedores.validacion-fiscal') }}" style="color:var(--purple);font-weight:600;">cambio de docs</a>
+                        </span>
+                    @else
+                        <input type="text" name="nombre" value="{{ old('nombre', $proveedor->nombre ?? '') }}" required maxlength="255">
+                    @endif
+                    @error('nombre')<span style="color:var(--red);font-size:12px;">{{ $message }}</span>@enderror
                 </div>
                 <div class="edit-field">
                     <label>Usuario (no editable)</label>
@@ -175,11 +206,24 @@
                 </div>
                 <div class="edit-field">
                     <label>Tipo de persona</label>
-                    @php $tipo = old('tipo_persona', $proveedor->tipo_persona ?? ''); @endphp
-                    <select name="tipo_persona" required>
-                        <option value="Persona Física" {{ $tipo === 'Persona Física' ? 'selected' : '' }}>Persona Física</option>
-                        <option value="Persona Moral" {{ $tipo === 'Persona Moral' ? 'selected' : '' }}>Persona Moral</option>
-                    </select>
+                    @php
+                        $tipo = old('tipo_persona', $proveedor->tipo_persona ?? '');
+                        $tipoBloqueado = $proveedor && $proveedor->tipoPersonaBloqueado();
+                        if ($tipoBloqueado) {
+                            $tipo = $proveedor->tipoPersonaNormalizado();
+                        }
+                    @endphp
+                    @if($tipoBloqueado)
+                        <input type="hidden" name="tipo_persona" value="{{ $tipo }}">
+                        <input type="text" value="{{ $tipo }}" disabled>
+                        <span style="font-size:11px;color:var(--gray-muted);margin-top:4px;display:block;">Fijado al registrarte. No se puede cambiar (como en el SAT).</span>
+                    @else
+                        <select name="tipo_persona" required>
+                            <option value="Persona Física" {{ $tipo === 'Persona Física' ? 'selected' : '' }}>Persona Física</option>
+                            <option value="Persona Moral" {{ $tipo === 'Persona Moral' ? 'selected' : '' }}>Persona Moral</option>
+                        </select>
+                    @endif
+                    @error('tipo_persona')<span class="error-msg" style="color:var(--red);font-size:12px;">{{ $message }}</span>@enderror
                 </div>
                 <div class="edit-field">
                     <label>Nueva contraseña (opcional)</label>
@@ -199,7 +243,7 @@
         <div class="perfil-card">
             <h3>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                Estado de Cuenta
+                Estatus de la cuenta
             </h3>
             <div class="info-row">
                 <span class="info-label">Estado</span>
@@ -212,24 +256,12 @@
                 </span>
             </div>
             <div class="info-row">
-                <span class="info-label">Fuente de login</span>
-                <span class="info-value">{{ session('proveedor_login_source', 'local') }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">Token API</span>
-                <span class="info-value">{{ session('proveedor_token') ? 'Activo' : 'No disponible' }}</span>
-            </div>
-            <div class="info-row">
                 <span class="info-label">Miembro desde</span>
                 <span class="info-value">{{ $proveedor && $proveedor->created_at ? $proveedor->created_at->format('d/m/Y') : '—' }}</span>
             </div>
             <div class="info-row">
                 <span class="info-label">Última actualización</span>
                 <span class="info-value">{{ $proveedor && $proveedor->updated_at ? $proveedor->updated_at->format('d/m/Y H:i') : '—' }}</span>
-            </div>
-            <div class="info-row">
-                <span class="info-label">ID interno</span>
-                <span class="info-value">#{{ $proveedor->id ?? session('proveedor_id', '—') }}</span>
             </div>
         </div>
     </div>

@@ -47,8 +47,9 @@ class IaVerificarDocumentos extends Command
             $docsPorVencer = [];
 
             foreach ($documentos as $doc) {
-                // Calcular fecha de vencimiento (fecha de carga + 30 días)
-                $fechaVencimiento = $doc->created_at->addDays(30);
+                // Ciclo de vigencia: 21 días desde última aprobación/revisión (o carga).
+                $base = $doc->revisado_at ?? $doc->updated_at ?? $doc->created_at;
+                $fechaVencimiento = $base->copy()->addDays(21);
                 $diasRestantes = $hoy->diffInDays($fechaVencimiento, false);
 
                 // Ya venció

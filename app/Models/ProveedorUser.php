@@ -44,14 +44,101 @@ class ProveedorUser extends Authenticatable
 
     public function hasVerifiedCorreo(): bool
     {
-        return $this->correo_verified_at !== null;
+        // Si aún no corre la migration, no bloqueamos login (evita 500 local/prod).
+        if (! self::tieneColumnaCorreoVerified()) {
+            return true;
+        }
+
+        if ($this->correo_verified_at !== null) {
+            return true;
+        }
+
+        // Staff / cuentas internas: no exigen el mail de confirmación de Chino.
+        return $this->estaExentoDeConfirmarCorreo();
+    }
+
+    /**
+     * Una vez guardado (registro u otro form), no se puede cambiar: frena fraude / desalineación SAT.
+     */
+    public function tipoPersonaBloqueado(): bool
+    {
+        return filled(trim((string) $this->tipo_persona));
+    }
+
+    public function tipoPersonaNormalizado(): ?string
+    {
+        $tipo = trim((string) $this->tipo_persona);
+        if ($tipo === '') {
+            return null;
+        }
+        if ($tipo === 'Persona Física' || $tipo === 'Persona Moral') {
+            return $tipo;
+        }
+        $lower = mb_strtolower($tipo);
+        if (str_contains($lower, 'moral')) {
+            return 'Persona Moral';
+        }
+        if (str_contains($lower, 'fís') || str_contains($lower, 'fis')) {
+            return 'Persona Física';
+        }
+
+        return $tipo;
     }
 
     public function markCorreoAsVerified(): bool
     {
+        if (! self::tieneColumnaCorreoVerified()) {
+            return false;
+        }
+
         return $this->forceFill([
             'correo_verified_at' => $this->freshTimestamp(),
         ])->save();
+    }
+
+    public static function tieneColumnaCorreoVerified(): bool
+    {
+        static $has = null;
+        if ($has === null) {
+            try {
+                $has = Schema::hasColumn('proveedores_users', 'correo_verified_at');
+            } catch (\Throwable) {
+                $has = false;
+            }
+        }
+
+        return $has;
+    }
+
+    /** Usuarios de config('salcom.usuarios_sin_confirmar_correo'). */
+    public function estaExentoDeConfirmarCorreo(): bool
+    {
+        return self::usuarioExentoDeConfirmarCorreo($this->usuario)
+            || self::usuarioExentoDeConfirmarCorreo($this->correo);
+    }
+
+    public static function usuarioExentoDeConfirmarCorreo(?string $identificador): bool
+    {
+        $raw = strtolower(trim((string) $identificador));
+        if ($raw === '') {
+            return false;
+        }
+
+        $local = strstr($raw, '@', true);
+        $candidatos = array_filter([$raw, $local ?: null]);
+
+        $lista = array_map(
+            'strtolower',
+            config('salcom.usuarios_sin_confirmar_correo', [])
+        );
+
+        foreach ($candidatos as $c) {
+            if (in_array($c, $lista, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public const SOLICITUD_ALTA_MAX_INTENTOS = 5;
@@ -60,6 +147,9 @@ class ProveedorUser extends Authenticatable
     {
         // Seeders/tests: verificados por defecto. El registro web inserta correo_verified_at = null vía Query Builder.
         static::creating(function (self $proveedor) {
+            if (! self::tieneColumnaCorreoVerified()) {
+                return;
+            }
             if (! array_key_exists('correo_verified_at', $proveedor->getAttributes())) {
                 $proveedor->correo_verified_at = now();
             }
@@ -284,7 +374,33 @@ class ProveedorUser extends Authenticatable
                 continue;
             }
             $desde = $doc->revisado_at ?? $doc->updated_at ?? $doc->created_at;
-            if ($desde && now()->diffInDays($desde) >= 14) {
+            if ($desde && now()->diffInDays($desde) >= 14 && now()->diffInDays($desde) < 21) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Docs con ≥21 días desde última aprobación → deben actualizarse. */
+    public function documentosVencidos(): bool
+    {
+        if (! $this->documentosFiscalesCompletos()) {
+            return false;
+        }
+
+        $docs = $this->relationLoaded('documentos')
+            ? $this->documentos
+            : $this->documentos()->get();
+
+        foreach (array_keys($this->documentosRequeridos()) as $tipo) {
+            /** @var DocumentoProveedor|null $doc */
+            $doc = $docs->firstWhere('tipo', $tipo);
+            if (! $doc instanceof DocumentoProveedor || $doc->estatus !== 'aprobado') {
+                continue;
+            }
+            $desde = $doc->revisado_at ?? $doc->updated_at ?? $doc->created_at;
+            if ($desde && now()->diffInDays($desde) >= 21) {
                 return true;
             }
         }

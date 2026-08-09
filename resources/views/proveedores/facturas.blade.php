@@ -75,7 +75,7 @@
 </div>
 
 @php
-    $kpis = $kpis ?? ['pendientes' => 0, 'programadas' => 0, 'pagadas' => 0, 'totales' => 0];
+    $kpis = $kpis ?? ['rechazadas' => 0, 'pendientes' => 0, 'pagadas' => 0, 'totales' => 0];
     $baseKpiQuery = array_filter([
         'fecha_desde' => $filtros['fecha_desde'] ?: null,
         'fecha_hasta' => $filtros['fecha_hasta'] ?: null,
@@ -89,17 +89,17 @@
 @endif
 
 <div class="inv-metrics">
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pendiente'])) }}">
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'rechazada'])) }}">
         <div class="accent" style="background:var(--red, #dc2626)"></div>
-        <div class="inv-metric-label">Pendientes</div>
-        <div class="inv-metric-val">{{ $kpis['pendientes'] }}</div>
-        <div class="inv-metric-sub">Por pagar</div>
+        <div class="inv-metric-label">Rechazadas</div>
+        <div class="inv-metric-val">{{ $kpis['rechazadas'] ?? 0 }}</div>
+        <div class="inv-metric-sub">No aceptadas</div>
     </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'programada'])) }}">
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pendiente'])) }}">
         <div class="accent" style="background:var(--amber, #d97706)"></div>
-        <div class="inv-metric-label">Programadas</div>
-        <div class="inv-metric-val">{{ $kpis['programadas'] }}</div>
-        <div class="inv-metric-sub">En proceso de pago</div>
+        <div class="inv-metric-label">Pendientes</div>
+        <div class="inv-metric-val">{{ $kpis['pendientes'] ?? $kpis['programadas'] ?? 0 }}</div>
+        <div class="inv-metric-sub">Por pagar</div>
     </a>
     <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pagada'])) }}">
         <div class="accent" style="background:var(--green, #16a34a)"></div>

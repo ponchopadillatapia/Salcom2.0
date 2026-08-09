@@ -182,18 +182,21 @@ class AuthProveedorController extends Controller
             $usuario = $this->generarUsuarioUnico($baseUsuario, $correo);
 
             // Insertar proveedor (correo pendiente de verificación)
-            $proveedorId = DB::table('proveedores_users')->insertGetId([
+            $insert = [
                 'usuario' => $usuario,
                 'password' => bcrypt($request->password),
                 'nombre' => $nombre,
                 'tipo_persona' => $request->tipo_persona,
                 'telefono' => $request->telefono,
                 'correo' => $correo,
-                'correo_verified_at' => null,
                 'activo' => false,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ];
+            if (Schema::hasColumn('proveedores_users', 'correo_verified_at')) {
+                $insert['correo_verified_at'] = null;
+            }
+            $proveedorId = DB::table('proveedores_users')->insertGetId($insert);
 
             $this->enviarBienvenidaRegistro(
                 (int) $proveedorId,
@@ -225,6 +228,22 @@ class AuthProveedorController extends Controller
 
     public function guardarActualizacion(Request $request)
     {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor) {
+            return redirect()->route('proveedores.perfil')->with('error', 'Proveedor no encontrado.');
+        }
+
+        if ($proveedor->tipoPersonaBloqueado()) {
+            $enviado = $this->normalizarTipoPersonaLocal((string) $request->input('tipo_persona', ''));
+            $actual = $proveedor->tipoPersonaNormalizado();
+            if ($enviado !== '' && $enviado !== $actual) {
+                return back()->withErrors([
+                    'tipo_persona' => 'El tipo de persona ya quedó fijado y no se puede cambiar (como en el SAT). Si hay un error de registro, contacta a Compras.',
+                ])->withInput();
+            }
+            $request->merge(['tipo_persona' => $actual]);
+        }
+
         $request->validate([
             'nombre' => 'required|string|max:255', 'tipo_persona' => 'required|string|max:255',
             'telefono' => 'required|string|max:20', 'correo' => 'required|email',
@@ -235,26 +254,43 @@ class AuthProveedorController extends Controller
             'password.min' => 'La contraseña debe tener mínimo 8 caracteres.', 'password.confirmed' => 'Las contraseñas no coinciden.',
         ]);
 
-        $proveedor = ProveedorUser::find(session('proveedor_id'));
-        if ($proveedor) {
-            $proveedor->update([
-                'nombre' => $request->nombre,
-                'tipo_persona' => $request->tipo_persona,
-                'telefono' => $request->telefono,
-                'correo' => $request->correo,
-            ]);
-            if ($request->password) {
-                $proveedor->update(['password' => bcrypt($request->password)]);
-            }
-
-            // Mantener el header / sesión alineados con el perfil
-            session([
-                'proveedor_nombre' => $proveedor->nombre,
-                'proveedor_correo' => $proveedor->correo,
-            ]);
+        $data = [
+            'nombre' => $request->nombre,
+            'telefono' => $request->telefono,
+            'correo' => $request->correo,
+        ];
+        if (! $proveedor->tipoPersonaBloqueado()) {
+            $data['tipo_persona'] = $request->tipo_persona;
+        }
+        $proveedor->update($data);
+        if ($request->password) {
+            $proveedor->update(['password' => bcrypt($request->password)]);
         }
 
+        // Mantener el header / sesión alineados con el perfil
+        session([
+            'proveedor_nombre' => $proveedor->nombre,
+            'proveedor_correo' => $proveedor->correo,
+        ]);
+
         return redirect()->route('proveedores.perfil')->with('mensaje', 'Datos actualizados correctamente.');
+    }
+
+    private function normalizarTipoPersonaLocal(string $tipo): string
+    {
+        $tipo = trim($tipo);
+        if ($tipo === 'Persona Física' || $tipo === 'Persona Moral') {
+            return $tipo;
+        }
+        $lower = mb_strtolower($tipo);
+        if (str_contains($lower, 'moral')) {
+            return 'Persona Moral';
+        }
+        if (str_contains($lower, 'fís') || str_contains($lower, 'fis')) {
+            return 'Persona Física';
+        }
+
+        return $tipo;
     }
 
     public function cerrarSesion()
@@ -309,25 +345,40 @@ class AuthProveedorController extends Controller
                 return ['error' => 'correo_no_verificado'];
             }
 
+            // Persistimos la excepción staff (si aplica) para que no dependa solo de config.
+            if (
+                ProveedorUser::tieneColumnaCorreoVerified()
+                && $proveedor->correo_verified_at === null
+                && $proveedor->estaExentoDeConfirmarCorreo()
+            ) {
+                $proveedor->markCorreoAsVerified();
+            }
+
             return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->id_proveedor, 'correo' => $proveedor->correo, 'token' => null];
         }
 
-        // Super admins (jesus, alex, fred) pueden entrar al portal de proveedores.
-        // Se crea/usa un ProveedorUser espejo para que onboarding y demás páginas no fallen.
+        // Admins y staff interno pueden entrar al portal de proveedores (cuenta espejo).
+        // Rol admin: siempre. Otros roles: solo si están en la lista sin confirmar correo.
         $admin = AdminUser::where(function ($q) use ($codigo) {
             $q->where('usuario', $codigo)->orWhere('correo', $codigo);
         })->first();
 
-        if ($admin && Hash::check($pwd, $admin->password) && $admin->rol === 'admin') {
-            $proveedor = $this->asegurarProveedorEspejoAdmin($admin);
+        if ($admin && Hash::check($pwd, $admin->password) && $admin->activo) {
+            $puedePortal = $admin->rol === 'admin'
+                || ProveedorUser::usuarioExentoDeConfirmarCorreo($admin->usuario)
+                || ProveedorUser::usuarioExentoDeConfirmarCorreo($admin->correo);
 
-            return [
-                'id' => $proveedor->id,
-                'nombre' => $proveedor->nombre ?? $admin->nombre,
-                'codigo' => $proveedor->id_proveedor ?? $proveedor->codigo_compras ?? ('ADMIN-'.$admin->id),
-                'correo' => $proveedor->correo ?? $admin->correo,
-                'token' => null,
-            ];
+            if ($puedePortal) {
+                $proveedor = $this->asegurarProveedorEspejoAdmin($admin);
+
+                return [
+                    'id' => $proveedor->id,
+                    'nombre' => $proveedor->nombre ?? $admin->nombre,
+                    'codigo' => $proveedor->id_proveedor ?? $proveedor->codigo_compras ?? ('ADMIN-'.$admin->id),
+                    'correo' => $proveedor->correo ?? $admin->correo,
+                    'token' => null,
+                ];
+            }
         }
 
         return null;
@@ -360,7 +411,14 @@ class AuthProveedorController extends Controller
     {
         $existente = ProveedorUser::where('usuario', $admin->usuario)->first();
         if ($existente) {
-            return $existente;
+            if (ProveedorUser::tieneColumnaCorreoVerified() && $existente->correo_verified_at === null) {
+                $existente->markCorreoAsVerified();
+            }
+            if (! $existente->activo) {
+                $existente->update(['activo' => true]);
+            }
+
+            return $existente->fresh();
         }
 
         $datos = [
@@ -370,8 +428,10 @@ class AuthProveedorController extends Controller
             'password' => $admin->password,
             'tipo_persona' => 'Persona Moral',
             'activo' => true,
-            'correo_verified_at' => now(),
         ];
+        if (ProveedorUser::tieneColumnaCorreoVerified()) {
+            $datos['correo_verified_at'] = now();
+        }
 
         if (Schema::hasColumn('proveedores_users', 'id_proveedor')) {
             $datos['id_proveedor'] = 'ADMIN-'.$admin->id;

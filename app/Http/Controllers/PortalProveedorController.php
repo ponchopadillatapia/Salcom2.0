@@ -230,28 +230,31 @@ class PortalProveedorController extends Controller
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
 
-        $base = Factura::query()
-            ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo))
-            ->where('estatus', '!=', 'rechazada');
+        $baseAll = Factura::query()
+            ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo));
 
         if ($request->filled('fecha_desde')) {
-            $base->whereDate('created_at', '>=', $request->input('fecha_desde'));
+            $baseAll->whereDate('created_at', '>=', $request->input('fecha_desde'));
         }
         if ($request->filled('fecha_hasta')) {
-            $base->whereDate('created_at', '<=', $request->input('fecha_hasta'));
+            $baseAll->whereDate('created_at', '<=', $request->input('fecha_hasta'));
         }
 
+        // Listado por defecto sin rechazadas; el KPI rojo sí las cuenta.
+        $base = (clone $baseAll)->where('estatus', '!=', 'rechazada');
+
         $kpis = [
+            'rechazadas' => (clone $baseAll)->where('estatus', 'rechazada')->count(),
             'pendientes' => (clone $base)->where('estatus', 'pendiente')->count(),
-            'programadas' => (clone $base)->whereIn('estatus', ['programada', 'aprobada', 'validada'])->count(),
             'pagadas' => (clone $base)->where('estatus', 'pagada')->count(),
             'totales' => (clone $base)->count(),
         ];
 
-        $query = clone $base;
-
         $buscar = trim((string) $request->input('q', ''));
         $campo = $request->input('campo', 'folio');
+        $filtrandoRechazadas = $campo === 'estatus' && str_contains(mb_strtolower($buscar), 'rechaz');
+
+        $query = $filtrandoRechazadas ? clone $baseAll : clone $base;
         if ($buscar !== '') {
             if ($campo === 'monto') {
                 $query->where('total', 'like', '%'.str_replace([',', '$'], '', $buscar).'%');
@@ -421,12 +424,53 @@ class PortalProveedorController extends Controller
         $contactos = $proveedor ? $proveedor->contactos()->orderBy('nombre')->get() : collect();
         $minContactos = 2;
         $faltanContactos = max(0, $minContactos - $contactos->count());
+        $solicitudNombrePendiente = null;
+        if ($proveedor) {
+            try {
+                $solicitudNombrePendiente = \App\Models\SolicitudModificacionDatos::where('proveedor_id', $proveedor->id)
+                    ->where('estatus', 'pendiente')
+                    ->latest()
+                    ->first();
+            } catch (\Throwable) {
+                $solicitudNombrePendiente = null;
+            }
+        }
 
-        return view('proveedores.perfil', compact('proveedor', 'contactos', 'minContactos', 'faltanContactos'));
+        return view('proveedores.perfil', compact(
+            'proveedor',
+            'contactos',
+            'minContactos',
+            'faltanContactos',
+            'solicitudNombrePendiente'
+        ));
     }
 
     public function actualizarPerfil(Request $request)
     {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor) {
+            return back()->with('error', 'Proveedor no encontrado.');
+        }
+
+        if ($error = $this->errorSiIntentaCambiarTipoPersona($proveedor, $request->input('tipo_persona'))) {
+            return back()->withErrors(['tipo_persona' => $error])->withInput();
+        }
+
+        if ($proveedor->tipoPersonaBloqueado()) {
+            $request->merge(['tipo_persona' => $proveedor->tipoPersonaNormalizado()]);
+        }
+
+        // Nombre/razón social se cambia solo vía solicitud con documentos + IA.
+        if (filled(trim((string) $proveedor->nombre))) {
+            $enviado = trim((string) $request->input('nombre', ''));
+            if ($enviado !== '' && mb_strtoupper($enviado) !== mb_strtoupper(trim((string) $proveedor->nombre))) {
+                return back()->withErrors([
+                    'nombre' => 'El nombre o razón social no se puede cambiar aquí. Usa “Solicitar cambio” y adjunta la documentación fiscal.',
+                ])->withInput();
+            }
+            $request->merge(['nombre' => $proveedor->nombre]);
+        }
+
         $request->validate([
             'nombre' => 'required|string|max:255',
             'tipo_persona' => 'required|in:Persona Física,Persona Moral',
@@ -443,28 +487,94 @@ class PortalProveedorController extends Controller
             'password.confirmed' => 'Las contraseñas no coinciden.',
         ]);
 
-        $proveedor = ProveedorUser::find(session('proveedor_id'));
-        if (! $proveedor) {
-            return back()->with('error', 'Proveedor no encontrado.');
-        }
-
-        $proveedor->update([
-            'nombre' => $request->nombre,
-            'tipo_persona' => $request->tipo_persona,
+        $data = [
             'telefono' => $request->telefono,
             'correo' => $request->correo,
-        ]);
+        ];
+        if (! filled(trim((string) $proveedor->nombre))) {
+            $data['nombre'] = $request->nombre;
+        }
+        if (! $proveedor->tipoPersonaBloqueado()) {
+            $data['tipo_persona'] = $request->tipo_persona;
+        }
+
+        $proveedor->update($data);
 
         if ($request->filled('password')) {
             $proveedor->update(['password' => bcrypt($request->password)]);
         }
 
         session([
-            'proveedor_nombre' => $proveedor->nombre,
-            'proveedor_correo' => $proveedor->correo,
+            'proveedor_nombre' => $proveedor->fresh()->nombre,
+            'proveedor_correo' => $proveedor->fresh()->correo,
         ]);
 
         return redirect()->route('proveedores.perfil')->with('mensaje', 'Datos actualizados correctamente.');
+    }
+
+    public function mostrarSolicitudModificacionNombre(\App\Services\SolicitudModificacionDatosService $service)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor) {
+            return redirect()->route('proveedores.login');
+        }
+
+        $pendiente = \App\Models\SolicitudModificacionDatos::where('proveedor_id', $proveedor->id)
+            ->where('estatus', 'pendiente')
+            ->latest()
+            ->first();
+        $historial = \App\Models\SolicitudModificacionDatos::where('proveedor_id', $proveedor->id)
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get();
+
+        return view('proveedores.solicitud-modificacion-nombre', compact('proveedor', 'pendiente', 'historial'));
+    }
+
+    public function enviarSolicitudModificacionNombre(
+        Request $request,
+        \App\Services\SolicitudModificacionDatosService $service
+    ) {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor) {
+            return redirect()->route('proveedores.login');
+        }
+
+        $esMoral = str_contains(mb_strtolower((string) $proveedor->tipo_persona), 'moral');
+
+        $request->validate([
+            'valor_propuesto' => 'required|string|min:3|max:255',
+            'motivo' => 'nullable|string|max:1000',
+            'cif_pdf' => 'required|file|mimes:pdf|max:10240',
+            'acta_pdf' => ($esMoral ? 'required' : 'nullable').'|file|mimes:pdf|max:10240',
+        ], [
+            'valor_propuesto.required' => 'Indica el nuevo nombre o razón social.',
+            'cif_pdf.required' => 'Debes subir la Constancia de Situación Fiscal actualizada.',
+            'acta_pdf.required' => 'Como Persona Moral debes subir el Acta Constitutiva.',
+            'cif_pdf.mimes' => 'La constancia debe ser PDF.',
+            'acta_pdf.mimes' => 'El acta debe ser PDF.',
+        ]);
+
+        $result = $service->crearYValidar(
+            $proveedor,
+            (string) $request->input('valor_propuesto'),
+            $request->input('motivo'),
+            $request->file('cif_pdf'),
+            $request->file('acta_pdf'),
+        );
+
+        if ($result['ok']) {
+            session(['proveedor_nombre' => $proveedor->fresh()->nombre]);
+
+            return redirect()
+                ->route('proveedores.perfil')
+                ->with('mensaje', $result['mensaje']);
+        }
+
+        return redirect()
+            ->route('proveedores.perfil.solicitud-nombre')
+            ->with('error', $result['mensaje'])
+            ->withInput();
     }
 
     public function subirFoto(Request $request)
@@ -724,6 +834,14 @@ class PortalProveedorController extends Controller
                 ->with('error', 'No puedes modificar el formulario: tu solicitud está en revisión o ya fue aprobada.');
         }
 
+        if ($proveedorPre && ($error = $this->errorSiIntentaCambiarTipoPersona($proveedorPre, $request->input('tipo_persona')))) {
+            return back()->withErrors(['tipo_persona' => $error])->withInput();
+        }
+
+        if ($proveedorPre && $proveedorPre->tipoPersonaBloqueado()) {
+            $request->merge(['tipo_persona' => $proveedorPre->tipoPersonaNormalizado()]);
+        }
+
         $esFisica = $request->input('tipo_persona') === 'Persona Física';
         $esMoral = $request->input('tipo_persona') === 'Persona Moral';
 
@@ -870,9 +988,11 @@ class PortalProveedorController extends Controller
             try {
                 $updateDatos = [
                     'datos_identificacion' => $payload,
-                    'tipo_persona' => $data['tipo_persona'],
                     'nombre' => $nombreEsperado !== '' ? $nombreEsperado : $proveedor->nombre,
                 ];
+                if (! $proveedor->tipoPersonaBloqueado()) {
+                    $updateDatos['tipo_persona'] = $data['tipo_persona'];
+                }
                 if (! empty($data['correo'])) {
                     $updateDatos['correo'] = $data['correo'];
                 }
@@ -891,10 +1011,13 @@ class PortalProveedorController extends Controller
             } catch (\Exception $e) {
                 // La columna datos_identificacion puede no existir aún en producción
                 try {
-                    $proveedor->update([
-                        'tipo_persona' => $data['tipo_persona'],
+                    $fallback = [
                         'nombre' => $nombreEsperado !== '' ? $nombreEsperado : $proveedor->nombre,
-                    ]);
+                    ];
+                    if (! $proveedor->tipoPersonaBloqueado()) {
+                        $fallback['tipo_persona'] = $data['tipo_persona'];
+                    }
+                    $proveedor->update($fallback);
                     session(['proveedor_nombre' => $proveedor->fresh()->nombre]);
                 } catch (\Exception $e2) {
                     // ignore
@@ -1464,6 +1587,22 @@ class PortalProveedorController extends Controller
         }
 
         return $tipo;
+    }
+
+    /** Null = ok. String = mensaje de error si intentan cambiar un tipo ya fijado. */
+    private function errorSiIntentaCambiarTipoPersona(ProveedorUser $proveedor, mixed $enviado): ?string
+    {
+        if (! $proveedor->tipoPersonaBloqueado()) {
+            return null;
+        }
+
+        $nuevo = $this->normalizarTipoPersona(is_string($enviado) ? $enviado : '');
+        $actual = $proveedor->tipoPersonaNormalizado();
+        if ($nuevo === '' || $nuevo === $actual) {
+            return null;
+        }
+
+        return 'El tipo de persona ya quedó fijado y no se puede cambiar (como en el SAT). Si hay un error de registro, contacta a Compras.';
     }
 
     /** Campos que, si cambian, invalidan la validación fiscal ya hecha. */

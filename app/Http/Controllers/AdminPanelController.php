@@ -15,6 +15,7 @@ use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
+use App\Models\SolicitudModificacionDatos;
 use App\Services\AlertEngineService;
 use App\Services\InventarioCalculoService;
 use App\Services\PedidoProveedorSyncService;
@@ -2501,6 +2502,46 @@ class AdminPanelController extends Controller
             'tiposLabel',
             'datosIdent'
         ));
+    }
+
+    /** Solicitudes de actualización/renovación de docs de proveedores activos. */
+    public function solicitudesActualizacionDocs(Request $request)
+    {
+        $estatus = $request->input('estatus', 'pendiente');
+        $query = SolicitudModificacionDatos::with('proveedor')->orderByDesc('id');
+        if (in_array($estatus, ['pendiente', 'aprobada', 'rechazada'], true)) {
+            $query->where('estatus', $estatus);
+        }
+        // estatus=all → sin filtro
+        $solicitudes = $query->paginate(30)->withQueryString();
+
+        return view('admin.solicitudes-actualizacion-docs', compact('solicitudes', 'estatus'));
+    }
+
+    public function marcarSolicitudActualizacionDocs(Request $request)
+    {
+        $request->validate([
+            'solicitud_id' => 'required|integer',
+            'accion' => 'required|in:aprobar,rechazar',
+            'notas' => 'nullable|string|max:1000',
+        ]);
+
+        $sol = SolicitudModificacionDatos::findOrFail($request->solicitud_id);
+        $sol->update([
+            'estatus' => $request->accion === 'aprobar' ? 'aprobada' : 'rechazada',
+            'notas' => $request->input('notas', $sol->notas),
+            'revisado_at' => now(),
+        ]);
+
+        // Si hay nombre distinto en la propuesta y se aprueba → aplicar.
+        if ($request->accion === 'aprobar'
+            && $sol->campo !== 'documentos_fiscales'
+            && filled($sol->valor_propuesto)
+            && $sol->proveedor) {
+            $sol->proveedor->update(['nombre' => $sol->valor_propuesto]);
+        }
+
+        return back()->with('mensaje', 'Solicitud marcada como '.($request->accion === 'aprobar' ? 'aprobada' : 'rechazada').'.');
     }
 
     public function autorizarCosto(Request $request)
