@@ -170,4 +170,47 @@
         @endif
     @endif
 </div>
+
+{{-- ═══ Facturas del sistema Wiese ═══ --}}
+@if(isset($wieseFacturas))
+<div style="margin-top:32px;">
+    <h3 style="font-size:16px;font-weight:700;color:var(--gray-text);margin-bottom:16px;">Facturas registradas en sistema ({{ $wieseTotal }})</h3>
+    @if($wieseError)
+        <div style="background:var(--amber-bg,#fef3cd);border:1px solid var(--amber,#d97706);border-radius:10px;padding:14px;font-size:13px;color:var(--amber);">
+            {{ $wieseError }}
+        </div>
+    @elseif($wieseFacturas->isEmpty())
+        <div class="empty">No se encontraron facturas en el sistema para este proveedor.</div>
+    @else
+        <div class="card">
+            <table class="tabla">
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Fecha</th>
+                        <th>Razón Social</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($wieseFacturas as $doc)
+                        <tr>
+                            <td><span class="link">{{ $doc['folio'] ?? $doc['Folio'] ?? '—' }}</span></td>
+                            <td>{{ isset($doc['fecha']) || isset($doc['Fecha']) ? \Carbon\Carbon::parse($doc['fecha'] ?? $doc['Fecha'])->format('d/m/Y') : '—' }}</td>
+                            <td>{{ $doc['razonSocial'] ?? $doc['RazonSocial'] ?? $doc['razon_social'] ?? '—' }}</td>
+                            <td class="monto">${{ number_format((float) ($doc['total'] ?? $doc['Total'] ?? 0), 2) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            @if($wieseTotal > 100)
+                <div style="padding:12px 20px;font-size:12px;color:var(--gray-muted);text-align:center;">
+                    Mostrando 100 de {{ number_format($wieseTotal) }} facturas
+                </div>
+            @endif
+        </div>
+    @endif
+</div>
+@endif
+
 @endsection

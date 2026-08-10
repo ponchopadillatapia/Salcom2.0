@@ -277,7 +277,31 @@ class PortalProveedorController extends Controller
             'campo' => $campo,
         ];
 
-        return view('proveedores.facturas', compact('proveedor', 'facturas', 'filtros', 'codigo', 'kpis'));
+        // === Facturas Wiese (API) ===
+        $wieseFacturas = collect();
+        $wieseTotal = 0;
+        $wieseError = null;
+
+        $wieseCodigo = trim((string) ($proveedor?->id_proveedor ?? $proveedor?->codigo ?? ''));
+        if ($wieseCodigo !== '') {
+            try {
+                $wieseApi = app(\App\Services\ProveedorApiService::class);
+                $fechaInicio = $request->input('fecha_desde', now()->subYear()->startOfYear()->format('Y-m-d'));
+                $fechaFin = $request->input('fecha_hasta', now()->format('Y-m-d'));
+                $ocResult = $wieseApi->listarDocumentosOCPorProveedorFechas($wieseCodigo, $fechaInicio, $fechaFin);
+                if ($ocResult['success'] ?? false) {
+                    $all = collect($ocResult['data']['items'] ?? []);
+                    $wieseTotal = (int) ($ocResult['data']['total'] ?? $all->count());
+                    $wieseFacturas = $all->take(100);
+                } else {
+                    $wieseError = $ocResult['message'] ?? 'No se pudieron cargar las facturas.';
+                }
+            } catch (\Exception $e) {
+                $wieseError = 'No se pudo conectar con el sistema de facturación.';
+            }
+        }
+
+        return view('proveedores.facturas', compact('proveedor', 'facturas', 'filtros', 'codigo', 'kpis', 'wieseFacturas', 'wieseTotal', 'wieseError'));
     }
 
     public function facturasExcel(Request $request)
