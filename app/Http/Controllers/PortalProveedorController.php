@@ -281,6 +281,7 @@ class PortalProveedorController extends Controller
         $wieseFacturas = collect();
         $wieseTotal = 0;
         $wieseError = null;
+        $wieseKpis = ['pendientes' => 0, 'pagadas' => 0, 'canceladas' => 0, 'totales' => 0];
 
         $wieseCodigo = trim((string) ($proveedor?->id_proveedor ?? $proveedor?->codigo ?? ''));
         if ($wieseCodigo !== '') {
@@ -291,8 +292,33 @@ class PortalProveedorController extends Controller
                 $ocResult = $wieseApi->listarDocumentosOCPorProveedorFechas($wieseCodigo, $fechaInicio, $fechaFin);
                 if ($ocResult['success'] ?? false) {
                     $all = collect($ocResult['data']['items'] ?? []);
-                    $wieseTotal = (int) ($ocResult['data']['total'] ?? $all->count());
-                    $wieseFacturas = $all->take(100);
+
+                    // Asignar estatus: cancelado=1 → cancelada, pendiente>0 → pendiente, else → pagada
+                    $all = $all->map(function ($doc) {
+                        if (($doc['ccancelado'] ?? 0) == 1) {
+                            $doc['_estatus'] = 'cancelada';
+                        } elseif (($doc['cpendiente'] ?? 0) > 0) {
+                            $doc['_estatus'] = 'pendiente';
+                        } else {
+                            $doc['_estatus'] = 'pagada';
+                        }
+                        return $doc;
+                    })->values();
+
+                    // KPIs Wiese
+                    $wieseKpis['pendientes'] = $all->where('_estatus', 'pendiente')->count();
+                    $wieseKpis['pagadas'] = $all->where('_estatus', 'pagada')->count();
+                    $wieseKpis['canceladas'] = $all->where('_estatus', 'cancelada')->count();
+                    $wieseKpis['totales'] = $all->count();
+
+                    // Filtrar por estatus si viene en query
+                    $filtroEstatus = $request->input('wiese_estatus', '');
+                    if ($filtroEstatus !== '') {
+                        $all = $all->where('_estatus', $filtroEstatus);
+                    }
+
+                    $wieseTotal = $all->count();
+                    $wieseFacturas = $all->take(100)->values();
                 } else {
                     $wieseError = $ocResult['message'] ?? 'No se pudieron cargar las facturas.';
                 }
@@ -301,7 +327,7 @@ class PortalProveedorController extends Controller
             }
         }
 
-        return view('proveedores.facturas', compact('proveedor', 'facturas', 'filtros', 'codigo', 'kpis', 'wieseFacturas', 'wieseTotal', 'wieseError'));
+        return view('proveedores.facturas', compact('proveedor', 'facturas', 'filtros', 'codigo', 'kpis', 'wieseFacturas', 'wieseTotal', 'wieseError', 'wieseKpis'));
     }
 
     public function facturasExcel(Request $request)

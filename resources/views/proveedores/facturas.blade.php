@@ -76,6 +76,7 @@
 
 @php
     $kpis = $kpis ?? ['rechazadas' => 0, 'pendientes' => 0, 'pagadas' => 0, 'totales' => 0];
+    $wk = $wieseKpis ?? ['canceladas' => 0, 'pendientes' => 0, 'pagadas' => 0, 'totales' => 0];
     $baseKpiQuery = array_filter([
         'fecha_desde' => $filtros['fecha_desde'] ?: null,
         'fecha_hasta' => $filtros['fecha_hasta'] ?: null,
@@ -89,28 +90,28 @@
 @endif
 
 <div class="inv-metrics">
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'rechazada'])) }}">
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['wiese_estatus' => 'cancelada'])) }}">
         <div class="accent" style="background:var(--red, #dc2626)"></div>
-        <div class="inv-metric-label">Rechazadas</div>
-        <div class="inv-metric-val">{{ $kpis['rechazadas'] ?? 0 }}</div>
-        <div class="inv-metric-sub">No aceptadas</div>
+        <div class="inv-metric-label">Canceladas</div>
+        <div class="inv-metric-val">{{ $wk['canceladas'] }}</div>
+        <div class="inv-metric-sub">No vigentes</div>
     </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pendiente'])) }}">
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['wiese_estatus' => 'pendiente'])) }}">
         <div class="accent" style="background:var(--amber, #d97706)"></div>
         <div class="inv-metric-label">Pendientes</div>
-        <div class="inv-metric-val">{{ $kpis['pendientes'] ?? $kpis['programadas'] ?? 0 }}</div>
+        <div class="inv-metric-val">{{ $wk['pendientes'] }}</div>
         <div class="inv-metric-sub">Por pagar</div>
     </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pagada'])) }}">
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['wiese_estatus' => 'pagada'])) }}">
         <div class="accent" style="background:var(--green, #16a34a)"></div>
         <div class="inv-metric-label">Pagadas</div>
-        <div class="inv-metric-val">{{ $kpis['pagadas'] }}</div>
+        <div class="inv-metric-val">{{ $wk['pagadas'] }}</div>
         <div class="inv-metric-sub">Ya liquidadas</div>
     </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', $baseKpiQuery) }}">
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, [])) }}">
         <div class="accent" style="background:var(--purple, #6B3FA0)"></div>
         <div class="inv-metric-label">Facturas totales</div>
-        <div class="inv-metric-val">{{ $kpis['totales'] }}</div>
+        <div class="inv-metric-val">{{ $wk['totales'] }}</div>
         <div class="inv-metric-sub">En el período</div>
     </a>
 </div>
@@ -174,13 +175,14 @@
 {{-- ═══ Facturas del sistema Wiese ═══ --}}
 @if(isset($wieseFacturas))
 <div style="margin-top:32px;">
-    <h3 style="font-size:16px;font-weight:700;color:var(--gray-text);margin-bottom:16px;">Facturas registradas en sistema ({{ $wieseTotal }})</h3>
+    <h3 style="font-size:16px;font-weight:700;color:var(--gray-text);margin-bottom:16px;">Facturas registradas en sistema</h3>
+
     @if($wieseError)
         <div style="background:var(--amber-bg,#fef3cd);border:1px solid var(--amber,#d97706);border-radius:10px;padding:14px;font-size:13px;color:var(--amber);">
             {{ $wieseError }}
         </div>
     @elseif($wieseFacturas->isEmpty())
-        <div class="empty">No se encontraron facturas en el sistema para este proveedor.</div>
+        <div class="empty">No se encontraron facturas con ese filtro.</div>
     @else
         <div class="card">
             <table class="tabla">
@@ -188,17 +190,22 @@
                     <tr>
                         <th>Folio</th>
                         <th>Fecha</th>
-                        <th>Razón Social</th>
                         <th>Total</th>
+                        <th>Pendiente</th>
+                        <th>Estatus</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($wieseFacturas as $doc)
-                        <tr>
-                            <td><span class="link">{{ $doc['folio'] ?? $doc['Folio'] ?? '—' }}</span></td>
-                            <td>{{ isset($doc['fecha']) || isset($doc['Fecha']) ? \Carbon\Carbon::parse($doc['fecha'] ?? $doc['Fecha'])->format('d/m/Y') : '—' }}</td>
-                            <td>{{ $doc['razonSocial'] ?? $doc['RazonSocial'] ?? $doc['razon_social'] ?? '—' }}</td>
-                            <td class="monto">${{ number_format((float) ($doc['total'] ?? $doc['Total'] ?? 0), 2) }}</td>
+                    @foreach($wieseFacturas as $idx => $doc)
+                        <tr style="cursor:pointer;" onclick="abrirModalFactura({{ $idx }})">
+                            <td><span class="link">{{ $doc['cfolio'] ?? '' }}</span></td>
+                            <td>{{ isset($doc['cfecha']) ? \Carbon\Carbon::parse($doc['cfecha'])->format('d/m/Y') : '—' }}</td>
+                            <td class="monto">${{ number_format((float) ($doc['ctotal'] ?? 0), 2) }}</td>
+                            <td class="monto">${{ number_format((float) ($doc['cpendiente'] ?? 0), 2) }}</td>
+                            <td>
+                                @php $est = $doc['_estatus'] ?? 'pendiente'; @endphp
+                                <span class="pill {{ $est === 'cancelada' ? 'rechazada' : $est }}">{{ $est }}</span>
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -211,6 +218,55 @@
         </div>
     @endif
 </div>
+
+{{-- Modal detalle factura --}}
+<div id="modalFactura" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)cerrarModal()">
+    <div style="background:#fff;border-radius:14px;padding:28px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;position:relative;">
+        <button onclick="cerrarModal()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-muted);">&times;</button>
+        <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--purple);">Detalle de Factura</h3>
+        <div id="modalContenido"></div>
+    </div>
+</div>
 @endif
 
 @endsection
+
+@push('scripts')
+<script>
+var facturasWiese = @json($wieseFacturas ?? []);
+
+function abrirModalFactura(idx) {
+    var doc = facturasWiese[idx];
+    if (!doc) return;
+    var folio = doc.cfolio || '';
+    var fecha = doc.cfecha ? new Date(doc.cfecha).toLocaleDateString('es-MX') : '—';
+    var vencimiento = doc.cfechavencimiento ? new Date(doc.cfechavencimiento).toLocaleDateString('es-MX') : '—';
+    var estatus = doc._estatus || 'pendiente';
+    var pillClass = estatus === 'pagada' ? 'pagada' : (estatus === 'cancelada' ? 'rechazada' : 'pendiente');
+
+    var html = '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
+    html += fila('Folio', folio);
+    html += fila('Fecha', fecha);
+    html += fila('Razón Social', doc.crazonsocial || '—');
+    html += fila('RFC', doc.crfc || '—');
+    html += fila('Total', '$' + Number(doc.ctotal || 0).toLocaleString('es-MX', {minimumFractionDigits:2}));
+    html += fila('Pendiente', '$' + Number(doc.cpendiente || 0).toLocaleString('es-MX', {minimumFractionDigits:2}));
+    html += fila('Vencimiento', vencimiento);
+    html += fila('Referencia', doc.creferencia || '—');
+    html += fila('Observaciones', doc.cobservaciones || '—');
+    html += fila('Estatus', '<span class="pill '+pillClass+'">'+estatus+'</span>');
+    html += '</table>';
+
+    document.getElementById('modalContenido').innerHTML = html;
+    document.getElementById('modalFactura').style.display = 'flex';
+}
+
+function fila(label, valor) {
+    return '<tr><td style="padding:8px 0;font-weight:600;color:var(--gray-muted);width:140px;vertical-align:top;">'+label+'</td><td style="padding:8px 0;color:var(--gray-text);">'+valor+'</td></tr>';
+}
+
+function cerrarModal() {
+    document.getElementById('modalFactura').style.display = 'none';
+}
+</script>
+@endpush
