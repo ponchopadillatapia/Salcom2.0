@@ -135,11 +135,17 @@ return [
     */
     'retenciones' => [
 
-        // Flete / fletera: IVA 4% siempre
+        // Flete / fletera: IVA 4% siempre; ISR depende del régimen del emisor
         'flete' => [
             'iva' => 0.04,
-            'isr' => 0.0125,
+            'isr' => 0.0,
             'requiere_retencion' => true,
+        ],
+        // 626 RESICO: IVA 4% + ISR 1.25%. 601/612: solo IVA 4% (ISR 0 válido).
+        'flete_por_regimen' => [
+            '626' => ['iva' => 0.04, 'isr' => 0.0125, 'requiere_retencion' => true],
+            '612' => ['iva' => 0.04, 'isr' => 0.0, 'requiere_retencion' => true],
+            '601' => ['iva' => 0.04, 'isr' => 0.0, 'requiere_retencion' => true],
         ],
 
         // RESICO (626)

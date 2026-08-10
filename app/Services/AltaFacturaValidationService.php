@@ -16,6 +16,8 @@ class AltaFacturaValidationService
 
     /**
      * Valida XML CFDI + cruce con PDF/OC + reglas fiscales.
+     * Las reglas de negocio se ejecutan únicamente contra el objeto parseado del XML.
+     * El PDF solo se cruza por full-text search de valores clave.
      *
      * @return array{
      *   aprobado: bool,
@@ -75,6 +77,7 @@ class AltaFacturaValidationService
             'fecha' => null,
             'tipo_comprobante' => null,
             'conceptos' => [],
+            'conceptos_detalle' => [],
             'claves_prod_serv' => [],
             'deteccion_conceptos' => [],
             'es_fletera' => $esFletera,
@@ -83,23 +86,21 @@ class AltaFacturaValidationService
             'es_persona_fisica' => null,
             'retencion_esperada' => null,
             'tiene_oc' => $ocContent !== null && $ocContent !== '',
-            'pdf_campos' => [],
-            'oc_campos' => [],
+            'pdf_coincidencias' => [],
+            'oc_coincidencias' => [],
         ];
 
-        $xml = $this->parseXml($xmlContent);
-        if ($xml === null) {
-            $errores[] = 'El archivo XML no es un CFDI válido o está corrupto.';
-
+        // Paso 1: XML = única fuente de verdad
+        $cfdi = $this->extraerObjetoCfdiDesdeXml($xmlContent, $errores);
+        if ($cfdi === null) {
             return $this->resultado($errores, $advertencias, $checklist, $datos);
         }
 
         $checklist['xml']['ok'] = true;
-        $this->cargarDatosXml($xml, $datos, $errores);
+        $this->aplicarObjetoCfdiADatos($cfdi, $datos);
         $this->validarPeriodoMes($datos, $errores, $checklist);
 
-        // UUID
-        $datos['uuid'] = $this->extraerUuid($xml);
+        // UUID único en sistema
         if (! $datos['uuid']) {
             $errores[] = 'No se encontró el UUID del Timbre Fiscal Digital.';
         } else {
@@ -138,13 +139,7 @@ class AltaFacturaValidationService
             $advertencias[] = 'No está configurado SALCOM_RFC; se omitió la validación estricta del receptor.';
         }
 
-        // Impuestos
-        $impuestos = $this->extraerImpuestos($xml);
-        $datos['iva'] = $impuestos['iva_trasladado'];
-        $datos['retencion_iva'] = $impuestos['retencion_iva'];
-        $datos['retencion_isr'] = $impuestos['retencion_isr'];
-
-        // Totales internos del CFDI
+        // Totales internos del CFDI (solo XML)
         $tol = (float) config('facturas.tolerancia_monto', 1);
         $esperado = round($datos['subtotal'] + $datos['iva'] - $datos['retencion_iva'] - $datos['retencion_isr'], 2);
         if (abs($esperado - $datos['total']) > $tol && $datos['total'] > 0) {
@@ -159,7 +154,7 @@ class AltaFacturaValidationService
             $checklist['totales']['ok'] = true;
         }
 
-        $conceptos = $this->detectarConceptos($xml, $errores, $advertencias);
+        $conceptos = $this->clasificarConceptosDesdeObjeto($cfdi, $errores, $advertencias);
         $datos['tiene_concepto_flete'] = $conceptos['flete'];
         $datos['tiene_concepto_comision'] = $conceptos['comision'];
         $datos['producto'] = ($conceptos['producto'] ?? '') !== '' ? $conceptos['producto'] : null;
@@ -172,11 +167,9 @@ class AltaFacturaValidationService
             : 'ClaveProdServ faltante o inválida';
 
         $this->validarRegimen($datos, $errores, $checklist);
-
-        // Forma / método / uso CFDI + concepto (requeridos para pago automático)
         $this->validarDatosPagoCfdi($datos, $errores, $checklist);
 
-        // Fletera: ClaveProdServ SAT manda (flete)
+        // Fletera: ClaveProdServ SAT manda (flete) — solo XML
         if ($esFletera && ! $datos['tiene_concepto_flete']) {
             $esFletera = false;
             $datos['es_fletera'] = false;
@@ -187,7 +180,6 @@ class AltaFacturaValidationService
             $esFletera = true;
             $datos['es_fletera'] = true;
             $via = ($conceptos['deteccion']['flete'] ?? '') === 'clave' ? 'ClaveProdServ' : 'descripción';
-            $advertencias[] = "El XML trae concepto de flete (detectado por {$via}): se aplican reglas de fletera.";
             $checklist['fletera']['ok'] = true;
             $checklist['fletera']['label'] = 'Flete detectado por '.$via;
         } else {
@@ -197,7 +189,7 @@ class AltaFacturaValidationService
 
         $this->validarRetenciones($datos, $esFletera, $errores, $advertencias, $checklist);
 
-        // Cruce Factura PDF ↔ XML
+        // Paso 2–3: Cruce Factura PDF ↔ XML por full-text search
         if ($pdfContent !== null && $pdfContent !== '') {
             $this->cruzarPdfConXml($pdfContent, $datos, $errores, $advertencias, $checklist);
         } else {
@@ -205,7 +197,7 @@ class AltaFacturaValidationService
             $checklist['pdf_xml']['ok'] = false;
         }
 
-        // Cruce OC ↔ XML (solo si hay OC; sin OC no es observación ni error)
+        // Cruce OC ↔ XML (opcional; también por full-text)
         if ($datos['tiene_oc']) {
             $this->cruzarOcConXml($ocContent, $datos, $errores, $advertencias, $checklist);
         } else {
@@ -214,6 +206,199 @@ class AltaFacturaValidationService
         }
 
         return $this->resultado($errores, $advertencias, $checklist, $datos);
+    }
+
+    /**
+     * Paso 1: parsea el XML CFDI y devuelve el objeto estandarizado.
+     * Todas las reglas de negocio deben ejecutarse contra este objeto.
+     *
+     * @param  string[]  $errores
+     * @return array{
+     *   uuid: ?string,
+     *   rfc_emisor: ?string,
+     *   nombre_emisor: ?string,
+     *   rfc_receptor: ?string,
+     *   regimen_fiscal: ?string,
+     *   subtotal: float,
+     *   total: float,
+     *   iva: float,
+     *   retencion_iva: float,
+     *   retencion_isr: float,
+     *   folio: string,
+     *   serie: string,
+     *   fecha: string,
+     *   tipo_comprobante: string,
+     *   moneda: string,
+     *   forma_pago: ?string,
+     *   metodo_pago: ?string,
+     *   uso_cfdi: ?string,
+     *   conceptos: list<array{
+     *     clave_prod_serv: string,
+     *     descripcion: string,
+     *     cantidad: float,
+     *     valor_unitario: float,
+     *     importe: float,
+     *     impuestos: array{
+     *       traslados: list<array{base: float, impuesto: string, tipo_factor: string, tasa_o_cuota: ?float, importe: float}>,
+     *       retenciones: list<array{base: float, impuesto: string, tipo_factor: string, tasa_o_cuota: ?float, importe: float}>
+     *     }
+     *   }>
+     * }|null
+     */
+    public function extraerObjetoCfdiDesdeXml(string $xmlContent, array &$errores = []): ?array
+    {
+        $xml = $this->parseXml($xmlContent);
+        if ($xml === null) {
+            $errores[] = 'El archivo XML no es un CFDI válido o está corrupto.';
+
+            return null;
+        }
+
+        $attrs = $xml->attributes();
+        $objeto = [
+            'uuid' => $this->extraerUuid($xml),
+            'rfc_emisor' => null,
+            'nombre_emisor' => null,
+            'rfc_receptor' => null,
+            'regimen_fiscal' => null,
+            'subtotal' => (float) ($attrs['SubTotal'] ?? 0),
+            'total' => (float) ($attrs['Total'] ?? 0),
+            'iva' => 0.0,
+            'retencion_iva' => 0.0,
+            'retencion_isr' => 0.0,
+            'folio' => (string) ($attrs['Folio'] ?? ''),
+            'serie' => (string) ($attrs['Serie'] ?? ''),
+            'fecha' => (string) ($attrs['Fecha'] ?? ''),
+            'tipo_comprobante' => (string) ($attrs['TipoDeComprobante'] ?? ''),
+            'moneda' => strtoupper((string) ($attrs['Moneda'] ?? 'MXN')),
+            'forma_pago' => $this->normalizarCodigoPago((string) ($attrs['FormaPago'] ?? ''), 2),
+            'metodo_pago' => strtoupper(trim((string) ($attrs['MetodoPago'] ?? ''))) ?: null,
+            'uso_cfdi' => null,
+            'conceptos' => [],
+        ];
+
+        if ($objeto['tipo_comprobante'] !== '' && strtoupper($objeto['tipo_comprobante']) !== 'I') {
+            $errores[] = 'Solo se aceptan CFDI de tipo Ingreso (I). Tipo recibido: '.$objeto['tipo_comprobante'];
+        }
+
+        $emisor = $this->findChild($xml, 'Emisor');
+        if ($emisor) {
+            $eAttrs = $emisor->attributes();
+            $objeto['rfc_emisor'] = strtoupper(trim((string) ($eAttrs['Rfc'] ?? '')));
+            $objeto['nombre_emisor'] = (string) ($eAttrs['Nombre'] ?? '');
+            $objeto['regimen_fiscal'] = str_pad(trim((string) ($eAttrs['RegimenFiscal'] ?? '')), 3, '0', STR_PAD_LEFT);
+            if ($objeto['regimen_fiscal'] === '000') {
+                $objeto['regimen_fiscal'] = null;
+            }
+        } else {
+            $errores[] = 'No se encontró el nodo Emisor en el XML.';
+        }
+
+        $receptor = $this->findChild($xml, 'Receptor');
+        if ($receptor) {
+            $rAttrs = $receptor->attributes();
+            $objeto['rfc_receptor'] = strtoupper(trim((string) ($rAttrs['Rfc'] ?? '')));
+            $objeto['uso_cfdi'] = strtoupper(trim((string) ($rAttrs['UsoCFDI'] ?? ''))) ?: null;
+        } else {
+            $errores[] = 'No se encontró el nodo Receptor en el XML.';
+        }
+
+        $impuestos = $this->extraerImpuestos($xml);
+        $objeto['iva'] = $impuestos['iva_trasladado'];
+        $objeto['retencion_iva'] = $impuestos['retencion_iva'];
+        $objeto['retencion_isr'] = $impuestos['retencion_isr'];
+
+        $objeto['conceptos'] = $this->extraerConceptosConImpuestos($xml);
+
+        return $objeto;
+    }
+
+    /**
+     * @param  array<string, mixed>  $cfdi
+     * @param  array<string, mixed>  $datos
+     */
+    private function aplicarObjetoCfdiADatos(array $cfdi, array &$datos): void
+    {
+        $datos['uuid'] = $cfdi['uuid'];
+        $datos['folio'] = $cfdi['folio'];
+        $datos['serie'] = $cfdi['serie'];
+        $datos['rfc_emisor'] = $cfdi['rfc_emisor'];
+        $datos['nombre_emisor'] = $cfdi['nombre_emisor'];
+        $datos['rfc_receptor'] = $cfdi['rfc_receptor'];
+        $datos['regimen_fiscal'] = $cfdi['regimen_fiscal'];
+        $datos['forma_pago'] = $cfdi['forma_pago'];
+        $datos['metodo_pago'] = $cfdi['metodo_pago'];
+        $datos['uso_cfdi'] = $cfdi['uso_cfdi'];
+        $datos['moneda'] = $cfdi['moneda'];
+        $datos['subtotal'] = $cfdi['subtotal'];
+        $datos['total'] = $cfdi['total'];
+        $datos['iva'] = $cfdi['iva'];
+        $datos['retencion_iva'] = $cfdi['retencion_iva'];
+        $datos['retencion_isr'] = $cfdi['retencion_isr'];
+        $datos['fecha'] = $cfdi['fecha'];
+        $datos['tipo_comprobante'] = $cfdi['tipo_comprobante'];
+        $datos['conceptos_detalle'] = $cfdi['conceptos'];
+    }
+
+    /**
+     * @return list<array{
+     *   clave_prod_serv: string,
+     *   descripcion: string,
+     *   cantidad: float,
+     *   valor_unitario: float,
+     *   importe: float,
+     *   impuestos: array{
+     *     traslados: list<array{base: float, impuesto: string, tipo_factor: string, tasa_o_cuota: ?float, importe: float}>,
+     *     retenciones: list<array{base: float, impuesto: string, tipo_factor: string, tasa_o_cuota: ?float, importe: float}>
+     *   }
+     * }>
+     */
+    private function extraerConceptosConImpuestos(SimpleXMLElement $xml): array
+    {
+        $conceptos = [];
+        $nodos = $xml->xpath("//*[local-name()='Concepto']") ?: [];
+
+        foreach ($nodos as $nodo) {
+            $attrs = $nodo->attributes();
+            $traslados = [];
+            $retenciones = [];
+
+            foreach ($nodo->xpath(".//*[local-name()='Traslado']") ?: [] as $t) {
+                $tAttrs = $t->attributes();
+                $traslados[] = [
+                    'base' => (float) ($tAttrs['Base'] ?? 0),
+                    'impuesto' => (string) ($tAttrs['Impuesto'] ?? ''),
+                    'tipo_factor' => (string) ($tAttrs['TipoFactor'] ?? ''),
+                    'tasa_o_cuota' => isset($tAttrs['TasaOCuota']) ? (float) $tAttrs['TasaOCuota'] : null,
+                    'importe' => (float) ($tAttrs['Importe'] ?? 0),
+                ];
+            }
+
+            foreach ($nodo->xpath(".//*[local-name()='Retencion']") ?: [] as $r) {
+                $rAttrs = $r->attributes();
+                $retenciones[] = [
+                    'base' => (float) ($rAttrs['Base'] ?? 0),
+                    'impuesto' => (string) ($rAttrs['Impuesto'] ?? ''),
+                    'tipo_factor' => (string) ($rAttrs['TipoFactor'] ?? ''),
+                    'tasa_o_cuota' => isset($rAttrs['TasaOCuota']) ? (float) $rAttrs['TasaOCuota'] : null,
+                    'importe' => (float) ($rAttrs['Importe'] ?? 0),
+                ];
+            }
+
+            $conceptos[] = [
+                'clave_prod_serv' => trim((string) ($attrs['ClaveProdServ'] ?? '')),
+                'descripcion' => (string) ($attrs['Descripcion'] ?? ''),
+                'cantidad' => (float) ($attrs['Cantidad'] ?? 0),
+                'valor_unitario' => (float) ($attrs['ValorUnitario'] ?? 0),
+                'importe' => (float) ($attrs['Importe'] ?? 0),
+                'impuestos' => [
+                    'traslados' => $traslados,
+                    'retenciones' => $retenciones,
+                ],
+            ];
+        }
+
+        return $conceptos;
     }
 
     /**
@@ -272,46 +457,9 @@ class AltaFacturaValidationService
         $checklist['periodo']['label'] = 'Mes en curso: '.$mesActualLabel;
     }
 
-    private function cargarDatosXml(SimpleXMLElement $xml, array &$datos, array &$errores): void
-    {
-        $attrs = $xml->attributes();
-        $datos['subtotal'] = (float) ($attrs['SubTotal'] ?? 0);
-        $datos['total'] = (float) ($attrs['Total'] ?? 0);
-        $datos['folio'] = (string) ($attrs['Folio'] ?? '');
-        $datos['serie'] = (string) ($attrs['Serie'] ?? '');
-        $datos['fecha'] = (string) ($attrs['Fecha'] ?? '');
-        $datos['tipo_comprobante'] = (string) ($attrs['TipoDeComprobante'] ?? '');
-        $datos['moneda'] = strtoupper((string) ($attrs['Moneda'] ?? 'MXN'));
-        $datos['forma_pago'] = $this->normalizarCodigoPago((string) ($attrs['FormaPago'] ?? ''), 2);
-        $datos['metodo_pago'] = strtoupper(trim((string) ($attrs['MetodoPago'] ?? ''))) ?: null;
-
-        if ($datos['tipo_comprobante'] !== '' && strtoupper($datos['tipo_comprobante']) !== 'I') {
-            $errores[] = 'Solo se aceptan CFDI de tipo Ingreso (I). Tipo recibido: '.$datos['tipo_comprobante'];
-        }
-
-        $emisor = $this->findChild($xml, 'Emisor');
-        if ($emisor) {
-            $eAttrs = $emisor->attributes();
-            $datos['rfc_emisor'] = strtoupper(trim((string) ($eAttrs['Rfc'] ?? '')));
-            $datos['nombre_emisor'] = (string) ($eAttrs['Nombre'] ?? '');
-            $datos['regimen_fiscal'] = str_pad(trim((string) ($eAttrs['RegimenFiscal'] ?? '')), 3, '0', STR_PAD_LEFT);
-            if ($datos['regimen_fiscal'] === '000') {
-                $datos['regimen_fiscal'] = null;
-            }
-        } else {
-            $errores[] = 'No se encontró el nodo Emisor en el XML.';
-        }
-
-        $receptor = $this->findChild($xml, 'Receptor');
-        if ($receptor) {
-            $rAttrs = $receptor->attributes();
-            $datos['rfc_receptor'] = strtoupper(trim((string) ($rAttrs['Rfc'] ?? '')));
-            $datos['uso_cfdi'] = strtoupper(trim((string) ($rAttrs['UsoCFDI'] ?? ''))) ?: null;
-        } else {
-            $errores[] = 'No se encontró el nodo Receptor en el XML.';
-        }
-    }
-
+    /**
+     * Paso 3: verifica que el texto crudo del PDF contenga UUID, RFCs y Total del XML.
+     */
     private function cruzarPdfConXml(
         string $pdfContent,
         array &$datos,
@@ -320,99 +468,50 @@ class AltaFacturaValidationService
         array &$checklist,
     ): void {
         $extraido = $this->extractor->extraerDesdeContenido($pdfContent);
-        $pdf = $extraido['campos'];
-        $datos['pdf_campos'] = $pdf;
+        $texto = $extraido['texto'];
 
-        if ($extraido['escaneado'] && empty(array_filter($pdf))) {
+        if ($extraido['escaneado'] && mb_strlen(trim($texto)) < 40) {
             $errores[] = 'No se pudo leer el PDF de la factura (posible escaneo). No se pudo verificar coincidencia con el XML.';
             $checklist['pdf_xml']['ok'] = false;
             $checklist['pdf_xml']['label'] = 'PDF ilegible';
+            $datos['pdf_coincidencias'] = [
+                'uuid' => false,
+                'rfc_emisor' => false,
+                'rfc_receptor' => false,
+                'total' => false,
+            ];
 
             return;
         }
 
-        $mismatches = [];
-        $tol = (float) config('facturas.tolerancia_monto', 1);
+        $coincidencias = $this->buscarValoresClaveEnTexto($texto, $datos);
+        $datos['pdf_coincidencias'] = $coincidencias;
 
-        $this->compararTexto('RFC emisor', $datos['rfc_emisor'], $pdf['rfc_emisor'] ?? null, $mismatches, true);
-        $this->compararTexto('RFC receptor', $datos['rfc_receptor'], $pdf['rfc_receptor'] ?? null, $mismatches, true);
-
-        if (! empty($pdf['uuid'])) {
-            $this->compararTexto('UUID / folio fiscal', $datos['uuid'], $pdf['uuid'], $mismatches, true);
+        $faltantes = [];
+        if (! $coincidencias['uuid']) {
+            $faltantes[] = 'UUID / folio fiscal';
+        }
+        if (! $coincidencias['rfc_emisor']) {
+            $faltantes[] = 'RFC emisor ('.$datos['rfc_emisor'].')';
+        }
+        if (! $coincidencias['rfc_receptor']) {
+            $faltantes[] = 'RFC receptor ('.$datos['rfc_receptor'].')';
+        }
+        if (! $coincidencias['total']) {
+            $faltantes[] = 'Total ('.$this->formatoMontoPlain((float) $datos['total']).')';
         }
 
-        if (! empty($pdf['fecha']) && ! empty($datos['fecha'])) {
-            $fechaXml = substr((string) $datos['fecha'], 0, 10);
-            if ($fechaXml !== $pdf['fecha']) {
-                $mismatches[] = "Fecha de emisión: PDF ({$pdf['fecha']}) ≠ XML ({$fechaXml}).";
-            }
-        }
-
-        if (! empty($pdf['regimen_fiscal']) && ! empty($datos['regimen_fiscal'])) {
-            $this->compararTexto('Régimen fiscal', $datos['regimen_fiscal'], $pdf['regimen_fiscal'], $mismatches, true);
-        }
-
-        if (! empty($pdf['metodo_pago']) && ! empty($datos['metodo_pago'])) {
-            $this->compararTexto('Método de pago', $datos['metodo_pago'], $pdf['metodo_pago'], $mismatches, true);
-        }
-
-        if (! empty($pdf['forma_pago']) && ! empty($datos['forma_pago'])) {
-            $this->compararTexto('Forma de pago', $datos['forma_pago'], $pdf['forma_pago'], $mismatches, true);
-        }
-
-        if (! empty($pdf['moneda']) && ! empty($datos['moneda'])) {
-            $this->compararTexto('Moneda', $datos['moneda'], $pdf['moneda'], $mismatches, true);
-        }
-
-        $this->compararMonto('Subtotal', $datos['subtotal'], $pdf['subtotal'] ?? null, $tol, $mismatches);
-        $this->compararMonto('IVA', $datos['iva'], $pdf['iva'] ?? null, $tol, $mismatches);
-        $this->compararMonto('Retención IVA', $datos['retencion_iva'], $pdf['retencion_iva'] ?? null, $tol, $mismatches, false);
-        $this->compararMonto('Retención ISR', $datos['retencion_isr'], $pdf['retencion_isr'] ?? null, $tol, $mismatches, false);
-        $this->compararMonto('Total', $datos['total'], $pdf['total'] ?? null, $tol, $mismatches);
-
-        // Conceptos: descripción y ClaveProdServ SAT
-        $pdfConceptos = $pdf['conceptos'] ?? [];
-        if ($pdfConceptos && $datos['conceptos']) {
-            $xmlBlob = mb_strtolower(implode(' | ', $datos['conceptos']), 'UTF-8');
-            $hit = false;
-            foreach ($pdfConceptos as $desc) {
-                $needle = mb_strtolower(mb_substr($desc, 0, 40), 'UTF-8');
-                if ($needle !== '' && str_contains($xmlBlob, $needle)) {
-                    $hit = true;
-                    break;
-                }
-            }
-            if (! $hit) {
-                $mismatches[] = 'Conceptos / descripción: no se encontró coincidencia entre la factura PDF y el XML.';
-            }
-        }
-
-        $pdfClaves = array_values(array_filter(array_map('strval', $pdf['claves_prod_serv'] ?? [])));
-        $xmlClaves = array_values(array_filter(array_map('strval', $datos['claves_prod_serv'] ?? [])));
-        if ($pdfClaves !== [] && $xmlClaves !== []) {
-            $faltanEnXml = array_values(array_diff($pdfClaves, $xmlClaves));
-            if ($faltanEnXml !== []) {
-                $mismatches[] = 'ClaveProdServ SAT: en PDF ('.implode(', ', $faltanEnXml).') no aparecen en el XML.';
-            }
-            $faltanEnPdf = array_values(array_diff($xmlClaves, $pdfClaves));
-            if ($faltanEnPdf !== []) {
-                $advertencias[] = 'ClaveProdServ SAT del XML ('.implode(', ', $faltanEnPdf).') no se detectó en el PDF; se usó el XML como fuente oficial.';
-            }
-        } elseif ($xmlClaves !== [] && $pdfClaves === [] && ! $extraido['escaneado']) {
-            $advertencias[] = 'No se detectó ClaveProdServ en el PDF; se validó solo con las claves del XML ('.implode(', ', $xmlClaves).').';
-        }
-
-        if ($mismatches) {
-            foreach ($mismatches as $m) {
-                $errores[] = 'Factura PDF ↔ XML: '.$m;
+        if ($faltantes !== []) {
+            foreach ($faltantes as $campo) {
+                $errores[] = 'Factura PDF ↔ XML: no se encontró «'.$campo.'» en el texto del PDF.';
             }
             $checklist['pdf_xml']['ok'] = false;
             $checklist['pdf_xml']['label'] = 'PDF no coincide con XML';
         } else {
             $checklist['pdf_xml']['ok'] = true;
-            $checklist['pdf_xml']['label'] = 'Factura PDF ↔ XML coinciden';
+            $checklist['pdf_xml']['label'] = 'Factura PDF ↔ XML coinciden (UUID, RFCs, Total)';
             if ($extraido['escaneado']) {
-                $advertencias[] = 'El PDF parece escaneado o con poco texto; la comparación se hizo con los campos detectados.';
+                $advertencias[] = 'El PDF tiene poco texto extraíble; la coincidencia se validó con el texto disponible.';
             }
         }
     }
@@ -425,45 +524,34 @@ class AltaFacturaValidationService
         array &$checklist,
     ): void {
         $extraido = $this->extractor->extraerDesdeContenido($ocContent);
-        $oc = $extraido['campos'];
-        $datos['oc_campos'] = $oc;
+        $texto = $extraido['texto'];
 
-        if ($extraido['escaneado'] && empty(array_filter($oc))) {
+        if ($extraido['escaneado'] && mb_strlen(trim($texto)) < 40) {
             $errores[] = 'No se pudo leer la Orden de Compra (posible escaneo). No se pudo verificar contra el XML.';
             $checklist['oc_xml']['ok'] = false;
             $checklist['oc_xml']['label'] = 'OC ilegible';
+            $datos['oc_coincidencias'] = ['rfc_emisor' => false, 'total' => false];
 
             return;
         }
 
+        $rfcOk = $this->textoContieneAlfanumerico(
+            $this->normalizarAlfanumerico($texto),
+            (string) ($datos['rfc_emisor'] ?? '')
+        );
+        $totalOk = $this->textoContieneMonto($texto, (float) ($datos['total'] ?? 0));
+        $datos['oc_coincidencias'] = [
+            'rfc_emisor' => $rfcOk,
+            'total' => $totalOk,
+        ];
+
         $mismatches = [];
-        $tol = (float) config('facturas.tolerancia_monto', 1);
-
-        // RFC proveedor = emisor del XML
-        if (! empty($oc['rfc_emisor']) || ! empty($oc['rfc_receptor'])) {
-            $rfcOc = $oc['rfc_emisor'] ?? null;
-            // En OC a veces el proveedor es el único RFC no-Salcom
-            $rfcSalcom = strtoupper(trim((string) config('facturas.rfc_receptor', '')));
-            if (! $rfcOc && ! empty($oc['rfc_receptor']) && $oc['rfc_receptor'] !== $rfcSalcom) {
-                $rfcOc = $oc['rfc_receptor'];
-            }
-            if ($rfcOc && $datos['rfc_emisor'] && strtoupper($rfcOc) !== $datos['rfc_emisor']) {
-                $mismatches[] = "RFC del proveedor: OC ({$rfcOc}) ≠ XML ({$datos['rfc_emisor']}).";
-            }
+        if ($datos['rfc_emisor'] && ! $rfcOk) {
+            $mismatches[] = 'RFC del proveedor ('.$datos['rfc_emisor'].') no aparece en la OC.';
         }
-
-        if (! empty($oc['metodo_pago']) && ! empty($datos['metodo_pago'])) {
-            $this->compararTexto('Método de pago', $datos['metodo_pago'], $oc['metodo_pago'], $mismatches, true);
+        if ((float) $datos['total'] > 0 && ! $totalOk) {
+            $mismatches[] = 'Total ('.$this->formatoMontoPlain((float) $datos['total']).') no aparece en la OC.';
         }
-        if (! empty($oc['forma_pago']) && ! empty($datos['forma_pago'])) {
-            $this->compararTexto('Forma de pago', $datos['forma_pago'], $oc['forma_pago'], $mismatches, true);
-        }
-        if (! empty($oc['moneda']) && ! empty($datos['moneda'])) {
-            $this->compararTexto('Moneda', $datos['moneda'], $oc['moneda'], $mismatches, true);
-        }
-
-        $this->compararMonto('Total autorizado', $datos['total'], $oc['total'] ?? null, $tol, $mismatches);
-        $this->compararMonto('Subtotal / importe', $datos['subtotal'], $oc['subtotal'] ?? null, $tol, $mismatches, false);
 
         if ($mismatches) {
             foreach ($mismatches as $m) {
@@ -474,53 +562,85 @@ class AltaFacturaValidationService
         } else {
             $checklist['oc_xml']['ok'] = true;
             $checklist['oc_xml']['label'] = 'OC ↔ XML coinciden';
-            if (($oc['total'] ?? null) === null && ($oc['subtotal'] ?? null) === null) {
-                $advertencias[] = 'La OC se adjuntó, pero no se detectaron importes claros; revisa manualmente.';
+            if (! $rfcOk && ! $totalOk) {
+                $advertencias[] = 'La OC se adjuntó, pero no se detectaron RFC ni total claros; revisa manualmente.';
             }
         }
     }
 
-    private function compararTexto(string $campo, ?string $xmlVal, ?string $docVal, array &$mismatches, bool $requeridoEnDoc): void
+    /**
+     * @param  array<string, mixed>  $datos
+     * @return array{uuid: bool, rfc_emisor: bool, rfc_receptor: bool, total: bool}
+     */
+    private function buscarValoresClaveEnTexto(string $texto, array $datos): array
     {
-        if ($docVal === null || $docVal === '') {
-            if ($requeridoEnDoc && $xmlVal) {
-                // No forzar error si el PDF no trae el campo — solo cuando ambos existen y difieren,
-                // salvo RFCs críticos que sí pedimos si el PDF es legible.
-                return;
-            }
+        // Una sola limpieza alfanumérica del PDF para UUID y RFCs
+        // (elimina guiones unicode, zero-width spaces, saltos, etc.).
+        $textoAlfanumerico = $this->normalizarAlfanumerico($texto);
 
-            return;
-        }
-        if ($xmlVal === null || $xmlVal === '') {
-            return;
-        }
-        if (strtoupper(trim($xmlVal)) !== strtoupper(trim($docVal))) {
-            $mismatches[] = "{$campo}: documento ({$docVal}) ≠ XML ({$xmlVal}).";
-        }
+        return [
+            'uuid' => $this->textoContieneAlfanumerico($textoAlfanumerico, (string) ($datos['uuid'] ?? '')),
+            'rfc_emisor' => $this->textoContieneAlfanumerico($textoAlfanumerico, (string) ($datos['rfc_emisor'] ?? '')),
+            'rfc_receptor' => $this->textoContieneAlfanumerico($textoAlfanumerico, (string) ($datos['rfc_receptor'] ?? '')),
+            'total' => $this->textoContieneMonto($texto, (float) ($datos['total'] ?? 0)),
+        ];
     }
 
-    private function compararMonto(
-        string $campo,
-        float $xmlVal,
-        ?float $docVal,
-        float $tol,
-        array &$mismatches,
-        bool $requerido = true,
-    ): void {
-        if ($docVal === null) {
-            return;
+    /**
+     * Busca un valor (UUID/RFC) dentro de texto ya normalizado a [a-z0-9].
+     */
+    private function textoContieneAlfanumerico(string $textoAlfanumerico, string $valor): bool
+    {
+        $needle = $this->normalizarAlfanumerico($valor);
+        if ($needle === '') {
+            return false;
         }
-        if (! $requerido && $docVal <= 0 && $xmlVal <= 0) {
-            return;
+
+        return str_contains($textoAlfanumerico, $needle);
+    }
+
+    /**
+     * Limpieza alfanumérica estricta: solo letras y dígitos ASCII, en minúsculas.
+     * '44BF7C76-A54F…' → '44bf7c76a54f…'
+     */
+    private function normalizarAlfanumerico(string $valor): string
+    {
+        $valor = preg_replace('/[^a-zA-Z0-9]+/', '', $valor) ?? '';
+
+        return strtolower($valor);
+    }
+
+    private function textoContieneMonto(string $textoMinusculas, float $monto): bool
+    {
+        if ($monto <= 0) {
+            return false;
         }
-        if (abs($xmlVal - $docVal) > $tol) {
-            $mismatches[] = sprintf(
-                '%s: documento ($%s) ≠ XML ($%s).',
-                $campo,
-                number_format($docVal, 2),
-                number_format($xmlVal, 2)
-            );
+
+        foreach ($this->variantesMonto($monto) as $variante) {
+            if (str_contains($textoMinusculas, $variante)) {
+                return true;
+            }
         }
+
+        return false;
+    }
+
+    /**
+     * Variantes tipográficas del total: 5833.69 y 5,833.69
+     *
+     * @return list<string>
+     */
+    private function variantesMonto(float $monto): array
+    {
+        $plain = $this->formatoMontoPlain($monto);
+        $conComas = number_format($monto, 2, '.', ',');
+
+        return array_values(array_unique([$plain, $conComas]));
+    }
+
+    private function formatoMontoPlain(float $monto): string
+    {
+        return number_format($monto, 2, '.', '');
     }
 
     private function validarRegimen(array &$datos, array &$errores, array &$checklist): void
@@ -573,8 +693,11 @@ class AltaFacturaValidationService
         $aplicaComision = ! empty($datos['tiene_concepto_comision']) && ($datos['es_persona_fisica'] === true);
 
         if ($aplicaFlete) {
-            $regla = $cfg['flete'] ?? ['iva' => 0.04, 'isr' => 0.0125, 'requiere_retencion' => true];
-            $origen = 'flete';
+            $regimenFlete = (string) ($datos['regimen_fiscal'] ?? '');
+            $porRegimenFlete = $cfg['flete_por_regimen'] ?? [];
+            $regla = $porRegimenFlete[$regimenFlete]
+                ?? ($cfg['flete'] ?? ['iva' => 0.04, 'isr' => 0.0, 'requiere_retencion' => true]);
+            $origen = $regimenFlete === '626' ? 'flete_resico' : 'flete';
         } elseif ($aplicaComision) {
             $regla = $cfg['comision_fisica'] ?? ['iva' => 0.106667, 'isr' => 0.10, 'requiere_retencion' => true];
             $origen = 'comision_fisica';
@@ -583,7 +706,6 @@ class AltaFacturaValidationService
             $origen = 'comision_moral_sin_retencion';
             $advertencias[] = 'Concepto de comisión en persona moral: según Contabilidad no aplica retención de IVA por comisión.';
         } elseif (($datos['regimen_fiscal'] ?? '') === '626') {
-            // RESICO: PF → ISR 1.25%; PM → sin esa retención
             if ($datos['es_persona_fisica'] === true) {
                 $regla = $cfg['resico_fisica'] ?? ['iva' => 0.0, 'isr' => 0.0125, 'requiere_retencion' => true];
                 $origen = 'resico_fisica';
@@ -598,16 +720,32 @@ class AltaFacturaValidationService
             $origen = 'regimen_'.$datos['regimen_fiscal'];
         }
 
+        // Base fiscal: en flete el 4% (e ISR si aplica) va solo sobre conceptos
+        // que traen <Retencion Impuesto="002">, no sobre el SubTotal global.
+        $baseGlobal = (float) $datos['subtotal'];
+        $baseIva = $baseGlobal;
+        $baseIsr = $baseGlobal;
+        $baseFleteRetencion = 0.0;
+
+        if ($aplicaFlete) {
+            $baseFleteRetencion = $this->baseRetencionIvaDesdeConceptos($datos['conceptos_detalle'] ?? []);
+            // Aunque sea 0 (sin nodos Retencion 002 en conceptos), no se usa el SubTotal global.
+            $baseIva = $baseFleteRetencion;
+            $baseIsr = $baseFleteRetencion;
+        }
+
         $datos['retencion_esperada'] = [
             'iva_tasa' => $regla['iva'],
             'isr_tasa' => $regla['isr'],
             'requiere' => (bool) $regla['requiere_retencion'],
             'origen' => $origen,
+            'base_iva' => $baseIva,
+            'base_isr' => $baseIsr,
+            'base_flete_retencion' => $baseFleteRetencion,
         ];
 
-        $base = (float) $datos['subtotal'];
-        $ivaEsp = round($base * (float) $regla['iva'], 2);
-        $isrEsp = round($base * (float) $regla['isr'], 2);
+        $ivaEsp = round($baseIva * (float) $regla['iva'], 2);
+        $isrEsp = round($baseIsr * (float) $regla['isr'], 2);
         $ivaXml = round((float) $datos['retencion_iva'], 2);
         $isrXml = round((float) $datos['retencion_isr'], 2);
 
@@ -615,7 +753,9 @@ class AltaFacturaValidationService
 
         if ($regla['requiere_retencion']) {
             if ($aplicaFlete && $ivaXml <= 0) {
-                $erroresRet[] = 'Concepto flete / fletera: el XML debe incluir retención de IVA del 4% sobre el subtotal.';
+                $erroresRet[] = 'Concepto flete / fletera: el XML debe incluir retención de IVA del 4% sobre la base de los conceptos con retención.';
+            } elseif ($origen === 'flete_resico' && $isrXml <= 0) {
+                $erroresRet[] = 'Flete RESICO (626): el XML debe incluir retención de ISR del 1.25% sobre la base de los conceptos con retención.';
             } elseif ($origen === 'resico_fisica' && $isrXml <= 0) {
                 $erroresRet[] = 'RESICO persona física: el XML debe incluir retención de ISR del 1.25% sobre el subtotal.';
             } elseif ($ivaXml <= 0 && $isrXml <= 0) {
@@ -629,30 +769,30 @@ class AltaFacturaValidationService
                     // ya cubierto arriba para flete
                 } elseif (abs($ivaXml - $ivaEsp) > $tol) {
                     $erroresRet[] = sprintf(
-                        'Retención IVA incorrecta: se esperaba $%s (%.4f%%) y el XML trae $%s.',
+                        'Retención IVA incorrecta: se esperaba $%s (%.4f%% sobre base $%s) y el XML trae $%s.',
                         number_format($ivaEsp, 2),
                         $regla['iva'] * 100,
+                        number_format($baseIva, 2),
                         number_format($ivaXml, 2)
                     );
                 }
             }
 
             if ($regla['isr'] > 0) {
-                if ($isrXml <= 0 && $origen === 'resico_fisica') {
-                    // ya cubierto
-                } elseif ($isrXml > 0 && abs($isrXml - $isrEsp) > $tol) {
+                if ($isrXml <= 0 && in_array($origen, ['resico_fisica', 'flete_resico'], true)) {
+                    // ya cubierto arriba
+                } elseif ($isrXml <= 0) {
                     $erroresRet[] = sprintf(
-                        'Retención ISR incorrecta: se esperaba $%s (%.4f%%) y el XML trae $%s.',
+                        'Retención ISR faltante: se esperaba $%s (%.4f%%) y el XML no la trae.',
+                        number_format($isrEsp, 2),
+                        $regla['isr'] * 100
+                    );
+                } elseif (abs($isrXml - $isrEsp) > $tol) {
+                    $erroresRet[] = sprintf(
+                        'Retención ISR incorrecta: se esperaba $%s (%.4f%% sobre base $%s) y el XML trae $%s.',
                         number_format($isrEsp, 2),
                         $regla['isr'] * 100,
-                        number_format($isrXml, 2)
-                    );
-                } elseif ($aplicaFlete && $isrXml <= 0) {
-                    $advertencias[] = 'Flete: se esperaba también ISR retenido ('.($regla['isr'] * 100).'%); el XML no lo trae.';
-                } elseif ($origen === 'resico_fisica' && $isrXml > 0 && abs($isrXml - $isrEsp) > $tol) {
-                    $erroresRet[] = sprintf(
-                        'Retención ISR RESICO incorrecta: se esperaba $%s (1.25%%) y el XML trae $%s.',
-                        number_format($isrEsp, 2),
+                        number_format($baseIsr, 2),
                         number_format($isrXml, 2)
                     );
                 }
@@ -685,8 +825,38 @@ class AltaFacturaValidationService
     }
 
     /**
-     * Detecta flete/comisión priorizando ClaveProdServ SAT; la descripción es respaldo.
+     * Suma la base gravable solo de conceptos que incluyen
+     * <cfdi:Retencion Impuesto="002"> (retención de IVA, p. ej. flete 4%).
+     * Prefiere el atributo Base de la retención; si falta, usa Importe del concepto.
      *
+     * @param  list<array<string, mixed>>  $conceptosDetalle
+     */
+    private function baseRetencionIvaDesdeConceptos(array $conceptosDetalle): float
+    {
+        $suma = 0.0;
+
+        foreach ($conceptosDetalle as $concepto) {
+            foreach ($concepto['impuestos']['retenciones'] ?? [] as $retencion) {
+                if ((string) ($retencion['impuesto'] ?? '') !== '002') {
+                    continue;
+                }
+
+                $base = (float) ($retencion['base'] ?? 0);
+                if ($base <= 0) {
+                    $base = (float) ($concepto['importe'] ?? 0);
+                }
+                $suma += $base;
+                break;
+            }
+        }
+
+        return round($suma, 2);
+    }
+
+    /**
+     * Clasifica flete/comisión a partir del objeto CFDI (solo XML).
+     *
+     * @param  array<string, mixed>  $cfdi
      * @return array{
      *   flete: bool,
      *   comision: bool,
@@ -697,7 +867,7 @@ class AltaFacturaValidationService
      *   deteccion: array{flete: ?string, comision: ?string}
      * }
      */
-    private function detectarConceptos(SimpleXMLElement $xml, array &$errores, array &$advertencias): array
+    private function clasificarConceptosDesdeObjeto(array $cfdi, array &$errores, array &$advertencias): array
     {
         $cfg = config('facturas.conceptos', []);
         $flete = false;
@@ -707,10 +877,9 @@ class AltaFacturaValidationService
         $clavesOk = true;
         $deteccion = ['flete' => null, 'comision' => null];
 
-        $nodos = $xml->xpath("//*[local-name()='Concepto']") ?: [];
-        if (! $nodos) {
+        $conceptos = $cfdi['conceptos'] ?? [];
+        if ($conceptos === []) {
             $errores[] = 'El XML no trae nodos Concepto con ClaveProdServ.';
-            $clavesOk = false;
 
             return [
                 'flete' => false,
@@ -723,10 +892,9 @@ class AltaFacturaValidationService
             ];
         }
 
-        foreach ($nodos as $nodo) {
-            $attrs = $nodo->attributes();
-            $clave = trim((string) ($attrs['ClaveProdServ'] ?? ''));
-            $desc = (string) ($attrs['Descripcion'] ?? '');
+        foreach ($conceptos as $concepto) {
+            $clave = trim((string) ($concepto['clave_prod_serv'] ?? ''));
+            $desc = (string) ($concepto['descripcion'] ?? '');
             if ($desc !== '') {
                 $descripciones[] = $desc;
             }
@@ -958,7 +1126,6 @@ class AltaFacturaValidationService
                 }
             }
         } else {
-            // Fallback: solo conceptos (XMLs incompletos / pruebas)
             $traslados = $xml->xpath("/*[local-name()='Comprobante']/*[local-name()='Conceptos']//*[local-name()='Traslado']") ?: [];
             foreach ($traslados as $t) {
                 $imp = (string) ($t->attributes()['Impuesto'] ?? '');

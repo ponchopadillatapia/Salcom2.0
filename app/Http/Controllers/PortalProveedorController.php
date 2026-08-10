@@ -1196,12 +1196,11 @@ class PortalProveedorController extends Controller
             ->get();
 
         $rfcProveedor = $this->rfcProveedorSesion($proveedor);
-        $pendiente = session('fiscal_pendiente');
-        $puedeSubir = is_array($pendiente)
-            && ! empty($pendiente['aprobado'])
-            && ! empty($pendiente['token'])
-            && ($pendiente['proveedor_id'] ?? null) === ($proveedor?->id)
-            && ($pendiente['expires_at'] ?? 0) >= now()->timestamp;
+        $pendiente = $this->fiscalPendienteVigente($proveedor);
+        $puedeSubir = is_array($pendiente) && ! empty($pendiente['aprobado']);
+        $tieneArchivosPendientes = is_array($pendiente)
+            && ! empty($pendiente['path_pdf'])
+            && ! empty($pendiente['path_xml']);
         $mesEnCurso = now()->locale('es')->translatedFormat('F Y');
 
         return view('proveedores.fiscal', compact(
@@ -1209,19 +1208,29 @@ class PortalProveedorController extends Controller
             'rfcProveedor',
             'proveedor',
             'puedeSubir',
+            'tieneArchivosPendientes',
             'pendiente',
             'mesEnCurso'
         ));
     }
 
     /**
-     * Paso 1: validar PDF + XML (sin registrar). Guarda temporales en sesión.
+     * Paso 1: validar PDF + XML (sin registrar). Guarda temporales en sesión
+     * también si falla, para que el navegador no “borre” los archivos al recargar.
      */
     public function validarAltaFactura(Request $request, AltaFacturaValidationService $validator)
     {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor) {
+            return back()->withErrors(['archivo' => 'Sesión de proveedor no válida. Vuelve a iniciar sesión.']);
+        }
+
+        $prev = $this->fiscalPendienteVigente($proveedor);
+        $tienePrev = is_array($prev);
+
         $request->validate([
-            'archivo' => 'required|file|extensions:pdf|max:10240',
-            'archivo_xml' => 'required|file|extensions:xml|max:5120',
+            'archivo' => ($tienePrev ? 'nullable' : 'required').'|file|extensions:pdf|max:10240',
+            'archivo_xml' => ($tienePrev ? 'nullable' : 'required').'|file|extensions:xml|max:5120',
             'archivo_oc' => 'nullable|file|extensions:pdf|max:10240',
             'es_fletera' => 'nullable|in:0,1',
         ], [
@@ -1232,108 +1241,117 @@ class PortalProveedorController extends Controller
             'archivo_oc.extensions' => 'La orden de compra debe ser un archivo PDF.',
         ]);
 
-        $proveedor = ProveedorUser::find(session('proveedor_id'));
-        if (! $proveedor) {
-            return back()->withErrors(['archivo' => 'Sesión de proveedor no válida. Vuelve a iniciar sesión.']);
+        $disk = Storage::disk('local');
+        $pdfUpload = $request->file('archivo');
+        $xmlUpload = $request->file('archivo_xml');
+        $ocUpload = $request->file('archivo_oc');
+
+        if (! $pdfUpload && ! $tienePrev) {
+            return back()->withErrors(['archivo' => 'La factura en PDF es obligatoria.']);
+        }
+        if (! $xmlUpload && ! $tienePrev) {
+            return back()->withErrors(['archivo_xml' => 'El XML de la factura es obligatorio.']);
         }
 
-        $this->limpiarFiscalPendiente();
+        // Contenido a validar: nuevo upload o temporal previo
+        if ($pdfUpload) {
+            $pdfContent = file_get_contents($pdfUpload->getRealPath());
+            $nombrePdf = $pdfUpload->getClientOriginalName();
+        } else {
+            $pdfContent = $disk->get($prev['path_pdf']);
+            $nombrePdf = $prev['nombre_pdf'] ?? 'factura.pdf';
+        }
 
-        $pdf = $request->file('archivo');
-        $xmlFile = $request->file('archivo_xml');
+        if ($xmlUpload) {
+            $xmlContent = file_get_contents($xmlUpload->getRealPath());
+            $nombreXml = $xmlUpload->getClientOriginalName();
+            $xmlSize = $xmlUpload->getSize();
+        } else {
+            $xmlContent = $disk->get($prev['path_xml']);
+            $nombreXml = $prev['nombre_xml'] ?? 'factura.xml';
+            $xmlSize = strlen($xmlContent);
+        }
 
-        $pdfContent = file_get_contents($pdf->getRealPath());
-        if (! str_starts_with($pdfContent, '%PDF')) {
-            return back()->withInput()->with('fiscal_resultado', [
+        if ($ocUpload) {
+            $ocBinary = file_get_contents($ocUpload->getRealPath());
+            $nombreOc = $ocUpload->getClientOriginalName();
+        } elseif ($tienePrev && ! empty($prev['path_oc']) && $disk->exists($prev['path_oc'])) {
+            $ocBinary = $disk->get($prev['path_oc']);
+            $nombreOc = $prev['nombre_oc'] ?? 'oc.pdf';
+        } else {
+            $ocBinary = null;
+            $nombreOc = null;
+        }
+
+        // Persistir temporales antes de validar para que no “desaparezcan” al recargar
+        $this->guardarFiscalTemporal(
+            $proveedor,
+            (string) $pdfContent,
+            (string) $xmlContent,
+            $ocBinary === null ? null : (string) $ocBinary,
+            $nombrePdf,
+            $nombreXml,
+            $nombreOc,
+        );
+
+        if (! str_starts_with((string) $pdfContent, '%PDF')) {
+            return back()->with('fiscal_resultado', [
                 'aprobado' => false,
                 'mensaje' => 'El archivo PDF no es válido.',
                 'errores' => ['El archivo de factura no es un PDF real.'],
                 'checklist' => [],
+                'archivos_retenidos' => true,
             ]);
         }
 
-        if ($xmlFile->getSize() < 1) {
-            return back()->withInput()->with('fiscal_resultado', [
+        if ($xmlSize < 1 || $xmlContent === false || trim((string) $xmlContent) === '' || ! str_contains((string) $xmlContent, '<')) {
+            return back()->with('fiscal_resultado', [
                 'aprobado' => false,
                 'mensaje' => 'La factura no pasó la validación.',
                 'errores' => [
-                    'El archivo XML está vacío (0 bytes). Descarga de nuevo el CFDI desde el portal del emisor o el SAT.',
+                    'El archivo XML está vacío o no contiene un CFDI legible. Descarga de nuevo el XML timbrado.',
                 ],
                 'checklist' => [],
+                'archivos_retenidos' => true,
             ]);
         }
 
-        $xmlContent = file_get_contents($xmlFile->getRealPath());
-        if ($xmlContent === false || trim($xmlContent) === '' || ! str_contains($xmlContent, '<')) {
-            return back()->withInput()->with('fiscal_resultado', [
-                'aprobado' => false,
-                'mensaje' => 'La factura no pasó la validación.',
-                'errores' => [
-                    'El archivo XML no contiene un CFDI legible. Verifica que sea el XML timbrado.',
-                ],
-                'checklist' => [],
-            ]);
-        }
-
-        // El flete se detecta del XML; el formulario ya no pregunta clasificación
         $esFletera = $request->input('es_fletera') === '1';
         $rfcProveedor = $this->rfcProveedorSesion($proveedor);
-        $ocBinary = $request->hasFile('archivo_oc')
-            ? file_get_contents($request->file('archivo_oc')->getRealPath())
-            : null;
-        $resultado = $validator->validar($xmlContent, $esFletera, $rfcProveedor, $pdfContent, $ocBinary);
-
-        // Usar el indicador efectivo tras corrección por conceptos del XML
+        $resultado = $validator->validar((string) $xmlContent, $esFletera, $rfcProveedor, (string) $pdfContent, $ocBinary);
         $esFleteraEfectivo = (bool) ($resultado['datos']['es_fletera'] ?? $esFletera);
 
+        $this->actualizarFiscalPendiente([
+            'aprobado' => (bool) ($resultado['aprobado'] ?? false),
+            'es_fletera' => $esFleteraEfectivo,
+            'resultado' => $resultado,
+            'expires_at' => now()->addMinutes(30)->timestamp,
+        ]);
+
         if (! $resultado['aprobado']) {
-            return back()->withInput()->with('fiscal_resultado', [
+            return back()->with('fiscal_resultado', [
                 'aprobado' => false,
                 'estatus' => $resultado['estatus'] ?? 'rechazada',
-                'mensaje' => $resultado['mensaje'] ?? 'La factura no pasó la validación. Corrige los errores y vuelve a validar.',
+                'mensaje' => ($resultado['mensaje'] ?? 'La factura no pasó la validación. Corrige los errores y vuelve a validar.')
+                    .' Los archivos se conservaron: puedes corregir y pulsar «Validar» de nuevo sin re-adjuntarlos.',
                 'errores' => $resultado['errores'],
                 'advertencias' => $resultado['advertencias'],
                 'checklist' => $resultado['checklist'],
                 'datos' => $resultado['datos'],
+                'archivos_retenidos' => true,
             ]);
         }
-
-        $token = bin2hex(random_bytes(16));
-        $tempDir = 'temp-fiscal/'.$proveedor->id.'/'.$token;
-        $pathPdf = $pdf->storeAs($tempDir, 'factura.pdf');
-        $pathXml = $xmlFile->storeAs($tempDir, 'factura.xml');
-        $pathOc = null;
-        if ($request->hasFile('archivo_oc')) {
-            $pathOc = $request->file('archivo_oc')->storeAs($tempDir, 'oc.pdf');
-        }
-
-        $pendiente = [
-            'token' => $token,
-            'proveedor_id' => $proveedor->id,
-            'aprobado' => true,
-            'path_pdf' => $pathPdf,
-            'path_xml' => $pathXml,
-            'path_oc' => $pathOc,
-            'es_fletera' => $esFleteraEfectivo,
-            'es_me_mp' => false,
-            'requiere_oc' => false,
-            'naturaleza' => null,
-            'tipo_producto' => null,
-            'resultado' => $resultado,
-            'expires_at' => now()->addMinutes(30)->timestamp,
-        ];
-
-        session(['fiscal_pendiente' => $pendiente]);
 
         return back()->with('fiscal_resultado', [
             'aprobado' => true,
             'estatus' => $resultado['estatus'] ?? 'aprobada',
-            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta.').' Revisa el resumen y pulsa «Subir» para registrar.',
+            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta.').' Los archivos quedaron guardados temporalmente: revisa el resumen y pulsa «Subir».',
             'errores' => [],
             'advertencias' => $resultado['advertencias'] ?? [],
             'checklist' => $resultado['checklist'] ?? [],
             'datos' => $resultado['datos'] ?? [],
             'listo_para_subir' => true,
+            'archivos_retenidos' => true,
         ]);
     }
 
@@ -1347,13 +1365,8 @@ class PortalProveedorController extends Controller
             return back()->withErrors(['archivo' => 'Sesión de proveedor no válida. Vuelve a iniciar sesión.']);
         }
 
-        $pendiente = session('fiscal_pendiente');
-        if (! is_array($pendiente)
-            || empty($pendiente['aprobado'])
-            || ($pendiente['proveedor_id'] ?? null) !== $proveedor->id
-            || empty($pendiente['token'])
-            || ($pendiente['expires_at'] ?? 0) < now()->timestamp
-        ) {
+        $pendiente = $this->fiscalPendienteVigente($proveedor);
+        if (! is_array($pendiente) || empty($pendiente['aprobado'])) {
             return back()->withErrors([
                 'archivo' => 'Primero valida la factura. Adjunta PDF + XML y pulsa «Validar».',
             ]);
@@ -1507,6 +1520,96 @@ class PortalProveedorController extends Controller
         }
 
         return $factura;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function fiscalPendienteVigente(?ProveedorUser $proveedor): ?array
+    {
+        if (! $proveedor) {
+            return null;
+        }
+
+        $pendiente = session('fiscal_pendiente');
+        if (! is_array($pendiente)
+            || empty($pendiente['token'])
+            || empty($pendiente['path_pdf'])
+            || empty($pendiente['path_xml'])
+            || ($pendiente['proveedor_id'] ?? null) != $proveedor->id
+            || ($pendiente['expires_at'] ?? 0) < now()->timestamp
+        ) {
+            return null;
+        }
+
+        $disk = Storage::disk('local');
+        if (! $disk->exists($pendiente['path_pdf']) || ! $disk->exists($pendiente['path_xml'])) {
+            return null;
+        }
+
+        return $pendiente;
+    }
+
+    /**
+     * Guarda PDF/XML/(OC) en disco local y sesión (aprobado=false hasta validar).
+     */
+    private function guardarFiscalTemporal(
+        ProveedorUser $proveedor,
+        string $pdfContent,
+        string $xmlContent,
+        ?string $ocBinary,
+        string $nombrePdf,
+        string $nombreXml,
+        ?string $nombreOc,
+    ): void {
+        $this->limpiarFiscalPendiente();
+
+        $token = bin2hex(random_bytes(16));
+        $tempDir = 'temp-fiscal/'.$proveedor->id.'/'.$token;
+        $disk = Storage::disk('local');
+
+        $pathPdf = $tempDir.'/factura.pdf';
+        $pathXml = $tempDir.'/factura.xml';
+        $disk->put($pathPdf, $pdfContent);
+        $disk->put($pathXml, $xmlContent);
+
+        $pathOc = null;
+        if ($ocBinary !== null && $ocBinary !== '') {
+            $pathOc = $tempDir.'/oc.pdf';
+            $disk->put($pathOc, $ocBinary);
+        }
+
+        session(['fiscal_pendiente' => [
+            'token' => $token,
+            'proveedor_id' => $proveedor->id,
+            'aprobado' => false,
+            'path_pdf' => $pathPdf,
+            'path_xml' => $pathXml,
+            'path_oc' => $pathOc,
+            'nombre_pdf' => $nombrePdf,
+            'nombre_xml' => $nombreXml,
+            'nombre_oc' => $nombreOc,
+            'es_fletera' => false,
+            'es_me_mp' => false,
+            'requiere_oc' => false,
+            'naturaleza' => null,
+            'tipo_producto' => null,
+            'resultado' => null,
+            'expires_at' => now()->addMinutes(30)->timestamp,
+        ]]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $campos
+     */
+    private function actualizarFiscalPendiente(array $campos): void
+    {
+        $pendiente = session('fiscal_pendiente');
+        if (! is_array($pendiente)) {
+            return;
+        }
+
+        session(['fiscal_pendiente' => array_merge($pendiente, $campos)]);
     }
 
     private function limpiarFiscalPendiente(): void

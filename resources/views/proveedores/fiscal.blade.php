@@ -468,7 +468,7 @@
 @php $res = session('fiscal_resultado'); @endphp
 
 @if($errors->any())
-<div class="id-card" style="border-color:#fecaca;background:#fef2f2;padding:16px 20px;">
+<div class="id-card" id="fiscalFeedback" style="border-color:#fecaca;background:#fef2f2;padding:16px 20px;">
     <p style="color:#dc2626;font-size:13px;font-weight:700;margin:0 0 6px;">Corrige lo siguiente</p>
     <ul class="error-list" style="margin:0;">
         @foreach($errors->all() as $error)
@@ -503,7 +503,7 @@
         ? (($res['estatus'] ?? '') === 'aprobada_con_observaciones' ? 'warn' : 'ok')
         : 'fail';
 @endphp
-<div class="result-box {{ $boxClass }}" style="margin-bottom:20px;margin-top:0;">
+<div class="result-box {{ $boxClass }}" id="fiscalFeedback" style="margin-bottom:20px;margin-top:0;">
     <div class="result-title">{{ $resTitulo }}</div>
     <div class="result-msg">{{ $res['mensaje'] ?? '' }}</div>
 
@@ -614,38 +614,38 @@
         <div class="form-row cols-3" id="archivosRow">
             <div class="form-group">
                 <label>Factura PDF <span class="req">*</span></label>
-                <div class="dropzone" data-dz="archivo">
-                    <input type="file" name="archivo" id="archivo" accept=".pdf,application/pdf" {{ ($puedeSubir ?? false) ? '' : 'required' }}>
+                <div class="dropzone {{ !empty($tieneArchivosPendientes) ? 'has-file' : '' }}" data-dz="archivo">
+                    <input type="file" name="archivo" id="archivo" accept=".pdf,application/pdf" {{ !empty($tieneArchivosPendientes) ? '' : 'required' }}>
                     <div class="dz-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                     </div>
                     <div class="dz-title">PDF</div>
-                    <div class="dz-sub">Arrastra o haz clic</div>
-                    <div class="dz-file" hidden></div>
+                    <div class="dz-sub">{{ !empty($tieneArchivosPendientes) ? 'En servidor — opcional reemplazar' : 'Arrastra o haz clic' }}</div>
+                    <div class="dz-file" {{ !empty($tieneArchivosPendientes) ? '' : 'hidden' }}>{{ $pendiente['nombre_pdf'] ?? '' }}</div>
                 </div>
             </div>
             <div class="form-group">
                 <label>XML CFDI <span class="req">*</span></label>
-                <div class="dropzone" data-dz="archivo_xml">
-                    <input type="file" name="archivo_xml" id="archivo_xml" accept=".xml,text/xml,application/xml" {{ ($puedeSubir ?? false) ? '' : 'required' }}>
+                <div class="dropzone {{ !empty($tieneArchivosPendientes) ? 'has-file' : '' }}" data-dz="archivo_xml">
+                    <input type="file" name="archivo_xml" id="archivo_xml" accept=".xml,text/xml,application/xml" {{ !empty($tieneArchivosPendientes) ? '' : 'required' }}>
                     <div class="dz-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
                     </div>
                     <div class="dz-title">XML</div>
-                    <div class="dz-sub">Arrastra o haz clic</div>
-                    <div class="dz-file" hidden></div>
+                    <div class="dz-sub">{{ !empty($tieneArchivosPendientes) ? 'En servidor — opcional reemplazar' : 'Arrastra o haz clic' }}</div>
+                    <div class="dz-file" {{ !empty($tieneArchivosPendientes) ? '' : 'hidden' }}>{{ $pendiente['nombre_xml'] ?? '' }}</div>
                 </div>
             </div>
             <div class="form-group">
                 <label>Orden de compra <span style="color:var(--gray-muted);font-weight:500;">(opcional)</span></label>
-                <div class="dropzone" data-dz="archivo_oc">
+                <div class="dropzone {{ !empty($pendiente['nombre_oc'] ?? null) ? 'has-file' : '' }}" data-dz="archivo_oc">
                     <input type="file" name="archivo_oc" id="archivo_oc" accept=".pdf,application/pdf">
                     <div class="dz-icon">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gray-muted)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                     </div>
                     <div class="dz-title">OC</div>
-                    <div class="dz-sub">Opcional</div>
-                    <div class="dz-file" hidden></div>
+                    <div class="dz-sub">{{ !empty($pendiente['nombre_oc'] ?? null) ? 'En servidor — opcional reemplazar' : 'Opcional' }}</div>
+                    <div class="dz-file" {{ !empty($pendiente['nombre_oc'] ?? null) ? '' : 'hidden' }}>{{ $pendiente['nombre_oc'] ?? '' }}</div>
                 </div>
             </div>
         </div>
@@ -653,7 +653,9 @@
         <div class="form-actions">
             <span class="step-hint" id="stepHint">
                 @if(!empty($puedeSubir))
-                    Validación OK — ya puedes subir.
+                    Validación OK — ya puedes subir (archivos en servidor).
+                @elseif(!empty($tieneArchivosPendientes))
+                    Archivos listos — pulsa Validar de nuevo o reemplázalos.
                 @else
                     1) Validar · 2) Subir si todo está correcto
                 @endif
@@ -737,12 +739,36 @@
     var btnSubir = document.getElementById('btnSubir');
     var stepHint = document.getElementById('stepHint');
     var puedeSubir = {{ !empty($puedeSubir) ? 'true' : 'false' }};
+    var tieneArchivosPendientes = {{ !empty($tieneArchivosPendientes) ? 'true' : 'false' }};
 
     function invalidatePending() {
         if (!puedeSubir || !btnSubir) return;
         puedeSubir = false;
         btnSubir.disabled = true;
         if (stepHint) stepHint.textContent = 'Cambiaste archivos — vuelve a validar antes de subir.';
+    }
+
+    function assignFiles(input, file) {
+        if (!input || !file) return false;
+        try {
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            return input.files && input.files.length > 0;
+        } catch (err) {
+            try {
+                input.files = eFilesFallback(file);
+                return !!(input.files && input.files.length);
+            } catch (err2) {
+                return false;
+            }
+        }
+    }
+
+    function eFilesFallback(file) {
+        var dt = new DataTransfer();
+        dt.items.add(file);
+        return dt.files;
     }
 
     document.querySelectorAll('.dropzone').forEach(function (dz) {
@@ -789,8 +815,12 @@
         });
         dz.addEventListener('drop', function (e) {
             if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                input.files = e.dataTransfer.files;
-                showFile(e.dataTransfer.files[0]);
+                var file = e.dataTransfer.files[0];
+                if (!assignFiles(input, file)) {
+                    alert('No se pudo adjuntar el archivo arrastrado. Usa clic para seleccionarlo.');
+                    return;
+                }
+                showFile(file);
             }
         });
     });
@@ -803,26 +833,35 @@
                     e.preventDefault();
                     return;
                 }
-                btnSubir.disabled = true;
                 btnSubir.textContent = 'Subiendo…';
+                setTimeout(function () { btnSubir.disabled = true; }, 0);
                 return;
             }
             var pdf = document.getElementById('archivo');
             var xml = document.getElementById('archivo_xml');
-            if (pdf && !pdf.files.length) {
-                e.preventDefault();
-                alert('Adjunta el PDF de la factura.');
-                return;
+            if (!tieneArchivosPendientes) {
+                if (pdf && !pdf.files.length) {
+                    e.preventDefault();
+                    alert('Adjunta el PDF de la factura.');
+                    return;
+                }
+                if (xml && !xml.files.length) {
+                    e.preventDefault();
+                    alert('Adjunta el XML CFDI.');
+                    return;
+                }
             }
-            if (xml && !xml.files.length) {
-                e.preventDefault();
-                alert('Adjunta el XML CFDI.');
-                return;
-            }
-            btnValidar.disabled = true;
             btnValidar.textContent = 'Validando…';
-            if (btnSubir) btnSubir.disabled = true;
+            setTimeout(function () {
+                btnValidar.disabled = true;
+                if (btnSubir) btnSubir.disabled = true;
+            }, 0);
         });
+    }
+
+    var feedback = document.getElementById('fiscalFeedback');
+    if (feedback) {
+        feedback.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 })();
 </script>
