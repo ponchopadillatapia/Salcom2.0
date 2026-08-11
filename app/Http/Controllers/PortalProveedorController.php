@@ -915,6 +915,7 @@ class PortalProveedorController extends Controller
             'telefono2' => ['nullable', 'regex:/^[0-9]{10}$/'],
             'extension' => ['nullable', 'regex:/^[0-9]{1,6}$/'],
             'correo' => 'required|email|max:255',
+            'rfc' => ['required', 'string', 'regex:/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/'],
             'clabe' => ['required', 'regex:/^[0-9]{18}$/'],
             'cuenta' => ['required', 'regex:/^[0-9]{5,20}$/'],
             'banco' => 'required|string|max:255|not_in:Otro',

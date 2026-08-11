@@ -271,7 +271,11 @@
             </div>
         </div>
 
-        <div class="form-row cols-1">
+        <div class="form-row cols-2">
+            <div class="form-group">
+                <label for="rfc">RFC <span style="color:#DC2626">*</span></label>
+                <input type="text" id="rfc" name="rfc" value="{{ old('rfc', $d['rfc'] ?? '') }}" placeholder="Ej: VPA211201F67" maxlength="13" required class="no-emoji" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase().replace(/[^A-ZÑ&0-9]/g,'')">
+            </div>
             <div class="form-group">
                 <label for="correo">Correo electrónico <span style="color:#DC2626">*</span></label>
                 <input type="email" id="correo" name="correo" value="{{ old('correo', $d['correo'] ?? session('proveedor_correo')) }}" placeholder="correo@empresa.com" required>
