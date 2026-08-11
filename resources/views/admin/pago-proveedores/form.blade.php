@@ -55,8 +55,6 @@
 </style>
 @endpush
 @section('content')
-<a class="back" href="{{ route('admin.pago-proveedores.nuevo') }}">← Cambiar póliza</a>
-
 @if(session('error'))
     <div class="pag-alert err">{{ session('error') }}</div>
 @endif
@@ -73,7 +71,7 @@
         <div class="cq-titlebar">Abono Prov. · {{ $poliza['concepto'] }} · Serie {{ $poliza['serie'] }}</div>
 
         <div class="cq-toolbar">
-            <a class="cq-tool" href="{{ route('admin.pago-proveedores.nuevo') }}" title="Nuevo">
+            <a class="cq-tool" href="{{ route('admin.pago-proveedores') }}" title="Nuevo">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 Nuevo
             </a>
@@ -108,6 +106,10 @@
                 <label>Concepto</label>
                 <input type="text" value="{{ $poliza['concepto'] }}" readonly>
             </div>
+            <div class="cq-field span2">
+                <label>Póliza</label>
+                <input type="text" name="poliza" value="{{ old('poliza') }}" placeholder="Escribe la póliza…" maxlength="120">
+            </div>
             <div class="cq-field">
                 <label>Fecha</label>
                 <input type="date" name="fecha" value="{{ old('fecha', now()->toDateString()) }}" required>
@@ -131,7 +133,7 @@
                             data-moneda="{{ $mon }}"
                             data-banco="{{ $p->datos_identificacion['banco'] ?? '' }}"
                             data-clabe="{{ $p->datos_identificacion['clabe'] ?? '' }}"
-                            @selected((string) old('proveedor_id') === (string) $p->id)>
+                            @selected((string) old('proveedor_id', $proveedorIdPref ?? '') === (string) $p->id)>
                             {{ $cod }} — {{ $p->nombre }} [{{ $mon }}]
                         </option>
                     @endforeach

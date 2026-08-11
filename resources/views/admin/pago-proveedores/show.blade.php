@@ -58,7 +58,7 @@
         <div class="kv"><label>Moneda</label><div>{{ $abono->moneda }}</div></div>
         <div class="kv"><label>Tipo de cambio</label><div>{{ number_format((float)$abono->tipo_cambio, 4) }}</div></div>
         <div class="kv"><label>Cuenta bancaria</label><div>{{ $abono->cuenta_bancaria ?: '(Ninguno)' }}</div></div>
-        <div class="kv"><label>Póliza</label><div>{{ $poliza['titulo'] ?? $abono->poliza_key }}</div></div>
+        <div class="kv"><label>Póliza</label><div>{{ $abono->agente ?: '—' }}</div></div>
         <div class="kv" style="grid-column:span 2"><label>Notas</label><div>{{ $abono->notas ?: '—' }}</div></div>
     </div>
 

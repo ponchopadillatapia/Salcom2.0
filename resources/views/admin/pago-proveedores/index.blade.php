@@ -1,139 +1,336 @@
 @extends('layouts.admin')
-@section('title', 'Pago a proveedores')
+@section('title', 'Abonos al proveedor')
 @section('hero')
 <div class="hero-band">
-    <h1>Pago a proveedores</h1>
+    <h1>Abonos al proveedor</h1>
     <p>Abonos / pólizas Contpaqi · 8969 nacional · 2026 dólar</p>
 </div>
 @endsection
 @push('styles')
 <style>
-    .pp-toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:18px}
-    .pp-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
-    .pp-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-decoration:none;color:inherit;transition:border-color .15s,box-shadow .15s}
-    .pp-card:hover,.pp-card.is-active{border-color:var(--purple);box-shadow:0 0 0 2px rgba(107,63,160,.1)}
-    .pp-card .serie{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;color:var(--gray-muted)}
-    .pp-card h3{margin:6px 0 4px;font-size:14px;font-weight:700;color:var(--gray-text)}
-    .pp-card p{margin:0;font-size:12px;color:var(--gray-muted);line-height:1.35}
-    .pp-card .count{margin-top:10px;font-size:20px;font-weight:800;color:var(--purple)}
-    .btn-nuevo{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:var(--purple);color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none}
-    .btn-nuevo:hover{background:var(--purple-dark);color:#fff}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    .anim{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
+
+    .inv-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
+    .inv-metric{background:var(--white);border:1px solid var(--border-light, var(--border));border-radius:14px;padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block}
+    .inv-metric:hover{border-color:var(--purple-mid,#c4b5e0);box-shadow:var(--shadow-sm)}
+    .inv-metric.is-active{border-color:var(--purple);box-shadow:0 0 0 2px rgba(107,63,160,.12)}
+    .inv-metric .accent{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:14px 0 0 14px}
+    .inv-metric-label{font-size:12px;color:var(--gray-muted);font-weight:600;margin-bottom:6px}
+    .inv-metric-val{font-size:28px;font-weight:700;color:var(--gray-text);line-height:1}
+    .inv-metric-sub{font-size:12px;color:var(--gray-muted);margin-top:6px}
+
     .filters-panel{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:16px}
     .filter-form{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
     .filter-field{display:flex;flex-direction:column;gap:4px;min-width:160px;flex:1}
     .filter-field label{font-size:11px;font-weight:600;color:var(--gray-muted);text-transform:uppercase}
-    .filter-field input,.filter-field select{border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit}
+    .filter-field input,.filter-field select{border:1.5px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;font-family:inherit;background:var(--white)}
+    .filter-field input:focus,.filter-field select:focus{outline:none;border-color:var(--purple);box-shadow:0 0 0 3px rgba(107,63,160,.1)}
     .btn-primary{padding:9px 16px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px}
     .btn-outline{padding:9px 14px;background:#fff;border:1.5px solid var(--border);border-radius:8px;font-weight:600;font-size:13px;text-decoration:none;color:var(--gray-text)}
-    .adm-section{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+
+    .adm-section{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-sm)}
+    .adm-section-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:16px 22px;background:var(--gray-soft);border-bottom:1px solid var(--border-light)}
+    .adm-section-head h4{font-size:14px;font-weight:700;color:var(--gray-text);margin:0}
+    .adm-section-meta{font-size:12px;color:var(--gray-muted)}
+
     .admin-table{width:100%;border-collapse:collapse}
-    .admin-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border)}
-    .admin-table td{padding:12px 14px;font-size:13px;border-bottom:1px solid var(--border)}
-    .admin-table tr{cursor:pointer}
+    .admin-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px;padding:12px 16px;text-align:left;background:var(--white);border-bottom:1px solid var(--border)}
+    .admin-table td{padding:14px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border)}
+    .admin-table tbody tr.prov-row{cursor:pointer}
+    .admin-table tbody tr.prov-row:hover td{background:var(--purple-subtle)}
+    .admin-table tbody tr.prov-row.is-disabled{cursor:not-allowed;opacity:.55}
+    .admin-table tbody tr.prov-row.is-disabled:hover td{background:transparent}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
+    .date-row td{background:var(--purple-subtle)!important;font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)}
+    .code-link{font-weight:700;color:var(--purple);text-decoration:none}
+    .monto{font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)}
     .pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;display:inline-block}
     .pill.ok{background:var(--green-bg);color:var(--green)}
     .pill.warn{background:var(--amber-bg);color:var(--amber)}
     .pill.bad{background:var(--red-bg);color:var(--red)}
-    .monto{font-weight:700;font-variant-numeric:tabular-nums}
+    .bubble-roja{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:8px;border-radius:999px;background:var(--red);color:#fff;font-size:10px;font-weight:700;vertical-align:middle}
+    .hora-bubble{display:inline-flex;align-items:center;justify-content:center;padding:3px 8px;border-radius:999px;background:var(--red);color:#fff;font-size:11px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
+    .hora-bubble.leida{background:var(--gray-muted);opacity:.85}
+    .empty-state{text-align:center;padding:48px 20px;color:var(--gray-muted)}
+    .empty-state p{font-size:14px;font-weight:500;margin:0}
     .pag-alert{padding:12px 14px;border-radius:10px;margin-bottom:14px;font-size:13px}
     .pag-alert.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
-    .empty{padding:40px;text-align:center;color:var(--gray-muted)}
-    @media(max-width:960px){.pp-cards{grid-template-columns:1fr 1fr}}
-    @media(max-width:640px){.pp-cards{grid-template-columns:1fr}}
+    .active-filters{font-size:12px;color:var(--gray-muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
+    .active-tag{background:var(--purple-subtle);color:var(--purple);padding:3px 10px;border-radius:999px;font-weight:600;font-size:11px}
+    @media(max-width:768px){.inv-metrics{grid-template-columns:1fr 1fr}}
 </style>
 @endpush
 @section('content')
+@php
+    $chipBase = array_filter([
+        'agente' => $agente !== '' ? $agente : null,
+    ]);
+    $filtrosActivos = $agente !== '' || $estatus !== '';
+    $modo = $modo ?? 'proveedores';
+    $tiposAgente = $tiposAgente ?? config('polizas_pago');
+    $agente = $agente ?? '';
+    $q = $q ?? '';
+    $poliza = $poliza ?? '';
+@endphp
+
 @if(session('ok'))
-    <div class="pag-alert ok">{{ session('ok') }}</div>
+    <div class="pag-alert ok anim">{{ session('ok') }}</div>
 @endif
 
-<div class="pp-toolbar">
-    <div style="font-size:13px;color:var(--gray-muted)">Selecciona una póliza o crea un abono nuevo</div>
-    <a href="{{ route('admin.pago-proveedores.nuevo') }}" class="btn-nuevo">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-        Nuevo pago
+<div class="inv-metrics anim">
+    <a class="inv-metric {{ $estatus === 'cancelado' ? 'is-active' : '' }}" href="{{ route('admin.pago-proveedores', array_merge($chipBase, ['estatus' => 'cancelado'])) }}">
+        <div class="accent" style="background:var(--red,#dc2626)"></div>
+        <div class="inv-metric-label">Cancelados</div>
+        <div class="inv-metric-val">{{ $kpiCancelados }}</div>
+        <div class="inv-metric-sub">Abonos cancelados</div>
+    </a>
+    <a class="inv-metric {{ $estatus === 'borrador' ? 'is-active' : '' }}" href="{{ route('admin.pago-proveedores', array_merge($chipBase, ['estatus' => 'borrador'])) }}">
+        <div class="accent" style="background:var(--amber,#d97706)"></div>
+        <div class="inv-metric-label">Borradores</div>
+        <div class="inv-metric-val">{{ $kpiBorradores }}</div>
+        <div class="inv-metric-sub">Sin confirmar</div>
+    </a>
+    <a class="inv-metric {{ $estatus === 'guardado' ? 'is-active' : '' }}" href="{{ route('admin.pago-proveedores', array_merge($chipBase, ['estatus' => 'guardado'])) }}">
+        <div class="accent" style="background:var(--green,#16a34a)"></div>
+        <div class="inv-metric-label">Guardados</div>
+        <div class="inv-metric-val">{{ $kpiGuardados }}</div>
+        <div class="inv-metric-sub">Abonos listos</div>
+    </a>
+    <a class="inv-metric {{ $estatus === '' ? 'is-active' : '' }}" href="{{ route('admin.pago-proveedores', $chipBase) }}">
+        <div class="accent" style="background:var(--purple,#6B3FA0)"></div>
+        <div class="inv-metric-label">Totales</div>
+        <div class="inv-metric-val">{{ $kpiTotales }}</div>
+        <div class="inv-metric-sub">Todos los abonos</div>
     </a>
 </div>
 
-<div class="pp-cards">
-@foreach($polizas as $key => $p)
-    <a href="{{ route('admin.pago-proveedores', ['poliza' => $key]) }}" class="pp-card {{ $filtro === $key ? 'is-active' : '' }}">
-        <div class="serie" style="color:{{ $p['color'] }}">Serie {{ $p['serie'] }} · {{ $p['moneda'] }}</div>
-        <h3>{{ $p['titulo'] }}</h3>
-        <p>{{ $p['descripcion'] }}</p>
-        <div class="count">{{ (int) ($conteos[$key] ?? 0) }}</div>
-    </a>
-@endforeach
-</div>
-
-<div class="filters-panel">
+<div class="filters-panel anim" style="animation-delay:.04s">
     <form method="get" class="filter-form">
+        @if($estatus !== '')
+            <input type="hidden" name="estatus" value="{{ $estatus }}">
+        @endif
         <div class="filter-field">
-            <label>Buscar</label>
-            <input type="text" name="q" value="{{ $q }}" placeholder="Proveedor, folio, serie…">
-        </div>
-        <div class="filter-field">
-            <label>Póliza</label>
-            <select name="poliza">
+            <label>Agente</label>
+            <select name="agente" id="filtro-agente">
                 <option value="">Todas</option>
-                @foreach($polizas as $key => $p)
-                    <option value="{{ $key }}" @selected($filtro === $key)>{{ $p['titulo'] }}</option>
+                @foreach($tiposAgente as $key => $t)
+                    <option value="{{ $key }}" @selected($agente === $key)>{{ $t['titulo'] }}</option>
                 @endforeach
             </select>
         </div>
         <button type="submit" class="btn-primary">Filtrar</button>
-        <a href="{{ route('admin.pago-proveedores') }}" class="btn-outline">Limpiar</a>
+        @if($filtrosActivos)
+            <a href="{{ route('admin.pago-proveedores') }}" class="btn-outline">Limpiar</a>
+        @endif
     </form>
-</div>
-
-<div class="adm-section">
-    <div class="tbl-wrap" style="overflow-x:auto">
-        <table class="admin-table">
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Serie / Folio</th>
-                    <th>Póliza</th>
-                    <th>Proveedor</th>
-                    <th>Moneda</th>
-                    <th>Tipo cambio</th>
-                    <th>Pago</th>
-                    <th>Estatus</th>
-                </tr>
-            </thead>
-            <tbody>
-            @forelse($abonos as $a)
-                @php $meta = $polizas[$a->poliza_key] ?? null; @endphp
-                <tr onclick="window.location='{{ route('admin.pago-proveedores.show', $a) }}'">
-                    <td>{{ optional($a->fecha)->format('d/m/Y') }}</td>
-                    <td><strong>{{ $a->serie }}</strong> · {{ $a->folio }}</td>
-                    <td>{{ $meta['titulo'] ?? $a->poliza_key }}</td>
-                    <td>
-                        <div style="font-weight:600">{{ $a->nombre_proveedor }}</div>
-                        <div style="font-size:11px;color:var(--gray-muted)">{{ $a->codigo_proveedor }}</div>
-                    </td>
-                    <td>{{ $a->moneda }}</td>
-                    <td>{{ number_format((float)$a->tipo_cambio, 4) }}</td>
-                    <td class="monto">${{ number_format((float)$a->monto_pago, 2) }}</td>
-                    <td>
-                        @if($a->estatus === 'guardado')
-                            <span class="pill ok">Guardado</span>
-                        @elseif($a->estatus === 'borrador')
-                            <span class="pill warn">Borrador</span>
-                        @else
-                            <span class="pill bad">Cancelado</span>
-                        @endif
-                    </td>
-                </tr>
-            @empty
-                <tr><td colspan="8" class="empty">Aún no hay abonos. Pulsa <strong>Nuevo pago</strong> y elige la póliza.</td></tr>
-            @endforelse
-            </tbody>
-        </table>
+    @if($filtrosActivos)
+    <div class="active-filters">
+        <span>Filtros activos:</span>
+        @if($agente !== '')<span class="active-tag">Agente: {{ $tiposAgente[$agente]['titulo'] ?? $agente }}</span>@endif
+        @if($estatus !== '')<span class="active-tag">{{ ucfirst($estatus) }}</span>@endif
     </div>
-    @if($abonos->hasPages())
-        <div style="padding:14px">{{ $abonos->links() }}</div>
     @endif
 </div>
+
+@if($modo === 'abonos')
+    <div class="adm-section anim" style="animation-delay:.08s">
+        <div class="adm-section-head">
+            <div>
+                <h4>Abonos</h4>
+                <div class="adm-section-meta">{{ $abonos->total() }} resultado{{ $abonos->total() !== 1 ? 's' : '' }} · estatus {{ $estatus }}</div>
+            </div>
+        </div>
+        <div class="tbl-wrap" style="overflow-x:auto">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Serie / Folio</th>
+                        <th>Póliza</th>
+                        <th>Proveedor</th>
+                        <th>Moneda</th>
+                        <th>Tipo cambio</th>
+                        <th>Pago</th>
+                        <th>Estatus</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @forelse($abonos as $a)
+                    <tr style="cursor:pointer" onclick="window.location='{{ route('admin.pago-proveedores.show', $a) }}'">
+                        <td>{{ optional($a->fecha)->format('d/m/Y') }}</td>
+                        <td><strong>{{ $a->serie }}</strong> · {{ $a->folio }}</td>
+                        <td>{{ $a->agente ?: '—' }}</td>
+                        <td>
+                            <div style="font-weight:600">{{ $a->nombre_proveedor }}</div>
+                            <div style="font-size:11px;color:var(--gray-muted)">{{ $a->codigo_proveedor }}</div>
+                        </td>
+                        <td>{{ $a->moneda }}</td>
+                        <td>{{ number_format((float)$a->tipo_cambio, 4) }}</td>
+                        <td class="monto">${{ number_format((float)$a->monto_pago, 2) }}</td>
+                        <td>
+                            @if($a->estatus === 'guardado')
+                                <span class="pill ok">Guardado</span>
+                            @elseif($a->estatus === 'borrador')
+                                <span class="pill warn">Borrador</span>
+                            @else
+                                <span class="pill bad">Cancelado</span>
+                            @endif
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="8" class="empty-state"><p>No hay abonos con ese estatus.</p></td></tr>
+                @endforelse
+                </tbody>
+            </table>
+        </div>
+        @if($abonos->hasPages())
+            <div style="padding:14px">{{ $abonos->links() }}</div>
+        @endif
+    </div>
+@else
+    @php
+        $lista = $proveedoresPendientes;
+        if ($q !== '') {
+            $lista = $lista->filter(fn ($r) => str_contains(mb_strtolower($r->nombre), mb_strtolower($q))
+                || str_contains((string) $r->codigo, $q));
+        }
+        $lista = $lista->values();
+        $total = $lista->count();
+        $agrupados = $lista->groupBy(function ($row) {
+            return $row->ultima_factura_at
+                ? $row->ultima_factura_at->format('Y-m-d')
+                : 'sin-fecha';
+        });
+    @endphp
+
+    <div class="adm-section anim" style="animation-delay:.08s">
+        <div class="adm-section-head">
+            <div>
+                <h4>Proveedores</h4>
+                <div class="adm-section-meta">{{ $total }} resultado{{ $total !== 1 ? 's' : '' }} · elige Agente arriba y haz clic en el proveedor</div>
+            </div>
+        </div>
+
+        @if($agente === '')
+            <div style="padding:0 18px 4px">
+                <div class="pag-alert" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber);margin:0 0 12px">
+                    Selecciona un <strong>Agente</strong> para abrir el abono.
+                </div>
+            </div>
+        @endif
+
+        @if($lista->isEmpty())
+            <div class="empty-state">
+                <p>No hay proveedores con facturas pendientes{{ $filtrosActivos ? ' para esos filtros' : '' }}.</p>
+            </div>
+        @else
+            <div class="tbl-wrap" style="overflow-x:auto">
+                <table class="admin-table" id="tbl-proveedores-abono">
+                    <thead>
+                        <tr>
+                            <th>Código</th>
+                            <th>Proveedor</th>
+                            <th>Facturas pendientes</th>
+                            <th>Monto</th>
+                            <th>Estatus</th>
+                            <th>Alta</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($agrupados as $fechaKey => $rows)
+                            <tr class="date-row">
+                                <td colspan="6">
+                                    @if($fechaKey === 'sin-fecha')
+                                        Sin fecha
+                                    @else
+                                        {{ \Illuminate\Support\Carbon::parse($fechaKey)->locale('es')->isoFormat('DD [de] MMMM YYYY') }}
+                                    @endif
+                                </td>
+                            </tr>
+                            @foreach($rows as $row)
+                                @php
+                                    $sinLeer = ($row->notif_sin_leer ?? 0) > 0;
+                                    $hora = $row->ultima_factura_at
+                                        ? $row->ultima_factura_at->format('h:i a')
+                                        : '—';
+                                @endphp
+                                <tr class="prov-row {{ $agente === '' ? 'is-disabled' : '' }}" data-codigo="{{ $row->codigo }}">
+                                    <td>
+                                        <a class="code-link js-abrir-abono" href="#" data-codigo="{{ $row->codigo }}">{{ $row->codigo }}</a>
+                                    </td>
+                                    <td style="font-weight:600;">
+                                        {{ $row->nombre }}
+                                        @if($sinLeer)
+                                            <span class="bubble-roja" title="Sin revisar">{{ $row->notif_sin_leer > 9 ? '9+' : $row->notif_sin_leer }}</span>
+                                        @endif
+                                    </td>
+                                    <td>{{ $row->num_facturas }}</td>
+                                    <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
+                                    <td>
+                                        @if($row->expediente['ok'])
+                                            <span class="pill ok">OK</span>
+                                        @else
+                                            <span class="pill warn">Pendiente</span>
+                                        @endif
+                                    </td>
+                                    <td style="text-align:right;">
+                                        <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}" title="{{ $sinLeer ? 'Nueva / sin revisar' : 'Ya revisada' }}">{{ $hora }}</span>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
+    </div>
+@endif
 @endsection
+
+@push('scripts')
+<script>
+(function () {
+    var sel = document.getElementById('filtro-agente');
+    if (!sel) return;
+
+    function agenteKey() { return (sel.value || '').trim(); }
+
+    function syncRows() {
+        var on = !!agenteKey();
+        document.querySelectorAll('#tbl-proveedores-abono tr.prov-row').forEach(function (tr) {
+            tr.classList.toggle('is-disabled', !on);
+        });
+    }
+
+    function abrir(codigo) {
+        var key = agenteKey();
+        if (!key) {
+            alert('Selecciona un Agente antes de abrir el proveedor.');
+            sel.focus();
+            return;
+        }
+        // Directo al formulario (sin pantalla de 4 tarjetas)
+        window.location.href = '/admin/pago-proveedores/nuevo/' + encodeURIComponent(key)
+            + '?codigo=' + encodeURIComponent(codigo);
+    }
+
+    sel.addEventListener('change', syncRows);
+
+    document.querySelectorAll('#tbl-proveedores-abono tr.prov-row').forEach(function (tr) {
+        tr.addEventListener('click', function (e) {
+            e.preventDefault();
+            abrir(tr.getAttribute('data-codigo'));
+        });
+    });
+    document.querySelectorAll('.js-abrir-abono').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            abrir(a.getAttribute('data-codigo'));
+        });
+    });
+    syncRows();
+})();
+</script>
+@endpush
