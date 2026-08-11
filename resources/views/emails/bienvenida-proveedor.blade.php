@@ -29,8 +29,7 @@
                 </a>
             </p>
             <p style="color: #6b7280; font-size: 13px; text-align: center;">
-                Este enlace vence en 48 horas. Si no funciona, copia y pega esta dirección en tu navegador:<br>
-                <span style="word-break: break-all;">{{ $urlVerificacion }}</span>
+                Este enlace vence en 48 horas.
             </p>
         @endif
 
