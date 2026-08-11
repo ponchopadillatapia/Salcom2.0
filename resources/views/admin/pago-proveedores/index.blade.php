@@ -39,7 +39,7 @@
     .admin-table td{padding:14px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border)}
     .admin-table tbody tr.prov-row{cursor:pointer}
     .admin-table tbody tr.prov-row:hover td{background:var(--purple-subtle)}
-    .admin-table tbody tr.prov-row.is-disabled{cursor:not-allowed;opacity:.55}
+    .admin-table tbody tr.prov-row.is-disabled{cursor:not-allowed;opacity:.45}
     .admin-table tbody tr.prov-row.is-disabled:hover td{background:transparent}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
     .date-row td{background:var(--purple-subtle)!important;font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)}
@@ -105,13 +105,25 @@
     </a>
 </div>
 
+@if($agente === '' && ($modo ?? 'proveedores') !== 'abonos')
+<div class="anim" style="animation-delay:.03s;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;background:linear-gradient(135deg,#f3e8ff,#ede9fe);border:2px solid #a78bfa;border-radius:12px">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div>
+            <div style="font-weight:800;font-size:14px;color:#5b21b6">Selecciona una Cuenta primero</div>
+            <div style="font-size:12px;color:#6d28d9;margin-top:2px">Elige la cuenta en el filtro de abajo para poder abrir un abono al proveedor.</div>
+        </div>
+    </div>
+</div>
+@endif
+
 <div class="filters-panel anim" style="animation-delay:.04s">
     <form method="get" class="filter-form">
         @if($estatus !== '')
             <input type="hidden" name="estatus" value="{{ $estatus }}">
         @endif
         <div class="filter-field">
-            <label>Agente</label>
+            <label>Cuenta</label>
             <select name="agente" id="filtro-agente">
                 <option value="">Todas</option>
                 @foreach($tiposAgente as $key => $t)
@@ -127,7 +139,7 @@
     @if($filtrosActivos)
     <div class="active-filters">
         <span>Filtros activos:</span>
-        @if($agente !== '')<span class="active-tag">Agente: {{ $tiposAgente[$agente]['titulo'] ?? $agente }}</span>@endif
+        @if($agente !== '')<span class="active-tag">Cuenta: {{ $tiposAgente[$agente]['titulo'] ?? $agente }}</span>@endif
         @if($estatus !== '')<span class="active-tag">{{ ucfirst($estatus) }}</span>@endif
     </div>
     @endif
@@ -147,7 +159,7 @@
                     <tr>
                         <th>Fecha</th>
                         <th>Serie / Folio</th>
-                        <th>Póliza</th>
+                        <th>Cuenta</th>
                         <th>Proveedor</th>
                         <th>Moneda</th>
                         <th>Tipo cambio</th>
@@ -160,7 +172,7 @@
                     <tr style="cursor:pointer" onclick="window.location='{{ route('admin.pago-proveedores.show', $a) }}'">
                         <td>{{ optional($a->fecha)->format('d/m/Y') }}</td>
                         <td><strong>{{ $a->serie }}</strong> · {{ $a->folio }}</td>
-                        <td>{{ $a->agente ?: '—' }}</td>
+                        <td>{{ config('polizas_pago.'.$a->poliza_key.'.titulo', $a->agente ?: '—') }}</td>
                         <td>
                             <div style="font-weight:600">{{ $a->nombre_proveedor }}</div>
                             <div style="font-size:11px;color:var(--gray-muted)">{{ $a->codigo_proveedor }}</div>
@@ -195,30 +207,18 @@
             $lista = $lista->filter(fn ($r) => str_contains(mb_strtolower($r->nombre), mb_strtolower($q))
                 || str_contains((string) $r->codigo, $q));
         }
-        $lista = $lista->values();
+        // Ordenar por fecha/hora de última factura ASC (más viejo arriba, más reciente abajo = estilo WhatsApp)
+        $lista = $lista->sortBy(fn ($r) => $r->ultima_factura_at ? $r->ultima_factura_at->timestamp : 0)->values();
         $total = $lista->count();
-        $agrupados = $lista->groupBy(function ($row) {
-            return $row->ultima_factura_at
-                ? $row->ultima_factura_at->format('Y-m-d')
-                : 'sin-fecha';
-        });
     @endphp
 
     <div class="adm-section anim" style="animation-delay:.08s">
         <div class="adm-section-head">
             <div>
-                <h4>Proveedores</h4>
-                <div class="adm-section-meta">{{ $total }} resultado{{ $total !== 1 ? 's' : '' }} · elige Agente arriba y haz clic en el proveedor</div>
+                <h4>Proveedores con facturas pendientes</h4>
+                <div class="adm-section-meta">{{ $total }} resultado{{ $total !== 1 ? 's' : '' }}</div>
             </div>
         </div>
-
-        @if($agente === '')
-            <div style="padding:0 18px 4px">
-                <div class="pag-alert" style="background:var(--amber-bg);color:var(--amber);border:1px solid var(--amber);margin:0 0 12px">
-                    Selecciona un <strong>Agente</strong> para abrir el abono.
-                </div>
-            </div>
-        @endif
 
         @if($lista->isEmpty())
             <div class="empty-state">
@@ -231,54 +231,48 @@
                         <tr>
                             <th>Código</th>
                             <th>Proveedor</th>
-                            <th>Facturas pendientes</th>
-                            <th>Monto</th>
+                            <th>Facturas</th>
+                            <th>Monto pendiente</th>
                             <th>Estatus</th>
-                            <th>Alta</th>
+                            <th>Fecha</th>
+                            <th>Hora</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($agrupados as $fechaKey => $rows)
-                            <tr class="date-row">
-                                <td colspan="6">
-                                    @if($fechaKey === 'sin-fecha')
-                                        Sin fecha
-                                    @else
-                                        {{ \Illuminate\Support\Carbon::parse($fechaKey)->locale('es')->isoFormat('DD [de] MMMM YYYY') }}
+                        @foreach($lista as $row)
+                            @php
+                                $sinLeer = ($row->notif_sin_leer ?? 0) > 0;
+                                $fecha = $row->ultima_factura_at
+                                    ? $row->ultima_factura_at->locale('es')->isoFormat('DD/MM/YY')
+                                    : '—';
+                                $hora = $row->ultima_factura_at
+                                    ? $row->ultima_factura_at->format('h:i a')
+                                    : '—';
+                            @endphp
+                            <tr class="prov-row {{ $agente === '' ? 'is-disabled' : '' }}" data-codigo="{{ $row->codigo }}">
+                                <td>
+                                    <a class="code-link js-abrir-abono" href="#" data-codigo="{{ $row->codigo }}">{{ $row->codigo }}</a>
+                                </td>
+                                <td style="font-weight:600;">
+                                    {{ $row->nombre }}
+                                    @if($sinLeer)
+                                        <span class="bubble-roja" title="Sin revisar">{{ $row->notif_sin_leer > 9 ? '9+' : $row->notif_sin_leer }}</span>
                                     @endif
                                 </td>
+                                <td style="text-align:center">{{ $row->num_facturas }}</td>
+                                <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
+                                <td>
+                                    @if($row->expediente['ok'])
+                                        <span class="pill ok">OK</span>
+                                    @else
+                                        <span class="pill warn">Pendiente</span>
+                                    @endif
+                                </td>
+                                <td style="font-size:12px;color:var(--gray-muted)">{{ $fecha }}</td>
+                                <td style="text-align:right;">
+                                    <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}">{{ $hora }}</span>
+                                </td>
                             </tr>
-                            @foreach($rows as $row)
-                                @php
-                                    $sinLeer = ($row->notif_sin_leer ?? 0) > 0;
-                                    $hora = $row->ultima_factura_at
-                                        ? $row->ultima_factura_at->format('h:i a')
-                                        : '—';
-                                @endphp
-                                <tr class="prov-row {{ $agente === '' ? 'is-disabled' : '' }}" data-codigo="{{ $row->codigo }}">
-                                    <td>
-                                        <a class="code-link js-abrir-abono" href="#" data-codigo="{{ $row->codigo }}">{{ $row->codigo }}</a>
-                                    </td>
-                                    <td style="font-weight:600;">
-                                        {{ $row->nombre }}
-                                        @if($sinLeer)
-                                            <span class="bubble-roja" title="Sin revisar">{{ $row->notif_sin_leer > 9 ? '9+' : $row->notif_sin_leer }}</span>
-                                        @endif
-                                    </td>
-                                    <td>{{ $row->num_facturas }}</td>
-                                    <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
-                                    <td>
-                                        @if($row->expediente['ok'])
-                                            <span class="pill ok">OK</span>
-                                        @else
-                                            <span class="pill warn">Pendiente</span>
-                                        @endif
-                                    </td>
-                                    <td style="text-align:right;">
-                                        <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}" title="{{ $sinLeer ? 'Nueva / sin revisar' : 'Ya revisada' }}">{{ $hora }}</span>
-                                    </td>
-                                </tr>
-                            @endforeach
                         @endforeach
                     </tbody>
                 </table>
@@ -306,7 +300,7 @@
     function abrir(codigo) {
         var key = agenteKey();
         if (!key) {
-            alert('Selecciona un Agente antes de abrir el proveedor.');
+            alert('Selecciona una Cuenta antes de abrir el proveedor.');
             sel.focus();
             return;
         }

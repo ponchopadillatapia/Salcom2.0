@@ -18,14 +18,26 @@
     .cq-tool.danger{color:#b91c1c}
     .cq-tool svg{width:18px;height:18px}
     .cq-tool:disabled{opacity:.35;cursor:not-allowed}
-    .cq-head{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 14px;padding:14px;background:#fff;border-bottom:1px solid #e5e7eb}
+    .cq-head{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 14px;padding:14px;background:#fff;border-bottom:none}
+    .cq-prov-strip{display:grid;grid-template-columns:1fr 1fr;gap:0;align-items:stretch;margin:0;border-bottom:1px solid #e5e7eb}
+    .cq-prov-strip .prov-cell{padding:10px 14px;background:#fff;border:1px solid #d1d5db}
+    .cq-prov-strip .prov-cell:first-child{border-right:none}
+    .cq-prov-strip .prov-cell-label{display:block;font-size:10px;font-weight:800;color:#374151;text-transform:uppercase;letter-spacing:.4px;margin-bottom:2px;display:inline-block;border-radius:2px}
+    .cq-prov-strip .prov-code{font-size:13px;font-weight:800;color:#111827;margin-top:4px}
+    .cq-prov-strip .prov-name{font-size:14px;font-weight:600;color:#374151}
+    .cq-prov-strip .prov-moneda-line{font-size:13px;color:#374151;margin-top:4px}
+    .cq-prov-strip .prov-moneda-line strong{color:#111827}
+    .cq-prov-strip .prov-tc-line{font-size:13px;color:#374151;margin-top:4px}
+    .cq-prov-strip .prov-tc-line input{border-bottom:1px solid #374151;border-top:none;border-left:none;border-right:none;background:transparent;font-size:13px;font-weight:700;color:#111827;width:80px;padding:2px 4px}
+    .cq-prov-strip .prov-tc-line input:focus{outline:none;border-bottom-color:#7c3aed}
+    .cq-prov-strip.hidden{display:none}
     .cq-field{display:flex;flex-direction:column;gap:3px}
     .cq-field label{font-size:11px;font-weight:700;color:#6b7280}
     .cq-field input,.cq-field select{border:1px solid #9ca3af;border-radius:3px;padding:6px 8px;font-size:13px;font-family:inherit;background:#fff}
     .cq-field input:focus,.cq-field select:focus{outline:2px solid #a78bfa;border-color:#7c3aed}
     .cq-field.span2{grid-column:span 2}
-    .cq-body{display:grid;grid-template-columns:1.6fr .9fr;min-height:420px;background:#fff}
-    .cq-main{border-right:1px solid #e5e7eb;display:flex;flex-direction:column}
+    .cq-body{display:flex;flex-direction:column;min-height:420px;background:#fff}
+    .cq-main{display:flex;flex-direction:column;flex:1}
     .cq-tabs{display:flex;gap:0;border-bottom:1px solid #e5e7eb;background:#f9fafb}
     .cq-tab{padding:8px 14px;font-size:12px;font-weight:600;color:#6b7280;border-bottom:2px solid transparent}
     .cq-tab.active{color:#5b21b6;border-bottom-color:#6B3FA0;background:#fff}
@@ -36,10 +48,6 @@
     .cq-table tbody tr:hover{background:#f5f3ff}
     .cq-table tbody tr.is-on{background:#ede9fe}
     .cq-table input[type=number]{width:110px;border:1px solid #d1d5db;border-radius:3px;padding:4px 6px;font-size:12px}
-    .cq-side{padding:12px;background:#fafafa}
-    .cq-side h4{margin:0 0 10px;font-size:13px;font-weight:800;color:#374151}
-    .cq-side .kv{display:grid;grid-template-columns:110px 1fr;gap:4px 8px;font-size:12px;margin-bottom:12px}
-    .cq-side .kv span:first-child{color:#6b7280;font-weight:600}
     .cq-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;background:#f9fafb;border-top:1px solid #e5e7eb}
     .cq-total{font-size:18px;font-weight:800;color:#166534;font-variant-numeric:tabular-nums}
     .pag-alert{padding:12px 14px;border-radius:10px;margin-bottom:14px;font-size:13px}
@@ -49,8 +57,6 @@
     .empty-row td{text-align:center;color:#9ca3af;padding:28px!important}
     @media(max-width:960px){
         .cq-head{grid-template-columns:1fr 1fr}
-        .cq-body{grid-template-columns:1fr}
-        .cq-main{border-right:none;border-bottom:1px solid #e5e7eb}
     }
 </style>
 @endpush
@@ -102,26 +108,56 @@
         </div>
 
         <div class="cq-head">
-            <div class="cq-field span2">
+            <div class="cq-field">
                 <label>Concepto</label>
                 <input type="text" value="{{ $poliza['concepto'] }}" readonly>
-            </div>
-            <div class="cq-field span2">
-                <label>Póliza</label>
-                <input type="text" name="poliza" value="{{ old('poliza') }}" placeholder="Escribe la póliza…" maxlength="120">
             </div>
             <div class="cq-field">
                 <label>Fecha</label>
                 <input type="date" name="fecha" value="{{ old('fecha', now()->toDateString()) }}" required>
             </div>
             <div class="cq-field">
-                <label>Serie / Folio</label>
-                <input type="text" value="{{ $poliza['serie'] }} — {{ $folioSiguiente }}" readonly>
+                <label>Serie</label>
+                <input type="text" value="{{ $poliza['serie'] }}" readonly>
+            </div>
+            <div class="cq-field">
+                <label>Folio</label>
+                <input type="text" value="{{ $folioSiguiente }}" readonly>
             </div>
             <div class="cq-field span2">
+                <label>Cuenta bancaria empresa</label>
+                <input type="text" name="cuenta_bancaria" value="{{ old('cuenta_bancaria') }}" placeholder="(Ninguno) / Base Dollar / …">
+            </div>
+            <div class="cq-field span2">
+                <label>Notas</label>
+                <input type="text" name="notas" value="{{ old('notas') }}" placeholder="Opcional">
+            </div>
+        </div>
+
+        {{-- Bloque Proveedor estilo Contpaqi --}}
+        <div class="cq-prov-strip hidden" id="prov-strip">
+            <div class="prov-cell">
+                <span class="prov-cell-label">Proveedor</span>
+                <div class="prov-code" id="strip-code">—</div>
+                <div class="prov-name" id="strip-name">—</div>
+            </div>
+            <div class="prov-cell">
+                <div class="prov-moneda-line">Moneda: &nbsp;<strong id="strip-moneda">{{ $poliza['moneda_label'] }}</strong></div>
+                <div class="prov-tc-line">Tipo de cambio: &nbsp;
+                    <input type="number" step="0.000001" min="0" name="tipo_cambio" id="tipo_cambio"
+                       value="{{ old('tipo_cambio', $poliza['tipo_cambio_default'] ?? '') }}"
+                       placeholder="{{ $poliza['moneda'] === 'USD' ? '17.9042' : '1' }}"
+                       @if($poliza['moneda'] === 'MXN') required @endif>
+                </div>
+            </div>
+        </div>
+
+        {{-- Selector proveedor (se oculta una vez elegido) --}}
+        <div style="padding:10px 14px;background:#fff;border-bottom:1px solid #e5e7eb" id="prov-select-wrap">
+            <div class="cq-field">
                 <label>Proveedor</label>
-                <select name="proveedor_id" id="proveedor_id" required>
-                    <option value="">— Seleccionar —</option>
+                <select name="proveedor_id" id="proveedor_id" required style="max-width:500px">
+                    <option value="">— Seleccionar proveedor —</option>
                     @foreach($proveedores as $p)
                         @php
                             $cod = $p->id_proveedor ?: $p->codigo;
@@ -138,25 +174,6 @@
                         </option>
                     @endforeach
                 </select>
-            </div>
-            <div class="cq-field">
-                <label>Moneda</label>
-                <input type="text" value="{{ $poliza['moneda_label'] }} ({{ $poliza['moneda'] }})" readonly>
-            </div>
-            <div class="cq-field">
-                <label>Tipo de cambio</label>
-                <input type="number" step="0.000001" min="0" name="tipo_cambio" id="tipo_cambio"
-                       value="{{ old('tipo_cambio', $poliza['tipo_cambio_default'] ?? '') }}"
-                       placeholder="{{ $poliza['moneda'] === 'USD' ? 'Ej. 17.9042' : '1' }}"
-                       @if($poliza['moneda'] === 'MXN') required @endif>
-            </div>
-            <div class="cq-field span2">
-                <label>Cuenta bancaria empresa</label>
-                <input type="text" name="cuenta_bancaria" value="{{ old('cuenta_bancaria') }}" placeholder="(Ninguno) / Base Dollar / …">
-            </div>
-            <div class="cq-field span2">
-                <label>Notas</label>
-                <input type="text" name="notas" value="{{ old('notas') }}" placeholder="Opcional">
             </div>
         </div>
 
@@ -186,21 +203,6 @@
                     </table>
                 </div>
             </div>
-            <aside class="cq-side">
-                <h4>Detalle documento</h4>
-                <div class="kv" id="detalle-doc">
-                    <span>Proveedor</span><span id="d-prov">—</span>
-                    <span>Banco</span><span id="d-banco">—</span>
-                    <span>CLABE</span><span id="d-clabe">—</span>
-                    <span>Serie/Folio</span><span id="d-folio">—</span>
-                    <span>Concepto</span><span id="d-concepto">—</span>
-                    <span>Moneda</span><span id="d-moneda">{{ $poliza['moneda_label'] }}</span>
-                    <span>Total doc.</span><span id="d-total">—</span>
-                </div>
-                <p style="font-size:11px;color:#6b7280;margin:0;line-height:1.4">
-                    Marca las facturas a saldar. El importe de pago se puede ajustar (igual que en Contpaqi).
-                </p>
-            </aside>
         </div>
 
         <div class="cq-foot">
@@ -241,10 +243,7 @@
     }
 
     function showDetalle(tr) {
-        if (!tr) return;
-        document.getElementById('d-folio').textContent = (tr.dataset.serie || '') + ' / ' + (tr.dataset.folio || '');
-        document.getElementById('d-concepto').textContent = tr.dataset.concepto || 'Compra';
-        document.getElementById('d-total').textContent = '$' + fmt(tr.dataset.total) + ' ' + (tr.dataset.moneda || '');
+        // sin panel lateral
     }
 
     function renderItems(items) {
@@ -255,13 +254,13 @@
         }
         body.innerHTML = items.map(it => `
             <tr data-id="${it.id}" data-serie="${it.serie}" data-folio="${it.folio}" data-concepto="${it.concepto}" data-total="${it.total}" data-moneda="${it.moneda}">
-                <td><input type="checkbox" class="chk-doc" name="factura_ids[]" value="${it.id}"></td>
+                <td><input type="checkbox" class="chk-doc" name="factura_ids[]" value="${it.id}" checked></td>
                 <td>${it.fecha_fmt}</td>
                 <td>${it.serie}</td>
                 <td>${it.folio}</td>
                 <td>${it.concepto}</td>
                 <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.referencia || ''}">${it.referencia || '—'}</td>
-                <td><input type="number" step="0.01" min="0" class="imp-doc" name="importes[${it.id}]" value="${Number(it.total).toFixed(2)}" disabled></td>
+                <td><input type="number" step="0.01" min="0" class="imp-doc" name="importes[${it.id}]" value="${Number(it.total).toFixed(2)}"></td>
                 <td>${it.sistema_origen}</td>
             </tr>
         `).join('');
@@ -269,16 +268,14 @@
         body.querySelectorAll('tr[data-id]').forEach(tr => {
             const chk = tr.querySelector('.chk-doc');
             const inp = tr.querySelector('.imp-doc');
+            tr.classList.add('is-on');
             chk.addEventListener('change', () => {
                 inp.disabled = !chk.checked;
-                if (chk.checked) showDetalle(tr);
+                if (!chk.checked) tr.classList.remove('is-on');
+                else tr.classList.add('is-on');
                 recalc();
             });
             inp.addEventListener('input', recalc);
-            tr.addEventListener('click', (e) => {
-                if (e.target.matches('input')) return;
-                showDetalle(tr);
-            });
         });
         recalc();
     }
@@ -300,14 +297,32 @@
 
     select.addEventListener('change', () => {
         const opt = select.options[select.selectedIndex];
-        document.getElementById('d-prov').textContent = (opt.dataset.nombre || '—') + (opt.dataset.moneda ? ' [' + opt.dataset.moneda + ']' : '');
-        document.getElementById('d-banco').textContent = opt.dataset.banco || '—';
-        document.getElementById('d-clabe').textContent = opt.dataset.clabe || '—';
-        if (select.value) loadFacturas(select.value);
-        else {
+        const strip = document.getElementById('prov-strip');
+        const selectWrap = document.getElementById('prov-select-wrap');
+
+        if (select.value) {
+            // Mostrar franja proveedor estilo Contpaqi
+            document.getElementById('strip-code').textContent = opt.dataset.codigo || '—';
+            document.getElementById('strip-name').textContent = opt.dataset.nombre || '—';
+            document.getElementById('strip-moneda').textContent = opt.dataset.moneda || '{{ $poliza["moneda_label"] }}';
+            strip.classList.remove('hidden');
+            selectWrap.style.display = 'none';
+
+            // Detalle lateral removido
+            loadFacturas(select.value);
+        } else {
+            strip.classList.add('hidden');
+            selectWrap.style.display = '';
             body.innerHTML = '<tr class="empty-row"><td colspan="8">Selecciona un proveedor para cargar facturas pendientes</td></tr>';
             recalc();
         }
+    });
+
+    // Clic en la franja para cambiar proveedor
+    document.getElementById('prov-strip').addEventListener('dblclick', () => {
+        document.getElementById('prov-strip').classList.add('hidden');
+        document.getElementById('prov-select-wrap').style.display = '';
+        select.focus();
     });
 
     document.getElementById('form-abono').addEventListener('submit', (e) => {

@@ -184,6 +184,7 @@ class AdminPagoProveedoresController extends Controller
                 $moneda = strtoupper((string) ($vd['moneda'] ?? $vd['cfdi']['moneda'] ?? 'MXN'));
                 $serie = (string) ($vd['serie'] ?? $vd['cfdi']['serie'] ?? '');
                 $folio = (string) ($f->folio_cfdi ?: ($vd['folio'] ?? $f->id));
+                $saldo = round((float) $f->total - (float) $f->monto_pagado, 2);
 
                 return [
                     'id' => $f->id,
@@ -193,11 +194,14 @@ class AdminPagoProveedoresController extends Controller
                     'folio' => $folio,
                     'concepto' => 'Compra',
                     'referencia' => $f->uuid_cfdi,
-                    'total' => (float) $f->total,
+                    'total' => $saldo,
+                    'total_factura' => (float) $f->total,
+                    'monto_pagado' => (float) $f->monto_pagado,
                     'moneda' => $moneda,
                     'sistema_origen' => 'SALCOM',
                 ];
             })
+            ->filter(fn ($item) => $item['total'] > 0)
             ->values();
 
         return response()->json(['items' => $items]);
@@ -294,6 +298,23 @@ class AdminPagoProveedoresController extends Controller
 
                 foreach ($lineas as $linea) {
                     $abono->documentos()->create($linea);
+                }
+
+                // Descontar pagos de las facturas
+                foreach ($facturas as $f) {
+                    $importe = isset($data['importes'][$f->id])
+                        ? (float) $data['importes'][$f->id]
+                        : (float) $f->total;
+
+                    $nuevoPagado = round((float) $f->monto_pagado + $importe, 2);
+                    $f->monto_pagado = $nuevoPagado;
+
+                    // Si ya se cubrió el total, marcar como pagada
+                    if ($nuevoPagado >= (float) $f->total) {
+                        $f->estatus = 'pagada';
+                    }
+
+                    $f->save();
                 }
 
                 return $abono;
