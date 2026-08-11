@@ -407,12 +407,16 @@
 
             <div class="sb-hr"></div>
             <div class="sb-section">Pagos</div>
-            <a href="{{ route('admin.pagos') }}" class="sb-link {{ request()->is('admin/pagos*') ? 'active' : '' }}">
+            <a href="{{ route('admin.pagos') }}" class="sb-link {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
                 <span class="sb-text">Pagos</span>
                 @if(($adminPagosSinLeer ?? 0) > 0)
                     <span class="sb-badge">{{ $adminPagosSinLeer > 9 ? '9+' : $adminPagosSinLeer }}</span>
                 @endif
+            </a>
+            <a href="{{ route('admin.pago-proveedores') }}" class="sb-link {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M7 15h4"/></svg></div>
+                <span class="sb-text">Pago a proveedores</span>
             </a>
 
             <div class="sb-hr"></div>

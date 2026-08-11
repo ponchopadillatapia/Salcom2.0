@@ -228,6 +228,16 @@ Route::post('/admin/pagos/{pago}/cancelar', [AdminPagosController::class, 'cance
 Route::get('/admin/pagos/{pago}/excel', [AdminPagosController::class, 'excel'])->name('admin.pagos.excel')->middleware('auth.admin');
 Route::get('/admin/pagos/{pago}/reporte-resumen', [AdminPagosController::class, 'reporteResumen'])->name('admin.pagos.reporte-resumen')->middleware('auth.admin');
 
+use App\Http\Controllers\AdminPagoProveedoresController;
+
+Route::get('/admin/pago-proveedores', [AdminPagoProveedoresController::class, 'index'])->name('admin.pago-proveedores')->middleware('auth.admin');
+Route::get('/admin/pago-proveedores/nuevo', [AdminPagoProveedoresController::class, 'nuevo'])->name('admin.pago-proveedores.nuevo')->middleware('auth.admin');
+Route::get('/admin/pago-proveedores/nuevo/{poliza}', [AdminPagoProveedoresController::class, 'create'])->name('admin.pago-proveedores.create')->middleware('auth.admin');
+Route::get('/admin/pago-proveedores/facturas-json', [AdminPagoProveedoresController::class, 'facturasJson'])->name('admin.pago-proveedores.facturas-json')->middleware('auth.admin');
+Route::post('/admin/pago-proveedores', [AdminPagoProveedoresController::class, 'store'])->name('admin.pago-proveedores.store')->middleware('auth.admin');
+Route::get('/admin/pago-proveedores/{abono}', [AdminPagoProveedoresController::class, 'show'])->name('admin.pago-proveedores.show')->middleware('auth.admin');
+Route::post('/admin/pago-proveedores/{abono}/cancelar', [AdminPagoProveedoresController::class, 'cancelar'])->name('admin.pago-proveedores.cancelar')->middleware('auth.admin');
+
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal', [AdminPanelController::class, 'expedienteFiscal'])->name('admin.expediente-fiscal')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal/proveedor/{proveedor}', [AdminPanelController::class, 'expedienteFiscalVer'])->name('admin.expediente-fiscal.ver')->middleware('auth.admin');
