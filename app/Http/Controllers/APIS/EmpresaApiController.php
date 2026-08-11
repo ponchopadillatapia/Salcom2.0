@@ -153,6 +153,24 @@ class EmpresaApiController extends Controller
             // ════════════════════════════════════════
             $nombreEsperado = trim((string) $request->input('nombre_esperado', ''));
             $rfcEsperado = strtoupper(trim((string) $request->input('rfc_esperado', '')));
+
+             // Si no viene RFC del formulario, intentar desde el proveedor logueado
+            if ($rfcEsperado === '' && $provId) {
+                $provActual = ProveedorUser::find($provId);
+                if ($provActual) {
+                    // Buscar RFC en columna directa
+                    $rfcProv = $provActual->rfc ?? null;
+                    if (!$rfcProv) {
+                        // Buscar en datos_identificacion
+                        $datosId = $provActual->datos_identificacion ?? [];
+                        $rfcProv = $datosId['rfc'] ?? null;
+                    }
+                    if ($rfcProv) {
+                        $rfcEsperado = strtoupper(trim($rfcProv));
+                    }
+                }
+            }
+
             $clabeEsperada = preg_replace('/\D/', '', (string) $request->input('clabe_esperada', ''));
             $cuentaEsperada = preg_replace('/\D/', '', (string) $request->input('cuenta_esperada', ''));
             $bancoEsperado = trim((string) $request->input('banco_esperado', ''));
