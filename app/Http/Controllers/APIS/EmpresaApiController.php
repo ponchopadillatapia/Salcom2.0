@@ -152,6 +152,7 @@ class EmpresaApiController extends Controller
             // CRUCE CON FORMULARIO DE IDENTIFICACIÓN
             // ════════════════════════════════════════
             $nombreEsperado = trim((string) $request->input('nombre_esperado', ''));
+            $rfcEsperado = strtoupper(trim((string) $request->input('rfc_esperado', '')));
             $clabeEsperada = preg_replace('/\D/', '', (string) $request->input('clabe_esperada', ''));
             $cuentaEsperada = preg_replace('/\D/', '', (string) $request->input('cuenta_esperada', ''));
             $bancoEsperado = trim((string) $request->input('banco_esperado', ''));
@@ -168,6 +169,19 @@ class EmpresaApiController extends Controller
                     $cif['valida'] = false;
                 } else {
                     $cif['hallazgos'][] = 'Tipo de persona coincide con el formulario de identificación';
+                }
+
+                // RFC del formulario vs RFC del CIF
+                if ($rfcEsperado !== '') {
+                    $rfcCifExtraido = $cif['datos']['rfc'] ?? '';
+                    if ($rfcCifExtraido !== '' && $rfcCifExtraido === $rfcEsperado) {
+                        $cif['hallazgos'][] = 'RFC coincide con el formulario de identificación ✓ (' . $rfcEsperado . ')';
+                    } elseif ($rfcCifExtraido !== '' && $rfcCifExtraido !== $rfcEsperado) {
+                        $cif['errores'][] = "RFC del formulario ({$rfcEsperado}) NO coincide con el CIF ({$rfcCifExtraido}) — los documentos no pertenecen al proveedor registrado";
+                        $cif['valida'] = false;
+                    } else {
+                        $cif['hallazgos'][] = 'RFC del formulario: ' . $rfcEsperado . ' (no se pudo verificar contra CIF)';
+                    }
                 }
 
                 // Nombre / razón social

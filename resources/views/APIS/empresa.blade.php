@@ -894,6 +894,7 @@ function enviar() {
 
     if (identificacion) {
         if (identificacion.nombre_esperado) formData.append('nombre_esperado', identificacion.nombre_esperado);
+        if (identificacion.rfc) formData.append('rfc_esperado', identificacion.rfc);
         if (identificacion.clabe) formData.append('clabe_esperada', identificacion.clabe);
         if (identificacion.cuenta) formData.append('cuenta_esperada', identificacion.cuenta);
         if (identificacion.banco) formData.append('banco_esperado', identificacion.banco);
