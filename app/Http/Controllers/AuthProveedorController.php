@@ -127,6 +127,7 @@ class AuthProveedorController extends Controller
                 'apellido_paterno' => ($esMoral ? 'nullable' : 'required').'|string|max:100',
                 'apellido_materno' => 'nullable|string|max:100',
                 'razon_social' => ($esMoral ? 'required' : 'nullable').'|string|max:255',
+                'rfc' => 'required|string|max:13',
                 'telefono' => 'required|string|max:20',
                 'correo' => 'required|email',
                 'password' => 'required|min:8|confirmed',
@@ -135,6 +136,7 @@ class AuthProveedorController extends Controller
                 'nombres.required' => 'El nombre es obligatorio.',
                 'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
                 'razon_social.required' => 'La razón social es obligatoria.',
+                'rfc.required' => 'El RFC es obligatorio.',
                 'correo.required' => 'El correo es obligatorio.',
                 'correo.email' => 'El correo no es válido.',
                 'password.required' => 'La contraseña es obligatoria.',
@@ -143,6 +145,26 @@ class AuthProveedorController extends Controller
             ]);
 
             $correo = strtolower(trim((string) $request->correo));
+            $rfc = strtoupper(preg_replace('/\s+/', '', (string) $request->rfc) ?? '');
+
+            if ($esMoral) {
+                if (! preg_match('/^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/u', $rfc)) {
+                    return back()->withErrors([
+                        'rfc' => 'El RFC de persona moral debe tener 12 caracteres válidos (ej. ABC010203XY9).',
+                    ])->withInput();
+                }
+            } elseif (! preg_match('/^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/u', $rfc)) {
+                return back()->withErrors([
+                    'rfc' => 'El RFC de persona física debe tener 13 caracteres válidos (ej. ABCD010203XY9).',
+                ])->withInput();
+            }
+
+            if (Schema::hasColumn('proveedores_users', 'rfc')) {
+                $rfcExiste = DB::table('proveedores_users')->where('rfc', $rfc)->exists();
+                if ($rfcExiste) {
+                    return back()->withErrors(['rfc' => 'Este RFC ya está registrado.'])->withInput();
+                }
+            }
 
             // Verificar si ya existe por correo
             $existe = DB::table('proveedores_users')
@@ -193,6 +215,29 @@ class AuthProveedorController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
+            if (Schema::hasColumn('proveedores_users', 'rfc')) {
+                $insert['rfc'] = $rfc;
+            }
+            if (Schema::hasColumn('proveedores_users', 'datos_identificacion')) {
+                $insert['datos_identificacion'] = json_encode(
+                    $esMoral
+                        ? [
+                            'rfc' => $rfc,
+                            'razon_social' => $nombre,
+                            'tipo_persona' => 'Persona Moral',
+                            'tipo_clave' => 'moral',
+                        ]
+                        : [
+                            'rfc' => $rfc,
+                            'nombres' => trim((string) $request->nombres),
+                            'apellido_paterno' => trim((string) $request->apellido_paterno),
+                            'apellido_materno' => trim((string) ($request->apellido_materno ?? '')),
+                            'tipo_persona' => 'Persona Física',
+                            'tipo_clave' => 'fisica',
+                        ],
+                    JSON_UNESCAPED_UNICODE
+                );
+            }
             if (Schema::hasColumn('proveedores_users', 'correo_verified_at')) {
                 $insert['correo_verified_at'] = null;
             }
@@ -528,11 +573,38 @@ class AuthProveedorController extends Controller
     private function slugUsuarioRazonSocial(string $razonSocial): string
     {
         $slug = $this->quitarAcentos(mb_strtolower(trim($razonSocial)));
-        $slug = preg_replace('/[^a-z0-9]+/', '.', $slug) ?? '';
-        $slug = trim($slug, '.');
-        $slug = preg_replace('/\.{2,}/', '.', $slug) ?? '';
+        $slug = preg_replace(
+            '/\b(s\.?\s*a\.?\s*(de\s*)?c\.?\s*v\.?|s\.?\s*de\s*r\.?\s*l\.?(?:\s*de\s*c\.?\s*v\.?)?|s\.?\s*p\.?\s*r\.?\s*(?:de\s*)?r\.?\s*l\.?|s\.?\s*a\.?\s*p\.?\s*i\.?|a\.?\s*c\.?)\b/u',
+            ' ',
+            $slug
+        ) ?? $slug;
+        $slug = preg_replace('/[^a-z0-9\s]+/', ' ', $slug) ?? '';
+        $slug = preg_replace('/\s+/', ' ', trim($slug)) ?? '';
 
-        return substr($slug, 0, 40);
+        $stop = [
+            'de' => true, 'del' => true, 'la' => true, 'las' => true, 'los' => true, 'el' => true,
+            'y' => true, 'e' => true, 'en' => true, 'para' => true,
+            'sa' => true, 'sc' => true, 'srl' => true, 'spr' => true, 'cv' => true, 'ac' => true,
+            'sapi' => true, 'sofom' => true, 'enr' => true,
+        ];
+
+        $palabras = array_values(array_filter(
+            explode(' ', $slug),
+            static fn (string $p): bool => $p !== '' && mb_strlen($p) > 1 && ! isset($stop[$p])
+        ));
+
+        $tomadas = array_map(
+            static fn (string $p): string => substr($p, 0, 16),
+            array_slice($palabras, 0, 2)
+        );
+
+        if ($tomadas === []) {
+            $compacto = preg_replace('/\s+/', '', $slug) ?? '';
+
+            return substr($compacto, 0, 20);
+        }
+
+        return substr(implode('.', $tomadas), 0, 24);
     }
 
     private function slugParte(string $texto): string

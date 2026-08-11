@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Factura;
+use Carbon\Carbon;
 use Illuminate\Support\Str;
 use SimpleXMLElement;
 
@@ -412,8 +413,10 @@ class AltaFacturaValidationService
     private function validarPeriodoMes(array $datos, array &$errores, array &$checklist): void
     {
         if (! config('facturas.solo_mes_actual', true)) {
-            $checklist['periodo']['ok'] = true;
-            $checklist['periodo']['label'] = 'Periodo no restringido';
+            $checklist['periodo'] = [
+                'ok' => true,
+                'label' => 'Periodo no restringido',
+            ];
 
             return;
         }
@@ -421,18 +424,22 @@ class AltaFacturaValidationService
         $fechaRaw = trim((string) ($datos['fecha'] ?? ''));
         if ($fechaRaw === '') {
             $errores[] = 'El CFDI no tiene fecha de emisión. No se puede verificar el periodo.';
-            $checklist['periodo']['ok'] = false;
-            $checklist['periodo']['label'] = 'Sin fecha de emisión';
+            $checklist['periodo'] = [
+                'ok' => false,
+                'label' => 'Sin fecha de emisión',
+            ];
 
             return;
         }
 
         try {
-            $fecha = \Carbon\Carbon::parse(substr($fechaRaw, 0, 19));
+            $fecha = Carbon::parse(substr($fechaRaw, 0, 19));
         } catch (\Throwable) {
             $errores[] = "La fecha de emisión del CFDI («{$fechaRaw}») no es válida.";
-            $checklist['periodo']['ok'] = false;
-            $checklist['periodo']['label'] = 'Fecha inválida';
+            $checklist['periodo'] = [
+                'ok' => false,
+                'label' => 'Fecha inválida',
+            ];
 
             return;
         }
@@ -447,14 +454,18 @@ class AltaFacturaValidationService
             } else {
                 $errores[] = "La factura es de {$mesFacturaLabel}. Solo se aceptan facturas del mes en curso ({$mesActualLabel}).";
             }
-            $checklist['periodo']['ok'] = false;
-            $checklist['periodo']['label'] = 'Fuera del mes en curso';
+            $checklist['periodo'] = [
+                'ok' => false,
+                'label' => 'Fuera del mes en curso',
+            ];
 
             return;
         }
 
-        $checklist['periodo']['ok'] = true;
-        $checklist['periodo']['label'] = 'Mes en curso: '.$mesActualLabel;
+        $checklist['periodo'] = [
+            'ok' => true,
+            'label' => 'Mes en curso: '.$mesActualLabel,
+        ];
     }
 
     /**

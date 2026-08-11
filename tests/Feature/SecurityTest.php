@@ -122,12 +122,12 @@ class SecurityTest extends TestCase
     {
         $response = $this->post('/proveedor/registro', [
             '_token' => csrf_token(),
-            'nombre' => '',
+            'tipo_persona' => '',
             'correo' => '',
             'password' => '',
         ]);
 
-        $response->assertSessionHasErrors(['nombre', 'correo', 'password']);
+        $response->assertSessionHasErrors(['tipo_persona', 'correo', 'password']);
     }
 
     // ═══════════════════════════════════════════════════════

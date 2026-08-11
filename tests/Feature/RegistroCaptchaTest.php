@@ -11,8 +11,9 @@ class RegistroCaptchaTest extends TestCase
     use RefreshDatabase;
 
     private array $datosRegistro = [
-        'nombre' => 'Proveedor Test',
-        'tipo_persona' => 'Moral',
+        'razon_social' => 'Proveedor Test SA',
+        'tipo_persona' => 'Persona Moral',
+        'rfc' => 'PTE010203AB1',
         'telefono' => '5551234567',
         'correo' => 'nuevo@test.com',
         'password' => 'secret123',

@@ -82,6 +82,13 @@
                 </div>
             </div>
 
+            <div class="ios-field" id="campo-rfc">
+                <label>RFC <span class="req">*</span></label>
+                <input type="text" name="rfc" id="reg_rfc" placeholder="Ej. ABCD010203XY9" value="{{ old('rfc') }}" maxlength="13" autocomplete="off" style="text-transform: uppercase;" required>
+                <span class="hint" id="reg_rfc_hint">13 caracteres (persona física).</span>
+                @error('rfc')<span class="error-msg">{{ $message }}</span>@enderror
+            </div>
+
             <div class="ios-field">
                 <label>Usuario de acceso</label>
                 <input type="text" id="reg_usuario_preview" class="usuario-preview" value="{{ old('usuario_sugerido', '') }}" readonly tabindex="-1" aria-live="polite">
@@ -126,6 +133,8 @@
     var apPaterno = document.getElementById('reg_apellido_paterno');
     var apMaterno = document.getElementById('reg_apellido_materno');
     var razon = document.getElementById('reg_razon_social');
+    var rfc = document.getElementById('reg_rfc');
+    var rfcHint = document.getElementById('reg_rfc_hint');
     var preview = document.getElementById('reg_usuario_preview');
     var hiddenUsuario = document.getElementById('reg_usuario_sugerido');
     var hint = document.getElementById('reg_usuario_hint');
@@ -154,24 +163,37 @@
         return parts[0] || '';
     }
 
-    function slugRazon(str) {
+    var stopRazon = {
+        de: 1, del: 1, la: 1, las: 1, los: 1, el: 1, y: 1, e: 1, en: 1, para: 1,
+        sa: 1, sc: 1, srl: 1, spr: 1, cv: 1, ac: 1, sapi: 1, sofom: 1, enr: 1
+    };
+
+    function slugRazonCorta(str) {
         if (!str) return '';
-        return str
+        var limpio = str
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '.')
-            .replace(/^\.+|\.+$/g, '')
-            .replace(/\.{2,}/g, '.')
-            .slice(0, 40);
+            .replace(/\b(s\.?\s*a\.?\s*(de\s*)?c\.?\s*v\.?|s\.?\s*de\s*r\.?\s*l\.?(\s*de\s*c\.?\s*v\.?)?|s\.?\s*p\.?\s*r\.?\s*(de\s*)?r\.?\s*l\.?|s\.?\s*a\.?\s*p\.?\s*i\.?|a\.?\s*c\.?)\b/gi, ' ')
+            .replace(/[^a-z0-9\s]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        var palabras = limpio.split(' ').filter(function (p) {
+            return p && p.length > 1 && !stopRazon[p];
+        });
+        var tomadas = palabras.slice(0, 2).map(function (p) { return p.slice(0, 16); });
+        if (!tomadas.length && limpio) {
+            tomadas = [limpio.replace(/\s+/g, '').slice(0, 20)];
+        }
+        return tomadas.join('.').slice(0, 24);
     }
 
     function actualizarUsuario() {
         if (!preview || !hiddenUsuario) return;
         var valor = '';
         if (tipo && tipo.value === 'Persona Moral') {
-            valor = slugRazon(razon ? razon.value : '');
-            if (hint) hint.textContent = 'Se genera a partir de la razón social. También podrás entrar con tu correo.';
+            valor = slugRazonCorta(razon ? razon.value : '');
+            if (hint) hint.textContent = 'Se genera corto a partir de la razón social (ej. operadora.servicios). También podrás entrar con tu correo.';
         } else {
             var n = slugPart(primerNombre(nombres ? nombres.value : ''));
             var a = slugPart(apPaterno ? apPaterno.value : '');
@@ -184,6 +206,24 @@
         hiddenUsuario.value = valor;
     }
 
+    function actualizarRfcUi() {
+        var esMoral = tipo && tipo.value === 'Persona Moral';
+        var maxLen = esMoral ? 12 : 13;
+        if (rfc) {
+            rfc.required = true;
+            rfc.maxLength = maxLen;
+            rfc.placeholder = esMoral ? 'Ej. ABC010203XY9' : 'Ej. ABCD010203XY9';
+            if (rfc.value.length > maxLen) {
+                rfc.value = rfc.value.slice(0, maxLen);
+            }
+        }
+        if (rfcHint) {
+            rfcHint.textContent = esMoral
+                ? '12 caracteres (persona moral).'
+                : '13 caracteres (persona física).';
+        }
+    }
+
     function toggleTipo() {
         var esMoral = tipo && tipo.value === 'Persona Moral';
         if (fisica) fisica.style.display = esMoral ? 'none' : '';
@@ -191,7 +231,19 @@
         if (nombres) nombres.required = !esMoral;
         if (apPaterno) apPaterno.required = !esMoral;
         if (razon) razon.required = esMoral;
+        actualizarRfcUi();
         actualizarUsuario();
+    }
+
+    if (rfc) {
+        rfc.addEventListener('input', function () {
+            var esMoral = tipo && tipo.value === 'Persona Moral';
+            var maxLen = esMoral ? 12 : 13;
+            this.value = this.value
+                .toUpperCase()
+                .replace(/[^A-Z0-9Ñ&]/g, '')
+                .slice(0, maxLen);
+        });
     }
 
     [nombres, apPaterno, apMaterno, razon].forEach(stripEmoji);

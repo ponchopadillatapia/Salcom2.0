@@ -19,9 +19,14 @@ class ProveedorUser extends Authenticatable
 
     protected $table = 'proveedores_users';
 
+    public const MONEDA_MXN = 'MXN';
+
+    public const MONEDA_DOLLAR = 'DOLLAR';
+
     protected $fillable = [
         'usuario', 'password', 'id_proveedor', 'codigo_compras', 'codigo', 'nombre',
-        'tipo_persona', 'telefono', 'correo', 'correo_verified_at', 'foto', 'activo',
+        'moneda',
+        'tipo_persona', 'rfc', 'telefono', 'correo', 'correo_verified_at', 'foto', 'activo',
         'solicitud_alta_estatus', 'solicitud_alta_intentos',
         'datos_identificacion',
         'score_entrega', 'score_puntualidad', 'score_total',
@@ -83,6 +88,28 @@ class ProveedorUser extends Authenticatable
         }
 
         return $tipo;
+    }
+
+    /** Moneda Contpaqi del registro: MXN o DOLLAR (default MXN). */
+    public function monedaNormalizada(): string
+    {
+        $m = strtoupper(trim((string) ($this->moneda ?: self::MONEDA_MXN)));
+        if (in_array($m, ['DOLLAR', 'USD', 'DLLS', 'DOLARES', 'DÓLAR', 'DOLAR'], true)) {
+            return self::MONEDA_DOLLAR;
+        }
+
+        return self::MONEDA_MXN;
+    }
+
+    public function esMonedaDollar(): bool
+    {
+        return $this->monedaNormalizada() === self::MONEDA_DOLLAR;
+    }
+
+    /** Etiqueta corta para listas: "MXN" | "DOLLAR". */
+    public function etiquetaMoneda(): string
+    {
+        return $this->monedaNormalizada();
     }
 
     public function markCorreoAsVerified(): bool
