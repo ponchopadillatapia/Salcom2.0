@@ -47,6 +47,7 @@ class OnboardingLockTest extends TestCase
         $this->post('/proveedor/registro', [
             'razon_social' => 'Demo SA',
             'tipo_persona' => 'Persona Moral',
+            'rfc' => 'DEM010203AB1',
             'telefono' => '5559998877',
             'correo' => 'demo.lock@test.com',
             'password' => 'password12',
@@ -58,6 +59,8 @@ class OnboardingLockTest extends TestCase
             'correo' => 'demo.lock@test.com',
             'activo' => 0,
             'correo_verified_at' => null,
+            'rfc' => 'DEM010203AB1',
+            'usuario' => 'demo',
         ]);
 
         $proveedor = ProveedorUser::where('correo', 'demo.lock@test.com')->first();

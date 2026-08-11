@@ -21,7 +21,7 @@ class ProveedorUser extends Authenticatable
 
     protected $fillable = [
         'usuario', 'password', 'id_proveedor', 'codigo_compras', 'codigo', 'nombre',
-        'tipo_persona', 'telefono', 'correo', 'correo_verified_at', 'foto', 'activo',
+        'tipo_persona', 'rfc', 'telefono', 'correo', 'correo_verified_at', 'foto', 'activo',
         'solicitud_alta_estatus', 'solicitud_alta_intentos',
         'datos_identificacion',
         'score_entrega', 'score_puntualidad', 'score_total',

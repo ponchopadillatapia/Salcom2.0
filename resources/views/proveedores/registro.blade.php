@@ -80,6 +80,12 @@
                     <input type="text" name="razon_social" id="reg_razon_social" placeholder="Nombre de la empresa" value="{{ old('razon_social') }}" maxlength="255">
                     @error('razon_social')<span class="error-msg">{{ $message }}</span>@enderror
                 </div>
+                <div class="ios-field">
+                    <label>RFC <span class="req">*</span></label>
+                    <input type="text" name="rfc" id="reg_rfc" placeholder="Ej. ABC010203XY9" value="{{ old('rfc') }}" maxlength="12" autocomplete="off" style="text-transform: uppercase;">
+                    <span class="hint">12 caracteres (persona moral).</span>
+                    @error('rfc')<span class="error-msg">{{ $message }}</span>@enderror
+                </div>
             </div>
 
             <div class="ios-field">
@@ -126,6 +132,7 @@
     var apPaterno = document.getElementById('reg_apellido_paterno');
     var apMaterno = document.getElementById('reg_apellido_materno');
     var razon = document.getElementById('reg_razon_social');
+    var rfc = document.getElementById('reg_rfc');
     var preview = document.getElementById('reg_usuario_preview');
     var hiddenUsuario = document.getElementById('reg_usuario_sugerido');
     var hint = document.getElementById('reg_usuario_hint');
@@ -154,24 +161,37 @@
         return parts[0] || '';
     }
 
-    function slugRazon(str) {
+    var stopRazon = {
+        de: 1, del: 1, la: 1, las: 1, los: 1, el: 1, y: 1, e: 1, en: 1, para: 1,
+        sa: 1, sc: 1, srl: 1, spr: 1, cv: 1, ac: 1, sapi: 1, sofom: 1, enr: 1
+    };
+
+    function slugRazonCorta(str) {
         if (!str) return '';
-        return str
+        var limpio = str
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
             .toLowerCase()
-            .replace(/[^a-z0-9]+/g, '.')
-            .replace(/^\.+|\.+$/g, '')
-            .replace(/\.{2,}/g, '.')
-            .slice(0, 40);
+            .replace(/\b(s\.?\s*a\.?\s*(de\s*)?c\.?\s*v\.?|s\.?\s*de\s*r\.?\s*l\.?(\s*de\s*c\.?\s*v\.?)?|s\.?\s*p\.?\s*r\.?\s*(de\s*)?r\.?\s*l\.?|s\.?\s*a\.?\s*p\.?\s*i\.?|a\.?\s*c\.?)\b/gi, ' ')
+            .replace(/[^a-z0-9\s]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        var palabras = limpio.split(' ').filter(function (p) {
+            return p && p.length > 1 && !stopRazon[p];
+        });
+        var tomadas = palabras.slice(0, 2).map(function (p) { return p.slice(0, 16); });
+        if (!tomadas.length && limpio) {
+            tomadas = [limpio.replace(/\s+/g, '').slice(0, 20)];
+        }
+        return tomadas.join('.').slice(0, 24);
     }
 
     function actualizarUsuario() {
         if (!preview || !hiddenUsuario) return;
         var valor = '';
         if (tipo && tipo.value === 'Persona Moral') {
-            valor = slugRazon(razon ? razon.value : '');
-            if (hint) hint.textContent = 'Se genera a partir de la razón social. También podrás entrar con tu correo.';
+            valor = slugRazonCorta(razon ? razon.value : '');
+            if (hint) hint.textContent = 'Se genera corto a partir de la razón social (ej. operadora.servicios). También podrás entrar con tu correo.';
         } else {
             var n = slugPart(primerNombre(nombres ? nombres.value : ''));
             var a = slugPart(apPaterno ? apPaterno.value : '');
@@ -191,7 +211,17 @@
         if (nombres) nombres.required = !esMoral;
         if (apPaterno) apPaterno.required = !esMoral;
         if (razon) razon.required = esMoral;
+        if (rfc) rfc.required = esMoral;
         actualizarUsuario();
+    }
+
+    if (rfc) {
+        rfc.addEventListener('input', function () {
+            this.value = this.value
+                .toUpperCase()
+                .replace(/[^A-Z0-9Ñ&]/g, '')
+                .slice(0, 12);
+        });
     }
 
     [nombres, apPaterno, apMaterno, razon].forEach(stripEmoji);

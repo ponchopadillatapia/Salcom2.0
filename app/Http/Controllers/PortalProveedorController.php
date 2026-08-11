@@ -1631,6 +1631,10 @@ class PortalProveedorController extends Controller
             return session('proveedor_rfc') ?: null;
         }
 
+        if (! empty($proveedor->rfc)) {
+            return strtoupper(trim((string) $proveedor->rfc));
+        }
+
         $datos = $proveedor->datos_identificacion ?? [];
         $rfc = $datos['rfc'] ?? $datos['RFC'] ?? null;
         if ($rfc) {
