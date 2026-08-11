@@ -99,6 +99,67 @@
 
     <div class="pasos-grid" data-onboarding-estatus="{{ $estatusAlta ?? '' }}" data-onboarding-activo="{{ ($pasoActivo ?? false) ? '1' : '0' }}">
 
+        {{-- Mensaje interno del sistema: confirmación de cuentas duales MXN + USD --}}
+        @if($cuentasDualPendientes ?? false)
+        <div class="id-msg-sistema" style="background:#fffbeb;border:2px solid #f59e0b;border-radius:14px;padding:20px 22px;margin-bottom:20px;box-shadow:0 2px 12px rgba(245,158,11,.12);">
+            <div style="display:flex;align-items:flex-start;gap:12px;">
+                <div style="flex-shrink:0;width:40px;height:40px;background:#fef3c7;border-radius:50%;display:flex;align-items:center;justify-content:center;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div style="flex:1;">
+                    <p style="font-size:14px;font-weight:700;color:#92400e;margin:0 0 6px;">⚠️ Se detectaron estos 2 registros. ¿Son correctos?</p>
+                    <p style="font-size:12px;color:#78350f;margin:0 0 14px;line-height:1.5;">Tu cuenta opera en pesos (MXN) y dólares (USD). Debes registrar y confirmar ambas cuentas bancarias para poder continuar.</p>
+
+                    @php
+                        $tieneDatosMxn = ($datosBancariosResumen['clabe_mxn'] ?? '—') !== '—';
+                        $tieneDatosUsd = ($datosBancariosResumen['clabe_usd'] ?? '—') !== '—';
+                    @endphp
+
+                    @if($tieneDatosMxn || $tieneDatosUsd)
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+                        <div style="background:{{ $tieneDatosMxn ? '#f0fdf4' : '#f9fafb' }};border:1px solid {{ $tieneDatosMxn ? '#86efac' : '#e5e7eb' }};border-radius:10px;padding:12px 14px;">
+                            <p style="font-size:10px;font-weight:700;color:{{ $tieneDatosMxn ? '#166534' : '#6b7280' }};text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px;">💵 Cuenta MXN (Pesos)</p>
+                            @if($tieneDatosMxn)
+                                <p style="font-size:12px;color:#15803d;margin:0;font-weight:600;">{{ $datosBancariosResumen['banco_mxn'] }}</p>
+                                <p style="font-size:11px;color:#166534;margin:2px 0 0;">CLABE: {{ $datosBancariosResumen['clabe_mxn'] }}</p>
+                                <p style="font-size:11px;color:#166534;margin:2px 0 0;">Cuenta: {{ $datosBancariosResumen['cuenta_mxn'] }}</p>
+                            @else
+                                <p style="font-size:11px;color:#6b7280;margin:0;font-style:italic;">Sin registrar</p>
+                            @endif
+                        </div>
+                        <div style="background:{{ $tieneDatosUsd ? '#eff6ff' : '#f9fafb' }};border:1px solid {{ $tieneDatosUsd ? '#93c5fd' : '#e5e7eb' }};border-radius:10px;padding:12px 14px;">
+                            <p style="font-size:10px;font-weight:700;color:{{ $tieneDatosUsd ? '#1e40af' : '#6b7280' }};text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px;">💲 Cuenta USD (Dólares)</p>
+                            @if($tieneDatosUsd)
+                                <p style="font-size:12px;color:#1d4ed8;margin:0;font-weight:600;">{{ $datosBancariosResumen['banco_usd'] }}</p>
+                                <p style="font-size:11px;color:#1e40af;margin:2px 0 0;">CLABE: {{ $datosBancariosResumen['clabe_usd'] }}</p>
+                                <p style="font-size:11px;color:#1e40af;margin:2px 0 0;">Cuenta: {{ $datosBancariosResumen['cuenta_usd'] }}</p>
+                            @else
+                                <p style="font-size:11px;color:#6b7280;margin:0;font-style:italic;">Sin registrar</p>
+                            @endif
+                        </div>
+                    </div>
+                    @else
+                    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:14px 16px;margin-bottom:16px;">
+                        <p style="font-size:12px;color:#6b7280;margin:0;">Aún no has registrado tus datos bancarios. Llena el formulario de datos bancarios con ambas cuentas (MXN y USD) y luego confirma aquí.</p>
+                    </div>
+                    @endif
+
+                    <p style="font-size:11px;color:#92400e;margin:0 0 14px;font-style:italic;">Si no confirmas, no podrás avanzar al paso de validación de documentos.</p>
+
+                    <form method="POST" action="{{ route('proveedores.confirmar-cuentas-dual') }}" style="display:flex;gap:10px;flex-wrap:wrap;">
+                        @csrf
+                        @if($tieneDatosMxn && $tieneDatosUsd)
+                            <button type="submit" name="accion" value="confirmar" style="padding:9px 20px;border:none;border-radius:10px;background:#059669;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;">✓ Sí, son correctos</button>
+                            <button type="submit" name="accion" value="corregir" style="padding:9px 20px;border:1.5px solid #dc2626;border-radius:10px;background:#fff;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;transition:all .2s;">✗ No, corregir datos</button>
+                        @else
+                            <a href="{{ route('proveedores.identificacion') }}" style="padding:9px 20px;border:none;border-radius:10px;background:var(--purple);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block;">Llenar datos bancarios</a>
+                        @endif
+                    </form>
+                </div>
+            </div>
+        </div>
+        @endif
+
         {{-- 1 Registro --}}
         <div class="paso-card completado">
             <div class="paso-icono verde"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
@@ -154,13 +215,19 @@
             @endif
         </div>
 
-        {{-- 4 Docs (bloqueado hasta llenar datos bancarios) --}}
-        @if(! $pasoBancarios)
+        {{-- 4 Docs (bloqueado hasta llenar datos bancarios Y confirmar cuentas duales si aplica) --}}
+        @if(! $pasoBancarios || ($cuentasDualPendientes ?? false))
         <div class="paso-card bloqueado">
             <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
             <div class="paso-info">
                 <div class="paso-titulo">Validación de documentos</div>
-                <div class="paso-desc">Primero completa el formulario de datos bancarios. Al guardarlo, este paso se desbloquea.</div>
+                <div class="paso-desc">
+                    @if($cuentasDualPendientes ?? false)
+                        Confirma tus cuentas bancarias (MXN y USD) arriba para desbloquear este paso.
+                    @else
+                        Primero completa el formulario de datos bancarios. Al guardarlo, este paso se desbloquea.
+                    @endif
+                </div>
             </div>
             <span class="paso-badge badge-bloqueado">Bloqueado</span>
             <span class="btn-ver disabled">Validar</span>

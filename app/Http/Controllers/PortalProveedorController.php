@@ -92,6 +92,26 @@ class PortalProveedorController extends Controller
             } catch (\Exception $e) {
                 $pasoBancarios = false;
             }
+
+            // Detectar si tiene cuentas duales (MXN + USD) pendientes de confirmar
+            // Aparece siempre que el proveedor opere en dólares y no haya confirmado
+            $cuentasDualPendientes = false;
+            $datosBancariosResumen = [];
+            if ($proveedor->esMonedaDollar()) {
+                $di = $proveedor->datos_identificacion ?? [];
+                $yaConfirmadas = ! empty($di['cuentas_dual_confirmadas']);
+                if (! $yaConfirmadas) {
+                    $cuentasDualPendientes = true;
+                    $datosBancariosResumen = [
+                        'banco_mxn' => $di['banco'] ?? '—',
+                        'clabe_mxn' => $di['clabe'] ?? '—',
+                        'cuenta_mxn' => $di['cuenta'] ?? '—',
+                        'banco_usd' => $di['banco_usd'] ?? '—',
+                        'clabe_usd' => $di['clabe_usd'] ?? '—',
+                        'cuenta_usd' => $di['cuenta_usd'] ?? '—',
+                    ];
+                }
+            }
             try {
                 $pasoDocs = $proveedor->documentosFiscalesCompletos();
             } catch (\Exception $e) {
@@ -110,7 +130,7 @@ class PortalProveedorController extends Controller
                 $numContactos = 0;
             }
             $pasoContactos = $numContactos >= 2;
-            $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos;
+            $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos && ! $cuentasDualPendientes;
             $pasoActivo = (bool) $proveedor->activo;
             $onboardingBloqueado = $proveedor->onboardingEdicionBloqueada();
             $estatusAlta = $proveedor->solicitud_alta_estatus ?? null;
@@ -133,7 +153,9 @@ class PortalProveedorController extends Controller
                 'estatusAlta',
                 'completados',
                 'totalPasos',
-                'pct'
+                'pct',
+                'cuentasDualPendientes',
+                'datosBancariosResumen'
             ));
 
         } catch (\Exception $e) {
@@ -156,6 +178,8 @@ class PortalProveedorController extends Controller
                 'completados' => 1,
                 'totalPasos' => 5,
                 'pct' => 20,
+                'cuentasDualPendientes' => false,
+                'datosBancariosResumen' => [],
             ]);
         }
     }
@@ -827,6 +851,55 @@ class PortalProveedorController extends Controller
         ])->deleteFileAfterSend(true);
     }
 
+    /**
+     * Confirmar o rechazar cuentas bancarias duales (MXN + USD) desde onboarding.
+     */
+    public function confirmarCuentasDual(Request $request)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('error', 'No se encontró tu cuenta.');
+        }
+
+        $accion = $request->input('accion'); // 'confirmar' o 'corregir'
+
+        if ($accion === 'confirmar') {
+            $datos = $proveedor->datos_identificacion ?? [];
+            $datos['cuentas_dual_confirmadas'] = true;
+            $proveedor->update(['datos_identificacion' => $datos]);
+
+            // Crear alerta interna de confirmación
+            try {
+                Alerta::create([
+                    'tipo' => 'confirmacion_cuentas_dual',
+                    'modulo' => 'onboarding',
+                    'destinatario_tipo' => 'proveedor',
+                    'destinatario_id' => $proveedor->id,
+                    'titulo' => 'Cuentas bancarias MXN y USD confirmadas',
+                    'contenido' => 'Confirmaste tus 2 cuentas bancarias: MXN (' . ($datos['banco'] ?? '') . ') y USD (' . ($datos['banco_usd'] ?? '') . ').',
+                    'datos' => [
+                        'banco_mxn' => $datos['banco'] ?? null,
+                        'clabe_mxn' => $datos['clabe'] ?? null,
+                        'banco_usd' => $datos['banco_usd'] ?? null,
+                        'clabe_usd' => $datos['clabe_usd'] ?? null,
+                    ],
+                    'estatus' => 'pendiente',
+                    'nivel' => 'info',
+                ]);
+            } catch (\Exception $e) {
+                // Tabla alertas puede no existir
+            }
+
+            return redirect()->route('proveedores.onboarding')
+                ->with('mensaje', 'Cuentas bancarias confirmadas correctamente. Puedes continuar con el siguiente paso.');
+        }
+
+        // Si rechaza, redirigir al formulario para corregir
+        return redirect()->route('proveedores.identificacion')
+            ->with('error', 'Revisa y corrige tus datos bancarios (MXN y USD).');
+    }
+
     public function mostrarIdentificacion()
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
@@ -948,6 +1021,14 @@ class PortalProveedorController extends Controller
             'nombre_firma' => $soloTexto,
         ];
 
+        // Si el proveedor opera en dólares, requerir cuenta USD
+        $proveedorMoneda = $proveedorPre ? $proveedorPre->esMonedaDollar() : false;
+        if ($proveedorMoneda) {
+            $rules['clabe_usd'] = ['required', 'regex:/^[0-9]{18}$/'];
+            $rules['cuenta_usd'] = ['required', 'regex:/^[0-9]{5,20}$/'];
+            $rules['banco_usd'] = 'required|string|max:255|not_in:Otro';
+        }
+
         if ($esFisica) {
             $rules['apellido_paterno'] = ['required', 'string', 'max:100', $sinEmoji];
             $rules['apellido_materno'] = ['required', 'string', 'max:100', $sinEmoji];
@@ -970,7 +1051,13 @@ class PortalProveedorController extends Controller
             'celular.regex' => 'El celular debe tener exactamente 10 dígitos numéricos.',
             'telefono2.regex' => 'El teléfono 2 debe tener exactamente 10 dígitos numéricos.',
             'clabe.regex' => 'La CLABE debe tener exactamente 18 dígitos numéricos.',
+            'clabe_usd.regex' => 'La CLABE USD debe tener exactamente 18 dígitos numéricos.',
+            'clabe_usd.required' => 'La CLABE de la cuenta en dólares es obligatoria.',
             'cuenta.regex' => 'La cuenta solo acepta dígitos (5 a 20).',
+            'cuenta_usd.regex' => 'La cuenta USD solo acepta dígitos (5 a 20).',
+            'cuenta_usd.required' => 'El número de cuenta en dólares es obligatorio.',
+            'banco_usd.required' => 'Selecciona el banco de la cuenta en dólares.',
+            'banco_usd.not_in' => 'Selecciona un banco válido para la cuenta USD.',
             'cp.regex' => 'El C.P. debe tener exactamente 5 dígitos.',
             'sinEmoji' => 'No se permiten emojis ni caracteres especiales.',
             'banco.not_in' => 'Selecciona un banco de la lista.',
@@ -988,6 +1075,15 @@ class PortalProveedorController extends Controller
             'tipo_clave' => $esMoral ? 'moral' : 'fisica',
             'nombre_esperado' => $nombreEsperado,
         ]);
+
+        // Incluir datos USD si aplica (la confirmación se hace desde onboarding, no aquí)
+        if ($proveedorMoneda && ! empty($data['clabe_usd'])) {
+            $payload['clabe_usd'] = $data['clabe_usd'];
+            $payload['cuenta_usd'] = $data['cuenta_usd'];
+            $payload['banco_usd'] = $data['banco_usd'];
+            // No marcar cuentas_dual_confirmadas aquí — se confirma en onboarding
+            unset($payload['cuentas_dual_confirmadas']);
+        }
 
         session(['identificacion_proveedor' => $payload]);
 
@@ -1089,6 +1185,11 @@ class PortalProveedorController extends Controller
             $mensaje .= ' Como cambiaste datos críticos (banco, CLABE, nombre o tipo de persona), los documentos previamente validados quedaron pendientes: vuelve a Validar documentos.';
         }
 
+        // Si tiene cuentas duales, avisar que debe confirmar en onboarding
+        if ($proveedorMoneda && ! empty($payload['clabe_usd'])) {
+            $mensaje .= ' Regresa al onboarding para confirmar tus cuentas bancarias (MXN y USD) antes de continuar.';
+        }
+
         return redirect()->route('proveedores.onboarding')->with('mensaje', $mensaje);
     }
 
@@ -1098,6 +1199,14 @@ class PortalProveedorController extends Controller
         if ($proveedor && ! $proveedor->tieneFormularioDatosBancarios()) {
             return redirect()->route('proveedores.onboarding')
                 ->with('error', 'Primero completa el formulario de datos bancarios.');
+        }
+        // Bloquear si tiene cuentas duales sin confirmar
+        if ($proveedor && $proveedor->esMonedaDollar()) {
+            $di = $proveedor->datos_identificacion ?? [];
+            if (! empty($di['clabe']) && ! empty($di['clabe_usd']) && empty($di['cuentas_dual_confirmadas'])) {
+                return redirect()->route('proveedores.onboarding')
+                    ->with('error', 'Confirma tus cuentas bancarias (MXN y USD) en el onboarding antes de continuar.');
+            }
         }
         if ($proveedor && $proveedor->onboardingEdicionBloqueada() && $proveedor->documentosFiscalesCompletos()) {
             return redirect()->route('proveedores.onboarding')
@@ -1784,6 +1893,9 @@ class PortalProveedorController extends Controller
             'banco' => mb_strtolower(trim((string) ($datos['banco'] ?? ''))),
             'clabe' => preg_replace('/\D/', '', (string) ($datos['clabe'] ?? '')),
             'cuenta' => preg_replace('/\D/', '', (string) ($datos['cuenta'] ?? '')),
+            'banco_usd' => mb_strtolower(trim((string) ($datos['banco_usd'] ?? ''))),
+            'clabe_usd' => preg_replace('/\D/', '', (string) ($datos['clabe_usd'] ?? '')),
+            'cuenta_usd' => preg_replace('/\D/', '', (string) ($datos['cuenta_usd'] ?? '')),
             'nombre' => mb_strtolower(preg_replace('/\s+/', ' ', $nombre)),
             'cp' => preg_replace('/\D/', '', (string) ($datos['cp'] ?? '')),
         ];

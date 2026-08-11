@@ -283,7 +283,7 @@
         </div>
     </div>
 
-    {{-- Datos bancarios --}}
+    {{-- Datos bancarios MXN --}}
     <div class="id-card">
         <h3>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
@@ -308,7 +308,6 @@
                     <option value="" disabled {{ old('banco', $d['banco'] ?? '') ? '' : 'selected' }}>Selecciona tu banco</option>
                     @php
                         $bancos = [
-                            // Más usados primero
                             'BBVA', 'Banamex', 'Banorte', 'Santander', 'HSBC',
                             'Scotiabank', 'Inbursa', 'Banco Azteca', 'BanCoppel',
                             'Nu México (Nu)', 'BanBajío', 'Banregio', 'Afirme',
@@ -333,6 +332,42 @@
             </div>
         </div>
     </div>
+
+    {{-- Datos bancarios USD (solo si proveedor tiene moneda DOLLAR) --}}
+    @if($proveedor && $proveedor->esMonedaDollar())
+    <div class="id-card" id="seccion-banco-usd" style="border-color: var(--purple-mid); background: #faf8ff;">
+        <h3>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Datos bancarios — Cuenta USD (Dólares)
+        </h3>
+        <p class="card-desc">Tu registro indica operaciones en dólares. Proporciona también la cuenta en USD.</p>
+
+        <div class="form-row cols-1">
+            <div class="form-group">
+                <label for="clabe_usd">Cuenta CLABE USD <span style="color:#DC2626">*</span></label>
+                <input type="text" id="clabe_usd" name="clabe_usd" value="{{ old('clabe_usd', $d['clabe_usd'] ?? '') }}" placeholder="18 dígitos" maxlength="18" inputmode="numeric" pattern="[0-9]{18}" required class="solo-digitos">
+            </div>
+        </div>
+        <div class="form-row cols-2">
+            <div class="form-group">
+                <label for="cuenta_usd">Cuenta USD <span style="color:#DC2626">*</span></label>
+                <input type="text" id="cuenta_usd" name="cuenta_usd" value="{{ old('cuenta_usd', $d['cuenta_usd'] ?? '') }}" placeholder="Número de cuenta en dólares" maxlength="20" inputmode="numeric" pattern="[0-9]{5,20}" required class="solo-digitos">
+            </div>
+            <div class="form-group">
+                <label for="banco_usd">Institución Financiera USD <span style="color:#DC2626">*</span></label>
+                <select id="banco_usd" name="banco_usd" required style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);">
+                    <option value="" disabled {{ old('banco_usd', $d['banco_usd'] ?? '') ? '' : 'selected' }}>Selecciona tu banco</option>
+                    @php
+                        $bancoActualUsd = old('banco_usd', $d['banco_usd'] ?? '');
+                    @endphp
+                    @foreach($bancos as $b)
+                        <option value="{{ $b }}" {{ $bancoActualUsd === $b ? 'selected' : '' }}>{{ $b }}</option>
+                    @endforeach
+                </select>
+            </div>
+        </div>
+    </div>
+    @endif
 
     {{-- Documentos agregados --}}
     <div class="id-card">
@@ -403,7 +438,7 @@
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn-submit">
+            <button type="submit" class="btn-submit" id="btnEnviarIdentificacion">
                 {{ !empty($d['banco']) || !empty($d['clabe']) ? 'Guardar cambios' : 'Enviar identificación' }}
             </button>
         </div>
@@ -550,6 +585,20 @@
             if (!primero) primero = cuenta;
         }
 
+        // Si tiene cuentas duales (MXN + USD), validar campos USD
+        var clabeUsd = document.getElementById('clabe_usd');
+        if (clabeUsd && !/^[0-9]{18}$/.test(clabeUsd.value || '')) {
+            ok = false;
+            marcarError(clabeUsd, 'La CLABE USD debe tener 18 dígitos');
+            if (!primero) primero = clabeUsd;
+        }
+        var cuentaUsd = document.getElementById('cuenta_usd');
+        if (cuentaUsd && !/^[0-9]{5,20}$/.test(cuentaUsd.value || '')) {
+            ok = false;
+            marcarError(cuentaUsd, 'Solo dígitos (5 a 20)');
+            if (!primero) primero = cuentaUsd;
+        }
+
         var cp = document.getElementById('cp');
         if (cp && !/^[0-9]{5}$/.test(cp.value || '')) {
             ok = false;
@@ -572,6 +621,7 @@
                 primero.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
             alert('Completa todos los campos obligatorios correctamente antes de enviar.');
+            return;
         }
     });
 })();

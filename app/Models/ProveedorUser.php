@@ -306,8 +306,17 @@ class ProveedorUser extends Authenticatable
             return false;
         }
 
-        return ! empty(trim((string) ($db['banco'] ?? '')))
+        $tieneMxn = ! empty(trim((string) ($db['banco'] ?? '')))
             || ! empty(trim((string) ($db['clabe'] ?? '')));
+
+        // Si opera en dólares, debe tener también la cuenta USD
+        if ($this->esMonedaDollar()) {
+            $tieneUsd = ! empty(trim((string) ($db['banco_usd'] ?? '')))
+                || ! empty(trim((string) ($db['clabe_usd'] ?? '')));
+            return $tieneMxn && $tieneUsd;
+        }
+
+        return $tieneMxn;
     }
 
     /** Hay formulario de identificación guardado (para revisión de Contabilidad/Dirección). */

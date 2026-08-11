@@ -66,6 +66,7 @@ Route::get('/proveedor/adjunto-documentos', [PortalProveedorController::class, '
 Route::post('/proveedor/adjunto-documentos/subir', [PortalProveedorController::class, 'subirAdjuntoDocumentos'])->name('proveedores.adjunto-documentos.subir')->middleware('auth.proveedor');
 Route::get('/identificacion-proveedor', [PortalProveedorController::class, 'mostrarIdentificacion'])->name('proveedores.identificacion')->middleware('auth.proveedor');
 Route::post('/identificacion-proveedor', [PortalProveedorController::class, 'guardarIdentificacion'])->name('proveedores.identificacion.guardar')->middleware('auth.proveedor');
+Route::post('/proveedor/confirmar-cuentas-dual', [PortalProveedorController::class, 'confirmarCuentasDual'])->name('proveedores.confirmar-cuentas-dual')->middleware('auth.proveedor');
 
 // ── Envío de Muestras (Alfonso) ──
 Route::get('/muestras/nueva', [MuestraController::class, 'crear'])->name('muestras.crear');
