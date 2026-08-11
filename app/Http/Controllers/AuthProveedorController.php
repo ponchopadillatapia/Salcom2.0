@@ -127,7 +127,7 @@ class AuthProveedorController extends Controller
                 'apellido_paterno' => ($esMoral ? 'nullable' : 'required').'|string|max:100',
                 'apellido_materno' => 'nullable|string|max:100',
                 'razon_social' => ($esMoral ? 'required' : 'nullable').'|string|max:255',
-                'rfc' => ($esMoral ? 'required' : 'nullable').'|string|max:13',
+                'rfc' => 'required|string|max:13',
                 'telefono' => 'required|string|max:20',
                 'correo' => 'required|email',
                 'password' => 'required|min:8|confirmed',
@@ -136,7 +136,7 @@ class AuthProveedorController extends Controller
                 'nombres.required' => 'El nombre es obligatorio.',
                 'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
                 'razon_social.required' => 'La razón social es obligatoria.',
-                'rfc.required' => 'El RFC es obligatorio para persona moral.',
+                'rfc.required' => 'El RFC es obligatorio.',
                 'correo.required' => 'El correo es obligatorio.',
                 'correo.email' => 'El correo no es válido.',
                 'password.required' => 'La contraseña es obligatoria.',
@@ -145,21 +145,24 @@ class AuthProveedorController extends Controller
             ]);
 
             $correo = strtolower(trim((string) $request->correo));
-            $rfc = null;
+            $rfc = strtoupper(preg_replace('/\s+/', '', (string) $request->rfc) ?? '');
 
             if ($esMoral) {
-                $rfc = strtoupper(preg_replace('/\s+/', '', (string) $request->rfc) ?? '');
                 if (! preg_match('/^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/u', $rfc)) {
                     return back()->withErrors([
                         'rfc' => 'El RFC de persona moral debe tener 12 caracteres válidos (ej. ABC010203XY9).',
                     ])->withInput();
                 }
+            } elseif (! preg_match('/^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/u', $rfc)) {
+                return back()->withErrors([
+                    'rfc' => 'El RFC de persona física debe tener 13 caracteres válidos (ej. ABCD010203XY9).',
+                ])->withInput();
+            }
 
-                if (Schema::hasColumn('proveedores_users', 'rfc')) {
-                    $rfcExiste = DB::table('proveedores_users')->where('rfc', $rfc)->exists();
-                    if ($rfcExiste) {
-                        return back()->withErrors(['rfc' => 'Este RFC ya está registrado.'])->withInput();
-                    }
+            if (Schema::hasColumn('proveedores_users', 'rfc')) {
+                $rfcExiste = DB::table('proveedores_users')->where('rfc', $rfc)->exists();
+                if ($rfcExiste) {
+                    return back()->withErrors(['rfc' => 'Este RFC ya está registrado.'])->withInput();
                 }
             }
 
@@ -212,16 +215,28 @@ class AuthProveedorController extends Controller
                 'created_at' => now(),
                 'updated_at' => now(),
             ];
-            if ($rfc !== null && Schema::hasColumn('proveedores_users', 'rfc')) {
+            if (Schema::hasColumn('proveedores_users', 'rfc')) {
                 $insert['rfc'] = $rfc;
             }
-            if ($rfc !== null && Schema::hasColumn('proveedores_users', 'datos_identificacion')) {
-                $insert['datos_identificacion'] = json_encode([
-                    'rfc' => $rfc,
-                    'razon_social' => $nombre,
-                    'tipo_persona' => 'Persona Moral',
-                    'tipo_clave' => 'moral',
-                ], JSON_UNESCAPED_UNICODE);
+            if (Schema::hasColumn('proveedores_users', 'datos_identificacion')) {
+                $insert['datos_identificacion'] = json_encode(
+                    $esMoral
+                        ? [
+                            'rfc' => $rfc,
+                            'razon_social' => $nombre,
+                            'tipo_persona' => 'Persona Moral',
+                            'tipo_clave' => 'moral',
+                        ]
+                        : [
+                            'rfc' => $rfc,
+                            'nombres' => trim((string) $request->nombres),
+                            'apellido_paterno' => trim((string) $request->apellido_paterno),
+                            'apellido_materno' => trim((string) ($request->apellido_materno ?? '')),
+                            'tipo_persona' => 'Persona Física',
+                            'tipo_clave' => 'fisica',
+                        ],
+                    JSON_UNESCAPED_UNICODE
+                );
             }
             if (Schema::hasColumn('proveedores_users', 'correo_verified_at')) {
                 $insert['correo_verified_at'] = null;

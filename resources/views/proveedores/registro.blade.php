@@ -80,12 +80,13 @@
                     <input type="text" name="razon_social" id="reg_razon_social" placeholder="Nombre de la empresa" value="{{ old('razon_social') }}" maxlength="255">
                     @error('razon_social')<span class="error-msg">{{ $message }}</span>@enderror
                 </div>
-                <div class="ios-field">
-                    <label>RFC <span class="req">*</span></label>
-                    <input type="text" name="rfc" id="reg_rfc" placeholder="Ej. ABC010203XY9" value="{{ old('rfc') }}" maxlength="12" autocomplete="off" style="text-transform: uppercase;">
-                    <span class="hint">12 caracteres (persona moral).</span>
-                    @error('rfc')<span class="error-msg">{{ $message }}</span>@enderror
-                </div>
+            </div>
+
+            <div class="ios-field" id="campo-rfc">
+                <label>RFC <span class="req">*</span></label>
+                <input type="text" name="rfc" id="reg_rfc" placeholder="Ej. ABCD010203XY9" value="{{ old('rfc') }}" maxlength="13" autocomplete="off" style="text-transform: uppercase;" required>
+                <span class="hint" id="reg_rfc_hint">13 caracteres (persona física).</span>
+                @error('rfc')<span class="error-msg">{{ $message }}</span>@enderror
             </div>
 
             <div class="ios-field">
@@ -133,6 +134,7 @@
     var apMaterno = document.getElementById('reg_apellido_materno');
     var razon = document.getElementById('reg_razon_social');
     var rfc = document.getElementById('reg_rfc');
+    var rfcHint = document.getElementById('reg_rfc_hint');
     var preview = document.getElementById('reg_usuario_preview');
     var hiddenUsuario = document.getElementById('reg_usuario_sugerido');
     var hint = document.getElementById('reg_usuario_hint');
@@ -204,6 +206,24 @@
         hiddenUsuario.value = valor;
     }
 
+    function actualizarRfcUi() {
+        var esMoral = tipo && tipo.value === 'Persona Moral';
+        var maxLen = esMoral ? 12 : 13;
+        if (rfc) {
+            rfc.required = true;
+            rfc.maxLength = maxLen;
+            rfc.placeholder = esMoral ? 'Ej. ABC010203XY9' : 'Ej. ABCD010203XY9';
+            if (rfc.value.length > maxLen) {
+                rfc.value = rfc.value.slice(0, maxLen);
+            }
+        }
+        if (rfcHint) {
+            rfcHint.textContent = esMoral
+                ? '12 caracteres (persona moral).'
+                : '13 caracteres (persona física).';
+        }
+    }
+
     function toggleTipo() {
         var esMoral = tipo && tipo.value === 'Persona Moral';
         if (fisica) fisica.style.display = esMoral ? 'none' : '';
@@ -211,16 +231,18 @@
         if (nombres) nombres.required = !esMoral;
         if (apPaterno) apPaterno.required = !esMoral;
         if (razon) razon.required = esMoral;
-        if (rfc) rfc.required = esMoral;
+        actualizarRfcUi();
         actualizarUsuario();
     }
 
     if (rfc) {
         rfc.addEventListener('input', function () {
+            var esMoral = tipo && tipo.value === 'Persona Moral';
+            var maxLen = esMoral ? 12 : 13;
             this.value = this.value
                 .toUpperCase()
                 .replace(/[^A-Z0-9Ñ&]/g, '')
-                .slice(0, 12);
+                .slice(0, maxLen);
         });
     }
 
