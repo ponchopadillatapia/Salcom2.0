@@ -1,8 +1,8 @@
 @extends('layouts.admin')
-@section('title', 'Pagos a proveedores')
+@section('title', 'Pagos al proveedor')
 @section('hero')
 <div class="hero-band">
-    <h1>Pagos a proveedores</h1>
+    <h1>Pagos al proveedor</h1>
     <p>Proveedores con facturas pendientes de pago</p>
 </div>
 @endsection

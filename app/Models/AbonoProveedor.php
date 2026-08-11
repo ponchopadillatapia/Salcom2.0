@@ -20,6 +20,7 @@ class AbonoProveedor extends Model
         'serie',
         'folio',
         'concepto',
+        'agente',
         'fecha',
         'proveedor_id',
         'codigo_proveedor',

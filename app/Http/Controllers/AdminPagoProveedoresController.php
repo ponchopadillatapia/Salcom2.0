@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AbonoProveedor;
 use App\Models\Factura;
 use App\Models\ProveedorUser;
+use App\Services\PagoProveedorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
@@ -13,50 +14,121 @@ class AdminPagoProveedoresController extends Controller
 {
     public function index(Request $request)
     {
-        $polizas = config('polizas_pago');
-        $filtro = (string) $request->query('poliza', '');
         $q = trim((string) $request->query('q', ''));
+        $poliza = trim((string) $request->query('poliza', '')); // texto libre
+        $agente = trim((string) $request->query('agente', '')); // dropdown Contpaqi key
+        $estatus = trim((string) $request->query('estatus', '')); // cancelado|borrador|guardado|''
+        $tiposAgente = config('polizas_pago');
 
-        $abonos = AbonoProveedor::query()
-            ->with('proveedor')
-            ->when($filtro !== '' && isset($polizas[$filtro]), fn ($qb) => $qb->where('poliza_key', $filtro))
-            ->when($q !== '', function ($qb) use ($q) {
-                $qb->where(function ($w) use ($q) {
-                    $w->where('codigo_proveedor', 'like', "%{$q}%")
-                        ->orWhere('nombre_proveedor', 'like', "%{$q}%")
-                        ->orWhere('folio', 'like', "%{$q}%")
-                        ->orWhere('serie', 'like', "%{$q}%");
-                });
-            })
-            ->orderByDesc('fecha')
-            ->orderByDesc('id')
-            ->paginate(25)
-            ->withQueryString();
+        $base = AbonoProveedor::query();
+        $kpiCancelados = (clone $base)->where('estatus', 'cancelado')->count();
+        $kpiBorradores = (clone $base)->where('estatus', 'borrador')->count();
+        $kpiGuardados = (clone $base)->where('estatus', 'guardado')->count();
+        $kpiTotales = (clone $base)->count();
 
-        $conteos = AbonoProveedor::query()
-            ->selectRaw('poliza_key, count(*) as total')
-            ->groupBy('poliza_key')
-            ->pluck('total', 'poliza_key');
+        // KPIs de estatus de abono → listado de abonos
+        if ($estatus !== '' && in_array($estatus, ['cancelado', 'borrador', 'guardado'], true)) {
+            $abonos = AbonoProveedor::query()
+                ->with('proveedor')
+                ->where('estatus', $estatus)
+                ->when($agente !== '' && isset($tiposAgente[$agente]), fn ($qb) => $qb->where('poliza_key', $agente))
+                ->when($poliza !== '', fn ($qb) => $qb->where('agente', 'like', "%{$poliza}%"))
+                ->when($q !== '', function ($qb) use ($q) {
+                    $qb->where(function ($w) use ($q) {
+                        $w->where('codigo_proveedor', 'like', "%{$q}%")
+                            ->orWhere('nombre_proveedor', 'like', "%{$q}%")
+                            ->orWhere('folio', 'like', "%{$q}%")
+                            ->orWhere('serie', 'like', "%{$q}%")
+                            ->orWhere('agente', 'like', "%{$q}%");
+                    });
+                })
+                ->orderByDesc('fecha')
+                ->orderByDesc('id')
+                ->paginate(25)
+                ->withQueryString();
 
-        return view('admin.pago-proveedores.index', compact('abonos', 'polizas', 'filtro', 'q', 'conteos'));
+            return view('admin.pago-proveedores.index', compact(
+                'abonos',
+                'q',
+                'poliza',
+                'agente',
+                'tiposAgente',
+                'estatus',
+                'kpiCancelados',
+                'kpiBorradores',
+                'kpiGuardados',
+                'kpiTotales'
+            ) + ['proveedoresPendientes' => collect(), 'modo' => 'abonos']);
+        }
+
+        // Vista principal: proveedores pendientes (como Pagos al proveedor)
+        $proveedoresPendientes = app(PagoProveedorService::class)->proveedoresConPendientes();
+
+        if ($poliza !== '') {
+            $codigosConPoliza = AbonoProveedor::query()
+                ->where('agente', 'like', "%{$poliza}%")
+                ->pluck('codigo_proveedor')
+                ->unique()
+                ->filter()
+                ->all();
+            $proveedoresPendientes = $proveedoresPendientes
+                ->filter(fn ($r) => in_array($r->codigo, $codigosConPoliza, true))
+                ->values();
+        }
+
+        if ($agente !== '' && isset($tiposAgente[$agente])) {
+            $meta = $tiposAgente[$agente];
+            $monedaWant = strtoupper((string) ($meta['moneda'] ?? 'MXN'));
+            $codigosAgente = AbonoProveedor::query()
+                ->where('poliza_key', $agente)
+                ->pluck('codigo_proveedor')
+                ->unique()
+                ->filter()
+                ->all();
+
+            $proveedoresPendientes = $proveedoresPendientes->filter(function ($r) use ($monedaWant, $codigosAgente) {
+                if (in_array($r->codigo, $codigosAgente, true)) {
+                    return true;
+                }
+                $mon = $r->proveedor?->monedaNormalizada() ?? 'MXN';
+                if ($monedaWant === 'USD') {
+                    return $mon === 'DOLLAR';
+                }
+
+                return $mon === 'MXN';
+            })->values();
+        }
+
+        return view('admin.pago-proveedores.index', compact(
+            'proveedoresPendientes',
+            'q',
+            'poliza',
+            'agente',
+            'tiposAgente',
+            'estatus',
+            'kpiCancelados',
+            'kpiBorradores',
+            'kpiGuardados',
+            'kpiTotales'
+        ) + ['abonos' => null, 'modo' => 'proveedores']);
     }
 
-    /** Paso 1: elegir póliza (Nuevo pago → Póliza). */
-    public function nuevo()
+    /** Ya no hay pantalla de 4 tarjetas: el agente se elige en el dropdown del listado. */
+    public function nuevo(Request $request)
     {
-        $polizas = config('polizas_pago');
-
-        return view('admin.pago-proveedores.nuevo', compact('polizas'));
+        return redirect()->route('admin.pago-proveedores');
     }
 
-    /** Paso 2: formulario tipo Abono Prov Contpaqi. */
-    public function create(string $poliza)
+    /** Formulario Abono Prov Contpaqi (agente = {poliza} en la URL). */
+    public function create(Request $request, string $poliza)
     {
         try {
             $meta = $this->polizaOrFail($poliza);
         } catch (InvalidArgumentException $e) {
-            return redirect()->route('admin.pago-proveedores.nuevo')->with('error', $e->getMessage());
+            return redirect()->route('admin.pago-proveedores')->with('error', $e->getMessage());
         }
+
+        $codigoPref = trim((string) $request->query('codigo', ''));
         $proveedores = ProveedorUser::query()
             ->where('activo', true)
             ->orderBy('nombre')
@@ -65,6 +137,14 @@ class AdminPagoProveedoresController extends Controller
 
         $folioSiguiente = $this->siguienteFolio($meta['serie'], $meta['key']);
 
+        $proveedorIdPref = null;
+        if ($codigoPref !== '') {
+            $match = $proveedores->first(function ($p) use ($codigoPref) {
+                return ($p->id_proveedor ?: $p->codigo) === $codigoPref;
+            });
+            $proveedorIdPref = $match?->id;
+        }
+
         return view('admin.pago-proveedores.form', [
             'poliza' => $meta,
             'proveedores' => $proveedores,
@@ -72,6 +152,8 @@ class AdminPagoProveedoresController extends Controller
             'abono' => null,
             'facturasPendientes' => collect(),
             'modo' => 'create',
+            'proveedorIdPref' => $proveedorIdPref,
+            'codigoPref' => $codigoPref,
         ]);
     }
 
@@ -127,6 +209,8 @@ class AdminPagoProveedoresController extends Controller
             'poliza_key' => 'required|string',
             'fecha' => 'required|date',
             'proveedor_id' => 'required|integer|exists:proveedores_users,id',
+            'agente' => 'nullable|string|max:120',
+            'poliza' => 'nullable|string|max:120',
             'tipo_cambio' => 'nullable|numeric|min:0',
             'cuenta_bancaria' => 'nullable|string|max:120',
             'notas' => 'nullable|string|max:2000',
@@ -194,6 +278,7 @@ class AdminPagoProveedoresController extends Controller
                     'serie' => $meta['serie'],
                     'folio' => $folio,
                     'concepto' => $meta['concepto'],
+                    'agente' => trim((string) ($data['poliza'] ?? $data['agente'] ?? '')) ?: null,
                     'fecha' => $data['fecha'],
                     'proveedor_id' => $proveedor->id,
                     'codigo_proveedor' => $codigo,
