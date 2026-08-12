@@ -1021,12 +1021,13 @@ class PortalProveedorController extends Controller
             'nombre_firma' => $soloTexto,
         ];
 
-        // Si el proveedor opera en dólares, requerir cuenta USD
+        // Si el proveedor opera en dólares, los campos USD son opcionales en este formulario
+        // La confirmación se hace desde el onboarding
         $proveedorMoneda = $proveedorPre ? $proveedorPre->esMonedaDollar() : false;
         if ($proveedorMoneda) {
-            $rules['clabe_usd'] = ['required', 'regex:/^[0-9]{18}$/'];
-            $rules['cuenta_usd'] = ['required', 'regex:/^[0-9]{5,20}$/'];
-            $rules['banco_usd'] = 'required|string|max:255|not_in:Otro';
+            $rules['clabe_usd'] = ['nullable', 'regex:/^[0-9]{18}$/'];
+            $rules['cuenta_usd'] = ['nullable', 'regex:/^[0-9]{5,20}$/'];
+            $rules['banco_usd'] = 'nullable|string|max:255';
         }
 
         if ($esFisica) {

@@ -335,38 +335,10 @@
 
     {{-- Datos bancarios USD (solo si proveedor tiene moneda DOLLAR) --}}
     @if($proveedor && $proveedor->esMonedaDollar())
-    <div class="id-card" id="seccion-banco-usd" style="border-color: var(--purple-mid); background: #faf8ff;">
-        <h3>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-            Datos bancarios — Cuenta USD (Dólares)
-        </h3>
-        <p class="card-desc">Tu registro indica operaciones en dólares. Proporciona también la cuenta en USD.</p>
-
-        <div class="form-row cols-1">
-            <div class="form-group">
-                <label for="clabe_usd">Cuenta CLABE USD <span style="color:#DC2626">*</span></label>
-                <input type="text" id="clabe_usd" name="clabe_usd" value="{{ old('clabe_usd', $d['clabe_usd'] ?? '') }}" placeholder="18 dígitos" maxlength="18" inputmode="numeric" pattern="[0-9]{18}" required class="solo-digitos">
-            </div>
-        </div>
-        <div class="form-row cols-2">
-            <div class="form-group">
-                <label for="cuenta_usd">Cuenta USD <span style="color:#DC2626">*</span></label>
-                <input type="text" id="cuenta_usd" name="cuenta_usd" value="{{ old('cuenta_usd', $d['cuenta_usd'] ?? '') }}" placeholder="Número de cuenta en dólares" maxlength="20" inputmode="numeric" pattern="[0-9]{5,20}" required class="solo-digitos">
-            </div>
-            <div class="form-group">
-                <label for="banco_usd">Institución Financiera USD <span style="color:#DC2626">*</span></label>
-                <select id="banco_usd" name="banco_usd" required style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);">
-                    <option value="" disabled {{ old('banco_usd', $d['banco_usd'] ?? '') ? '' : 'selected' }}>Selecciona tu banco</option>
-                    @php
-                        $bancoActualUsd = old('banco_usd', $d['banco_usd'] ?? '');
-                    @endphp
-                    @foreach($bancos as $b)
-                        <option value="{{ $b }}" {{ $bancoActualUsd === $b ? 'selected' : '' }}>{{ $b }}</option>
-                    @endforeach
-                </select>
-            </div>
-        </div>
-    </div>
+        {{-- Los campos USD van ocultos dentro del mismo card de datos bancarios arriba, no como sección separada --}}
+        <input type="hidden" id="clabe_usd" name="clabe_usd" value="{{ old('clabe_usd', $d['clabe_usd'] ?? '') }}">
+        <input type="hidden" id="cuenta_usd" name="cuenta_usd" value="{{ old('cuenta_usd', $d['cuenta_usd'] ?? '') }}">
+        <input type="hidden" id="banco_usd" name="banco_usd" value="{{ old('banco_usd', $d['banco_usd'] ?? '') }}">
     @endif
 
     {{-- Documentos agregados --}}
@@ -626,7 +598,7 @@
     });
 })();
 
-// ── Autocompletado de CP con API SEPOMEX ──
+// ── Autocompletado de CP con API SEPOMEX México ──
 var cpTimeout = null;
 function buscarCP(cp) {
     cp = cp.replace(/\D/g, '');
@@ -637,62 +609,70 @@ function buscarCP(cp) {
 
     clearTimeout(cpTimeout);
     cpTimeout = setTimeout(function() {
-        fetch('https://api.zippopotam.us/MX/' + cp)
+        fetch('/api/codigo-postal/' + cp)
             .then(function(res) { return res.ok ? res.json() : null; })
             .then(function(data) {
                 if (loading) loading.style.display = 'none';
-                if (!data || !data.places || !data.places.length) {
-                    buscarCPAlternativo(cp);
+                if (!data || data.error) {
+                    liberarCamposManuales();
                     return;
                 }
-                var lugar = data.places[0];
-                document.getElementById('estado').value = lugar.state || '';
-                document.getElementById('municipio').value = lugar['place name'] || '';
-                document.getElementById('ciudad').value = lugar['place name'] || '';
 
-                var coloniaSelect = document.getElementById('colonia');
-                coloniaSelect.innerHTML = '';
-                data.places.forEach(function(p) {
-                    var opt = document.createElement('option');
-                    opt.value = p['place name'];
-                    opt.textContent = p['place name'];
-                    coloniaSelect.appendChild(opt);
-                });
+                var estadoEl = document.getElementById('estado');
+                var municipioEl = document.getElementById('municipio');
+                var ciudadEl = document.getElementById('ciudad');
+
+                if (data.estado && estadoEl) estadoEl.value = data.estado;
+                if (data.municipio && municipioEl) municipioEl.value = data.municipio;
+                if (data.ciudad && ciudadEl) ciudadEl.value = data.ciudad;
+
+                // Si no hay municipio, liberar campo para que lo escriba manualmente
+                if (!data.municipio && municipioEl) {
+                    municipioEl.removeAttribute('readonly');
+                    municipioEl.style.background = '';
+                }
+
+                if (data.colonias && data.colonias.length) {
+                    var coloniaSelect = document.getElementById('colonia');
+                    if (coloniaSelect) {
+                        // Si era input, convertir a select
+                        if (coloniaSelect.tagName === 'INPUT') {
+                            var newSel = document.createElement('select');
+                            newSel.id = 'colonia';
+                            newSel.name = 'colonia';
+                            newSel.required = true;
+                            newSel.style.cssText = 'padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;color:var(--gray-text);background:var(--white);width:100%;';
+                            coloniaSelect.parentNode.replaceChild(newSel, coloniaSelect);
+                            coloniaSelect = newSel;
+                        }
+                        coloniaSelect.innerHTML = '';
+                        data.colonias.forEach(function(c) {
+                            var opt = document.createElement('option');
+                            opt.value = c;
+                            opt.textContent = c;
+                            coloniaSelect.appendChild(opt);
+                        });
+                    }
+                } else {
+                    liberarCamposManuales();
+                }
             })
             .catch(function() {
                 if (loading) loading.style.display = 'none';
-                buscarCPAlternativo(cp);
+                liberarCamposManuales();
             });
     }, 300);
 }
 
-function buscarCPAlternativo(cp) {
-    fetch('/api/codigo-postal/' + cp)
-        .then(function(res) { return res.ok ? res.json() : null; })
-        .then(function(data) {
-            if (!data) return;
-            if (data.estado) document.getElementById('estado').value = data.estado;
-            if (data.municipio) document.getElementById('municipio').value = data.municipio;
-            if (data.ciudad) document.getElementById('ciudad').value = data.ciudad || data.municipio;
-            if (data.colonias && data.colonias.length) {
-                var coloniaSelect = document.getElementById('colonia');
-                coloniaSelect.innerHTML = '';
-                data.colonias.forEach(function(c) {
-                    var opt = document.createElement('option');
-                    opt.value = c;
-                    opt.textContent = c;
-                    coloniaSelect.appendChild(opt);
-                });
-            }
-        })
-        .catch(function() {
-            var coloniaSelect = document.getElementById('colonia');
-            coloniaSelect.outerHTML = '<input type="text" id="colonia" name="colonia" required class="no-emoji" placeholder="Escribe la colonia" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;">';
-            document.getElementById('municipio').removeAttribute('readonly');
-            document.getElementById('municipio').style.background = '';
-            document.getElementById('estado').removeAttribute('readonly');
-            document.getElementById('estado').style.background = '';
-        });
+function liberarCamposManuales() {
+    var coloniaSelect = document.getElementById('colonia');
+    if (coloniaSelect && coloniaSelect.tagName === 'SELECT') {
+        coloniaSelect.outerHTML = '<input type="text" id="colonia" name="colonia" required class="no-emoji" placeholder="Escribe la colonia" style="padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;">';
+    }
+    var mun = document.getElementById('municipio');
+    if (mun) { mun.removeAttribute('readonly'); mun.style.background = ''; }
+    var est = document.getElementById('estado');
+    if (est) { est.removeAttribute('readonly'); est.style.background = ''; }
 }
 </script>
 @endpush
