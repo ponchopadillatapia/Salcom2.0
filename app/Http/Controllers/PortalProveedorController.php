@@ -130,13 +130,52 @@ class PortalProveedorController extends Controller
                 $numContactos = 0;
             }
             $pasoContactos = $numContactos >= 2;
-            $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos && ! $cuentasDualPendientes;
+
+            // Paso 5: Confirmación cuenta Wiese (después de docs)
+            $pasoWiese = $proveedor->cuentaWieseConfirmada();
+            $cuentasWiese = $proveedor->cuentasWiese();
+            $wiesePendiente = false;
+            $wieseError = null;
+
+            // Si docs están completos pero cuenta Wiese no confirmada, buscar por RFC
+            if ($pasoDocs && !$pasoWiese && empty($cuentasWiese)) {
+                $rfcProveedor = strtoupper(trim((string) $proveedor->rfc));
+                if (!empty($rfcProveedor)) {
+                    try {
+                        $wieseApi = app(\App\Services\ProveedorApiService::class);
+                        $resultado = $wieseApi->buscarProveedorPorRFC($rfcProveedor);
+                        if ($resultado['success'] && !empty($resultado['data']['cuentas'])) {
+                            $cuentasWiese = $resultado['data']['cuentas'];
+                            // Guardar las cuentas encontradas
+                            $datos = $proveedor->datos_identificacion ?? [];
+                            $datos['cuentas_wiese'] = $cuentasWiese;
+                            $proveedor->update(['datos_identificacion' => $datos]);
+                            $wiesePendiente = true;
+                        } elseif ($resultado['success'] && empty($resultado['data']['cuentas'])) {
+                            // RFC no encontrado en Wiese — proveedor nuevo, se auto-confirma
+                            $datos = $proveedor->datos_identificacion ?? [];
+                            $datos['cuenta_wiese_confirmada'] = true;
+                            $datos['cuenta_wiese_nueva'] = true;
+                            $proveedor->update(['datos_identificacion' => $datos]);
+                            $pasoWiese = true;
+                        }
+                    } catch (\Exception $e) {
+                        $wieseError = 'No se pudo conectar con el sistema para verificar tu cuenta.';
+                    }
+                } else {
+                    $wieseError = 'No tienes RFC registrado. Actualiza tu perfil.';
+                }
+            } elseif ($pasoDocs && !$pasoWiese && !empty($cuentasWiese)) {
+                $wiesePendiente = true;
+            }
+
+            $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos && $pasoWiese && !$cuentasDualPendientes;
             $pasoActivo = (bool) $proveedor->activo;
             $onboardingBloqueado = $proveedor->onboardingEdicionBloqueada();
             $estatusAlta = $proveedor->solicitud_alta_estatus ?? null;
 
-            $completados = (int) $pasoRegistro + (int) $pasoBancarios + (int) $pasoDocs + (int) $pasoContactos + (int) ($pasoListoDireccion && $pasoActivo ? 1 : 0);
-            $totalPasos = 5;
+            $completados = (int) $pasoRegistro + (int) $pasoBancarios + (int) $pasoDocs + (int) $pasoContactos + (int) $pasoWiese + (int) ($pasoListoDireccion && $pasoActivo ? 1 : 0);
+            $totalPasos = 6;
             $pct = (int) round(100 * $completados / $totalPasos);
 
             return view('proveedores.onboarding', compact(
@@ -147,6 +186,10 @@ class PortalProveedorController extends Controller
                 'pasoDocsRenovar',
                 'numContactos',
                 'pasoContactos',
+                'pasoWiese',
+                'cuentasWiese',
+                'wiesePendiente',
+                'wieseError',
                 'pasoListoDireccion',
                 'pasoActivo',
                 'onboardingBloqueado',
@@ -898,6 +941,43 @@ class PortalProveedorController extends Controller
         // Si rechaza, redirigir al formulario para corregir
         return redirect()->route('proveedores.identificacion')
             ->with('error', 'Revisa y corrige tus datos bancarios (MXN y USD).');
+    }
+
+    /**
+     * Confirmar cuenta(s) Wiese encontradas por RFC (paso 5 del onboarding).
+     */
+    public function confirmarCuentaWiese(Request $request)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (!$proveedor) {
+            return redirect()->route('proveedores.onboarding')
+                ->with('error', 'No se encontró tu cuenta.');
+        }
+
+        $accion = $request->input('accion'); // 'confirmar' o 'no_es_mia'
+
+        if ($accion === 'confirmar') {
+            $datos = $proveedor->datos_identificacion ?? [];
+            $datos['cuenta_wiese_confirmada'] = true;
+            $proveedor->update(['datos_identificacion' => $datos]);
+
+            // Asignar el código del proveedor si viene de las cuentas encontradas
+            $cuentas = $datos['cuentas_wiese'] ?? [];
+            if (!empty($cuentas) && !empty($cuentas[0]['codigo'])) {
+                $proveedor->update(['id_proveedor' => $cuentas[0]['codigo']]);
+            }
+
+            return redirect()->route('proveedores.onboarding')
+                ->with('mensaje', 'Cuenta confirmada correctamente. Tu expediente está listo para revisión de Dirección.');
+        }
+
+        // Si dice que no es suya, marcar como "requiere atención" para que admin investigue
+        $datos = $proveedor->datos_identificacion ?? [];
+        $datos['cuenta_wiese_disputada'] = true;
+        $proveedor->update(['datos_identificacion' => $datos]);
+
+        return redirect()->route('proveedores.onboarding')
+            ->with('error', 'Se notificará al equipo de Salcom para verificar tu cuenta. Mientras tanto, no puedes avanzar.');
     }
 
     public function mostrarIdentificacion()

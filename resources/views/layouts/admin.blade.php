@@ -400,7 +400,7 @@
 
             <div class="sb-hr"></div>
             <div class="sb-section">Facturas</div>
-            <a href="{{ route('admin.facturas') }}" class="sb-link {{ request()->is('admin/facturas*') ? 'active' : '' }}">
+            <a href="{{ route('admin.facturas') }}" class="sb-link {{ request()->is('admin/facturas') || request()->is('admin/facturas/excel') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
                 <span class="sb-text">Facturas</span>
             </a>

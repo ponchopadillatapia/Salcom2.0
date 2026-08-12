@@ -27,6 +27,7 @@ class AutenticacionProveedor
         'proveedores.actualizacion.guardar',
         'proveedores.adjunto-documentos',
         'proveedores.adjunto-documentos.subir',
+        'proveedores.confirmar-cuenta-wiese',
         'proveedores.logout',
         'proveedores.aviso.aceptar',
         'proveedores.alertas.recientes',

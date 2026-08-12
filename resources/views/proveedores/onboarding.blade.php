@@ -261,7 +261,69 @@
         </div>
         @endif
 
-        {{-- 5 Direccion / activo --}}
+        {{-- 5 Confirmación de cuenta (API Wiese) --}}
+        @if($pasoWiese ?? false)
+        <div class="paso-card completado">
+            <div class="paso-icono verde"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 12c0 4.97 3.035 9.227 7.348 10.997C11.575 23.33 12 23 12 23s.425.33 1.652-.003C17.965 21.227 21 16.97 21 12c0-1.065-.138-2.098-.382-3.016z"/></svg></div>
+            <div class="paso-info">
+                <div class="paso-titulo">Confirmación de cuenta</div>
+                <div class="paso-desc">Tu cuenta fue verificada en el sistema.</div>
+            </div>
+            <span class="paso-badge badge-completado">Completado</span>
+        </div>
+        @elseif($pasoDocs ?? false)
+            @if($wiesePendiente ?? false)
+            <div class="paso-card pendiente">
+                <div class="paso-icono ambar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 12c0 4.97 3.035 9.227 7.348 10.997C11.575 23.33 12 23 12 23s.425.33 1.652-.003C17.965 21.227 21 16.97 21 12c0-1.065-.138-2.098-.382-3.016z"/></svg></div>
+                <div class="paso-info">
+                    <div class="paso-titulo">Confirmación de cuenta</div>
+                    <div class="paso-desc">Se encontraron cuentas asociadas a tu RFC. Confirma si son tuyas para continuar.</div>
+                </div>
+                <span class="paso-badge badge-pendiente">Pendiente</span>
+            </div>
+
+            {{-- Cuentas encontradas --}}
+            <div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:14px;padding:20px 22px;margin:-8px 0 8px;box-shadow:0 2px 12px rgba(245,158,11,.12);">
+                <p style="font-size:14px;font-weight:700;color:#92400e;margin:0 0 12px;">¿Estas son tus cuentas?</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px;margin-bottom:16px;">
+                    @foreach($cuentasWiese as $cuenta)
+                    <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;">
+                        <p style="font-size:13px;font-weight:700;color:var(--gray-text);margin:0 0 4px;">{{ $cuenta['razonSocial'] ?? '—' }}</p>
+                        <p style="font-size:12px;color:var(--gray-muted);margin:2px 0;">Código: <strong>{{ $cuenta['codigo'] ?? '—' }}</strong></p>
+                        <p style="font-size:12px;color:var(--gray-muted);margin:2px 0;">Moneda: <strong>{{ $cuenta['moneda'] ?? 'MXN' }}</strong></p>
+                        <p style="font-size:11px;color:var(--gray-muted);margin:2px 0;">Alta: {{ $cuenta['fechaAlta'] ?? '—' }}</p>
+                    </div>
+                    @endforeach
+                </div>
+                <form method="POST" action="{{ route('proveedores.confirmar-cuenta-wiese') }}" style="display:flex;gap:10px;flex-wrap:wrap;">
+                    @csrf
+                    <button type="submit" name="accion" value="confirmar" style="padding:9px 20px;border:none;border-radius:10px;background:#059669;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">✓ Sí, es mi cuenta</button>
+                    <button type="submit" name="accion" value="no_es_mia" style="padding:9px 20px;border:1.5px solid #dc2626;border-radius:10px;background:#fff;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">✗ No es mi cuenta</button>
+                </form>
+            </div>
+            @elseif($wieseError ?? null)
+            <div class="paso-card pendiente">
+                <div class="paso-icono ambar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 12c0 4.97 3.035 9.227 7.348 10.997C11.575 23.33 12 23 12 23s.425.33 1.652-.003C17.965 21.227 21 16.97 21 12c0-1.065-.138-2.098-.382-3.016z"/></svg></div>
+                <div class="paso-info">
+                    <div class="paso-titulo">Confirmación de cuenta</div>
+                    <div class="paso-desc" style="color:var(--amber);">{{ $wieseError }}</div>
+                </div>
+                <span class="paso-badge badge-pendiente">Error</span>
+            </div>
+            @endif
+        @else
+        <div class="paso-card bloqueado">
+            <div class="paso-icono gris"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#AAA" stroke-width="2"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0 1 12 2.944a11.955 11.955 0 0 1-8.618 3.04A12.02 12.02 0 0 0 3 12c0 4.97 3.035 9.227 7.348 10.997C11.575 23.33 12 23 12 23s.425.33 1.652-.003C17.965 21.227 21 16.97 21 12c0-1.065-.138-2.098-.382-3.016z"/></svg></div>
+            <div class="paso-info">
+                <div class="paso-titulo">Confirmación de cuenta</div>
+                <div class="paso-desc">Se desbloquea cuando valides tus documentos fiscales.</div>
+            </div>
+            <span class="paso-badge badge-bloqueado">Bloqueado</span>
+            <span class="btn-ver disabled">—</span>
+        </div>
+        @endif
+
+        {{-- 6 Direccion / activo --}}
         @if($pasoActivo)
         <div class="paso-card completado">
             <div class="paso-icono verde"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
