@@ -453,6 +453,26 @@ class ProveedorUser extends Authenticatable
     {
         return $this->tieneFormularioDatosBancarios()
             && $this->documentosFiscalesCompletos()
-            && $this->contactosSuficientes();
+            && $this->contactosSuficientes()
+            && $this->cuentaWieseConfirmada();
+    }
+
+    /**
+     * Verifica si el proveedor ya confirmó su(s) cuenta(s) encontradas en Wiese (API por RFC).
+     * Se guarda en datos_identificacion['cuenta_wiese_confirmada'] = true
+     */
+    public function cuentaWieseConfirmada(): bool
+    {
+        $di = $this->datos_identificacion ?? [];
+        return !empty($di['cuenta_wiese_confirmada']);
+    }
+
+    /**
+     * Cuentas Wiese encontradas (guardadas después de consultar la API).
+     */
+    public function cuentasWiese(): array
+    {
+        $di = $this->datos_identificacion ?? [];
+        return $di['cuentas_wiese'] ?? [];
     }
 }

@@ -260,6 +260,51 @@ class ProveedorApiService
         }
     }
 
+    /**
+     * Buscar proveedor por RFC en AdSalcom18.
+     * Devuelve las cuentas encontradas (puede ser 1 o 2: MXN y USD).
+     *
+     * PLACEHOLDER: cuando Alan pase el endpoint real, se conecta aquí.
+     * Por ahora simula la respuesta esperada.
+     */
+    public function buscarProveedorPorRFC(string $rfc): array
+    {
+        $rfc = strtoupper(trim($rfc));
+
+        if (empty($rfc)) {
+            return $this->buildErrorResponse('RFC vacío', 'validation');
+        }
+
+        // TODO: Reemplazar con llamada real a la API cuando esté disponible
+        // Endpoint esperado: GET /Proveedor/BuscarPorRFC?rfc={rfc}
+        // Respuesta esperada: { success: true, data: { cuentas: [{codigo, razonSocial, moneda, fechaAlta}] } }
+
+        // --- INICIO PLACEHOLDER (quitar cuando llegue API real) ---
+        // Simular respuesta para ORPACK (RFC de prueba)
+        if ($rfc === 'OME0207015E8') {
+            return [
+                'success' => true,
+                'data' => [
+                    'cuentas' => [
+                        [
+                            'codigo' => 'M213015002',
+                            'razonSocial' => 'ORPACK DE MEXICO',
+                            'moneda' => 'MXN',
+                            'fechaAlta' => '2005-06-15',
+                        ],
+                    ],
+                ],
+            ];
+        }
+
+        // Para cualquier otro RFC: simular "no encontrado"
+        return [
+            'success' => true,
+            'data' => ['cuentas' => []],
+        ];
+        // --- FIN PLACEHOLDER ---
+    }
+
     // ── Métodos privados ──
 
     /**
