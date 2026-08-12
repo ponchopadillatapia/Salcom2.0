@@ -216,6 +216,9 @@ Route::get('/admin/migracion-masiva/template', [AltaProductoController::class, '
 
 Route::get('/admin/facturas', [AdminPanelController::class, 'facturas'])->name('admin.facturas')->middleware('auth.admin');
 Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel'])->name('admin.facturas.excel')->middleware('auth.admin');
+Route::get('/admin/facturas/alta', [AdminPanelController::class, 'mostrarAltaFacturas'])->name('admin.facturas.alta')->middleware('auth.admin');
+Route::post('/admin/facturas/alta/validar', [AdminPanelController::class, 'validarAltaFactura'])->name('admin.facturas.alta.validar')->middleware('auth.admin');
+Route::post('/admin/facturas/alta/subir', [AdminPanelController::class, 'altaFactura'])->name('admin.facturas.alta.subir')->middleware('auth.admin');
 
 use App\Http\Controllers\AdminPagosController;
 
