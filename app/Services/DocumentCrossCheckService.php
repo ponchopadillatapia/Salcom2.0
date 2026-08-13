@@ -25,10 +25,26 @@ class DocumentCrossCheckService
         $errores = [];
 
         // ─── 1. Comparación RFC ↔ CURP (primeros 10 caracteres) ───
-        $checks['rfc_curp'] = $this->compararRfcCurp(
-            $datosCif['rfc'] ?? null,
-            $datosIne['curp'] ?? null
-        );
+        // Solo aplica para Persona Física. En Persona Moral el RFC de la empresa
+        // nunca coincidirá con el CURP del representante legal.
+        $tipoPersona = strtolower(trim($datosCif['tipo_persona'] ?? ''));
+        $rfcVal = $datosCif['rfc'] ?? '';
+        $esPersonaMoral = $tipoPersona === 'moral'
+            || str_starts_with(strtoupper($tipoPersona), 'MORA')
+            || (strlen(preg_replace('/[^A-Z0-9]/i', '', $rfcVal)) === 12); // RFC moral = 12 chars sin guiones
+
+        if ($esPersonaMoral) {
+            $checks['rfc_curp'] = [
+                'coincide' => true,
+                'mensaje' => 'Persona Moral — RFC de empresa no se compara con CURP del representante ✓',
+                'omitido' => true,
+            ];
+        } else {
+            $checks['rfc_curp'] = $this->compararRfcCurp(
+                $datosCif['rfc'] ?? null,
+                $datosIne['curp'] ?? null
+            );
+        }
 
         // ─── 2. Comparación CURP exacta (si ambos lo tienen) ───
         $checks['curp'] = $this->compararCurpExacta(
