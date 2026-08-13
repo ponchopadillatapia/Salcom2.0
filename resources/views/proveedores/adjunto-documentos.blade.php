@@ -22,6 +22,8 @@
     .adj-btn:hover{border-color:var(--purple);background:var(--purple-light)}
     .adj-file-name{font-size:11px;color:var(--green);font-weight:600;margin-top:6px}
     .adj-file-name.empty{color:var(--gray-muted);font-weight:400}
+    .adj-remove-btn{display:inline-block;margin-left:8px;padding:2px 8px;border:none;border-radius:4px;background:#fee2e2;color:#dc2626;font-size:10px;font-weight:700;cursor:pointer;vertical-align:middle}
+    .adj-remove-btn:hover{background:#fecaca}
     .btn-enviar{padding:12px 32px;background:var(--purple);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;transition:var(--transition);display:block;width:100%;margin-top:20px}
     .btn-enviar:hover{background:var(--purple-dark);transform:translateY(-1px)}
     .adj-success{background:#ecfdf5;border:1px solid var(--green);border-radius:10px;padding:14px;font-size:13px;color:var(--green);font-weight:600;margin-bottom:16px}
@@ -133,24 +135,34 @@ function adjVerArchivo(campo) {
     var label = document.getElementById('name_' + campo);
     var row = document.getElementById('row_' + campo);
     if (!input.files[0]) {
-        label.textContent = 'Sin archivo';
+        label.innerHTML = 'Sin archivo';
         label.className = 'adj-file-name empty';
         row.classList.remove('has-file');
         return;
     }
     var archivo = input.files[0];
     if (archivo.type !== 'application/pdf' && !archivo.name.toLowerCase().endsWith('.pdf')) {
-        label.textContent = '⚠ Solo se aceptan archivos PDF';
+        label.innerHTML = '⚠ Solo se aceptan archivos PDF';
         label.className = 'adj-file-name';
         label.style.color = '#dc2626';
         row.classList.remove('has-file');
         input.value = '';
         return;
     }
-    label.textContent = '✓ ' + archivo.name;
+    label.innerHTML = '✓ ' + archivo.name + ' <button type="button" class="adj-remove-btn" onclick="adjQuitarArchivo(\'' + campo + '\')">✕ Quitar</button>';
     label.className = 'adj-file-name';
     label.style.color = '';
     row.classList.add('has-file');
+}
+
+function adjQuitarArchivo(campo) {
+    var input = document.getElementById('file_' + campo);
+    var label = document.getElementById('name_' + campo);
+    var row = document.getElementById('row_' + campo);
+    input.value = '';
+    label.innerHTML = 'Sin archivo';
+    label.className = 'adj-file-name empty';
+    row.classList.remove('has-file');
 }
 </script>
 @endpush

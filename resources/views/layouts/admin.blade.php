@@ -234,6 +234,22 @@
         }
         .sidebar.collapsed .sb-hr { margin: 6px 10px; }
 
+        /* ── Submenu desplegable ── */
+        .sb-submenu { position: relative; }
+        .sb-submenu-toggle { width: 100%; text-align: left; background: none; border: none; font-family: inherit; position: relative; }
+        .sb-submenu-toggle .sb-chevron { margin-left: auto; transition: transform .2s; flex-shrink: 0; color: var(--gray-muted); }
+        .sb-submenu.open .sb-submenu-toggle .sb-chevron { transform: rotate(180deg); }
+        .sb-submenu-items { display: none; padding-left: 20px; }
+        .sb-submenu.open .sb-submenu-items { display: flex; flex-direction: column; }
+        .sb-sublink { font-size: 12px !important; padding: 6px 16px !important; }
+        .sb-sublink::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--gray-muted); flex-shrink: 0; }
+        .sb-sublink.active::before { background: var(--purple); }
+        .sidebar.collapsed .sb-submenu-items { display: none !important; }
+        .sidebar.collapsed:hover .sb-submenu.open .sb-submenu-items { display: flex; flex-direction: column; }
+        /* Auto-abrir si estamos en esa sección */
+        .sb-submenu:has(.sb-submenu-toggle.active) { }
+        @media(max-width:768px) { .sb-submenu-items { padding-left: 12px; } }
+
         /* ── MAIN ── */
         .main-content {
             flex: 1;
@@ -381,18 +397,24 @@
 
             <div class="sb-hr"></div>
             <div class="sb-section">Productos</div>
-            <a href="{{ route('admin.alta-producto') }}" class="sb-link {{ request()->is('admin/alta-producto') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
-                <span class="sb-text">Alta Producto Compras</span>
-            </a>
-            <a href="{{ route('admin.alta-producto-mto') }}" class="sb-link {{ request()->is('admin/alta-producto-mto*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg></div>
-                <span class="sb-text">Alta Producto<br>Mantenimiento</span>
-            </a>
-            <a href="{{ route('admin.alta-producto-pt') }}" class="sb-link {{ request()->is('admin/alta-producto-pt*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg></div>
-                <span class="sb-text">Alta Producto Comercial</span>
-            </a>
+            <div class="sb-submenu">
+                <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/alta-producto*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
+                    <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
+                    <span class="sb-text">Alta de Producto</span>
+                    <svg class="sb-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="sb-submenu-items">
+                    <a href="{{ route('admin.alta-producto') }}" class="sb-link sb-sublink {{ request()->is('admin/alta-producto') ? 'active' : '' }}">
+                        <span class="sb-text">Compras</span>
+                    </a>
+                    <a href="{{ route('admin.alta-producto-mto') }}" class="sb-link sb-sublink {{ request()->is('admin/alta-producto-mto*') ? 'active' : '' }}">
+                        <span class="sb-text">Mantenimiento</span>
+                    </a>
+                    <a href="{{ route('admin.alta-producto-pt') }}" class="sb-link sb-sublink {{ request()->is('admin/alta-producto-pt*') ? 'active' : '' }}">
+                        <span class="sb-text">Comercial</span>
+                    </a>
+                </div>
+            </div>
             <a href="{{ route('admin.productos') }}" class="sb-link {{ request()->is('admin/productos*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
                 <span class="sb-text">Productos</span>
@@ -407,17 +429,24 @@
 
             <div class="sb-hr"></div>
             <div class="sb-section">Pagos</div>
-            <a href="{{ route('admin.pagos') }}" class="sb-link {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-                <span class="sb-text">Pagos al proveedor</span>
-                @if(($adminPagosSinLeer ?? 0) > 0)
-                    <span class="sb-badge">{{ $adminPagosSinLeer > 9 ? '9+' : $adminPagosSinLeer }}</span>
-                @endif
-            </a>
-            <a href="{{ route('admin.pago-proveedores') }}" class="sb-link {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M7 15h4"/></svg></div>
-                <span class="sb-text">Abonos al proveedor</span>
-            </a>
+            <div class="sb-submenu">
+                <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/pagos*') || request()->is('admin/pago-proveedores*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
+                    <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                    <span class="sb-text">Pagos</span>
+                    @if(($adminPagosSinLeer ?? 0) > 0)
+                        <span class="sb-badge">{{ $adminPagosSinLeer > 9 ? '9+' : $adminPagosSinLeer }}</span>
+                    @endif
+                    <svg class="sb-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="sb-submenu-items">
+                    <a href="{{ route('admin.pagos') }}" class="sb-link sb-sublink {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
+                        <span class="sb-text">Pagos al proveedor</span>
+                    </a>
+                    <a href="{{ route('admin.pago-proveedores') }}" class="sb-link sb-sublink {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
+                        <span class="sb-text">Abonos al proveedor</span>
+                    </a>
+                </div>
+            </div>
 
             <div class="sb-hr"></div>
             <div class="sb-section">Operación</div>
@@ -507,6 +536,13 @@ function sbToggle(btn) {
     var el = btn || document.getElementById('sbToggleBtn');
     if (el) el.setAttribute('aria-expanded', s.classList.contains('collapsed') ? 'false' : 'true');
 }
+
+// Auto-abrir submenús si tienen un item activo
+document.querySelectorAll('.sb-submenu').forEach(function(menu) {
+    if (menu.querySelector('.sb-submenu-toggle.active') || menu.querySelector('.sb-sublink.active')) {
+        menu.classList.add('open');
+    }
+});
 
 (function () {
     document.addEventListener('click', function (e) {

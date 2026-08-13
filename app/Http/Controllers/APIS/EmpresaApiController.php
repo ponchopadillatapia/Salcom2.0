@@ -176,10 +176,11 @@ class EmpresaApiController extends Controller
             $bancoEsperado = trim((string) $request->input('banco_esperado', ''));
             $cpEsperado = preg_replace('/\D/', '', (string) $request->input('cp_esperado', ''));
 
+            $declaroMoral = $tipoPersona === 'moral';
+
             if ($nombreEsperado !== '' || $clabeEsperada !== '' || $cpEsperado !== '' || $bancoEsperado !== '') {
                 // Tipo de persona declarado vs CIF
                 $cifEsMoral = (bool) ($cif['datos']['es_moral'] ?? false);
-                $declaroMoral = $tipoPersona === 'moral';
                 if ($cifEsMoral !== $declaroMoral) {
                     $esperadoLabel = $declaroMoral ? 'Persona Moral' : 'Persona Física';
                     $encontradoLabel = $cifEsMoral ? 'Persona Moral' : 'Persona Física';
@@ -286,35 +287,63 @@ class EmpresaApiController extends Controller
                 $tieneDatosSuficientes = $curpIne && strlen($curpIne) >= 16;
 
                 if ($tieneDatosSuficientes) {
-                    $crossResult = $crossCheckService->validar(
-                        [
-                            'rfc' => $cif['datos']['rfc'],
-                            'nombre' => $cif['datos']['nombre'] ?? $nombreEsperado,
-                            'codigo_postal' => $cif['datos']['codigo_postal'] ?? null,
-                            'curp' => null,
-                        ],
-                        [
-                            'curp' => $curpIne,
-                            'nombre' => $nombreIne ?: $nombreEsperado,
-                            'codigo_postal' => null,
-                        ]
-                    );
+                    if ($declaroMoral) {
+                        // ─── PERSONA MORAL ───
+                        // NO comparar RFC empresa ↔ CURP representante
+                        // Solo validar INE vigente (ya se valida arriba) y RFC docs ↔ RFC registro
+                        $ineParaCruce['hallazgos'][] = 'Persona Moral — RFC de empresa no se compara con CURP del representante ✓';
 
-                    if ($crossResult['valido']) {
-                        $ineParaCruce['hallazgos'][] = 'Cross-check CIF ↔ INE: Documentos del mismo proveedor ✓ (Score: '.$crossResult['score'].'%)';
-                    } else {
-                        // RFC no coincide = BLOQUEAR — es documento de otra persona
-                        foreach ($crossResult['errores'] as $err) {
-                            // Solo mostrar errores de RFC, no de nombre
-                            if (! str_contains($err, 'Nombre NO coincide')) {
-                                $ineParaCruce['errores'][] = '⚠ '.$err;
+                        // Verificar RFC del CIF contra RFC del registro
+                        if ($rfcEsperado !== '') {
+                            $rfcCif = $cif['datos']['rfc'] ?? '';
+                            if ($rfcCif !== '' && $rfcCif === $rfcEsperado) {
+                                $ineParaCruce['hallazgos'][] = 'RFC del CIF coincide con el RFC del registro ✓ (' . $rfcEsperado . ')';
+                            } elseif ($rfcCif !== '' && $rfcCif !== $rfcEsperado) {
+                                $ineParaCruce['errores'][] = '⚠ RFC del CIF (' . $rfcCif . ') NO coincide con el RFC del registro (' . $rfcEsperado . ')';
+                                $ineParaCruce['valida'] = false;
                             }
                         }
-                        $ineParaCruce['valida'] = false;
-                    }
+                    } else {
+                        // ─── PERSONA FÍSICA ───
+                        // Comparar RFC ↔ CURP (deben ser la misma persona)
+                        $crossResult = $crossCheckService->validar(
+                            [
+                                'rfc' => $cif['datos']['rfc'],
+                                'nombre' => $cif['datos']['nombre'] ?? $nombreEsperado,
+                                'codigo_postal' => $cif['datos']['codigo_postal'] ?? null,
+                                'curp' => null,
+                                'tipo_persona' => 'fisica',
+                            ],
+                            [
+                                'curp' => $curpIne,
+                                'nombre' => $nombreIne ?: $nombreEsperado,
+                                'codigo_postal' => null,
+                            ]
+                        );
 
-                    foreach ($crossResult['alertas'] as $alerta) {
-                        $ineParaCruce['hallazgos'][] = $alerta;
+                        if ($crossResult['valido']) {
+                            $ineParaCruce['hallazgos'][] = 'Cross-check CIF ↔ INE: Documentos del mismo proveedor ✓ (Score: '.$crossResult['score'].'%)';
+                        } else {
+                            foreach ($crossResult['errores'] as $err) {
+                                if (! str_contains($err, 'Nombre NO coincide')) {
+                                    $ineParaCruce['errores'][] = '⚠ '.$err;
+                                }
+                            }
+                            $ineParaCruce['valida'] = false;
+                        }
+
+                        foreach ($crossResult['alertas'] as $alerta) {
+                            $ineParaCruce['hallazgos'][] = $alerta;
+                        }
+
+                        // También verificar RFC docs ↔ RFC registro
+                        if ($rfcEsperado !== '') {
+                            $rfcCif = $cif['datos']['rfc'] ?? '';
+                            if ($rfcCif !== '' && $rfcCif !== $rfcEsperado) {
+                                $ineParaCruce['errores'][] = '⚠ RFC del CIF (' . $rfcCif . ') NO coincide con el RFC del registro (' . $rfcEsperado . ')';
+                                $ineParaCruce['valida'] = false;
+                            }
+                        }
                     }
                 }
 
@@ -1019,8 +1048,8 @@ class EmpresaApiController extends Controller
 
             // Si aún no hay texto suficiente
             if (strlen($texto) < 20) {
-                $hallazgos[] = 'PDF escaneado — no se pudo extraer texto';
-                $errores[] = 'Documento escaneado sin texto extraíble — sube un PDF con texto seleccionable';
+                $hallazgos[] = 'PDF escaneado — calidad de imagen insuficiente para lectura';
+                $errores[] = 'El documento escaneado es ilegible. Favor de subir un PDF con mejor calidad de escaneo (mayor resolución, sin manchas ni texto borroso).';
 
                 return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
             }
