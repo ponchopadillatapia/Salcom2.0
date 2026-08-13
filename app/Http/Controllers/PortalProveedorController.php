@@ -1479,6 +1479,15 @@ class PortalProveedorController extends Controller
 
         $rfcProveedor = $this->rfcProveedorSesion($proveedor);
         $pendiente = $this->fiscalPendienteVigente($proveedor);
+
+        // Los temporales solo deben verse en el redirect inmediato tras Validar
+        // (éxito o error). Un GET fresco (F5 o volver a entrar) inicia vacío.
+        $esRetornoDeValidacion = session()->has('fiscal_resultado') || session()->has('errors');
+        if (is_array($pendiente) && ! $esRetornoDeValidacion) {
+            $this->limpiarFiscalPendiente();
+            $pendiente = null;
+        }
+
         $puedeSubir = is_array($pendiente) && ! empty($pendiente['aprobado']);
         $tieneArchivosPendientes = is_array($pendiente)
             && ! empty($pendiente['path_pdf'])
@@ -1498,7 +1507,7 @@ class PortalProveedorController extends Controller
 
     /**
      * Paso 1: validar PDF + XML (sin registrar). Guarda temporales en sesión
-     * también si falla, para que el navegador no “borre” los archivos al recargar.
+     * también si falla, para que sigan visibles tras Validar y se puedan reemplazar.
      */
     public function validarAltaFactura(Request $request, AltaFacturaValidationService $validator)
     {
