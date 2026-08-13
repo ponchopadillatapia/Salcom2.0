@@ -9,6 +9,7 @@ use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
 use App\Models\Factura;
 use App\Models\PagoProveedor;
+use App\Models\Producto;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
 use App\Services\AlertEngineService;
@@ -801,6 +802,97 @@ class PortalProveedorController extends Controller
         }
 
         return back()->with('mensaje', 'Aviso de privacidad aceptado correctamente.');
+    }
+
+    /**
+     * Listado de productos del proveedor autenticado (Mis productos).
+     */
+    public function mostrarMisProductos(Request $request)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $nombreProveedor = $proveedor?->nombre ?: session('proveedor_nombre', '');
+        $proveedorId = (int) session('proveedor_id');
+
+        $base = Producto::query()->where(function ($q) use ($proveedorId, $nombreProveedor) {
+            $tieneFiltro = false;
+
+            if ($proveedorId > 0) {
+                $q->whereHas('preciosProveedor', fn ($pq) => $pq->where('proveedor_id', $proveedorId));
+                $tieneFiltro = true;
+            }
+
+            if ($nombreProveedor !== '') {
+                $metodo = $tieneFiltro ? 'orWhere' : 'where';
+                $q->{$metodo}(function ($q2) use ($nombreProveedor) {
+                    $q2->where('proveedor_tipo', 'proveedor')
+                        ->where('proveedor_nombre', $nombreProveedor);
+                });
+                $tieneFiltro = true;
+            }
+
+            if (! $tieneFiltro) {
+                $q->whereRaw('1 = 0');
+            }
+        });
+
+        $kpis = [
+            'totales' => (clone $base)->count(),
+            'activos' => (clone $base)->where('activo', true)->count(),
+            'inactivos' => (clone $base)->where('activo', false)->count(),
+            'sin_precio' => (clone $base)->where(function ($q) {
+                $q->whereNull('precio')->orWhere('precio', '<=', 0);
+            })->count(),
+        ];
+
+        $query = clone $base;
+
+        $buscar = trim((string) $request->input('q', ''));
+        if ($buscar !== '') {
+            $query->where(function ($q) use ($buscar) {
+                $q->where('codigo', 'like', "%{$buscar}%")
+                    ->orWhere('nombre', 'like', "%{$buscar}%")
+                    ->orWhere('tipo_producto', 'like', "%{$buscar}%")
+                    ->orWhere('familia', 'like', "%{$buscar}%")
+                    ->orWhere('categoria', 'like', "%{$buscar}%");
+            });
+        }
+
+        if ($request->filled('tipo')) {
+            $query->where('tipo_producto', $request->input('tipo'));
+        }
+
+        if ($request->input('activo') === '1') {
+            $query->where('activo', true);
+        } elseif ($request->input('activo') === '0') {
+            $query->where('activo', false);
+        }
+
+        $productos = $query->with(['preciosProveedor' => function ($q) use ($proveedorId) {
+            if ($proveedorId > 0) {
+                $q->where('proveedor_id', $proveedorId);
+            }
+        }])->orderByDesc('created_at')->paginate(30)->withQueryString();
+
+        $tipos = (clone $base)->whereNotNull('tipo_producto')
+            ->where('tipo_producto', '!=', '')
+            ->distinct()
+            ->orderBy('tipo_producto')
+            ->pluck('tipo_producto');
+
+        $filtros = [
+            'q' => $buscar,
+            'tipo' => $request->input('tipo', ''),
+            'activo' => $request->input('activo', ''),
+        ];
+
+        return view('proveedores.mis-productos', compact(
+            'proveedor',
+            'productos',
+            'kpis',
+            'tipos',
+            'filtros',
+            'proveedorId'
+        ));
     }
 
     /**

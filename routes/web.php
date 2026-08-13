@@ -53,6 +53,9 @@ Route::get('/alta-producto/template', [AltaProductoController::class, 'descargar
 Route::post('/alta-producto/subir', [AltaProductoController::class, 'subirExcel'])->name('proveedores.alta-producto.subir')->middleware('auth.proveedor');
 Route::post('/alta-producto/manual', [AltaProductoController::class, 'registroManual'])->name('proveedores.alta-producto.manual')->middleware('auth.proveedor');
 
+// ── Mis Productos ──
+Route::get('/proveedor/mis-productos', [PortalProveedorController::class, 'mostrarMisProductos'])->name('proveedores.mis-productos')->middleware('auth.proveedor');
+
 // ── Inventario y Fiscal ──
 Route::get('/proveedor/inventario', function () {
     return view('proveedores.inventario');
