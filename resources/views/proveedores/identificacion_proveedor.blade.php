@@ -557,20 +557,6 @@
             if (!primero) primero = cuenta;
         }
 
-        // Si tiene cuentas duales (MXN + USD), validar campos USD
-        var clabeUsd = document.getElementById('clabe_usd');
-        if (clabeUsd && !/^[0-9]{18}$/.test(clabeUsd.value || '')) {
-            ok = false;
-            marcarError(clabeUsd, 'La CLABE USD debe tener 18 dígitos');
-            if (!primero) primero = clabeUsd;
-        }
-        var cuentaUsd = document.getElementById('cuenta_usd');
-        if (cuentaUsd && !/^[0-9]{5,20}$/.test(cuentaUsd.value || '')) {
-            ok = false;
-            marcarError(cuentaUsd, 'Solo dígitos (5 a 20)');
-            if (!primero) primero = cuentaUsd;
-        }
-
         var cp = document.getElementById('cp');
         if (cp && !/^[0-9]{5}$/.test(cp.value || '')) {
             ok = false;
