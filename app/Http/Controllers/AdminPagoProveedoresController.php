@@ -22,15 +22,18 @@ class AdminPagoProveedoresController extends Controller
 
         $base = AbonoProveedor::query();
         $kpiCancelados = (clone $base)->where('estatus', 'cancelado')->count();
-        $kpiBorradores = (clone $base)->where('estatus', 'borrador')->count();
-        $kpiGuardados = (clone $base)->where('estatus', 'guardado')->count();
+        $kpiPagados = (clone $base)->whereIn('estatus', ['guardado', 'borrador', 'pagado'])->count();
         $kpiTotales = (clone $base)->count();
+        $kpiFacturasPendientes = \App\Models\Factura::whereIn('estatus', ['pendiente', 'programada'])->count();
+        $kpiMontoPendiente = \App\Models\Factura::whereIn('estatus', ['pendiente', 'programada'])
+            ->selectRaw('SUM(total - monto_pagado) as total')->value('total') ?? 0;
 
         // KPIs de estatus de abono → listado de abonos
-        if ($estatus !== '' && in_array($estatus, ['cancelado', 'borrador', 'guardado'], true)) {
+        if ($estatus !== '' && in_array($estatus, ['cancelado', 'pagado', 'borrador', 'guardado'], true)) {
+            $estatusFiltro = $estatus === 'pagado' ? ['guardado', 'borrador', 'pagado'] : [$estatus];
             $abonos = AbonoProveedor::query()
                 ->with('proveedor')
-                ->where('estatus', $estatus)
+                ->whereIn('estatus', $estatusFiltro)
                 ->when($agente !== '' && isset($tiposAgente[$agente]), fn ($qb) => $qb->where('poliza_key', $agente))
                 ->when($poliza !== '', fn ($qb) => $qb->where('agente', 'like', "%{$poliza}%"))
                 ->when($q !== '', function ($qb) use ($q) {
@@ -55,9 +58,10 @@ class AdminPagoProveedoresController extends Controller
                 'tiposAgente',
                 'estatus',
                 'kpiCancelados',
-                'kpiBorradores',
-                'kpiGuardados',
-                'kpiTotales'
+                'kpiPagados',
+                'kpiTotales',
+                'kpiFacturasPendientes',
+                'kpiMontoPendiente'
             ) + ['proveedoresPendientes' => collect(), 'modo' => 'abonos']);
         }
 
@@ -107,9 +111,10 @@ class AdminPagoProveedoresController extends Controller
             'tiposAgente',
             'estatus',
             'kpiCancelados',
-            'kpiBorradores',
-            'kpiGuardados',
-            'kpiTotales'
+            'kpiPagados',
+            'kpiTotales',
+            'kpiFacturasPendientes',
+            'kpiMontoPendiente'
         ) + ['abonos' => null, 'modo' => 'proveedores']);
     }
 
@@ -175,7 +180,7 @@ class AdminPagoProveedoresController extends Controller
 
         $items = Factura::query()
             ->where('codigo_proveedor', $codigo)
-            ->where('estatus', 'pendiente')
+            ->whereIn('estatus', ['pendiente', 'programada'])
             ->orderByDesc('created_at')
             ->limit(100)
             ->get()
@@ -190,6 +195,7 @@ class AdminPagoProveedoresController extends Controller
                     'id' => $f->id,
                     'fecha' => optional($f->created_at)->format('Y-m-d'),
                     'fecha_fmt' => optional($f->created_at)->format('d/m/Y'),
+                    'hora' => optional($f->created_at)->format('h:i a'),
                     'serie' => $serie !== '' ? $serie : 'FAC',
                     'folio' => $folio,
                     'concepto' => 'Compra',
@@ -236,14 +242,14 @@ class AdminPagoProveedoresController extends Controller
         $facturas = Factura::query()
             ->whereIn('id', $data['factura_ids'])
             ->where('codigo_proveedor', $codigo)
-            ->where('estatus', 'pendiente')
+            ->whereIn('estatus', ['pendiente', 'programada'])
             ->get();
 
         if ($facturas->isEmpty()) {
             return back()->withInput()->with('error', 'Selecciona al menos una factura pendiente válida.');
         }
 
-        $estatus = ($data['accion'] ?? 'guardar') === 'borrador' ? 'borrador' : 'guardado';
+        $estatus = 'pagado';
         $tc = $data['tipo_cambio'] ?? $meta['tipo_cambio_default'] ?? 1;
         if ($tc === null || $tc === '') {
             $tc = 1;
@@ -326,35 +332,31 @@ class AdminPagoProveedoresController extends Controller
         }
 
         // Crear alerta para el proveedor (notificación en tiempo real)
-        if ($estatus === 'guardado') {
-            try {
-                $montoFmt = number_format((float) $abono->monto_pago, 2);
-                \App\Models\Alerta::create([
-                    'tipo' => 'pago_confirmado',
-                    'modulo' => 'abonos',
-                    'destinatario_tipo' => 'proveedor',
-                    'destinatario_id' => $proveedor->id,
-                    'titulo' => 'Pago recibido',
-                    'contenido' => "Salcom registró un abono por \${$montoFmt} " . $meta['moneda'] . " a tus facturas.",
-                    'nivel' => 'info',
-                    'estatus' => 'nueva',
-                    'datos' => [
-                        'abono_id' => $abono->id,
-                        'monto' => (float) $abono->monto_pago,
-                        'moneda' => $meta['moneda'],
-                        'num_facturas' => count($lineas),
-                    ],
-                ]);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('[Abono] No se pudo crear alerta: ' . $e->getMessage());
-            }
+        try {
+            $montoFmt = number_format((float) $abono->monto_pago, 2);
+            \App\Models\Alerta::create([
+                'tipo' => 'pago_confirmado',
+                'modulo' => 'abonos',
+                'destinatario_tipo' => 'proveedor',
+                'destinatario_id' => $proveedor->id,
+                'titulo' => 'Pago recibido',
+                'contenido' => "Salcom registró un pago por \${$montoFmt} " . $meta['moneda'] . " a tus facturas.",
+                'nivel' => 'info',
+                'estatus' => 'nueva',
+                'datos' => [
+                    'abono_id' => $abono->id,
+                    'monto' => (float) $abono->monto_pago,
+                    'moneda' => $meta['moneda'],
+                    'num_facturas' => $facturas->count(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[Abono] No se pudo crear alerta: ' . $e->getMessage());
         }
 
         return redirect()
             ->route('admin.pago-proveedores.show', $abono)
-            ->with('ok', $estatus === 'borrador'
-                ? 'Borrador guardado ('.$abono->etiquetaFolio().').'
-                : 'Abono guardado ('.$abono->etiquetaFolio().').');
+            ->with('ok', 'Pago registrado (' . $abono->etiquetaFolio() . '). Las facturas fueron actualizadas.');
     }
 
     public function show(AbonoProveedor $abono)

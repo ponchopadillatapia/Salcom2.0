@@ -85,18 +85,18 @@
         <div class="inv-metric-val">{{ $kpiCancelados }}</div>
         <div class="inv-metric-sub">Abonos cancelados</div>
     </a>
-    <a class="inv-metric {{ $estatus === 'borrador' ? 'is-active' : '' }}" href="{{ route('admin.pago-proveedores', array_merge($chipBase, ['estatus' => 'borrador'])) }}">
-        <div class="accent" style="background:var(--amber,#d97706)"></div>
-        <div class="inv-metric-label">Borradores</div>
-        <div class="inv-metric-val">{{ $kpiBorradores }}</div>
-        <div class="inv-metric-sub">Sin confirmar</div>
-    </a>
-    <a class="inv-metric {{ $estatus === 'guardado' ? 'is-active' : '' }}" href="{{ route('admin.pago-proveedores', array_merge($chipBase, ['estatus' => 'guardado'])) }}">
+    <a class="inv-metric {{ $estatus === 'pagado' ? 'is-active' : '' }}" href="{{ route('admin.pago-proveedores', array_merge($chipBase, ['estatus' => 'pagado'])) }}">
         <div class="accent" style="background:var(--green,#16a34a)"></div>
-        <div class="inv-metric-label">Guardados</div>
-        <div class="inv-metric-val">{{ $kpiGuardados }}</div>
-        <div class="inv-metric-sub">Abonos listos</div>
+        <div class="inv-metric-label">Pagados</div>
+        <div class="inv-metric-val">{{ $kpiPagados }}</div>
+        <div class="inv-metric-sub">Pagos realizados</div>
     </a>
+    <div class="inv-metric">
+        <div class="accent" style="background:#2563eb"></div>
+        <div class="inv-metric-label">Facturas pendientes</div>
+        <div class="inv-metric-val" style="font-size:20px">${{ number_format((float)$kpiMontoPendiente, 2) }}</div>
+        <div class="inv-metric-sub">{{ $kpiFacturasPendientes }} facturas por pagar</div>
+    </div>
     <a class="inv-metric {{ $estatus === '' ? 'is-active' : '' }}" href="{{ route('admin.pago-proveedores', $chipBase) }}">
         <div class="accent" style="background:var(--purple,#6B3FA0)"></div>
         <div class="inv-metric-label">Totales</div>
@@ -119,30 +119,37 @@
 
 <div class="filters-panel anim" style="animation-delay:.04s">
     <form method="get" class="filter-form">
-        @if($estatus !== '')
-            <input type="hidden" name="estatus" value="{{ $estatus }}">
-        @endif
-        <div class="filter-field">
+        <div class="filter-field" style="flex:none;min-width:auto">
             <label>Cuenta</label>
-            <select name="agente" id="filtro-agente">
-                <option value="">Todas</option>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
                 @foreach($tiposAgente as $key => $t)
-                    <option value="{{ $key }}" @selected($agente === $key)>{{ $t['titulo'] }}</option>
+                    @php
+                        $isActive = $agente === $key;
+                        $color = $t['color'] ?? '#6B3FA0';
+                    @endphp
+                    <label style="display:flex;align-items:center;gap:6px;padding:10px 16px;border:2px solid {{ $isActive ? $color : '#e5e7eb' }};border-radius:10px;cursor:pointer;background:{{ $isActive ? $color.'12' : '#fff' }};transition:all .15s;font-size:13px;font-weight:{{ $isActive ? '700' : '500' }};color:{{ $isActive ? $color : '#374151' }}">
+                        <input type="radio" name="agente" value="{{ $key }}" {{ $isActive ? 'checked' : '' }} style="accent-color:{{ $color }};width:16px;height:16px" onchange="this.form.submit()">
+                        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:{{ $color }}"></span>
+                        {{ $t['titulo'] }}
+                    </label>
                 @endforeach
-            </select>
+                @if($agente !== '')
+                    <label style="display:flex;align-items:center;gap:6px;padding:10px 16px;border:2px solid #e5e7eb;border-radius:10px;cursor:pointer;background:#f9fafb;font-size:13px;color:#6b7280">
+                        <input type="radio" name="agente" value="" onchange="this.form.submit()" style="width:16px;height:16px">
+                        Todas
+                    </label>
+                @endif
+            </div>
         </div>
-        <button type="submit" class="btn-primary">Filtrar</button>
-        @if($filtrosActivos)
-            <a href="{{ route('admin.pago-proveedores') }}" class="btn-outline">Limpiar</a>
-        @endif
+        <input type="hidden" name="estatus" value="{{ $estatus }}">
     </form>
-    @if($filtrosActivos)
-    <div class="active-filters">
-        <span>Filtros activos:</span>
-        @if($agente !== '')<span class="active-tag">Cuenta: {{ $tiposAgente[$agente]['titulo'] ?? $agente }}</span>@endif
-        @if($estatus !== '')<span class="active-tag">{{ ucfirst($estatus) }}</span>@endif
+    {{-- Buscador de proveedor --}}
+    <div style="display:flex;gap:12px;margin-top:14px">
+        <div style="flex:1">
+            <label style="font-size:11px;font-weight:600;color:var(--gray-muted);text-transform:uppercase;display:block;margin-bottom:4px">Buscar</label>
+            <input type="text" id="buscar-proveedor" placeholder="Nombre o código de proveedor..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-family:inherit;outline:none" oninput="filtrarProveedores()">
+        </div>
     </div>
-    @endif
 </div>
 
 @if($modo === 'abonos')
@@ -207,16 +214,21 @@
             $lista = $lista->filter(fn ($r) => str_contains(mb_strtolower($r->nombre), mb_strtolower($q))
                 || str_contains((string) $r->codigo, $q));
         }
-        // Ordenar por fecha/hora de última factura ASC (más viejo arriba, más reciente abajo = estilo WhatsApp)
-        $lista = $lista->sortBy(fn ($r) => $r->ultima_factura_at ? $r->ultima_factura_at->timestamp : 0)->values();
+        // Ordenar más reciente arriba
+        $lista = $lista->sortByDesc(fn ($r) => $r->ultima_factura_at ? $r->ultima_factura_at->timestamp : 0)->values();
         $total = $lista->count();
+        $agrupados = $lista->groupBy(function ($row) {
+            return $row->ultima_factura_at
+                ? $row->ultima_factura_at->format('Y-m-d')
+                : 'sin-fecha';
+        });
     @endphp
 
     <div class="adm-section anim" style="animation-delay:.08s">
         <div class="adm-section-head">
             <div>
-                <h4>Proveedores con facturas pendientes</h4>
-                <div class="adm-section-meta">{{ $total }} resultado{{ $total !== 1 ? 's' : '' }}</div>
+                <h4>Proveedores</h4>
+                <div class="adm-section-meta">{{ $total }} resultado{{ $total !== 1 ? 's' : '' }} · lo más reciente arriba · burbuja roja = sin revisar</div>
             </div>
         </div>
 
@@ -231,48 +243,46 @@
                         <tr>
                             <th>Código</th>
                             <th>Proveedor</th>
-                            <th>Facturas</th>
-                            <th>Monto pendiente</th>
-                            <th>Estatus</th>
-                            <th>Fecha</th>
+                            <th>Facturas pendientes</th>
+                            <th>Monto</th>
                             <th>Hora</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach($lista as $row)
-                            @php
-                                $sinLeer = ($row->notif_sin_leer ?? 0) > 0;
-                                $fecha = $row->ultima_factura_at
-                                    ? $row->ultima_factura_at->locale('es')->isoFormat('DD/MM/YY')
-                                    : '—';
-                                $hora = $row->ultima_factura_at
-                                    ? $row->ultima_factura_at->format('h:i a')
-                                    : '—';
-                            @endphp
-                            <tr class="prov-row {{ $agente === '' ? 'is-disabled' : '' }}" data-codigo="{{ $row->codigo }}">
-                                <td>
-                                    <a class="code-link js-abrir-abono" href="#" data-codigo="{{ $row->codigo }}">{{ $row->codigo }}</a>
-                                </td>
-                                <td style="font-weight:600;">
-                                    {{ $row->nombre }}
-                                    @if($sinLeer)
-                                        <span class="bubble-roja" title="Sin revisar">{{ $row->notif_sin_leer > 9 ? '9+' : $row->notif_sin_leer }}</span>
-                                    @endif
-                                </td>
-                                <td style="text-align:center">{{ $row->num_facturas }}</td>
-                                <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
-                                <td>
-                                    @if($row->expediente['ok'])
-                                        <span class="pill ok">OK</span>
+                        @foreach($agrupados as $fechaKey => $rows)
+                            <tr class="date-row">
+                                <td colspan="5">
+                                    @if($fechaKey === 'sin-fecha')
+                                        Sin fecha
                                     @else
-                                        <span class="pill warn">Pendiente</span>
+                                        {{ \Illuminate\Support\Carbon::parse($fechaKey)->locale('es')->isoFormat('DD [de] MMMM YYYY') }}
                                     @endif
-                                </td>
-                                <td style="font-size:12px;color:var(--gray-muted)">{{ $fecha }}</td>
-                                <td style="text-align:right;">
-                                    <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}">{{ $hora }}</span>
                                 </td>
                             </tr>
+                            @foreach($rows as $row)
+                                @php
+                                    $sinLeer = ($row->notif_sin_leer ?? 0) > 0;
+                                    $hora = $row->ultima_factura_at
+                                        ? $row->ultima_factura_at->format('h:i a')
+                                        : '—';
+                                @endphp
+                                <tr class="prov-row {{ $agente === '' ? 'is-disabled' : '' }}" data-codigo="{{ $row->codigo }}">
+                                    <td>
+                                        <a class="code-link js-abrir-abono" href="#" data-codigo="{{ $row->codigo }}">{{ $row->codigo }}</a>
+                                    </td>
+                                    <td style="font-weight:600;">
+                                        {{ $row->nombre }}
+                                        @if($sinLeer)
+                                            <span class="bubble-roja" title="Sin revisar">{{ $row->notif_sin_leer > 9 ? '9+' : $row->notif_sin_leer }}</span>
+                                        @endif
+                                    </td>
+                                    <td style="text-align:center">{{ $row->num_facturas }}</td>
+                                    <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
+                                    <td style="text-align:right;">
+                                        <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}">{{ $hora }}</span>
+                                    </td>
+                                </tr>
+                            @endforeach
                         @endforeach
                     </tbody>
                 </table>
@@ -285,10 +295,10 @@
 @push('scripts')
 <script>
 (function () {
-    var sel = document.getElementById('filtro-agente');
-    if (!sel) return;
-
-    function agenteKey() { return (sel.value || '').trim(); }
+    function agenteKey() {
+        var checked = document.querySelector('input[name="agente"]:checked');
+        return checked ? (checked.value || '').trim() : '';
+    }
 
     function syncRows() {
         var on = !!agenteKey();
@@ -301,15 +311,14 @@
         var key = agenteKey();
         if (!key) {
             alert('Selecciona una Cuenta antes de abrir el proveedor.');
-            sel.focus();
             return;
         }
-        // Directo al formulario (sin pantalla de 4 tarjetas)
         window.location.href = '/admin/pago-proveedores/nuevo/' + encodeURIComponent(key)
             + '?codigo=' + encodeURIComponent(codigo);
     }
 
-    sel.addEventListener('change', syncRows);
+    // Sync al cargar
+    syncRows();
 
     document.querySelectorAll('#tbl-proveedores-abono tr.prov-row').forEach(function (tr) {
         tr.addEventListener('click', function (e) {
@@ -324,7 +333,35 @@
             abrir(a.getAttribute('data-codigo'));
         });
     });
-    syncRows();
 })();
+
+// Filtrar proveedores por nombre o código
+function filtrarProveedores() {
+    var input = document.getElementById('buscar-proveedor');
+    var val = (input.value || '').toLowerCase().trim();
+    var rows = document.querySelectorAll('#tbl-proveedores-abono tr.prov-row');
+    var dateRows = document.querySelectorAll('#tbl-proveedores-abono tr.date-row');
+
+    rows.forEach(function(tr) {
+        var codigo = (tr.getAttribute('data-codigo') || '').toLowerCase();
+        var nombre = (tr.children[1] ? tr.children[1].textContent : '').toLowerCase();
+        var match = val === '' || codigo.indexOf(val) !== -1 || nombre.indexOf(val) !== -1;
+        tr.style.display = match ? '' : 'none';
+    });
+
+    // Ocultar separadores de fecha si no tienen filas visibles debajo
+    dateRows.forEach(function(dr) {
+        var next = dr.nextElementSibling;
+        var hasVisible = false;
+        while (next && !next.classList.contains('date-row')) {
+            if (next.classList.contains('prov-row') && next.style.display !== 'none') {
+                hasVisible = true;
+                break;
+            }
+            next = next.nextElementSibling;
+        }
+        dr.style.display = hasVisible ? '' : 'none';
+    });
+}
 </script>
 @endpush

@@ -139,6 +139,7 @@
                         <th>Total</th>
                         <th>Saldo</th>
                         <th>Status</th>
+                        <th>Hora</th>
                         <th style="text-align:right;">Docs</th>
                     </tr>
                 </thead>
@@ -191,6 +192,7 @@
                                     <span class="pill ok">OK</span>
                                 @endforelse
                             </td>
+                            <td style="font-size:11px;color:var(--gray-muted);white-space:nowrap">{{ $f->created_at?->format('h:i a') ?? '—' }}</td>
                             <td>
                                 <div class="actions-cell">
                                     <button type="button" class="btn-ver" onclick="toggleDocs({{ $f->id }})">
@@ -200,7 +202,7 @@
                             </td>
                         </tr>
                         <tr>
-                            <td colspan="12" style="padding:0;border:none;">
+                            <td colspan="13" style="padding:0;border:none;">
                                 <div class="doc-panel" id="docs-{{ $f->id }}">
                                     <h5>Documentos adjuntos — {{ $f->folio_display }}</h5>
                                     <div class="doc-list">

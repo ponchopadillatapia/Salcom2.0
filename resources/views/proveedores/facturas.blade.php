@@ -40,7 +40,7 @@
     .empty { text-align: center; padding: 48px 20px; color: var(--gray-muted); font-size: 14px; }
     .pagination-wrap { padding: 16px; display: flex; justify-content: center; }
 
-    .inv-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+    .inv-metrics{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;margin-bottom:24px}
     .inv-metric{background:var(--white);border:1px solid var(--border-light, var(--border));border-radius:14px;padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block}
     .inv-metric:hover{border-color:var(--purple-mid,#c4b5e0)}
     .inv-metric .accent{position:absolute;top:0;left:0;width:4px;height:100%;border-radius:14px 0 0 14px}
@@ -90,29 +90,35 @@
 @endif
 
 <div class="inv-metrics">
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['wiese_estatus' => 'cancelada'])) }}">
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'rechazada'])) }}">
         <div class="accent" style="background:var(--red, #dc2626)"></div>
         <div class="inv-metric-label">Canceladas</div>
-        <div class="inv-metric-val">{{ $wk['canceladas'] }}</div>
+        <div class="inv-metric-val" id="kpi-canceladas">{{ $kpis['rechazadas'] }}</div>
         <div class="inv-metric-sub">No vigentes</div>
     </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['wiese_estatus' => 'pendiente'])) }}">
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pendiente'])) }}">
         <div class="accent" style="background:var(--amber, #d97706)"></div>
         <div class="inv-metric-label">Pendientes</div>
-        <div class="inv-metric-val">{{ $wk['pendientes'] }}</div>
+        <div class="inv-metric-val" id="kpi-pendientes">{{ $kpis['pendientes'] }}</div>
         <div class="inv-metric-sub">Por pagar</div>
     </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['wiese_estatus' => 'pagada'])) }}">
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'abonada'])) }}">
+        <div class="accent" style="background:#ea580c"></div>
+        <div class="inv-metric-label">Abonadas</div>
+        <div class="inv-metric-val" id="kpi-abonadas">{{ $kpis['abonadas'] }}</div>
+        <div class="inv-metric-sub">Pago parcial</div>
+    </a>
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pagada'])) }}">
         <div class="accent" style="background:var(--green, #16a34a)"></div>
         <div class="inv-metric-label">Pagadas</div>
-        <div class="inv-metric-val">{{ $wk['pagadas'] }}</div>
+        <div class="inv-metric-val" id="kpi-pagadas">{{ $kpis['pagadas'] }}</div>
         <div class="inv-metric-sub">Ya liquidadas</div>
     </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, [])) }}">
+    <a class="inv-metric" href="{{ route('proveedores.facturas') }}">
         <div class="accent" style="background:var(--purple, #6B3FA0)"></div>
         <div class="inv-metric-label">Facturas totales</div>
-        <div class="inv-metric-val">{{ $wk['totales'] }}</div>
-        <div class="inv-metric-sub">En el período</div>
+        <div class="inv-metric-val" id="kpi-totales">{{ $kpis['totales'] }}</div>
+        <div class="inv-metric-sub">Todas</div>
     </a>
 </div>
 
@@ -145,12 +151,33 @@
                     <th class="sortable">Fecha</th>
                     <th>Folio</th>
                     <th>Monto</th>
+                    <th>Abonado</th>
                     <th>Estatus</th>
+                    <th>Último abono</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($facturas as $f)
-                    <tr>
+                    @php
+                        $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
+                        $moneda = strtoupper($vd['moneda'] ?? $vd['cfdi']['moneda'] ?? 'MXN');
+                        $saldo = round((float)$f->total - (float)($f->monto_pagado ?? 0), 2);
+                    @endphp
+                    <tr class="fac-row" style="cursor:pointer"
+                        data-folio="{{ $f->folio_cfdi ?: '—' }}"
+                        data-uuid="{{ $f->uuid_cfdi ?? '—' }}"
+                        data-fecha="{{ $f->created_at?->format('d/m/Y') ?? '—' }}"
+                        data-vencimiento="{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}"
+                        data-monto="${{ number_format((float)$f->monto, 2) }}"
+                        data-iva="${{ number_format((float)$f->monto_iva, 2) }}"
+                        data-total="${{ number_format((float)$f->total, 2) }}"
+                        data-pagado="${{ number_format((float)($f->monto_pagado ?? 0), 2) }}"
+                        data-saldo="${{ number_format($saldo, 2) }}"
+                        data-moneda="{{ $moneda }}"
+                        data-estatus="{{ $f->estatus }}"
+                        data-notas="{{ $f->notas ?? '' }}"
+                        data-pdf="{{ $f->archivo_pdf ? asset('storage/'.$f->archivo_pdf) : '' }}"
+                        data-xml="{{ $f->archivo_xml ? asset('storage/'.$f->archivo_xml) : '' }}">
                         <td>{{ $f->created_at?->format('d/m/Y') ?? '—' }}</td>
                         <td>
                             <span class="link">{{ $f->folio_cfdi ?: '—' }}</span>
@@ -159,8 +186,20 @@
                             @endif
                         </td>
                         <td class="monto">${{ number_format((float) $f->total, 2) }}</td>
+                        <td style="font-size:12px;color:{{ (float)($f->monto_pagado ?? 0) > 0 ? 'var(--green)' : 'var(--gray-muted)' }};font-weight:600">${{ number_format((float)($f->monto_pagado ?? 0), 2) }}</td>
                         <td>
-                            <span class="pill {{ $f->estatus }}">{{ $f->estatus }}</span>
+                            @if($f->estatus === 'pendiente' && (float)($f->monto_pagado ?? 0) > 0)
+                                <span class="pill" style="background:#fff7ed;color:#ea580c">Abonada</span>
+                            @else
+                                <span class="pill {{ $f->estatus }}">{{ $f->estatus }}</span>
+                            @endif
+                        </td>
+                        <td style="font-size:11px;color:var(--gray-muted)">
+                            @if((float)($f->monto_pagado ?? 0) > 0)
+                                {{ $f->updated_at?->format('d/m/Y h:i a') ?? '—' }}
+                            @else
+                                —
+                            @endif
                         </td>
                     </tr>
                 @endforeach
@@ -268,5 +307,67 @@ function fila(label, valor) {
 function cerrarModal() {
     document.getElementById('modalFactura').style.display = 'none';
 }
+
+// Click en facturas Salcom (tabla principal)
+document.querySelectorAll('#tablaFacturas .fac-row').forEach(function(tr) {
+    tr.addEventListener('click', function() {
+        var d = tr.dataset;
+        var pillClass = d.estatus === 'pagada' ? 'pagada' : (d.estatus === 'programada' ? 'pagada' : 'pendiente');
+        var html = '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
+        html += fila('Folio', d.folio);
+        html += fila('UUID', '<span style="font-size:11px;word-break:break-all;">' + d.uuid + '</span>');
+        html += fila('Fecha emisión', d.fecha);
+        html += fila('Vencimiento', d.vencimiento);
+        html += fila('Moneda', d.moneda);
+        html += fila('Subtotal', d.monto);
+        html += fila('IVA', d.iva);
+        html += fila('Total', '<strong>' + d.total + '</strong>');
+        html += fila('Pagado', d.pagado);
+        html += fila('Saldo pendiente', '<strong style="color:var(--purple)">' + d.saldo + '</strong>');
+        html += fila('Estatus', '<span class="pill ' + pillClass + '">' + d.estatus + '</span>');
+        if (d.notas) html += fila('Notas', d.notas);
+        html += '</table>';
+
+        // Botones de archivos
+        html += '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">';
+        if (d.pdf) html += '<a href="' + d.pdf + '" target="_blank" style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:600;color:var(--purple);text-decoration:none;">Ver PDF</a>';
+        else html += '<span style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--gray-muted);">PDF (no adjunto)</span>';
+        if (d.xml) html += '<a href="' + d.xml + '" target="_blank" style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;font-weight:600;color:var(--purple);text-decoration:none;">Ver XML</a>';
+        else html += '<span style="padding:6px 12px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--gray-muted);">XML (no adjunto)</span>';
+        html += '</div>';
+
+        document.getElementById('modalContenido').innerHTML = html;
+        document.getElementById('modalFactura').style.display = 'flex';
+    });
+});
+
+// Polling KPIs cada 3 segundos (actualización en tiempo real)
+(function(){
+    var kpiUrl = '{{ route("proveedores.facturas.kpis") }}';
+    var lastPendientes = {{ $kpis['pendientes'] }};
+    var lastPagadas = {{ $kpis['pagadas'] }};
+
+    function refreshKpis() {
+        fetch(kpiUrl, {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}})
+            .then(function(r){return r.json()})
+            .then(function(data){
+                var el;
+                el = document.getElementById('kpi-canceladas'); if(el) el.textContent = data.rechazadas;
+                el = document.getElementById('kpi-pendientes'); if(el) el.textContent = data.pendientes;
+                el = document.getElementById('kpi-abonadas'); if(el) el.textContent = data.abonadas;
+                el = document.getElementById('kpi-pagadas'); if(el) el.textContent = data.pagadas;
+                el = document.getElementById('kpi-totales'); if(el) el.textContent = data.totales;
+
+                // Si cambió algo, recargar la página para mostrar estatus actualizados
+                if (data.pendientes !== lastPendientes || data.pagadas !== lastPagadas) {
+                    lastPendientes = data.pendientes;
+                    lastPagadas = data.pagadas;
+                    window.location.reload();
+                }
+            })
+            .catch(function(){});
+    }
+    setInterval(refreshKpis, 1500);
+})();
 </script>
 @endpush
