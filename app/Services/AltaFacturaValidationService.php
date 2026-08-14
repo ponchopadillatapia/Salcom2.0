@@ -71,6 +71,7 @@ class AltaFacturaValidationService
             'moneda' => null,
             'producto' => null,
             'subtotal' => 0.0,
+            'descuento' => 0.0,
             'iva' => 0.0,
             'retencion_iva' => 0.0,
             'retencion_isr' => 0.0,
@@ -140,14 +141,14 @@ class AltaFacturaValidationService
             $advertencias[] = 'No está configurado SALCOM_RFC; se omitió la validación estricta del receptor.';
         }
 
-        // Totales internos del CFDI (solo XML)
+        // Totales SAT: Total = SubTotal − Descuento + IVA − retenciones
         $tol = (float) config('facturas.tolerancia_monto', 1);
-        $esperado = round($datos['subtotal'] + $datos['iva'] - $datos['retencion_iva'] - $datos['retencion_isr'], 2);
-        if (abs($esperado - $datos['total']) > $tol && $datos['total'] > 0) {
-            if (abs($datos['subtotal'] + $datos['iva'] - $datos['total']) > $tol
-                && abs($esperado - $datos['total']) > $tol) {
-                $advertencias[] = 'Los totales del CFDI no cuadran exactamente con subtotal + IVA − retenciones (puede ser redondeo).';
-            }
+        $esperado = round(
+            $datos['subtotal'] - $datos['descuento'] + $datos['iva'] - $datos['retencion_iva'] - $datos['retencion_isr'],
+            2
+        );
+        if ($datos['total'] > 0 && abs($esperado - $datos['total']) > $tol) {
+            $advertencias[] = 'Los totales del CFDI no cuadran exactamente con subtotal − descuento + IVA − retenciones (puede ser redondeo).';
         }
         if ($datos['subtotal'] <= 0 && $datos['total'] <= 0) {
             $errores[] = 'El CFDI no tiene montos válidos (SubTotal/Total).';
@@ -221,6 +222,7 @@ class AltaFacturaValidationService
      *   rfc_receptor: ?string,
      *   regimen_fiscal: ?string,
      *   subtotal: float,
+     *   descuento: float,
      *   total: float,
      *   iva: float,
      *   retencion_iva: float,
@@ -263,6 +265,7 @@ class AltaFacturaValidationService
             'rfc_receptor' => null,
             'regimen_fiscal' => null,
             'subtotal' => (float) ($attrs['SubTotal'] ?? 0),
+            'descuento' => (float) ($attrs['Descuento'] ?? 0),
             'total' => (float) ($attrs['Total'] ?? 0),
             'iva' => 0.0,
             'retencion_iva' => 0.0,
@@ -332,6 +335,7 @@ class AltaFacturaValidationService
         $datos['uso_cfdi'] = $cfdi['uso_cfdi'];
         $datos['moneda'] = $cfdi['moneda'];
         $datos['subtotal'] = $cfdi['subtotal'];
+        $datos['descuento'] = $cfdi['descuento'] ?? 0.0;
         $datos['total'] = $cfdi['total'];
         $datos['iva'] = $cfdi['iva'];
         $datos['retencion_iva'] = $cfdi['retencion_iva'];
@@ -357,7 +361,9 @@ class AltaFacturaValidationService
     private function extraerConceptosConImpuestos(SimpleXMLElement $xml): array
     {
         $conceptos = [];
-        $nodos = $xml->xpath("//*[local-name()='Concepto']") ?: [];
+        // Solo cfdi:Concepto bajo Comprobante/Conceptos. Un //Concepto también
+        // captura fx:Concepto de la addenda (ClaveProdServ como hijo, no atributo).
+        $nodos = $xml->xpath("/*[local-name()='Comprobante']/*[local-name()='Conceptos']/*[local-name()='Concepto']") ?: [];
 
         foreach ($nodos as $nodo) {
             $attrs = $nodo->attributes();
@@ -729,6 +735,13 @@ class AltaFacturaValidationService
             $codigo = $datos['regimen_fiscal'] ?? '_default';
             $regla = $porRegimen[$codigo] ?? ($porRegimen['_default'] ?? ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false]);
             $origen = 'regimen_'.$datos['regimen_fiscal'];
+
+            // 612: IVA 10.67% + ISR 10% aplica a honorarios/servicios, no a
+            // enajenación de mercancías (p. ej. pintura, refacciones).
+            if ($codigo === '612' && $this->conceptosSonSoloMercancias($datos['conceptos_detalle'] ?? [])) {
+                $regla = ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false];
+                $origen = 'regimen_612_mercancias';
+            }
         }
 
         // Base fiscal: en flete el 4% (e ISR si aplica) va solo sobre conceptos
@@ -833,6 +846,36 @@ class AltaFacturaValidationService
                 ? sprintf('Retenciones OK (IVA %.2f%% / ISR %.2f%% · %s)', $pctIva, $pctIsr, $origen)
                 : 'Sin retención requerida';
         }
+    }
+
+    /**
+     * True si todos los conceptos son bienes SAT (no servicios 70–95 ni 01010101).
+     *
+     * @param  list<array<string, mixed>>  $conceptosDetalle
+     */
+    private function conceptosSonSoloMercancias(array $conceptosDetalle): bool
+    {
+        if ($conceptosDetalle === []) {
+            return false;
+        }
+
+        foreach ($conceptosDetalle as $concepto) {
+            $clave = trim((string) ($concepto['clave_prod_serv'] ?? ''));
+            if (! $this->claveProdServEsMercancia($clave)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Catálogo SAT / UNSPSC: segmentos 10–56 y 60–69 son bienes;
+     * 70–95 son servicios; 01010101 es genérico (no se trata como mercancía).
+     */
+    private function claveProdServEsMercancia(string $clave): bool
+    {
+        return (bool) preg_match('/^(1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-6]|6[0-9])\d{6}$/', $clave);
     }
 
     /**
