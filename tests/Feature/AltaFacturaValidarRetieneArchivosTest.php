@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Factura;
 use App\Models\ProveedorUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -143,5 +144,93 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
         $this->assertNull(session('fiscal_pendiente'));
         $this->assertFalse(Storage::disk('local')->exists($pendiente['path_pdf']));
         $this->assertFalse(Storage::disk('local')->exists($pendiente['path_xml']));
+    }
+
+    public function test_subir_exige_plazo_de_dias(): void
+    {
+        Storage::fake('local');
+
+        $proveedor = $this->crearProveedor();
+        $this->withSession([
+            'proveedor_id' => $proveedor->id,
+            'fiscal_pendiente' => $this->pendienteAprobado($proveedor),
+        ])->from(route('proveedores.fiscal'))
+            ->post(route('proveedores.fiscal.subir'))
+            ->assertRedirect(route('proveedores.fiscal'))
+            ->assertSessionHasErrors('dias_plazo');
+    }
+
+    public function test_subir_con_plazo_120_guarda_vencimiento(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $proveedor = $this->crearProveedor();
+        $this->withSession([
+            'proveedor_id' => $proveedor->id,
+            'fiscal_pendiente' => $this->pendienteAprobado($proveedor),
+        ])->post(route('proveedores.fiscal.subir'), [
+            'dias_plazo' => 120,
+        ])->assertRedirect();
+
+        $factura = Factura::first();
+        $this->assertNotNull($factura);
+        $this->assertSame(120, (int) $factura->dias_plazo);
+        $this->assertSame(now()->addDays(120)->toDateString(), $factura->fecha_vencimiento?->toDateString());
+        $this->assertSame(120, (int) ($factura->validacion_detalle['dias_plazo'] ?? 0));
+    }
+
+    public function test_vista_muestra_plazos_cuando_esta_aprobada(): void
+    {
+        Storage::fake('local');
+
+        $proveedor = $this->crearProveedor();
+        $this->withSession([
+            'proveedor_id' => $proveedor->id,
+            'fiscal_pendiente' => $this->pendienteAprobado($proveedor),
+            'fiscal_resultado' => ['aprobado' => true, 'mensaje' => 'ok'],
+        ])->get(route('proveedores.fiscal'))
+            ->assertOk()
+            ->assertViewHas('puedeSubir', true)
+            ->assertSee('Plazo de pago')
+            ->assertSee('60 días')
+            ->assertSee('120 días')
+            ->assertSee('320 días');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function pendienteAprobado(ProveedorUser $proveedor): array
+    {
+        $token = bin2hex(random_bytes(8));
+        $dir = 'temp-fiscal/'.$proveedor->id.'/'.$token;
+        Storage::disk('local')->put($dir.'/factura.pdf', '%PDF-1.4 demo');
+        Storage::disk('local')->put($dir.'/factura.xml', '<?xml version="1.0"?><cfdi:Comprobante/>');
+
+        return [
+            'token' => $token,
+            'proveedor_id' => $proveedor->id,
+            'aprobado' => true,
+            'path_pdf' => $dir.'/factura.pdf',
+            'path_xml' => $dir.'/factura.xml',
+            'path_oc' => null,
+            'nombre_pdf' => 'factura.pdf',
+            'nombre_xml' => 'factura.xml',
+            'es_fletera' => false,
+            'resultado' => [
+                'aprobado' => true,
+                'estatus' => 'aprobada',
+                'datos' => [
+                    'uuid' => '11111111-1111-1111-1111-111111111111',
+                    'serie' => 'A',
+                    'folio' => '99',
+                    'total' => 1500,
+                    'subtotal' => 1293.10,
+                    'iva' => 206.90,
+                ],
+            ],
+            'expires_at' => now()->addMinutes(30)->timestamp,
+        ];
     }
 }

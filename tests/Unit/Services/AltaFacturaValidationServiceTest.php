@@ -637,4 +637,142 @@ XML;
         $this->assertTrue($result['datos']['tiene_concepto_comision']);
         $this->assertFalse($result['datos']['es_persona_fisica']);
     }
+
+    public function test_addenda_fx_concepto_no_rompe_clave_prod_serv(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $fecha = now()->format('Y-m-d').'T10:00:00';
+        $uuid = 'CE24298D-C424-4B43-BC16-DEBCB3193060';
+        $xml = <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+    xmlns:fx="http://www.fact.com.mx/schema/fx"
+    Version="4.0" Serie="531311" Folio="29255" Fecha="{$fecha}"
+    SubTotal="92818.10" Descuento="12695.52" Total="92942.20" TipoDeComprobante="I" Moneda="MXN"
+    MetodoPago="PPD" FormaPago="99">
+  <cfdi:Emisor Rfc="BIMR760625ES8" Nombre="ROSA ARACELI BRISENO MUNOZ" RegimenFiscal="612"/>
+  <cfdi:Receptor Rfc="EKU9003173C9" Nombre="INDUSTRIAS SALCOM" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="31211501" NoIdentificacion="0203321" Cantidad="20" ClaveUnidad="H87" Descripcion="FLASH COAT NF BLANCO" ValorUnitario="4581.03" Importe="91620.69" Descuento="11724.14" ObjetoImp="02">
+      <cfdi:Impuestos>
+        <cfdi:Traslados>
+          <cfdi:Traslado Base="79896.55" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="12783.45"/>
+        </cfdi:Traslados>
+      </cfdi:Impuestos>
+    </cfdi:Concepto>
+    <cfdi:Concepto ClaveProdServ="31211906" NoIdentificacion="EX75645" Cantidad="20" ClaveUnidad="H87" Descripcion="RODILLO 4 NYLON COMPLETO" ValorUnitario="49.57" Importe="991.38" Descuento="798.28" ObjetoImp="02">
+      <cfdi:Impuestos>
+        <cfdi:Traslados>
+          <cfdi:Traslado Base="193.10" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="30.90"/>
+        </cfdi:Traslados>
+      </cfdi:Impuestos>
+    </cfdi:Concepto>
+    <cfdi:Concepto ClaveProdServ="31211800" NoIdentificacion="0467305" Cantidad="1" ClaveUnidad="H87" Descripcion="COMEX THINNER ESTANDAR EPH" ValorUnitario="206.03" Importe="206.03" Descuento="173.10" ObjetoImp="02">
+      <cfdi:Impuestos>
+        <cfdi:Traslados>
+          <cfdi:Traslado Base="32.93" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="5.27"/>
+        </cfdi:Traslados>
+      </cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="12819.62">
+    <cfdi:Traslados>
+      <cfdi:Traslado Base="80122.58" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="12819.62"/>
+    </cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital UUID="{$uuid}" FechaTimbrado="{$fecha}" RfcProvCertif="SAT970701NN3" SelloCFD="x" NoCertificadoSAT="1" SelloSAT="y"/>
+  </cfdi:Complemento>
+  <cfdi:Addenda>
+    <fx:FactDocMX>
+      <fx:Conceptos>
+        <fx:Concepto>
+          <fx:ClaveProdServ>31211501</fx:ClaveProdServ>
+          <fx:Descripcion>FLASH COAT NF BLANCO</fx:Descripcion>
+        </fx:Concepto>
+        <fx:Concepto>
+          <fx:ClaveProdServ>31211906</fx:ClaveProdServ>
+          <fx:Descripcion>RODILLO 4 NYLON COMPLETO</fx:Descripcion>
+        </fx:Concepto>
+        <fx:Concepto>
+          <fx:ClaveProdServ>31211800</fx:ClaveProdServ>
+          <fx:Descripcion>COMEX THINNER ESTANDAR EPH</fx:Descripcion>
+        </fx:Concepto>
+      </fx:Conceptos>
+    </fx:FactDocMX>
+  </cfdi:Addenda>
+</cfdi:Comprobante>
+XML;
+
+        $opts = [
+            'rfc_emisor' => 'BIMR760625ES8',
+            'rfc_receptor' => 'EKU9003173C9',
+            'total' => '92942.20',
+            'uuid' => $uuid,
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($xml, false, 'BIMR760625ES8', 'PDF', null);
+
+        $this->assertTrue($result['checklist']['claves_sat']['ok'], implode(' | ', $result['errores']));
+        $this->assertCount(3, $result['datos']['conceptos']);
+        $this->assertSame(['31211501', '31211906', '31211800'], $result['datos']['claves_prod_serv']);
+        $this->assertFalse(collect($result['errores'])->contains(
+            fn ($e) => str_contains((string) $e, 'ClaveProdServ')
+        ));
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+        $this->assertTrue($result['checklist']['retenciones']['ok']);
+        $this->assertSame('regimen_612_mercancias', $result['datos']['retencion_esperada']['origen']);
+        $this->assertSame(12695.52, (float) $result['datos']['descuento']);
+        $this->assertFalse(collect($result['advertencias'])->contains(
+            fn ($a) => str_contains((string) $a, 'totales del CFDI no cuadran')
+        ));
+    }
+
+    public function test_612_mercancias_sin_retenciones_aprueba(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'rfc_emisor' => 'BIMR760625ES8',
+            'regimen' => '612',
+            'clave' => '31211501',
+            'descripcion' => 'FLASH COAT NF BLANCO',
+            'ret_iva' => null,
+            'ret_isr' => null,
+            'total' => '1160.00',
+            'uuid' => 'CE24298D-C424-4B43-BC16-DEBCB3193061',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'BIMR760625ES8', 'PDF', null);
+
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+        $this->assertTrue($result['checklist']['retenciones']['ok']);
+        $this->assertSame('regimen_612_mercancias', $result['datos']['retencion_esperada']['origen']);
+        $this->assertFalse((bool) $result['datos']['retencion_esperada']['requiere']);
+    }
+
+    public function test_612_servicios_sin_retenciones_rechaza(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'rfc_emisor' => 'BIMR760625ES8',
+            'regimen' => '612',
+            'clave' => '80101500',
+            'descripcion' => 'Servicio profesional de consultoria',
+            'ret_iva' => null,
+            'ret_isr' => null,
+            'total' => '1160.00',
+            'uuid' => 'CE24298D-C424-4B43-BC16-DEBCB3193062',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'BIMR760625ES8', 'PDF', null);
+
+        $this->assertFalse($result['aprobado']);
+        $this->assertFalse($result['checklist']['retenciones']['ok']);
+        $this->assertTrue(collect($result['errores'])->contains(
+            fn ($e) => str_contains((string) $e, 'requiere retenciones')
+        ));
+    }
 }

@@ -38,6 +38,7 @@ class Factura extends Model
         'monto_pagado',
         'estatus',
         'fecha_vencimiento',
+        'dias_plazo',
         'archivo_pdf',
         'archivo_xml',
         'archivo_oc',
@@ -54,6 +55,7 @@ class Factura extends Model
         'monto_pagado' => 'decimal:2',
         'es_fletera' => 'boolean',
         'fecha_vencimiento' => 'date',
+        'dias_plazo' => 'integer',
         'validacion_detalle' => 'array',
     ];
 

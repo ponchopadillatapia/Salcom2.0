@@ -171,6 +171,7 @@ return [
             '601' => ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false],
             '603' => ['iva' => 0.0, 'isr' => 0.0, 'requiere_retencion' => false],
             // 626 se resuelve en código (PF vs PM)
+            // 612 honorarios (servicios): IVA 10.67% + ISR 10%. Mercancías: sin retención (ver servicio).
             '612' => ['iva' => 0.106667, 'isr' => 0.10, 'requiere_retencion' => true],
             '621' => ['iva' => 0.106667, 'isr' => 0.0125, 'requiere_retencion' => true],
             '625' => ['iva' => 0.106667, 'isr' => 0.01, 'requiere_retencion' => true],
@@ -182,6 +183,15 @@ return [
     'tolerancia_monto' => 1.00,
 
     'dias_vencimiento' => 30,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Plazos de pago (portal proveedor, post-validación)
+    |--------------------------------------------------------------------------
+    | El proveedor elige uno después de que la factura queda aprobada y
+    | antes de pulsar Subir. Define fecha_vencimiento = hoy + N días.
+    */
+    'plazos_dias' => [60, 120, 320],
 
     /*
     |--------------------------------------------------------------------------
