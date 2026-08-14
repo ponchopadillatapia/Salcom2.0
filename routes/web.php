@@ -26,6 +26,7 @@ Route::put('/proveedor/actualizacion', [AuthProveedorController::class, 'guardar
 Route::get('/portal-proveedor', [PortalProveedorController::class, 'mostrarPortal'])->name('proveedores.portal')->middleware('auth.proveedor');
 Route::get('/dashboard-proveedor', [PortalProveedorController::class, 'mostrarDashboard'])->name('proveedores.dashboard')->middleware('auth.proveedor');
 Route::get('/proveedor/facturas', [PortalProveedorController::class, 'mostrarFacturas'])->name('proveedores.facturas')->middleware('auth.proveedor');
+Route::get('/proveedor/facturas/kpis-json', [PortalProveedorController::class, 'facturasKpisJson'])->name('proveedores.facturas.kpis')->middleware('auth.proveedor');
 Route::get('/proveedor/facturas/excel', [PortalProveedorController::class, 'facturasExcel'])->name('proveedores.facturas.excel')->middleware('auth.proveedor');
 Route::get('/onboarding', [PortalProveedorController::class, 'mostrarOnboarding'])->name('proveedores.onboarding')->middleware('auth.proveedor');
 Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->name('proveedores.business')->middleware('auth.proveedor');

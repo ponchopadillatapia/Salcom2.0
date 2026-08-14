@@ -119,30 +119,18 @@
     <div class="pag-alert err anim">{{ session('error') }}</div>
 @endif
 
-<div class="inv-metrics anim">
-    <a class="inv-metric {{ $expediente === 'sin_revisar' ? 'is-active' : '' }}" href="{{ route('admin.pagos', array_merge($chipBase, ['expediente' => 'sin_revisar'])) }}">
+<div class="inv-metrics anim" style="grid-template-columns:repeat(2,1fr)">
+    <a class="inv-metric {{ $expediente === 'sin_revisar' ? 'is-active' : '' }}" href="{{ route('admin.pagos', ['expediente' => 'sin_revisar']) }}">
         <div class="accent" style="background:var(--red,#dc2626)"></div>
         <div class="inv-metric-label">Sin revisar</div>
         <div class="inv-metric-val">{{ $kpiSinRevisar }}</div>
-        <div class="inv-metric-sub">Nuevas notifs</div>
+        <div class="inv-metric-sub">Nuevas facturas</div>
     </a>
-    <a class="inv-metric {{ $expediente === 'pendiente' ? 'is-active' : '' }}" href="{{ route('admin.pagos', array_merge($chipBase, ['expediente' => 'pendiente'])) }}">
-        <div class="accent" style="background:var(--amber,#d97706)"></div>
-        <div class="inv-metric-label">Exp. pendiente</div>
-        <div class="inv-metric-val">{{ $kpiExpPend }}</div>
-        <div class="inv-metric-sub">Documentos incompletos</div>
-    </a>
-    <a class="inv-metric {{ $expediente === 'ok' ? 'is-active' : '' }}" href="{{ route('admin.pagos', array_merge($chipBase, ['expediente' => 'ok'])) }}">
-        <div class="accent" style="background:var(--green,#16a34a)"></div>
-        <div class="inv-metric-label">Exp. OK</div>
-        <div class="inv-metric-val">{{ $kpiExpOk }}</div>
-        <div class="inv-metric-sub">Listos para pagar</div>
-    </a>
-    <a class="inv-metric {{ $expediente === '' ? 'is-active' : '' }}" href="{{ route('admin.pagos', $chipBase) }}">
+    <a class="inv-metric is-active" href="{{ route('admin.pagos') }}">
         <div class="accent" style="background:var(--purple,#6B3FA0)"></div>
-        <div class="inv-metric-label">Todas</div>
+        <div class="inv-metric-label">Proveedores</div>
         <div class="inv-metric-val">{{ $kpiTotales }}</div>
-        <div class="inv-metric-sub">Proveedores totales</div>
+        <div class="inv-metric-sub">Con facturas pendientes</div>
     </a>
 </div>
 
@@ -157,15 +145,6 @@
                 <label>Código</label>
                 <input type="text" name="codigo" value="{{ $codigo }}" placeholder="Código proveedor…">
             </div>
-            <div class="filter-field">
-                <label>Expediente</label>
-                <select name="expediente">
-                    <option value="" {{ $expediente === '' ? 'selected' : '' }}>Todos</option>
-                    <option value="sin_revisar" {{ $expediente === 'sin_revisar' ? 'selected' : '' }}>Sin revisar</option>
-                    <option value="pendiente" {{ $expediente === 'pendiente' ? 'selected' : '' }}>Exp. pendiente</option>
-                    <option value="ok" {{ $expediente === 'ok' ? 'selected' : '' }}>Exp. OK</option>
-                </select>
-            </div>
             <div class="filter-actions">
                 <button type="submit" class="btn-primary">Filtrar</button>
                 @if($filtrosActivos)
@@ -178,9 +157,6 @@
             <span>Filtros activos:</span>
             @if($q !== '')<span class="active-tag">«{{ $q }}»</span>@endif
             @if($codigo !== '')<span class="active-tag">Código {{ $codigo }}</span>@endif
-            @if($expediente === 'sin_revisar')<span class="active-tag">Sin revisar</span>@endif
-            @if($expediente === 'pendiente')<span class="active-tag">Exp. pendiente</span>@endif
-            @if($expediente === 'ok')<span class="active-tag">Exp. OK</span>@endif
         </div>
         @endif
     </div>
@@ -241,13 +217,6 @@
                                 </td>
                                 <td>{{ $row->num_facturas }}</td>
                                 <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
-                                <td>
-                                    @if($row->expediente['ok'])
-                                        <span class="pill ok">OK</span>
-                                    @else
-                                        <span class="pill warn">Pendiente</span>
-                                    @endif
-                                </td>
                                 <td style="text-align:right;">
                                     <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}" title="{{ $sinLeer ? 'Nueva / sin revisar' : 'Ya revisada' }}">{{ $hora }}</span>
                                 </td>

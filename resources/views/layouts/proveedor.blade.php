@@ -799,8 +799,8 @@ document.addEventListener('click', function(e) {
             .catch(function(){});
     }
 
-    // Poll cada 15 segundos
-    setInterval(poll, 15000);
+    // Poll cada 1.5 segundos
+    setInterval(poll, 1500);
     // Guardar IDs actuales para no mostrar toast de las que ya estaban
     @if(isset($alertasSinLeer) && $alertasSinLeer > 0)
     fetch(url, {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}})

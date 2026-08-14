@@ -47,7 +47,10 @@
     .cq-table td{padding:8px;border-bottom:1px solid #f3f4f6;vertical-align:middle}
     .cq-table tbody tr:hover{background:#f5f3ff}
     .cq-table tbody tr.is-on{background:#ede9fe}
-    .cq-table input[type=number]{width:110px;border:1px solid #d1d5db;border-radius:3px;padding:4px 6px;font-size:12px}
+    .cq-table input[type=number],.cq-table input[type=text].imp-doc{width:120px;border:1px solid #d1d5db;border-radius:6px;padding:6px 8px;font-size:13px;font-weight:600;text-align:right;-moz-appearance:textfield}
+    .cq-table input[type=number]::-webkit-outer-spin-button,.cq-table input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+    .cq-table input[type=number]:focus,.cq-table input[type=text].imp-doc:focus{outline:2px solid #a78bfa;border-color:#7c3aed}
+    .cq-table .saldo-col{font-size:12px;color:#6b7280;font-weight:600}
     .cq-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;background:#f9fafb;border-top:1px solid #e5e7eb}
     .cq-total{font-size:18px;font-weight:800;color:#166534;font-variant-numeric:tabular-nums}
     .pag-alert{padding:12px 14px;border-radius:10px;margin-bottom:14px;font-size:13px}
@@ -76,35 +79,11 @@
     <div class="cq-wrap">
         <div class="cq-titlebar">Abono Prov. · {{ $poliza['concepto'] }} · Serie {{ $poliza['serie'] }}</div>
 
-        <div class="cq-toolbar">
-            <a class="cq-tool" href="{{ route('admin.pago-proveedores') }}" title="Nuevo">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                Nuevo
-            </a>
-            <button type="submit" class="cq-tool primary" onclick="document.getElementById('accion').value='guardar'">
+        <div class="cq-toolbar" style="justify-content:flex-end;padding:12px 14px">
+            <button type="submit" class="cq-tool primary" style="min-width:140px;padding:10px 24px;font-size:13px" onclick="document.getElementById('accion').value='guardar'">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                Guardar
+                Guardar abono
             </button>
-            <button type="submit" class="cq-tool" onclick="document.getElementById('accion').value='borrador'">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                Borrador
-            </button>
-            <button type="button" class="cq-tool" disabled title="Próximamente">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                Preliminar
-            </button>
-            <button type="button" class="cq-tool" disabled title="Próximamente">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                Enviar
-            </button>
-            <button type="button" class="cq-tool" disabled title="Próximamente">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
-                Relacionar CFDIs
-            </button>
-            <a class="cq-tool danger" href="{{ route('admin.pago-proveedores') }}">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
-                Cerrar
-            </a>
         </div>
 
         <div class="cq-head">
@@ -125,8 +104,8 @@
                 <input type="text" value="{{ $folioSiguiente }}" readonly>
             </div>
             <div class="cq-field span2">
-                <label>Cuenta bancaria empresa</label>
-                <input type="text" name="cuenta_bancaria" value="{{ old('cuenta_bancaria') }}" placeholder="(Ninguno) / Base Dollar / …">
+                <label>Cuenta bancaria proveedor</label>
+                <input type="text" name="cuenta_bancaria" id="cuenta_bancaria" value="{{ old('cuenta_bancaria') }}" placeholder="Se precarga al seleccionar proveedor" readonly style="background:#f9fafb">
             </div>
             <div class="cq-field span2">
                 <label>Notas</label>
@@ -144,16 +123,16 @@
             <div class="prov-cell">
                 <div class="prov-moneda-line">Moneda: &nbsp;<strong id="strip-moneda">{{ $poliza['moneda_label'] }}</strong></div>
                 <div class="prov-tc-line">Tipo de cambio: &nbsp;
-                    <input type="number" step="0.000001" min="0" name="tipo_cambio" id="tipo_cambio"
-                       value="{{ old('tipo_cambio', $poliza['tipo_cambio_default'] ?? '') }}"
+                    <input type="number" step="0.0001" min="0" name="tipo_cambio" id="tipo_cambio"
+                       value="{{ old('tipo_cambio', $poliza['moneda'] === 'MXN' ? '1' : ($poliza['tipo_cambio_default'] ?? '')) }}"
                        placeholder="{{ $poliza['moneda'] === 'USD' ? '17.9042' : '1' }}"
-                       @if($poliza['moneda'] === 'MXN') required @endif>
+                       @if($poliza['moneda'] === 'MXN') readonly @endif>
                 </div>
             </div>
         </div>
 
-        {{-- Selector proveedor (se oculta una vez elegido) --}}
-        <div style="padding:10px 14px;background:#fff;border-bottom:1px solid #e5e7eb" id="prov-select-wrap">
+        {{-- Selector proveedor ELIMINADO — solo se muestra la franja del proveedor ya seleccionado --}}
+        <div style="display:none" id="prov-select-wrap">
             <div class="cq-field">
                 <label>Proveedor</label>
                 <select name="proveedor_id" id="proveedor_id" required style="max-width:500px">
@@ -187,18 +166,20 @@
                     <table class="cq-table" id="tbl-docs">
                         <thead>
                             <tr>
-                                <th></th>
+                                <th><input type="checkbox" id="chk-all" checked title="Seleccionar/Deseleccionar todas"></th>
                                 <th>Fecha</th>
+                                <th>Hora</th>
                                 <th>Serie</th>
                                 <th>Folio</th>
                                 <th>Concepto</th>
                                 <th>Referencia</th>
+                                <th>Saldo</th>
                                 <th>Pago</th>
                                 <th>Sistema origen</th>
                             </tr>
                         </thead>
                         <tbody id="docs-body">
-                            <tr class="empty-row"><td colspan="8">Selecciona un proveedor para cargar facturas pendientes</td></tr>
+                            <tr class="empty-row"><td colspan="10">Selecciona un proveedor para cargar facturas pendientes</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -207,7 +188,12 @@
 
         <div class="cq-foot">
             <div style="font-size:12px;color:#6b7280">Documentos seleccionados: <strong id="sel-count">0</strong></div>
-            <div class="cq-total">Pago: $<span id="sel-total">0.00</span> {{ $poliza['moneda'] }}</div>
+            <div style="display:flex;align-items:center;gap:16px">
+                <div class="cq-total">Pago: $<span id="sel-total">0.00</span> {{ $poliza['moneda'] }}</div>
+                <button type="submit" style="padding:10px 28px;background:#6B3FA0;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit" onclick="document.getElementById('accion').value='guardar'">
+                    Guardar abono
+                </button>
+            </div>
         </div>
     </div>
 </form>
@@ -225,6 +211,15 @@
         return (Number(n) || 0).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2});
     }
 
+    function parseImporte(val) {
+        // Acepta: 70,000.50 o 70000.50 o 70,000
+        return Number(String(val).replace(/,/g, '').replace(/[^0-9.]/g, '')) || 0;
+    }
+
+    function formatImporte(n) {
+        return Number(n).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    }
+
     function recalc() {
         let total = 0, count = 0;
         body.querySelectorAll('tr[data-id]').forEach(tr => {
@@ -232,7 +227,7 @@
             const inp = tr.querySelector('.imp-doc');
             if (chk && chk.checked) {
                 count++;
-                total += Number(inp.value || 0);
+                total += parseImporte(inp.value);
                 tr.classList.add('is-on');
             } else {
                 tr.classList.remove('is-on');
@@ -248,7 +243,7 @@
 
     function renderItems(items) {
         if (!items.length) {
-            body.innerHTML = '<tr class="empty-row"><td colspan="8">Este proveedor no tiene facturas pendientes en Salcom</td></tr>';
+            body.innerHTML = '<tr class="empty-row"><td colspan="10">Este proveedor no tiene facturas pendientes en Salcom</td></tr>';
             recalc();
             return;
         }
@@ -256,11 +251,13 @@
             <tr data-id="${it.id}" data-serie="${it.serie}" data-folio="${it.folio}" data-concepto="${it.concepto}" data-total="${it.total}" data-moneda="${it.moneda}">
                 <td><input type="checkbox" class="chk-doc" name="factura_ids[]" value="${it.id}" checked></td>
                 <td>${it.fecha_fmt}</td>
+                <td style="font-size:11px;color:#6b7280">${it.hora || '—'}</td>
                 <td>${it.serie}</td>
                 <td>${it.folio}</td>
                 <td>${it.concepto}</td>
-                <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.referencia || ''}">${it.referencia || '—'}</td>
-                <td><input type="number" step="0.01" min="0" class="imp-doc" name="importes[${it.id}]" value="${Number(it.total).toFixed(2)}"></td>
+                <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.referencia || ''}">${it.referencia || '—'}</td>
+                <td class="saldo-col">$${Number(it.total_factura || it.total).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
+                <td><input type="text" inputmode="decimal" class="imp-doc" name="importes[${it.id}]" value="${Number(it.total).toLocaleString('es-MX', {minimumFractionDigits:2})}" data-raw="${Number(it.total).toFixed(2)}"></td>
                 <td>${it.sistema_origen}</td>
             </tr>
         `).join('');
@@ -276,6 +273,14 @@
                 recalc();
             });
             inp.addEventListener('input', recalc);
+            inp.addEventListener('blur', () => {
+                const val = parseImporte(inp.value);
+                inp.value = formatImporte(val);
+            });
+            inp.addEventListener('focus', () => {
+                const val = parseImporte(inp.value);
+                inp.value = val > 0 ? val.toFixed(2) : '';
+            });
         });
         recalc();
     }
@@ -308,6 +313,16 @@
             strip.classList.remove('hidden');
             selectWrap.style.display = 'none';
 
+            // Precargar cuenta bancaria del proveedor
+            var banco = opt.dataset.banco || '';
+            var clabe = opt.dataset.clabe || '';
+            var cuentaField = document.getElementById('cuenta_bancaria');
+            if (banco || clabe) {
+                cuentaField.value = (banco ? banco : '') + (banco && clabe ? ' · CLABE: ' : '') + (clabe ? clabe : '');
+            } else {
+                cuentaField.value = 'Sin datos bancarios registrados';
+            }
+
             // Detalle lateral removido
             loadFacturas(select.value);
         } else {
@@ -318,11 +333,9 @@
         }
     });
 
-    // Clic en la franja para cambiar proveedor
+    // Franja proveedor: solo visual, no se puede cambiar
     document.getElementById('prov-strip').addEventListener('dblclick', () => {
-        document.getElementById('prov-strip').classList.add('hidden');
-        document.getElementById('prov-select-wrap').style.display = '';
-        select.focus();
+        // Deshabilitado: para cambiar proveedor, regresa al listado
     });
 
     document.getElementById('form-abono').addEventListener('submit', (e) => {
@@ -330,7 +343,26 @@
         if (!n) {
             e.preventDefault();
             alert('Selecciona al menos una factura / compra a pagar.');
+            return;
         }
+        // Convertir valores con comas a números limpios para el backend
+        body.querySelectorAll('.imp-doc').forEach(inp => {
+            inp.value = parseImporte(inp.value).toFixed(2);
+        });
+    });
+
+    // Checkbox master: seleccionar/deseleccionar todas
+    document.getElementById('chk-all').addEventListener('change', function() {
+        const checked = this.checked;
+        body.querySelectorAll('.chk-doc').forEach(chk => {
+            chk.checked = checked;
+            const tr = chk.closest('tr');
+            const inp = tr.querySelector('.imp-doc');
+            if (inp) inp.disabled = !checked;
+            if (checked) tr.classList.add('is-on');
+            else tr.classList.remove('is-on');
+        });
+        recalc();
     });
 
     if (select.value) {

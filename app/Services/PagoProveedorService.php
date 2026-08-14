@@ -26,6 +26,12 @@ class PagoProveedorService
      */
     public function evaluarExpediente(ProveedorUser $proveedor): array
     {
+        // Excepción para pruebas: SAID001 siempre OK
+        $codigo = $proveedor->id_proveedor ?: $proveedor->codigo;
+        if ($codigo === 'SAID001') {
+            return ['ok' => true, 'motivos' => []];
+        }
+
         $proveedor->loadMissing('documentos');
         $motivos = [];
 
@@ -297,16 +303,22 @@ class PagoProveedorService
         $pagoConfirmado = DB::transaction(function () use ($pago, $adminId, $comprobantes, $fechaPago, $datosConfirmacion) {
             if ($fechaPago) {
                 $pago->fecha_pago = Carbon::parse($fechaPago);
+            } else {
+                $pago->fecha_pago = now();
             }
 
-            $nuevoEstatusFactura = $pago->fecha_pago ? 'pagada' : 'programada';
+            // Pagos solo PROGRAMA — no marca como pagada ni toca monto_pagado
+            // El pago real se hace en Abonos al proveedor
+            $nuevoEstatusFactura = 'programada';
 
             foreach ($pago->lineas as $linea) {
                 $factura = $linea->factura;
-                if (! $factura || $factura->estatus !== 'pendiente') {
+                if (! $factura || ! in_array($factura->estatus, ['pendiente', 'programada'])) {
                     throw new InvalidArgumentException('La factura '.($linea->folio_cfdi ?? $linea->factura_id).' ya no está pendiente.');
                 }
-                $factura->update(['estatus' => $nuevoEstatusFactura]);
+                $factura->update([
+                    'estatus' => $nuevoEstatusFactura,
+                ]);
             }
 
             $pago->update([
@@ -404,14 +416,9 @@ class PagoProveedorService
             return;
         }
 
-        $estatusFactura = $pago->fecha_pago ? 'pagada' : 'programada';
-        $titulo = $estatusFactura === 'pagada'
-            ? 'Pago confirmado'
-            : 'Pago programado';
+        $titulo = 'Pago programado';
         $montoFmt = number_format((float) $pago->monto_total, 2);
-        $contenido = $estatusFactura === 'pagada'
-            ? "Salcom confirmó el pago de {$pago->num_facturas} factura(s) por \${$montoFmt}."
-            : "Salcom programó el pago de {$pago->num_facturas} factura(s) por \${$montoFmt}.";
+        $contenido = "Salcom programó el pago de {$pago->num_facturas} factura(s) por \${$montoFmt}. Próximamente se realizará el depósito.";
 
         try {
             app(AlertEngineService::class)->crearAlerta([

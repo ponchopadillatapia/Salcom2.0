@@ -311,11 +311,17 @@ class PortalProveedorController extends Controller
         // Listado por defecto sin rechazadas; el KPI rojo sí las cuenta.
         $base = (clone $baseAll)->where('estatus', '!=', 'rechazada');
 
+        // Total abonado al proveedor
+        $totalAbonado = (clone $base)->sum('monto_pagado');
+        $numAbonadas = (clone $base)->where('monto_pagado', '>', 0)->where('estatus', 'pendiente')->count();
+
         $kpis = [
             'rechazadas' => (clone $baseAll)->where('estatus', 'rechazada')->count(),
-            'pendientes' => (clone $base)->where('estatus', 'pendiente')->count(),
-            'pagadas' => (clone $base)->where('estatus', 'pagada')->count(),
+            'pendientes' => (clone $base)->where('estatus', 'pendiente')->where('monto_pagado', 0)->count(),
+            'abonadas' => $numAbonadas,
+            'pagadas' => (clone $base)->whereIn('estatus', ['pagada', 'programada'])->count(),
             'totales' => (clone $base)->count(),
+            'abonado' => (float) $totalAbonado,
         ];
 
         $buscar = trim((string) $request->input('q', ''));
@@ -327,7 +333,12 @@ class PortalProveedorController extends Controller
             if ($campo === 'monto') {
                 $query->where('total', 'like', '%'.str_replace([',', '$'], '', $buscar).'%');
             } elseif ($campo === 'estatus') {
-                $query->where('estatus', 'like', '%'.$buscar.'%');
+                if (str_contains(mb_strtolower($buscar), 'abonad')) {
+                    // Filtro especial: facturas con abono parcial (monto_pagado > 0 y estatus pendiente)
+                    $query->where('monto_pagado', '>', 0)->where('estatus', 'pendiente');
+                } else {
+                    $query->where('estatus', 'like', '%'.$buscar.'%');
+                }
             } else {
                 $query->where(function ($q) use ($buscar) {
                     $q->where('folio_cfdi', 'like', '%'.$buscar.'%')
@@ -396,6 +407,24 @@ class PortalProveedorController extends Controller
         }
 
         return view('proveedores.facturas', compact('proveedor', 'facturas', 'filtros', 'codigo', 'kpis', 'wieseFacturas', 'wieseTotal', 'wieseError', 'wieseKpis'));
+    }
+
+    /** KPIs de facturas en JSON (polling en tiempo real). */
+    public function facturasKpisJson()
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+
+        $base = Factura::query()
+            ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo));
+
+        return response()->json([
+            'rechazadas' => (clone $base)->where('estatus', 'rechazada')->count(),
+            'pendientes' => (clone $base)->where('estatus', 'pendiente')->where('monto_pagado', 0)->count(),
+            'abonadas' => (clone $base)->where('monto_pagado', '>', 0)->where('estatus', 'pendiente')->count(),
+            'pagadas' => (clone $base)->whereIn('estatus', ['pagada', 'programada'])->count(),
+            'totales' => (clone $base)->where('estatus', '!=', 'rechazada')->count(),
+        ])->header('Cache-Control', 'no-store, max-age=0');
     }
 
     public function facturasExcel(Request $request)
