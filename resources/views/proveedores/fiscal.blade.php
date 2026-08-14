@@ -265,8 +265,18 @@
     }
     .wizard-panel { display: none; }
     .wizard-panel.active { display: block; }
-    .tipo-producto-wrap { display: none; margin-bottom: 18px; }
-    .tipo-producto-wrap.is-visible { display: block; }
+    .plazo-box {
+        margin: 4px 0 18px;
+        padding: 16px;
+        border: 1.5px solid var(--purple-mid);
+        border-radius: 12px;
+        background: var(--purple-light);
+    }
+    .plazo-box .section-label {
+        border-bottom-color: rgba(107, 63, 160, .2);
+        margin-bottom: 8px;
+    }
+    .plazo-box .card-desc { margin-bottom: 12px; }
     .choice-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -568,6 +578,12 @@
                     <div class="dv">{{ $res['datos']['producto'] }}</div>
                 </div>
             @endif
+            @if(!empty($res['datos']['dias_plazo']))
+                <div class="dato-chip">
+                    <div class="dl">Plazo</div>
+                    <div class="dv">{{ $res['datos']['dias_plazo'] }} días</div>
+                </div>
+            @endif
             @if(!empty($res['datos']['rfc_emisor']))
                 <div class="dato-chip">
                     <div class="dl">RFC emisor</div>
@@ -599,7 +615,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             Alta de factura
         </h3>
-        <p class="card-desc">Adjunta PDF + XML (OC opcional). Primero valida; si todo está bien, pulsa Subir para registrar.</p>
+        <p class="card-desc">Adjunta PDF + XML (OC opcional). Primero valida; si queda aprobada, elige el plazo y pulsa Subir.</p>
 
         <div class="periodo-banner">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -650,10 +666,29 @@
             </div>
         </div>
 
+        @if(!empty($puedeSubir))
+        @php $plazosDias = config('facturas.plazos_dias', [60, 120, 320]); @endphp
+        <div class="plazo-box" id="plazoBox">
+            <div class="section-label">Plazo de pago</div>
+            <p class="card-desc">La factura quedó aprobada. Elige los días de crédito antes de subir.</p>
+            <div class="choice-grid">
+                @foreach($plazosDias as $dias)
+                <label>
+                    <input type="radio" name="dias_plazo" value="{{ $dias }}" {{ (string) old('dias_plazo') === (string) $dias ? 'checked' : '' }}>
+                    <span class="choice-card">
+                        <span class="cc-title">{{ $dias }} días</span>
+                        <span class="cc-sub">Vence {{ now()->addDays($dias)->format('d/m/Y') }}</span>
+                    </span>
+                </label>
+                @endforeach
+            </div>
+        </div>
+        @endif
+
         <div class="form-actions">
             <span class="step-hint" id="stepHint">
                 @if(!empty($puedeSubir))
-                    Validación OK — ya puedes subir (archivos en servidor).
+                    Validación OK — elige 60, 120 o 320 días y pulsa Subir.
                 @elseif(!empty($tieneArchivosPendientes))
                     Archivos listos — pulsa Validar de nuevo o reemplázalos.
                 @else
@@ -683,6 +718,7 @@
                         <th>Fletera</th>
                         <th>Retenciones</th>
                         <th>Total</th>
+                        <th>Plazo</th>
                         <th>Estatus</th>
                         <th>Fecha</th>
                     </tr>
@@ -709,6 +745,13 @@
                                 ISR ${{ number_format((float) $f->retencion_isr, 2) }}
                             </td>
                             <td style="font-weight:600;">${{ number_format((float) $f->total, 2) }}</td>
+                            <td>
+                                @if($f->dias_plazo)
+                                    {{ $f->dias_plazo }} días
+                                @else
+                                    —
+                                @endif
+                            </td>
                             <td>
                                 @php
                                     $badge = match ($f->estatus) {
@@ -741,12 +784,30 @@
     var puedeSubir = {{ !empty($puedeSubir) ? 'true' : 'false' }};
     var tieneArchivosPendientes = {{ !empty($tieneArchivosPendientes) ? 'true' : 'false' }};
 
+    function plazoSeleccionado() {
+        return !!(form && form.querySelector('input[name="dias_plazo"]:checked'));
+    }
+
+    function syncSubir() {
+        if (!btnSubir) return;
+        btnSubir.disabled = !(puedeSubir && plazoSeleccionado());
+    }
+
     function invalidatePending() {
         if (!puedeSubir || !btnSubir) return;
         puedeSubir = false;
         btnSubir.disabled = true;
+        var plazoBox = document.getElementById('plazoBox');
+        if (plazoBox) plazoBox.style.display = 'none';
         if (stepHint) stepHint.textContent = 'Cambiaste archivos — vuelve a validar antes de subir.';
     }
+
+    if (form) {
+        form.querySelectorAll('input[name="dias_plazo"]').forEach(function (radio) {
+            radio.addEventListener('change', syncSubir);
+        });
+    }
+    syncSubir();
 
     function assignFiles(input, file) {
         if (!input || !file) return false;
@@ -829,8 +890,11 @@
         form.addEventListener('submit', function (e) {
             var submitter = e.submitter || document.activeElement;
             if (submitter === btnSubir) {
-                if (!puedeSubir) {
+                if (!puedeSubir || !plazoSeleccionado()) {
                     e.preventDefault();
+                    if (puedeSubir && !plazoSeleccionado()) {
+                        alert('Selecciona el plazo de días (60, 120 o 320) antes de subir.');
+                    }
                     return;
                 }
                 btnSubir.textContent = 'Subiendo…';
@@ -860,7 +924,10 @@
     }
 
     var feedback = document.getElementById('fiscalFeedback');
-    if (feedback) {
+    var plazoBox = document.getElementById('plazoBox');
+    if (plazoBox) {
+        plazoBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (feedback) {
         feedback.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 })();

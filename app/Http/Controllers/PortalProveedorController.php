@@ -19,6 +19,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -1665,7 +1666,7 @@ class PortalProveedorController extends Controller
         return back()->with('fiscal_resultado', [
             'aprobado' => true,
             'estatus' => $resultado['estatus'] ?? 'aprobada',
-            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta.').' Los archivos quedaron guardados temporalmente: revisa el resumen y pulsa «Subir».',
+            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta.').' Los archivos quedaron guardados temporalmente: elige el plazo (60, 120 o 320 días) y pulsa «Subir».',
             'errores' => [],
             'advertencias' => $resultado['advertencias'] ?? [],
             'checklist' => $resultado['checklist'] ?? [],
@@ -1692,10 +1693,20 @@ class PortalProveedorController extends Controller
             ]);
         }
 
+        $plazos = config('facturas.plazos_dias', [60, 120, 320]);
+        $request->validate([
+            'dias_plazo' => ['required', 'integer', Rule::in($plazos)],
+        ], [
+            'dias_plazo.required' => 'Selecciona el plazo de días (60, 120 o 320) antes de subir.',
+            'dias_plazo.integer' => 'Selecciona un plazo válido.',
+            'dias_plazo.in' => 'El plazo debe ser 60, 120 o 320 días.',
+        ]);
+
         $resultado = $pendiente['resultado'] ?? [];
+        $diasPlazo = (int) $request->input('dias_plazo');
 
         try {
-            $this->registrarFacturaDesdePendiente($proveedor, $pendiente);
+            $this->registrarFacturaDesdePendiente($proveedor, $pendiente, $diasPlazo);
         } catch (\InvalidArgumentException $e) {
             $this->limpiarFiscalPendiente();
 
@@ -1718,7 +1729,9 @@ class PortalProveedorController extends Controller
         $this->limpiarFiscalPendiente();
 
         $estatus = $resultado['estatus'] ?? 'aprobada';
-        $mensaje = 'Factura registrada correctamente. Queda pendiente de revisión contable.';
+        $mensaje = "Factura registrada correctamente a {$diasPlazo} días. Queda pendiente de revisión contable.";
+        $datos = $resultado['datos'] ?? [];
+        $datos['dias_plazo'] = $diasPlazo;
 
         return back()->with('fiscal_resultado', [
             'aprobado' => true,
@@ -1727,7 +1740,7 @@ class PortalProveedorController extends Controller
             'errores' => [],
             'advertencias' => $resultado['advertencias'] ?? [],
             'checklist' => $resultado['checklist'] ?? [],
-            'datos' => $resultado['datos'] ?? [],
+            'datos' => $datos,
             'registrada' => true,
         ]);
     }
@@ -1737,7 +1750,7 @@ class PortalProveedorController extends Controller
      *
      * @param  array<string, mixed>  $pendiente
      */
-    private function registrarFacturaDesdePendiente(ProveedorUser $proveedor, array $pendiente): Factura
+    private function registrarFacturaDesdePendiente(ProveedorUser $proveedor, array $pendiente, int $diasPlazo): Factura
     {
         $resultado = $pendiente['resultado'] ?? null;
         if (! is_array($resultado) || empty($resultado['aprobado'])) {
@@ -1777,7 +1790,10 @@ class PortalProveedorController extends Controller
         if (Factura::where('folio_cfdi', $folioCfdi)->exists()) {
             $folioCfdi = $folioCfdi.'-'.substr(uniqid(), -4);
         }
-        $dias = (int) config('facturas.dias_vencimiento', 30);
+        $plazos = config('facturas.plazos_dias', [60, 120, 320]);
+        $dias = in_array($diasPlazo, $plazos, true)
+            ? $diasPlazo
+            : (int) config('facturas.dias_vencimiento', 30);
         $codigoProv = $proveedor->id_proveedor ?: session('proveedor_codigo') ?: ('P'.$proveedor->id);
         $esFletera = (bool) ($pendiente['es_fletera'] ?? false);
         $total = (float) (($datos['total'] ?? 0) ?: (($datos['subtotal'] ?? 0) + ($datos['iva'] ?? 0)));
@@ -1795,6 +1811,7 @@ class PortalProveedorController extends Controller
             'total' => $total,
             'estatus' => 'pendiente',
             'fecha_vencimiento' => now()->addDays($dias)->toDateString(),
+            'dias_plazo' => $dias,
             'archivo_pdf' => $finalPdf,
             'archivo_xml' => $finalXml,
             'archivo_oc' => $finalOc,
@@ -1815,6 +1832,7 @@ class PortalProveedorController extends Controller
                 'naturaleza' => $pendiente['naturaleza'] ?? null,
                 'tipo_producto' => $pendiente['tipo_producto'] ?? null,
                 'es_me_mp' => (bool) ($pendiente['es_me_mp'] ?? false),
+                'dias_plazo' => $dias,
                 'validado_at' => now()->toIso8601String(),
             ],
         ]);
