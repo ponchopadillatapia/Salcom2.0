@@ -499,6 +499,10 @@
 
             <div class="sb-hr"></div>
             <div class="sb-section">Productos</div>
+            <a href="{{ $portalOk ? route('proveedores.mis-productos') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.mis-productos') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+                <span class="sb-text">Mis productos</span>
+            </a>
             <a href="{{ $portalOk ? route('proveedores.alta-producto') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.alta-producto') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
                 <span class="sb-text">Alta de producto</span>
@@ -741,5 +745,70 @@ document.addEventListener('click', function(e) {
 })();
 </script>
 @stack('scripts')
+
+{{-- Polling en tiempo real: toast de notificaciones --}}
+<div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:10px;max-width:380px"></div>
+<style>
+.salcom-toast{display:flex;align-items:flex-start;gap:10px;padding:14px 18px;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #6B3FA0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);animation:toastIn .3s ease;font-family:inherit}
+.salcom-toast.salcom-toast-exit{animation:toastOut .3s ease forwards}
+.salcom-toast-icon{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#f3e8ff,#ede9fe);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.salcom-toast-icon svg{width:16px;height:16px;stroke:#6B3FA0}
+.salcom-toast-body{flex:1;min-width:0}
+.salcom-toast-title{font-size:13px;font-weight:700;color:#1f2937;margin:0 0 2px}
+.salcom-toast-msg{font-size:12px;color:#6b7280;margin:0;line-height:1.4}
+.salcom-toast-close{background:none;border:none;color:#9ca3af;cursor:pointer;font-size:16px;padding:0 0 0 8px;line-height:1}
+@keyframes toastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+</style>
+<script>
+(function(){
+    var container = document.getElementById('toast-container');
+    var url = '{{ route("proveedores.alertas.recientes") }}';
+    var ultimoCount = {{ $alertasSinLeer ?? 0 }};
+    var ultimosIds = [];
+
+    function showToast(titulo, contenido) {
+        var toast = document.createElement('div');
+        toast.className = 'salcom-toast';
+        toast.innerHTML = '<div class="salcom-toast-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22c1.1 0 2-.9 2-2H10a2 2 0 0 0 2 2z"/><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg></div>'
+            + '<div class="salcom-toast-body"><p class="salcom-toast-title">' + titulo + '</p><p class="salcom-toast-msg">' + contenido + '</p></div>'
+            + '<button class="salcom-toast-close" onclick="this.parentElement.classList.add(\'salcom-toast-exit\');setTimeout(function(){this.parentElement.remove()}.bind(this),300)">&times;</button>';
+        container.appendChild(toast);
+        // Auto-remove after 8s
+        setTimeout(function(){ if(toast.parentElement){toast.classList.add('salcom-toast-exit');setTimeout(function(){toast.remove()},300)} }, 8000);
+    }
+
+    function poll() {
+        fetch(url, {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}})
+            .then(function(r){return r.json()})
+            .then(function(data){
+                if (data.sin_leer > ultimoCount && data.items && data.items.length) {
+                    // Mostrar toast solo para alertas nuevas
+                    data.items.forEach(function(item){
+                        if (ultimosIds.indexOf(item.id) === -1) {
+                            showToast(item.titulo, item.contenido);
+                        }
+                    });
+                    // Actualizar campanita
+                    var badge = document.querySelector('.notif-badge');
+                    if (badge) { badge.textContent = data.sin_leer; badge.style.display = 'flex'; }
+                }
+                ultimoCount = data.sin_leer;
+                ultimosIds = (data.items || []).map(function(i){return i.id});
+            })
+            .catch(function(){});
+    }
+
+    // Poll cada 15 segundos
+    setInterval(poll, 15000);
+    // Guardar IDs actuales para no mostrar toast de las que ya estaban
+    @if(isset($alertasSinLeer) && $alertasSinLeer > 0)
+    fetch(url, {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}})
+        .then(function(r){return r.json()})
+        .then(function(data){ ultimosIds = (data.items || []).map(function(i){return i.id}); })
+        .catch(function(){});
+    @endif
+})();
+</script>
 </body>
 </html>

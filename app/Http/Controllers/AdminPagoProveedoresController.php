@@ -325,6 +325,31 @@ class AdminPagoProveedoresController extends Controller
             return back()->withInput()->with('error', 'No se pudo guardar el abono: '.$e->getMessage());
         }
 
+        // Crear alerta para el proveedor (notificación en tiempo real)
+        if ($estatus === 'guardado') {
+            try {
+                $montoFmt = number_format((float) $abono->monto_pago, 2);
+                \App\Models\Alerta::create([
+                    'tipo' => 'pago_confirmado',
+                    'modulo' => 'abonos',
+                    'destinatario_tipo' => 'proveedor',
+                    'destinatario_id' => $proveedor->id,
+                    'titulo' => 'Pago recibido',
+                    'contenido' => "Salcom registró un abono por \${$montoFmt} " . $meta['moneda'] . " a tus facturas.",
+                    'nivel' => 'info',
+                    'estatus' => 'nueva',
+                    'datos' => [
+                        'abono_id' => $abono->id,
+                        'monto' => (float) $abono->monto_pago,
+                        'moneda' => $meta['moneda'],
+                        'num_facturas' => count($lineas),
+                    ],
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[Abono] No se pudo crear alerta: ' . $e->getMessage());
+            }
+        }
+
         return redirect()
             ->route('admin.pago-proveedores.show', $abono)
             ->with('ok', $estatus === 'borrador'
