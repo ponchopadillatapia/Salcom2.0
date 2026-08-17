@@ -529,6 +529,10 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
                 <span class="sb-text">Pagos</span>
             </a>
+            <a href="{{ $portalOk ? route('proveedores.reembolsos') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.reembolsos*') ? 'active' : '' }}" {!! $lockAttr !!}>
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg></div>
+                <span class="sb-text">Reembolsos</span>
+            </a>
 
             <div class="sb-hr"></div>
             <div class="sb-section">Operación</div>

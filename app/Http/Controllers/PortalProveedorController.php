@@ -293,6 +293,14 @@ class PortalProveedorController extends Controller
         return view('proveedores.payment-history', compact('proveedor', 'pagos', 'kpis', 'filtros', 'codigo'));
     }
 
+    public function mostrarReembolsos(Request $request)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+
+        return view('proveedores.reembolsos', compact('proveedor', 'codigo'));
+    }
+
     /** Listado de todas las facturas del proveedor (menú Facturas). */
     public function mostrarFacturas(Request $request)
     {

@@ -31,6 +31,7 @@ Route::get('/proveedor/facturas/excel', [PortalProveedorController::class, 'fact
 Route::get('/onboarding', [PortalProveedorController::class, 'mostrarOnboarding'])->name('proveedores.onboarding')->middleware('auth.proveedor');
 Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->name('proveedores.business')->middleware('auth.proveedor');
 Route::get('/payment-history', [PortalProveedorController::class, 'mostrarPaymentHistory'])->name('proveedores.payment-history')->middleware('auth.proveedor');
+Route::get('/reembolsos', [PortalProveedorController::class, 'mostrarReembolsos'])->name('proveedores.reembolsos')->middleware('auth.proveedor');
 Route::get('/perfil', [PortalProveedorController::class, 'mostrarPerfil'])->name('proveedores.perfil')->middleware('auth.proveedor');
 Route::post('/perfil', [PortalProveedorController::class, 'actualizarPerfil'])->name('proveedores.perfil.actualizar')->middleware('auth.proveedor');
 Route::post('/perfil/foto', [PortalProveedorController::class, 'subirFoto'])->name('proveedores.perfil.foto')->middleware('auth.proveedor');
