@@ -51,6 +51,10 @@
     .cq-table input[type=number]::-webkit-outer-spin-button,.cq-table input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
     .cq-table input[type=number]:focus,.cq-table input[type=text].imp-doc:focus{outline:2px solid #a78bfa;border-color:#7c3aed}
     .cq-table .saldo-col{font-size:12px;color:#6b7280;font-weight:600}
+    .dias-count{font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
+    .dias-count.warn{color:#d97706}
+    .dias-count.late{color:#dc2626}
+    .dias-sub{font-size:10px;color:#6b7280;margin-top:2px;white-space:nowrap}
     .cq-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;background:#f9fafb;border-top:1px solid #e5e7eb}
     .cq-total{font-size:18px;font-weight:800;color:#166534;font-variant-numeric:tabular-nums}
     .pag-alert{padding:12px 14px;border-radius:10px;margin-bottom:14px;font-size:13px}
@@ -171,6 +175,7 @@
                                 <th>Hora</th>
                                 <th>Serie</th>
                                 <th>Folio</th>
+                                <th>Vencimiento</th>
                                 <th>Concepto</th>
                                 <th>Referencia</th>
                                 <th>Saldo</th>
@@ -179,7 +184,7 @@
                             </tr>
                         </thead>
                         <tbody id="docs-body">
-                            <tr class="empty-row"><td colspan="10">Selecciona un proveedor para cargar facturas pendientes</td></tr>
+                            <tr class="empty-row"><td colspan="11">Selecciona un proveedor para cargar facturas pendientes</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -243,24 +248,35 @@
 
     function renderItems(items) {
         if (!items.length) {
-            body.innerHTML = '<tr class="empty-row"><td colspan="10">Este proveedor no tiene facturas pendientes en Salcom</td></tr>';
+            body.innerHTML = '<tr class="empty-row"><td colspan="11">Este proveedor no tiene facturas pendientes en Salcom</td></tr>';
             recalc();
             return;
         }
-        body.innerHTML = items.map(it => `
+        body.innerHTML = items.map(it => {
+            const late = it.dias_restantes != null && it.dias_restantes < 0;
+            const warn = it.dias_restantes != null && it.dias_restantes <= 15;
+            const cls = late ? 'late' : (warn ? 'warn' : '');
+            let sub = it.fecha_vencimiento_fmt || '';
+            if (it.dias_plazo) sub += (sub ? ' · de ' : 'de ') + it.dias_plazo;
+            const vencHtml = (it.dias_label && it.dias_label !== '—')
+                ? `<div class="dias-count ${cls}">${it.dias_label}</div>` + (sub ? `<div class="dias-sub">${sub}</div>` : '')
+                : (it.fecha_vencimiento_fmt || '—');
+            return `
             <tr data-id="${it.id}" data-serie="${it.serie}" data-folio="${it.folio}" data-concepto="${it.concepto}" data-total="${it.total}" data-moneda="${it.moneda}">
                 <td><input type="checkbox" class="chk-doc" name="factura_ids[]" value="${it.id}" checked></td>
                 <td>${it.fecha_fmt}</td>
                 <td style="font-size:11px;color:#6b7280">${it.hora || '—'}</td>
                 <td>${it.serie}</td>
                 <td>${it.folio}</td>
+                <td>${vencHtml}</td>
                 <td>${it.concepto}</td>
                 <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${it.referencia || ''}">${it.referencia || '—'}</td>
                 <td class="saldo-col">$${Number(it.total_factura || it.total).toLocaleString('es-MX', {minimumFractionDigits:2})}</td>
                 <td><input type="text" inputmode="decimal" class="imp-doc" name="importes[${it.id}]" value="${Number(it.total).toLocaleString('es-MX', {minimumFractionDigits:2})}" data-raw="${Number(it.total).toFixed(2)}"></td>
                 <td>${it.sistema_origen}</td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
 
         body.querySelectorAll('tr[data-id]').forEach(tr => {
             const chk = tr.querySelector('.chk-doc');
@@ -286,7 +302,7 @@
     }
 
     async function loadFacturas(proveedorId) {
-        body.innerHTML = '<tr class="empty-row"><td colspan="8">Cargando…</td></tr>';
+        body.innerHTML = '<tr class="empty-row"><td colspan="11">Cargando…</td></tr>';
         const res = await fetch(urlBase + '?proveedor_id=' + encodeURIComponent(proveedorId), {
             headers: {'Accept': 'application/json'}
         });
@@ -328,7 +344,7 @@
         } else {
             strip.classList.add('hidden');
             selectWrap.style.display = '';
-            body.innerHTML = '<tr class="empty-row"><td colspan="8">Selecciona un proveedor para cargar facturas pendientes</td></tr>';
+            body.innerHTML = '<tr class="empty-row"><td colspan="11">Selecciona un proveedor para cargar facturas pendientes</td></tr>';
             recalc();
         }
     });

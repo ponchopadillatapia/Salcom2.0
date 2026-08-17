@@ -23,6 +23,10 @@
     .pill.ok{background:var(--green-bg);color:var(--green)}
     .pill.warn{background:var(--amber-bg);color:var(--amber)}
     .pill.bad{background:var(--red-bg);color:var(--red)}
+    .dias-count{font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
+    .dias-count.warn{color:var(--amber)}
+    .dias-count.late{color:var(--red)}
+    .dias-sub{font-size:10px;color:var(--gray-muted);margin-top:2px;white-space:nowrap}
     .btn-cancel{padding:8px 14px;background:#fff;border:1px solid #ef4444;color:#b91c1c;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer}
     .pag-alert{padding:12px 14px;border-radius:10px;margin-bottom:14px;font-size:13px}
     .pag-alert.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
@@ -69,6 +73,7 @@
                     <th>Fecha</th>
                     <th>Serie</th>
                     <th>Folio</th>
+                    <th>Vencimiento</th>
                     <th>Concepto</th>
                     <th>Referencia</th>
                     <th>Pago</th>
@@ -81,6 +86,12 @@
                     <td>{{ optional($d->fecha_doc)->format('d/m/Y') }}</td>
                     <td>{{ $d->serie_doc }}</td>
                     <td>{{ $d->folio_doc }}</td>
+                    <td>
+                        @include('partials.celda-vencimiento', [
+                            'fecha' => $d->factura?->fecha_vencimiento,
+                            'plazo' => $d->factura?->dias_plazo,
+                        ])
+                    </td>
                     <td>{{ $d->concepto_doc }}</td>
                     <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ $d->referencia }}">{{ $d->referencia ?: '—' }}</td>
                     <td style="font-weight:700">${{ number_format((float)$d->importe_pago, 2) }}</td>

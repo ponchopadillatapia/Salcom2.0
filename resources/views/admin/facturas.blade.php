@@ -61,6 +61,10 @@
     .badge-est.pagada{background:var(--green-bg);color:var(--green)}
     .badge-est.cancelada{background:var(--red-bg);color:var(--red)}
     .badge-vencida{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--red-bg);color:var(--red)}
+    .dias-count{font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
+    .dias-count.warn{color:var(--amber)}
+    .dias-count.late{color:var(--red)}
+    .dias-sub{font-size:10px;color:var(--gray-muted);margin-top:2px;white-space:nowrap}
     .fact-row{cursor:pointer}
     .fact-row:focus{outline:2px solid rgba(107,63,160,.35);outline-offset:-2px}
     .admin-table tbody tr.fact-row.prov-match td{background:rgba(107,63,160,.09)!important;box-shadow:inset 3px 0 0 var(--purple)}
@@ -237,6 +241,10 @@
                 @php
                     $vencida = $f->estatus === 'pendiente' && $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
                     $diasVencido = $vencida ? (int) $f->fecha_vencimiento->diffInDays(now()) : 0;
+                    $restantes = $f->diasRestantes();
+                    $diasLabel = $restantes === null
+                        ? '—'
+                        : ($restantes > 0 ? $restantes.' días' : ($restantes === 0 ? 'Vence hoy' : 'Vencida ('.abs($restantes).')'));
                     $folioDisp = $pagosSvc->folioFacturaDisplay($f);
                     $saldoProv = (float) ($saldosPendientesProveedor[$f->codigo_proveedor] ?? 0);
                     $det = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
@@ -254,6 +262,8 @@
                     tabindex="0"
                     data-folio="{{ $folioDisp }}"
                     data-vencimiento="{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}"
+                    data-dias="{{ $diasLabel }}"
+                    data-plazo="{{ $f->dias_plazo ? $f->dias_plazo.' días' : '' }}"
                     data-vencido="{{ $vencida ? '1' : '0' }}"
                     data-flete="{{ $f->es_fletera ? '1' : '0' }}"
                     data-regimen="{{ $f->regimen_fiscal ?: '—' }}"
@@ -287,14 +297,11 @@
                             <span class="badge-vencida">{{ $diasVencido }} día{{ $diasVencido === 1 ? '' : 's' }}</span>
                         @endif
                     </td>
-                    <td style="color:{{ $vencida ? 'var(--red)' : 'var(--gray-muted)' }};font-weight:{{ $vencida ? '700' : '400' }};white-space:nowrap">
-                        {{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}
-                        @php $restantes = $f->diasRestantes(); @endphp
-                        @if($restantes !== null && $f->estatus === 'pendiente')
-                            <div style="font-size:11px;font-weight:600;margin-top:2px;color:{{ $restantes < 0 ? 'var(--red)' : ($restantes <= 15 ? 'var(--amber)' : 'var(--gray-muted)') }}">
-                                {{ $restantes > 0 ? $restantes.' días' : ($restantes === 0 ? 'Vence hoy' : 'Vencida') }}
-                            </div>
-                        @endif
+                    <td style="white-space:nowrap">
+                        @include('partials.celda-vencimiento', [
+                            'fecha' => $f->fecha_vencimiento,
+                            'plazo' => $f->dias_plazo,
+                        ])
                     </td>
                     <td style="text-align:right;">
                         <span class="hora-pill">{{ $f->created_at?->format('h:i a') ?? '—' }}</span>
@@ -401,7 +408,9 @@
         document.getElementById('factModalSub').textContent = (d.proveedor || '') + (d.codigo ? ' · ' + d.codigo : '');
         document.getElementById('mFolio').textContent = d.folio || '—';
         var venc = document.getElementById('mVenc');
-        venc.textContent = d.vencimiento || '—';
+        var diasTxt = d.dias || '';
+        var plazoTxt = d.plazo ? ' · de ' + d.plazo : '';
+        venc.innerHTML = (d.vencimiento || '—') + (diasTxt && diasTxt !== '—' ? '<div style="font-size:11px;font-weight:600;margin-top:2px;">' + diasTxt + plazoTxt + '</div>' : '');
         venc.style.color = d.vencido === '1' ? 'var(--red)' : '';
         venc.style.fontWeight = d.vencido === '1' ? '700' : '';
         document.getElementById('mFlete').innerHTML = d.flete === '1'

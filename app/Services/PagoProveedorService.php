@@ -474,7 +474,7 @@ class PagoProveedorService
     {
         /** @var Collection $resultado */
         $resultado = Factura::query()
-            ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(total) as monto_total, max(created_at) as ultima_factura_at')
+            ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(total) as monto_total, max(created_at) as ultima_factura_at, min(fecha_vencimiento) as proximo_vencimiento')
             ->where('estatus', 'pendiente')
             ->whereNotNull('codigo_proveedor')
             ->groupBy('codigo_proveedor')
@@ -500,6 +500,9 @@ class PagoProveedorService
                     'num_facturas' => (int) $row->num_facturas,
                     'monto_total' => (float) $row->monto_total,
                     'ultima_factura_at' => $ultimaAt,
+                    'proximo_vencimiento' => $row->proximo_vencimiento
+                        ? Carbon::parse($row->proximo_vencimiento)
+                        : null,
                     'expediente' => $prov ? $this->evaluarExpediente($prov) : ['ok' => false, 'motivos' => ['Proveedor no encontrado']],
                     'notif_sin_leer' => $notifSinLeer,
                 ];

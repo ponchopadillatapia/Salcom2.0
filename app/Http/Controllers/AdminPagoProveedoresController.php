@@ -190,6 +190,10 @@ class AdminPagoProveedoresController extends Controller
                 $serie = (string) ($vd['serie'] ?? $vd['cfdi']['serie'] ?? '');
                 $folio = (string) ($f->folio_cfdi ?: ($vd['folio'] ?? $f->id));
                 $saldo = round((float) $f->total - (float) $f->monto_pagado, 2);
+                $restantes = $f->diasRestantes();
+                $diasLabel = $restantes === null
+                    ? '—'
+                    : ($restantes > 0 ? $restantes.' días' : ($restantes === 0 ? 'Vence hoy' : 'Vencida ('.abs($restantes).')'));
 
                 return [
                     'id' => $f->id,
@@ -205,6 +209,10 @@ class AdminPagoProveedoresController extends Controller
                     'monto_pagado' => (float) $f->monto_pagado,
                     'moneda' => $moneda,
                     'sistema_origen' => 'SALCOM',
+                    'fecha_vencimiento_fmt' => optional($f->fecha_vencimiento)->format('d/m/Y'),
+                    'dias_restantes' => $restantes,
+                    'dias_plazo' => $f->dias_plazo,
+                    'dias_label' => $diasLabel,
                 ];
             })
             ->filter(fn ($item) => $item['total'] > 0)

@@ -78,16 +78,23 @@ class Factura extends Model
      * Días que faltan para el vencimiento. Baja solo cada día
      * (320 hoy → 319 mañana) a partir de fecha_vencimiento.
      */
-    public function diasRestantes(): ?int
+    public static function diasHastaVencimiento(Carbon|string|null $fecha): ?int
     {
-        if (! $this->fecha_vencimiento) {
+        if ($fecha === null || $fecha === '') {
             return null;
         }
 
         $hoy = now()->startOfDay();
-        $vence = $this->fecha_vencimiento->copy()->startOfDay();
+        $vence = $fecha instanceof Carbon
+            ? $fecha->copy()->startOfDay()
+            : Carbon::parse($fecha)->startOfDay();
         $segundos = $vence->getTimestamp() - $hoy->getTimestamp();
 
         return (int) round($segundos / 86400);
+    }
+
+    public function diasRestantes(): ?int
+    {
+        return self::diasHastaVencimiento($this->fecha_vencimiento);
     }
 }

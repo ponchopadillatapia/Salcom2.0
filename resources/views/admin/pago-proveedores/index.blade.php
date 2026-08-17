@@ -52,6 +52,10 @@
     .bubble-roja{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:8px;border-radius:999px;background:var(--red);color:#fff;font-size:10px;font-weight:700;vertical-align:middle}
     .hora-bubble{display:inline-flex;align-items:center;justify-content:center;padding:3px 8px;border-radius:999px;background:var(--red);color:#fff;font-size:11px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
     .hora-bubble.leida{background:var(--gray-muted);opacity:.85}
+    .dias-count{font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
+    .dias-count.warn{color:var(--amber)}
+    .dias-count.late{color:var(--red)}
+    .dias-sub{font-size:10px;color:var(--gray-muted);margin-top:2px;white-space:nowrap}
     .empty-state{text-align:center;padding:48px 20px;color:var(--gray-muted)}
     .empty-state p{font-size:14px;font-weight:500;margin:0}
     .pag-alert{padding:12px 14px;border-radius:10px;margin-bottom:14px;font-size:13px}
@@ -245,13 +249,14 @@
                             <th>Proveedor</th>
                             <th>Facturas pendientes</th>
                             <th>Monto</th>
+                            <th>Vencimiento</th>
                             <th>Hora</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($agrupados as $fechaKey => $rows)
                             <tr class="date-row">
-                                <td colspan="5">
+                                <td colspan="6">
                                     @if($fechaKey === 'sin-fecha')
                                         Sin fecha
                                     @else
@@ -278,6 +283,11 @@
                                     </td>
                                     <td style="text-align:center">{{ $row->num_facturas }}</td>
                                     <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
+                                    <td>
+                                        @include('partials.celda-vencimiento', [
+                                            'fecha' => $row->proximo_vencimiento ?? null,
+                                        ])
+                                    </td>
                                     <td style="text-align:right;">
                                         <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}">{{ $hora }}</span>
                                     </td>

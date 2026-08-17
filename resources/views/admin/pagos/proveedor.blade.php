@@ -57,6 +57,10 @@
     .btn-docs:hover{background:var(--purple);color:#fff}
     .btn-ver{padding:5px 10px;background:none;color:var(--purple);border:1px solid var(--border);border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
     .btn-ver:hover{border-color:var(--purple);background:var(--purple-subtle)}
+    .dias-count{font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
+    .dias-count.warn{color:var(--amber)}
+    .dias-count.late{color:var(--red)}
+    .dias-sub{font-size:10px;color:var(--gray-muted);margin-top:2px;white-space:nowrap}
     .actions-cell{display:flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 
     .doc-panel{display:none;background:var(--gray-soft);padding:16px 18px;border-bottom:1px solid var(--border)}
@@ -148,7 +152,6 @@
                     @foreach($facturas as $f)
                         @php
                             $currentDate = $f->created_at ? $f->created_at->format('Y-m-d') : null;
-                            $vencido = $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
                             $saldo = (float) $f->neto_pago;
                         @endphp
                         @if($currentDate !== $lastDate)
@@ -162,8 +165,11 @@
                             <td>
                                 <strong style="color:var(--purple);">{{ $f->folio_display }}</strong>
                             </td>
-                            <td style="white-space:nowrap;{{ $vencido ? 'color:var(--red);font-weight:700;' : '' }}">
-                                {{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}
+                            <td>
+                                @include('partials.celda-vencimiento', [
+                                    'fecha' => $f->fecha_vencimiento,
+                                    'plazo' => $f->dias_plazo,
+                                ])
                             </td>
                             <td>
                                 @if($f->es_fletera)
