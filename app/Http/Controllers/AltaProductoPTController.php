@@ -20,17 +20,20 @@ class AltaProductoPTController extends Controller
     private array $columnasObligatorias = ['CODIGO', 'NOMBRE_TIPO', 'NOMBRE_MARCA', 'NOMBRE_MODELO', 'NOMBRE_MEDIDA', 'NOMBRE_ESPECIFICACION', 'FAMILIA', 'TIPO_PRODUCTO'];
 
     private array $familiasValidas = [
-        'AEROSOLES', 'LIMPIEZA', 'INSECTICIDAS', 'HERRAMIENTAS', 'REFACCIONES',
-        'EMPAQUE', 'MATERIA PRIMA', 'CONSUMIBLE', 'LUBRICANTES', 'ADHESIVOS',
-        'PINTURAS', 'SOLVENTES', 'RESINAS', 'PIGMENTOS', 'ADITIVOS',
-        'MOTORES', 'BOMBAS', 'VALVULAS', 'TUBERIAS', 'TORNILLERIA',
-        'MATERIAL EMPAQUE', 'PRODUCTO TERMINADO', 'INSUMOS',
-        'QUIMICOS', 'ELECTRICO', 'FERRETERIA', 'MANTENIMIENTO', 'SEGURIDAD',
-        'MAQUINARIA', 'MATERIA PRIMA DE IMPORTACION',
+        'AE', 'AEROSOL NITROGENO', 'AEROSOLES', 'ARE', 'AROMATIZANTE SOLIDO', 'AS', 'ASR',
+        'EM', 'GA', 'GAS', 'HE', 'HER', 'HERRAMIENTAS PLASTICOS', 'HERRAMIENTAS TALLER',
+        'INS', 'INSUMOS', 'KIT', 'LIQUIDO', 'LIQUIDO SANITARIO', 'M', 'MAQUILAS',
+        'MAQUINARIA', 'MAT', 'MATERIA PRIMA', 'MATERIAL DE EMPAQUE', 'MATERIAL DE LABORATORIO',
+        'MATERIAL DE OFICINA', 'MEI', 'MIP', 'MPE', 'MPI', 'NP', 'OR', 'PM', 'PPR',
+        'PRODUCTO COMERCIALIZADO NACIONAL', 'PRODUCTO DE CLORO', 'PRODUCTO DE PLASTICO',
+        'PRODUCTO EN PROCESO', 'PRODUCTO IMPORTADO COMERCIALIZADO', 'PRODUCTO NON PARA',
+        'PRODUCTO PARA', 'PRODUCTO REGILLA', 'PRR', 'PT', 'PZA', 'R', 'RE', 'REF',
+        'REFACCIONES PLASTICOS', 'REFACCIONES TALLER', 'RER', 'RPP', 'SE', 'SER',
+        'SERVICIO', 'TP',
     ];
 
     // Clasificaciones PT (6 dropdowns)
-    private array $departamentos = ['GASTOS', 'HERRAMIENTAS', 'INSUMOS', 'MANO DE OBRA', 'MAQUINARIA Y EQUIPO', 'MATERIALES', 'ME', 'MI', 'MN', 'MO', 'MP', 'MPI', 'MS', 'PAPELERIA', 'PT', 'REFACCIONES', 'RP', 'SEGURIDAD', 'SERVICIOS', 'VEHICULOS'];
+    private array $departamentos = ['AR', 'EA', 'ENSAMBLES', 'GA', 'GAS', 'HER', 'HET', 'INS', 'INSUMOS', 'ME', 'MEI', 'MM', 'MO', 'MP', 'MPI', 'MR', 'MS', 'MT', 'PR', 'PT', 'PTT', 'PZA', 'RE', 'REF', 'REP', 'RET', 'RO', 'RP', 'SE', 'SER'];
 
     private array $lineas = ['Aerosoles', 'Aromatizante Solido', 'Breeze Matic', 'Canastilla', 'Clip On', 'Cono Gel', 'Desinfectante', 'Difusor Electrico', 'Dispensador', 'Gel Aromatizante', 'Hang Air', 'Insecticida', 'Lavatrastes', 'Limpiador', 'Liquido Goteador', 'Metered', 'Micro Can', 'Mini Spray', 'Pastilla', 'Tapete'];
 

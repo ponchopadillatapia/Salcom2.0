@@ -1067,15 +1067,11 @@ class AdminPanelController extends Controller
         if ($busqueda) {
             $query->where(function ($q) use ($busqueda) {
                 $q->where('nombre', 'like', "%{$busqueda}%")
+                    ->orWhere('codigo', 'like', "%{$busqueda}%")
                     ->orWhere('codigo_alterno', 'like', "%{$busqueda}%")
                     ->orWhere('categoria', 'like', "%{$busqueda}%")
                     ->orWhere('proveedor_nombre', 'like', "%{$busqueda}%");
             });
-        }
-
-        $codigo = $request->input('codigo', '');
-        if ($codigo) {
-            $query->where('codigo', 'like', "%{$codigo}%");
         }
 
         if ($request->input('sin_stock')) {

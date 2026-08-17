@@ -135,11 +135,7 @@
             @endif
             <div class="filter-field search-field">
                 <label>Buscar</label>
-                <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Nombre, categoría o proveedor…">
-            </div>
-            <div class="filter-field">
-                <label>Código</label>
-                <input type="text" name="codigo" value="{{ $filtros['codigo'] ?? '' }}" placeholder="Buscar por código…">
+                <input type="text" name="busqueda" value="{{ $filtros['busqueda'] }}" placeholder="Código, nombre, categoría o proveedor…">
             </div>
             <div class="filter-field">
                 <label>Tipo Producto</label>
@@ -177,13 +173,15 @@
                     @endforeach
                 </select>
             </div>
-            <div class="filter-field">
-                <label>Fecha desde</label>
-                <input type="date" name="fecha_desde" value="{{ $filtros['fecha_desde'] ?? '' }}">
-            </div>
-            <div class="filter-field">
-                <label>Fecha hasta</label>
-                <input type="date" name="fecha_hasta" value="{{ $filtros['fecha_hasta'] ?? '' }}">
+            <div style="display:flex;gap:6px;align-items:flex-end;min-width:140px;">
+                <div class="filter-field" style="flex:1;min-width:0;">
+                    <label>Fecha desde</label>
+                    <input type="date" name="fecha_desde" value="{{ $filtros['fecha_desde'] ?? '' }}">
+                </div>
+                <div class="filter-field" style="flex:1;min-width:0;">
+                    <label>Fecha hasta</label>
+                    <input type="date" name="fecha_hasta" value="{{ $filtros['fecha_hasta'] ?? '' }}">
+                </div>
             </div>
             <div class="filter-actions">
                 <button type="submit" class="btn-primary">Filtrar</button>
@@ -314,24 +312,37 @@
             <label>Tipo Producto</label>
             <select id="editCategoria">
                 <option value="">Sin categoría</option>
-                <option value="MPI">MPI</option>
                 <option value="ME">ME</option>
-                <option value="MN">MN</option>
+                <option value="MEI">MEI</option>
+                <option value="MM">MM</option>
+                <option value="MO">MO</option>
                 <option value="MP">MP</option>
+                <option value="MPI">MPI</option>
+                <option value="MR">MR</option>
+                <option value="MS">MS</option>
+                <option value="MT">MT</option>
                 <option value="PT">PT</option>
+                <option value="PTT">PTT</option>
                 <option value="RP">RP</option>
-                <option value="CONTABLE">CONTABLE</option>
-                <option value="GASTOS">GASTOS</option>
-                <option value="REFACCIONES">REFACCIONES</option>
-                <option value="HERRAMIENTAS">HERRAMIENTAS</option>
-                <option value="MAQUINARIA">MAQUINARIA</option>
-                <option value="MUESTRAS">MUESTRAS</option>
+                <option value="AR">AR</option>
+                <option value="EA">EA</option>
+                <option value="GA">GA</option>
+                <option value="GAS">GAS</option>
+                <option value="HER">HER</option>
+                <option value="HET">HET</option>
+                <option value="INS">INS</option>
+                <option value="PR">PR</option>
+                <option value="RE">RE</option>
+                <option value="REF">REF</option>
+                <option value="REP">REP</option>
+                <option value="RET">RET</option>
+                <option value="RO">RO</option>
+                <option value="SE">SE</option>
+                <option value="SER">SER</option>
+                <option value="AEROSOL">AEROSOL</option>
+                <option value="ENSAMBLES">ENSAMBLES</option>
                 <option value="INSUMOS">INSUMOS</option>
-                <option value="EQUIPO">EQUIPO</option>
-                <option value="SEGURIDAD">SEGURIDAD</option>
-                <option value="VEHICULOS">VEHICULOS</option>
-                <option value="MOLDES">MOLDES</option>
-                <option value="SERVICIOS">SERVICIOS</option>
+                <option value="PZA">PZA</option>
             </select>
         </div>
         <div class="edit-field">

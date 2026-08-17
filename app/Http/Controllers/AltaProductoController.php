@@ -41,13 +41,16 @@ class AltaProductoController extends Controller
     ];
 
     private array $familiasValidas = [
-        'AEROSOLES', 'LIMPIEZA', 'INSECTICIDAS', 'HERRAMIENTAS', 'REFACCIONES',
-        'EMPAQUE', 'MATERIA PRIMA', 'CONSUMIBLE', 'LUBRICANTES', 'ADHESIVOS',
-        'PINTURAS', 'SOLVENTES', 'RESINAS', 'PIGMENTOS', 'ADITIVOS',
-        'MOTORES', 'BOMBAS', 'VALVULAS', 'TUBERIAS', 'TORNILLERIA',
-        'MATERIAL EMPAQUE', 'PRODUCTO TERMINADO', 'INSUMOS',
-        'QUIMICOS', 'ELECTRICO', 'FERRETERIA', 'MANTENIMIENTO', 'SEGURIDAD',
-        'MAQUINARIA', 'MATERIA PRIMA DE IMPORTACION',
+        'AE', 'AEROSOL NITROGENO', 'AEROSOLES', 'ARE', 'AROMATIZANTE SOLIDO', 'AS', 'ASR',
+        'EM', 'GA', 'GAS', 'HE', 'HER', 'HERRAMIENTAS PLASTICOS', 'HERRAMIENTAS TALLER',
+        'INS', 'INSUMOS', 'KIT', 'LIQUIDO', 'LIQUIDO SANITARIO', 'M', 'MAQUILAS',
+        'MAQUINARIA', 'MAT', 'MATERIA PRIMA', 'MATERIAL DE EMPAQUE', 'MATERIAL DE LABORATORIO',
+        'MATERIAL DE OFICINA', 'MEI', 'MIP', 'MPE', 'MPI', 'NP', 'OR', 'PM', 'PPR',
+        'PRODUCTO COMERCIALIZADO NACIONAL', 'PRODUCTO DE CLORO', 'PRODUCTO DE PLASTICO',
+        'PRODUCTO EN PROCESO', 'PRODUCTO IMPORTADO COMERCIALIZADO', 'PRODUCTO NON PARA',
+        'PRODUCTO PARA', 'PRODUCTO REGILLA', 'PRR', 'PT', 'PZA', 'R', 'RE', 'REF',
+        'REFACCIONES PLASTICOS', 'REFACCIONES TALLER', 'RER', 'RPP', 'SE', 'SER',
+        'SERVICIO', 'TP',
     ];
 
     public function mostrarAltaProducto()
@@ -220,8 +223,8 @@ class AltaProductoController extends Controller
             $validation->setFormula1('_Listas!$B$1:$B$'.$unidadCount);
         }
 
-        // Dropdown TIPO_PRODUCTO (columna H)
-        $tiposProducto = ['MPI', 'ME', 'MN', 'MP', 'PT', 'RP', 'CONTABLE', 'GASTOS', 'REFACCIONES', 'HERRAMIENTAS', 'MAQUINARIA', 'MUESTRAS', 'INSUMOS', 'EQUIPO', 'SEGURIDAD', 'VEHICULOS', 'MOLDES', 'SERVICIOS'];
+        // Dropdown TIPO_PRODUCTO (columna H) — alineado con Wiese Clasif6
+        $tiposProducto = ['ME', 'MEI', 'MM', 'MO', 'MP', 'MPI', 'MR', 'MS', 'MT', 'PT', 'PTT', 'RP', 'AR', 'EA', 'GA', 'GAS', 'HER', 'HET', 'INS', 'INSUMOS', 'PR', 'RE', 'REF', 'REP', 'RET', 'RO', 'SE', 'SER', 'AEROSOL', 'ENSAMBLES', 'PZA'];
         foreach ($tiposProducto as $i => $tipo) {
             $listSheet->setCellValue('C'.($i + 1), $tipo);
         }
@@ -1589,7 +1592,7 @@ Si todo correcto: {"errores_ia": []}';
         foreach ($unidades as $i => $uni) {
             $listSheet->setCellValue('B'.($i + 1), $uni);
         }
-        $tiposProducto2 = ['MPI', 'ME', 'MN', 'MP', 'PT', 'RP', 'CONTABLE', 'GASTOS', 'REFACCIONES', 'HERRAMIENTAS', 'MAQUINARIA', 'MUESTRAS', 'INSUMOS', 'EQUIPO', 'SEGURIDAD', 'VEHICULOS', 'MOLDES', 'SERVICIOS'];
+        $tiposProducto2 = ['ME', 'MEI', 'MM', 'MO', 'MP', 'MPI', 'MR', 'MS', 'MT', 'PT', 'PTT', 'RP', 'AR', 'EA', 'GA', 'GAS', 'HER', 'HET', 'INS', 'INSUMOS', 'PR', 'RE', 'REF', 'REP', 'RET', 'RO', 'SE', 'SER', 'AEROSOL', 'ENSAMBLES', 'PZA'];
         foreach ($tiposProducto2 as $i => $tipo) {
             $listSheet->setCellValue('C'.($i + 1), $tipo);
         }
@@ -2143,14 +2146,14 @@ Si todo correcto: {"errores_ia": []}';
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'TIPO_PRODUCTO',
-                'error' => "Debe estar en MAYUSCULAS. Recibido: '{$tipoProductoRaw}'. COMO CORREGIR: Selecciona del dropdown: MPI, ME o MN",
+                'error' => "Debe estar en MAYUSCULAS. Recibido: '{$tipoProductoRaw}'. COMO CORREGIR: Selecciona del dropdown: ME, MM, MP, MPI, etc.",
             ];
         }
-        if ($tipoProductoRaw && ! in_array(strtoupper($tipoProductoRaw), ['MPI', 'ME', 'MN', 'MP', 'PT', 'RP', 'CONTABLE', 'GASTOS', 'REFACCIONES', 'HERRAMIENTAS', 'MAQUINARIA', 'MUESTRAS', 'INSUMOS', 'EQUIPO', 'SEGURIDAD', 'VEHICULOS', 'MOLDES', 'SERVICIOS'])) {
+        if ($tipoProductoRaw && ! in_array(strtoupper($tipoProductoRaw), ['ME', 'MEI', 'MM', 'MO', 'MP', 'MPI', 'MR', 'MS', 'MT', 'PT', 'PTT', 'RP', 'AR', 'EA', 'GA', 'GAS', 'HER', 'HET', 'INS', 'INSUMOS', 'PR', 'RE', 'REF', 'REP', 'RET', 'RO', 'SE', 'SER', 'AEROSOL', 'ENSAMBLES', 'PZA'])) {
             $errores[] = [
                 'fila' => $fila,
                 'campo' => 'TIPO_PRODUCTO',
-                'error' => "Valor no valido: '{$tipoProductoRaw}'. COMO CORREGIR: Solo MPI (Materia Prima Importacion), ME (Material Empaque) o MN (Mantenimiento)",
+                'error' => "Valor no valido: '{$tipoProductoRaw}'. COMO CORREGIR: Selecciona del dropdown un tipo valido (ME, MM, MP, MPI, PT, RP, HER, REF, SER, etc.)",
             ];
         }
 
@@ -3192,6 +3195,11 @@ Si todo correcto: {"errores_ia": []}';
             return 'MPI';
         }
 
+        // MEI (Material Empaque Importación)
+        if (str_starts_with($codigo, 'MEI')) {
+            return 'MEI';
+        }
+
         // ME (Material Empaque) — antes de MP para que no lo agarre MP
         if (str_starts_with($codigo, 'ME')) {
             return 'ME';
@@ -3202,14 +3210,34 @@ Si todo correcto: {"errores_ia": []}';
             return 'MP';
         }
 
-        // MUE (Muestras) — antes de PT para que no lo agarre el regex de E/M/N
-        if (str_starts_with($codigo, 'MUE')) {
-            return 'MUESTRAS';
+        // MR (Material Reciclado/Reproceso)
+        if (str_starts_with($codigo, 'MR')) {
+            return 'MR';
         }
 
         // MS (Servicios)
         if (str_starts_with($codigo, 'MS')) {
-            return 'SERVICIOS';
+            return 'MS';
+        }
+
+        // MT
+        if (str_starts_with($codigo, 'MT')) {
+            return 'MT';
+        }
+
+        // MO (Mano de Obra)
+        if (str_starts_with($codigo, 'MO')) {
+            return 'MO';
+        }
+
+        // MM (Mantenimiento) — antes era MN, ahora alineado con Wiese
+        if (str_starts_with($codigo, 'MM') || str_starts_with($codigo, 'MN')) {
+            return 'MM';
+        }
+
+        // PTT (Producto Terminado Tercero)
+        if (str_starts_with($codigo, 'PTT')) {
+            return 'PTT';
         }
 
         // PT (Producto Terminado) — códigos que empiezan con E/M/N + letras
@@ -3222,42 +3250,90 @@ Si todo correcto: {"errores_ia": []}';
             return 'RP';
         }
 
-        // Mantenimiento (Pagagoni): CM=Consumibles, BL=Baleros, CIL=Cilindros, CN=Conexiones, MN=Mantenimiento
-        if (str_starts_with($codigo, 'CM') || str_starts_with($codigo, 'BL') || str_starts_with($codigo, 'CIL') || str_starts_with($codigo, 'CN') || str_starts_with($codigo, 'MN')) {
-            return 'MN';
+        // Mantenimiento general: CM=Consumibles, BL=Baleros, CIL=Cilindros, CN=Conexiones
+        if (str_starts_with($codigo, 'CM') || str_starts_with($codigo, 'BL') || str_starts_with($codigo, 'CIL') || str_starts_with($codigo, 'CN')) {
+            return 'MM';
         }
 
-        // Herramientas
-        if (str_starts_with($codigo, 'HER') || str_starts_with($codigo, 'HET')) {
-            return 'HERRAMIENTAS';
+        // HER (Herramientas)
+        if (str_starts_with($codigo, 'HER')) {
+            return 'HER';
         }
 
-        // Refacciones
-        if (str_starts_with($codigo, 'RI') || str_starts_with($codigo, '500') || str_starts_with($codigo, '101')) {
-            return 'REFACCIONES';
+        // HET (Herramienta de Trabajo)
+        if (str_starts_with($codigo, 'HET')) {
+            return 'HET';
         }
 
-        // Maquinaria
+        // REF (Refacciones)
+        if (str_starts_with($codigo, 'REF') || str_starts_with($codigo, 'RI') || str_starts_with($codigo, '500') || str_starts_with($codigo, '101')) {
+            return 'REF';
+        }
+
+        // REP (Repuestos)
+        if (str_starts_with($codigo, 'REP')) {
+            return 'REP';
+        }
+
+        // RET (Retornables)
+        if (str_starts_with($codigo, 'RET')) {
+            return 'RET';
+        }
+
+        // RE
+        if (str_starts_with($codigo, 'RE')) {
+            return 'RE';
+        }
+
+        // RO
+        if (str_starts_with($codigo, 'RO')) {
+            return 'RO';
+        }
+
+        // AR
+        if (str_starts_with($codigo, 'AR')) {
+            return 'AR';
+        }
+
+        // GA / GAS
+        if (str_starts_with($codigo, 'GAS')) {
+            return 'GAS';
+        }
+        if (str_starts_with($codigo, 'GA')) {
+            return 'GA';
+        }
+
+        // INS (Insumos)
+        if (str_starts_with($codigo, 'INS')) {
+            return 'INS';
+        }
+
+        // SER (Servicios)
+        if (str_starts_with($codigo, 'SER')) {
+            return 'SER';
+        }
+
+        // SE (Seguridad)
+        if (str_starts_with($codigo, 'SE')) {
+            return 'SE';
+        }
+
+        // PR
+        if (str_starts_with($codigo, 'PR')) {
+            return 'PR';
+        }
+
+        // EA
+        if (str_starts_with($codigo, 'EA')) {
+            return 'EA';
+        }
+
+        // Maquinaria (MI, 123)
         if (str_starts_with($codigo, '123') || str_starts_with($codigo, 'MI')) {
-            return 'MAQUINARIA';
+            return 'MM';
         }
 
-        // Contable
-        if (str_starts_with($codigo, '550')) {
-            return 'CONTABLE';
-        }
-
-        // Gastos
-        if (preg_match('/^6[2-3][0-9]/', $codigo)) {
-            return 'GASTOS';
-        }
-
-        // Seguridad
-        if (str_starts_with($codigo, 'SEGG')) {
-            return 'SEGURIDAD';
-        }
-
-        // No se puede determinar — no marcar error
+        // No se puede determinar
         return null;
     }
 }

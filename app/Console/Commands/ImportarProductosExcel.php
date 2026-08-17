@@ -176,18 +176,18 @@ class ImportarProductosExcel extends Command
         if (! $dryRun) {
             $this->info('Asignando categorías por prefijo...');
             Producto::where('codigo', 'LIKE', 'RP%')->whereNull('deleted_at')->update(['categoria' => 'RP']);
-            Producto::where('codigo', 'LIKE', '550%')->whereNull('deleted_at')->update(['categoria' => 'CONTABLE']);
-            Producto::whereRaw("(codigo LIKE '500%' OR codigo LIKE '101%' OR codigo LIKE 'BL%' OR codigo LIKE 'CN%' OR codigo LIKE 'RI%')")->whereNull('deleted_at')->update(['categoria' => 'REFACCIONES']);
-            Producto::whereRaw("(codigo LIKE '620%' OR codigo LIKE '621%' OR codigo LIKE '622%' OR codigo LIKE '623%' OR codigo LIKE '624%' OR codigo LIKE '626%' OR codigo LIKE '627%' OR codigo LIKE '628%' OR codigo LIKE '629%' OR codigo LIKE '631%' OR codigo LIKE '634%')")->whereNull('deleted_at')->update(['categoria' => 'GASTOS']);
-            Producto::whereRaw("(codigo LIKE '123%' OR codigo LIKE 'MI%')")->whereNull('deleted_at')->update(['categoria' => 'MAQUINARIA']);
-            Producto::whereRaw("(codigo LIKE 'HER%' OR codigo LIKE 'HET%' OR codigo LIKE 'CM%')")->whereNull('deleted_at')->update(['categoria' => 'HERRAMIENTAS']);
-            Producto::whereRaw("(codigo LIKE 'MUE%' OR codigo LIKE '520%')")->whereNull('deleted_at')->update(['categoria' => 'MUESTRAS']);
-            Producto::whereRaw("(codigo LIKE 'MO%' OR codigo LIKE 'MZ%' OR codigo LIKE 'MM%')")->whereNull('deleted_at')->update(['categoria' => 'INSUMOS']);
-            Producto::where('codigo', 'LIKE', '120%')->whereNull('deleted_at')->update(['categoria' => 'VEHICULOS']);
-            Producto::whereRaw("(codigo LIKE '121%' OR codigo LIKE '122%')")->whereNull('deleted_at')->update(['categoria' => 'EQUIPO']);
-            Producto::where('codigo', 'LIKE', '590%')->whereNull('deleted_at')->update(['categoria' => 'MOLDES']);
-            Producto::where('codigo', 'LIKE', 'SEGG%')->whereNull('deleted_at')->update(['categoria' => 'SEGURIDAD']);
-            Producto::where('codigo', 'LIKE', 'MS%')->where('categoria', 'MN')->whereNull('deleted_at')->update(['categoria' => 'SERVICIOS']);
+            Producto::where('codigo', 'LIKE', '550%')->whereNull('deleted_at')->update(['categoria' => 'MM']);
+            Producto::whereRaw("(codigo LIKE '500%' OR codigo LIKE '101%' OR codigo LIKE 'BL%' OR codigo LIKE 'CN%' OR codigo LIKE 'RI%')")->whereNull('deleted_at')->update(['categoria' => 'REF']);
+            Producto::whereRaw("(codigo LIKE '620%' OR codigo LIKE '621%' OR codigo LIKE '622%' OR codigo LIKE '623%' OR codigo LIKE '624%' OR codigo LIKE '626%' OR codigo LIKE '627%' OR codigo LIKE '628%' OR codigo LIKE '629%' OR codigo LIKE '631%' OR codigo LIKE '634%')")->whereNull('deleted_at')->update(['categoria' => 'GA']);
+            Producto::whereRaw("(codigo LIKE '123%' OR codigo LIKE 'MI%')")->whereNull('deleted_at')->update(['categoria' => 'MM']);
+            Producto::whereRaw("(codigo LIKE 'HER%' OR codigo LIKE 'HET%' OR codigo LIKE 'CM%')")->whereNull('deleted_at')->update(['categoria' => 'HER']);
+            Producto::whereRaw("(codigo LIKE 'MUE%' OR codigo LIKE '520%')")->whereNull('deleted_at')->update(['categoria' => 'MS']);
+            Producto::whereRaw("(codigo LIKE 'MO%' OR codigo LIKE 'MZ%' OR codigo LIKE 'MM%')")->whereNull('deleted_at')->update(['categoria' => 'MM']);
+            Producto::where('codigo', 'LIKE', '120%')->whereNull('deleted_at')->update(['categoria' => 'MM']);
+            Producto::whereRaw("(codigo LIKE '121%' OR codigo LIKE '122%')")->whereNull('deleted_at')->update(['categoria' => 'MM']);
+            Producto::where('codigo', 'LIKE', '590%')->whereNull('deleted_at')->update(['categoria' => 'MM']);
+            Producto::where('codigo', 'LIKE', 'SEGG%')->whereNull('deleted_at')->update(['categoria' => 'SE']);
+            Producto::where('codigo', 'LIKE', 'MS%')->where('categoria', 'MM')->whereNull('deleted_at')->update(['categoria' => 'SER']);
             $this->info('Categorías asignadas.');
         }
 
@@ -222,10 +222,10 @@ class ImportarProductosExcel extends Command
                 'MP' => 'MP',
                 'MPI' => 'MPI',
                 'ME' => 'ME',
-                'SERVICIOS' => 'MN',
-                'MUESTRAS' => 'MN',
+                'SERVICIOS' => 'SER',
+                'MUESTRAS' => 'MS',
                 'ENSAMBLES' => 'ME',
-                default => 'MN',
+                default => 'MM',
             };
         }
 
@@ -241,19 +241,19 @@ class ImportarProductosExcel extends Command
             return 'MP';
         }
         if (str_starts_with($codigoUpper, 'MS')) {
-            return 'MN';
+            return 'MS';
         }
         if (str_starts_with($codigoUpper, 'RP')) {
-            return 'MP';
+            return 'RP';
         }
         if (str_starts_with($codigoUpper, 'MUE')) {
-            return 'MN';
+            return 'MS';
         }
         if (preg_match('/^[EMN][A-Z]/', $codigoUpper)) {
             return 'PT';
         }
 
-        return 'MN';
+        return 'MM';
     }
 
     private function extraerFamilia(string $grupo): string
