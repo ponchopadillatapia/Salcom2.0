@@ -722,7 +722,7 @@
                         <th>Fletera</th>
                         <th>Retenciones</th>
                         <th>Total</th>
-                        <th>Plazo</th>
+                        <th>Vencimiento</th>
                         <th>Estatus</th>
                         <th>Fecha</th>
                     </tr>
