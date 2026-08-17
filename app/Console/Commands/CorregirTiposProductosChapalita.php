@@ -20,41 +20,41 @@ class CorregirTiposProductosChapalita extends Command
 
     protected $description = 'Corrige tipo_producto de productos migrados usando Clasif1 del Excel SAP + diccionario de clasificación';
 
-    /** Clasif1 (texto SAP) → tipo_producto del portal */
+    /** Clasif1 (texto SAP) → tipo_producto del portal — alineado con Wiese Clasif6 */
     private array $mapaTipo = [
         'PRODUCTO TERMINADO' => 'PT',
-        'PTT' => 'PT',
+        'PTT' => 'PTT',
         'P' => 'PT',
         'MATERIA PRIMA' => 'MP',
         'MIP' => 'MP',
-        'RP' => 'MP',
-        'RP3' => 'MP',
-        'RPR' => 'MP',
+        'RP' => 'RP',
+        'RP3' => 'RP',
+        'RPR' => 'RP',
         'MPI' => 'MPI',
         'ME' => 'ME',
-        'MEI' => 'ME',
-        'GASTOS' => 'MN',
-        'GAS' => 'MN',
-        'REFACCIONES' => 'MN',
-        'REF' => 'MN',
-        'HERRAMIENTAS' => 'MN',
-        'HER' => 'MN',
-        'INSUMOS' => 'MN',
-        'INS' => 'MN',
-        'SERVICIO' => 'MN',
-        'SER' => 'MN',
-        'MAQUINARIA' => 'MN',
-        'MANO DE OBRA' => 'MN',
-        'MS' => 'MN',
-        'MT' => 'MN',
-        'PZA' => 'MN',
-        'ERC' => 'MN',
-        'ERROR SISTEMA' => 'MN',
-        'UIL' => 'MN',
-        'RET' => 'MN',
-        'PR' => 'MN',
-        'PN' => 'MN',
-        'S' => 'MN',
+        'MEI' => 'MEI',
+        'GASTOS' => 'GA',
+        'GAS' => 'GAS',
+        'REFACCIONES' => 'REF',
+        'REF' => 'REF',
+        'HERRAMIENTAS' => 'HER',
+        'HER' => 'HER',
+        'INSUMOS' => 'INS',
+        'INS' => 'INS',
+        'SERVICIO' => 'SER',
+        'SER' => 'SER',
+        'MAQUINARIA' => 'MM',
+        'MANO DE OBRA' => 'MO',
+        'MS' => 'MS',
+        'MT' => 'MT',
+        'PZA' => 'PZA',
+        'ERC' => 'MM',
+        'ERROR SISTEMA' => 'MM',
+        'UIL' => 'MM',
+        'RET' => 'RET',
+        'PR' => 'PR',
+        'PN' => 'MM',
+        'S' => 'MM',
     ];
 
     public function handle(): int
@@ -314,14 +314,14 @@ class CorregirTiposProductosChapalita extends Command
         }
         // Servicios / muestras: no son PT aunque empiecen con M
         if (str_starts_with($c, 'MS') || str_starts_with($c, 'MUE') || str_starts_with($c, 'MO') || str_starts_with($c, 'MM') || str_starts_with($c, 'MZ')) {
-            return 'MN';
+            return 'MM';
         }
         // PT comercial: E/M/N + letras (ej. MAEHO17, EAEHO64) — excluye numéricos tipo 550…
         if (preg_match('/^[EMN][A-Z]/', $c)) {
             return 'PT';
         }
 
-        return 'MN';
+        return 'MM';
     }
 
     private function resolver(array $map, mixed $cid): ?string
