@@ -180,7 +180,7 @@ class AdminPagoProveedoresController extends Controller
 
         $items = Factura::query()
             ->where('codigo_proveedor', $codigo)
-            ->whereIn('estatus', ['pendiente', 'programada'])
+            ->where('estatus', 'programada')
             ->orderByDesc('created_at')
             ->limit(100)
             ->get()
@@ -250,11 +250,11 @@ class AdminPagoProveedoresController extends Controller
         $facturas = Factura::query()
             ->whereIn('id', $data['factura_ids'])
             ->where('codigo_proveedor', $codigo)
-            ->whereIn('estatus', ['pendiente', 'programada'])
+            ->where('estatus', 'programada')
             ->get();
 
         if ($facturas->isEmpty()) {
-            return back()->withInput()->with('error', 'Selecciona al menos una factura pendiente válida.');
+            return back()->withInput()->with('error', 'No hay facturas programadas para abonar. Primero genera el pago en "Pagos al proveedor".');
         }
 
         $estatus = 'pagado';

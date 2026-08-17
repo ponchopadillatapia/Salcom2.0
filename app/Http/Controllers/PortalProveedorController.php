@@ -351,7 +351,7 @@ class PortalProveedorController extends Controller
             }
         }
 
-        $facturas = $query->orderByDesc('created_at')->paginate(30)->withQueryString();
+        $facturas = $query->orderByDesc('created_at')->paginate(50)->withQueryString();
 
         $filtros = [
             'fecha_desde' => $request->input('fecha_desde', ''),
