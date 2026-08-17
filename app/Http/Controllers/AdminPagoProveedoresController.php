@@ -381,9 +381,24 @@ class AdminPagoProveedoresController extends Controller
             return back()->with('error', 'Ya está cancelado.');
         }
 
+        // Revertir los pagos de las facturas
+        $abono->load('documentos');
+        foreach ($abono->documentos as $doc) {
+            $factura = Factura::find($doc->factura_id);
+            if ($factura) {
+                $nuevoMontoPagado = max(0, round((float) $factura->monto_pagado - (float) $doc->importe_pago, 2));
+                $factura->monto_pagado = $nuevoMontoPagado;
+                // Si estaba pagada y ahora tiene saldo, volver a pendiente
+                if ($factura->estatus === 'pagada' && $nuevoMontoPagado < (float) $factura->total) {
+                    $factura->estatus = 'pendiente';
+                }
+                $factura->save();
+            }
+        }
+
         $abono->update(['estatus' => 'cancelado']);
 
-        return back()->with('ok', 'Abono cancelado.');
+        return back()->with('ok', 'Abono cancelado y pagos revertidos.');
     }
 
     private function polizaOrFail(string $key): array

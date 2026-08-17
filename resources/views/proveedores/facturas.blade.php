@@ -177,7 +177,7 @@
                         $restantes = $f->diasRestantes();
                         $diasLabel = $restantes === null
                             ? '—'
-                            : ($restantes > 0 ? $restantes.' días' : ($restantes === 0 ? 'Vence hoy' : 'Vencida ('.abs($restantes).')'));
+                            : ($restantes > 0 ? $restantes.' días' : ($restantes === 0 ? ($f->estatus === 'pagada' ? '0 días' : 'Vence hoy') : 'Vencida ('.abs($restantes).')'));
                     @endphp
                     <tr class="fac-row" style="cursor:pointer"
                         data-folio="{{ $f->folio_cfdi ?: '—' }}"

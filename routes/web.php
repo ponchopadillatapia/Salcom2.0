@@ -227,6 +227,7 @@ Route::get('/admin/pagos', [AdminPagosController::class, 'index'])->name('admin.
 Route::get('/admin/pagos/alertas', [AdminPagosController::class, 'alertasJson'])->name('admin.pagos.alertas')->middleware('auth.admin');
 Route::post('/admin/pagos/alertas/{alerta}/leer', [AdminPagosController::class, 'marcarAlertaLeida'])->name('admin.pagos.alertas.leer')->middleware('auth.admin');
 Route::get('/admin/pagos/proveedor/{codigo}', [AdminPagosController::class, 'proveedor'])->name('admin.pagos.proveedor')->middleware('auth.admin');
+Route::get('/admin/pagos/proveedor/{codigo}/estado-cuenta', [AdminPagosController::class, 'estadoCuenta'])->name('admin.pagos.estado-cuenta')->middleware('auth.admin');
 Route::post('/admin/pagos', [AdminPagosController::class, 'store'])->name('admin.pagos.store')->middleware('auth.admin');
 Route::get('/admin/pagos/{pago}', [AdminPagosController::class, 'show'])->name('admin.pagos.show')->middleware('auth.admin');
 Route::post('/admin/pagos/{pago}/confirmar', [AdminPagosController::class, 'confirmar'])->name('admin.pagos.confirmar')->middleware('auth.admin');
