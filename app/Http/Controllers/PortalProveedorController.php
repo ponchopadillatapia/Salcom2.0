@@ -315,6 +315,8 @@ class PortalProveedorController extends Controller
         // Total abonado al proveedor
         $totalAbonado = (clone $base)->sum('monto_pagado');
         $numAbonadas = (clone $base)->where('monto_pagado', '>', 0)->where('estatus', 'pendiente')->count();
+        $totalPorCobrar = (clone $base)->whereIn('estatus', ['pendiente', 'programada'])
+            ->selectRaw('SUM(total - monto_pagado) as pendiente')->value('pendiente') ?? 0;
 
         $kpis = [
             'rechazadas' => (clone $baseAll)->where('estatus', 'rechazada')->count(),
@@ -323,6 +325,7 @@ class PortalProveedorController extends Controller
             'pagadas' => (clone $base)->whereIn('estatus', ['pagada', 'programada'])->count(),
             'totales' => (clone $base)->count(),
             'abonado' => (float) $totalAbonado,
+            'por_cobrar' => (float) $totalPorCobrar,
         ];
 
         $buscar = trim((string) $request->input('q', ''));
