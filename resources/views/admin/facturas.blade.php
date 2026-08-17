@@ -289,6 +289,12 @@
                     </td>
                     <td style="color:{{ $vencida ? 'var(--red)' : 'var(--gray-muted)' }};font-weight:{{ $vencida ? '700' : '400' }};white-space:nowrap">
                         {{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}
+                        @php $restantes = $f->diasRestantes(); @endphp
+                        @if($restantes !== null && $f->estatus === 'pendiente')
+                            <div style="font-size:11px;font-weight:600;margin-top:2px;color:{{ $restantes < 0 ? 'var(--red)' : ($restantes <= 15 ? 'var(--amber)' : 'var(--gray-muted)') }}">
+                                {{ $restantes > 0 ? $restantes.' días' : ($restantes === 0 ? 'Vence hoy' : 'Vencida') }}
+                            </div>
+                        @endif
                     </td>
                     <td style="text-align:right;">
                         <span class="hora-pill">{{ $f->created_at?->format('h:i a') ?? '—' }}</span>

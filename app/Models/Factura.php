@@ -73,4 +73,21 @@ class Factura extends Model
     {
         return $this->belongsTo(ProveedorUser::class, 'codigo_proveedor', 'id_proveedor');
     }
+
+    /**
+     * Días que faltan para el vencimiento. Baja solo cada día
+     * (320 hoy → 319 mañana) a partir de fecha_vencimiento.
+     */
+    public function diasRestantes(): ?int
+    {
+        if (! $this->fecha_vencimiento) {
+            return null;
+        }
+
+        $hoy = now()->startOfDay();
+        $vence = $this->fecha_vencimiento->copy()->startOfDay();
+        $segundos = $vence->getTimestamp() - $hoy->getTimestamp();
+
+        return (int) round($segundos / 86400);
+    }
 }

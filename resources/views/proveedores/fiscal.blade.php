@@ -433,6 +433,10 @@
     .badge-red { background: var(--red-bg); color: var(--red); }
     .badge-blue { background: var(--blue-bg); color: var(--blue); }
     .badge-purple { background: var(--purple-light); color: var(--purple); }
+    .dias-count { font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+    .dias-count.warn { color: var(--amber); }
+    .dias-count.late { color: var(--red); }
+    .dias-sub { font-size: 10px; color: var(--gray-muted); margin-top: 2px; }
 
     .empty-state {
         padding: 40px 20px;
@@ -746,10 +750,22 @@
                             </td>
                             <td style="font-weight:600;">${{ number_format((float) $f->total, 2) }}</td>
                             <td>
-                                @if($f->dias_plazo)
-                                    {{ $f->dias_plazo }} días
-                                @else
+                                @php $restantes = $f->diasRestantes(); @endphp
+                                @if($restantes === null)
                                     —
+                                @else
+                                    <div class="dias-count {{ $restantes < 0 ? 'late' : ($restantes <= 15 ? 'warn' : '') }}">
+                                        @if($restantes > 0)
+                                            {{ $restantes }} días
+                                        @elseif($restantes === 0)
+                                            Vence hoy
+                                        @else
+                                            Vencida ({{ abs($restantes) }})
+                                        @endif
+                                    </div>
+                                    @if($f->dias_plazo)
+                                        <div class="dias-sub">de {{ $f->dias_plazo }}</div>
+                                    @endif
                                 @endif
                             </td>
                             <td>

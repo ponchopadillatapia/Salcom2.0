@@ -37,6 +37,10 @@
     .pill.pendiente { background: var(--amber-bg); color: var(--amber); }
     .pill.pagada, .pill.programada { background: var(--green-bg); color: var(--green); }
     .pill.aprobada, .pill.validada { background: var(--purple-light); color: var(--purple); }
+    .dias-count { font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+    .dias-count.warn { color: var(--amber); }
+    .dias-count.late { color: var(--red); }
+    .dias-sub { font-size: 10px; color: var(--gray-muted); margin-top: 2px; }
     .empty { text-align: center; padding: 48px 20px; color: var(--gray-muted); font-size: 14px; }
     .pagination-wrap { padding: 16px; display: flex; justify-content: center; }
 
@@ -152,6 +156,7 @@
                     <th>Folio</th>
                     <th>Monto</th>
                     <th>Abonado</th>
+                    <th>Días</th>
                     <th>Estatus</th>
                     <th>Último abono</th>
                 </tr>
@@ -162,12 +167,18 @@
                         $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
                         $moneda = strtoupper($vd['moneda'] ?? $vd['cfdi']['moneda'] ?? 'MXN');
                         $saldo = round((float)$f->total - (float)($f->monto_pagado ?? 0), 2);
+                        $restantes = $f->diasRestantes();
+                        $diasLabel = $restantes === null
+                            ? '—'
+                            : ($restantes > 0 ? $restantes.' días' : ($restantes === 0 ? 'Vence hoy' : 'Vencida ('.abs($restantes).')'));
                     @endphp
                     <tr class="fac-row" style="cursor:pointer"
                         data-folio="{{ $f->folio_cfdi ?: '—' }}"
                         data-uuid="{{ $f->uuid_cfdi ?? '—' }}"
                         data-fecha="{{ $f->created_at?->format('d/m/Y') ?? '—' }}"
                         data-vencimiento="{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}"
+                        data-dias="{{ $diasLabel }}"
+                        data-plazo="{{ $f->dias_plazo ? $f->dias_plazo.' días' : '—' }}"
                         data-monto="${{ number_format((float)$f->monto, 2) }}"
                         data-iva="${{ number_format((float)$f->monto_iva, 2) }}"
                         data-total="${{ number_format((float)$f->total, 2) }}"
@@ -187,6 +198,16 @@
                         </td>
                         <td class="monto">${{ number_format((float) $f->total, 2) }}</td>
                         <td style="font-size:12px;color:{{ (float)($f->monto_pagado ?? 0) > 0 ? 'var(--green)' : 'var(--gray-muted)' }};font-weight:600">${{ number_format((float)($f->monto_pagado ?? 0), 2) }}</td>
+                        <td>
+                            @if($restantes === null)
+                                —
+                            @else
+                                <div class="dias-count {{ $restantes < 0 ? 'late' : ($restantes <= 15 ? 'warn' : '') }}">{{ $diasLabel }}</div>
+                                @if($f->dias_plazo)
+                                    <div class="dias-sub">de {{ $f->dias_plazo }}</div>
+                                @endif
+                            @endif
+                        </td>
                         <td>
                             @if($f->estatus === 'pendiente' && (float)($f->monto_pagado ?? 0) > 0)
                                 <span class="pill" style="background:#fff7ed;color:#ea580c">Abonada</span>
@@ -318,6 +339,7 @@ document.querySelectorAll('#tablaFacturas .fac-row').forEach(function(tr) {
         html += fila('UUID', '<span style="font-size:11px;word-break:break-all;">' + d.uuid + '</span>');
         html += fila('Fecha emisión', d.fecha);
         html += fila('Vencimiento', d.vencimiento);
+        html += fila('Días restantes', d.dias + (d.plazo && d.plazo !== '—' ? ' <span style="color:var(--gray-muted);font-size:11px;">(plazo '+d.plazo+')</span>' : ''));
         html += fila('Moneda', d.moneda);
         html += fila('Subtotal', d.monto);
         html += fila('IVA', d.iva);
