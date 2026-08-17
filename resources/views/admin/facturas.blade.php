@@ -147,6 +147,12 @@
         <div class="inv-metric-val">{{ $totalGeneral }}</div>
         <div class="inv-metric-sub">Facturas totales</div>
     </a>
+    <div class="inv-metric">
+        <div class="accent" style="background:#2563eb"></div>
+        <div class="inv-metric-label">Total pendiente</div>
+        <div class="inv-metric-val" style="font-size:18px">${{ number_format($montoPendiente ?? 0, 2) }}</div>
+        <div class="inv-metric-sub">Por pagar</div>
+    </div>
 </div>
 
 <div class="toolbar anim" style="animation-delay:.04s">

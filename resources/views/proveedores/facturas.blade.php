@@ -124,6 +124,12 @@
         <div class="inv-metric-val" id="kpi-totales">{{ $kpis['totales'] }}</div>
         <div class="inv-metric-sub">Todas</div>
     </a>
+    <div class="inv-metric">
+        <div class="accent" style="background:#2563eb"></div>
+        <div class="inv-metric-label">Total pendiente</div>
+        <div class="inv-metric-val" id="kpi-dinero" style="font-size:18px">${{ number_format($kpis['por_cobrar'], 2) }}</div>
+        <div class="inv-metric-sub">Por cobrar</div>
+    </div>
 </div>
 
 <form method="GET" action="{{ route('proveedores.facturas') }}" class="ph-toolbar">
@@ -156,6 +162,7 @@
                     <th>Folio</th>
                     <th>Monto</th>
                     <th>Abonado</th>
+                    <th>Restante</th>
                     <th>Días</th>
                     <th>Estatus</th>
                     <th>Último abono</th>
@@ -198,6 +205,7 @@
                         </td>
                         <td class="monto">${{ number_format((float) $f->total, 2) }}</td>
                         <td style="font-size:12px;color:{{ (float)($f->monto_pagado ?? 0) > 0 ? 'var(--green)' : 'var(--gray-muted)' }};font-weight:600">${{ number_format((float)($f->monto_pagado ?? 0), 2) }}</td>
+                        <td style="font-size:12px;font-weight:600;color:{{ $saldo > 0 ? '#dc2626' : 'var(--green)' }}">${{ number_format($saldo, 2) }}</td>
                         <td>
                             @if($restantes === null)
                                 —
