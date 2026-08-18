@@ -1,9 +1,9 @@
 @extends('layouts.admin')
-@section('title', 'Abonos al proveedor')
+@section('title', 'Pago a proveedor')
 @section('hero')
 <div class="hero-band">
-    <h1>Abonos al proveedor</h1>
-    <p>Abonos / pólizas Contpaqi · 8969 nacional · 2026 dólar</p>
+    <h1>Pago a proveedor</h1>
+    <p>Registro de pagos realizados · 8969 nacional · 2026 dólar</p>
 </div>
 @endsection
 @push('styles')
@@ -95,18 +95,18 @@
         <div class="inv-metric-val">{{ $kpiPagados }}</div>
         <div class="inv-metric-sub">Pagos realizados</div>
     </a>
-    <div class="inv-metric">
-        <div class="accent" style="background:#2563eb"></div>
-        <div class="inv-metric-label">Facturas pendientes</div>
-        <div class="inv-metric-val" style="font-size:20px">${{ number_format((float)$kpiMontoPendiente, 2) }}</div>
-        <div class="inv-metric-sub">{{ $kpiFacturasPendientes }} facturas por pagar</div>
-    </div>
     <a class="inv-metric {{ $estatus === '' ? 'is-active' : '' }}" href="{{ route('admin.pago-proveedores', $chipBase) }}">
         <div class="accent" style="background:var(--purple,#6B3FA0)"></div>
         <div class="inv-metric-label">Totales</div>
         <div class="inv-metric-val">{{ $kpiTotales }}</div>
         <div class="inv-metric-sub">Todos los abonos</div>
     </a>
+    <div class="inv-metric">
+        <div class="accent" style="background:#2563eb"></div>
+        <div class="inv-metric-label">Facturas pendientes</div>
+        <div class="inv-metric-val" style="font-size:20px">${{ number_format((float)$kpiMontoPendiente, 2) }}</div>
+        <div class="inv-metric-sub">{{ $kpiFacturasPendientes }} facturas por pagar</div>
+    </div>
 </div>
 
 @if($agente === '' && ($modo ?? 'proveedores') !== 'abonos')

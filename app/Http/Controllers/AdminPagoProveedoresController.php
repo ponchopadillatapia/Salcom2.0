@@ -401,6 +401,120 @@ class AdminPagoProveedoresController extends Controller
         return back()->with('ok', 'Abono cancelado y pagos revertidos.');
     }
 
+    // ═══════════════════════════════════════════
+    // ABONO AL PROVEEDOR (Paso 3 — registro interno)
+    // ═══════════════════════════════════════════
+
+    /** Listado de facturas pagadas para confirmar abono interno. */
+    public function abonoInterno(Request $request)
+    {
+        $buscar = trim((string) $request->input('q', ''));
+        $filtroEstatus = trim((string) $request->input('estatus', ''));
+
+        // KPIs siempre
+        $kpiPagadas = Factura::where('estatus', 'pagada')->count();
+        $kpiLiquidadas = Factura::where('estatus', 'liquidada')->count();
+        $totalLiquidado = Factura::where('estatus', 'liquidada')->sum('monto_pagado');
+        $kpiPendientes = Factura::where('estatus', 'pendiente')->count();
+        $kpiCanceladas = Factura::where('estatus', 'cancelada')->count();
+
+        // Si hay filtro de KPI, mostrar facturas de ese estatus en tabla plana
+        if (in_array($filtroEstatus, ['pendiente', 'cancelada', 'liquidada', 'pagada', 'todas'])) {
+            $query = Factura::query();
+            if ($filtroEstatus !== 'todas') {
+                $query->where('estatus', $filtroEstatus);
+            }
+
+            if ($buscar !== '') {
+                $query->where(function ($q) use ($buscar) {
+                    $q->where('codigo_proveedor', 'like', "%{$buscar}%")
+                        ->orWhere('folio_cfdi', 'like', "%{$buscar}%");
+                });
+            }
+
+            $facturas = $query->orderByDesc('updated_at')->paginate(50)->withQueryString();
+
+            return view('admin.abono-proveedor.index', compact(
+                'facturas', 'buscar', 'totalLiquidado', 'filtroEstatus',
+                'kpiPagadas', 'kpiLiquidadas', 'kpiPendientes', 'kpiCanceladas'
+            ) + ['modo' => 'facturas', 'proveedoresAgrupados' => collect()]);
+        }
+
+        // Vista principal: proveedores con facturas (todos los estatus)
+        $proveedoresAgrupados = Factura::query()
+            ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(total) as monto_total, max(updated_at) as ultima_at, min(fecha_vencimiento) as proximo_vencimiento')
+            ->whereNotNull('codigo_proveedor')
+            ->where('codigo_proveedor', '!=', '')
+            ->groupBy('codigo_proveedor')
+            ->orderByDesc('ultima_at')
+            ->get()
+            ->map(function ($row) {
+                $prov = \App\Models\ProveedorUser::where('codigo', $row->codigo_proveedor)->first();
+                $notifSinLeer = \App\Models\Alerta::query()
+                    ->where('destinatario_tipo', 'admin')
+                    ->where('datos->codigo_proveedor', $row->codigo_proveedor)
+                    ->whereNotIn('estatus', ['leida', 'accionada'])
+                    ->count();
+                $ultimaAt = $row->ultima_at ? \Carbon\Carbon::parse($row->ultima_at) : null;
+                $proxVenc = $row->proximo_vencimiento ? \Carbon\Carbon::parse($row->proximo_vencimiento) : null;
+                return (object) [
+                    'codigo' => $row->codigo_proveedor,
+                    'nombre' => $prov->nombre ?? $row->codigo_proveedor,
+                    'num_facturas' => (int) $row->num_facturas,
+                    'monto_total' => (float) $row->monto_total,
+                    'ultima_at' => $ultimaAt,
+                    'proximo_vencimiento' => $proxVenc,
+                    'notif_sin_leer' => $notifSinLeer,
+                ];
+            });
+
+        if ($buscar !== '') {
+            $proveedoresAgrupados = $proveedoresAgrupados->filter(function ($r) use ($buscar) {
+                return str_contains(mb_strtolower($r->nombre), mb_strtolower($buscar))
+                    || str_contains(mb_strtolower($r->codigo), mb_strtolower($buscar));
+            })->values();
+        }
+
+        $filtroEstatus = '';
+
+        return view('admin.abono-proveedor.index', compact(
+            'proveedoresAgrupados', 'buscar', 'totalLiquidado', 'filtroEstatus',
+            'kpiPagadas', 'kpiLiquidadas', 'kpiPendientes', 'kpiCanceladas'
+        ) + ['modo' => 'proveedores', 'facturas' => null]);
+    }
+
+    /** Confirmar abono interno con número de póliza. */
+    public function abonoInternoConfirmar(Request $request)
+    {
+        $data = $request->validate([
+            'factura_ids' => 'required|array|min:1',
+            'factura_ids.*' => 'integer',
+            'poliza' => 'required|string|max:60',
+            'notas' => 'nullable|string|max:500',
+        ]);
+
+        $facturas = Factura::whereIn('id', $data['factura_ids'])->where('estatus', 'pagada')->get();
+
+        if ($facturas->isEmpty()) {
+            return back()->with('error', 'No se encontraron facturas pagadas para confirmar.');
+        }
+
+        foreach ($facturas as $f) {
+            $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
+            $vd['abono_interno'] = [
+                'poliza' => $data['poliza'],
+                'notas' => $data['notas'] ?? null,
+                'fecha' => now()->toDateTimeString(),
+                'admin_id' => session('admin_id'),
+            ];
+            $f->validacion_detalle = $vd;
+            $f->estatus = 'liquidada';
+            $f->save();
+        }
+
+        return back()->with('ok', 'Abono interno registrado. Póliza: ' . $data['poliza'] . ' — ' . $facturas->count() . ' factura(s) liquidadas.');
+    }
+
     private function polizaOrFail(string $key): array
     {
         $meta = config('polizas_pago.'.$key);

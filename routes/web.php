@@ -245,6 +245,10 @@ Route::post('/admin/pago-proveedores', [AdminPagoProveedoresController::class, '
 Route::get('/admin/pago-proveedores/{abono}', [AdminPagoProveedoresController::class, 'show'])->name('admin.pago-proveedores.show')->middleware('auth.admin');
 Route::post('/admin/pago-proveedores/{abono}/cancelar', [AdminPagoProveedoresController::class, 'cancelar'])->name('admin.pago-proveedores.cancelar')->middleware('auth.admin');
 
+// Abono al proveedor (paso 3 — registro interno)
+Route::get('/admin/abono-proveedor', [AdminPagoProveedoresController::class, 'abonoInterno'])->name('admin.abono-proveedor')->middleware('auth.admin');
+Route::post('/admin/abono-proveedor/confirmar', [AdminPagoProveedoresController::class, 'abonoInternoConfirmar'])->name('admin.abono-proveedor.confirmar')->middleware('auth.admin');
+
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal', [AdminPanelController::class, 'expedienteFiscal'])->name('admin.expediente-fiscal')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal/proveedor/{proveedor}', [AdminPanelController::class, 'expedienteFiscalVer'])->name('admin.expediente-fiscal.ver')->middleware('auth.admin');

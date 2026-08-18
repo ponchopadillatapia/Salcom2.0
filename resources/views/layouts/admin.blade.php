@@ -440,10 +440,13 @@
                 </button>
                 <div class="sb-submenu-items">
                     <a href="{{ route('admin.pagos') }}" class="sb-link sb-sublink {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
-                        <span class="sb-text">Pagos al proveedor</span>
+                        <span class="sb-text">Formato para pago</span>
                     </a>
                     <a href="{{ route('admin.pago-proveedores') }}" class="sb-link sb-sublink {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
-                        <span class="sb-text">Abonos al proveedor</span>
+                        <span class="sb-text">Pago a proveedor</span>
+                    </a>
+                    <a href="{{ route('admin.abono-proveedor') }}" class="sb-link sb-sublink {{ request()->is('admin/abono-proveedor*') ? 'active' : '' }}">
+                        <span class="sb-text">Abono al proveedor</span>
                     </a>
                 </div>
             </div>

@@ -2,7 +2,7 @@
 @section('title', 'Abono Prov. · '.$poliza['serie'])
 @section('hero')
 <div class="hero-band">
-    <h1>Abono a proveedor</h1>
+    <h1>Pago a proveedor</h1>
     <p>{{ $poliza['titulo'] }} · Serie {{ $poliza['serie'] }} · Folio {{ $folioSiguiente }}</p>
 </div>
 @endsection
@@ -68,6 +68,10 @@
 </style>
 @endpush
 @section('content')
+<a href="{{ route('admin.pago-proveedores') }}" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+    Volver a pagos
+</a>
 @if(session('error'))
     <div class="pag-alert err">{{ session('error') }}</div>
 @endif
@@ -84,10 +88,6 @@
         <div class="cq-titlebar">Abono Prov. · {{ $poliza['concepto'] }} · Serie {{ $poliza['serie'] }}</div>
 
         <div class="cq-toolbar" style="justify-content:flex-end;padding:12px 14px">
-            <button type="submit" class="cq-tool primary" style="min-width:140px;padding:10px 24px;font-size:13px" onclick="document.getElementById('accion').value='guardar'">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-                Guardar abono
-            </button>
         </div>
 
         <div class="cq-head">
@@ -193,8 +193,11 @@
 
         <div class="cq-foot">
             <div style="font-size:12px;color:#6b7280">Documentos seleccionados: <strong id="sel-count">0</strong></div>
-            <div style="display:flex;align-items:center;gap:16px">
+            <div style="display:flex;align-items:center;gap:12px">
                 <div class="cq-total">Pago: $<span id="sel-total">0.00</span> {{ $poliza['moneda'] }}</div>
+                <a href="{{ route('admin.pago-proveedores') }}" style="padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none">
+                    Cancelar
+                </a>
                 <button type="submit" style="padding:10px 28px;background:#6B3FA0;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit" onclick="document.getElementById('accion').value='guardar'">
                     Guardar abono
                 </button>
