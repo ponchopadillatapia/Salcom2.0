@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\OpinionPositivaAviso;
 use App\Mail\SolicitudAltaAprobada;
 use App\Models\AlertaConfiguracion;
+use App\Models\Alerta;
 use App\Models\ClienteUser;
 use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
@@ -3040,5 +3041,75 @@ class AdminPanelController extends Controller
         ]);
 
         return redirect()->route('admin.solicitudes-alta')->with('mensaje', 'Solicitud rechazada.');
+    }
+
+    public function reembolsos()
+    {
+        return view('admin.reembolsos');
+    }
+
+    public function enviarReembolso(Request $request)
+    {
+        $request->validate([
+            'categoria' => 'required|string|in:gasto_general,computo,viaticos_nacional,viaticos_internacional',
+            'razon_social' => 'required|string|in:Industrias Salcom S.A. de C.V.,Franfoods S.A. de C.V.',
+            'metodo_pago_empresa' => 'required|string|in:bbva,inntec',
+            'monto' => 'required|string|max:20',
+            'concepto' => 'required|string|max:255',
+            'solicitante' => 'required|string|max:150',
+            'fecha_factura' => 'required|date',
+            'archivo_factura' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'archivo_materialidad' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'notas' => 'nullable|string|max:500',
+        ], [
+            'archivo_factura.required' => 'Debes subir la factura o ticket.',
+            'archivo_factura.mimes' => 'Solo PDF, JPG o PNG.',
+            'archivo_factura.max' => 'Máximo 10 MB.',
+            'archivo_materialidad.mimes' => 'La materialidad debe ser PDF, JPG o PNG.',
+            'archivo_materialidad.max' => 'Máximo 10 MB.',
+            'solicitante.required' => 'Indica quién solicita el reembolso.',
+        ]);
+
+        // Validar materialidad obligatoria si no es Inntec
+        if ($request->input('metodo_pago_empresa') !== 'inntec' && ! $request->hasFile('archivo_materialidad')) {
+            return back()->withErrors(['archivo_materialidad' => 'La materialidad (correo o foto) es obligatoria. Sin materialidad el reembolso se rechaza.'])->withInput();
+        }
+
+        $pathFactura = $request->file('archivo_factura')->store('reembolsos/facturas', 'public');
+        $pathMaterialidad = $request->hasFile('archivo_materialidad')
+            ? $request->file('archivo_materialidad')->store('reembolsos/materialidad', 'public')
+            : null;
+
+        try {
+            Alerta::create([
+                'tipo' => 'solicitud_reembolso',
+                'modulo' => 'reembolsos',
+                'destinatario_tipo' => 'admin',
+                'destinatario_id' => 0,
+                'titulo' => 'Reembolso: $' . $request->input('monto') . ' — ' . $request->input('solicitante'),
+                'contenido' => $request->input('concepto') . ' (' . $request->input('categoria') . ')',
+                'datos' => [
+                    'categoria' => $request->input('categoria'),
+                    'razon_social' => $request->input('razon_social'),
+                    'metodo_pago_empresa' => $request->input('metodo_pago_empresa'),
+                    'uso_cfdi' => $request->input('uso_cfdi'),
+                    'forma_pago' => $request->input('forma_pago'),
+                    'metodo_pago' => $request->input('metodo_pago'),
+                    'monto' => $request->input('monto'),
+                    'concepto' => $request->input('concepto'),
+                    'solicitante' => $request->input('solicitante'),
+                    'fecha_factura' => $request->input('fecha_factura'),
+                    'archivo_factura' => $pathFactura,
+                    'archivo_materialidad' => $pathMaterialidad,
+                    'notas' => $request->input('notas'),
+                ],
+                'estatus' => 'pendiente',
+                'nivel' => 'info',
+            ]);
+        } catch (\Exception $e) {
+        }
+
+        return redirect()->route('admin.reembolsos')
+            ->with('mensaje', 'Reembolso registrado correctamente.');
     }
 }

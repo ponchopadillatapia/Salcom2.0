@@ -31,7 +31,6 @@ Route::get('/proveedor/facturas/excel', [PortalProveedorController::class, 'fact
 Route::get('/onboarding', [PortalProveedorController::class, 'mostrarOnboarding'])->name('proveedores.onboarding')->middleware('auth.proveedor');
 Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->name('proveedores.business')->middleware('auth.proveedor');
 Route::get('/payment-history', [PortalProveedorController::class, 'mostrarPaymentHistory'])->name('proveedores.payment-history')->middleware('auth.proveedor');
-Route::get('/reembolsos', [PortalProveedorController::class, 'mostrarReembolsos'])->name('proveedores.reembolsos')->middleware('auth.proveedor');
 Route::get('/perfil', [PortalProveedorController::class, 'mostrarPerfil'])->name('proveedores.perfil')->middleware('auth.proveedor');
 Route::post('/perfil', [PortalProveedorController::class, 'actualizarPerfil'])->name('proveedores.perfil.actualizar')->middleware('auth.proveedor');
 Route::post('/perfil/foto', [PortalProveedorController::class, 'subirFoto'])->name('proveedores.perfil.foto')->middleware('auth.proveedor');
@@ -244,6 +243,21 @@ Route::get('/admin/pago-proveedores/facturas-json', [AdminPagoProveedoresControl
 Route::post('/admin/pago-proveedores', [AdminPagoProveedoresController::class, 'store'])->name('admin.pago-proveedores.store')->middleware('auth.admin');
 Route::get('/admin/pago-proveedores/{abono}', [AdminPagoProveedoresController::class, 'show'])->name('admin.pago-proveedores.show')->middleware('auth.admin');
 Route::post('/admin/pago-proveedores/{abono}/cancelar', [AdminPagoProveedoresController::class, 'cancelar'])->name('admin.pago-proveedores.cancelar')->middleware('auth.admin');
+
+Route::get('/admin/reembolsos', [AdminPanelController::class, 'reembolsos'])->name('admin.reembolsos')->middleware('auth.admin');
+Route::post('/admin/reembolsos', [AdminPanelController::class, 'enviarReembolso'])->name('admin.reembolsos.enviar')->middleware('auth.admin');
+
+// ── Reembolsos de Viaje ──
+use App\Http\Controllers\ReembolsoViajeController;
+
+Route::get('/admin/reembolsos-viaje', [ReembolsoViajeController::class, 'index'])->name('admin.reembolsos-viaje')->middleware('auth.admin');
+Route::get('/admin/reembolsos-viaje/crear', [ReembolsoViajeController::class, 'crear'])->name('admin.reembolsos-viaje.crear')->middleware('auth.admin');
+Route::post('/admin/reembolsos-viaje', [ReembolsoViajeController::class, 'guardar'])->name('admin.reembolsos-viaje.guardar')->middleware('auth.admin');
+Route::get('/admin/reembolsos-viaje/{reembolso}', [ReembolsoViajeController::class, 'ver'])->name('admin.reembolsos-viaje.ver')->middleware('auth.admin');
+Route::post('/admin/reembolsos-viaje/{reembolso}/enviar', [ReembolsoViajeController::class, 'enviar'])->name('admin.reembolsos-viaje.enviar')->middleware('auth.admin');
+Route::post('/admin/reembolsos-viaje/{reembolso}/aprobar', [ReembolsoViajeController::class, 'aprobar'])->name('admin.reembolsos-viaje.aprobar')->middleware('auth.admin');
+Route::post('/admin/reembolsos-viaje/{reembolso}/rechazar', [ReembolsoViajeController::class, 'rechazar'])->name('admin.reembolsos-viaje.rechazar')->middleware('auth.admin');
+Route::post('/admin/reembolsos-viaje/{reembolso}/reembolsado', [ReembolsoViajeController::class, 'marcarReembolsado'])->name('admin.reembolsos-viaje.reembolsado')->middleware('auth.admin');
 
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal', [AdminPanelController::class, 'expedienteFiscal'])->name('admin.expediente-fiscal')->middleware('auth.admin');
