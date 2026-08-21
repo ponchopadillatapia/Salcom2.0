@@ -11,6 +11,21 @@ class ReembolsoViajeController extends Controller
 {
     public function index(Request $request)
     {
+        // Proteger contra tabla inexistente en producción
+        try {
+            if (! Schema::hasTable('reembolsos_viaje')) {
+                return view('admin.reembolsos-viaje.index', [
+                    'solicitudes' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20),
+                    'kpis' => ['borradores' => 0, 'enviados' => 0, 'aprobados' => 0, 'reembolsados' => 0, 'total_pendiente' => 0],
+                ]);
+            }
+        } catch (\Exception $e) {
+            return view('admin.reembolsos-viaje.index', [
+                'solicitudes' => new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20),
+                'kpis' => ['borradores' => 0, 'enviados' => 0, 'aprobados' => 0, 'reembolsados' => 0, 'total_pendiente' => 0],
+            ]);
+        }
+
         $query = ReembolsoViaje::query();
 
         if ($request->filled('estatus')) {
