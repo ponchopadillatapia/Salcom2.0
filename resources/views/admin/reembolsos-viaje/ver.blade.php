@@ -103,7 +103,7 @@
             @if($reembolso->estatus === 'borrador')
                 <form method="POST" action="{{ route('admin.reembolsos-viaje.enviar', $reembolso) }}">
                     @csrf
-                    <button type="submit" class="btn-action btn-enviar" onclick="return confirm('¿Enviar a revisión? Ya no podrás editar.');">📤 Enviar a la empresa</button>
+                    <button type="submit" class="btn-action btn-enviar" onclick="return confirm('¿Enviar solicitud? Ya no podrás editar.');">Enviar Solicitud</button>
                 </form>
             @endif
 
