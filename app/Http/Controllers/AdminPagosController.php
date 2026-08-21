@@ -54,20 +54,28 @@ class AdminPagosController extends Controller
     /** Campanita admin: facturas nuevas pendientes de pago. */
     public function alertasJson()
     {
+        $tipos = ['factura_pago_pendiente', 'abono_interno_registrado', 'pago_programado', 'pago_realizado'];
+
         $sinLeer = Alerta::query()
             ->where('destinatario_tipo', 'admin')
-            ->where('tipo', 'factura_pago_pendiente')
+            ->whereIn('tipo', $tipos)
             ->whereNotIn('estatus', ['leida', 'accionada'])
             ->count();
 
         $items = Alerta::query()
             ->where('destinatario_tipo', 'admin')
-            ->where('tipo', 'factura_pago_pendiente')
+            ->whereIn('tipo', $tipos)
             ->orderByDesc('created_at')
             ->limit(12)
             ->get()
             ->map(function (Alerta $a) {
                 $codigo = $a->datos['codigo_proveedor'] ?? null;
+                $url = match ($a->tipo) {
+                    'pago_programado' => route('admin.pagos'),
+                    'pago_realizado' => route('admin.pago-proveedores'),
+                    'abono_interno_registrado' => route('admin.historial-abonos'),
+                    default => $codigo ? route('admin.pagos.proveedor', $codigo) : route('admin.pagos'),
+                };
 
                 return [
                     'id' => $a->id,
@@ -75,7 +83,7 @@ class AdminPagosController extends Controller
                     'contenido' => $a->contenido,
                     'leida' => in_array($a->estatus, ['leida', 'accionada'], true),
                     'hace' => optional($a->created_at)->diffForHumans(),
-                    'url' => $codigo ? route('admin.pagos.proveedor', $codigo) : route('admin.pagos'),
+                    'url' => $url,
                 ];
             });
 
@@ -86,7 +94,8 @@ class AdminPagosController extends Controller
 
     public function marcarAlertaLeida(Alerta $alerta)
     {
-        if ($alerta->destinatario_tipo !== 'admin' || $alerta->tipo !== 'factura_pago_pendiente') {
+        $tiposPermitidos = ['factura_pago_pendiente', 'abono_interno_registrado', 'pago_programado', 'pago_realizado'];
+        if ($alerta->destinatario_tipo !== 'admin' || !in_array($alerta->tipo, $tiposPermitidos)) {
             return response()->json(['ok' => false, 'mensaje' => 'No autorizado'], 403);
         }
 

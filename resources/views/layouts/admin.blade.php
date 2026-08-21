@@ -331,11 +331,11 @@
     <div class="nav-right">
         @php
             $adminPagosSinLeer = \App\Models\Alerta::where('destinatario_tipo', 'admin')
-                ->where('tipo', 'factura_pago_pendiente')
+                ->whereIn('tipo', ['factura_pago_pendiente', 'abono_interno_registrado', 'pago_programado', 'pago_realizado'])
                 ->whereNotIn('estatus', ['leida', 'accionada'])
                 ->count();
             $adminAlertasRecientes = \App\Models\Alerta::where('destinatario_tipo', 'admin')
-                ->where('tipo', 'factura_pago_pendiente')
+                ->whereIn('tipo', ['factura_pago_pendiente', 'abono_interno_registrado', 'pago_programado', 'pago_realizado'])
                 ->whereNotIn('estatus', ['leida', 'accionada'])
                 ->orderByDesc('created_at')
                 ->limit(8)
@@ -475,6 +475,10 @@
                     </div>
                     <a href="{{ route('admin.historial-abonos') }}" class="sb-link sb-sublink {{ request()->is('admin/historial-abonos*') ? 'active' : '' }}">
                         <span class="sb-text">Historial de abonos</span>
+                        @php $abonosSinLeer = \App\Models\Alerta::where('destinatario_tipo','admin')->where('tipo','abono_interno_registrado')->whereNotIn('estatus',['leida','accionada'])->count(); @endphp
+                        @if($abonosSinLeer > 0)
+                            <span class="sb-badge">{{ $abonosSinLeer > 9 ? '9+' : $abonosSinLeer }}</span>
+                        @endif
                     </a>
                 </div>
             </div>

@@ -403,7 +403,31 @@ class AdminPagoProveedoresController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('[Abono] No se pudo crear alerta: ' . $e->getMessage());
+            \Illuminate\Support\Facades\Log::warning('[Abono] No se pudo crear alerta proveedor: ' . $e->getMessage());
+        }
+
+        // Crear alerta para admin (campanita + badge)
+        try {
+            $montoFmt = number_format((float) $abono->monto_pago, 2);
+            \App\Models\Alerta::create([
+                'tipo' => 'pago_realizado',
+                'modulo' => 'pago_proveedor',
+                'destinatario_tipo' => 'admin',
+                'destinatario_id' => session('admin_id'),
+                'titulo' => 'Pago realizado',
+                'contenido' => "Pago por \${$montoFmt} {$meta['moneda']} a {$abono->nombre_proveedor} ({$abono->codigo_proveedor}). {$facturas->count()} factura(s).",
+                'nivel' => 'info',
+                'estatus' => 'nueva',
+                'datos' => [
+                    'abono_id' => $abono->id,
+                    'codigo_proveedor' => $abono->codigo_proveedor,
+                    'monto' => (float) $abono->monto_pago,
+                    'moneda' => $meta['moneda'],
+                    'cuenta' => $meta['titulo'],
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[Abono] No se pudo crear alerta admin: ' . $e->getMessage());
         }
 
         return redirect()
@@ -567,6 +591,57 @@ class AdminPagoProveedoresController extends Controller
             $f->validacion_detalle = $vd;
             $f->estatus = 'liquidada';
             $f->save();
+        }
+
+        // Notificación para admin (campanita + badge en sidebar)
+        try {
+            $montoTotal = $facturas->sum('monto_pagado');
+            $montoFmt = number_format((float) $montoTotal, 2);
+            \App\Models\Alerta::create([
+                'tipo' => 'abono_interno_registrado',
+                'modulo' => 'abono_proveedor',
+                'destinatario_tipo' => 'admin',
+                'destinatario_id' => session('admin_id'),
+                'titulo' => 'Abono registrado',
+                'contenido' => "Póliza {$data['poliza']} — {$facturas->count()} factura(s) liquidadas por \${$montoFmt}. Proveedor: {$data['codigo_proveedor']}.",
+                'nivel' => 'info',
+                'estatus' => 'nueva',
+                'datos' => [
+                    'poliza' => $data['poliza'],
+                    'codigo_proveedor' => $data['codigo_proveedor'],
+                    'monto' => (float) $montoTotal,
+                    'num_facturas' => $facturas->count(),
+                    'cuenta' => config("polizas_pago.{$data['cuenta_key']}.titulo", ''),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[AbonoInterno] No se pudo crear alerta admin: ' . $e->getMessage());
+        }
+
+        // Notificación para proveedor: facturas liquidadas
+        try {
+            $proveedor = \App\Models\ProveedorUser::where('codigo', $data['codigo_proveedor'])->first();
+            if ($proveedor) {
+                $montoTotal = $facturas->sum('monto_pagado');
+                $montoFmt = number_format((float) $montoTotal, 2);
+                \App\Models\Alerta::create([
+                    'tipo' => 'facturas_liquidadas',
+                    'modulo' => 'abono_proveedor',
+                    'destinatario_tipo' => 'proveedor',
+                    'destinatario_id' => $proveedor->id,
+                    'titulo' => 'Facturas liquidadas',
+                    'contenido' => "{$facturas->count()} factura(s) por \${$montoFmt} han sido liquidadas. Ya no tienes adeudo por estas facturas.",
+                    'nivel' => 'info',
+                    'estatus' => 'nueva',
+                    'datos' => [
+                        'poliza' => $data['poliza'],
+                        'monto' => (float) $montoTotal,
+                        'num_facturas' => $facturas->count(),
+                    ],
+                ]);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[AbonoInterno] No se pudo crear alerta proveedor: ' . $e->getMessage());
         }
 
         return redirect()->route('admin.abono-proveedor', ['cuenta' => $data['cuenta_key'] ?? ''])->with('ok', 'Abono registrado. Póliza: ' . $data['poliza'] . ' — ' . $facturas->count() . ' factura(s) liquidadas.');

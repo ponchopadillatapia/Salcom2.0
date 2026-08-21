@@ -335,6 +335,29 @@ class PagoProveedorService
 
         $this->notificarPagoConfirmadoAlProveedor($pagoConfirmado);
 
+        // Alerta para admin: pago programado
+        try {
+            $montoFmt = number_format((float) $pagoConfirmado->monto_total, 2);
+            Alerta::create([
+                'tipo' => 'pago_programado',
+                'modulo' => 'pagos',
+                'destinatario_tipo' => 'admin',
+                'destinatario_id' => $adminId,
+                'titulo' => 'Pago programado',
+                'contenido' => "{$pagoConfirmado->num_facturas} factura(s) programadas por \${$montoFmt}. Proveedor: {$pagoConfirmado->codigo_proveedor}.",
+                'nivel' => 'info',
+                'estatus' => 'nueva',
+                'datos' => [
+                    'pago_id' => $pagoConfirmado->id,
+                    'codigo_proveedor' => $pagoConfirmado->codigo_proveedor,
+                    'monto' => (float) $pagoConfirmado->monto_total,
+                    'num_facturas' => (int) $pagoConfirmado->num_facturas,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('[Formato] No se pudo crear alerta admin: ' . $e->getMessage());
+        }
+
         return $pagoConfirmado;
     }
 
