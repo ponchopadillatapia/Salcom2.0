@@ -302,18 +302,16 @@ use App\Http\Controllers\PedidoController;
 Route::patch('/pedido/{pedido}/estatus', [PedidoController::class, 'cambiarEstatus'])->name('pedidos.cambiar-estatus');
 Route::post('/pedido/tracking', [PedidoController::class, 'tracking'])->name('pedidos.tracking');
 
-// ── Admin: Reembolsos ──
-Route::get('/admin/reembolsos', [AdminPanelController::class, 'reembolsos'])->name('admin.reembolsos')->middleware('auth.admin');
-Route::post('/admin/reembolsos/enviar', [AdminPanelController::class, 'enviarReembolso'])->name('admin.reembolsos.enviar')->middleware('auth.admin');
-
-// ── Admin: Reembolsos de Viaje ──
+// ── Admin: Reembolsos (unificado) ──
 use App\Http\Controllers\ReembolsoViajeController;
 
-Route::get('/admin/reembolsos-viaje', [ReembolsoViajeController::class, 'index'])->name('admin.reembolsos-viaje')->middleware('auth.admin');
-Route::get('/admin/reembolsos-viaje/crear', [ReembolsoViajeController::class, 'crear'])->name('admin.reembolsos-viaje.crear')->middleware('auth.admin');
-Route::post('/admin/reembolsos-viaje/guardar', [ReembolsoViajeController::class, 'guardar'])->name('admin.reembolsos-viaje.guardar')->middleware('auth.admin');
-Route::get('/admin/reembolsos-viaje/{reembolso}', [ReembolsoViajeController::class, 'ver'])->name('admin.reembolsos-viaje.ver')->middleware('auth.admin');
-Route::post('/admin/reembolsos-viaje/{reembolso}/enviar', [ReembolsoViajeController::class, 'enviar'])->name('admin.reembolsos-viaje.enviar')->middleware('auth.admin');
-Route::post('/admin/reembolsos-viaje/{reembolso}/aprobar', [ReembolsoViajeController::class, 'aprobar'])->name('admin.reembolsos-viaje.aprobar')->middleware('auth.admin');
-Route::post('/admin/reembolsos-viaje/{reembolso}/rechazar', [ReembolsoViajeController::class, 'rechazar'])->name('admin.reembolsos-viaje.rechazar')->middleware('auth.admin');
-Route::post('/admin/reembolsos-viaje/{reembolso}/reembolsado', [ReembolsoViajeController::class, 'marcarReembolsado'])->name('admin.reembolsos-viaje.reembolsado')->middleware('auth.admin');
+Route::get('/admin/reembolsos', [ReembolsoViajeController::class, 'index'])->name('admin.reembolsos')->middleware('auth.admin');
+Route::get('/admin/reembolsos/crear', [ReembolsoViajeController::class, 'crear'])->name('admin.reembolsos-viaje.crear')->middleware('auth.admin');
+Route::post('/admin/reembolsos/guardar', [ReembolsoViajeController::class, 'guardar'])->name('admin.reembolsos-viaje.guardar')->middleware('auth.admin');
+Route::get('/admin/reembolsos/{reembolso}', [ReembolsoViajeController::class, 'ver'])->name('admin.reembolsos-viaje.ver')->middleware('auth.admin');
+Route::post('/admin/reembolsos/{reembolso}/enviar', [ReembolsoViajeController::class, 'enviar'])->name('admin.reembolsos-viaje.enviar')->middleware('auth.admin');
+Route::post('/admin/reembolsos/{reembolso}/aprobar', [ReembolsoViajeController::class, 'aprobar'])->name('admin.reembolsos-viaje.aprobar')->middleware('auth.admin');
+Route::post('/admin/reembolsos/{reembolso}/rechazar', [ReembolsoViajeController::class, 'rechazar'])->name('admin.reembolsos-viaje.rechazar')->middleware('auth.admin');
+Route::post('/admin/reembolsos/{reembolso}/reembolsado', [ReembolsoViajeController::class, 'marcarReembolsado'])->name('admin.reembolsos-viaje.reembolsado')->middleware('auth.admin');
+// Mantener ruta legacy por si hay referencias
+Route::get('/admin/reembolsos-viaje', fn () => redirect()->route('admin.reembolsos'))->middleware('auth.admin')->name('admin.reembolsos-viaje');
