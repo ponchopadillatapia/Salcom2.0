@@ -57,7 +57,9 @@
     }
     .form-group label { font-size: 12px; font-weight: 600; color: var(--gray-muted); }
     .form-group label .req { color: var(--red); }
-    .form-group input[type="text"] {
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group select {
         border: 1.5px solid var(--border);
         border-radius: 8px;
         padding: 10px 14px;
@@ -70,7 +72,9 @@
         width: 100%;
         box-sizing: border-box;
     }
-    .form-group input[type="text"]:focus {
+    .form-group input[type="text"]:focus,
+    .form-group input[type="number"]:focus,
+    .form-group select:focus {
         border-color: var(--purple);
         box-shadow: 0 0 0 3px rgba(107, 63, 160, .1);
     }
@@ -267,7 +271,7 @@
     .wizard-panel.active { display: block; }
     .plazo-box {
         margin: 4px 0 18px;
-        padding: 16px;
+        padding: 16px 18px 18px;
         border: 1.5px solid var(--purple-mid);
         border-radius: 12px;
         background: var(--purple-light);
@@ -276,33 +280,44 @@
         border-bottom-color: rgba(107, 63, 160, .2);
         margin-bottom: 8px;
     }
-    .plazo-box .card-desc { margin-bottom: 12px; }
-    .choice-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
-        gap: 10px;
+    .plazo-box .card-desc { margin-bottom: 14px; }
+    .plazo-ok {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #059669;
+        margin-bottom: 14px;
     }
-    .choice-grid label {
-        position: relative;
+    .plazo-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-width: 320px;
+    }
+    .plazo-fields select {
         cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236B3FA0' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        padding-right: 36px;
+    }
+    .plazo-otro {
+        display: none !important;
+    }
+    .plazo-otro.is-open {
+        display: flex !important;
+    }
+    .plazo-otro input[type="number"] {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+    .plazo-otro input[type="number"]::-webkit-outer-spin-button,
+    .plazo-otro input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
         margin: 0;
-    }
-    .choice-grid input { position: absolute; opacity: 0; pointer-events: none; }
-    .choice-card {
-        display: block;
-        padding: 14px 12px;
-        border: 1.5px solid var(--border);
-        border-radius: 12px;
-        background: var(--white);
-        text-align: center;
-        transition: var(--transition);
-    }
-    .choice-card .cc-title { font-size: 13px; font-weight: 700; color: var(--gray-text); }
-    .choice-card .cc-sub { font-size: 11px; color: var(--gray-muted); margin-top: 4px; }
-    .choice-grid label:has(input:checked) .choice-card {
-        border-color: var(--purple);
-        background: var(--purple-light);
-        box-shadow: 0 0 0 3px rgba(107, 63, 160, .1);
     }
     .summary-chips {
         display: flex;
@@ -318,10 +333,6 @@
         background: var(--purple-light);
         color: var(--purple);
     }
-    @media (max-width: 900px) {
-        .choice-grid { grid-template-columns: 1fr; }
-    }
-
     .result-box {
         margin-top: 16px;
         padding: 14px 16px;
@@ -479,7 +490,7 @@
 
 @section('content')
 
-@php $res = session('fiscal_resultado'); @endphp
+@php $res = $res ?? session('fiscal_resultado'); @endphp
 
 @if($errors->any())
 <div class="id-card" id="fiscalFeedback" style="border-color:#fecaca;background:#fef2f2;padding:16px 20px;">
@@ -619,7 +630,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
             Alta de factura
         </h3>
-        <p class="card-desc">Adjunta PDF + XML (OC opcional). Primero valida; si queda aprobada, elige el plazo y pulsa Subir.</p>
+        <p class="card-desc">Adjunta PDF + XML (OC opcional). Primero valida; si queda aprobada, elige los días de plazo y pulsa Subir.</p>
 
         <div class="periodo-banner">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b45309" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -670,21 +681,33 @@
             </div>
         </div>
 
+        @php
+            $plazosDias = config('facturas.plazos_dias', [30, 45, 60, 90, 120, 150, 360]);
+            $oldPlazo = old('dias_plazo');
+            $esOtro = (string) $oldPlazo === 'otro';
+        @endphp
         @if(!empty($puedeSubir))
-        @php $plazosDias = config('facturas.plazos_dias', [60, 120, 320]); @endphp
         <div class="plazo-box" id="plazoBox">
-            <div class="section-label">Plazo de pago</div>
-            <p class="card-desc">La factura quedó aprobada. Elige los días de crédito antes de subir.</p>
-            <div class="choice-grid">
-                @foreach($plazosDias as $dias)
-                <label>
-                    <input type="radio" name="dias_plazo" value="{{ $dias }}" {{ (string) old('dias_plazo') === (string) $dias ? 'checked' : '' }}>
-                    <span class="choice-card">
-                        <span class="cc-title">{{ $dias }} días</span>
-                        <span class="cc-sub">Vence {{ now()->addDays($dias)->format('d/m/Y') }}</span>
-                    </span>
-                </label>
-                @endforeach
+            <div class="section-label">Días de plazo</div>
+            <div class="plazo-ok">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                Factura validada correctamente
+            </div>
+            <div class="plazo-fields">
+                <div class="form-group">
+                    <label for="diasPlazo">Elige el plazo</label>
+                    <select name="dias_plazo" id="diasPlazo">
+                        <option value="">Selecciona…</option>
+                        @foreach($plazosDias as $dias)
+                            <option value="{{ $dias }}" {{ (string) $oldPlazo === (string) $dias ? 'selected' : '' }}>{{ $dias }} días</option>
+                        @endforeach
+                        <option value="otro" {{ $esOtro ? 'selected' : '' }}>Otro</option>
+                    </select>
+                </div>
+                <div class="form-group plazo-otro{{ $esOtro ? ' is-open' : '' }}" id="plazoOtroWrap">
+                    <label for="diasPlazoOtro">Cantidad de días</label>
+                    <input type="number" name="dias_plazo_otro" id="diasPlazoOtro" min="1" max="{{ (int) config('facturas.plazos_dias_max', 3650) }}" step="1" inputmode="numeric" placeholder="Escribe los días" value="{{ old('dias_plazo_otro') }}" autocomplete="off" {{ $esOtro ? '' : 'disabled' }}>
+                </div>
             </div>
         </div>
         @endif
@@ -692,15 +715,15 @@
         <div class="form-actions">
             <span class="step-hint" id="stepHint">
                 @if(!empty($puedeSubir))
-                    Validación OK — elige 60, 120 o 320 días y pulsa Subir.
+                    Elige los días de plazo y pulsa Subir.
                 @elseif(!empty($tieneArchivosPendientes))
                     Archivos listos — pulsa Validar de nuevo o reemplázalos.
                 @else
-                    1) Validar · 2) Subir si todo está correcto
+                    Adjunta PDF + XML y pulsa Validar.
                 @endif
             </span>
-            <button type="submit" class="btn-outline" id="btnValidar" formaction="{{ route('proveedores.fiscal.validar') }}">Validar</button>
-            <button type="submit" class="btn-submit" id="btnSubir" formaction="{{ route('proveedores.fiscal.subir') }}" formnovalidate {{ !empty($puedeSubir) ? '' : 'disabled' }}>Subir</button>
+            <button type="submit" class="btn-outline" id="btnValidar" formaction="{{ route('proveedores.fiscal.validar') }}" @if(!empty($puedeSubir)) hidden disabled @endif>Validar</button>
+            <button type="submit" class="btn-submit" id="btnSubir" formaction="{{ route('proveedores.fiscal.subir') }}" formnovalidate hidden disabled>Subir</button>
         </div>
     </div>
 </form>
@@ -797,33 +820,75 @@
     var btnValidar = document.getElementById('btnValidar');
     var btnSubir = document.getElementById('btnSubir');
     var stepHint = document.getElementById('stepHint');
+    var diasPlazo = document.getElementById('diasPlazo');
+    var plazoOtroWrap = document.getElementById('plazoOtroWrap');
+    var diasPlazoOtro = document.getElementById('diasPlazoOtro');
     var puedeSubir = {{ !empty($puedeSubir) ? 'true' : 'false' }};
     var tieneArchivosPendientes = {{ !empty($tieneArchivosPendientes) ? 'true' : 'false' }};
+    var maxDiasPlazo = {{ (int) config('facturas.plazos_dias_max', 3650) }};
 
-    function plazoSeleccionado() {
-        return !!(form && form.querySelector('input[name="dias_plazo"]:checked'));
+    function eligioPlazo() {
+        return !!(diasPlazo && diasPlazo.value);
     }
 
-    function syncSubir() {
-        if (!btnSubir) return;
-        btnSubir.disabled = !(puedeSubir && plazoSeleccionado());
+    function plazoSeleccionado() {
+        if (!eligioPlazo()) return false;
+        if (diasPlazo.value !== 'otro') return true;
+        if (!diasPlazoOtro) return false;
+        var n = parseInt(diasPlazoOtro.value, 10);
+        return Number.isInteger(n) && n >= 1 && n <= maxDiasPlazo;
+    }
+
+    function syncPaso() {
+        var esOtro = !!(diasPlazo && diasPlazo.value === 'otro');
+        if (plazoOtroWrap) {
+            plazoOtroWrap.classList.toggle('is-open', esOtro);
+        }
+        if (diasPlazoOtro) {
+            diasPlazoOtro.disabled = !esOtro;
+            diasPlazoOtro.required = esOtro;
+            if (!esOtro) diasPlazoOtro.value = '';
+        }
+
+        if (btnValidar) {
+            btnValidar.hidden = puedeSubir;
+            btnValidar.disabled = puedeSubir;
+        }
+        if (btnSubir) {
+            var mostrarSubir = puedeSubir && eligioPlazo();
+            btnSubir.hidden = !mostrarSubir;
+            btnSubir.disabled = !(puedeSubir && plazoSeleccionado());
+        }
+        if (stepHint && puedeSubir) {
+            if (!eligioPlazo()) {
+                stepHint.textContent = 'Elige los días de plazo y pulsa Subir.';
+            } else if (diasPlazo.value === 'otro' && !plazoSeleccionado()) {
+                stepHint.textContent = 'Escribe la cantidad de días y pulsa Subir.';
+            } else {
+                stepHint.textContent = 'Pulsa Subir para registrar la factura.';
+            }
+        }
     }
 
     function invalidatePending() {
-        if (!puedeSubir || !btnSubir) return;
+        if (!puedeSubir) return;
         puedeSubir = false;
-        btnSubir.disabled = true;
+        if (btnSubir) {
+            btnSubir.hidden = true;
+            btnSubir.disabled = true;
+        }
+        if (btnValidar) {
+            btnValidar.hidden = false;
+            btnValidar.disabled = false;
+        }
         var plazoBox = document.getElementById('plazoBox');
         if (plazoBox) plazoBox.style.display = 'none';
         if (stepHint) stepHint.textContent = 'Cambiaste archivos — vuelve a validar antes de subir.';
     }
 
-    if (form) {
-        form.querySelectorAll('input[name="dias_plazo"]').forEach(function (radio) {
-            radio.addEventListener('change', syncSubir);
-        });
-    }
-    syncSubir();
+    if (diasPlazo) diasPlazo.addEventListener('change', syncPaso);
+    if (diasPlazoOtro) diasPlazoOtro.addEventListener('input', syncPaso);
+    syncPaso();
 
     function assignFiles(input, file) {
         if (!input || !file) return false;
@@ -902,19 +967,30 @@
         });
     });
 
-    if (form && btnValidar) {
+    if (form) {
         form.addEventListener('submit', function (e) {
             var submitter = e.submitter || document.activeElement;
             if (submitter === btnSubir) {
                 if (!puedeSubir || !plazoSeleccionado()) {
                     e.preventDefault();
                     if (puedeSubir && !plazoSeleccionado()) {
-                        alert('Selecciona el plazo de días (60, 120 o 320) antes de subir.');
+                        alert(eligioPlazo() && diasPlazo && diasPlazo.value === 'otro'
+                            ? 'Escribe la cantidad de días del plazo antes de subir.'
+                            : 'Selecciona los días de plazo antes de subir.');
                     }
                     return;
                 }
                 btnSubir.textContent = 'Subiendo…';
                 setTimeout(function () { btnSubir.disabled = true; }, 0);
+                return;
+            }
+            if (puedeSubir) {
+                e.preventDefault();
+                if (!eligioPlazo()) {
+                    alert('Selecciona los días de plazo antes de subir.');
+                } else if (!plazoSeleccionado()) {
+                    alert('Escribe la cantidad de días del plazo antes de subir.');
+                }
                 return;
             }
             var pdf = document.getElementById('archivo');
@@ -931,9 +1007,9 @@
                     return;
                 }
             }
-            btnValidar.textContent = 'Validando…';
+            if (btnValidar) btnValidar.textContent = 'Validando…';
             setTimeout(function () {
-                btnValidar.disabled = true;
+                if (btnValidar) btnValidar.disabled = true;
                 if (btnSubir) btnSubir.disabled = true;
             }, 0);
         });

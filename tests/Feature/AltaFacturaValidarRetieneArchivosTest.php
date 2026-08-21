@@ -111,6 +111,33 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
         $this->assertNotNull(session('fiscal_pendiente'));
     }
 
+    public function test_polling_de_alertas_no_borra_el_resultado_de_validar(): void
+    {
+        Storage::fake('local');
+
+        $proveedor = $this->crearProveedor();
+        $pdf = UploadedFile::fake()->createWithContent('factura.pdf', '%PDF-1.4 demo');
+        $xml = UploadedFile::fake()->createWithContent('factura.xml', '<?xml version="1.0"?><not-a-cfdi/>');
+
+        $this->withSession(['proveedor_id' => $proveedor->id])
+            ->post(route('proveedores.fiscal.validar'), [
+                'archivo' => $pdf,
+                'archivo_xml' => $xml,
+                'es_fletera' => '0',
+            ])
+            ->assertRedirect();
+
+        $this->get(route('proveedores.alertas.recientes'))->assertOk();
+        $this->get(route('proveedores.alertas.recientes'))->assertOk();
+
+        $this->get(route('proveedores.fiscal'))
+            ->assertOk()
+            ->assertViewHas('tieneArchivosPendientes', true)
+            ->assertSee('factura.pdf')
+            ->assertSee('factura.xml')
+            ->assertSee('Rechazada');
+    }
+
     public function test_recargar_o_volver_a_entrar_limpia_archivos_temporales(): void
     {
         Storage::fake('local');
@@ -180,7 +207,27 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
         $this->assertSame(120, (int) ($factura->validacion_detalle['dias_plazo'] ?? 0));
     }
 
-    public function test_vista_muestra_plazos_cuando_esta_aprobada(): void
+    public function test_subir_con_plazo_otro_guarda_dias_personalizados(): void
+    {
+        Storage::fake('local');
+        Storage::fake('public');
+
+        $proveedor = $this->crearProveedor();
+        $this->withSession([
+            'proveedor_id' => $proveedor->id,
+            'fiscal_pendiente' => $this->pendienteAprobado($proveedor),
+        ])->post(route('proveedores.fiscal.subir'), [
+            'dias_plazo' => 'otro',
+            'dias_plazo_otro' => 75,
+        ])->assertRedirect();
+
+        $factura = Factura::first();
+        $this->assertNotNull($factura);
+        $this->assertSame(75, (int) $factura->dias_plazo);
+        $this->assertSame(now()->addDays(75)->toDateString(), $factura->fecha_vencimiento?->toDateString());
+    }
+
+    public function test_subir_con_otro_exige_cantidad_de_dias(): void
     {
         Storage::fake('local');
 
@@ -188,14 +235,41 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
         $this->withSession([
             'proveedor_id' => $proveedor->id,
             'fiscal_pendiente' => $this->pendienteAprobado($proveedor),
+        ])->from(route('proveedores.fiscal'))
+            ->post(route('proveedores.fiscal.subir'), [
+                'dias_plazo' => 'otro',
+            ])
+            ->assertRedirect(route('proveedores.fiscal'))
+            ->assertSessionHasErrors('dias_plazo_otro');
+    }
+
+    public function test_vista_muestra_plazos_cuando_esta_aprobada(): void
+    {
+        Storage::fake('local');
+
+        $proveedor = $this->crearProveedor();
+        $response = $this->withSession([
+            'proveedor_id' => $proveedor->id,
+            'fiscal_pendiente' => $this->pendienteAprobado($proveedor),
             'fiscal_resultado' => ['aprobado' => true, 'mensaje' => 'ok'],
-        ])->get(route('proveedores.fiscal'))
-            ->assertOk()
+        ])->get(route('proveedores.fiscal'));
+
+        $response->assertOk()
             ->assertViewHas('puedeSubir', true)
-            ->assertSee('Plazo de pago')
+            ->assertSee('Días de plazo')
+            ->assertSee('30 días')
+            ->assertSee('45 días')
             ->assertSee('60 días')
+            ->assertSee('90 días')
             ->assertSee('120 días')
-            ->assertSee('320 días');
+            ->assertSee('150 días')
+            ->assertSee('360 días')
+            ->assertSee('Otro')
+            ->assertSee('Cantidad de días');
+
+        $html = $response->getContent();
+        $this->assertMatchesRegularExpression('/id="btnValidar"[^>]*\bhidden\b/', $html);
+        $this->assertMatchesRegularExpression('/id="btnSubir"[^>]*\bhidden\b/', $html);
     }
 
     /**

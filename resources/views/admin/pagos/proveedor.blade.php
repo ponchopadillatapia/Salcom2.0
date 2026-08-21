@@ -104,6 +104,12 @@
             <div class="adm-metric-val">${{ number_format($monto, 2) }}</div>
         </div>
     </div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <a href="{{ route('admin.pagos.estado-cuenta', $codigo) }}" class="doc-link" style="padding:10px 16px" title="Descargar estado de cuenta histórico">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Estado de cuenta
+        </a>
+    </div>
 </div>
 
 <div class="adm-section anim">

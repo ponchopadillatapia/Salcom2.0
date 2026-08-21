@@ -440,10 +440,13 @@
                 </button>
                 <div class="sb-submenu-items">
                     <a href="{{ route('admin.pagos') }}" class="sb-link sb-sublink {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
-                        <span class="sb-text">Pagos al proveedor</span>
+                        <span class="sb-text">Formato para pago</span>
                     </a>
                     <a href="{{ route('admin.pago-proveedores') }}" class="sb-link sb-sublink {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
-                        <span class="sb-text">Abonos al proveedor</span>
+                        <span class="sb-text">Pago a proveedor</span>
+                    </a>
+                    <a href="{{ route('admin.abono-proveedor') }}" class="sb-link sb-sublink {{ request()->is('admin/abono-proveedor*') ? 'active' : '' }}">
+                        <span class="sb-text">Abono al proveedor</span>
                     </a>
                     <a href="{{ route('admin.reembolsos') }}" class="sb-link sb-sublink {{ request()->is('admin/reembolsos') ? 'active' : '' }}">
                         <span class="sb-text">Reembolsos</span>
@@ -588,6 +591,50 @@ document.querySelectorAll('.sb-submenu').forEach(function(menu) {
             }
         });
     }
+})();
+</script>
+
+{{-- Polling admin: notificaciones en tiempo real cada 1.5s --}}
+<div id="admin-toast-container" style="position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:10px;max-width:380px"></div>
+<style>
+.admin-toast{display:flex;align-items:flex-start;gap:10px;padding:14px 18px;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #6B3FA0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);animation:aToastIn .3s ease;font-family:inherit}
+.admin-toast.exit{animation:aToastOut .3s ease forwards}
+@keyframes aToastIn{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+@keyframes aToastOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(40px)}}
+</style>
+<script>
+(function(){
+    var container = document.getElementById('admin-toast-container');
+    var url = '{{ route("admin.pagos.alertas") }}';
+    var lastCount = {{ $adminPagosSinLeer ?? 0 }};
+
+    function showToast(titulo, contenido) {
+        var t = document.createElement('div');
+        t.className = 'admin-toast';
+        t.innerHTML = '<div style="flex:1"><p style="font-size:13px;font-weight:700;color:#1f2937;margin:0 0 2px">'+titulo+'</p><p style="font-size:12px;color:#6b7280;margin:0">'+contenido+'</p></div><button onclick="this.parentElement.classList.add(\'exit\');setTimeout(function(){this.parentElement.remove()}.bind(this),300)" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:16px">&times;</button>';
+        container.appendChild(t);
+        setTimeout(function(){ if(t.parentElement){t.classList.add('exit');setTimeout(function(){t.remove()},300)} }, 8000);
+    }
+
+    function poll() {
+        fetch(url, {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}})
+            .then(function(r){return r.json()})
+            .then(function(data){
+                if (data.sin_leer > lastCount && data.items && data.items.length) {
+                    data.items.forEach(function(item){
+                        showToast(item.titulo, item.contenido);
+                    });
+                    // Actualizar badge
+                    var badge = document.getElementById('notifBadge');
+                    if (badge) { badge.textContent = data.sin_leer > 9 ? '9+' : data.sin_leer; badge.style.display = 'flex'; }
+                    var label = document.getElementById('notifCountLabel');
+                    if (label) { label.textContent = data.sin_leer + ' nuevas'; label.style.display = ''; }
+                }
+                lastCount = data.sin_leer;
+            })
+            .catch(function(){});
+    }
+    setInterval(poll, 1500);
 })();
 </script>
 </body>

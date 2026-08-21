@@ -95,6 +95,10 @@ class Factura extends Model
 
     public function diasRestantes(): ?int
     {
+        // Si ya está pagada, 0 días restantes
+        if (in_array($this->estatus, ['pagada'])) {
+            return 0;
+        }
         return self::diasHastaVencimiento($this->fecha_vencimiento);
     }
 }

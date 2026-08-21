@@ -190,8 +190,10 @@ return [
     |--------------------------------------------------------------------------
     | El proveedor elige uno después de que la factura queda aprobada y
     | antes de pulsar Subir. Define fecha_vencimiento = hoy + N días.
+    | «Otro» permite un entero entre 1 y plazos_dias_max.
     */
-    'plazos_dias' => [60, 120, 320],
+    'plazos_dias' => [30, 45, 60, 90, 120, 150, 360],
+    'plazos_dias_max' => 3650,
 
     /*
     |--------------------------------------------------------------------------

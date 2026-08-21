@@ -1142,7 +1142,7 @@ class AdminPanelController extends Controller
 
         $query = $this->queryFacturasFiltradas($request);
         $montoFiltrado = (float) (clone $query)->sum('total');
-        $facturas = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+        $facturas = $query->orderBy('created_at', 'desc')->paginate(50)->withQueryString();
 
         $baseProveedor = Factura::whereNotNull('codigo_proveedor');
         $totalGeneral = (clone $baseProveedor)->count();

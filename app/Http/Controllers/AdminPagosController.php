@@ -274,4 +274,45 @@ class AdminPagosController extends Controller
 
         return $pdf->download($filename);
     }
+
+    /** Estado de cuenta histórico del proveedor (CSV). */
+    public function estadoCuenta(string $codigo)
+    {
+        $proveedor = ProveedorUser::whereCodigo($codigo)->firstOrFail();
+        $facturas = Factura::query()
+            ->where('codigo_proveedor', $codigo)
+            ->orderByDesc('created_at')
+            ->get();
+
+        $filename = 'Estado_Cuenta_' . $codigo . '_' . now()->format('Y-m-d') . '.csv';
+
+        $output = "\xEF\xBB\xBF"; // BOM UTF-8
+        $output .= "ESTADO DE CUENTA - " . $proveedor->nombre . " (" . $codigo . ")\r\n";
+        $output .= "Generado: " . now()->format('d/m/Y H:i') . "\r\n\r\n";
+        $output .= "Fecha,Folio,Total,Monto Pagado,Saldo,Estatus,Última actualización\r\n";
+
+        foreach ($facturas as $f) {
+            $saldo = round((float) $f->total - (float) $f->monto_pagado, 2);
+            $output .= implode(',', [
+                $f->created_at?->format('d/m/Y') ?? '',
+                '"' . ($f->folio_cfdi ?: $f->id) . '"',
+                number_format((float) $f->total, 2, '.', ''),
+                number_format((float) $f->monto_pagado, 2, '.', ''),
+                number_format($saldo, 2, '.', ''),
+                $f->estatus,
+                $f->updated_at?->format('d/m/Y H:i') ?? '',
+            ]) . "\r\n";
+        }
+
+        $totalFacturado = $facturas->sum('total');
+        $totalPagado = $facturas->sum('monto_pagado');
+        $totalSaldo = round($totalFacturado - $totalPagado, 2);
+
+        $output .= "\r\n";
+        $output .= ",TOTALES," . number_format($totalFacturado, 2, '.', '') . "," . number_format($totalPagado, 2, '.', '') . "," . number_format($totalSaldo, 2, '.', '') . ",,\r\n";
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
 }

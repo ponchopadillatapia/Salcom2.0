@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -351,7 +352,7 @@ class PortalProveedorController extends Controller
             }
         }
 
-        $facturas = $query->orderByDesc('created_at')->paginate(30)->withQueryString();
+        $facturas = $query->orderByDesc('created_at')->paginate(50)->withQueryString();
 
         $filtros = [
             'fecha_desde' => $request->input('fecha_desde', ''),
@@ -471,6 +472,10 @@ class PortalProveedorController extends Controller
     /** Campanita: alertas recientes en JSON (polling sin recargar). */
     public function alertasRecientesJson()
     {
+        // El layout hace polling cada 1.5–3 s. Sin reflash, esas peticiones
+        // se comen los mensajes flash (validación de factura, errores, etc.).
+        session()->reflash();
+
         $proveedorId = session('proveedor_id');
         if (! $proveedorId) {
             return response()->json(['sin_leer' => 0, 'items' => []], 401);
@@ -1514,9 +1519,17 @@ class PortalProveedorController extends Controller
         $rfcProveedor = $this->rfcProveedorSesion($proveedor);
         $pendiente = $this->fiscalPendienteVigente($proveedor);
 
+        $res = session()->pull('fiscal_ui_resultado');
+        if (! is_array($res)) {
+            $res = session('fiscal_resultado');
+        }
+
         // Los temporales solo deben verse en el redirect inmediato tras Validar
         // (éxito o error). Un GET fresco (F5 o volver a entrar) inicia vacío.
-        $esRetornoDeValidacion = session()->has('fiscal_resultado') || session()->has('errors');
+        // No depende del flash de Laravel: el polling de alertas lo consume.
+        $esRetornoDeValidacion = (bool) session()->pull('fiscal_ui_keep')
+            || is_array($res)
+            || session()->has('errors');
         if (is_array($pendiente) && ! $esRetornoDeValidacion) {
             $this->limpiarFiscalPendiente();
             $pendiente = null;
@@ -1535,7 +1548,8 @@ class PortalProveedorController extends Controller
             'puedeSubir',
             'tieneArchivosPendientes',
             'pendiente',
-            'mesEnCurso'
+            'mesEnCurso',
+            'res'
         ));
     }
 
@@ -1553,18 +1567,23 @@ class PortalProveedorController extends Controller
         $prev = $this->fiscalPendienteVigente($proveedor);
         $tienePrev = is_array($prev);
 
-        $request->validate([
-            'archivo' => ($tienePrev ? 'nullable' : 'required').'|file|extensions:pdf|max:10240',
-            'archivo_xml' => ($tienePrev ? 'nullable' : 'required').'|file|extensions:xml|max:5120',
-            'archivo_oc' => 'nullable|file|extensions:pdf|max:10240',
-            'es_fletera' => 'nullable|in:0,1',
-        ], [
-            'archivo.required' => 'La factura en PDF es obligatoria.',
-            'archivo.extensions' => 'La factura debe ser un archivo PDF.',
-            'archivo_xml.required' => 'El XML de la factura es obligatorio.',
-            'archivo_xml.extensions' => 'El archivo CFDI debe ser un XML válido (.xml).',
-            'archivo_oc.extensions' => 'La orden de compra debe ser un archivo PDF.',
-        ]);
+        try {
+            $request->validate([
+                'archivo' => ($tienePrev ? 'nullable' : 'required').'|file|extensions:pdf|max:10240',
+                'archivo_xml' => ($tienePrev ? 'nullable' : 'required').'|file|extensions:xml|max:5120',
+                'archivo_oc' => 'nullable|file|extensions:pdf|max:10240',
+                'es_fletera' => 'nullable|in:0,1',
+            ], [
+                'archivo.required' => 'La factura en PDF es obligatoria.',
+                'archivo.extensions' => 'La factura debe ser un archivo PDF.',
+                'archivo_xml.required' => 'El XML de la factura es obligatorio.',
+                'archivo_xml.extensions' => 'El archivo CFDI debe ser un XML válido (.xml).',
+                'archivo_oc.extensions' => 'La orden de compra debe ser un archivo PDF.',
+            ]);
+        } catch (ValidationException $e) {
+            $this->conservarUiFiscalTrasRedirect();
+            throw $e;
+        }
 
         $disk = Storage::disk('local');
         $pdfUpload = $request->file('archivo');
@@ -1572,9 +1591,13 @@ class PortalProveedorController extends Controller
         $ocUpload = $request->file('archivo_oc');
 
         if (! $pdfUpload && ! $tienePrev) {
+            $this->conservarUiFiscalTrasRedirect();
+
             return back()->withErrors(['archivo' => 'La factura en PDF es obligatoria.']);
         }
         if (! $xmlUpload && ! $tienePrev) {
+            $this->conservarUiFiscalTrasRedirect();
+
             return back()->withErrors(['archivo_xml' => 'El XML de la factura es obligatorio.']);
         }
 
@@ -1620,7 +1643,7 @@ class PortalProveedorController extends Controller
         );
 
         if (! str_starts_with((string) $pdfContent, '%PDF')) {
-            return back()->with('fiscal_resultado', [
+            return $this->redirectConResultadoFiscal([
                 'aprobado' => false,
                 'mensaje' => 'El archivo PDF no es válido.',
                 'errores' => ['El archivo de factura no es un PDF real.'],
@@ -1630,7 +1653,7 @@ class PortalProveedorController extends Controller
         }
 
         if ($xmlSize < 1 || $xmlContent === false || trim((string) $xmlContent) === '' || ! str_contains((string) $xmlContent, '<')) {
-            return back()->with('fiscal_resultado', [
+            return $this->redirectConResultadoFiscal([
                 'aprobado' => false,
                 'mensaje' => 'La factura no pasó la validación.',
                 'errores' => [
@@ -1654,7 +1677,7 @@ class PortalProveedorController extends Controller
         ]);
 
         if (! $resultado['aprobado']) {
-            return back()->with('fiscal_resultado', [
+            return $this->redirectConResultadoFiscal([
                 'aprobado' => false,
                 'estatus' => $resultado['estatus'] ?? 'rechazada',
                 'mensaje' => ($resultado['mensaje'] ?? 'La factura no pasó la validación. Corrige los errores y vuelve a validar.')
@@ -1667,10 +1690,10 @@ class PortalProveedorController extends Controller
             ]);
         }
 
-        return back()->with('fiscal_resultado', [
+        return $this->redirectConResultadoFiscal([
             'aprobado' => true,
             'estatus' => $resultado['estatus'] ?? 'aprobada',
-            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta.').' Los archivos quedaron guardados temporalmente: elige el plazo (60, 120 o 320 días) y pulsa «Subir».',
+            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta.').' Los archivos quedaron guardados temporalmente: elige los días de plazo y pulsa «Subir».',
             'errores' => [],
             'advertencias' => $resultado['advertencias'] ?? [],
             'checklist' => $resultado['checklist'] ?? [],
@@ -1697,24 +1720,43 @@ class PortalProveedorController extends Controller
             ]);
         }
 
-        $plazos = config('facturas.plazos_dias', [60, 120, 320]);
-        $request->validate([
-            'dias_plazo' => ['required', 'integer', Rule::in($plazos)],
-        ], [
-            'dias_plazo.required' => 'Selecciona el plazo de días (60, 120 o 320) antes de subir.',
-            'dias_plazo.integer' => 'Selecciona un plazo válido.',
-            'dias_plazo.in' => 'El plazo debe ser 60, 120 o 320 días.',
-        ]);
+        $plazos = config('facturas.plazos_dias', [30, 45, 60, 90, 120, 150, 360]);
+        $maxDias = (int) config('facturas.plazos_dias_max', 3650);
+        $opcionPlazo = $request->input('dias_plazo');
+
+        try {
+            if ($opcionPlazo === 'otro') {
+                $request->validate([
+                    'dias_plazo_otro' => ['required', 'integer', 'min:1', 'max:'.$maxDias],
+                ], [
+                    'dias_plazo_otro.required' => 'Escribe la cantidad de días del plazo.',
+                    'dias_plazo_otro.integer' => 'La cantidad de días debe ser un número entero.',
+                    'dias_plazo_otro.min' => 'El plazo debe ser de al menos 1 día.',
+                    'dias_plazo_otro.max' => 'El plazo no puede ser mayor a '.$maxDias.' días.',
+                ]);
+                $diasPlazo = (int) $request->input('dias_plazo_otro');
+            } else {
+                $request->validate([
+                    'dias_plazo' => ['required', Rule::in($plazos)],
+                ], [
+                    'dias_plazo.required' => 'Selecciona los días de plazo antes de subir.',
+                    'dias_plazo.in' => 'Selecciona un plazo de la lista o elige «Otro».',
+                ]);
+                $diasPlazo = (int) $opcionPlazo;
+            }
+        } catch (ValidationException $e) {
+            $this->conservarUiFiscalTrasRedirect();
+            throw $e;
+        }
 
         $resultado = $pendiente['resultado'] ?? [];
-        $diasPlazo = (int) $request->input('dias_plazo');
 
         try {
             $this->registrarFacturaDesdePendiente($proveedor, $pendiente, $diasPlazo);
         } catch (\InvalidArgumentException $e) {
             $this->limpiarFiscalPendiente();
 
-            return back()->with('fiscal_resultado', [
+            return $this->redirectConResultadoFiscal([
                 'aprobado' => false,
                 'estatus' => 'rechazada',
                 'mensaje' => 'La factura no se pudo registrar.',
@@ -1737,7 +1779,7 @@ class PortalProveedorController extends Controller
         $datos = $resultado['datos'] ?? [];
         $datos['dias_plazo'] = $diasPlazo;
 
-        return back()->with('fiscal_resultado', [
+        return $this->redirectConResultadoFiscal([
             'aprobado' => true,
             'estatus' => $estatus,
             'mensaje' => $mensaje,
@@ -1794,10 +1836,11 @@ class PortalProveedorController extends Controller
         if (Factura::where('folio_cfdi', $folioCfdi)->exists()) {
             $folioCfdi = $folioCfdi.'-'.substr(uniqid(), -4);
         }
-        $plazos = config('facturas.plazos_dias', [60, 120, 320]);
-        $dias = in_array($diasPlazo, $plazos, true)
-            ? $diasPlazo
-            : (int) config('facturas.dias_vencimiento', 30);
+        $maxDias = (int) config('facturas.plazos_dias_max', 3650);
+        if ($diasPlazo < 1 || $diasPlazo > $maxDias) {
+            throw new \InvalidArgumentException('El plazo de días no es válido.');
+        }
+        $dias = $diasPlazo;
         $codigoProv = $proveedor->id_proveedor ?: session('proveedor_codigo') ?: ('P'.$proveedor->id);
         $esFletera = (bool) ($pendiente['es_fletera'] ?? false);
         $total = (float) (($datos['total'] ?? 0) ?: (($datos['subtotal'] ?? 0) + ($datos['iva'] ?? 0)));
@@ -1862,6 +1905,22 @@ class PortalProveedorController extends Controller
         }
 
         return $factura;
+    }
+
+    private function conservarUiFiscalTrasRedirect(): void
+    {
+        session(['fiscal_ui_keep' => true]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function redirectConResultadoFiscal(array $payload)
+    {
+        $this->conservarUiFiscalTrasRedirect();
+        session(['fiscal_ui_resultado' => $payload]);
+
+        return back()->with('fiscal_resultado', $payload);
     }
 
     /**
