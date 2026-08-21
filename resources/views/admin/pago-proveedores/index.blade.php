@@ -109,13 +109,14 @@
     </div>
 </div>
 
+@if($estatus === '')
 @if($agente === '' && ($modo ?? 'proveedores') !== 'abonos')
 <div class="anim" style="animation-delay:.03s;margin-bottom:16px">
     <div style="display:flex;align-items:center;gap:12px;padding:16px 20px;background:linear-gradient(135deg,#f3e8ff,#ede9fe);border:2px solid #a78bfa;border-radius:12px">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
         <div>
             <div style="font-weight:800;font-size:14px;color:#5b21b6">Selecciona una Cuenta primero</div>
-            <div style="font-size:12px;color:#6d28d9;margin-top:2px">Elige la cuenta en el filtro de abajo para poder abrir un abono al proveedor.</div>
+            <div style="font-size:12px;color:#6d28d9;margin-top:2px">Elige la cuenta en el filtro de abajo para poder registrar un pago al proveedor.</div>
         </div>
     </div>
 </div>
@@ -155,12 +156,24 @@
         </div>
     </div>
 </div>
+@else
+{{-- Solo buscador cuando hay KPI activo (sin cuentas) --}}
+<div class="filters-panel anim" style="animation-delay:.04s">
+    <div style="display:flex;gap:12px">
+        <div style="flex:1">
+            <label style="font-size:11px;font-weight:600;color:var(--gray-muted);text-transform:uppercase;display:block;margin-bottom:4px">Buscar</label>
+            <input type="text" id="buscar-proveedor" placeholder="Nombre o código de proveedor..." style="width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-family:inherit;outline:none" oninput="filtrarProveedores()">
+        </div>
+    </div>
+</div>
+@endif
 
 @if($modo === 'abonos')
+    <a href="{{ route('admin.pago-proveedores', ['estatus' => $estatus, 'agente' => $agente]) }}" style="display:inline-flex;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none">← Volver a proveedores</a>
     <div class="adm-section anim" style="animation-delay:.08s">
         <div class="adm-section-head">
             <div>
-                <h4>Abonos</h4>
+                <h4>Pagos{{ $q ? ' — '.$q : '' }}</h4>
                 <div class="adm-section-meta">{{ $abonos->total() }} resultado{{ $abonos->total() !== 1 ? 's' : '' }} · estatus {{ $estatus }}</div>
             </div>
         </div>
@@ -169,11 +182,10 @@
                 <thead>
                     <tr>
                         <th>Fecha</th>
-                        <th>Serie / Folio</th>
+                        <th>Hora</th>
+                        <th>Factura</th>
                         <th>Cuenta</th>
                         <th>Proveedor</th>
-                        <th>Moneda</th>
-                        <th>Tipo cambio</th>
                         <th>Pago</th>
                         <th>Estatus</th>
                     </tr>
@@ -182,18 +194,17 @@
                 @forelse($abonos as $a)
                     <tr style="cursor:pointer" onclick="window.location='{{ route('admin.pago-proveedores.show', $a) }}'">
                         <td>{{ optional($a->fecha)->format('d/m/Y') }}</td>
-                        <td><strong>{{ $a->serie }}</strong> · {{ $a->folio }}</td>
+                        <td style="font-size:12px;color:var(--gray-muted)">{{ optional($a->created_at)->format('h:i a') }}</td>
+                        <td style="font-weight:600">{{ $a->documentos->pluck('folio_doc')->filter()->implode(', ') ?: $a->serie.'-'.$a->folio }}</td>
                         <td>{{ config('polizas_pago.'.$a->poliza_key.'.titulo', $a->agente ?: '—') }}</td>
                         <td>
                             <div style="font-weight:600">{{ $a->nombre_proveedor }}</div>
                             <div style="font-size:11px;color:var(--gray-muted)">{{ $a->codigo_proveedor }}</div>
                         </td>
-                        <td>{{ $a->moneda }}</td>
-                        <td>{{ number_format((float)$a->tipo_cambio, 4) }}</td>
                         <td class="monto">${{ number_format((float)$a->monto_pago, 2) }}</td>
                         <td>
-                            @if($a->estatus === 'guardado')
-                                <span class="pill ok">Guardado</span>
+                            @if(in_array($a->estatus, ['guardado', 'pagado']))
+                                <span class="pill ok">Pagado</span>
                             @elseif($a->estatus === 'borrador')
                                 <span class="pill warn">Borrador</span>
                             @else
@@ -202,7 +213,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="8" class="empty-state"><p>No hay abonos con ese estatus.</p></td></tr>
+                    <tr><td colspan="7" class="empty-state"><p>No hay abonos con ese estatus.</p></td></tr>
                 @endforelse
                 </tbody>
             </table>
@@ -249,14 +260,13 @@
                             <th>Proveedor</th>
                             <th>Facturas pendientes</th>
                             <th>Monto</th>
-                            <th>Vencimiento</th>
                             <th>Hora</th>
                         </tr>
                     </thead>
                     <tbody>
                         @foreach($agrupados as $fechaKey => $rows)
                             <tr class="date-row">
-                                <td colspan="6">
+                                <td colspan="5">
                                     @if($fechaKey === 'sin-fecha')
                                         Sin fecha
                                     @else
@@ -283,11 +293,6 @@
                                     </td>
                                     <td style="text-align:center">{{ $row->num_facturas }}</td>
                                     <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
-                                    <td>
-                                        @include('partials.celda-vencimiento', [
-                                            'fecha' => $row->proximo_vencimiento ?? null,
-                                        ])
-                                    </td>
                                     <td style="text-align:right;">
                                         <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}">{{ $hora }}</span>
                                     </td>
@@ -310,21 +315,35 @@
         return checked ? (checked.value || '').trim() : '';
     }
 
-    function syncRows() {
-        var on = !!agenteKey();
-        document.querySelectorAll('#tbl-proveedores-abono tr.prov-row').forEach(function (tr) {
-            tr.classList.toggle('is-disabled', !on);
-        });
-    }
-
     function abrir(codigo) {
         var key = agenteKey();
+        var estatus = '{{ $estatus ?? '' }}';
+
+        // Si hay filtro de KPI activo, mostrar abonos de ese proveedor con ese estatus (no necesita cuenta)
+        if (estatus !== '') {
+            window.location.href = '/admin/pago-proveedores?estatus=' + encodeURIComponent(estatus)
+                + '&q=' + encodeURIComponent(codigo)
+                + '&ver_abonos=1'
+                + (key ? '&agente=' + encodeURIComponent(key) : '');
+            return;
+        }
+
         if (!key) {
             alert('Selecciona una Cuenta antes de abrir el proveedor.');
             return;
         }
         window.location.href = '/admin/pago-proveedores/nuevo/' + encodeURIComponent(key)
             + '?codigo=' + encodeURIComponent(codigo);
+    }
+
+    // No deshabilitar filas cuando hay KPI activo
+    function syncRows() {
+        var on = !!agenteKey();
+        var estatus = '{{ $estatus ?? '' }}';
+        if (estatus !== '') on = true; // KPI activo = siempre clickeable
+        document.querySelectorAll('#tbl-proveedores-abono tr.prov-row').forEach(function (tr) {
+            tr.classList.toggle('is-disabled', !on);
+        });
     }
 
     // Sync al cargar

@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('title', 'Abono Prov. · '.$poliza['serie'])
+@section('title', 'Pago a proveedor · '.$poliza['serie'])
 @section('hero')
 <div class="hero-band">
     <h1>Pago a proveedor</h1>
@@ -9,7 +9,7 @@
 @push('styles')
 <style>
     .cq-wrap{background:#f3f4f6;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;box-shadow:var(--shadow-sm)}
-    .cq-titlebar{background:linear-gradient(180deg,#eef2ff,#e0e7ff);border-bottom:1px solid #c7d2fe;padding:8px 14px;font-size:13px;font-weight:700;color:#312e81}
+    .cq-titlebar{background:linear-gradient(180deg,#f3e8ff,#ede9fe);border-bottom:1px solid #c4b5fd;padding:8px 14px;font-size:13px;font-weight:700;color:#5b21b6}
     .cq-toolbar{display:flex;flex-wrap:wrap;gap:4px;padding:8px;background:#fff;border-bottom:1px solid #e5e7eb}
     .cq-tool{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:64px;padding:6px 8px;border:1px solid transparent;border-radius:6px;background:transparent;font-size:10px;font-weight:600;color:#374151;cursor:pointer;font-family:inherit}
     .cq-tool:hover{background:#f3f4f6;border-color:#e5e7eb}
@@ -52,8 +52,10 @@
     .cq-table input[type=number]:focus,.cq-table input[type=text].imp-doc:focus{outline:2px solid #a78bfa;border-color:#7c3aed}
     .cq-table .saldo-col{font-size:12px;color:#6b7280;font-weight:600}
     .dias-count{font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
+    .dias-count.ok{color:#16a34a}
     .dias-count.warn{color:#d97706}
     .dias-count.late{color:#dc2626}
+    .dias-count.tinto{color:#7f1d1d;font-weight:800}
     .dias-sub{font-size:10px;color:#6b7280;margin-top:2px;white-space:nowrap}
     .cq-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;background:#f9fafb;border-top:1px solid #e5e7eb}
     .cq-total{font-size:18px;font-weight:800;color:#166534;font-variant-numeric:tabular-nums}
@@ -85,7 +87,7 @@
     <input type="hidden" name="accion" id="accion" value="guardar">
 
     <div class="cq-wrap">
-        <div class="cq-titlebar">Abono Prov. · {{ $poliza['concepto'] }} · Serie {{ $poliza['serie'] }}</div>
+        <div class="cq-titlebar">Pago a proveedor · {{ $poliza['concepto'] }} · Serie {{ $poliza['serie'] }}</div>
 
         <div class="cq-toolbar" style="justify-content:flex-end;padding:12px 14px">
         </div>
@@ -199,7 +201,7 @@
                     Cancelar
                 </a>
                 <button type="submit" style="padding:10px 28px;background:#6B3FA0;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit" onclick="document.getElementById('accion').value='guardar'">
-                    Guardar abono
+                    Guardar pago
                 </button>
             </div>
         </div>
@@ -256,9 +258,13 @@
             return;
         }
         body.innerHTML = items.map(it => {
-            const late = it.dias_restantes != null && it.dias_restantes < 0;
-            const warn = it.dias_restantes != null && it.dias_restantes <= 15;
-            const cls = late ? 'late' : (warn ? 'warn' : '');
+            let cls = '';
+            if (it.dias_restantes != null) {
+                if (it.dias_restantes <= 0) cls = 'tinto';
+                else if (it.dias_restantes <= 10) cls = 'late';
+                else if (it.dias_restantes <= 30) cls = 'warn';
+                else cls = 'ok';
+            }
             let sub = it.fecha_vencimiento_fmt || '';
             if (it.dias_plazo) sub += (sub ? ' · de ' : 'de ') + it.dias_plazo;
             const vencHtml = (it.dias_label && it.dias_label !== '—')
