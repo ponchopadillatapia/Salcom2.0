@@ -464,6 +464,13 @@
                         @if($badgeProgramadas > 0)<span class="sb-badge">{{ $badgeProgramadas > 9 ? '9+' : $badgeProgramadas }}</span>@endif
                     </a>
                     {{-- Submenú Abono al proveedor --}}
+                    @php
+                        $badgePorCuenta = \App\Models\AbonoProveedor::query()
+                            ->whereIn('estatus', ['guardado', 'pagado'])
+                            ->selectRaw('poliza_key, count(*) as total')
+                            ->groupBy('poliza_key')
+                            ->pluck('total', 'poliza_key');
+                    @endphp
                     <div class="sb-submenu-nested {{ request()->is('admin/abono-proveedor*') ? 'open' : '' }}">
                         <button type="button" class="sb-link sb-sublink sb-nested-toggle {{ request()->is('admin/abono-proveedor*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
                             <span class="sb-text">Abono al proveedor</span>
@@ -473,15 +480,19 @@
                         <div class="sb-nested-items">
                             <a href="{{ route('admin.abono-proveedor', ['cuenta' => '8969_mxn']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '8969_mxn' ? 'active' : '' }}">
                                 <span class="sb-text">8969 — Nacionales MXN</span>
+                                @if(($badgePorCuenta['8969_mxn'] ?? 0) > 0)<span class="sb-badge">{{ $badgePorCuenta['8969_mxn'] }}</span>@endif
                             </a>
                             <a href="{{ route('admin.abono-proveedor', ['cuenta' => '8969_aduanal']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '8969_aduanal' ? 'active' : '' }}">
                                 <span class="sb-text">8969 — Agente aduanal</span>
+                                @if(($badgePorCuenta['8969_aduanal'] ?? 0) > 0)<span class="sb-badge">{{ $badgePorCuenta['8969_aduanal'] }}</span>@endif
                             </a>
                             <a href="{{ route('admin.abono-proveedor', ['cuenta' => '2026_base']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '2026_base' ? 'active' : '' }}">
                                 <span class="sb-text">2026 — Banco Base Dollar</span>
+                                @if(($badgePorCuenta['2026_base'] ?? 0) > 0)<span class="sb-badge">{{ $badgePorCuenta['2026_base'] }}</span>@endif
                             </a>
                             <a href="{{ route('admin.abono-proveedor', ['cuenta' => '2026_extranjera']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '2026_extranjera' ? 'active' : '' }}">
                                 <span class="sb-text">2026 — Extranjera</span>
+                                @if(($badgePorCuenta['2026_extranjera'] ?? 0) > 0)<span class="sb-badge">{{ $badgePorCuenta['2026_extranjera'] }}</span>@endif
                             </a>
                         </div>
                     </div>
