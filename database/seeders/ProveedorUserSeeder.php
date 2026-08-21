@@ -60,13 +60,13 @@ class ProveedorUserSeeder extends Seeder
                 'activo' => true,
             ],
             [
-                'usuario' => 'rebeca',
+                'usuario' => 'Rebeca',
                 'password' => Hash::make('Re.123'),
                 'id_proveedor' => 'DEMO-REBECA',
                 'nombre' => 'Rebeca (Test)',
                 'tipo_persona' => 'Persona Moral',
                 'telefono' => '3300000003',
-                'correo' => 'rebeca@wiese.com.mx',
+                'correo' => 'rebeca.leon@framfoods.com.mx',
                 'activo' => true,
             ],
         ];

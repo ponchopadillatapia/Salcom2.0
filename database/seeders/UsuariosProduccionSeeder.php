@@ -106,8 +106,8 @@ class UsuariosProduccionSeeder extends Seeder
             ],
             [
                 'nombre' => 'Rebeca',
-                'correo' => 'rebeca@wiese.com.mx',
-                'usuario' => 'rebeca',
+                'correo' => 'rebeca.leon@framfoods.com.mx',
+                'usuario' => 'Rebeca',
                 'password' => Hash::make('Re.123'),
                 'rol' => 'admin',
                 'activo' => true,
