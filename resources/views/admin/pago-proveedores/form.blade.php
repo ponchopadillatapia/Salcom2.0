@@ -52,8 +52,10 @@
     .cq-table input[type=number]:focus,.cq-table input[type=text].imp-doc:focus{outline:2px solid #a78bfa;border-color:#7c3aed}
     .cq-table .saldo-col{font-size:12px;color:#6b7280;font-weight:600}
     .dias-count{font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
+    .dias-count.ok{color:#16a34a}
     .dias-count.warn{color:#d97706}
     .dias-count.late{color:#dc2626}
+    .dias-count.tinto{color:#7f1d1d;font-weight:800}
     .dias-sub{font-size:10px;color:#6b7280;margin-top:2px;white-space:nowrap}
     .cq-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;background:#f9fafb;border-top:1px solid #e5e7eb}
     .cq-total{font-size:18px;font-weight:800;color:#166534;font-variant-numeric:tabular-nums}
@@ -256,9 +258,13 @@
             return;
         }
         body.innerHTML = items.map(it => {
-            const late = it.dias_restantes != null && it.dias_restantes < 0;
-            const warn = it.dias_restantes != null && it.dias_restantes <= 15;
-            const cls = late ? 'late' : (warn ? 'warn' : '');
+            let cls = '';
+            if (it.dias_restantes != null) {
+                if (it.dias_restantes <= 0) cls = 'tinto';
+                else if (it.dias_restantes <= 10) cls = 'late';
+                else if (it.dias_restantes <= 30) cls = 'warn';
+                else cls = 'ok';
+            }
             let sub = it.fecha_vencimiento_fmt || '';
             if (it.dias_plazo) sub += (sub ? ' · de ' : 'de ') + it.dias_plazo;
             const vencHtml = (it.dias_label && it.dias_label !== '—')

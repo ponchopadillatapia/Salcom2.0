@@ -473,6 +473,9 @@
                             </a>
                         </div>
                     </div>
+                    <a href="{{ route('admin.historial-abonos') }}" class="sb-link sb-sublink {{ request()->is('admin/historial-abonos*') ? 'active' : '' }}">
+                        <span class="sb-text">Historial de abonos</span>
+                    </a>
                 </div>
             </div>
 

@@ -460,15 +460,7 @@ class AdminPagoProveedoresController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        // Historial de abonos internos (facturas liquidadas con datos de póliza)
-        $abonosRegistrados = Factura::query()
-            ->where('estatus', 'liquidada')
-            ->whereNotNull('validacion_detalle->abono_interno')
-            ->orderByDesc('updated_at')
-            ->limit(50)
-            ->get();
-
-        return view('admin.abono-proveedor.index', compact('proveedores', 'cuentaKey', 'cuentaConfig', 'abonosRegistrados'));
+        return view('admin.abono-proveedor.index', compact('proveedores', 'cuentaKey', 'cuentaConfig'));
     }
 
     public function abonoInternoFacturas(Request $request)
@@ -493,6 +485,47 @@ class AdminPagoProveedoresController extends Controller
             ]);
 
         return response()->json(['facturas' => $facturas]);
+    }
+
+    public function historialAbonos(Request $request)
+    {
+        $buscar = trim((string) $request->input('q', ''));
+        $estatus = trim((string) $request->input('estatus', ''));
+        $desde = $request->input('desde');
+        $hasta = $request->input('hasta');
+
+        // KPIs
+        $kpiLiquidadas = Factura::where('estatus', 'liquidada')->count();
+        $kpiPagadas = Factura::where('estatus', 'pagada')->count();
+        $kpiTotal = Factura::whereIn('estatus', ['liquidada', 'pagada'])->count();
+
+        $query = Factura::query()
+            ->where('estatus', 'liquidada')
+            ->whereNotNull('validacion_detalle');
+
+        if ($estatus === 'pagada') {
+            $query = Factura::query()->where('estatus', 'pagada')->where('monto_pagado', '>', 0);
+        } elseif ($estatus === 'todas') {
+            $query = Factura::query()->whereIn('estatus', ['liquidada', 'pagada'])->where('monto_pagado', '>', 0);
+        }
+
+        if ($buscar !== '') {
+            $query->where(function ($q) use ($buscar) {
+                $q->where('codigo_proveedor', 'like', "%{$buscar}%")
+                    ->orWhere('folio_cfdi', 'like', "%{$buscar}%");
+            });
+        }
+
+        if ($desde) {
+            $query->whereDate('updated_at', '>=', $desde);
+        }
+        if ($hasta) {
+            $query->whereDate('updated_at', '<=', $hasta);
+        }
+
+        $facturas = $query->orderByDesc('updated_at')->paginate(50)->withQueryString();
+
+        return view('admin.historial-abonos', compact('facturas', 'buscar', 'estatus', 'kpiLiquidadas', 'kpiPagadas', 'kpiTotal'));
     }
 
     /** Confirmar abono interno con número de póliza. */

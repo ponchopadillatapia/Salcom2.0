@@ -88,7 +88,7 @@
                 <select name="codigo_proveedor" id="ab-proveedor" required style="border:2px solid #dc2626" onchange="checkProveedor()">
                     <option value="">(Seleccionar proveedor)</option>
                     @foreach($proveedores as $p)
-                        <option value="{{ $p->codigo }}" {{ old('codigo_proveedor', request('proveedor')) === $p->codigo ? 'selected' : '' }}>
+                        <option value="{{ $p->codigo }}">
                             {{ $p->codigo }} — {{ $p->nombre }}
                         </option>
                     @endforeach
@@ -136,55 +136,6 @@
         </div>
     </div>
 </form>
-
-{{-- Listado histórico de pólizas registradas (solo se muestra después de guardar) --}}
-@if(session('ok') && $abonosRegistrados->count() > 0)
-<div class="ab-facturas anim" style="animation-delay:.1s;margin-top:24px">
-    <div class="ab-facturas-head">
-        <h4>Pólizas registradas</h4>
-        <span class="ab-facturas-meta">{{ $abonosRegistrados->count() }} abono{{ $abonosRegistrados->count() !== 1 ? 's' : '' }} registrados</span>
-    </div>
-    <table class="ab-table">
-        <thead>
-            <tr>
-                <th>Fecha</th>
-                <th>Nº Póliza</th>
-                <th>Proveedor</th>
-                <th>Folio factura</th>
-                <th>Monto pagado</th>
-                <th>Cuenta</th>
-                <th>Registrado</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($abonosRegistrados as $ab)
-                @php
-                    $detalle = is_array($ab->validacion_detalle) ? ($ab->validacion_detalle['abono_interno'] ?? []) : [];
-                    $polizaNum = $detalle['poliza'] ?? '';
-                    $fechaAbono = $detalle['fecha'] ?? '';
-                    $cuentaAbono = $detalle['cuenta'] ?? '';
-                    $serieAbono = $detalle['serie'] ?? '';
-                @endphp
-                <tr>
-                    <td>{{ $fechaAbono ? \Carbon\Carbon::parse($fechaAbono)->format('d/m/Y') : '—' }}</td>
-                    <td style="font-weight:700">
-                        @if($polizaNum)
-                            {{ $polizaNum }}
-                        @else
-                            <span style="color:#dc2626;font-size:12px">● Sin póliza</span>
-                        @endif
-                    </td>
-                    <td style="font-weight:600">{{ $ab->codigo_proveedor }}</td>
-                    <td>{{ $ab->folio_cfdi ?: $ab->id }}</td>
-                    <td class="monto">${{ number_format((float)$ab->monto_pagado, 2) }}</td>
-                    <td style="font-size:12px">{{ $cuentaAbono ?: '—' }}</td>
-                    <td style="font-size:12px;color:var(--gray-muted)">{{ $ab->updated_at?->format('d/m/Y h:i a') }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-</div>
-@endif
 
 @endsection
 @push('scripts')

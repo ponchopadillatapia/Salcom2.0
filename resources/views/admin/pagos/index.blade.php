@@ -187,14 +187,13 @@
                         <th>Proveedor</th>
                         <th>Facturas pendientes</th>
                         <th>Monto</th>
-                        <th>Vencimiento</th>
                         <th>Alta</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($agrupados as $fechaKey => $rows)
                         <tr class="date-row">
-                            <td colspan="6">
+                            <td colspan="5">
                                 @if($fechaKey === 'sin-fecha')
                                     Sin fecha
                                 @else
@@ -221,11 +220,6 @@
                                 </td>
                                 <td>{{ $row->num_facturas }}</td>
                                 <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
-                                <td>
-                                    @include('partials.celda-vencimiento', [
-                                        'fecha' => $row->proximo_vencimiento ?? null,
-                                    ])
-                                </td>
                                 <td style="text-align:right;">
                                     <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}" title="{{ $sinLeer ? 'Nueva / sin revisar' : 'Ya revisada' }}">{{ $hora }}</span>
                                 </td>
