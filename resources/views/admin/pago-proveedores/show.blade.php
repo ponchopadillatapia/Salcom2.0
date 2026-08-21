@@ -1,8 +1,8 @@
 @extends('layouts.admin')
-@section('title', 'Abono '.$abono->etiquetaFolio())
+@section('title', 'Pago '.$abono->etiquetaFolio())
 @section('hero')
 <div class="hero-band">
-    <h1>Abono {{ $abono->etiquetaFolio() }}</h1>
+    <h1>Pago {{ $abono->etiquetaFolio() }}</h1>
     <p>{{ $poliza['titulo'] ?? $abono->concepto }} · {{ $abono->nombre_proveedor }}</p>
 </div>
 @endsection
@@ -10,7 +10,7 @@
 <style>
     .back{display:inline-flex;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none}
     .cq-wrap{background:#fff;border:1px solid #d1d5db;border-radius:8px;overflow:hidden}
-    .cq-titlebar{background:linear-gradient(180deg,#eef2ff,#e0e7ff);border-bottom:1px solid #c7d2fe;padding:10px 14px;font-size:13px;font-weight:700;color:#312e81;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+    .cq-titlebar{background:linear-gradient(180deg,#f3e8ff,#ede9fe);border-bottom:1px solid #c4b5fd;padding:10px 14px;font-size:13px;font-weight:700;color:#5b21b6;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
     .cq-head{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px;border-bottom:1px solid #e5e7eb}
     .kv label{display:block;font-size:11px;font-weight:700;color:#6b7280;margin-bottom:2px}
     .kv div{font-size:13px;font-weight:600;color:#111827}
@@ -46,9 +46,9 @@
 
 <div class="cq-wrap">
     <div class="cq-titlebar">
-        <span>Abono Prov. · {{ $abono->concepto }} · {{ $abono->serie }}-{{ $abono->folio }}</span>
-        @if($abono->estatus === 'guardado')
-            <span class="pill ok">Guardado</span>
+        <span>Pago a proveedor · {{ $abono->concepto }} · {{ $abono->serie }}-{{ $abono->folio }}</span>
+        @if(in_array($abono->estatus, ['guardado', 'pagado']))
+            <span class="pill ok">Pagado</span>
         @elseif($abono->estatus === 'borrador')
             <span class="pill warn">Borrador</span>
         @else

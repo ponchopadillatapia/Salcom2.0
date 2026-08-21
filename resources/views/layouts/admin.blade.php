@@ -244,6 +244,13 @@
         .sb-sublink { font-size: 12px !important; padding: 6px 16px !important; }
         .sb-sublink::before { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--gray-muted); flex-shrink: 0; }
         .sb-sublink.active::before { background: var(--purple); }
+        .sb-submenu-nested .sb-nested-items { display: none; padding-left: 16px; }
+        .sb-submenu-nested.open .sb-nested-items { display: flex; flex-direction: column; }
+        .sb-nested-toggle { border: none !important; outline: none !important; background: none !important; box-shadow: none !important; }
+        .sb-nested-toggle .sb-chevron { margin-left: auto; transition: transform .2s; flex-shrink: 0; color: var(--gray-muted); }
+        .sb-submenu-nested.open .sb-nested-toggle .sb-chevron { transform: rotate(180deg); }
+        .sb-deep { font-size: 11px !important; padding: 5px 12px !important; }
+        .sb-deep::before { width: 3px; height: 3px; }
         .sidebar.collapsed .sb-submenu-items { display: none !important; }
         .sidebar.collapsed:hover .sb-submenu.open .sb-submenu-items { display: flex; flex-direction: column; }
         /* Auto-abrir si estamos en esa sección */
@@ -445,9 +452,27 @@
                     <a href="{{ route('admin.pago-proveedores') }}" class="sb-link sb-sublink {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
                         <span class="sb-text">Pago a proveedor</span>
                     </a>
-                    <a href="{{ route('admin.abono-proveedor') }}" class="sb-link sb-sublink {{ request()->is('admin/abono-proveedor*') ? 'active' : '' }}">
-                        <span class="sb-text">Abono al proveedor</span>
-                    </a>
+                    {{-- Submenú Abono al proveedor --}}
+                    <div class="sb-submenu-nested {{ request()->is('admin/abono-proveedor*') ? 'open' : '' }}">
+                        <button type="button" class="sb-link sb-sublink sb-nested-toggle {{ request()->is('admin/abono-proveedor*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
+                            <span class="sb-text">Abono al proveedor</span>
+                            <svg class="sb-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="sb-nested-items">
+                            <a href="{{ route('admin.abono-proveedor', ['cuenta' => '8969_mxn']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '8969_mxn' ? 'active' : '' }}">
+                                <span class="sb-text">8969 — Nacionales MXN</span>
+                            </a>
+                            <a href="{{ route('admin.abono-proveedor', ['cuenta' => '8969_aduanal']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '8969_aduanal' ? 'active' : '' }}">
+                                <span class="sb-text">8969 — Agente aduanal</span>
+                            </a>
+                            <a href="{{ route('admin.abono-proveedor', ['cuenta' => '2026_base']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '2026_base' ? 'active' : '' }}">
+                                <span class="sb-text">2026 — Banco Base Dollar</span>
+                            </a>
+                            <a href="{{ route('admin.abono-proveedor', ['cuenta' => '2026_extranjera']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '2026_extranjera' ? 'active' : '' }}">
+                                <span class="sb-text">2026 — Extranjera</span>
+                            </a>
+                        </div>
+                    </div>
                 </div>
             </div>
 

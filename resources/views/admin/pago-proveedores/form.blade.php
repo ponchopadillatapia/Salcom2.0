@@ -1,5 +1,5 @@
 @extends('layouts.admin')
-@section('title', 'Abono Prov. · '.$poliza['serie'])
+@section('title', 'Pago a proveedor · '.$poliza['serie'])
 @section('hero')
 <div class="hero-band">
     <h1>Pago a proveedor</h1>
@@ -9,7 +9,7 @@
 @push('styles')
 <style>
     .cq-wrap{background:#f3f4f6;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;box-shadow:var(--shadow-sm)}
-    .cq-titlebar{background:linear-gradient(180deg,#eef2ff,#e0e7ff);border-bottom:1px solid #c7d2fe;padding:8px 14px;font-size:13px;font-weight:700;color:#312e81}
+    .cq-titlebar{background:linear-gradient(180deg,#f3e8ff,#ede9fe);border-bottom:1px solid #c4b5fd;padding:8px 14px;font-size:13px;font-weight:700;color:#5b21b6}
     .cq-toolbar{display:flex;flex-wrap:wrap;gap:4px;padding:8px;background:#fff;border-bottom:1px solid #e5e7eb}
     .cq-tool{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:64px;padding:6px 8px;border:1px solid transparent;border-radius:6px;background:transparent;font-size:10px;font-weight:600;color:#374151;cursor:pointer;font-family:inherit}
     .cq-tool:hover{background:#f3f4f6;border-color:#e5e7eb}
@@ -85,7 +85,7 @@
     <input type="hidden" name="accion" id="accion" value="guardar">
 
     <div class="cq-wrap">
-        <div class="cq-titlebar">Abono Prov. · {{ $poliza['concepto'] }} · Serie {{ $poliza['serie'] }}</div>
+        <div class="cq-titlebar">Pago a proveedor · {{ $poliza['concepto'] }} · Serie {{ $poliza['serie'] }}</div>
 
         <div class="cq-toolbar" style="justify-content:flex-end;padding:12px 14px">
         </div>
@@ -199,7 +199,7 @@
                     Cancelar
                 </a>
                 <button type="submit" style="padding:10px 28px;background:#6B3FA0;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit" onclick="document.getElementById('accion').value='guardar'">
-                    Guardar abono
+                    Guardar pago
                 </button>
             </div>
         </div>

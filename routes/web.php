@@ -247,6 +247,7 @@ Route::post('/admin/pago-proveedores/{abono}/cancelar', [AdminPagoProveedoresCon
 
 // Abono al proveedor (paso 3 — registro interno)
 Route::get('/admin/abono-proveedor', [AdminPagoProveedoresController::class, 'abonoInterno'])->name('admin.abono-proveedor')->middleware('auth.admin');
+Route::get('/admin/abono-proveedor/facturas', [AdminPagoProveedoresController::class, 'abonoInternoFacturas'])->name('admin.abono-proveedor.facturas')->middleware('auth.admin');
 Route::post('/admin/abono-proveedor/confirmar', [AdminPagoProveedoresController::class, 'abonoInternoConfirmar'])->name('admin.abono-proveedor.confirmar')->middleware('auth.admin');
 
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
