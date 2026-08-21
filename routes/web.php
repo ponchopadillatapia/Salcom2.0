@@ -245,6 +245,11 @@ Route::post('/admin/pago-proveedores', [AdminPagoProveedoresController::class, '
 Route::get('/admin/pago-proveedores/{abono}', [AdminPagoProveedoresController::class, 'show'])->name('admin.pago-proveedores.show')->middleware('auth.admin');
 Route::post('/admin/pago-proveedores/{abono}/cancelar', [AdminPagoProveedoresController::class, 'cancelar'])->name('admin.pago-proveedores.cancelar')->middleware('auth.admin');
 
+Route::get('/admin/abono-proveedor', [AdminPagoProveedoresController::class, 'abonoInterno'])->name('admin.abono-proveedor')->middleware('auth.admin');
+Route::get('/admin/abono-proveedor/facturas-json', [AdminPagoProveedoresController::class, 'abonoInternoFacturas'])->name('admin.abono-proveedor.facturas-json')->middleware('auth.admin');
+Route::post('/admin/abono-proveedor/confirmar', [AdminPagoProveedoresController::class, 'abonoInternoConfirmar'])->name('admin.abono-proveedor.confirmar')->middleware('auth.admin');
+Route::get('/admin/historial-abonos', [AdminPagoProveedoresController::class, 'historialAbonos'])->name('admin.historial-abonos')->middleware('auth.admin');
+
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal', [AdminPanelController::class, 'expedienteFiscal'])->name('admin.expediente-fiscal')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal/proveedor/{proveedor}', [AdminPanelController::class, 'expedienteFiscalVer'])->name('admin.expediente-fiscal.ver')->middleware('auth.admin');
