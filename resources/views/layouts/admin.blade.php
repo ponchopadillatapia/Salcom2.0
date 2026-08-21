@@ -432,6 +432,10 @@
             <a href="{{ route('admin.facturas') }}" class="sb-link {{ request()->is('admin/facturas') || request()->is('admin/facturas/excel') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
                 <span class="sb-text">Facturas</span>
+                @php $facturasSinLeer = \App\Models\Alerta::where('destinatario_tipo','admin')->where('tipo','factura_pago_pendiente')->whereNotIn('estatus',['leida','accionada'])->count(); @endphp
+                @if($facturasSinLeer > 0)
+                    <span class="sb-badge">{{ $facturasSinLeer > 9 ? '9+' : $facturasSinLeer }}</span>
+                @endif
             </a>
 
             <div class="sb-hr"></div>
@@ -446,16 +450,24 @@
                     <svg class="sb-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="sb-submenu-items">
+                    @php
+                        $badgePendientes = \App\Models\Factura::where('estatus', 'pendiente')->count();
+                        $badgeProgramadas = \App\Models\Factura::where('estatus', 'programada')->count();
+                        $badgePagadas = \App\Models\Factura::where('estatus', 'pagada')->where('monto_pagado', '>', 0)->count();
+                    @endphp
                     <a href="{{ route('admin.pagos') }}" class="sb-link sb-sublink {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
                         <span class="sb-text">Formato para pago</span>
+                        @if($badgePendientes > 0)<span class="sb-badge">{{ $badgePendientes > 9 ? '9+' : $badgePendientes }}</span>@endif
                     </a>
                     <a href="{{ route('admin.pago-proveedores') }}" class="sb-link sb-sublink {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
                         <span class="sb-text">Pago a proveedor</span>
+                        @if($badgeProgramadas > 0)<span class="sb-badge">{{ $badgeProgramadas > 9 ? '9+' : $badgeProgramadas }}</span>@endif
                     </a>
                     {{-- Submenú Abono al proveedor --}}
                     <div class="sb-submenu-nested {{ request()->is('admin/abono-proveedor*') ? 'open' : '' }}">
                         <button type="button" class="sb-link sb-sublink sb-nested-toggle {{ request()->is('admin/abono-proveedor*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
                             <span class="sb-text">Abono al proveedor</span>
+                            @if($badgePagadas > 0)<span class="sb-badge">{{ $badgePagadas > 9 ? '9+' : $badgePagadas }}</span>@endif
                             <svg class="sb-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
                         <div class="sb-nested-items">
