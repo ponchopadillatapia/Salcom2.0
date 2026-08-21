@@ -480,6 +480,12 @@
                             <span class="sb-badge">{{ $abonosSinLeer > 9 ? '9+' : $abonosSinLeer }}</span>
                         @endif
                     </a>
+                    <a href="{{ route('admin.reembolsos') }}" class="sb-link sb-sublink {{ request()->is('admin/reembolsos') ? 'active' : '' }}">
+                        <span class="sb-text">Reembolsos</span>
+                    </a>
+                    <a href="{{ route('admin.reembolsos-viaje') }}" class="sb-link sb-sublink {{ request()->is('admin/reembolsos-viaje*') ? 'active' : '' }}">
+                        <span class="sb-text">Reembolsos Viaje</span>
+                    </a>
                 </div>
             </div>
 
