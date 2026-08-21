@@ -182,7 +182,7 @@
                 <thead>
                     <tr>
                         <th>Fecha</th>
-                        <th>Hora</th>
+                        <th>Hora alta</th>
                         <th>Factura</th>
                         <th>Cuenta</th>
                         <th>Proveedor</th>
@@ -260,7 +260,7 @@
                             <th>Proveedor</th>
                             <th>Facturas pendientes</th>
                             <th>Monto</th>
-                            <th>Hora</th>
+                            <th style="text-align:right">Hora alta</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -276,7 +276,6 @@
                             </tr>
                             @foreach($rows as $row)
                                 @php
-                                    $sinLeer = ($row->notif_sin_leer ?? 0) > 0;
                                     $hora = $row->ultima_factura_at
                                         ? $row->ultima_factura_at->format('h:i a')
                                         : '—';
@@ -285,16 +284,12 @@
                                     <td>
                                         <a class="code-link js-abrir-abono" href="#" data-codigo="{{ $row->codigo }}">{{ $row->codigo }}</a>
                                     </td>
-                                    <td style="font-weight:600;">
-                                        {{ $row->nombre }}
-                                        @if($sinLeer)
-                                            <span class="bubble-roja" title="Sin revisar">{{ $row->notif_sin_leer > 9 ? '9+' : $row->notif_sin_leer }}</span>
-                                        @endif
-                                    </td>
+                                    <td style="font-weight:600;">{{ $row->nombre }}</td>
                                     <td style="text-align:center">{{ $row->num_facturas }}</td>
                                     <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
-                                    <td style="text-align:right;">
-                                        <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}">{{ $hora }}</span>
+                                    <td style="text-align:right;white-space:nowrap">
+                                        <span class="hora-bubble leida">{{ $hora }}</span>
+                                        <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#dc2626;margin-left:8px;vertical-align:middle"></span>
                                     </td>
                                 </tr>
                             @endforeach

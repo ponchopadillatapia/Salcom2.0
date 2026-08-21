@@ -187,7 +187,7 @@
                         <th>Proveedor</th>
                         <th>Facturas pendientes</th>
                         <th>Monto</th>
-                        <th>Alta</th>
+                        <th style="text-align:right">Hora alta</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -212,16 +212,12 @@
                                 <td>
                                     <a class="code-link" href="{{ route('admin.pagos.proveedor', $row->codigo) }}" onclick="event.stopPropagation()">{{ $row->codigo }}</a>
                                 </td>
-                                <td style="font-weight:600;">
-                                    {{ $row->nombre }}
-                                    @if($sinLeer)
-                                        <span class="bubble-roja" title="Sin revisar">{{ $row->notif_sin_leer > 9 ? '9+' : $row->notif_sin_leer }}</span>
-                                    @endif
-                                </td>
+                                <td style="font-weight:600;">{{ $row->nombre }}</td>
                                 <td>{{ $row->num_facturas }}</td>
                                 <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
-                                <td style="text-align:right;">
-                                    <span class="hora-bubble {{ $sinLeer ? '' : 'leida' }}" title="{{ $sinLeer ? 'Nueva / sin revisar' : 'Ya revisada' }}">{{ $hora }}</span>
+                                <td style="text-align:right;white-space:nowrap">
+                                    <span class="hora-bubble leida">{{ $hora }}</span>
+                                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#dc2626;margin-left:8px;vertical-align:middle"></span>
                                 </td>
                             </tr>
                         @endforeach

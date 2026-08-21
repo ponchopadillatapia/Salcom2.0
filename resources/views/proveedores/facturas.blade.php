@@ -36,8 +36,11 @@
     .tabla .link { color: var(--purple); font-weight: 600; text-decoration: none; }
     .monto { font-weight: 600; font-variant-numeric: tabular-nums; }
     .pill { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; display: inline-block; text-transform: capitalize; }
-    .pill.pendiente { background: var(--amber-bg); color: var(--amber); }
-    .pill.pagada, .pill.programada { background: var(--green-bg); color: var(--green); }
+    .pill.pendiente { background: #f3f4f6; color: #6b7280; }
+    .pill.programada { background: #fef2f2; color: #dc2626; }
+    .pill.pagada { background: #fefce8; color: #ca8a04; }
+    .pill.liquidada { background: #ecfdf5; color: #16a34a; }
+    .pill.cancelada, .pill.rechazada { background: #fef2f2; color: #7f1d1d; }
     .pill.aprobada, .pill.validada { background: var(--purple-light); color: var(--purple); }
     .dias-count { font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
     .dias-count.warn { color: var(--amber); }
@@ -97,34 +100,34 @@
 
 <div class="inv-metrics">
     <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'rechazada'])) }}">
-        <div class="accent" style="background:var(--red, #dc2626)"></div>
+        <div class="accent" style="background:#7f1d1d"></div>
         <div class="inv-metric-label">Canceladas</div>
         <div class="inv-metric-val" id="kpi-canceladas">{{ $kpis['rechazadas'] }}</div>
         <div class="inv-metric-sub">No vigentes</div>
     </a>
     <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pendiente'])) }}">
-        <div class="accent" style="background:var(--amber, #d97706)"></div>
+        <div class="accent" style="background:#6b7280"></div>
         <div class="inv-metric-label">Pendientes</div>
         <div class="inv-metric-val" id="kpi-pendientes">{{ $kpis['pendientes'] }}</div>
-        <div class="inv-metric-sub">Por pagar</div>
+        <div class="inv-metric-sub">Por programar</div>
     </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'abonada'])) }}">
-        <div class="accent" style="background:#ea580c"></div>
-        <div class="inv-metric-label">Abonadas</div>
-        <div class="inv-metric-val" id="kpi-abonadas">{{ $kpis['abonadas'] }}</div>
-        <div class="inv-metric-sub">Pago parcial</div>
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'programada'])) }}">
+        <div class="accent" style="background:#dc2626"></div>
+        <div class="inv-metric-label">Programadas</div>
+        <div class="inv-metric-val" id="kpi-programadas">{{ \App\Models\Factura::where('codigo_proveedor', $codigo)->where('estatus', 'programada')->count() }}</div>
+        <div class="inv-metric-sub">En proceso de pago</div>
     </a>
     <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pagada'])) }}">
-        <div class="accent" style="background:var(--green, #16a34a)"></div>
+        <div class="accent" style="background:#ca8a04"></div>
         <div class="inv-metric-label">Pagadas</div>
-        <div class="inv-metric-val" id="kpi-pagadas">{{ $kpis['pagadas'] }}</div>
-        <div class="inv-metric-sub">Ya liquidadas</div>
+        <div class="inv-metric-val" id="kpi-pagadas">{{ \App\Models\Factura::where('codigo_proveedor', $codigo)->where('estatus', 'pagada')->count() }}</div>
+        <div class="inv-metric-sub">Pago realizado</div>
     </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas') }}">
-        <div class="accent" style="background:var(--purple, #6B3FA0)"></div>
-        <div class="inv-metric-label">Facturas totales</div>
-        <div class="inv-metric-val" id="kpi-totales">{{ $kpis['totales'] }}</div>
-        <div class="inv-metric-sub">Todas</div>
+    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'liquidada'])) }}">
+        <div class="accent" style="background:#16a34a"></div>
+        <div class="inv-metric-label">Liquidadas</div>
+        <div class="inv-metric-val" id="kpi-liquidadas">{{ \App\Models\Factura::where('codigo_proveedor', $codigo)->where('estatus', 'liquidada')->count() }}</div>
+        <div class="inv-metric-sub">Cerradas</div>
     </a>
     <div class="inv-metric">
         <div class="accent" style="background:#2563eb"></div>
@@ -166,12 +169,12 @@
             <thead>
                 <tr>
                     <th>Folio</th>
+                    <th>Hora alta</th>
                     <th>Monto</th>
                     <th>Abonado</th>
                     <th>Restante</th>
                     <th>Vencimiento</th>
                     <th>Estatus</th>
-                    <th>Alta</th>
                     <th>Hora pago</th>
                 </tr>
             </thead>
@@ -194,7 +197,7 @@
                             $restantes = $f->diasRestantes();
                             $diasLabel = $restantes === null
                                 ? '—'
-                                : ($restantes > 0 ? $restantes.' días' : ($restantes === 0 ? ($f->estatus === 'pagada' ? '0 días' : 'Vence hoy') : 'Vencida ('.abs($restantes).')'));
+                                : ($restantes > 0 ? $restantes.' días' : ($restantes === 0 ? ($f->estatus === 'pagada' ? '0 días' : 'Vence hoy') : $restantes.' días'));
                         @endphp
                         <tr class="fac-row" style="cursor:pointer"
                             data-folio="{{ $f->folio_cfdi ?: '—' }}"
@@ -219,6 +222,9 @@
                                     <div style="font-size:10px;color:var(--gray-muted);margin-top:2px;">{{ \Illuminate\Support\Str::limit($f->uuid_cfdi, 28) }}</div>
                                 @endif
                             </td>
+                            <td style="font-size:11px;color:var(--gray-muted)">
+                                {{ $f->created_at?->format('h:i a') ?? '—' }}
+                            </td>
                             <td class="monto">${{ number_format((float) $f->total, 2) }}</td>
                             <td style="font-size:12px;color:{{ (float)($f->monto_pagado ?? 0) > 0 ? 'var(--green)' : 'var(--gray-muted)' }};font-weight:600">${{ number_format((float)($f->monto_pagado ?? 0), 2) }}</td>
                             <td style="font-size:12px;font-weight:600;color:{{ $saldo > 0 ? '#dc2626' : 'var(--green)' }}">${{ number_format($saldo, 2) }}</td>
@@ -242,13 +248,13 @@
                                 @endif
                             </td>
                             <td style="font-size:11px;color:var(--gray-muted)">
-                                {{ $f->created_at?->format('h:i a') ?? '—' }}
-                            </td>
-                            <td style="font-size:11px;color:var(--gray-muted)">
                                 @if((float)($f->monto_pagado ?? 0) > 0)
                                     {{ $f->updated_at?->format('d/m/Y h:i a') ?? '—' }}
                                 @else
                                     —
+                                @endif
+                                @if($f->estatus === 'pendiente')
+                                    <span class="nueva-dot" data-id="{{ $f->id }}" style="display:inline-flex;margin-left:8px;width:12px;height:12px;border-radius:50%;background:var(--red,#dc2626);flex-shrink:0"></span>
                                 @endif
                             </td>
                         </tr>
@@ -362,6 +368,10 @@ function cerrarModal() {
 // Click en facturas Salcom (tabla principal)
 document.querySelectorAll('#tablaFacturas .fac-row').forEach(function(tr) {
     tr.addEventListener('click', function() {
+        // Quitar circulito rojo al revisar
+        var dot = tr.querySelector('.nueva-dot');
+        if (dot) dot.style.display = 'none';
+
         var d = tr.dataset;
         var pillClass = d.estatus === 'pagada' ? 'pagada' : (d.estatus === 'programada' ? 'pagada' : 'pendiente');
         var html = '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
