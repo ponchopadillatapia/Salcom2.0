@@ -169,15 +169,16 @@
                     <th>Monto</th>
                     <th>Abonado</th>
                     <th>Restante</th>
-                    <th>Días</th>
+                    <th>Vencimiento</th>
                     <th>Estatus</th>
-                    <th>Hora</th>
+                    <th>Alta</th>
+                    <th>Hora pago</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($facturasAgrupadas as $fechaKey => $filas)
                     <tr class="date-row">
-                        <td colspan="7">
+                        <td colspan="8">
                             @if($fechaKey === 'sin-fecha')
                                 Sin fecha
                             @else
@@ -222,10 +223,12 @@
                             <td style="font-size:12px;color:{{ (float)($f->monto_pagado ?? 0) > 0 ? 'var(--green)' : 'var(--gray-muted)' }};font-weight:600">${{ number_format((float)($f->monto_pagado ?? 0), 2) }}</td>
                             <td style="font-size:12px;font-weight:600;color:{{ $saldo > 0 ? '#dc2626' : 'var(--green)' }}">${{ number_format($saldo, 2) }}</td>
                             <td>
-                                @if($restantes === null)
+                                @if(in_array($f->estatus, ['pagada', 'liquidada']))
+                                    <div class="dias-count" style="color:#16a34a">0 días</div>
+                                @elseif($restantes === null)
                                     —
                                 @else
-                                    <div class="dias-count {{ $restantes <= 0 ? 'late' : ($restantes <= 10 ? 'late' : ($restantes <= 30 ? 'warn' : 'ok')) }}" style="{{ $restantes <= 0 ? 'color:#7f1d1d;font-weight:800' : ($restantes <= 10 ? 'color:#dc2626' : ($restantes <= 30 ? 'color:#d97706' : 'color:#16a34a')) }}">{{ $diasLabel }}</div>
+                                    <div class="dias-count" style="{{ $restantes <= 0 ? 'color:#7f1d1d;font-weight:800' : ($restantes <= 10 ? 'color:#dc2626' : ($restantes <= 30 ? 'color:#d97706' : 'color:#16a34a')) }}">{{ $diasLabel }}</div>
                                     @if($f->dias_plazo)
                                         <div class="dias-sub">de {{ $f->dias_plazo }}</div>
                                     @endif
@@ -240,6 +243,13 @@
                             </td>
                             <td style="font-size:11px;color:var(--gray-muted)">
                                 {{ $f->created_at?->format('h:i a') ?? '—' }}
+                            </td>
+                            <td style="font-size:11px;color:var(--gray-muted)">
+                                @if((float)($f->monto_pagado ?? 0) > 0)
+                                    {{ $f->updated_at?->format('d/m/Y h:i a') ?? '—' }}
+                                @else
+                                    —
+                                @endif
                             </td>
                         </tr>
                     @endforeach
