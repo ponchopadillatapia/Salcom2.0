@@ -104,6 +104,14 @@ class UsuariosProduccionSeeder extends Seeder
                 'rol' => 'admin',
                 'activo' => true,
             ],
+            [
+                'nombre' => 'Rebeca',
+                'correo' => 'rebeca@wiese.com.mx',
+                'usuario' => 'rebeca',
+                'password' => Hash::make('Re.123'),
+                'rol' => 'admin',
+                'activo' => true,
+            ],
         ];
 
         foreach ($usuarios as $u) {

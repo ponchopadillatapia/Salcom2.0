@@ -59,6 +59,16 @@ class ProveedorUserSeeder extends Seeder
                 'correo' => 'demo@demo.salcom',
                 'activo' => true,
             ],
+            [
+                'usuario' => 'rebeca',
+                'password' => Hash::make('Re.123'),
+                'id_proveedor' => 'DEMO-REBECA',
+                'nombre' => 'Rebeca (Test)',
+                'tipo_persona' => 'Persona Moral',
+                'telefono' => '3300000003',
+                'correo' => 'rebeca@wiese.com.mx',
+                'activo' => true,
+            ],
         ];
 
         foreach ($proveedores as $prov) {
