@@ -333,6 +333,9 @@
         }
         .sb-link.active .sb-icon svg { stroke: white !important; }
         .sb-text { flex-shrink: 0; }
+        .sb-badge{margin-left:auto;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--red,#dc2626);color:#fff;font-size:10px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+        .sidebar.collapsed .sb-badge{display:none}
+        .sidebar.collapsed:hover .sb-badge{display:inline-flex}
         .sidebar.collapsed .sb-link { justify-content: center; padding: 8px; margin: 1px 4px; }
         .sidebar.collapsed .sb-text { display: none; }
 
@@ -521,6 +524,13 @@
             <a href="{{ $portalOk ? route('proveedores.facturas') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.facturas*') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
                 <span class="sb-text">Facturas</span>
+                @php
+                    $provId = session('proveedor_id');
+                    $provNotifs = $provId ? \App\Models\Alerta::where('destinatario_tipo','proveedor')->where('destinatario_id', $provId)->whereIn('tipo', ['pago_confirmado', 'facturas_liquidadas'])->whereNotIn('estatus', ['leida', 'accionada'])->count() : 0;
+                @endphp
+                @if($provNotifs > 0)
+                    <span class="sb-badge">{{ $provNotifs > 9 ? '9+' : $provNotifs }}</span>
+                @endif
             </a>
 
             <div class="sb-hr"></div>
@@ -528,6 +538,12 @@
             <a href="{{ $portalOk ? route('proveedores.payment-history') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.payment-history') ? 'active' : '' }}" {!! $lockAttr !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
                 <span class="sb-text">Pagos</span>
+                @php
+                    $provPagosNotifs = ($provId ?? session('proveedor_id')) ? \App\Models\Alerta::where('destinatario_tipo','proveedor')->where('destinatario_id', $provId ?? session('proveedor_id'))->whereIn('tipo', ['pago_confirmado'])->whereNotIn('estatus', ['leida', 'accionada'])->count() : 0;
+                @endphp
+                @if($provPagosNotifs > 0)
+                    <span class="sb-badge">{{ $provPagosNotifs > 9 ? '9+' : $provPagosNotifs }}</span>
+                @endif
             </a>
 
             <div class="sb-hr"></div>

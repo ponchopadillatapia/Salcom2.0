@@ -31,6 +31,8 @@
     .tabla td { padding: 14px 20px; font-size: 13px; color: var(--gray-text); border-bottom: 1px solid var(--border); }
     .tabla tr:last-child td { border-bottom: none; }
     .tabla tr:hover td { background: var(--purple-light); }
+    .tabla tr.date-row td { background: var(--purple-subtle, #f3e8ff) !important; font-weight: 700; font-size: 12px; color: var(--purple); padding: 8px 20px; border-bottom: 2px solid var(--purple); }
+    .tabla tr.date-row:hover td { background: var(--purple-subtle, #f3e8ff) !important; }
     .tabla .link { color: var(--purple); font-weight: 600; text-decoration: none; }
     .monto { font-weight: 600; font-variant-numeric: tabular-nums; }
     .pill { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; display: inline-block; text-transform: capitalize; }
@@ -155,82 +157,92 @@
     @if($facturas->isEmpty())
         <div class="empty">No hay facturas registradas todavía.<br><span style="font-size:12px;">Súbelas desde Alta Facturas.</span></div>
     @else
+        @php
+            $facturasAgrupadas = $facturas->getCollection()->groupBy(function ($f) {
+                return $f->created_at ? $f->created_at->format('Y-m-d') : 'sin-fecha';
+            });
+        @endphp
         <table class="tabla" id="tablaFacturas">
             <thead>
                 <tr>
-                    <th class="sortable">Fecha</th>
                     <th>Folio</th>
                     <th>Monto</th>
                     <th>Abonado</th>
                     <th>Restante</th>
                     <th>Días</th>
                     <th>Estatus</th>
-                    <th>Último abono</th>
+                    <th>Hora</th>
                 </tr>
             </thead>
             <tbody>
-                @foreach($facturas as $f)
-                    @php
-                        $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
-                        $moneda = strtoupper($vd['moneda'] ?? $vd['cfdi']['moneda'] ?? 'MXN');
-                        $saldo = round((float)$f->total - (float)($f->monto_pagado ?? 0), 2);
-                        $restantes = $f->diasRestantes();
-                        $diasLabel = $restantes === null
-                            ? '—'
-                            : ($restantes > 0 ? $restantes.' días' : ($restantes === 0 ? ($f->estatus === 'pagada' ? '0 días' : 'Vence hoy') : 'Vencida ('.abs($restantes).')'));
-                    @endphp
-                    <tr class="fac-row" style="cursor:pointer"
-                        data-folio="{{ $f->folio_cfdi ?: '—' }}"
-                        data-uuid="{{ $f->uuid_cfdi ?? '—' }}"
-                        data-fecha="{{ $f->created_at?->format('d/m/Y') ?? '—' }}"
-                        data-vencimiento="{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}"
-                        data-dias="{{ $diasLabel }}"
-                        data-plazo="{{ $f->dias_plazo ? $f->dias_plazo.' días' : '—' }}"
-                        data-monto="${{ number_format((float)$f->monto, 2) }}"
-                        data-iva="${{ number_format((float)$f->monto_iva, 2) }}"
-                        data-total="${{ number_format((float)$f->total, 2) }}"
-                        data-pagado="${{ number_format((float)($f->monto_pagado ?? 0), 2) }}"
-                        data-saldo="${{ number_format($saldo, 2) }}"
-                        data-moneda="{{ $moneda }}"
-                        data-estatus="{{ $f->estatus }}"
-                        data-notas="{{ $f->notas ?? '' }}"
-                        data-pdf="{{ $f->archivo_pdf ? asset('storage/'.$f->archivo_pdf) : '' }}"
-                        data-xml="{{ $f->archivo_xml ? asset('storage/'.$f->archivo_xml) : '' }}">
-                        <td>{{ $f->created_at?->format('d/m/Y') ?? '—' }}</td>
-                        <td>
-                            <span class="link">{{ $f->folio_cfdi ?: '—' }}</span>
-                            @if($f->uuid_cfdi)
-                                <div style="font-size:10px;color:var(--gray-muted);margin-top:2px;">{{ \Illuminate\Support\Str::limit($f->uuid_cfdi, 28) }}</div>
-                            @endif
-                        </td>
-                        <td class="monto">${{ number_format((float) $f->total, 2) }}</td>
-                        <td style="font-size:12px;color:{{ (float)($f->monto_pagado ?? 0) > 0 ? 'var(--green)' : 'var(--gray-muted)' }};font-weight:600">${{ number_format((float)($f->monto_pagado ?? 0), 2) }}</td>
-                        <td style="font-size:12px;font-weight:600;color:{{ $saldo > 0 ? '#dc2626' : 'var(--green)' }}">${{ number_format($saldo, 2) }}</td>
-                        <td>
-                            @if($restantes === null)
-                                —
+                @foreach($facturasAgrupadas as $fechaKey => $filas)
+                    <tr class="date-row">
+                        <td colspan="7">
+                            @if($fechaKey === 'sin-fecha')
+                                Sin fecha
                             @else
-                                <div class="dias-count {{ $restantes < 0 ? 'late' : ($restantes <= 15 ? 'warn' : '') }}">{{ $diasLabel }}</div>
-                                @if($f->dias_plazo)
-                                    <div class="dias-sub">de {{ $f->dias_plazo }}</div>
-                                @endif
-                            @endif
-                        </td>
-                        <td>
-                            @if($f->estatus === 'pendiente' && (float)($f->monto_pagado ?? 0) > 0)
-                                <span class="pill" style="background:#fff7ed;color:#ea580c">Abonada</span>
-                            @else
-                                <span class="pill {{ $f->estatus }}">{{ $f->estatus }}</span>
-                            @endif
-                        </td>
-                        <td style="font-size:11px;color:var(--gray-muted)">
-                            @if((float)($f->monto_pagado ?? 0) > 0)
-                                {{ $f->updated_at?->format('d/m/Y h:i a') ?? '—' }}
-                            @else
-                                —
+                                {{ \Illuminate\Support\Carbon::parse($fechaKey)->locale('es')->isoFormat('DD [de] MMMM YYYY') }}
                             @endif
                         </td>
                     </tr>
+                    @foreach($filas as $f)
+                        @php
+                            $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
+                            $moneda = strtoupper($vd['moneda'] ?? $vd['cfdi']['moneda'] ?? 'MXN');
+                            $saldo = round((float)$f->total - (float)($f->monto_pagado ?? 0), 2);
+                            $restantes = $f->diasRestantes();
+                            $diasLabel = $restantes === null
+                                ? '—'
+                                : ($restantes > 0 ? $restantes.' días' : ($restantes === 0 ? ($f->estatus === 'pagada' ? '0 días' : 'Vence hoy') : 'Vencida ('.abs($restantes).')'));
+                        @endphp
+                        <tr class="fac-row" style="cursor:pointer"
+                            data-folio="{{ $f->folio_cfdi ?: '—' }}"
+                            data-uuid="{{ $f->uuid_cfdi ?? '—' }}"
+                            data-fecha="{{ $f->created_at?->format('d/m/Y') ?? '—' }}"
+                            data-vencimiento="{{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}"
+                            data-dias="{{ $diasLabel }}"
+                            data-plazo="{{ $f->dias_plazo ? $f->dias_plazo.' días' : '—' }}"
+                            data-monto="${{ number_format((float)$f->monto, 2) }}"
+                            data-iva="${{ number_format((float)$f->monto_iva, 2) }}"
+                            data-total="${{ number_format((float)$f->total, 2) }}"
+                            data-pagado="${{ number_format((float)($f->monto_pagado ?? 0), 2) }}"
+                            data-saldo="${{ number_format($saldo, 2) }}"
+                            data-moneda="{{ $moneda }}"
+                            data-estatus="{{ $f->estatus }}"
+                            data-notas="{{ $f->notas ?? '' }}"
+                            data-pdf="{{ $f->archivo_pdf ? asset('storage/'.$f->archivo_pdf) : '' }}"
+                            data-xml="{{ $f->archivo_xml ? asset('storage/'.$f->archivo_xml) : '' }}">
+                            <td>
+                                <span class="link">{{ $f->folio_cfdi ?: '—' }}</span>
+                                @if($f->uuid_cfdi)
+                                    <div style="font-size:10px;color:var(--gray-muted);margin-top:2px;">{{ \Illuminate\Support\Str::limit($f->uuid_cfdi, 28) }}</div>
+                                @endif
+                            </td>
+                            <td class="monto">${{ number_format((float) $f->total, 2) }}</td>
+                            <td style="font-size:12px;color:{{ (float)($f->monto_pagado ?? 0) > 0 ? 'var(--green)' : 'var(--gray-muted)' }};font-weight:600">${{ number_format((float)($f->monto_pagado ?? 0), 2) }}</td>
+                            <td style="font-size:12px;font-weight:600;color:{{ $saldo > 0 ? '#dc2626' : 'var(--green)' }}">${{ number_format($saldo, 2) }}</td>
+                            <td>
+                                @if($restantes === null)
+                                    —
+                                @else
+                                    <div class="dias-count {{ $restantes <= 0 ? 'late' : ($restantes <= 10 ? 'late' : ($restantes <= 30 ? 'warn' : 'ok')) }}" style="{{ $restantes <= 0 ? 'color:#7f1d1d;font-weight:800' : ($restantes <= 10 ? 'color:#dc2626' : ($restantes <= 30 ? 'color:#d97706' : 'color:#16a34a')) }}">{{ $diasLabel }}</div>
+                                    @if($f->dias_plazo)
+                                        <div class="dias-sub">de {{ $f->dias_plazo }}</div>
+                                    @endif
+                                @endif
+                            </td>
+                            <td>
+                                @if($f->estatus === 'pendiente' && (float)($f->monto_pagado ?? 0) > 0)
+                                    <span class="pill" style="background:#fff7ed;color:#ea580c">Abonada</span>
+                                @else
+                                    <span class="pill {{ $f->estatus }}">{{ $f->estatus }}</span>
+                                @endif
+                            </td>
+                            <td style="font-size:11px;color:var(--gray-muted)">
+                                {{ $f->created_at?->format('h:i a') ?? '—' }}
+                            </td>
+                        </tr>
+                    @endforeach
                 @endforeach
             </tbody>
         </table>
