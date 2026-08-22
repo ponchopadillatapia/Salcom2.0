@@ -123,7 +123,7 @@
             <div class="rb-politica-box alerta">
                 <h4>Criterios obligatorios</h4>
                 <ul>
-                    <li>Facturas de México requieren autorización de <strong>Fernando y Eduardo</strong></li>
+                    <li>Facturas de México requieren autorización de <strong>Fernando Nuñez y Eduardo Arias</strong></li>
                     <li><strong>Materialidad obligatoria:</strong> adjuntar evidencia (correo o foto)</li>
                     <li>Sin materialidad = <strong>rechazado automáticamente</strong></li>
                 </ul>
@@ -234,6 +234,17 @@
                 </div>
             </div>
 
+            <div class="rb-form-row cols-2">
+                <div class="rb-form-group">
+                    <label for="numero_cuenta">Número de cuenta / tarjeta <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="numero_cuenta" name="numero_cuenta" placeholder="Últimos 4 dígitos o cuenta completa" required maxlength="20" value="{{ old('numero_cuenta') }}">
+                </div>
+                <div class="rb-form-group">
+                    <label for="titular_cuenta">Nombre del titular de la tarjeta <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="titular_cuenta" name="titular_cuenta" placeholder="Nombre como aparece en la tarjeta" required maxlength="150" value="{{ old('titular_cuenta') }}">
+                </div>
+            </div>
+
             {{-- Archivos --}}
             <div class="rb-uploads-grid">
                 <div class="rb-form-group">
@@ -272,13 +283,51 @@
 
     {{-- Historial --}}
     <div class="rb-card">
-        <h3>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
-            Historial de reembolsos
-        </h3>
-        <div class="rb-historial-empty">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+            <h3 style="margin:0;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+                Historial de reembolsos
+            </h3>
+            @if(isset($reembolsos) && $reembolsos->count())
+            <a href="{{ route('admin.reembolsos.excel') }}" style="padding:7px 14px;background:var(--green-bg,#dcfce7);border:1px solid #86efac;border-radius:8px;font-size:12px;font-weight:600;color:#166534;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">📊 Exportar Excel</a>
+            @endif
+        </div>
+
+        @if(isset($reembolsos) && $reembolsos->count())
+        <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:12px;">
+                <thead>
+                    <tr style="border-bottom:2px solid var(--border-light);">
+                        <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Fecha</th>
+                        <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Solicitante</th>
+                        <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Concepto</th>
+                        <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Monto</th>
+                        <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Nº Cuenta</th>
+                        <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Titular</th>
+                        <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Institución</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($reembolsos as $r)
+                    @php $d = $r->datos ?? []; @endphp
+                    <tr style="border-bottom:1px solid var(--border-light);">
+                        <td style="padding:10px 12px;">{{ $r->created_at->format('d/m/Y') }}</td>
+                        <td style="padding:10px 12px;font-weight:600;">{{ $d['solicitante'] ?? '—' }}</td>
+                        <td style="padding:10px 12px;">{{ $d['concepto'] ?? $r->contenido ?? '—' }}</td>
+                        <td style="padding:10px 12px;font-weight:600;">${{ $d['monto'] ?? '—' }}</td>
+                        <td style="padding:10px 12px;">{{ $d['numero_cuenta'] ?? '—' }}</td>
+                        <td style="padding:10px 12px;">{{ $d['titular_cuenta'] ?? '—' }}</td>
+                        <td style="padding:10px 12px;">{{ strtoupper($d['metodo_pago_empresa'] ?? '—') }}</td>
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+        @else
+        <div style="text-align:center;padding:32px;color:var(--gray-muted);font-size:13px;">
             <p>Aún no hay reembolsos registrados.</p>
         </div>
+        @endif
     </div>
 </div>
 @endsection

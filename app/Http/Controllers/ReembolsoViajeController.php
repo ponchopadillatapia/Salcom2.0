@@ -195,4 +195,72 @@ class ReembolsoViajeController extends Controller
         return redirect()->route('admin.reembolsos-viaje.ver', $reembolso)
             ->with('mensaje', 'Marcado como reembolsado.');
     }
+
+    public function exportarExcel()
+    {
+        $reembolsos = ReembolsoViaje::orderByDesc('created_at')->get();
+
+        $output = "\xEF\xBB\xBF";
+        $output .= "REEMBOLSOS DE VIAJE — DESGLOSE DE GASTOS\r\n";
+        $output .= "Generado: " . now()->format('d/m/Y H:i') . "\r\n\r\n";
+        $output .= "ID,Codigo Empleado,Nombre Empleado,Departamento,Pais Destino,Moneda,Tipo Cambio,Concepto,Monto Moneda Local,Equivalente MXN,Estatus,Fecha Solicitud\r\n";
+
+        foreach ($reembolsos as $r) {
+            $gastos = $r->gastos ?? [];
+            if (empty($gastos)) {
+                $output .= implode(',', [
+                    $r->id,
+                    '"' . $r->codigo_empleado . '"',
+                    '"' . str_replace('"', '""', $r->nombre_empleado) . '"',
+                    '"' . str_replace('"', '""', $r->departamento ?? '') . '"',
+                    '"' . $r->pais_destino . '"',
+                    $r->moneda_destino,
+                    $r->tipo_cambio,
+                    '""',
+                    '0',
+                    '0',
+                    $r->estatus,
+                    $r->created_at?->format('d/m/Y'),
+                ]) . "\r\n";
+            } else {
+                foreach ($gastos as $gasto) {
+                    $output .= implode(',', [
+                        $r->id,
+                        '"' . $r->codigo_empleado . '"',
+                        '"' . str_replace('"', '""', $r->nombre_empleado) . '"',
+                        '"' . str_replace('"', '""', $r->departamento ?? '') . '"',
+                        '"' . $r->pais_destino . '"',
+                        $r->moneda_destino,
+                        $r->tipo_cambio,
+                        '"' . str_replace('"', '""', $gasto['concepto'] ?? '') . '"',
+                        number_format($gasto['monto_local'] ?? 0, 2, '.', ''),
+                        number_format($gasto['monto_base'] ?? 0, 2, '.', ''),
+                        $r->estatus,
+                        $r->created_at?->format('d/m/Y'),
+                    ]) . "\r\n";
+                }
+                // Fila de total
+                $output .= implode(',', [
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    '"TOTAL"',
+                    number_format($r->total_moneda_local, 2, '.', ''),
+                    number_format($r->total_moneda_base, 2, '.', ''),
+                    '',
+                    '',
+                ]) . "\r\n";
+            }
+        }
+
+        $filename = 'Reembolsos_Viaje_' . now()->format('Y-m-d') . '.csv';
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
 }

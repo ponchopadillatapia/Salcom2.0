@@ -3045,7 +3045,12 @@ class AdminPanelController extends Controller
 
     public function reembolsos()
     {
-        return view('admin.reembolsos');
+        $reembolsos = Alerta::where('tipo', 'solicitud_reembolso')
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+
+        return view('admin.reembolsos', compact('reembolsos'));
     }
 
     public function enviarReembolso(Request $request)
@@ -3057,12 +3062,16 @@ class AdminPanelController extends Controller
             'monto' => 'required|string|max:20',
             'concepto' => 'required|string|max:255',
             'solicitante' => 'required|string|max:150',
+            'numero_cuenta' => 'required|string|max:20',
+            'titular_cuenta' => 'required|string|max:150',
             'fecha_factura' => 'required|date',
             'archivo_factura' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'archivo_materialidad' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'notas' => 'nullable|string|max:500',
         ], [
             'archivo_factura.required' => 'Debes subir la factura o ticket.',
+            'numero_cuenta.required' => 'El número de cuenta es obligatorio.',
+            'titular_cuenta.required' => 'El nombre del titular es obligatorio.',
             'archivo_factura.mimes' => 'Solo PDF, JPG o PNG.',
             'archivo_factura.max' => 'Máximo 10 MB.',
             'archivo_materialidad.mimes' => 'La materialidad debe ser PDF, JPG o PNG.',
@@ -3098,6 +3107,8 @@ class AdminPanelController extends Controller
                     'monto' => $request->input('monto'),
                     'concepto' => $request->input('concepto'),
                     'solicitante' => $request->input('solicitante'),
+                    'numero_cuenta' => $request->input('numero_cuenta'),
+                    'titular_cuenta' => $request->input('titular_cuenta'),
                     'fecha_factura' => $request->input('fecha_factura'),
                     'archivo_factura' => $pathFactura,
                     'archivo_materialidad' => $pathMaterialidad,
@@ -3111,5 +3122,35 @@ class AdminPanelController extends Controller
 
         return redirect()->route('admin.reembolsos')
             ->with('mensaje', 'Reembolso registrado correctamente.');
+    }
+
+    public function reembolsosExcel()
+    {
+        $reembolsos = Alerta::where('tipo', 'solicitud_reembolso')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $output = "\xEF\xBB\xBF";
+        $output .= "Fecha,Solicitante,Concepto,Monto,Numero de Cuenta,Titular de la Tarjeta,Institucion (BBVA/Inntec),Categoria\r\n";
+
+        foreach ($reembolsos as $r) {
+            $d = $r->datos ?? [];
+            $output .= implode(',', [
+                $r->created_at?->format('d/m/Y') ?? '',
+                '"' . str_replace('"', '""', $d['solicitante'] ?? '') . '"',
+                '"' . str_replace('"', '""', $d['concepto'] ?? '') . '"',
+                '"' . ($d['monto'] ?? '0') . '"',
+                '"' . ($d['numero_cuenta'] ?? '') . '"',
+                '"' . str_replace('"', '""', $d['titular_cuenta'] ?? '') . '"',
+                strtoupper($d['metodo_pago_empresa'] ?? ''),
+                $d['categoria'] ?? '',
+            ]) . "\r\n";
+        }
+
+        $filename = 'Reembolsos_' . now()->format('Y-m-d') . '.csv';
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
     }
 }

@@ -305,11 +305,13 @@ Route::post('/pedido/tracking', [PedidoController::class, 'tracking'])->name('pe
 // ── Admin: Reembolsos ──
 Route::get('/admin/reembolsos', [AdminPanelController::class, 'reembolsos'])->name('admin.reembolsos')->middleware('auth.admin');
 Route::post('/admin/reembolsos/enviar', [AdminPanelController::class, 'enviarReembolso'])->name('admin.reembolsos.enviar')->middleware('auth.admin');
+Route::get('/admin/reembolsos/excel', [AdminPanelController::class, 'reembolsosExcel'])->name('admin.reembolsos.excel')->middleware('auth.admin');
 
 // ── Admin: Reembolsos de Viaje ──
 use App\Http\Controllers\ReembolsoViajeController;
 
 Route::get('/admin/reembolsos-viaje', [ReembolsoViajeController::class, 'index'])->name('admin.reembolsos-viaje')->middleware('auth.admin');
+Route::get('/admin/reembolsos-viaje/excel', [ReembolsoViajeController::class, 'exportarExcel'])->name('admin.reembolsos-viaje.excel')->middleware('auth.admin');
 Route::get('/admin/reembolsos-viaje/crear', [ReembolsoViajeController::class, 'crear'])->name('admin.reembolsos-viaje.crear')->middleware('auth.admin');
 Route::post('/admin/reembolsos-viaje/guardar', [ReembolsoViajeController::class, 'guardar'])->name('admin.reembolsos-viaje.guardar')->middleware('auth.admin');
 Route::get('/admin/reembolsos-viaje/{reembolso}', [ReembolsoViajeController::class, 'ver'])->name('admin.reembolsos-viaje.ver')->middleware('auth.admin');

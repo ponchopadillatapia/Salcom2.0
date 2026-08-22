@@ -41,7 +41,12 @@
 
 <div class="rv-header">
     <h2>Reembolsos de Viaje</h2>
-    <a href="{{ route('admin.reembolsos-viaje.crear') }}" class="btn-nuevo">+ Nueva solicitud</a>
+    <div style="display:flex;gap:10px;">
+        @if($solicitudes->total() > 0)
+        <a href="{{ route('admin.reembolsos-viaje.excel') }}" style="padding:9px 16px;background:#dcfce7;border:1px solid #86efac;border-radius:10px;font-size:12px;font-weight:600;color:#166534;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">📊 Exportar Excel</a>
+        @endif
+        <a href="{{ route('admin.reembolsos-viaje.crear') }}" class="btn-nuevo">+ Nueva solicitud</a>
+    </div>
 </div>
 
 @if($solicitudes->isEmpty())
