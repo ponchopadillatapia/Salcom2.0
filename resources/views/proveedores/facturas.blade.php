@@ -403,28 +403,38 @@ document.querySelectorAll('#tablaFacturas .fac-row').forEach(function(tr) {
     });
 });
 
-// Polling KPIs cada 3 segundos (actualización en tiempo real)
+// Polling KPIs cada 1.5 segundos (actualización en tiempo real sin reload)
 (function(){
     var kpiUrl = '{{ route("proveedores.facturas.kpis") }}';
     var lastPendientes = {{ $kpis['pendientes'] }};
-    var lastPagadas = {{ $kpis['pagadas'] }};
+    var lastPagadas = {{ \App\Models\Factura::where('codigo_proveedor', $codigo)->where('estatus', 'pagada')->count() }};
 
     function refreshKpis() {
+        if (document.hidden) return;
         fetch(kpiUrl, {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}})
             .then(function(r){return r.json()})
             .then(function(data){
                 var el;
                 el = document.getElementById('kpi-canceladas'); if(el) el.textContent = data.rechazadas;
                 el = document.getElementById('kpi-pendientes'); if(el) el.textContent = data.pendientes;
-                el = document.getElementById('kpi-abonadas'); if(el) el.textContent = data.abonadas;
+                el = document.getElementById('kpi-programadas'); if(el) el.textContent = data.programadas || 0;
                 el = document.getElementById('kpi-pagadas'); if(el) el.textContent = data.pagadas;
-                el = document.getElementById('kpi-totales'); if(el) el.textContent = data.totales;
+                el = document.getElementById('kpi-liquidadas'); if(el) el.textContent = data.liquidadas || 0;
+                el = document.getElementById('kpi-dinero'); if(el && data.por_cobrar !== undefined) el.textContent = '$' + parseFloat(data.por_cobrar).toLocaleString('en', {minimumFractionDigits:2});
 
-                // Si cambió algo, recargar la página para mostrar estatus actualizados
+                // Si cambió algo, mostrar toast (no recargar)
                 if (data.pendientes !== lastPendientes || data.pagadas !== lastPagadas) {
                     lastPendientes = data.pendientes;
                     lastPagadas = data.pagadas;
-                    window.location.reload();
+                    // Mostrar toast de cambio
+                    var toastContainer = document.getElementById('toast-container');
+                    if (toastContainer) {
+                        var toast = document.createElement('div');
+                        toast.className = 'salcom-toast';
+                        toast.innerHTML = '<div class="salcom-toast-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div><div class="salcom-toast-body"><p class="salcom-toast-title">Facturas actualizadas</p><p style="font-size:12px;color:#6b7280;margin:0">Tus facturas tienen cambios nuevos. <a href="#" onclick="location.reload();return false" style="color:#6B3FA0;font-weight:600">Actualizar</a></p></div>';
+                        toastContainer.appendChild(toast);
+                        setTimeout(function(){ toast.classList.add('salcom-toast-exit'); setTimeout(function(){ toast.remove(); }, 300); }, 8000);
+                    }
                 }
             })
             .catch(function(){});
