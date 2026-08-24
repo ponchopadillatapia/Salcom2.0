@@ -3066,6 +3066,7 @@ class AdminPanelController extends Controller
             'titular_cuenta' => 'required|string|max:150',
             'fecha_factura' => 'required|date',
             'archivo_factura' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'archivo_xml' => 'nullable|file|max:5120',
             'archivo_materialidad' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
             'notas' => 'nullable|string|max:500',
         ], [
@@ -3085,6 +3086,9 @@ class AdminPanelController extends Controller
         }
 
         $pathFactura = $request->file('archivo_factura')->store('reembolsos/facturas', 'public');
+        $pathXml = $request->hasFile('archivo_xml')
+            ? $request->file('archivo_xml')->store('reembolsos/xml', 'public')
+            : null;
         $pathMaterialidad = $request->hasFile('archivo_materialidad')
             ? $request->file('archivo_materialidad')->store('reembolsos/materialidad', 'public')
             : null;
@@ -3111,6 +3115,7 @@ class AdminPanelController extends Controller
                     'titular_cuenta' => $request->input('titular_cuenta'),
                     'fecha_factura' => $request->input('fecha_factura'),
                     'archivo_factura' => $pathFactura,
+                    'archivo_xml' => $pathXml,
                     'archivo_materialidad' => $pathMaterialidad,
                     'notas' => $request->input('notas'),
                 ],

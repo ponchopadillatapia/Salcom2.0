@@ -246,7 +246,7 @@
             </div>
 
             {{-- Archivos --}}
-            <div class="rb-uploads-grid">
+            <div class="rb-uploads-grid" style="grid-template-columns:1fr 1fr 1fr;">
                 <div class="rb-form-group">
                     <label>Factura PDF (firmada + voucher) <span style="color:#DC2626">*</span></label>
                     <div class="rb-upload-zone" id="uploadZone1" onclick="document.getElementById('archivo_factura').click();">
@@ -258,6 +258,16 @@
                     <input type="file" id="archivo_factura" name="archivo_factura" accept=".pdf" required style="display:none;">
                 </div>
                 <div class="rb-form-group">
+                    <label>XML de la factura</label>
+                    <div class="rb-upload-zone" id="uploadZone3" onclick="document.getElementById('archivo_xml').click();">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gray-muted)" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        <p>Archivo XML</p>
+                        <span class="upload-hint">XML, máx 5 MB</span>
+                        <span class="file-name" id="fileName3"></span>
+                    </div>
+                    <input type="file" id="archivo_xml" name="archivo_xml" accept=".xml" style="display:none;">
+                </div>
+                <div class="rb-form-group">
                     <label>Materialidad (correo o foto) <span style="color:#DC2626" id="materialidadReq">*</span></label>
                     <div class="rb-upload-zone" id="uploadZone2" onclick="document.getElementById('archivo_materialidad').click();">
                         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--gray-muted)" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -265,7 +275,7 @@
                         <span class="upload-hint">PDF, JPG, PNG — máx 10 MB</span>
                         <span class="file-name" id="fileName2"></span>
                     </div>
-                    <input type="file" id="archivo_materialidad" name="archivo_materialidad" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" id="inputMaterialidad">
+                    <input type="file" id="archivo_materialidad" name="archivo_materialidad" accept=".pdf,.jpg,.jpeg,.png" style="display:none;">
                     <span class="hint" id="hintMaterialidad">Obligatorio. Sin materialidad el reembolso se rechaza automáticamente.</span>
                 </div>
             </div>
@@ -412,6 +422,7 @@
     }
     setupUpload('uploadZone1', 'archivo_factura', 'fileName1');
     setupUpload('uploadZone2', 'archivo_materialidad', 'fileName2');
+    setupUpload('uploadZone3', 'archivo_xml', 'fileName3');
 })();
 </script>
 @endpush
