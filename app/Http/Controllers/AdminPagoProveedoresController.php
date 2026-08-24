@@ -647,6 +647,83 @@ class AdminPagoProveedoresController extends Controller
         return redirect()->route('admin.abono-proveedor', ['cuenta' => $data['cuenta_key'] ?? ''])->with('ok', 'Abono registrado. Póliza: ' . $data['poliza'] . ' — ' . $facturas->count() . ' factura(s) liquidadas.');
     }
 
+    // ═══════════════════════════════════════════
+    // ANTICIPOS
+    // ═══════════════════════════════════════════
+
+    public function anticiposIndex(Request $request)
+    {
+        $proveedores = ProveedorUser::query()
+            ->select('id', 'codigo', 'nombre', 'id_proveedor', 'datos_identificacion')
+            ->orderBy('nombre')
+            ->get();
+
+        $estatus = trim((string) $request->input('estatus', ''));
+
+        // KPIs
+        $kpiPagados = \App\Models\AnticipoProveedor::where('estatus', 'pagado')->count();
+        $kpiAplicados = \App\Models\AnticipoProveedor::where('estatus', 'aplicado')->count();
+        $kpiPendientes = \App\Models\AnticipoProveedor::where('estatus', 'pendiente')->count();
+        $kpiTotal = \App\Models\AnticipoProveedor::count();
+
+        $query = \App\Models\AnticipoProveedor::query();
+        if ($estatus !== '' && in_array($estatus, ['pagado', 'aplicado', 'pendiente', 'cancelado'])) {
+            $query->where('estatus', $estatus);
+        }
+
+        $anticipos = $query->orderByDesc('created_at')->paginate(50)->withQueryString();
+
+        return view('admin.anticipos.index', compact('proveedores', 'anticipos', 'estatus', 'kpiPagados', 'kpiAplicados', 'kpiPendientes', 'kpiTotal'));
+    }
+
+    public function anticiposStore(Request $request)
+    {
+        $data = $request->validate([
+            'proveedor_id' => 'required|integer|exists:proveedores_users,id',
+            'banco' => 'nullable|string|max:80',
+            'cuenta_banco' => 'nullable|string|max:30',
+            'clabe' => 'nullable|string|max:20',
+            'importe' => 'required|numeric|min:0.01',
+            'iva' => 'nullable|numeric|min:0',
+            'rfc' => 'nullable|string|max:20',
+            'folio_general' => 'required|string|max:120',
+            'departamento' => 'required|string|max:60',
+            'fecha' => 'required|date',
+            'concepto' => 'nullable|string|max:1000',
+        ]);
+
+        $proveedor = ProveedorUser::findOrFail($data['proveedor_id']);
+        $iva = (float) ($data['iva'] ?? 0);
+        $importe = (float) $data['importe'];
+        $totalBanco = $importe + $iva;
+
+        // Folio consecutivo
+        $maxFolio = \App\Models\AnticipoProveedor::max('id') + 1;
+        $folio = 'FCONA-' . str_pad($maxFolio, 4, '0', STR_PAD_LEFT);
+
+        $anticipo = \App\Models\AnticipoProveedor::create([
+            'folio' => $folio,
+            'proveedor_id' => $proveedor->id,
+            'codigo_proveedor' => $proveedor->id_proveedor ?: $proveedor->codigo,
+            'nombre_proveedor' => $proveedor->nombre,
+            'rfc_proveedor' => strtoupper($data['rfc']),
+            'banco' => $data['banco'],
+            'cuenta_banco' => $data['cuenta_banco'],
+            'clabe' => $data['clabe'],
+            'importe' => $importe,
+            'iva' => $iva,
+            'total_banco' => $totalBanco,
+            'folio_general' => $data['folio_general'],
+            'departamento' => $data['departamento'],
+            'fecha' => $data['fecha'],
+            'concepto' => $data['concepto'],
+            'estatus' => 'pagado',
+            'creado_por' => session('admin_id'),
+        ]);
+
+        return redirect()->route('admin.anticipos')->with('ok', "Anticipo {$folio} registrado por \$" . number_format($totalBanco, 2) . " a {$proveedor->nombre}.");
+    }
+
     private function polizaOrFail(string $key): array
     {
         $meta = config('polizas_pago.'.$key);

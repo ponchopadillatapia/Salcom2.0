@@ -32,6 +32,13 @@
 - El modal de detalle al hacer click en un registro — ¿qué info adicional debería mostrar?
 - ¿Se necesita botón de exportar Excel?
 
+### 8. Anticipos (PENDIENTE — preguntar a Karen/contabilidad)
+- ¿Cómo funciona un anticipo? (pago antes de que exista la factura)
+- ¿Qué documento se registra? ¿Una OC, una cotización, o solo el monto?
+- ¿Cómo se descuenta el anticipo cuando llega la factura?
+- ¿Tiene su propio flujo o entra en el mismo de facturas?
+- Alan no sabe cómo funcionan — ir a preguntar
+
 ---
 
 ## Lo que se hizo hoy (20 agosto):

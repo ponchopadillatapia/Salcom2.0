@@ -483,6 +483,9 @@
                     <a href="{{ route('admin.pagos') }}" class="sb-link sb-sublink {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
                         <span class="sb-text">Formato para pago</span>
                     </a>
+                    <a href="{{ route('admin.anticipos') }}" class="sb-link sb-sublink {{ request()->is('admin/anticipos*') ? 'active' : '' }}">
+                        <span class="sb-text">Anticipo</span>
+                    </a>
                     <a href="{{ route('admin.pago-proveedores') }}" class="sb-link sb-sublink {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
                         <span class="sb-text">Pago a proveedor</span>
                     </a>
