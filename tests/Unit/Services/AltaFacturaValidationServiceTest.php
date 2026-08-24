@@ -11,6 +11,12 @@ class AltaFacturaValidationServiceTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['facturas.receptores' => []]);
+    }
+
     private function cfdiXml(array $opts = []): string
     {
         $rfcEmisor = $opts['rfc_emisor'] ?? 'XAXX010101000';
@@ -615,6 +621,66 @@ XML;
         $this->assertTrue($result['datos']['pdf_coincidencias']['rfc_emisor']);
     }
 
+    public function test_pdf_sin_texto_extraible_aprueba_con_observaciones(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'uuid' => 'A1B2C3D4-E5F6-7890-ABCD-EF12345678C8',
+        ];
+
+        $mock = $this->createMock(FacturaDocumentoExtractor::class);
+        $mock->method('extraerDesdeContenido')->willReturn([
+            'texto' => '',
+            'escaneado' => true,
+        ]);
+
+        $service = new AltaFacturaValidationService($mock);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', '%PDF-1.4 dummy', null);
+
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+        $this->assertSame('aprobada_con_observaciones', $result['estatus']);
+        $this->assertEmpty($result['errores']);
+        $this->assertFalse($result['checklist']['pdf_xml']['ok']);
+        $this->assertTrue($result['checklist']['pdf_xml']['warn']);
+        $this->assertSame('omitido_sin_texto', $result['datos']['pdf_cruce']);
+        $this->assertTrue(collect($result['advertencias'])->contains(
+            fn ($a) => str_contains((string) $a, 'revisión visual')
+        ));
+    }
+
+    public function test_oc_sin_texto_extraible_no_rechaza(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'uuid' => 'A1B2C3D4-E5F6-7890-ABCD-EF12345678C9',
+        ];
+
+        $textoPdf = $this->textoPdfCoincidente($opts);
+        $mock = $this->createMock(FacturaDocumentoExtractor::class);
+        $mock->method('extraerDesdeContenido')->willReturnOnConsecutiveCalls(
+            ['texto' => $textoPdf, 'escaneado' => false],
+            ['texto' => '', 'escaneado' => true],
+        );
+
+        $service = new AltaFacturaValidationService($mock);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
+
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+        $this->assertSame('aprobada_con_observaciones', $result['estatus']);
+        $this->assertTrue($result['checklist']['pdf_xml']['ok']);
+        $this->assertFalse($result['checklist']['oc_xml']['ok']);
+        $this->assertTrue($result['checklist']['oc_xml']['warn']);
+        $this->assertTrue(collect($result['advertencias'])->contains(
+            fn ($a) => str_contains((string) $a, 'Orden de Compra')
+        ));
+    }
+
     public function test_comision_persona_moral_no_exige_retencion(): void
     {
         config(['facturas.rfc_receptor' => '']);
@@ -773,6 +839,82 @@ XML;
         $this->assertFalse($result['checklist']['retenciones']['ok']);
         $this->assertTrue(collect($result['errores'])->contains(
             fn ($e) => str_contains((string) $e, 'requiere retenciones')
+        ));
+    }
+
+    public function test_acepta_rfc_receptor_de_fram_foods(): void
+    {
+        config([
+            'facturas.rfc_receptor' => 'ISA951017A10',
+            'facturas.receptores' => [
+                'ISA951017A10' => 'Industrias Salcom',
+                'FFO140516UG8' => 'Fram Foods',
+            ],
+        ]);
+
+        $opts = [
+            'rfc_receptor' => 'FFO140516UG8',
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'uuid' => '1BEF3A01-4C29-4D94-8C01-A6D27C6FEC83',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+
+        $this->assertTrue($result['checklist']['receptor']['ok']);
+        $this->assertSame('Fram Foods', $result['datos']['receptor_nombre']);
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+    }
+
+    public function test_acepta_rfc_receptor_de_industrias_salcom(): void
+    {
+        config([
+            'facturas.rfc_receptor' => 'ISA951017A10',
+            'facturas.receptores' => [
+                'ISA951017A10' => 'Industrias Salcom',
+                'FFO140516UG8' => 'Fram Foods',
+            ],
+        ]);
+
+        $opts = [
+            'rfc_receptor' => 'ISA951017A10',
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'uuid' => 'A1B2C3D4-E5F6-7890-ABCD-EF12345678AA',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+
+        $this->assertTrue($result['checklist']['receptor']['ok']);
+        $this->assertSame('Industrias Salcom', $result['datos']['receptor_nombre']);
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+    }
+
+    public function test_rechaza_rfc_receptor_ajeno_al_grupo(): void
+    {
+        config([
+            'facturas.rfc_receptor' => 'ISA951017A10',
+            'facturas.receptores' => [
+                'ISA951017A10' => 'Industrias Salcom',
+                'FFO140516UG8' => 'Fram Foods',
+            ],
+        ]);
+
+        $opts = [
+            'rfc_receptor' => 'EKU9003173C9',
+            'clave' => '01010101',
+            'descripcion' => 'Servicio profesional',
+            'uuid' => 'B2C3D4E5-F6A7-8901-BCDE-F12345678901',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+
+        $this->assertFalse($result['aprobado']);
+        $this->assertFalse($result['checklist']['receptor']['ok']);
+        $this->assertTrue(collect($result['errores'])->contains(
+            fn ($e) => str_contains((string) $e, 'EKU9003173C9')
+                && str_contains((string) $e, 'Fram Foods')
+                && str_contains((string) $e, 'FFO140516UG8')
         ));
     }
 }

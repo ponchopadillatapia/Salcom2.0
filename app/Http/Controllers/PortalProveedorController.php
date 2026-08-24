@@ -1876,6 +1876,8 @@ class PortalProveedorController extends Controller
                 'metodo_pago' => $datos['metodo_pago'] ?? null,
                 'uso_cfdi' => $datos['uso_cfdi'] ?? null,
                 'producto' => $datos['producto'] ?? null,
+                'pdf_cruce' => $datos['pdf_cruce'] ?? null,
+                'oc_cruce' => $datos['oc_cruce'] ?? null,
                 'naturaleza' => $pendiente['naturaleza'] ?? null,
                 'tipo_producto' => $pendiente['tipo_producto'] ?? null,
                 'es_me_mp' => (bool) ($pendiente['es_me_mp'] ?? false),

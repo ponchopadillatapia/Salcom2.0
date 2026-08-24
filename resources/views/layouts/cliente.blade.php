@@ -35,7 +35,7 @@
             border-bottom: 1px solid var(--border-light);
             position: sticky;
             top: 0;
-            z-index: 200;
+            z-index: 400;
             flex-shrink: 0;
         }
         .nav-logo {
@@ -88,14 +88,6 @@
             border: 1px solid var(--border-light);
             border-radius: 20px;
             background: transparent;
-            cursor: pointer;
-            font-family: inherit;
-            font-weight: 500;
-            transition: var(--transition);
-        }
-            border: 1px solid var(--border-light);
-            border-radius: 20px;
-            background: var(--gray-soft);
             cursor: pointer;
             font-family: inherit;
             font-weight: 500;
@@ -173,7 +165,7 @@
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
-            transition: width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1);
+            transition: width .3s cubic-bezier(.4,0,.2,1), min-width .3s cubic-bezier(.4,0,.2,1), transform .25s cubic-bezier(.4,0,.2,1);
             overflow: hidden;
         }
         .sidebar.collapsed { width: 60px; min-width: 60px; }
@@ -349,9 +341,6 @@
         }
         .nav-pedidos-quick:hover { background: var(--purple-subtle); color: var(--purple); }
         .nav-pedidos-quick svg { display: block; }
-        @media (max-width: 768px) {
-            .nav-pedidos-quick { display: flex; }
-        }
         .sb-text { flex-shrink: 0; }
         .sidebar.collapsed .sb-link { justify-content: center; padding: 8px; margin: 1px 4px; }
         .sidebar.collapsed .sb-text { display: none; }
@@ -380,12 +369,44 @@
             color: var(--purple);
             font-weight: 600;
         }
-        @media (max-width: 768px) {
-            .sidebar { display: none; }
-            .main-content { padding: 20px 16px 48px; }
-            nav.top-nav { padding: 0 16px; }
-            .nav-user { max-width: 140px; }
+        .nav-menu-btn {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            margin-right: 2px;
+            padding: 0;
+            border: none;
+            border-radius: 10px;
+            background: transparent;
+            color: var(--purple);
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: background .15s;
         }
+        .nav-menu-btn:hover { background: var(--purple-subtle); }
+        .nav-menu-btn svg { display: block; }
+        .nav-menu-btn .icon-close { display: none; }
+        body.sb-open .nav-menu-btn .icon-open { display: none; }
+        body.sb-open .nav-menu-btn .icon-close { display: block; }
+        .sb-overlay {
+            position: fixed;
+            inset: 56px 0 0 0;
+            background: rgba(20, 16, 28, 0.42);
+            z-index: 250;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition: opacity .2s ease, visibility .2s ease;
+        }
+        .sb-overlay.show {
+            opacity: 1;
+            visibility: visible;
+            pointer-events: auto;
+        }
+
+        @include('partials.portal-shell-responsive')
     </style>
     @stack('styles')
 </head>
@@ -396,6 +417,10 @@
 @endphp
 <nav class="top-nav">
     <div class="nav-logo">
+        <button type="button" class="nav-menu-btn" id="navMenuBtn" aria-label="Abrir menú" aria-controls="appSidebar" aria-expanded="false">
+            <svg class="icon-open" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+            <svg class="icon-close" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
         @include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])
         <span class="nav-title">Portal de Clientes</span>
     </div>
@@ -442,6 +467,7 @@
 </nav>
 @yield('hero')
 <div class="wrapper">
+    <div class="sb-overlay" id="sbOverlay"></div>
         <div class="sidebar" id="appSidebar">
         <div class="sb-client">
             <div class="sb-client-icon" title="Expandir menú" onclick="if(document.getElementById('appSidebar')?.classList.contains('collapsed')){document.getElementById('sbToggleBtnCliente')?.click();}">
@@ -484,6 +510,31 @@
     <p>&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</p>
 </footer>
 <script>
+(function () {
+    var sidebar = document.getElementById('appSidebar');
+    var overlay = document.getElementById('sbOverlay');
+    var btn = document.getElementById('navMenuBtn');
+    if (!sidebar || !btn) return;
+    function isMobile() { return window.matchMedia('(max-width: 1024px)').matches; }
+    function setOpen(open) {
+        sidebar.classList.toggle('open', open);
+        if (overlay) overlay.classList.toggle('show', open);
+        document.body.classList.toggle('sb-open', open);
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        btn.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+    }
+    btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        setOpen(!sidebar.classList.contains('open'));
+    });
+    if (overlay) overlay.addEventListener('click', function () { setOpen(false); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
+    window.addEventListener('resize', function () { if (!isMobile()) setOpen(false); });
+    sidebar.addEventListener('click', function (e) {
+        if (!isMobile()) return;
+        if (e.target.closest('a.sb-link, a.sb-sublink, a.sb-deep')) setOpen(false);
+    });
+})();
 window.SALCOM_CART_STORAGE_KEY = 'salcom_cliente_carrito_v1';
 window.SALCOM_PEDIDOS_NAV_BADGE_KEY = 'salcom_cliente_pedidos_nav_badge';
 window.SALCOM_PEDIDOS_HISTORIAL_KEY = @json(config('cliente_portal.historial_pedidos.storage_key'));

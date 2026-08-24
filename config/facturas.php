@@ -4,12 +4,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | RFC receptor (Industrias Salcom)
+    | RFC receptor (empresas del grupo)
     |--------------------------------------------------------------------------
+    | rfc_receptor se conserva por compatibilidad. La validación del CFDI
+    | acepta cualquiera de los RFC en `receptores`.
     */
     'rfc_receptor' => env('SALCOM_RFC', 'ISA951017A10'),
 
     'razon_social_receptor' => env('SALCOM_RAZON_SOCIAL', 'INDUSTRIAS SALCOM'),
+
+    'receptores' => [
+        env('SALCOM_RFC', 'ISA951017A10') => env('SALCOM_RAZON_SOCIAL', 'Industrias Salcom'),
+        env('FRAMFOODS_RFC', 'FFO140516UG8') => env('FRAMFOODS_RAZON_SOCIAL', 'Fram Foods'),
+    ],
 
     /*
     |--------------------------------------------------------------------------

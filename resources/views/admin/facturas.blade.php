@@ -286,6 +286,7 @@
                     data-xml="{{ $f->archivo_xml ? asset('storage/'.$f->archivo_xml) : '' }}"
                     data-oc="{{ $f->archivo_oc ? asset('storage/'.$f->archivo_oc) : '' }}"
                     data-producto="{{ $det['producto'] ?? '' }}"
+                    data-advertencias="{{ e(json_encode($det['advertencias'] ?? [], JSON_UNESCAPED_UNICODE)) }}"
                 >
                     <td style="font-weight:700;color:var(--purple)">{{ $folioDisp }}</td>
                     <td>
@@ -374,6 +375,7 @@
                 </table>
             </div>
             <p id="mProducto" style="margin:12px 0 0;font-size:12px;color:var(--gray-muted);display:none;"></p>
+            <ul id="mAdvertencias" style="display:none;margin:10px 0 0;padding-left:18px;font-size:12px;color:#92400e;"></ul>
             <div class="fact-docs" id="mDocs"></div>
         </div>
     </div>
@@ -439,6 +441,21 @@
         } else {
             prod.style.display = 'none';
             prod.textContent = '';
+        }
+        var warnList = document.getElementById('mAdvertencias');
+        var warns = [];
+        try { warns = JSON.parse(d.advertencias || '[]'); } catch (err) { warns = []; }
+        warnList.innerHTML = '';
+        if (Array.isArray(warns) && warns.length) {
+            warns.forEach(function (w) {
+                if (!w) return;
+                var li = document.createElement('li');
+                li.textContent = w;
+                warnList.appendChild(li);
+            });
+            warnList.style.display = warnList.children.length ? 'block' : 'none';
+        } else {
+            warnList.style.display = 'none';
         }
         var docs = document.getElementById('mDocs');
         docs.innerHTML = '';

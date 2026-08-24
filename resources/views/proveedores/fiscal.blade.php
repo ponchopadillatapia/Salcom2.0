@@ -365,6 +365,7 @@
     }
     .check-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
     .check-dot.ok { background: #34c759; }
+    .check-dot.warn { background: #f59e0b; }
     .check-dot.fail { background: #ff3b30; }
 
     .error-list, .warn-list {
@@ -535,8 +536,11 @@
     @if(!empty($res['checklist']))
         <div class="checklist">
             @foreach($res['checklist'] as $item)
+                @php
+                    $dot = ! empty($item['warn']) ? 'warn' : (! empty($item['ok']) ? 'ok' : 'fail');
+                @endphp
                 <div class="check-item">
-                    <span class="check-dot {{ !empty($item['ok']) ? 'ok' : 'fail' }}"></span>
+                    <span class="check-dot {{ $dot }}"></span>
                     <span>{{ $item['label'] ?? '' }}</span>
                 </div>
             @endforeach
@@ -689,9 +693,10 @@
         @if(!empty($puedeSubir))
         <div class="plazo-box" id="plazoBox">
             <div class="section-label">Días de plazo</div>
-            <div class="plazo-ok">
+            @php $estatusPlazo = is_array($res ?? null) ? ($res['estatus'] ?? '') : ''; @endphp
+            <div class="plazo-ok" @if($estatusPlazo === 'aprobada_con_observaciones') style="color:#b45309;" @endif>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                Factura validada correctamente
+                {{ $estatusPlazo === 'aprobada_con_observaciones' ? 'Factura validada con observaciones' : 'Factura validada correctamente' }}
             </div>
             <div class="plazo-fields">
                 <div class="form-group">

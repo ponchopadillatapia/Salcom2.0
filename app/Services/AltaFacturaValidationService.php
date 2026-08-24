@@ -45,7 +45,7 @@ class AltaFacturaValidationService
             'pdf_xml' => ['ok' => false, 'label' => 'Factura PDF ↔ XML'],
             'oc_xml' => ['ok' => true, 'label' => 'OC no adjunta (opcional)'],
             'emisor' => ['ok' => false, 'label' => 'RFC emisor'],
-            'receptor' => ['ok' => false, 'label' => 'RFC receptor Salcom'],
+            'receptor' => ['ok' => false, 'label' => 'RFC receptor del grupo'],
             'uuid' => ['ok' => false, 'label' => 'UUID único'],
             'claves_sat' => ['ok' => false, 'label' => 'ClaveProdServ SAT'],
             'regimen' => ['ok' => false, 'label' => 'Régimen fiscal'],
@@ -128,13 +128,19 @@ class AltaFacturaValidationService
             }
         }
 
-        // RFC receptor Salcom
-        $rfcSalcom = strtoupper(trim((string) config('facturas.rfc_receptor', '')));
-        if ($rfcSalcom !== '') {
-            if ($datos['rfc_receptor'] !== $rfcSalcom) {
-                $errores[] = "El RFC receptor ({$datos['rfc_receptor']}) no corresponde a Industrias Salcom ({$rfcSalcom}).";
+        // RFC receptor: Industrias Salcom, Fram Foods u otras empresas del grupo
+        $receptores = $this->rfcsReceptoresAceptados();
+        if ($receptores !== []) {
+            $rfcRecibido = (string) ($datos['rfc_receptor'] ?? '');
+            if (! isset($receptores[$rfcRecibido])) {
+                $listado = collect($receptores)
+                    ->map(fn (string $nombre, string $rfc) => "{$nombre} ({$rfc})")
+                    ->implode(', ');
+                $errores[] = "El RFC receptor ({$rfcRecibido}) no corresponde a ninguna empresa del grupo: {$listado}.";
             } else {
                 $checklist['receptor']['ok'] = true;
+                $checklist['receptor']['label'] = 'RFC receptor '.$receptores[$rfcRecibido];
+                $datos['receptor_nombre'] = $receptores[$rfcRecibido];
             }
         } elseif ($datos['rfc_receptor']) {
             $checklist['receptor']['ok'] = true;
@@ -476,6 +482,7 @@ class AltaFacturaValidationService
 
     /**
      * Paso 3: verifica que el texto crudo del PDF contenga UUID, RFCs y Total del XML.
+     * Si no hay texto extraíble (PAC / imagen) no se rechaza: queda advertencia para revisión visual.
      */
     private function cruzarPdfConXml(
         string $pdfContent,
@@ -488,15 +495,17 @@ class AltaFacturaValidationService
         $texto = $extraido['texto'];
 
         if ($extraido['escaneado'] && mb_strlen(trim($texto)) < 40) {
-            $errores[] = 'No se pudo leer el PDF de la factura (posible escaneo). No se pudo verificar coincidencia con el XML.';
+            $advertencias[] = 'No se pudo extraer texto del PDF (típico en representaciones impresas del PAC). El XML es válido; el cruce PDF ↔ XML queda pendiente de revisión visual.';
             $checklist['pdf_xml']['ok'] = false;
-            $checklist['pdf_xml']['label'] = 'PDF ilegible';
+            $checklist['pdf_xml']['warn'] = true;
+            $checklist['pdf_xml']['label'] = 'PDF sin texto extraíble — revisión visual';
             $datos['pdf_coincidencias'] = [
                 'uuid' => false,
                 'rfc_emisor' => false,
                 'rfc_receptor' => false,
                 'total' => false,
             ];
+            $datos['pdf_cruce'] = 'omitido_sin_texto';
 
             return;
         }
@@ -544,10 +553,12 @@ class AltaFacturaValidationService
         $texto = $extraido['texto'];
 
         if ($extraido['escaneado'] && mb_strlen(trim($texto)) < 40) {
-            $errores[] = 'No se pudo leer la Orden de Compra (posible escaneo). No se pudo verificar contra el XML.';
+            $advertencias[] = 'No se pudo extraer texto de la Orden de Compra. El cruce OC ↔ XML queda pendiente de revisión visual.';
             $checklist['oc_xml']['ok'] = false;
-            $checklist['oc_xml']['label'] = 'OC ilegible';
+            $checklist['oc_xml']['warn'] = true;
+            $checklist['oc_xml']['label'] = 'OC sin texto extraíble — revisión visual';
             $datos['oc_coincidencias'] = ['rfc_emisor' => false, 'total' => false];
+            $datos['oc_cruce'] = 'omitido_sin_texto';
 
             return;
         }
@@ -1207,13 +1218,44 @@ class AltaFacturaValidationService
         ];
     }
 
+    /**
+     * RFC de receptor aceptados: Industrias Salcom, Fram Foods, etc.
+     *
+     * @return array<string, string> RFC => nombre comercial
+     */
+    private function rfcsReceptoresAceptados(): array
+    {
+        $mapa = [];
+
+        foreach ((array) config('facturas.receptores', []) as $rfc => $nombre) {
+            $rfc = strtoupper(trim((string) $rfc));
+            if ($rfc === '') {
+                continue;
+            }
+            $etiqueta = trim((string) $nombre);
+            $mapa[$rfc] = $etiqueta !== '' ? $etiqueta : $rfc;
+        }
+
+        $legacy = strtoupper(trim((string) config('facturas.rfc_receptor', '')));
+        if ($legacy !== '' && ! isset($mapa[$legacy])) {
+            $razon = trim((string) config('facturas.razon_social_receptor', 'Industrias Salcom'));
+            $mapa[$legacy] = $razon !== '' ? $razon : 'Industrias Salcom';
+        }
+
+        return $mapa;
+    }
+
     private function resultado(array $errores, array $advertencias, array $checklist, array $datos): array
     {
         $aprobado = empty($errores);
+        $tieneObservacion = collect($checklist)->contains(fn ($item) => ! empty($item['warn']));
 
         if (! $aprobado) {
             $estatus = 'rechazada';
             $mensaje = 'La factura fue rechazada: hay diferencias entre documentos o no cumple las reglas fiscales.';
+        } elseif ($tieneObservacion) {
+            $estatus = 'aprobada_con_observaciones';
+            $mensaje = 'Aprobada con observaciones: el XML cumple las reglas fiscales, pero hay puntos pendientes de revisión visual.';
         } else {
             $estatus = 'aprobada';
             $mensaje = 'Aprobada: los documentos coinciden y cumplen las reglas fiscales.';
