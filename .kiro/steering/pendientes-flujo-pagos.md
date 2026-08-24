@@ -33,11 +33,13 @@
 - ¿Se necesita botón de exportar Excel?
 
 ### 8. Anticipos (PENDIENTE — preguntar a Karen/contabilidad)
-- ¿Cómo funciona un anticipo? (pago antes de que exista la factura)
-- ¿Qué documento se registra? ¿Una OC, una cotización, o solo el monto?
-- ¿Cómo se descuenta el anticipo cuando llega la factura?
-- ¿Tiene su propio flujo o entra en el mismo de facturas?
-- Alan no sabe cómo funcionan — ir a preguntar
+- ✅ Módulo creado y funcionando (formulario + historial)
+- ✅ Aviso en Formato para pago cuando proveedor tiene anticipos activos
+- ❓ ¿Cómo se da de baja/aplica el anticipo? Preguntar a la muchacha cómo lo hace en Excel
+  - Opción: Botón "Aplicar anticipo" que marca como cerrado y ya no aparece como activo
+  - Pendiente confirmar con Karen/la muchacha para evitar duplicados
+- ¿Cómo funciona un anticipo? (pago antes de que exista la factura) ✅ Ya definido
+- Alan no sabe cómo funcionan — ✅ Ya resuelto
 
 ---
 

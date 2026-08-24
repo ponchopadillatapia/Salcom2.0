@@ -49,8 +49,14 @@
 @section('content')
 
 @if(session('ok'))
-    <div class="pag-alert ok anim">{{ session('ok') }}</div>
+    <div class="pag-alert ok anim" id="msg-exito">{{ session('ok') }}</div>
 @endif
+@if($errors->any())
+    <div class="pag-alert" style="background:#fef2f2;color:#dc2626;border:1px solid #dc2626;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px">
+        <strong>Error:</strong> {{ $errors->first() }}
+    </div>
+@endif
+<div class="pag-alert ok anim" id="msg-ajax" style="display:none"></div>
 
 {{-- Formulario --}}
 <form method="POST" action="{{ route('admin.anticipos.store') }}">
@@ -146,33 +152,6 @@
         return $a->created_at ? $a->created_at->format('Y-m-d') : 'sin-fecha';
     });
 @endphp
-
-<div class="inv-metrics anim" style="animation-delay:.04s;display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
-    <a href="{{ route('admin.anticipos', ['estatus' => 'pendiente']) }}" class="inv-metric {{ $estatus === 'pendiente' ? 'is-active' : '' }}" style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;text-decoration:none;color:inherit;display:block;cursor:pointer">
-        <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:#dc2626;border-radius:14px 0 0 14px"></div>
-        <div style="font-size:12px;color:var(--gray-muted);font-weight:600;margin-bottom:6px">50% Anticipo</div>
-        <div style="font-size:28px;font-weight:700;color:var(--gray-text)">{{ $kpiPendientes }}</div>
-        <div style="font-size:12px;color:var(--gray-muted);margin-top:6px">Pendientes de completar</div>
-    </a>
-    <a href="{{ route('admin.anticipos', ['estatus' => 'pagado']) }}" class="inv-metric {{ $estatus === 'pagado' ? 'is-active' : '' }}" style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;text-decoration:none;color:inherit;display:block;cursor:pointer">
-        <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:#16a34a;border-radius:14px 0 0 14px"></div>
-        <div style="font-size:12px;color:var(--gray-muted);font-weight:600;margin-bottom:6px">Pagados</div>
-        <div style="font-size:28px;font-weight:700;color:var(--gray-text)">{{ $kpiPagados }}</div>
-        <div style="font-size:12px;color:var(--gray-muted);margin-top:6px">Anticipo entregado</div>
-    </a>
-    <a href="{{ route('admin.anticipos', ['estatus' => 'aplicado']) }}" class="inv-metric {{ $estatus === 'aplicado' ? 'is-active' : '' }}" style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;text-decoration:none;color:inherit;display:block;cursor:pointer">
-        <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:var(--purple);border-radius:14px 0 0 14px"></div>
-        <div style="font-size:12px;color:var(--gray-muted);font-weight:600;margin-bottom:6px">Aplicados</div>
-        <div style="font-size:28px;font-weight:700;color:var(--gray-text)">{{ $kpiAplicados }}</div>
-        <div style="font-size:12px;color:var(--gray-muted);margin-top:6px">Descontados en factura</div>
-    </a>
-    <a href="{{ route('admin.anticipos') }}" class="inv-metric {{ $estatus === '' ? 'is-active' : '' }}" style="background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;text-decoration:none;color:inherit;display:block;cursor:pointer">
-        <div style="position:absolute;top:0;left:0;width:4px;height:100%;background:#2563eb;border-radius:14px 0 0 14px"></div>
-        <div style="font-size:12px;color:var(--gray-muted);font-weight:600;margin-bottom:6px">Todos</div>
-        <div style="font-size:28px;font-weight:700;color:var(--gray-text)">{{ $kpiTotal }}</div>
-        <div style="font-size:12px;color:var(--gray-muted);margin-top:6px">Total anticipos</div>
-    </a>
-</div>
 
 <div class="adm-section anim" style="animation-delay:.05s">
     <div class="adm-section-head">

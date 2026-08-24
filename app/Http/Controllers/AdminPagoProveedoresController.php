@@ -658,26 +658,21 @@ class AdminPagoProveedoresController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        $estatus = trim((string) $request->input('estatus', ''));
+        $anticipos = \App\Models\AnticipoProveedor::query()
+            ->orderByDesc('created_at')
+            ->paginate(50);
 
-        // KPIs
-        $kpiPagados = \App\Models\AnticipoProveedor::where('estatus', 'pagado')->count();
-        $kpiAplicados = \App\Models\AnticipoProveedor::where('estatus', 'aplicado')->count();
-        $kpiPendientes = \App\Models\AnticipoProveedor::where('estatus', 'pendiente')->count();
-        $kpiTotal = \App\Models\AnticipoProveedor::count();
-
-        $query = \App\Models\AnticipoProveedor::query();
-        if ($estatus !== '' && in_array($estatus, ['pagado', 'aplicado', 'pendiente', 'cancelado'])) {
-            $query->where('estatus', $estatus);
-        }
-
-        $anticipos = $query->orderByDesc('created_at')->paginate(50)->withQueryString();
-
-        return view('admin.anticipos.index', compact('proveedores', 'anticipos', 'estatus', 'kpiPagados', 'kpiAplicados', 'kpiPendientes', 'kpiTotal'));
+        return view('admin.anticipos.index', compact('proveedores', 'anticipos'));
     }
 
     public function anticiposStore(Request $request)
     {
+        // Limpiar comas de los campos numéricos antes de validar
+        $request->merge([
+            'importe' => str_replace(',', '', (string) $request->input('importe', '')),
+            'iva' => str_replace([',', '$'], '', (string) $request->input('iva', '0')),
+        ]);
+
         $data = $request->validate([
             'proveedor_id' => 'required|integer|exists:proveedores_users,id',
             'banco' => 'nullable|string|max:80',

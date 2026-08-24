@@ -93,6 +93,22 @@
     </div>
 @endunless
 
+@php
+    $anticiposActivos = \App\Models\AnticipoProveedor::where('codigo_proveedor', $codigo)
+        ->where('estatus', 'pagado')
+        ->get();
+@endphp
+@if($anticiposActivos->count() > 0)
+    <div class="pag-alert warn anim" style="background:#fef3cd;color:#92400e;border:1px solid #f59e0b">
+        <strong>⚠️ Este proveedor tiene {{ $anticiposActivos->count() }} anticipo(s) activo(s):</strong>
+        @foreach($anticiposActivos as $ant)
+            <div style="margin-top:4px;font-size:12px">
+                {{ $ant->folio }} — ${{ number_format((float)$ant->total_banco, 2) }} · {{ $ant->folio_general }} · {{ $ant->fecha?->format('d/m/Y') }}
+            </div>
+        @endforeach
+    </div>
+@endif
+
 <div class="adm-summary anim">
     <div class="adm-summary-main">
         <div class="adm-summary-pct">{{ $facturas->count() }}</div>
