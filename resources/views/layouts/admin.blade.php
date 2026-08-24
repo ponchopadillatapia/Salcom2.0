@@ -519,6 +519,9 @@
                     <a href="{{ route('admin.reembolsos-viaje') }}" class="sb-link sb-sublink {{ request()->is('admin/reembolsos-viaje*') ? 'active' : '' }}">
                         <span class="sb-text">Reembolsos Viaje</span>
                     </a>
+                    <a href="{{ route('admin.bitacora-gasolina') }}" class="sb-link sb-sublink {{ request()->is('admin/bitacora-gasolina*') ? 'active' : '' }}">
+                        <span class="sb-text">Bitácora Gasolina</span>
+                    </a>
                 </div>
             </div>
 

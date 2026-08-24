@@ -3136,7 +3136,7 @@ class AdminPanelController extends Controller
             ->get();
 
         $output = "\xEF\xBB\xBF";
-        $output .= "Fecha,Solicitante,Concepto,Monto,Numero de Cuenta,Titular de la Tarjeta,Institucion (BBVA/Inntec),Categoria\r\n";
+        $output .= "Fecha,Solicitante,Concepto,Monto,Numero de Cuenta,Titular de la Tarjeta,Institucion (BBVA/Inntec),Categoria,Autorizado Sandra\r\n";
 
         foreach ($reembolsos as $r) {
             $d = $r->datos ?? [];
@@ -3149,10 +3149,107 @@ class AdminPanelController extends Controller
                 '"' . str_replace('"', '""', $d['titular_cuenta'] ?? '') . '"',
                 strtoupper($d['metodo_pago_empresa'] ?? ''),
                 $d['categoria'] ?? '',
+                !empty($d['autorizado_sandra']) ? 'SI' : 'NO',
             ]) . "\r\n";
         }
 
         $filename = 'Reembolsos_' . now()->format('Y-m-d') . '.csv';
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
+    public function autorizarReembolso(Alerta $alerta)
+    {
+        $datos = $alerta->datos ?? [];
+        $datos['autorizado_sandra'] = true;
+        $datos['autorizado_sandra_fecha'] = now()->format('Y-m-d H:i');
+        $alerta->update(['datos' => $datos]);
+
+        return redirect()->route('admin.reembolsos')
+            ->with('mensaje', 'Reembolso autorizado por Sandra.');
+    }
+
+    public function bitacoraGasolina()
+    {
+        $registros = Alerta::where('tipo', 'bitacora_gasolina')
+            ->orderByDesc('created_at')
+            ->limit(100)
+            ->get();
+
+        return view('admin.bitacora-gasolina', compact('registros'));
+    }
+
+    public function bitacoraGasolinaGuardar(Request $request)
+    {
+        $request->validate([
+            'fecha' => 'required|date',
+            'empleado' => 'required|string|max:150',
+            'cantidad_litros' => 'nullable|numeric|min:0',
+            'monto' => 'required|string|max:20',
+            'vehiculo' => 'nullable|string|max:100',
+            'kilometraje' => 'nullable|numeric|min:0',
+            'notas' => 'nullable|string|max:255',
+        ]);
+
+        try {
+            Alerta::create([
+                'tipo' => 'bitacora_gasolina',
+                'modulo' => 'gasolina',
+                'destinatario_tipo' => 'admin',
+                'destinatario_id' => 0,
+                'titulo' => 'Gasolina: $' . $request->input('monto') . ' — ' . $request->input('empleado'),
+                'contenido' => ($request->input('vehiculo') ?? '') . ' | ' . $request->input('fecha'),
+                'datos' => [
+                    'fecha' => $request->input('fecha'),
+                    'empleado' => $request->input('empleado'),
+                    'cantidad_litros' => $request->input('cantidad_litros'),
+                    'monto' => $request->input('monto'),
+                    'vehiculo' => $request->input('vehiculo'),
+                    'kilometraje' => $request->input('kilometraje'),
+                    'notas' => $request->input('notas'),
+                ],
+                'estatus' => 'pendiente',
+                'nivel' => 'info',
+            ]);
+        } catch (\Exception $e) {
+        }
+
+        return redirect()->route('admin.bitacora-gasolina')
+            ->with('mensaje', 'Registro de gasolina guardado.');
+    }
+
+    public function bitacoraGasolinaExcel()
+    {
+        $registros = Alerta::where('tipo', 'bitacora_gasolina')
+            ->orderByDesc('created_at')
+            ->get();
+
+        $output = "\xEF\xBB\xBF";
+        $output .= "BITACORA DE GASOLINA\r\n";
+        $output .= "Generado: " . now()->format('d/m/Y H:i') . "\r\n\r\n";
+        $output .= "Fecha,Empleado,Litros,Monto,Vehiculo,Kilometraje,Notas\r\n";
+
+        $totalMonto = 0;
+        foreach ($registros as $r) {
+            $d = $r->datos ?? [];
+            $monto = (float) str_replace(['$', ','], '', $d['monto'] ?? '0');
+            $totalMonto += $monto;
+            $output .= implode(',', [
+                $d['fecha'] ?? $r->created_at->format('Y-m-d'),
+                '"' . str_replace('"', '""', $d['empleado'] ?? '') . '"',
+                $d['cantidad_litros'] ?? '',
+                number_format($monto, 2, '.', ''),
+                '"' . str_replace('"', '""', $d['vehiculo'] ?? '') . '"',
+                $d['kilometraje'] ?? '',
+                '"' . str_replace('"', '""', $d['notas'] ?? '') . '"',
+            ]) . "\r\n";
+        }
+        $output .= ",,,,,,\r\n";
+        $output .= ",TOTAL,," . number_format($totalMonto, 2, '.', '') . ",,,\r\n";
+
+        $filename = 'Bitacora_Gasolina_' . now()->format('Y-m-d') . '.csv';
 
         return response($output)
             ->header('Content-Type', 'text/csv; charset=UTF-8')

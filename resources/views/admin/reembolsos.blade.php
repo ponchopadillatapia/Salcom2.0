@@ -315,6 +315,7 @@
                         <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Nº Cuenta</th>
                         <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Titular</th>
                         <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Institución</th>
+                        <th style="padding:10px 12px;text-align:center;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Autorización Sandra</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -328,6 +329,16 @@
                         <td style="padding:10px 12px;">{{ $d['numero_cuenta'] ?? '—' }}</td>
                         <td style="padding:10px 12px;">{{ $d['titular_cuenta'] ?? '—' }}</td>
                         <td style="padding:10px 12px;">{{ strtoupper($d['metodo_pago_empresa'] ?? '—') }}</td>
+                        <td style="padding:10px 12px;text-align:center;">
+                            @if(!empty($d['autorizado_sandra']))
+                                <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#dcfce7;color:#166534;">✓ Autorizado</span>
+                            @else
+                                <form method="POST" action="{{ route('admin.reembolsos.autorizar', $r->id) }}" style="display:inline;">
+                                    @csrf
+                                    <button type="submit" style="padding:5px 12px;border:1.5px solid #7c3aed;border-radius:8px;background:#f5f3ff;color:#7c3aed;font-size:11px;font-weight:700;cursor:pointer;font-family:inherit;" onclick="return confirm('¿Autorizar este reembolso como Sandra?');">Autorizar</button>
+                                </form>
+                            @endif
+                        </td>
                     </tr>
                     @endforeach
                 </tbody>

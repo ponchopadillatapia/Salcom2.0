@@ -308,6 +308,12 @@ Route::post('/pedido/tracking', [PedidoController::class, 'tracking'])->name('pe
 Route::get('/admin/reembolsos', [AdminPanelController::class, 'reembolsos'])->name('admin.reembolsos')->middleware('auth.admin');
 Route::post('/admin/reembolsos/enviar', [AdminPanelController::class, 'enviarReembolso'])->name('admin.reembolsos.enviar')->middleware('auth.admin');
 Route::get('/admin/reembolsos/excel', [AdminPanelController::class, 'reembolsosExcel'])->name('admin.reembolsos.excel')->middleware('auth.admin');
+Route::post('/admin/reembolsos/{alerta}/autorizar', [AdminPanelController::class, 'autorizarReembolso'])->name('admin.reembolsos.autorizar')->middleware('auth.admin');
+
+// ── Bitácora de Gasolina ──
+Route::get('/admin/bitacora-gasolina', [AdminPanelController::class, 'bitacoraGasolina'])->name('admin.bitacora-gasolina')->middleware('auth.admin');
+Route::post('/admin/bitacora-gasolina', [AdminPanelController::class, 'bitacoraGasolinaGuardar'])->name('admin.bitacora-gasolina.guardar')->middleware('auth.admin');
+Route::get('/admin/bitacora-gasolina/excel', [AdminPanelController::class, 'bitacoraGasolinaExcel'])->name('admin.bitacora-gasolina.excel')->middleware('auth.admin');
 
 // ── Admin: Reembolsos de Viaje ──
 use App\Http\Controllers\ReembolsoViajeController;
