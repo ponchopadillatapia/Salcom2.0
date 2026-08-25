@@ -298,8 +298,19 @@ function cerrarModalAnticipos() {
 }
 
 function cerrarYPagar() {
+    // Verificar que no haya anticipos con factura seleccionada sin aplicar
+    var sinAplicar = false;
+    document.querySelectorAll('.select-factura-modal').forEach(function(sel) {
+        var row = sel.closest('[id^="anticipo-row-"]');
+        if (row && row.style.opacity !== '0.4' && sel.value !== '') {
+            sinAplicar = true;
+        }
+    });
+    if (sinAplicar) {
+        alert('Tienes un anticipo con factura seleccionada sin aplicar. Aplícalo o quita la selección para continuar.');
+        return;
+    }
     cerrarModalAnticipos();
-    // Enviar el form directamente
     document.getElementById('formPagarLote').submit();
 }
 

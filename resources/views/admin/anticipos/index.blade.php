@@ -49,7 +49,16 @@
 @section('content')
 
 @if(session('ok'))
-    <div class="pag-alert ok anim" id="msg-exito">{{ session('ok') }}</div>
+    <div class="pag-alert ok anim" id="msg-exito">{!! session('ok') !!}</div>
+@endif
+@if(request('creado'))
+    @php $antCreado = \App\Models\AnticipoProveedor::find(request('creado')); @endphp
+    @if($antCreado)
+        <div class="pag-alert ok anim">
+            Anticipo <strong>{{ $antCreado->folio_general }}</strong> registrado por <strong>${{ number_format((float)$antCreado->total_banco, 2) }}</strong> a {{ $antCreado->nombre_proveedor }}.
+        </div>
+        <script>window.open('{{ route("admin.anticipos.formato", $antCreado) }}', '_blank');</script>
+    @endif
 @endif
 @if($errors->any())
     <div class="pag-alert" style="background:#fef2f2;color:#dc2626;border:1px solid #dc2626;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px">
@@ -135,8 +144,8 @@
                 <label>&nbsp;</label>
             </div>
             <div class="ant-field span3">
-                <label>Concepto / Notas</label>
-                <textarea name="concepto" rows="2" placeholder="Se paga anticipado para la liberación del material..."></textarea>
+                <label>Concepto / Notas <span style="color:#dc2626">●</span></label>
+                <textarea name="concepto" rows="2" required placeholder="Se paga anticipado para la liberación del material..."></textarea>
             </div>
         </div>
         <div class="ant-actions">
@@ -170,6 +179,7 @@
                         <th>Proveedor</th>
                         <th>Depto</th>
                         <th>Total</th>
+                        <th>Factura aplicada</th>
                         <th>Estatus</th>
                         <th style="text-align:right">Hora</th>
                     </tr>
@@ -177,7 +187,7 @@
                 <tbody>
                     @foreach($agrupados as $fechaKey => $rows)
                         <tr class="date-row" style="background:var(--purple-subtle)!important">
-                            <td colspan="7" style="font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)">
+                            <td colspan="8" style="font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)">
                                 @if($fechaKey === 'sin-fecha')
                                     Sin fecha
                                 @else
@@ -195,9 +205,18 @@
                                 </td>
                                 <td>{{ $a->departamento }}</td>
                                 <td class="monto">${{ number_format((float)$a->total_banco, 2) }}</td>
+                                <td style="font-size:12px">
+                                    @if($a->factura_id)
+                                        @php $facAplicada = \App\Models\Factura::find($a->factura_id); @endphp
+                                        <span style="color:var(--purple);font-weight:600">{{ $facAplicada?->folio_cfdi ?: 'FAC-'.$a->factura_id }}</span>
+                                    @else
+                                        <span style="color:var(--gray-muted)">—</span>
+                                    @endif
+                                </td>
                                 <td><span class="pill {{ $a->estatus }}">{{ ucfirst($a->estatus) }}</span></td>
                                 <td style="text-align:right">
-                                    <span style="display:inline-flex;padding:3px 8px;border-radius:999px;background:var(--purple-subtle,#f3e8ff);color:var(--purple);font-size:11px;font-weight:700">{{ $a->created_at?->format('h:i a') }}</span>
+                                    <a href="{{ route('admin.anticipos.formato', $a) }}" target="_blank" style="font-size:11px;color:var(--purple);font-weight:600;text-decoration:none;padding:4px 10px;border:1px solid var(--purple);border-radius:6px">PDF</a>
+                                    <span style="display:inline-flex;padding:3px 8px;border-radius:999px;background:var(--purple-subtle,#f3e8ff);color:var(--purple);font-size:11px;font-weight:700;margin-left:6px">{{ $a->created_at?->format('h:i a') }}</span>
                                 </td>
                             </tr>
                         @endforeach

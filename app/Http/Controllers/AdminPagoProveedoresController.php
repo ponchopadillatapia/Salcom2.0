@@ -684,7 +684,7 @@ class AdminPagoProveedoresController extends Controller
             'folio_general' => 'required|string|max:120',
             'departamento' => 'required|string|max:60',
             'fecha' => 'required|date',
-            'concepto' => 'nullable|string|max:1000',
+            'concepto' => 'required|string|max:1000',
         ]);
 
         $proveedor = ProveedorUser::findOrFail($data['proveedor_id']);
@@ -715,7 +715,21 @@ class AdminPagoProveedoresController extends Controller
             'creado_por' => session('admin_id'),
         ]);
 
-        return redirect()->route('admin.anticipos')->with('ok', "Anticipo {$folio} registrado por \$" . number_format($totalBanco, 2) . " a {$proveedor->nombre}.");
+        return redirect()->route('admin.anticipos', ['creado' => $anticipo->id])->with('ok', "Anticipo {$folio} registrado por \$" . number_format($totalBanco, 2) . " a {$proveedor->nombre}.");
+    }
+
+    public function anticiposFormato(\App\Models\AnticipoProveedor $anticipo)
+    {
+        $data = [
+            'anticipo' => $anticipo,
+            'titulo' => 'FORMATO PARA ANTICIPO',
+            'folio' => $anticipo->folio,
+        ];
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.anticipos.formato-pdf', $data)
+            ->setPaper('letter', 'landscape');
+
+        return $pdf->download("Formato_Anticipo_{$anticipo->folio}_{$anticipo->codigo_proveedor}.pdf");
     }
 
     public function anticiposAplicar(Request $request, \App\Models\AnticipoProveedor $anticipo)

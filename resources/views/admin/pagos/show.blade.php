@@ -127,6 +127,23 @@
         <h4>Detalle del pago</h4>
         <span class="pill {{ $pago->estatus === 'confirmado' ? 'ok' : 'warn' }}">{{ $pago->estatus }}</span>
     </div>
+    @php
+        $facturaIds = $pago->lineas->pluck('factura_id')->filter()->all();
+        $anticiposLigados = \App\Models\AnticipoProveedor::where('codigo_proveedor', $pago->codigo_proveedor)
+            ->where('estatus', 'aplicado')
+            ->whereIn('factura_id', $facturaIds)
+            ->get();
+    @endphp
+    @if($anticiposLigados->count() > 0)
+        <div style="padding:12px 18px;background:#f3e8ff;border-bottom:1px solid #c4b5fd;font-size:13px;color:#5b21b6">
+            <strong>Anticipos aplicados a este lote:</strong>
+            @foreach($anticiposLigados as $antL)
+                <span style="display:inline-block;margin:4px 6px 0 0;padding:3px 10px;background:#fff;border:1px solid #e9d5ff;border-radius:6px;font-size:12px">
+                    {{ $antL->folio_general }} · ${{ number_format((float)$antL->total_banco, 2) }}
+                </span>
+            @endforeach
+        </div>
+    @endif
     <div style="overflow-x:auto;">
         <table class="admin-table">
             <thead>

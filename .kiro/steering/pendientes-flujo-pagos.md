@@ -32,14 +32,16 @@
 - El modal de detalle al hacer click en un registro — ¿qué info adicional debería mostrar?
 - ¿Se necesita botón de exportar Excel?
 
-### 8. Anticipos (PENDIENTE — preguntar a Karen/contabilidad)
-- ✅ Módulo creado y funcionando (formulario + historial)
+### 8. Anticipos
+- ✅ Módulo creado y funcionando (formulario + historial + PDF)
 - ✅ Aviso en Formato para pago cuando proveedor tiene anticipos activos
-- ❓ ¿Cómo se da de baja/aplica el anticipo? Preguntar a la muchacha cómo lo hace en Excel
-  - Opción: Botón "Aplicar anticipo" que marca como cerrado y ya no aparece como activo
-  - Pendiente confirmar con Karen/la muchacha para evitar duplicados
-- ¿Cómo funciona un anticipo? (pago antes de que exista la factura) ✅ Ya definido
-- Alan no sabe cómo funcionan — ✅ Ya resuelto
+- ✅ Modal AJAX para aplicar anticipos sin recargar
+- ✅ Bloqueo si hay factura seleccionada sin aplicar
+- ✅ En borrador de pago se muestran anticipos aplicados
+- ✅ Concepto obligatorio
+- ✅ PDF se descarga automáticamente al crear
+- ❓ PENDIENTE: Columna "Anticipos" en tabla de facturas del admin (ver cuántos anticipos tiene cada factura)
+- ❓ PENDIENTE: En modal de factura, listar los anticipos ligados con montos
 
 ---
 
