@@ -1693,7 +1693,7 @@ class PortalProveedorController extends Controller
         return $this->redirectConResultadoFiscal([
             'aprobado' => true,
             'estatus' => $resultado['estatus'] ?? 'aprobada',
-            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta.').' Los archivos quedaron guardados temporalmente: elige los días de plazo y pulsa «Subir».',
+            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta.').'',
             'errores' => [],
             'advertencias' => $resultado['advertencias'] ?? [],
             'checklist' => $resultado['checklist'] ?? [],

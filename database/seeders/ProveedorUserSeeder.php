@@ -69,13 +69,43 @@ class ProveedorUserSeeder extends Seeder
                 'correo' => 'rebeca.leon@framfoods.com.mx',
                 'activo' => true,
             ],
+            // Portal completo sin haber pasado onboarding (docs / solicitud de alta)
+            [
+                'usuario' => 'sinonboarding',
+                'password' => Hash::make('salcom2026'),
+                'id_proveedor' => 'DEMO-SINONB',
+                'nombre' => 'Proveedor Sin Onboarding S.A. de C.V.',
+                'tipo_persona' => 'Persona Moral',
+                'telefono' => '3310000099',
+                'correo' => 'sinonboarding@test.local',
+                'rfc' => 'PSO010101XX1',
+                'activo' => true,
+                'solicitud_alta_estatus' => null,
+            ],
         ];
 
         foreach ($proveedores as $prov) {
-            ProveedorUser::updateOrCreate(
+            $usuario = ProveedorUser::updateOrCreate(
                 ['usuario' => $prov['usuario']],
                 array_merge(['activo' => true], $prov)
             );
+
+            if ($usuario->usuario === 'sinonboarding' && $usuario->contactos()->count() < 2) {
+                $usuario->contactos()->createMany([
+                    [
+                        'nombre' => 'Ana Ventas',
+                        'rol' => 'ventas',
+                        'telefono' => '3311111199',
+                        'correo' => 'ventas.sinonboarding@test.local',
+                    ],
+                    [
+                        'nombre' => 'Luis Compras',
+                        'rol' => 'compras',
+                        'telefono' => '3322222299',
+                        'correo' => 'compras.sinonboarding@test.local',
+                    ],
+                ]);
+            }
         }
     }
 }
