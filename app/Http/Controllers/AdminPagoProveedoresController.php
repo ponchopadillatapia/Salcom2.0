@@ -692,9 +692,8 @@ class AdminPagoProveedoresController extends Controller
         $importe = (float) $data['importe'];
         $totalBanco = $importe + $iva;
 
-        // Folio consecutivo
-        $maxFolio = \App\Models\AnticipoProveedor::max('id') + 1;
-        $folio = 'FCONA-' . str_pad($maxFolio, 4, '0', STR_PAD_LEFT);
+        // Folio fijo de contabilidad
+        $folio = 'FCONA-0040';
 
         $anticipo = \App\Models\AnticipoProveedor::create([
             'folio' => $folio,
@@ -717,6 +716,35 @@ class AdminPagoProveedoresController extends Controller
         ]);
 
         return redirect()->route('admin.anticipos')->with('ok', "Anticipo {$folio} registrado por \$" . number_format($totalBanco, 2) . " a {$proveedor->nombre}.");
+    }
+
+    public function anticiposAplicar(Request $request, \App\Models\AnticipoProveedor $anticipo)
+    {
+        $data = $request->validate([
+            'factura_id' => 'required|integer|exists:facturas,id',
+        ]);
+
+        $factura = Factura::findOrFail($data['factura_id']);
+
+        $anticipo->update([
+            'estatus' => 'aplicado',
+            'factura_id' => $factura->id,
+            'monto_aplicado' => $anticipo->total_banco,
+            'datos' => array_merge($anticipo->datos ?? [], [
+                'aplicado_at' => now()->toDateTimeString(),
+                'aplicado_por' => session('admin_id'),
+                'factura_folio' => $factura->folio_cfdi,
+            ]),
+        ]);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'ok' => true,
+                'mensaje' => "Anticipo {$anticipo->folio_general} aplicado a factura " . ($factura->folio_cfdi ?: 'FAC-'.$factura->id),
+            ]);
+        }
+
+        return back()->with('ok', "Anticipo {$anticipo->folio_general} aplicado a factura {$factura->folio_cfdi}.");
     }
 
     private function polizaOrFail(string $key): array

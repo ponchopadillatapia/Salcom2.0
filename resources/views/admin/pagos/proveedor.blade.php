@@ -99,13 +99,38 @@
         ->get();
 @endphp
 @if($anticiposActivos->count() > 0)
-    <div class="pag-alert warn anim" style="background:#fef3cd;color:#92400e;border:1px solid #f59e0b">
-        <strong>⚠️ Este proveedor tiene {{ $anticiposActivos->count() }} anticipo(s) activo(s):</strong>
-        @foreach($anticiposActivos as $ant)
-            <div style="margin-top:4px;font-size:12px">
-                {{ $ant->folio }} — ${{ number_format((float)$ant->total_banco, 2) }} · {{ $ant->folio_general }} · {{ $ant->fecha?->format('d/m/Y') }}
+    {{-- Panel de anticipos oculto - se muestra al dar "Pagar seleccionadas" --}}
+    <div id="modal-anticipos" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;padding:20px">
+        <div style="background:#fff;border-radius:14px;max-width:680px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">
+            <div style="padding:18px 22px;background:#f3e8ff;border-bottom:1px solid #c4b5fd;border-radius:14px 14px 0 0">
+                <h3 style="margin:0;font-size:16px;font-weight:700;color:#5b21b6">Anticipos activos</h3>
+                <p style="margin:4px 0 0;font-size:12px;color:#7c3aed">¿Quieres aplicar algún anticipo a las facturas seleccionadas?</p>
             </div>
-        @endforeach
+            <div style="padding:16px 22px" id="anticipos-lista-modal">
+                @php $anticiposOrdenados = $anticiposActivos->sortByDesc('fecha'); @endphp
+                @foreach($anticiposOrdenados as $ant)
+                    <div style="margin-bottom:8px;padding:14px 16px;background:#faf5ff;border-radius:10px;border:1px solid #e9d5ff" id="anticipo-row-{{ $ant->id }}">
+                        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+                            <div>
+                                <div style="font-size:14px;font-weight:700;color:#6B3FA0">{{ $ant->folio_general }}</div>
+                                <div style="font-size:12px;color:#7c3aed;margin-top:2px">${{ number_format((float)$ant->total_banco, 2) }} · {{ $ant->fecha?->format('d/m/Y') }}</div>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:8px">
+                                <select class="select-factura-modal" id="sel-ant-{{ $ant->id }}" style="font-size:13px;padding:10px 14px;border:1.5px solid #c4b5fd;border-radius:8px;background:#fff;min-width:280px;color:#5b21b6;font-weight:500">
+                                    <option value="">Seleccionar factura...</option>
+                                </select>
+                                <button type="button" onclick="aplicarAnticipo({{ $ant->id }})" style="font-size:13px;padding:10px 20px;background:#6B3FA0;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap">Aplicar</button>
+                            </div>
+                        </div>
+                        <div id="msg-ant-{{ $ant->id }}" style="display:none;margin-top:8px;padding:8px 12px;background:#ecfdf5;border:1px solid #059669;border-radius:6px;font-size:12px;color:#059669;font-weight:600"></div>
+                    </div>
+                @endforeach
+            </div>
+            <div style="padding:16px 22px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:10px">
+                <button type="button" onclick="cerrarModalAnticipos()" style="padding:10px 20px;background:var(--gray-soft);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">Cerrar</button>
+                <button type="button" onclick="cerrarYPagar()" style="padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">Continuar con el pago →</button>
+            </div>
+        </div>
     </div>
 @endif
 
@@ -265,11 +290,25 @@ function toggleDocs(id) {
     var el = document.getElementById('docs-' + id);
     if (el) el.classList.toggle('open');
 }
+
+var tieneAnticipos = {{ $anticiposActivos->count() > 0 ? 'true' : 'false' }};
+
+function cerrarModalAnticipos() {
+    document.getElementById('modal-anticipos').style.display = 'none';
+}
+
+function cerrarYPagar() {
+    cerrarModalAnticipos();
+    // Enviar el form directamente
+    document.getElementById('formPagarLote').submit();
+}
+
 (function () {
     var all = document.getElementById('chkAll');
     var boxes = function () { return Array.prototype.slice.call(document.querySelectorAll('.fact-chk')); };
     var countEl = document.getElementById('selCount');
     var btnC = document.getElementById('btnConfirmar');
+
     function sync() {
         var checked = boxes().filter(function (b) { return b.checked; });
         if (countEl) countEl.textContent = checked.length;
@@ -286,6 +325,78 @@ function toggleDocs(id) {
     });
     boxes().forEach(function (b) { b.addEventListener('change', sync); });
     sync();
+
+    // Interceptar el botón de pagar para mostrar modal de anticipos
+    if (btnC && tieneAnticipos) {
+        btnC.removeAttribute('onclick');
+        btnC.setAttribute('type', 'button');
+        btnC.addEventListener('click', function (e) {
+            e.preventDefault();
+            // Obtener facturas seleccionadas
+            var seleccionadas = boxes().filter(function (b) { return b.checked; });
+            if (seleccionadas.length === 0) {
+                alert('Selecciona al menos una factura.');
+                return;
+            }
+            // Llenar dropdowns del modal con solo las facturas seleccionadas
+            var opciones = '<option value="">Seleccionar factura...</option>';
+            seleccionadas.forEach(function (b) {
+                var tr = b.closest('tr');
+                var folio = tr.querySelector('td:nth-child(2) strong').textContent.trim();
+                var total = tr.querySelector('.monto').textContent.trim();
+                opciones += '<option value="' + b.value + '">' + folio + ' — ' + total + '</option>';
+            });
+            document.querySelectorAll('.select-factura-modal').forEach(function (sel) {
+                sel.innerHTML = opciones;
+            });
+            // Mostrar modal
+            document.getElementById('modal-anticipos').style.display = 'flex';
+        });
+    }
 })();
+
+// Cerrar modal al click fuera
+var modalAnt = document.getElementById('modal-anticipos');
+if (modalAnt) {
+    modalAnt.addEventListener('click', function (e) {
+        if (e.target === modalAnt) cerrarModalAnticipos();
+    });
+}
+
+// Aplicar anticipo por AJAX (sin recargar)
+function aplicarAnticipo(anticipoId) {
+    var sel = document.getElementById('sel-ant-' + anticipoId);
+    var facturaId = sel.value;
+    if (!facturaId) {
+        alert('Selecciona una factura primero.');
+        return;
+    }
+    if (!confirm('¿Aplicar este anticipo a la factura seleccionada?')) return;
+
+    fetch('/admin/anticipos/' + anticipoId + '/aplicar', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': '{{ csrf_token() }}',
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        body: JSON.stringify({ factura_id: facturaId })
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.ok) {
+            var row = document.getElementById('anticipo-row-' + anticipoId);
+            row.style.opacity = '0.4';
+            row.style.pointerEvents = 'none';
+            var msg = document.getElementById('msg-ant-' + anticipoId);
+            msg.style.display = 'block';
+            msg.textContent = '✓ ' + data.mensaje;
+        } else {
+            alert(data.mensaje || 'Error al aplicar.');
+        }
+    })
+    .catch(function() { alert('Error de conexión.'); });
+}
 </script>
 @endsection

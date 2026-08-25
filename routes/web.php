@@ -251,6 +251,7 @@ Route::post('/admin/abono-proveedor/confirmar', [AdminPagoProveedoresController:
 Route::get('/admin/historial-abonos', [AdminPagoProveedoresController::class, 'historialAbonos'])->name('admin.historial-abonos')->middleware('auth.admin');
 Route::get('/admin/anticipos', [AdminPagoProveedoresController::class, 'anticiposIndex'])->name('admin.anticipos')->middleware('auth.admin');
 Route::post('/admin/anticipos', [AdminPagoProveedoresController::class, 'anticiposStore'])->name('admin.anticipos.store')->middleware('auth.admin');
+Route::post('/admin/anticipos/{anticipo}/aplicar', [AdminPagoProveedoresController::class, 'anticiposAplicar'])->name('admin.anticipos.aplicar')->middleware('auth.admin');
 
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal', [AdminPanelController::class, 'expedienteFiscal'])->name('admin.expediente-fiscal')->middleware('auth.admin');

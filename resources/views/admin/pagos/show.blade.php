@@ -74,15 +74,13 @@
 @endif
 
 <div class="pag-actions anim">
-    <a class="btn btn-primary" href="{{ route('admin.pagos.reporte-resumen', ['pago' => $pago, 'ver' => 1]) }}" target="_blank" rel="noopener">Ver reporte resumen</a>
     @if($pago->esBorrador())
         <form method="POST" action="{{ route('admin.pagos.cancelar', $pago) }}" onsubmit="return confirm('¿Cancelar este borrador?');">
             @csrf
             <button type="submit" class="btn btn-danger">Cancelar borrador</button>
         </form>
-    @endif
-    @if($tieneMasFacturasPendientes && $pago->codigo_proveedor)
-        <a class="btn btn-outline" href="{{ route('admin.pagos.proveedor', $pago->codigo_proveedor) }}">Más facturas pendientes</a>
+    @else
+        <a class="btn btn-primary" href="{{ route('admin.pagos.reporte-resumen', ['pago' => $pago, 'ver' => 1]) }}" target="_blank" rel="noopener">Ver reporte resumen</a>
     @endif
 </div>
 
@@ -102,19 +100,20 @@
         @if(!empty($errorDatosAuto))
             <div class="pag-alert err" style="margin:0 0 14px;">{{ $errorDatosAuto }}</div>
         @endif
-        <form method="POST" action="{{ route('admin.pagos.confirmar', $pago) }}" enctype="multipart/form-data" onsubmit="return confirm('¿Confirmar este pago? Las facturas cambiarán de estatus.');">
+        <form method="POST" action="{{ route('admin.pagos.confirmar', $pago) }}" enctype="multipart/form-data" onsubmit="return confirm('¿Confirmar? Las facturas pasarán a programada.');">
             @csrf
+            <input type="hidden" name="fecha_pago" value="{{ now()->format('Y-m-d') }}">
             <div class="form-grid">
                 <div class="form-field">
-                    <label>Fecha de pago (opcional)</label>
-                    <input type="date" name="fecha_pago" value="{{ old('fecha_pago', $pago->fecha_pago?->format('Y-m-d')) }}">
+                    <label>Fecha</label>
+                    <input type="date" value="{{ now()->format('Y-m-d') }}" readonly style="background:var(--gray-soft)">
                 </div>
                 <div class="form-field">
                     <label>Comprobantes (opcional)</label>
                     <input type="file" name="comprobantes[]" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple>
                 </div>
             </div>
-            <p class="hint" style="margin-top:12px;">Si indicas fecha, las facturas pasan a «pagada»; si no, a «programada».</p>
+            <p class="hint" style="margin-top:12px;">Al confirmar, las facturas pasan a estatus «programada».</p>
             <div style="margin-top:14px;">
                 <button type="submit" class="btn btn-primary" @disabled(!empty($errorDatosAuto))>Confirmar pago</button>
             </div>

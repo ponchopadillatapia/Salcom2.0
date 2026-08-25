@@ -165,10 +165,10 @@
             <table class="admin-table">
                 <thead>
                     <tr>
-                        <th>Folio</th>
+                        <th>Folio General</th>
+                        <th>Formato</th>
                         <th>Proveedor</th>
                         <th>Depto</th>
-                        <th>Folio General</th>
                         <th>Total</th>
                         <th>Estatus</th>
                         <th style="text-align:right">Hora</th>
@@ -187,13 +187,13 @@
                         </tr>
                         @foreach($rows as $a)
                             <tr>
-                                <td style="font-weight:700;color:var(--purple)">{{ $a->folio }}</td>
+                                <td style="font-weight:700;color:var(--purple)">{{ $a->folio_general }}</td>
+                                <td style="font-size:12px;color:var(--gray-muted)">FCONA-0040</td>
                                 <td>
                                     <div style="font-weight:600">{{ $a->nombre_proveedor }}</div>
                                     <div style="font-size:11px;color:var(--gray-muted)">{{ $a->codigo_proveedor }}</div>
                                 </td>
                                 <td>{{ $a->departamento }}</td>
-                                <td style="font-weight:600">{{ $a->folio_general }}</td>
                                 <td class="monto">${{ number_format((float)$a->total_banco, 2) }}</td>
                                 <td><span class="pill {{ $a->estatus }}">{{ ucfirst($a->estatus) }}</span></td>
                                 <td style="text-align:right">
