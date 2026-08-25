@@ -11,14 +11,15 @@
 
 @push('styles')
 <style>
-    .perfil-header { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px; }
+    .perfil-header { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px; min-width: 0; width: 100%; }
     .perfil-avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--purple); display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; color: var(--white); flex-shrink: 0; position: relative; cursor: pointer; overflow: hidden; transition: all .15s; }
     .perfil-avatar:hover { opacity: .85; }
     .perfil-avatar img { width: 100%; height: 100%; object-fit: cover; }
     .perfil-avatar .avatar-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.5); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity .15s; border-radius: 50%; }
     .perfil-avatar:hover .avatar-overlay { opacity: 1; }
-    .perfil-name { font-size: 18px; font-weight: 700; color: var(--gray-text); }
-    .perfil-meta { font-size: 13px; color: var(--gray-muted); margin-top: 2px; }
+    .perfil-header-text { min-width: 0; flex: 1; }
+    .perfil-name { font-size: 18px; font-weight: 700; color: var(--gray-text); overflow-wrap: anywhere; }
+    .perfil-meta { font-size: 13px; color: var(--gray-muted); margin-top: 2px; overflow-wrap: anywhere; }
     .perfil-actions { margin-left: auto; }
     .btn-edit { padding: 8px 20px; border: 1px solid var(--purple); border-radius: 8px; background: none; color: var(--purple); font-size: 13px; font-family: inherit; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; transition: all .15s; }
     .btn-edit:hover { background: var(--purple); color: var(--white); }
@@ -37,13 +38,15 @@
     .btn-save{padding:8px 16px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
     .btn-cancel{padding:8px 16px;background:#fff;color:var(--gray-text);border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
 
-    .perfil-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .perfil-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
-    .perfil-card h3 { font-size: 15px; font-weight: 700; color: var(--gray-text); margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
-    .info-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .perfil-wrap { width: min(100%, 880px); margin: 0 auto; }
+    .perfil-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; width: 100%; }
+    .perfil-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 24px; min-width: 0; }
+    .perfil-card h3 { font-size: 15px; font-weight: 700; color: var(--gray-text); margin-bottom: 18px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .info-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
     .info-row:last-child { border-bottom: none; }
-    .info-label { font-size: 13px; color: var(--gray-muted); }
-    .info-value { font-size: 13px; color: var(--gray-text); font-weight: 600; text-align: right; }
+    .info-label { font-size: 13px; color: var(--gray-muted); flex: 0 1 auto; }
+    .info-value { font-size: 13px; color: var(--gray-text); font-weight: 600; text-align: right; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+    .info-value .aviso-link { display: block; margin-top: 4px; }
 
     .status-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
     .status-active { background: var(--green-bg); color: var(--green); }
@@ -51,9 +54,10 @@
     .status-inactive { background: var(--red-bg); color: var(--red); }
 
     /* Contactos */
-    .contactos-section{margin-top:24px}
+    .contactos-section{margin-top:24px;width:100%;min-width:0}
     .contactos-section h3{font-size:15px;font-weight:700;color:var(--gray-text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
-    .contactos-table{width:100%;border-collapse:collapse;background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .contactos-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--border);border-radius:12px;background:var(--white)}
+    .contactos-table{width:100%;border-collapse:collapse;background:var(--white);border:none;border-radius:0;overflow:hidden;min-width:520px}
     .contactos-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.5px;padding:10px 16px;text-align:left;background:var(--gray-soft);border-bottom:1px solid var(--border)}
     .contactos-table td{padding:10px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border)}
     .contactos-table tr:last-child td{border-bottom:none}
@@ -75,11 +79,24 @@
     .aviso-link{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--purple);text-decoration:none;font-weight:500;margin-top:8px}
     .aviso-link:hover{text-decoration:underline}
 
-    @media (max-width: 768px) { .perfil-grid { grid-template-columns: 1fr; } .perfil-header { flex-wrap: wrap; } }
+    @media (max-width: 900px) {
+        .perfil-grid { grid-template-columns: 1fr; }
+        .perfil-header { flex-wrap: wrap; }
+    }
+    @media (max-width: 640px) {
+        .perfil-header, .perfil-card, .add-contact-form { padding: 16px; }
+        .info-row { flex-direction: column; align-items: flex-start; gap: 2px; }
+        .info-value { text-align: left; width: 100%; }
+        .form-row-contact .fg { min-width: 100%; }
+        .btn-add { width: 100%; }
+        .edit-actions { flex-wrap: wrap; }
+        .btn-save, .btn-cancel { flex: 1; }
+    }
 </style>
 @endpush
 
 @section('content')
+    <div class="perfil-wrap">
     <div class="perfil-header">
         <form id="fotoForm" method="POST" action="{{ route('proveedores.perfil.foto') }}" enctype="multipart/form-data" style="display:inline;">
             @csrf
@@ -95,7 +112,7 @@
             </div>
             <input type="file" id="fotoInput" name="foto" accept="image/*" style="display:none;" onchange="document.getElementById('fotoForm').submit()">
         </form>
-        <div>
+        <div class="perfil-header-text">
             <div class="perfil-name">{{ $proveedor->nombre ?? session('proveedor_nombre', '—') }}</div>
             <div class="perfil-meta">
                 @php
@@ -143,13 +160,10 @@
             <div class="perfil-view {{ $errors->any() ? 'hidden' : '' }}" id="perfilView">
                 <div class="info-row">
                     <span class="info-label">Nombre</span>
-                    <span class="info-value">{{ $proveedor->nombre ?? '—' }}</span>
-                </div>
-                <div class="info-row" style="justify-content:flex-end;">
-                    <a href="{{ route('proveedores.validacion-fiscal') }}"
-                       style="color:var(--purple,#6B3FA0);font-weight:600;font-size:13px;text-decoration:none;">
-                        cambio de docs
-                    </a>
+                    <span class="info-value">
+                        {{ $proveedor->nombre ?? '—' }}
+                        <a href="{{ route('proveedores.validacion-fiscal') }}" class="aviso-link">cambio de docs</a>
+                    </span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Usuario</span>
@@ -297,6 +311,7 @@
         @endif
 
         @if($contactos->count())
+        <div class="contactos-table-wrap">
         <table class="contactos-table">
             <thead>
                 <tr><th>Nombre</th><th>Rol</th><th>Teléfono</th><th>Correo</th><th></th></tr>
@@ -315,6 +330,7 @@
             @endforeach
             </tbody>
         </table>
+        </div>
         @else
         <p style="font-size:13px;color:var(--gray-muted);margin-bottom:12px">No hay contactos. Debes agregar al menos 2 para completar el onboarding.</p>
         @endif
@@ -356,9 +372,6 @@
         </div>
     </div>
 
-    {{-- Aviso de privacidad --}}
-    <div style="margin-top:24px;text-align:center;">
-
     {{-- Modal de confirmación para eliminar contacto --}}
     <div id="deleteModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:500;align-items:center;justify-content:center;">
         <div style="background:#fff;border-radius:16px;padding:32px;max-width:400px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.15);">
@@ -381,6 +394,7 @@
         @csrf @method('DELETE')
         <input type="hidden" name="password" id="deleteFormPassword">
     </form>
+    </div>
 
 @endsection
 

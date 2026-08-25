@@ -120,12 +120,11 @@
         .notif-footer{display:block;text-align:center;padding:10px;font-size:12px;font-weight:600;color:var(--purple);text-decoration:none;border-top:1px solid var(--border-light)}
         .notif-footer:hover{background:var(--purple-subtle)}
 
-        /* ── HERO ── */
+        /* ── HERO (inside main-content, beside the sidebar) ── */
         .hero-band {
             background: transparent;
-            padding: 28px 32px 10px;
+            padding: 0 0 18px;
             border-bottom: none;
-            flex-shrink: 0;
         }
         .hero-band h1 {
             font-size: 24px;
@@ -355,8 +354,14 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px 16px;
             flex-shrink: 0;
+            width: 100%;
+            max-width: 100%;
+            align-self: stretch;
             margin-top: auto;
+            box-sizing: border-box;
         }
         footer p { font-size: 11px; color: var(--gray-muted); }
         .footer-logo {
@@ -496,9 +501,6 @@
     </div>
 </nav>
 
-{{-- HERO --}}
-@yield('hero')
-
 {{-- WRAPPER --}}
 <div class="wrapper">
     <div class="sb-overlay" id="sbOverlay"></div>
@@ -615,6 +617,7 @@
 
     {{-- CONTENIDO --}}
     <div class="main-content @yield('main-class')">
+        @yield('hero')
         @if(isset($proveedorPortalActivo) && ! $proveedorPortalActivo && ! request()->routeIs('proveedores.onboarding'))
         <div style="background:#fff7ed;border:1px solid #fcd34d;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e;">
             Cuenta en onboarding. <a href="{{ route('proveedores.onboarding') }}" style="color:var(--purple);font-weight:600;">Ir a Onboarding</a>

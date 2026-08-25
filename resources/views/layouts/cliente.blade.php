@@ -137,10 +137,9 @@
         .nav-notif-wrap:hover .notif-drop,
         .nav-notif-wrap.open .notif-drop { display: block; }
         .hero-band {
-            background: var(--white);
-            padding: 24px 32px;
-            border-bottom: 1px solid var(--border-light);
-            flex-shrink: 0;
+            background: transparent;
+            padding: 0 0 18px;
+            border-bottom: none;
         }
         .hero-band h1 {
             font-size: 22px;
@@ -465,7 +464,6 @@
         </form>
     </div>
 </nav>
-@yield('hero')
 <div class="wrapper">
     <div class="sb-overlay" id="sbOverlay"></div>
         <div class="sidebar" id="appSidebar">
@@ -503,7 +501,10 @@
             <a href="{{ route('clientes.perfil') }}" class="sb-link {{ request()->routeIs('clientes.perfil') ? 'active' : '' }}"><div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div><span class="sb-text">Mi Perfil</span></a>
         </nav>
     </div>
-    <div class="main-content @yield('main-class')" id="contenido-principal" tabindex="-1">@yield('content')</div>
+    <div class="main-content @yield('main-class')" id="contenido-principal" tabindex="-1">
+        @yield('hero')
+        @yield('content')
+    </div>
 </div>
 <footer>
     <div class="footer-logo">Industrias Salcom</div>

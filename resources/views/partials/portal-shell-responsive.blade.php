@@ -78,11 +78,11 @@
         flex-direction: column;
     }
     body.sb-open { overflow: hidden; }
-    .main-content { padding: 20px 16px 48px; }
+    .main-content { padding: 20px 16px 48px; width: 100%; max-width: 100%; }
     nav.top-nav {
         padding: 0 max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
     }
-    .hero-band { padding: 18px 16px 8px; }
+    .hero-band { padding: 0 0 14px; }
     .hero-band h1 { font-size: 20px; }
     footer {
         flex-wrap: wrap;
