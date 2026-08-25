@@ -97,12 +97,11 @@
         .notif-footer{display:block;text-align:center;padding:10px;font-size:12px;font-weight:600;color:var(--purple);text-decoration:none;border-top:1px solid var(--border-light)}
         .notif-footer:hover{background:var(--purple-subtle)}
 
-        /* ── HERO ── */
+        /* ── HERO (inside main-content, beside the sidebar) ── */
         .hero-band {
             background: transparent;
-            padding: 28px 32px 10px;
+            padding: 0 0 18px;
             border-bottom: none;
-            flex-shrink: 0;
         }
         .hero-band h1 { font-size: 24px; color: var(--gray-text); font-weight: 700; letter-spacing: -0.4px; margin: 0; }
         .hero-band p { color: var(--gray-muted); font-size: 13px; margin-top: 4px; font-weight: 400; }
@@ -411,8 +410,6 @@
     </div>
 </nav>
 
-@yield('hero')
-
 <div class="wrapper">
     <div class="sb-overlay" id="sbOverlay"></div>
     <aside class="sidebar" id="sidebar">
@@ -588,6 +585,7 @@
     </aside>
 
     <div class="main-content">
+        @yield('hero')
         @unless(request()->is('admin/dashboard'))
         <nav class="admin-back-nav" aria-label="Navegación secundaria">
             <a href="{{ route('admin.dashboard') }}" class="admin-back-link">
