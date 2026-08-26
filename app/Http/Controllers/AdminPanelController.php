@@ -3171,12 +3171,21 @@ class AdminPanelController extends Controller
             ->with('mensaje', 'Reembolso autorizado por Sandra Gutiérrez.');
     }
 
-    public function bitacoraGasolina()
+    public function bitacoraGasolina(Request $request)
     {
-        $registros = Alerta::where('tipo', 'bitacora_gasolina')
-            ->orderByDesc('created_at')
-            ->limit(100)
-            ->get();
+        $query = Alerta::where('tipo', 'bitacora_gasolina')
+            ->orderByDesc('created_at');
+
+        // Filtrar por número de empleado si se proporciona
+        if ($request->filled('filtro_empleado')) {
+            $filtro = $request->input('filtro_empleado');
+            $query->where(function ($q) use ($filtro) {
+                $q->where('datos->numero_empleado', 'like', "%{$filtro}%")
+                  ->orWhere('datos->empleado', 'like', "%{$filtro}%");
+            });
+        }
+
+        $registros = $query->limit(100)->get();
 
         return view('admin.bitacora-gasolina', compact('registros'));
     }
@@ -3185,6 +3194,7 @@ class AdminPanelController extends Controller
     {
         $request->validate([
             'fecha' => 'required|date',
+            'numero_empleado' => 'required|string|max:50',
             'empleado' => 'required|string|max:150',
             'cantidad_litros' => 'nullable|numeric|min:0',
             'monto' => 'required|string|max:20',
@@ -3203,6 +3213,7 @@ class AdminPanelController extends Controller
                 'contenido' => ($request->input('vehiculo') ?? '') . ' | ' . $request->input('fecha'),
                 'datos' => [
                     'fecha' => $request->input('fecha'),
+                    'numero_empleado' => $request->input('numero_empleado'),
                     'empleado' => $request->input('empleado'),
                     'cantidad_litros' => $request->input('cantidad_litros'),
                     'monto' => $request->input('monto'),
@@ -3220,16 +3231,25 @@ class AdminPanelController extends Controller
             ->with('mensaje', 'Registro de gasolina guardado.');
     }
 
-    public function bitacoraGasolinaExcel()
+    public function bitacoraGasolinaExcel(Request $request)
     {
-        $registros = Alerta::where('tipo', 'bitacora_gasolina')
-            ->orderByDesc('created_at')
-            ->get();
+        $query = Alerta::where('tipo', 'bitacora_gasolina')
+            ->orderByDesc('created_at');
+
+        if ($request->filled('filtro_empleado')) {
+            $filtro = $request->input('filtro_empleado');
+            $query->where(function ($q) use ($filtro) {
+                $q->where('datos->numero_empleado', 'like', "%{$filtro}%")
+                  ->orWhere('datos->empleado', 'like', "%{$filtro}%");
+            });
+        }
+
+        $registros = $query->get();
 
         $output = "\xEF\xBB\xBF";
         $output .= "BITACORA DE GASOLINA\r\n";
         $output .= "Generado: " . now()->format('d/m/Y H:i') . "\r\n\r\n";
-        $output .= "Fecha,Empleado,Litros,Monto,Vehiculo,Kilometraje,Notas\r\n";
+        $output .= "Fecha,Numero Empleado,Empleado,Litros,Monto,Vehiculo,Kilometraje,Notas\r\n";
 
         $totalMonto = 0;
         foreach ($registros as $r) {
@@ -3238,6 +3258,7 @@ class AdminPanelController extends Controller
             $totalMonto += $monto;
             $output .= implode(',', [
                 $d['fecha'] ?? $r->created_at->format('Y-m-d'),
+                '"' . str_replace('"', '""', $d['numero_empleado'] ?? '') . '"',
                 '"' . str_replace('"', '""', $d['empleado'] ?? '') . '"',
                 $d['cantidad_litros'] ?? '',
                 number_format($monto, 2, '.', ''),
@@ -3246,8 +3267,8 @@ class AdminPanelController extends Controller
                 '"' . str_replace('"', '""', $d['notas'] ?? '') . '"',
             ]) . "\r\n";
         }
-        $output .= ",,,,,,\r\n";
-        $output .= ",TOTAL,," . number_format($totalMonto, 2, '.', '') . ",,,\r\n";
+        $output .= ",,,,,,,\r\n";
+        $output .= ",,TOTAL,," . number_format($totalMonto, 2, '.', '') . ",,,\r\n";
 
         $filename = 'Bitacora_Gasolina_' . now()->format('Y-m-d') . '.csv';
 

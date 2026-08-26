@@ -55,19 +55,23 @@
                     <input type="date" id="fecha" name="fecha" required value="{{ old('fecha', date('Y-m-d')) }}">
                 </div>
                 <div class="bg-group">
-                    <label for="empleado">Empleado <span style="color:#DC2626">*</span></label>
-                    <input type="text" id="empleado" name="empleado" required placeholder="Nombre del empleado" value="{{ old('empleado') }}">
+                    <label for="numero_empleado">Número de Empleado <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="numero_empleado" name="numero_empleado" required placeholder="Ej: EMP-001" value="{{ old('numero_empleado') }}">
                 </div>
                 <div class="bg-group">
-                    <label for="cantidad_litros">Litros</label>
-                    <input type="number" id="cantidad_litros" name="cantidad_litros" step="0.01" min="0" placeholder="Ej: 40.5" value="{{ old('cantidad_litros') }}">
+                    <label for="empleado">Empleado <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="empleado" name="empleado" required placeholder="Nombre del empleado" value="{{ old('empleado') }}">
                 </div>
                 <div class="bg-group">
                     <label for="monto">Monto ($) <span style="color:#DC2626">*</span></label>
                     <input type="text" id="monto" name="monto" required placeholder="$0.00" inputmode="decimal" value="{{ old('monto') }}">
                 </div>
             </div>
-            <div class="bg-form-row cols-3">
+            <div class="bg-form-row cols-4">
+                <div class="bg-group">
+                    <label for="cantidad_litros">Litros</label>
+                    <input type="number" id="cantidad_litros" name="cantidad_litros" step="0.01" min="0" placeholder="Ej: 40.5" value="{{ old('cantidad_litros') }}">
+                </div>
                 <div class="bg-group">
                     <label for="vehiculo">Vehículo / Placa</label>
                     <input type="text" id="vehiculo" name="vehiculo" placeholder="Ej: Nissan NP300 - JHL-1234" value="{{ old('vehiculo') }}">
@@ -94,10 +98,23 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Bitácora
             </h3>
-            @if(isset($registros) && $registros->count())
-            <a href="{{ route('admin.bitacora-gasolina.excel') }}" style="padding:7px 14px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;font-size:12px;font-weight:600;color:#166534;text-decoration:none;">📊 Exportar Excel</a>
-            @endif
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+                <form method="GET" action="{{ route('admin.bitacora-gasolina') }}" style="display:flex;gap:8px;align-items:center;">
+                    <input type="text" name="filtro_empleado" value="{{ request('filtro_empleado') }}" placeholder="Buscar por Nº Empleado" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;width:180px;">
+                    <button type="submit" style="padding:7px 14px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Filtrar</button>
+                    @if(request('filtro_empleado'))
+                    <a href="{{ route('admin.bitacora-gasolina') }}" style="font-size:11px;color:var(--gray-muted);text-decoration:none;">✕ Limpiar</a>
+                    @endif
+                </form>
+                @if(isset($registros) && $registros->count())
+                <a href="{{ route('admin.bitacora-gasolina.excel', ['filtro_empleado' => request('filtro_empleado')]) }}" style="padding:7px 14px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;font-size:12px;font-weight:600;color:#166534;text-decoration:none;">📊 Exportar Excel</a>
+                @endif
+            </div>
         </div>
+
+        @if(request('filtro_empleado'))
+        <p style="font-size:12px;color:var(--purple);margin-bottom:12px;font-weight:600;">Mostrando registros del empleado: {{ request('filtro_empleado') }}</p>
+        @endif
 
         @if(isset($registros) && $registros->count())
         <div style="overflow-x:auto;">
@@ -105,6 +122,7 @@
                 <thead>
                     <tr>
                         <th>Fecha</th>
+                        <th>Nº Empleado</th>
                         <th>Empleado</th>
                         <th>Litros</th>
                         <th>Monto</th>
@@ -118,6 +136,7 @@
                     @php $d = $r->datos ?? []; @endphp
                     <tr>
                         <td>{{ $d['fecha'] ?? $r->created_at->format('d/m/Y') }}</td>
+                        <td style="font-weight:600;">{{ $d['numero_empleado'] ?? '—' }}</td>
                         <td style="font-weight:600;">{{ $d['empleado'] ?? '—' }}</td>
                         <td>{{ $d['cantidad_litros'] ?? '—' }}</td>
                         <td style="font-weight:600;">${{ $d['monto'] ?? '—' }}</td>
