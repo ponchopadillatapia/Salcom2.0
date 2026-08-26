@@ -3168,7 +3168,7 @@ class AdminPanelController extends Controller
         $alerta->update(['datos' => $datos]);
 
         return redirect()->route('admin.reembolsos')
-            ->with('mensaje', 'Reembolso autorizado por Sandra.');
+            ->with('mensaje', 'Reembolso autorizado por Sandra Gutiérrez.');
     }
 
     public function bitacoraGasolina()
