@@ -47,7 +47,7 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="18.7 8 12 14.7 9 11.7 3 17.7"/></svg>
             Registrar carga de gasolina
         </h3>
-        <form method="POST" action="{{ route('admin.bitacora-gasolina.guardar') }}">
+        <form method="POST" action="{{ route('admin.bitacora-gasolina.guardar') }}" enctype="multipart/form-data">
             @csrf
             <div class="bg-form-row cols-4">
                 <div class="bg-group">
@@ -73,6 +73,10 @@
                     <input type="number" id="cantidad_litros" name="cantidad_litros" step="0.01" min="0" placeholder="Ej: 40.5" value="{{ old('cantidad_litros') }}">
                 </div>
                 <div class="bg-group">
+                    <label for="rendimiento">Rendimiento (km/l)</label>
+                    <input type="number" id="rendimiento" name="rendimiento" step="0.01" min="0" placeholder="Ej: 12.5" value="{{ old('rendimiento') }}">
+                </div>
+                <div class="bg-group">
                     <label for="vehiculo">Vehículo / Placa</label>
                     <input type="text" id="vehiculo" name="vehiculo" placeholder="Ej: Nissan NP300 - JHL-1234" value="{{ old('vehiculo') }}">
                 </div>
@@ -80,13 +84,19 @@
                     <label for="kilometraje">Kilometraje</label>
                     <input type="number" id="kilometraje" name="kilometraje" min="0" placeholder="Km del odómetro" value="{{ old('kilometraje') }}">
                 </div>
+            </div>
+            <div class="bg-form-row cols-3">
                 <div class="bg-group">
                     <label for="notas">Notas</label>
                     <input type="text" id="notas" name="notas" placeholder="Ruta, gasolinera, etc." value="{{ old('notas') }}" maxlength="255">
                 </div>
-            </div>
-            <div style="display:flex;justify-content:flex-end;">
-                <button type="submit" class="btn-registrar">Registrar</button>
+                <div class="bg-group">
+                    <label for="factura_gasolina">Factura (PDF o imagen)</label>
+                    <input type="file" id="factura_gasolina" name="factura_gasolina" accept=".pdf,.jpg,.jpeg,.png" style="padding:7px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;">
+                </div>
+                <div class="bg-group" style="justify-content:flex-end;">
+                    <button type="submit" class="btn-registrar">Registrar</button>
+                </div>
             </div>
         </form>
     </div>
@@ -125,9 +135,11 @@
                         <th>Nº Empleado</th>
                         <th>Empleado</th>
                         <th>Litros</th>
+                        <th>Rendimiento</th>
                         <th>Monto</th>
                         <th>Vehículo</th>
                         <th>Km</th>
+                        <th>Factura</th>
                         <th>Notas</th>
                     </tr>
                 </thead>
@@ -139,9 +151,11 @@
                         <td style="font-weight:600;">{{ $d['numero_empleado'] ?? '—' }}</td>
                         <td style="font-weight:600;">{{ $d['empleado'] ?? '—' }}</td>
                         <td>{{ $d['cantidad_litros'] ?? '—' }}</td>
+                        <td>{{ $d['rendimiento'] ? $d['rendimiento'] . ' km/l' : '—' }}</td>
                         <td style="font-weight:600;">${{ $d['monto'] ?? '—' }}</td>
                         <td>{{ $d['vehiculo'] ?? '—' }}</td>
                         <td>{{ $d['kilometraje'] ?? '—' }}</td>
+                        <td>@if(!empty($d['factura']))<a href="{{ asset('storage/' . $d['factura']) }}" target="_blank" style="color:var(--purple);font-size:11px;">📄 Ver</a>@else — @endif</td>
                         <td style="font-size:11px;color:var(--gray-muted);">{{ $d['notas'] ?? '' }}</td>
                     </tr>
                     @endforeach

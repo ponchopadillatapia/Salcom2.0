@@ -135,15 +135,27 @@
             </div>
         </div>
 
-        {{-- Comprobantes --}}
+        {{-- Comprobantes y Facturas --}}
         <div class="rv-card">
-            <h3>📎 Comprobantes</h3>
-            <div class="rv-row cols-2">
+            <h3>📎 Facturas y Comprobantes</h3>
+            <div class="rv-row cols-3">
                 <div class="rv-group">
-                    <label for="archivo_comprobantes">Tickets / Comprobantes (PDF, imagen o ZIP)</label>
-                    <input type="file" id="archivo_comprobantes" name="archivo_comprobantes" accept=".pdf,.jpg,.jpeg,.png,.zip" style="padding:8px;">
-                    <span class="hint">Máximo 20 MB. Puedes subir un ZIP con varios archivos.</span>
+                    <label for="factura_pdf">Factura PDF</label>
+                    <input type="file" id="factura_pdf" name="factura_pdf" accept=".pdf" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;">
+                    <span class="hint">PDF de la factura firmada</span>
                 </div>
+                <div class="rv-group">
+                    <label for="factura_xml">Factura XML</label>
+                    <input type="file" id="factura_xml" name="factura_xml" accept=".xml" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;">
+                    <span class="hint">Archivo XML del CFDI</span>
+                </div>
+                <div class="rv-group">
+                    <label for="archivo_comprobantes">Tickets / Comprobantes</label>
+                    <input type="file" id="archivo_comprobantes" name="archivo_comprobantes" accept=".pdf,.jpg,.jpeg,.png,.zip" style="padding:8px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;">
+                    <span class="hint">PDF, imagen o ZIP (máx 20 MB)</span>
+                </div>
+            </div>
+            <div class="rv-row cols-2" style="margin-top:12px;">
                 <div class="rv-group">
                     <label for="notas">Notas / Observaciones</label>
                     <textarea id="notas" name="notas" rows="3" placeholder="Detalles del viaje, aprobaciones previas...">{{ old('notas') }}</textarea>

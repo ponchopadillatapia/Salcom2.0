@@ -129,8 +129,20 @@
         </div>
 
         @if($reembolso->archivo_comprobantes)
-        <div style="margin-top:16px;">
-            <a href="{{ asset('storage/' . $reembolso->archivo_comprobantes) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;">📎 Ver comprobantes adjuntos</a>
+        @php
+            $archivos = json_decode($reembolso->archivo_comprobantes, true);
+            if (!is_array($archivos)) $archivos = ['comprobantes' => $reembolso->archivo_comprobantes];
+        @endphp
+        <div style="margin-top:16px;display:flex;gap:14px;flex-wrap:wrap;">
+            @if(!empty($archivos['factura_pdf']))
+            <a href="{{ asset('storage/' . $archivos['factura_pdf']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">📄 Factura PDF</a>
+            @endif
+            @if(!empty($archivos['factura_xml']))
+            <a href="{{ asset('storage/' . $archivos['factura_xml']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">📋 Factura XML</a>
+            @endif
+            @if(!empty($archivos['comprobantes']))
+            <a href="{{ asset('storage/' . $archivos['comprobantes']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">📎 Comprobantes</a>
+            @endif
         </div>
         @endif
     </div>

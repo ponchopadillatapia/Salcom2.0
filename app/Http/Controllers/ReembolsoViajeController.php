@@ -74,6 +74,8 @@ class ReembolsoViajeController extends Controller
             'gastos.*.concepto' => 'required|string|max:100',
             'gastos.*.monto_local' => 'required|numeric|min:0',
             'archivo_comprobantes' => 'nullable|file|mimes:pdf,jpg,jpeg,png,zip|max:20480',
+            'factura_pdf' => 'nullable|file|mimes:pdf|max:10240',
+            'factura_xml' => 'nullable|file|max:5120',
             'notas' => 'nullable|string|max:1000',
         ], [
             'gastos.required' => 'Agrega al menos un concepto de gasto.',
@@ -104,6 +106,16 @@ class ReembolsoViajeController extends Controller
             $pathArchivo = $request->file('archivo_comprobantes')->store('reembolsos-viaje', 'public');
         }
 
+        $pathFacturaPdf = null;
+        if ($request->hasFile('factura_pdf')) {
+            $pathFacturaPdf = $request->file('factura_pdf')->store('reembolsos-viaje/facturas', 'public');
+        }
+
+        $pathFacturaXml = null;
+        if ($request->hasFile('factura_xml')) {
+            $pathFacturaXml = $request->file('factura_xml')->store('reembolsos-viaje/xml', 'public');
+        }
+
         $reembolso = ReembolsoViaje::create([
             'codigo_empleado' => $request->input('codigo_empleado'),
             'nombre_empleado' => $request->input('nombre_empleado'),
@@ -116,7 +128,11 @@ class ReembolsoViajeController extends Controller
             'total_moneda_local' => $totalLocal,
             'total_moneda_base' => $totalBase,
             'estatus' => 'borrador',
-            'archivo_comprobantes' => $pathArchivo,
+            'archivo_comprobantes' => json_encode(array_filter([
+                'comprobantes' => $pathArchivo,
+                'factura_pdf' => $pathFacturaPdf,
+                'factura_xml' => $pathFacturaXml,
+            ])),
             'notas' => $request->input('notas'),
         ]);
 

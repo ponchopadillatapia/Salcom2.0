@@ -3062,13 +3062,16 @@ class AdminPanelController extends Controller
             ->limit(50)
             ->get();
 
-        return view('admin.reembolsos', compact('reembolsos'));
+        // Verificar si hay registros en bitácora de gasolina (para habilitar reembolso de gasolina)
+        $tieneBitacoraGasolina = Alerta::where('tipo', 'bitacora_gasolina')->exists();
+
+        return view('admin.reembolsos', compact('reembolsos', 'tieneBitacoraGasolina'));
     }
 
     public function enviarReembolso(Request $request)
     {
         $request->validate([
-            'categoria' => 'required|string|in:gasto_general,computo,viaticos_nacional,viaticos_internacional',
+            'categoria' => 'required|string|in:gasto_general,gasolina,computo,viaticos_nacional,viaticos_internacional',
             'razon_social' => 'required|string|in:Industrias Salcom S.A. de C.V.,Franfoods S.A. de C.V.',
             'metodo_pago_empresa' => 'required|string|in:bbva,inntec',
             'monto' => 'required|string|max:20',
@@ -3091,6 +3094,14 @@ class AdminPanelController extends Controller
             'archivo_materialidad.max' => 'Máximo 10 MB.',
             'solicitante.required' => 'Indica quién solicita el reembolso.',
         ]);
+
+        // Validar que gasolina tenga bitácora previa
+        if ($request->input('categoria') === 'gasolina') {
+            $tieneBitacora = Alerta::where('tipo', 'bitacora_gasolina')->exists();
+            if (! $tieneBitacora) {
+                return back()->withErrors(['categoria' => 'Para reembolso de gasolina debes llenar primero la Bitácora de Gasolina.'])->withInput();
+            }
+        }
 
         // Validar materialidad obligatoria si no es Inntec
         if ($request->input('metodo_pago_empresa') !== 'inntec' && ! $request->hasFile('archivo_materialidad')) {
@@ -3209,11 +3220,17 @@ class AdminPanelController extends Controller
             'numero_empleado' => 'required|string|max:50',
             'empleado' => 'required|string|max:150',
             'cantidad_litros' => 'nullable|numeric|min:0',
+            'rendimiento' => 'nullable|numeric|min:0',
             'monto' => 'required|string|max:20',
             'vehiculo' => 'nullable|string|max:100',
             'kilometraje' => 'nullable|numeric|min:0',
             'notas' => 'nullable|string|max:255',
+            'factura_gasolina' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
+
+        $pathFactura = $request->hasFile('factura_gasolina')
+            ? $request->file('factura_gasolina')->store('bitacora-gasolina', 'public')
+            : null;
 
         try {
             Alerta::create([
@@ -3228,10 +3245,12 @@ class AdminPanelController extends Controller
                     'numero_empleado' => $request->input('numero_empleado'),
                     'empleado' => $request->input('empleado'),
                     'cantidad_litros' => $request->input('cantidad_litros'),
+                    'rendimiento' => $request->input('rendimiento'),
                     'monto' => $request->input('monto'),
                     'vehiculo' => $request->input('vehiculo'),
                     'kilometraje' => $request->input('kilometraje'),
                     'notas' => $request->input('notas'),
+                    'factura' => $pathFactura,
                 ],
                 'estatus' => 'pendiente',
                 'nivel' => 'info',

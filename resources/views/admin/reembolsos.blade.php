@@ -173,10 +173,14 @@
                     <select id="categoria" name="categoria" required>
                         <option value="" disabled selected>Selecciona</option>
                         <option value="gasto_general">Gasto general</option>
+                        <option value="gasolina" {{ empty($tieneBitacoraGasolina) ? 'disabled' : '' }}>Gasolina {{ empty($tieneBitacoraGasolina) ? '(llena la bitácora primero)' : '' }}</option>
                         <option value="computo">Equipo de cómputo</option>
                         <option value="viaticos_nacional">Viáticos nacionales</option>
                         <option value="viaticos_internacional">Viáticos internacionales</option>
                     </select>
+                    @if(empty($tieneBitacoraGasolina))
+                    <span class="hint" style="color:#dc2626;">Para reembolso de gasolina, primero registra en la <a href="{{ route('admin.bitacora-gasolina') }}" style="color:var(--purple);font-weight:600;">Bitácora de Gasolina</a>.</span>
+                    @endif
                 </div>
                 <div class="rb-form-group">
                     <label for="razon_social">Razón social <span style="color:#DC2626">*</span></label>
