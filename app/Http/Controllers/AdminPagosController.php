@@ -172,13 +172,14 @@ class AdminPagosController extends Controller
 
     public function show(PagoProveedor $pago)
     {
-        $pago->load(['lineas.factura', 'proveedor']);
+        $pago->load(['lineas.factura', 'proveedor.documentos']);
         $expediente = $pago->proveedor
             ? $this->pagos->evaluarExpediente($pago->proveedor)
             : ['ok' => false, 'motivos' => ['Sin proveedor']];
 
         $datosAuto = null;
         $errorDatosAuto = null;
+        $docsFiscales = $this->pagos->documentosFiscalesParaPago($pago);
         if ($pago->esBorrador()) {
             try {
                 $datosAuto = $this->pagos->datosConfirmacionDesdeFacturas($pago);
@@ -199,7 +200,8 @@ class AdminPagosController extends Controller
             'expediente',
             'datosAuto',
             'errorDatosAuto',
-            'tieneMasFacturasPendientes'
+            'tieneMasFacturasPendientes',
+            'docsFiscales'
         ));
     }
 

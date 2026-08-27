@@ -2988,9 +2988,21 @@ class AdminPanelController extends Controller
 
     public function descargarDocumentoFiscal(DocumentoProveedor $documento)
     {
-        $path = storage_path('app/public/'.$documento->archivo);
+        $archivo = ltrim((string) $documento->archivo, '/');
+        $candidates = [
+            storage_path('app/public/'.$archivo),
+            storage_path('app/'.$archivo),
+        ];
 
-        if (! file_exists($path)) {
+        $path = null;
+        foreach ($candidates as $candidate) {
+            if ($archivo !== '' && is_file($candidate)) {
+                $path = $candidate;
+                break;
+            }
+        }
+
+        if (! $path) {
             return back()->with('error', 'El archivo no se encontró en el servidor.');
         }
 

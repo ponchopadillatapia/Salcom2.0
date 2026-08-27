@@ -4,15 +4,18 @@ namespace App\Services;
 
 use App\Mail\PagoConfirmadoProveedor;
 use App\Models\Alerta;
+use App\Models\DocumentoProveedor;
 use App\Models\Factura;
 use App\Models\PagoProveedor;
 use App\Models\PagoProveedorFactura;
 use App\Models\ProveedorUser;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -65,6 +68,100 @@ class PagoProveedorService
         return [
             'ok' => $motivos === [],
             'motivos' => $motivos,
+        ];
+    }
+
+    /**
+     * Documentos fiscales que se muestran (y adjuntan) en el borrador de Formato para pago.
+     * Opinión y constancia salen del expediente validado; el formato de pago del lote
+     * se genera aquí (o se toma del expediente si ya existe ese tipo).
+     *
+     * @return list<array{
+     *   clave: string,
+     *   label: string,
+     *   ok: bool,
+     *   origen: string|null,
+     *   documento_id: int|null,
+     *   archivo: string|null,
+     *   nombre: string|null,
+     *   url: string|null,
+     *   estatus: string|null
+     * }>
+     */
+    public function documentosFiscalesParaPago(PagoProveedor $pago): array
+    {
+        $proveedor = $pago->proveedor;
+        $opinion = $proveedor ? $this->ultimoDocumentoAprobado($proveedor, ['opinion', 'opinion_cumplimiento']) : null;
+        $constancia = $proveedor ? $this->ultimoDocumentoAprobado($proveedor, ['cif', 'constancia_fiscal']) : null;
+        $formatoExpediente = $proveedor ? $this->ultimoDocumentoAprobado($proveedor, ['formato_pago']) : null;
+
+        return [
+            $this->slotDocumentoFiscal(
+                clave: 'opinion',
+                label: 'Opinión positiva',
+                doc: $opinion,
+            ),
+            $formatoExpediente
+                ? $this->slotDocumentoFiscal(
+                    clave: 'formato_pago',
+                    label: 'Formato de pago',
+                    doc: $formatoExpediente,
+                )
+                : [
+                    'clave' => 'formato_pago',
+                    'label' => 'Formato de pago',
+                    'ok' => true,
+                    'origen' => 'lote',
+                    'documento_id' => null,
+                    'archivo' => null,
+                    'nombre' => 'Formato_pago_lote_'.$pago->id.'.pdf',
+                    'url' => route('admin.pagos.reporte-resumen', ['pago' => $pago, 'ver' => 1]),
+                    'estatus' => 'generado',
+                ],
+            $this->slotDocumentoFiscal(
+                clave: 'constancia',
+                label: 'Constancia de Situación Fiscal',
+                doc: $constancia,
+            ),
+        ];
+    }
+
+    /**
+     * Copia al lote los PDFs del expediente y genera el formato de pago si hace falta.
+     *
+     * @param  list<array<string, mixed>>  $slots
+     * @return array{paths: list<string>, slots: list<array<string, mixed>>}
+     */
+    public function materializarDocumentosFiscales(PagoProveedor $pago, array $slots): array
+    {
+        $paths = [];
+        $salida = [];
+
+        foreach ($slots as $slot) {
+            $path = null;
+            $origen = $slot['origen'] ?? null;
+
+            if ($origen === 'expediente' && ! empty($slot['documento_id'])) {
+                $doc = DocumentoProveedor::find($slot['documento_id']);
+                if ($doc) {
+                    $path = $this->copiarDocumentoAPago($pago, $doc, (string) $slot['clave']);
+                }
+            } elseif (($slot['clave'] ?? '') === 'formato_pago') {
+                $path = $this->generarFormatoPagoPdf($pago);
+            }
+
+            if (is_string($path) && $path !== '') {
+                $paths[] = $path;
+                $slot['path'] = $path;
+                $slot['ok'] = true;
+            }
+
+            $salida[] = $slot;
+        }
+
+        return [
+            'paths' => array_values(array_unique($paths)),
+            'slots' => $salida,
         ];
     }
 
@@ -300,6 +397,10 @@ class PagoProveedorService
             }
         }
 
+        $docsFiscales = $this->materializarDocumentosFiscales($pago, $this->documentosFiscalesParaPago($pago));
+        $comprobantes = array_values(array_unique(array_merge($docsFiscales['paths'], $comprobantes)));
+        $datosConfirmacion['documentos_fiscales'] = $docsFiscales['slots'];
+
         $pagoConfirmado = DB::transaction(function () use ($pago, $adminId, $comprobantes, $fechaPago, $datosConfirmacion) {
             if ($fechaPago) {
                 $pago->fecha_pago = Carbon::parse($fechaPago);
@@ -439,6 +540,7 @@ class PagoProveedorService
             return;
         }
 
+        $estatusFactura = 'programada';
         $titulo = 'Pago programado';
         $montoFmt = number_format((float) $pago->monto_total, 2);
         $contenido = "Salcom programó el pago de {$pago->num_facturas} factura(s) por \${$montoFmt}. Próximamente se realizará el depósito.";
@@ -638,5 +740,145 @@ class PagoProveedorService
             'totalBanco' => $importe,
             'totalPagar' => $importe,
         ];
+    }
+
+    /**
+     * @param  list<string>  $tipos
+     */
+    private function ultimoDocumentoAprobado(ProveedorUser $proveedor, array $tipos): ?DocumentoProveedor
+    {
+        $proveedor->loadMissing('documentos');
+
+        /** @var DocumentoProveedor|null $doc */
+        $doc = $proveedor->documentos
+            ->whereIn('tipo', $tipos)
+            ->where('estatus', 'aprobado')
+            ->sortByDesc(fn (DocumentoProveedor $d) => $d->revisado_at ?? $d->updated_at ?? $d->created_at)
+            ->first();
+
+        return $doc instanceof DocumentoProveedor ? $doc : null;
+    }
+
+    /**
+     * @return array{
+     *   clave: string,
+     *   label: string,
+     *   ok: bool,
+     *   origen: string|null,
+     *   documento_id: int|null,
+     *   archivo: string|null,
+     *   nombre: string|null,
+     *   url: string|null,
+     *   estatus: string|null
+     * }
+     */
+    private function slotDocumentoFiscal(string $clave, string $label, ?DocumentoProveedor $doc): array
+    {
+        if (! $doc) {
+            return [
+                'clave' => $clave,
+                'label' => $label,
+                'ok' => false,
+                'origen' => null,
+                'documento_id' => null,
+                'archivo' => null,
+                'nombre' => null,
+                'url' => null,
+                'estatus' => null,
+            ];
+        }
+
+        return [
+            'clave' => $clave,
+            'label' => $label,
+            'ok' => true,
+            'origen' => 'expediente',
+            'documento_id' => $doc->id,
+            'archivo' => $doc->archivo,
+            'nombre' => basename((string) $doc->archivo) ?: $label.'.pdf',
+            'url' => $this->urlArchivoDocumento($doc),
+            'estatus' => $doc->estatus,
+        ];
+    }
+
+    private function urlArchivoDocumento(DocumentoProveedor $doc): ?string
+    {
+        $archivo = ltrim((string) $doc->archivo, '/');
+        if ($archivo === '') {
+            return null;
+        }
+
+        if (Storage::disk('public')->exists($archivo)) {
+            return asset('storage/'.$archivo);
+        }
+
+        return route('admin.expediente-fiscal.descargar', $doc);
+    }
+
+    private function copiarDocumentoAPago(PagoProveedor $pago, DocumentoProveedor $doc, string $clave): ?string
+    {
+        $contenido = $this->contenidoArchivoDocumento($doc);
+        if ($contenido === null) {
+            return null;
+        }
+
+        $ext = strtolower((string) pathinfo((string) $doc->archivo, PATHINFO_EXTENSION));
+        if ($ext === '') {
+            $ext = 'pdf';
+        }
+
+        $dest = 'pagos_comprobantes/'.$pago->id.'/'.$clave.'.'.$ext;
+        Storage::disk('public')->put($dest, $contenido);
+
+        return $dest;
+    }
+
+    private function contenidoArchivoDocumento(DocumentoProveedor $doc): ?string
+    {
+        $archivo = ltrim((string) $doc->archivo, '/');
+        if ($archivo === '') {
+            return null;
+        }
+
+        foreach (['public', 'local'] as $disk) {
+            try {
+                if (Storage::disk($disk)->exists($archivo)) {
+                    return Storage::disk($disk)->get($archivo);
+                }
+            } catch (\Throwable $e) {
+                Log::warning('[PagoProveedor] No se pudo leer documento fiscal', [
+                    'disk' => $disk,
+                    'archivo' => $archivo,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        foreach ([storage_path('app/public/'.$archivo), storage_path('app/'.$archivo)] as $path) {
+            if (is_file($path)) {
+                $contenido = file_get_contents($path);
+
+                return $contenido === false ? null : $contenido;
+            }
+        }
+
+        return null;
+    }
+
+    private function generarFormatoPagoPdf(PagoProveedor $pago): ?string
+    {
+        try {
+            $data = $this->datosReporteResumen($pago);
+            $pdf = Pdf::loadView('admin.pagos.reporte-resumen-pdf', $data)
+                ->setPaper('letter', 'landscape');
+            $dest = 'pagos_comprobantes/'.$pago->id.'/formato_pago.pdf';
+            Storage::disk('public')->put($dest, $pdf->output());
+
+            return $dest;
+        } catch (\Throwable $e) {
+            Log::warning('[PagoProveedor] No se pudo generar formato de pago PDF: '.$e->getMessage());
+
+            return null;
+        }
     }
 }

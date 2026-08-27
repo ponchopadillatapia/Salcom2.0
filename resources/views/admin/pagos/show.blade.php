@@ -51,6 +51,13 @@
     .doc-list{display:flex;flex-wrap:wrap;gap:10px;padding:16px 18px}
     .doc-link{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--white);border:1px solid var(--border);border-radius:8px;font-size:12px;font-weight:600;color:var(--purple);text-decoration:none}
     .doc-link:hover{border-color:var(--purple);background:var(--purple-subtle)}
+    .docs-fiscales{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:4px}
+    .doc-autofill{border:1.5px solid var(--border);border-radius:8px;padding:10px 12px;background:var(--gray-soft);min-height:42px;display:flex;flex-direction:column;gap:6px}
+    .doc-autofill.ok{border-color:var(--green);background:var(--green-bg)}
+    .doc-autofill.missing{border-color:var(--amber);background:var(--amber-bg)}
+    .doc-autofill-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+    .doc-autofill-name{font-size:13px;font-weight:600;color:var(--gray-text);word-break:break-all}
+    .doc-autofill-meta{font-size:11px;color:var(--gray-muted)}
 </style>
 @endpush
 @section('content')
@@ -103,15 +110,46 @@
         <form method="POST" action="{{ route('admin.pagos.confirmar', $pago) }}" enctype="multipart/form-data" onsubmit="return confirm('¿Confirmar? Las facturas pasarán a programada.');">
             @csrf
             <input type="hidden" name="fecha_pago" value="{{ now()->format('Y-m-d') }}">
+            @php $docsFiscales = $docsFiscales ?? []; @endphp
             <div class="form-grid">
                 <div class="form-field">
                     <label>Fecha</label>
                     <input type="date" value="{{ now()->format('Y-m-d') }}" readonly style="background:var(--gray-soft)">
                 </div>
-                <div class="form-field">
-                    <label>Comprobantes (opcional)</label>
-                    <input type="file" name="comprobantes[]" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple>
+            </div>
+            <div class="form-field" style="margin-top:14px;">
+                <label>Documentos fiscales</label>
+                <p class="hint" style="margin:0 0 8px;">Insertados del expediente validado. No es necesario volver a subirlos.</p>
+                <div class="docs-fiscales">
+                    @foreach($docsFiscales as $doc)
+                        <div>
+                            <label style="display:block;margin-bottom:4px;">{{ $doc['label'] }}</label>
+                            @if(!empty($doc['ok']))
+                                <div class="doc-autofill ok">
+                                    <div class="doc-autofill-top">
+                                        <span class="doc-autofill-name">{{ $doc['nombre'] }}</span>
+                                        <span class="pill ok">{{ ($doc['origen'] ?? '') === 'lote' ? 'De este lote' : 'Validado' }}</span>
+                                    </div>
+                                    <div class="doc-autofill-meta">
+                                        {{ ($doc['origen'] ?? '') === 'lote' ? 'Generado del formato de pago' : 'Del expediente fiscal' }}
+                                        @if(!empty($doc['url']))
+                                            · <a href="{{ $doc['url'] }}" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700;">Ver</a>
+                                        @endif
+                                    </div>
+                                </div>
+                            @else
+                                <div class="doc-autofill missing">
+                                    <span class="doc-autofill-name">Sin archivo validado</span>
+                                    <span class="doc-autofill-meta">No está en el expediente o aún no está aprobado</span>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
+            </div>
+            <div class="form-field" style="margin-top:14px;">
+                <label>Otros comprobantes (opcional)</label>
+                <input type="file" name="comprobantes[]" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple>
             </div>
             <p class="hint" style="margin-top:12px;">Al confirmar, las facturas pasan a estatus «programada».</p>
             <div style="margin-top:14px;">
@@ -206,7 +244,26 @@
     @if($pago->notas)
         <p style="padding:12px 18px 0;font-size:13px;color:var(--gray-muted);margin:0;"><strong>Notas:</strong> {{ $pago->notas }}</p>
     @endif
-    @if(!empty($pago->comprobantes))
+    @php
+        $docsConfirmados = data_get($pago->datos_confirmacion, 'documentos_fiscales', []);
+        $pathsEtiquetados = collect($docsConfirmados)->pluck('path')->filter()->all();
+        $extras = collect($pago->comprobantes ?? [])->reject(fn ($p) => in_array($p, $pathsEtiquetados, true))->values();
+    @endphp
+    @if(!empty($docsConfirmados))
+        <div class="doc-list">
+            @foreach($docsConfirmados as $doc)
+                @php
+                    $href = !empty($doc['path']) ? asset('storage/'.$doc['path']) : ($doc['url'] ?? null);
+                @endphp
+                @if($href)
+                    <a class="doc-link" href="{{ $href }}" target="_blank">{{ $doc['label'] ?? 'Documento' }}</a>
+                @endif
+            @endforeach
+            @foreach($extras as $i => $path)
+                <a class="doc-link" href="{{ asset('storage/'.$path) }}" target="_blank">Comprobante extra {{ $i + 1 }}</a>
+            @endforeach
+        </div>
+    @elseif(!empty($pago->comprobantes))
         <div class="doc-list">
             @foreach($pago->comprobantes as $i => $path)
                 <a class="doc-link" href="{{ asset('storage/'.$path) }}" target="_blank">Documento {{ $i + 1 }}</a>
