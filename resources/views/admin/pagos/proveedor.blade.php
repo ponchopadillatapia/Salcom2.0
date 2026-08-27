@@ -40,6 +40,11 @@
     .pill.ok{background:var(--green-bg);color:var(--green)}
     .pill.warn{background:var(--amber-bg);color:var(--amber)}
     .pill.neut{background:var(--purple-subtle);color:var(--purple)}
+    .pill.pendiente{background:#f3f4f6;color:#6b7280}
+    .pill.programada{background:#fef2f2;color:#dc2626}
+    .pill.pagada{background:#fefce8;color:#ca8a04}
+    .pill.liquidada{background:#ecfdf5;color:#16a34a}
+    .pill.cancelada,.pill.rechazada{background:#fef2f2;color:#7f1d1d}
     .aviso{color:var(--amber);font-size:11px;display:block;margin-top:2px}
     .empty{padding:48px 20px;text-align:center;color:var(--gray-muted)}
 
@@ -113,12 +118,17 @@
                         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
                             <div>
                                 <div style="font-size:14px;font-weight:700;color:#6B3FA0">{{ $ant->folio_general }}</div>
-                                <div style="font-size:12px;color:#7c3aed;margin-top:2px">${{ number_format((float)$ant->total_banco, 2) }} · {{ $ant->fecha?->format('d/m/Y') }}</div>
+                                <div style="font-size:12px;color:#7c3aed;margin-top:2px"><span class="anticipo-total">${{ number_format((float)$ant->total_banco, 2) }}</span> · {{ $ant->fecha?->format('d/m/Y') }}</div>
                             </div>
-                            <div style="display:flex;align-items:center;gap:8px">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                                 <select class="select-factura-modal" id="sel-ant-{{ $ant->id }}" style="font-size:13px;padding:10px 14px;border:1.5px solid #c4b5fd;border-radius:8px;background:#fff;min-width:280px;color:#5b21b6;font-weight:500">
                                     <option value="">Seleccionar factura...</option>
                                 </select>
+                                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:8px 12px;background:#fff;border:1.5px solid #c4b5fd;border-radius:8px;color:#5b21b6;font-weight:500">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.49"/></svg>
+                                    <span id="file-label-{{ $ant->id }}">Adjuntar formato PDF</span>
+                                    <input type="file" id="file-ant-{{ $ant->id }}" accept=".pdf,application/pdf" style="display:none" onchange="updateFileLabel({{ $ant->id }}, this)">
+                                </label>
                                 <button type="button" onclick="aplicarAnticipo({{ $ant->id }})" style="font-size:13px;padding:10px 20px;background:#6B3FA0;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;white-space:nowrap">Aplicar</button>
                             </div>
                         </div>
@@ -238,7 +248,17 @@
                             <td class="monto">${{ number_format((float)$f->total, 2) }}</td>
                             <td class="monto">${{ number_format($saldo, 2) }}</td>
                             <td style="min-width:180px;">
-                                <span class="pill warn" style="margin-bottom:4px;">{{ ucfirst($f->estatus) }}</span>
+                                @php
+                                    $pillClass = match($f->estatus) {
+                                        'pendiente' => 'pendiente',
+                                        'programada' => 'programada',
+                                        'pagada' => 'pagada',
+                                        'liquidada' => 'liquidada',
+                                        'cancelada' => 'cancelada',
+                                        default => 'pendiente',
+                                    };
+                                @endphp
+                                <span class="pill {{ $pillClass }}" style="margin-bottom:4px;">{{ ucfirst($f->estatus) }}</span>
                                 @forelse($f->avisos_pago as $a)
                                     <span class="aviso">• {{ $a }}</span>
                                 @empty
@@ -275,6 +295,17 @@
                                             <span class="doc-link disabled">OC (no adjunta)</span>
                                         @endif
                                     </div>
+                                    @php
+                                        $anticiposDeFactura = \App\Models\AnticipoProveedor::where('factura_id', $f->id)->where('estatus', 'aplicado')->get();
+                                    @endphp
+                                    @if($anticiposDeFactura->count() > 0)
+                                        <div style="margin-top:12px;padding:10px 14px;background:#f3e8ff;border-radius:8px;border:1px solid #e9d5ff">
+                                            <div style="font-size:12px;font-weight:700;color:#5b21b6;margin-bottom:6px">Anticipos ligados:</div>
+                                            @foreach($anticiposDeFactura as $antF)
+                                                <div style="font-size:12px;color:#7c3aed;margin-bottom:3px">• {{ $antF->folio_general }} — ${{ number_format((float)$antF->total_banco, 2) }} — {{ $antF->fecha?->format('d/m/Y') }}</div>
+                                            @endforeach
+                                        </div>
+                                    @endif
                                 </div>
                             </td>
                         </tr>
@@ -375,24 +406,72 @@ if (modalAnt) {
 }
 
 // Aplicar anticipo por AJAX (sin recargar)
+function updateFileLabel(anticipoId, input) {
+    var label = document.getElementById('file-label-' + anticipoId);
+    if (input.files && input.files.length > 0) {
+        var name = input.files[0].name;
+        label.textContent = name.length > 20 ? name.substring(0, 17) + '...' : name;
+        label.style.color = '#059669';
+    } else {
+        label.textContent = 'Adjuntar formato PDF';
+        label.style.color = '';
+    }
+}
+
 function aplicarAnticipo(anticipoId) {
     var sel = document.getElementById('sel-ant-' + anticipoId);
     var facturaId = sel.value;
+    var fileInput = document.getElementById('file-ant-' + anticipoId);
+
     if (!facturaId) {
         alert('Selecciona una factura primero.');
         return;
     }
+
+    // Validar archivo adjunto
+    if (!fileInput.files || fileInput.files.length === 0) {
+        alert('Debes adjuntar el formato PDF antes de aplicar el anticipo.');
+        fileInput.parentElement.style.borderColor = '#dc2626';
+        return;
+    }
+
+    var file = fileInput.files[0];
+    if (file.type !== 'application/pdf') {
+        alert('El archivo debe ser un PDF.');
+        return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+        alert('El archivo no puede exceder 10 MB.');
+        return;
+    }
+
+    // Validar monto anticipo vs factura total
+    var anticipoMonto = parseFloat(document.querySelector('#anticipo-row-' + anticipoId + ' .anticipo-total')?.textContent?.replace(/[$,]/g, '') || '0');
+    var optionSel = sel.options[sel.selectedIndex];
+    var facturaTotalText = optionSel ? optionSel.textContent : '';
+    var matchTotal = facturaTotalText.match(/\$\s*([\d,]+\.?\d*)/);
+    if (matchTotal && anticipoMonto > 0) {
+        var facturaTotal = parseFloat(matchTotal[1].replace(/,/g, ''));
+        if (anticipoMonto > facturaTotal) {
+            alert('El monto del anticipo ($' + anticipoMonto.toFixed(2) + ') excede el total de la factura ($' + facturaTotal.toFixed(2) + '). No se puede aplicar.');
+            return;
+        }
+    }
+
     if (!confirm('¿Aplicar este anticipo a la factura seleccionada?')) return;
+
+    var formData = new FormData();
+    formData.append('factura_id', facturaId);
+    formData.append('formato_pdf', file);
 
     fetch('/admin/anticipos/' + anticipoId + '/aplicar', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
             'X-CSRF-TOKEN': '{{ csrf_token() }}',
             'Accept': 'application/json',
             'X-Requested-With': 'XMLHttpRequest'
         },
-        body: JSON.stringify({ factura_id: facturaId })
+        body: formData
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {

@@ -37,6 +37,11 @@
     .pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px}
     .pill.ok{background:var(--green-bg);color:var(--green)}
     .pill.warn{background:var(--amber-bg);color:var(--amber)}
+    .pill.pendiente{background:#f3f4f6;color:#6b7280}
+    .pill.programada{background:#fef2f2;color:#dc2626}
+    .pill.pagada{background:#fefce8;color:#ca8a04}
+    .pill.liquidada{background:#ecfdf5;color:#16a34a}
+    .pill.cancelada,.pill.rechazada{background:#fef2f2;color:#7f1d1d}
     .aviso{color:var(--amber);font-size:11px;display:block}
     .monto{font-variant-numeric:tabular-nums}
     .confirm-box{padding:18px}
@@ -163,7 +168,16 @@
 <div class="adm-section anim">
     <div class="adm-section-head">
         <h4>Detalle del pago</h4>
-        <span class="pill {{ $pago->estatus === 'confirmado' ? 'ok' : 'warn' }}">{{ $pago->estatus }}</span>
+        @php
+            $pillClass = match($pago->estatus) {
+                'confirmado', 'pagado' => 'pagada',
+                'programada' => 'programada',
+                'liquidada' => 'liquidada',
+                'cancelado' => 'cancelada',
+                default => 'pendiente',
+            };
+        @endphp
+        <span class="pill {{ $pillClass }}">{{ ucfirst($pago->estatus) }}</span>
     </div>
     @php
         $facturaIds = $pago->lineas->pluck('factura_id')->filter()->all();

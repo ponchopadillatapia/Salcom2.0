@@ -81,7 +81,7 @@
     <div class="pag-alert err">{{ $errors->first() }}</div>
 @endif
 
-<form method="post" action="{{ route('admin.pago-proveedores.store') }}" id="form-abono">
+<form method="post" action="{{ route('admin.pago-proveedores.store') }}" id="form-abono" enctype="multipart/form-data">
     @csrf
     <input type="hidden" name="poliza_key" value="{{ $poliza['key'] }}">
     <input type="hidden" name="accion" id="accion" value="guardar">
@@ -195,7 +195,12 @@
 
         <div class="cq-foot">
             <div style="font-size:12px;color:#6b7280">Documentos seleccionados: <strong id="sel-count">0</strong></div>
-            <div style="display:flex;align-items:center;gap:12px">
+            <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:8px 14px;background:#faf5ff;border:1.5px solid #c4b5fd;border-radius:8px;color:#5b21b6;font-weight:600" id="formato-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.49"/></svg>
+                    <span id="formato-file-name">Adjuntar formato de pago (PDF)</span>
+                    <input type="file" name="formato_pago" accept=".pdf,application/pdf" style="display:none" id="formato-pago-input" onchange="updateFormatoLabel()">
+                </label>
                 <div class="cq-total">Pago: $<span id="sel-total">0.00</span> {{ $poliza['moneda'] }}</div>
                 <a href="{{ route('admin.pago-proveedores') }}" style="padding:10px 20px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;text-decoration:none">
                     Cancelar
@@ -370,6 +375,14 @@
             alert('Selecciona al menos una factura / compra a pagar.');
             return;
         }
+        // Validar que se adjuntó el formato de pago
+        const formatoInput = document.getElementById('formato-pago-input');
+        if (!formatoInput.files || formatoInput.files.length === 0) {
+            e.preventDefault();
+            alert('Debes adjuntar el formato de pago (PDF) antes de guardar.');
+            document.getElementById('formato-label').style.borderColor = '#dc2626';
+            return;
+        }
         // Convertir valores con comas a números limpios para el backend
         body.querySelectorAll('.imp-doc').forEach(inp => {
             inp.value = parseImporte(inp.value).toFixed(2);
@@ -394,5 +407,21 @@
         select.dispatchEvent(new Event('change'));
     }
 })();
+
+function updateFormatoLabel() {
+    var input = document.getElementById('formato-pago-input');
+    var label = document.getElementById('formato-file-name');
+    var wrapper = document.getElementById('formato-label');
+    if (input.files && input.files.length > 0) {
+        var name = input.files[0].name;
+        label.textContent = name.length > 25 ? name.substring(0, 22) + '...' : name;
+        wrapper.style.borderColor = '#059669';
+        wrapper.style.color = '#059669';
+    } else {
+        label.textContent = 'Adjuntar formato de pago (PDF)';
+        wrapper.style.borderColor = '#c4b5fd';
+        wrapper.style.color = '#5b21b6';
+    }
+}
 </script>
 @endpush

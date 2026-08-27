@@ -23,6 +23,11 @@
     .pill.ok{background:var(--green-bg);color:var(--green)}
     .pill.warn{background:var(--amber-bg);color:var(--amber)}
     .pill.bad{background:var(--red-bg);color:var(--red)}
+    .pill.pendiente{background:#f3f4f6;color:#6b7280}
+    .pill.programada{background:#fef2f2;color:#dc2626}
+    .pill.pagada{background:#fefce8;color:#ca8a04}
+    .pill.liquidada{background:#ecfdf5;color:#16a34a}
+    .pill.cancelada,.pill.rechazada{background:#fef2f2;color:#7f1d1d}
     .dias-count{font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
     .dias-count.warn{color:var(--amber)}
     .dias-count.late{color:var(--red)}
@@ -48,11 +53,11 @@
     <div class="cq-titlebar">
         <span>Pago a proveedor · {{ $abono->concepto }} · {{ $abono->serie }}-{{ $abono->folio }}</span>
         @if(in_array($abono->estatus, ['guardado', 'pagado']))
-            <span class="pill ok">Pagado</span>
+            <span class="pill pagada">Pagado</span>
         @elseif($abono->estatus === 'borrador')
-            <span class="pill warn">Borrador</span>
+            <span class="pill pendiente">Borrador</span>
         @else
-            <span class="pill bad">Cancelado</span>
+            <span class="pill cancelada">Cancelado</span>
         @endif
     </div>
 

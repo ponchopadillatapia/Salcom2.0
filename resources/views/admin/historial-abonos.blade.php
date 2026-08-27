@@ -41,8 +41,11 @@
     .monto{font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)}
     .hora-pill{display:inline-flex;padding:3px 8px;border-radius:999px;background:var(--purple-subtle);color:var(--purple);font-size:11px;font-weight:700;white-space:nowrap}
     .badge-est{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
-    .badge-est.liquidada{background:#ecfdf5;color:#059669}
-    .badge-est.pagada{background:var(--green-bg);color:var(--green)}
+    .badge-est.pendiente{background:#f3f4f6;color:#6b7280}
+    .badge-est.programada{background:#fef2f2;color:#dc2626}
+    .badge-est.pagada{background:#fefce8;color:#ca8a04}
+    .badge-est.liquidada{background:#ecfdf5;color:#16a34a}
+    .badge-est.cancelada{background:#fef2f2;color:#7f1d1d}
     .empty-state{text-align:center;padding:48px 20px;color:var(--gray-muted);font-size:14px}
     .prov-chip{display:inline-flex;align-items:center;margin-top:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--purple);background:var(--purple-subtle);border:1px solid rgba(107,63,160,.28);line-height:1.3}
 
@@ -165,7 +168,11 @@
                                     @elseif($f->estatus === 'pagada')
                                         <span class="badge-est pagada">Pagada</span>
                                     @elseif($f->estatus === 'programada')
-                                        <span class="badge-est" style="background:var(--purple-subtle);color:var(--purple)">Programada</span>
+                                        <span class="badge-est programada">Programada</span>
+                                    @elseif($f->estatus === 'cancelada')
+                                        <span class="badge-est cancelada">Cancelada</span>
+                                    @else
+                                        <span class="badge-est pendiente">{{ ucfirst($f->estatus) }}</span>
                                     @endif
                                 </td>
                                 <td style="font-size:12px;color:var(--gray-muted)">{{ $cuentaAbono ?: '—' }}</td>

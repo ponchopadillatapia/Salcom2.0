@@ -281,6 +281,7 @@ class AdminPagoProveedoresController extends Controller
             'importes' => 'nullable|array',
             'importes.*' => 'nullable|numeric|min:0',
             'accion' => 'nullable|in:borrador,guardar',
+            'formato_pago' => 'required|file|mimes:pdf|max:10240',
         ]);
 
         try {
@@ -381,6 +382,12 @@ class AdminPagoProveedoresController extends Controller
             report($e);
 
             return back()->withInput()->with('error', 'No se pudo guardar el abono: '.$e->getMessage());
+        }
+
+        // Guardar el formato de pago adjunto
+        if ($request->hasFile('formato_pago')) {
+            $formatoPath = $request->file('formato_pago')->store('pagos_formatos/' . $abono->id, 'public');
+            $abono->update(['cuenta_bancaria' => ($abono->cuenta_bancaria ? $abono->cuenta_bancaria . ' | ' : '') . 'formato:' . $formatoPath]);
         }
 
         // Crear alerta para el proveedor (notificación en tiempo real)
@@ -736,9 +743,27 @@ class AdminPagoProveedoresController extends Controller
     {
         $data = $request->validate([
             'factura_id' => 'required|integer|exists:facturas,id',
+            'formato_pdf' => 'required|file|mimes:pdf|max:10240',
         ]);
 
         $factura = Factura::findOrFail($data['factura_id']);
+
+        // Validar que el monto del anticipo no exceda el total de la factura
+        if ((float) $anticipo->total_banco > (float) $factura->total) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'ok' => false,
+                    'mensaje' => "El monto del anticipo (\${$anticipo->total_banco}) excede el total de la factura (\${$factura->total}). No se puede aplicar.",
+                ], 422);
+            }
+            return back()->withErrors('El monto del anticipo excede el total de la factura.');
+        }
+
+        // Almacenar el archivo PDF
+        $filePath = null;
+        if ($request->hasFile('formato_pdf')) {
+            $filePath = $request->file('formato_pdf')->store('anticipos', 'public');
+        }
 
         $anticipo->update([
             'estatus' => 'aplicado',
@@ -748,6 +773,7 @@ class AdminPagoProveedoresController extends Controller
                 'aplicado_at' => now()->toDateTimeString(),
                 'aplicado_por' => session('admin_id'),
                 'factura_folio' => $factura->folio_cfdi,
+                'formato_pdf' => $filePath,
             ]),
         ]);
 

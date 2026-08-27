@@ -56,10 +56,11 @@
     .tbl-wrap{overflow-x:auto}
 
     .badge-est{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
-    .badge-est.pendiente{background:var(--amber-bg);color:var(--amber)}
-    .badge-est.programada{background:var(--purple-subtle);color:var(--purple)}
-    .badge-est.pagada{background:var(--green-bg);color:var(--green)}
-    .badge-est.cancelada{background:var(--red-bg);color:var(--red)}
+    .badge-est.pendiente{background:#f3f4f6;color:#6b7280}
+    .badge-est.programada{background:#fef2f2;color:#dc2626}
+    .badge-est.pagada{background:#fefce8;color:#ca8a04}
+    .badge-est.liquidada{background:#ecfdf5;color:#16a34a}
+    .badge-est.cancelada{background:#fef2f2;color:#7f1d1d}
     .badge-vencida{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--red-bg);color:var(--red)}
     .dias-count{font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
     .dias-count.warn{color:var(--amber)}
@@ -77,6 +78,11 @@
     .pill.ok{background:var(--green-bg);color:var(--green)}
     .pill.warn{background:var(--amber-bg);color:var(--amber)}
     .pill.neut{background:var(--purple-subtle);color:var(--purple)}
+    .pill.pendiente{background:#f3f4f6;color:#6b7280}
+    .pill.programada{background:#fef2f2;color:#dc2626}
+    .pill.pagada{background:#fefce8;color:#ca8a04}
+    .pill.liquidada{background:#ecfdf5;color:#16a34a}
+    .pill.cancelada,.pill.rechazada{background:#fef2f2;color:#7f1d1d}
 
     .fact-modal-overlay{position:fixed;inset:0;background:rgba(15,10,30,.45);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
     .fact-modal-overlay.open{display:flex}

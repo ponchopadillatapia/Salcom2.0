@@ -49,6 +49,11 @@
     .pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;display:inline-block}
     .pill.ok{background:var(--green-bg);color:var(--green)}
     .pill.warn{background:var(--amber-bg);color:var(--amber)}
+    .pill.pendiente{background:#f3f4f6;color:#6b7280}
+    .pill.programada{background:#fef2f2;color:#dc2626}
+    .pill.pagada{background:#fefce8;color:#ca8a04}
+    .pill.liquidada{background:#ecfdf5;color:#16a34a}
+    .pill.cancelada,.pill.rechazada{background:#fef2f2;color:#7f1d1d}
     .bubble-roja{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;margin-left:8px;border-radius:999px;background:var(--red);color:#fff;font-size:10px;font-weight:700;vertical-align:middle}
     .hora-bubble{display:inline-flex;align-items:center;justify-content:center;padding:3px 8px;border-radius:999px;background:var(--red);color:#fff;font-size:11px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums}
     .hora-bubble.leida{background:var(--gray-muted);opacity:.85}
