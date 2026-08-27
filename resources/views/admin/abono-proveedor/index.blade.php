@@ -11,7 +11,7 @@
     @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
     .anim{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
 
-    .ab-header-card{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:20px}
+    .ab-header-card{background:var(--white);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:0}
     .ab-header-band{background:linear-gradient(135deg,#4a2078,#6B3FA0);padding:14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
     .ab-header-band .ab-concepto{color:#fff;font-weight:800;font-size:15px;flex:1;min-width:180px}
     .ab-header-band .ab-field{display:flex;flex-direction:column;gap:2px}
@@ -45,6 +45,10 @@
     .total-row td{font-weight:700;background:var(--gray-soft)!important;border-top:2px solid var(--border)}
 
     @media(max-width:768px){.ab-body{grid-template-columns:1fr}.ab-header-band{flex-direction:column;align-items:stretch}}
+
+    .ab-tab{padding:10px 18px;font-size:13px;font-weight:600;color:var(--gray-muted);background:transparent;border:none;border-bottom:2px solid transparent;cursor:pointer;font-family:inherit}
+    .ab-tab:hover{color:var(--purple)}
+    .ab-tab.active{color:var(--purple);border-bottom-color:var(--purple);background:var(--white)}
 </style>
 @endpush
 @section('content')
@@ -60,7 +64,7 @@
     @csrf
 
     {{-- Encabezado estilo Contpaqi --}}
-    <div class="ab-header-card anim">
+    <div class="ab-header-card anim" style="border-radius:12px 12px 0 0">
         <div class="ab-header-band">
             <div class="ab-concepto">{{ $cuentaConfig['concepto'] ?? 'Abono Prov' }}</div>
             <div class="ab-field">
@@ -85,14 +89,12 @@
         <div class="ab-body">
             <div class="ab-group">
                 <label>Proveedor <span style="color:#dc2626;font-size:14px" id="prov-dot">●</span></label>
-                <select name="codigo_proveedor" id="ab-proveedor" required style="border:2px solid #dc2626" onchange="checkProveedor()">
-                    <option value="">(Seleccionar proveedor)</option>
-                    @foreach($proveedores as $p)
-                        <option value="{{ $p->codigo }}">
-                            {{ $p->codigo }} — {{ $p->nombre }}
-                        </option>
-                    @endforeach
-                </select>
+                {{-- Hidden input para el form --}}
+                <input type="hidden" name="codigo_proveedor" id="ab-proveedor" value="">
+                {{-- Botón que abre modal --}}
+                <button type="button" id="btn-abrir-prov" onclick="abrirModalProv()" style="text-align:left;padding:10px 14px;border:2px solid #dc2626;border-radius:8px;background:#faf5ff;font-size:13px;font-weight:600;color:#5b21b6;cursor:pointer;font-family:inherit;width:100%">
+                    (Seleccionar proveedor)
+                </button>
             </div>
             <div class="ab-group">
                 <label>Moneda</label>
@@ -111,6 +113,47 @@
             <div class="ab-group">
                 <label>Notas</label>
                 <input type="text" name="notas" value="{{ old('notas') }}" placeholder="Notas (opcional)">
+            </div>
+        </div>
+    </div>
+
+    {{-- Pestañas Generales / Información Adicional (pegadas a la card de arriba) --}}
+    <div class="ab-header-card" style="margin-top:-1px;border-top:none;border-radius:0 0 12px 12px;margin-bottom:16px">
+        <div style="display:flex;border-bottom:1px solid var(--border);background:var(--gray-soft)">
+            <button type="button" class="ab-tab active" id="tab-generales" onclick="switchTab('generales')">2 Generales</button>
+            <button type="button" class="ab-tab" id="tab-info" onclick="switchTab('info')">5 Información Adicional</button>
+        </div>
+        {{-- Panel Generales --}}
+        <div id="panel-generales" style="padding:16px 22px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 28px">
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase">Razón social</label>
+                    <div id="info-razon" style="font-size:14px;font-weight:600;color:#111;margin-top:4px;padding:8px 12px;background:var(--gray-soft);border-radius:6px;min-height:36px">—</div>
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase">Cuenta</label>
+                    <input type="text" name="cuenta_info" value="{{ old('cuenta_info', '(Ninguno)') }}" style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;width:100%;margin-top:4px">
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase">Total</label>
+                    <div id="info-total" style="font-size:18px;font-weight:800;color:var(--green);margin-top:4px;padding:8px 12px;background:var(--gray-soft);border-radius:6px">$0.00</div>
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase">Saldo actual al 31 de diciembre de 2026</label>
+                    <div style="font-size:13px;color:#6b7280;margin-top:4px;padding:8px 12px;background:var(--gray-soft);border-radius:6px">
+                        <div>Saldo del Documento: <strong>$0.00</strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{-- Panel Información Adicional --}}
+        <div id="panel-info" style="padding:16px 22px;display:none">
+            <div style="font-size:12px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;margin-bottom:10px">Referencia y observaciones</div>
+            <div style="display:grid;grid-template-columns:100px 1fr;gap:8px 14px;align-items:start">
+                <label style="font-size:12px;font-weight:600;color:#374151;padding-top:8px">Referencia:</label>
+                <input type="text" name="referencia" id="ab-referencia" value="{{ old('referencia') }}" placeholder="CK" style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;width:100%;max-width:400px">
+                <label style="font-size:12px;font-weight:600;color:#374151;padding-top:8px">Observaciones:</label>
+                <textarea name="observaciones" id="ab-observaciones" rows="3" placeholder="" style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;width:100%;max-width:400px;resize:vertical">{{ old('observaciones') }}</textarea>
             </div>
         </div>
     </div>
@@ -136,6 +179,46 @@
         </div>
     </div>
 </form>
+
+{{-- Modal proveedor FUERA del form --}}
+<div id="modal-prov" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);z-index:99999;align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;border-radius:12px;width:100%;max-width:720px;max-height:75vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;border:1px solid #e5e7eb;margin:auto">
+        <div style="background:linear-gradient(135deg,#4a2078,#6B3FA0);padding:12px 20px;display:flex;align-items:center;gap:12px">
+            <button type="button" onclick="cerrarModalProv()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:6px;font-size:16px;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center">&times;</button>
+            <span style="font-size:15px;font-weight:700;color:#fff">Seleccionar proveedor</span>
+        </div>
+        <div style="padding:12px 20px;background:#faf5ff;border-bottom:1px solid #e9d5ff;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div style="flex:1;min-width:200px;position:relative">
+                <input type="text" id="prov-buscar" placeholder="Buscar por nombre, código o RFC..." style="border:1.5px solid #c4b5fd;border-radius:8px;padding:9px 14px 9px 34px;font-size:13px;width:100%;font-family:inherit;background:#fff" oninput="filtrarProvs()">
+                <svg style="position:absolute;left:10px;top:10px;opacity:.5" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            </div>
+            <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;color:#5b21b6;font-weight:600">
+                <input type="checkbox" id="prov-activos" checked onchange="filtrarProvs()" style="accent-color:#6B3FA0;width:15px;height:15px"> Activos
+            </label>
+        </div>
+        <div style="overflow-y:auto;flex:1">
+            <table style="width:100%;border-collapse:collapse;font-size:13px">
+                <thead>
+                    <tr style="background:#f3e8ff;position:sticky;top:0">
+                        <th style="padding:10px 16px;text-align:left;font-weight:700;color:#5b21b6;font-size:11px;text-transform:uppercase;border-bottom:2px solid #c4b5fd;width:130px">Código</th>
+                        <th style="padding:10px 16px;text-align:left;font-weight:700;color:#5b21b6;font-size:11px;text-transform:uppercase;border-bottom:2px solid #c4b5fd">Nombre</th>
+                        <th style="padding:10px 16px;text-align:left;font-weight:700;color:#5b21b6;font-size:11px;text-transform:uppercase;border-bottom:2px solid #c4b5fd;width:140px">R.F.C.</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($proveedores as $p)
+                        @php $rfc = is_array($p->datos_identificacion ?? null) ? ($p->datos_identificacion['rfc'] ?? '') : ''; @endphp
+                        <tr class="prov-row" data-codigo="{{ $p->codigo }}" data-nombre="{{ $p->nombre }}" data-rfc="{{ $rfc }}" onclick="seleccionarProv(this)" style="cursor:pointer;border-bottom:1px solid #f3f4f6">
+                            <td style="padding:10px 16px;font-weight:700;color:#6B3FA0">{{ $p->codigo }}</td>
+                            <td style="padding:10px 16px;color:#111">{{ $p->nombre }}</td>
+                            <td style="padding:10px 16px;font-size:12px;color:#6b7280;font-family:monospace">{{ $rfc }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
 
 @endsection
 @push('scripts')
@@ -198,7 +281,7 @@
         if (!proveedor) {
             e.preventDefault();
             alert('Selecciona un proveedor.');
-            document.getElementById('ab-proveedor').focus();
+            abrirModalProv();
             return false;
         }
         if (!fecha) {
@@ -218,8 +301,8 @@
     // Datos de proveedores para razón social
     var proveedoresData = @json($proveedores->mapWithKeys(fn($p) => [$p->codigo => ['nombre' => $p->nombre, 'moneda' => $p->moneda ?? 'MXN']]));
 
-    provSelect.addEventListener('change', function(){
-        var codigo = this.value;
+    // Función para cargar facturas (llamada desde seleccionarProv)
+    window.cargarFacturasAbono = function(codigo) {
         if (!codigo) {
             facturasContenido.innerHTML = '<div class="empty-state">Selecciona un proveedor para ver sus facturas.</div>';
             facturasMeta.textContent = 'Selecciona un proveedor arriba';
@@ -269,6 +352,8 @@
                 facturasContenido.innerHTML = html;
                 facturasMeta.textContent = data.facturas.length + ' factura' + (data.facturas.length !== 1 ? 's' : '') + ' pagadas';
                 totalDisplay.textContent = '$' + totalPago.toLocaleString('en', {minimumFractionDigits:2});
+                var infoTotal = document.getElementById('info-total');
+                if (infoTotal) infoTotal.textContent = '$' + totalPago.toLocaleString('en', {minimumFractionDigits:2});
                 btnGuardar.disabled = false;
 
                 // Checkbox master
@@ -285,7 +370,7 @@
                 facturasContenido.innerHTML = '<div class="empty-state">Error al cargar facturas.</div>';
                 facturasMeta.textContent = 'Error';
             });
-    });
+    };
 
     function recalcTotal(){
         var total = 0;
@@ -299,8 +384,103 @@
     }
 
     // Si ya viene proveedor seleccionado (por query param)
-    if (provSelect.value) {
-        provSelect.dispatchEvent(new Event('change'));
+    var initCodigo = document.getElementById('ab-proveedor').value;
+    if (initCodigo) {
+        window.cargarFacturasAbono(initCodigo);
+    }
+})();
+
+// ═══════════════════════════════════════════
+// Tabs Generales / Info Adicional
+// ═══════════════════════════════════════════
+function switchTab(tab) {
+    document.getElementById('panel-generales').style.display = tab === 'generales' ? '' : 'none';
+    document.getElementById('panel-info').style.display = tab === 'info' ? '' : 'none';
+    document.getElementById('tab-generales').classList.toggle('active', tab === 'generales');
+    document.getElementById('tab-info').classList.toggle('active', tab === 'info');
+}
+
+// ═══════════════════════════════════════════
+// Modal proveedor estilo Contpaqi
+// ═══════════════════════════════════════════
+function abrirModalProv() {
+    var m = document.getElementById('modal-prov');
+    m.style.display = 'flex';
+    m.style.position = 'fixed';
+    m.style.inset = '0';
+    m.style.zIndex = '99999';
+    setTimeout(function() { document.getElementById('prov-buscar').focus(); }, 100);
+}
+function cerrarModalProv() {
+    document.getElementById('modal-prov').style.display = 'none';
+}
+function filtrarProvs() {
+    var q = document.getElementById('prov-buscar').value.toLowerCase().trim();
+    document.querySelectorAll('.prov-row').forEach(function(tr) {
+        var nombre = (tr.dataset.nombre || '').toLowerCase();
+        var codigo = (tr.dataset.codigo || '').toLowerCase();
+        var rfc = (tr.dataset.rfc || '').toLowerCase();
+        tr.style.display = (nombre.includes(q) || codigo.includes(q) || rfc.includes(q)) ? '' : 'none';
+    });
+}
+function seleccionarProv(tr) {
+    var codigo = tr.dataset.codigo;
+    var nombre = tr.dataset.nombre;
+    // Setear hidden input
+    document.getElementById('ab-proveedor').value = codigo;
+    // Actualizar botón
+    var btn = document.getElementById('btn-abrir-prov');
+    btn.textContent = codigo + ' — ' + nombre;
+    btn.style.color = '#111827';
+    btn.style.borderColor = 'var(--green, #16a34a)';
+    // Check visual
+    var dot = document.getElementById('prov-dot');
+    if (dot) dot.style.display = 'none';
+    // Actualizar info adicional
+    var infoRazon = document.getElementById('info-razon');
+    if (infoRazon) infoRazon.textContent = nombre;
+    // Cargar facturas
+    if (window.cargarFacturasAbono) window.cargarFacturasAbono(codigo);
+    // Cerrar modal
+    cerrarModalProv();
+    // Highlight
+    document.querySelectorAll('.prov-row').forEach(function(r) { r.style.background = ''; });
+    tr.style.background = '#dbeafe';
+}
+// Hover rows
+document.querySelectorAll('.prov-row').forEach(function(tr) {
+    tr.addEventListener('mouseenter', function() { this.style.background = '#f3e8ff'; });
+    tr.addEventListener('mouseleave', function() { if (this.style.background !== 'rgb(219, 234, 254)') this.style.background = ''; });
+});
+// Cerrar solo con la X (no con click fuera ni ESC)
+
+// ═══════════════════════════════════════════
+// Navegación con Enter entre campos obligatorios
+// Orden: Folio → Proveedor (abre modal)
+// ═══════════════════════════════════════════
+(function() {
+    var poliza = document.getElementById('ab-poliza');
+    var btnProv = document.getElementById('btn-abrir-prov');
+
+    if (poliza) {
+        poliza.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (poliza.value.trim() === '') {
+                    alert('Escribe el número de póliza primero.');
+                    return;
+                }
+                abrirModalProv();
+            }
+        });
+    }
+    if (btnProv) {
+        btnProv.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                abrirModalProv();
+            }
+        });
     }
 })();
 </script>

@@ -137,28 +137,58 @@
             </div>
         </div>
 
-        {{-- Selector proveedor ELIMINADO — solo se muestra la franja del proveedor ya seleccionado --}}
-        <div style="display:none" id="prov-select-wrap">
+        {{-- Proveedor: hidden input + botón modal --}}
+        <input type="hidden" name="proveedor_id" id="proveedor_id" value="{{ old('proveedor_id', $proveedorIdPref ?? '') }}">
+        <div id="prov-select-wrap" style="padding:0 14px 14px">
             <div class="cq-field">
-                <label>Proveedor</label>
-                <select name="proveedor_id" id="proveedor_id" required style="max-width:500px">
-                    <option value="">— Seleccionar proveedor —</option>
-                    @foreach($proveedores as $p)
-                        @php
-                            $cod = $p->id_proveedor ?: $p->codigo;
-                            $mon = $p->etiquetaMoneda();
-                        @endphp
-                        <option value="{{ $p->id }}"
-                            data-codigo="{{ $cod }}"
-                            data-nombre="{{ $p->nombre }}"
-                            data-moneda="{{ $mon }}"
-                            data-banco="{{ $p->datos_identificacion['banco'] ?? '' }}"
-                            data-clabe="{{ $p->datos_identificacion['clabe'] ?? '' }}"
-                            @selected((string) old('proveedor_id', $proveedorIdPref ?? '') === (string) $p->id)>
-                            {{ $cod }} — {{ $p->nombre }} [{{ $mon }}]
-                        </option>
-                    @endforeach
-                </select>
+                <label>Proveedor <span style="color:#dc2626">●</span></label>
+                <button type="button" id="btn-abrir-prov" onclick="abrirModalProv()" style="text-align:left;padding:10px 14px;border:2px solid #dc2626;border-radius:8px;background:#faf5ff;font-size:13px;font-weight:600;color:#5b21b6;cursor:pointer;font-family:inherit;width:100%;max-width:500px">
+                    Seleccionar proveedor...
+                </button>
+            </div>
+        </div>
+
+        {{-- Modal selector proveedor --}}
+        <div id="modal-prov" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;padding:20px">
+            <div style="background:#fff;border-radius:12px;width:100%;max-width:720px;max-height:75vh;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.25);overflow:hidden;border:1px solid #e5e7eb">
+                <div style="background:linear-gradient(135deg,#4a2078,#6B3FA0);padding:12px 20px;display:flex;align-items:center;gap:12px">
+                    <button type="button" onclick="cerrarModalProv()" style="background:rgba(255,255,255,.2);border:none;color:#fff;width:28px;height:28px;border-radius:6px;font-size:16px;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center">&times;</button>
+                    <span style="font-size:15px;font-weight:700;color:#fff">Seleccionar proveedor</span>
+                </div>
+                <div style="padding:12px 20px;background:#faf5ff;border-bottom:1px solid #e9d5ff;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+                    <div style="flex:1;min-width:200px;position:relative">
+                        <input type="text" id="prov-buscar" placeholder="Buscar por nombre, código o RFC..." style="border:1.5px solid #c4b5fd;border-radius:8px;padding:9px 14px 9px 34px;font-size:13px;width:100%;font-family:inherit;background:#fff" oninput="filtrarProvs()">
+                        <svg style="position:absolute;left:10px;top:10px;opacity:.5" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    </div>
+                    <label style="font-size:12px;display:flex;align-items:center;gap:5px;cursor:pointer;color:#5b21b6;font-weight:600">
+                        <input type="checkbox" id="prov-activos" checked onchange="filtrarProvs()" style="accent-color:#6B3FA0;width:15px;height:15px"> Activos
+                    </label>
+                </div>
+                <div style="overflow-y:auto;flex:1">
+                    <table style="width:100%;border-collapse:collapse;font-size:13px">
+                        <thead>
+                            <tr style="background:#f3e8ff;position:sticky;top:0">
+                                <th style="padding:10px 16px;text-align:left;font-weight:700;color:#5b21b6;font-size:11px;text-transform:uppercase;border-bottom:2px solid #c4b5fd;width:130px">Código</th>
+                                <th style="padding:10px 16px;text-align:left;font-weight:700;color:#5b21b6;font-size:11px;text-transform:uppercase;border-bottom:2px solid #c4b5fd">Nombre</th>
+                                <th style="padding:10px 16px;text-align:left;font-weight:700;color:#5b21b6;font-size:11px;text-transform:uppercase;border-bottom:2px solid #c4b5fd;width:140px">R.F.C.</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbl-provs-body">
+                            @foreach($proveedores as $p)
+                                @php
+                                    $cod = $p->id_proveedor ?: $p->codigo;
+                                    $di = is_array($p->datos_identificacion) ? $p->datos_identificacion : [];
+                                    $rfc = $di['rfc'] ?? '';
+                                @endphp
+                                <tr class="prov-row" data-id="{{ $p->id }}" data-codigo="{{ $cod }}" data-nombre="{{ $p->nombre }}" data-rfc="{{ $rfc }}" data-moneda="{{ $p->etiquetaMoneda() }}" data-banco="{{ $di['banco'] ?? '' }}" data-clabe="{{ $di['clabe'] ?? '' }}" onclick="seleccionarProv(this)" style="cursor:pointer;border-bottom:1px solid #f3f4f6">
+                                    <td style="padding:10px 16px;font-weight:700;color:#6B3FA0">{{ $cod }}</td>
+                                    <td style="padding:10px 16px;color:#111">{{ $p->nombre }}</td>
+                                    <td style="padding:10px 16px;font-size:12px;color:#6b7280;font-family:monospace">{{ $rfc }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -330,43 +360,10 @@
         renderItems(items);
     }
 
-    select.addEventListener('change', () => {
-        const opt = select.options[select.selectedIndex];
-        const strip = document.getElementById('prov-strip');
-        const selectWrap = document.getElementById('prov-select-wrap');
+    // Selección de proveedor se maneja desde el modal (función seleccionarProv)
 
-        if (select.value) {
-            // Mostrar franja proveedor estilo Contpaqi
-            document.getElementById('strip-code').textContent = opt.dataset.codigo || '—';
-            document.getElementById('strip-name').textContent = opt.dataset.nombre || '—';
-            document.getElementById('strip-moneda').textContent = opt.dataset.moneda || '{{ $poliza["moneda_label"] }}';
-            strip.classList.remove('hidden');
-            selectWrap.style.display = 'none';
-
-            // Precargar cuenta bancaria del proveedor
-            var banco = opt.dataset.banco || '';
-            var clabe = opt.dataset.clabe || '';
-            var cuentaField = document.getElementById('cuenta_bancaria');
-            if (banco || clabe) {
-                cuentaField.value = (banco ? banco : '') + (banco && clabe ? ' · CLABE: ' : '') + (clabe ? clabe : '');
-            } else {
-                cuentaField.value = 'Sin datos bancarios registrados';
-            }
-
-            // Detalle lateral removido
-            loadFacturas(select.value);
-        } else {
-            strip.classList.add('hidden');
-            selectWrap.style.display = '';
-            body.innerHTML = '<tr class="empty-row"><td colspan="11">Selecciona un proveedor para cargar facturas pendientes</td></tr>';
-            recalc();
-        }
-    });
-
-    // Franja proveedor: solo visual, no se puede cambiar
-    document.getElementById('prov-strip').addEventListener('dblclick', () => {
-        // Deshabilitado: para cambiar proveedor, regresa al listado
-    });
+    // Franja proveedor: solo visual
+    document.getElementById('prov-strip').addEventListener('dblclick', () => {});
 
     document.getElementById('form-abono').addEventListener('submit', (e) => {
         const n = body.querySelectorAll('.chk-doc:checked').length;
@@ -404,9 +401,80 @@
     });
 
     if (select.value) {
-        select.dispatchEvent(new Event('change'));
+        // Si ya hay proveedor precargado, cargar facturas
+        loadFacturas(select.value);
     }
+
+    // Exponer loadFacturas globalmente para el modal
+    window._loadFacturas = loadFacturas;
 })();
+
+// ═══════════════════════════════════════════
+// Modal proveedor
+// ═══════════════════════════════════════════
+function abrirModalProv() {
+    document.getElementById('modal-prov').style.display = 'flex';
+    setTimeout(function() { document.getElementById('prov-buscar').focus(); }, 100);
+}
+function cerrarModalProv() {
+    document.getElementById('modal-prov').style.display = 'none';
+}
+function filtrarProvs() {
+    var q = document.getElementById('prov-buscar').value.toLowerCase().trim();
+    document.querySelectorAll('.prov-row').forEach(function(tr) {
+        var nombre = (tr.dataset.nombre || '').toLowerCase();
+        var codigo = (tr.dataset.codigo || '').toLowerCase();
+        var rfc = (tr.dataset.rfc || '').toLowerCase();
+        tr.style.display = (nombre.includes(q) || codigo.includes(q) || rfc.includes(q)) ? '' : 'none';
+    });
+}
+function seleccionarProv(tr) {
+    var id = tr.dataset.id;
+    var codigo = tr.dataset.codigo;
+    var nombre = tr.dataset.nombre;
+    var banco = tr.dataset.banco || '';
+    var clabe = tr.dataset.clabe || '';
+    var moneda = tr.dataset.moneda || '';
+
+    // Setear hidden input
+    document.getElementById('proveedor_id').value = id;
+
+    // Actualizar botón
+    var btn = document.getElementById('btn-abrir-prov');
+    btn.textContent = codigo + ' — ' + nombre;
+    btn.style.color = '#111827';
+    btn.style.borderColor = '#16a34a';
+
+    // Mostrar franja proveedor
+    document.getElementById('strip-code').textContent = codigo;
+    document.getElementById('strip-name').textContent = nombre;
+    document.getElementById('strip-moneda').textContent = moneda;
+    document.getElementById('prov-strip').classList.remove('hidden');
+    document.getElementById('prov-select-wrap').style.display = 'none';
+
+    // Precargar cuenta bancaria
+    var cuentaField = document.getElementById('cuenta_bancaria');
+    if (banco || clabe) {
+        cuentaField.value = (banco ? banco : '') + (banco && clabe ? ' · CLABE: ' : '') + (clabe ? clabe : '');
+    } else {
+        cuentaField.value = 'Sin datos bancarios registrados';
+    }
+
+    // Cargar facturas
+    if (window._loadFacturas) window._loadFacturas(id);
+
+    // Cerrar modal
+    cerrarModalProv();
+
+    // Highlight
+    document.querySelectorAll('.prov-row').forEach(function(r) { r.style.background = ''; });
+    tr.style.background = '#dbeafe';
+}
+// Hover filas
+document.querySelectorAll('.prov-row').forEach(function(tr) {
+    tr.addEventListener('mouseenter', function() { this.style.background = '#f3e8ff'; });
+    tr.addEventListener('mouseleave', function() { if (this.style.background !== 'rgb(219, 234, 254)') this.style.background = ''; });
+});
 
 function updateFormatoLabel() {
     var input = document.getElementById('formato-pago-input');
