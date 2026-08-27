@@ -41,13 +41,24 @@
 
 <div class="rv-header">
     <h2>Reembolsos de Viaje</h2>
-    <div style="display:flex;gap:10px;">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+        <form method="GET" action="{{ route('admin.reembolsos-viaje') }}" style="display:flex;gap:8px;align-items:center;">
+            <input type="text" name="busqueda" value="{{ request('busqueda') }}" placeholder="Buscar por Nº Empleado o nombre" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;width:200px;">
+            <button type="submit" style="padding:7px 14px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Filtrar</button>
+            @if(request('busqueda'))
+            <a href="{{ route('admin.reembolsos-viaje') }}" style="font-size:11px;color:var(--gray-muted);text-decoration:none;">✕ Limpiar</a>
+            @endif
+        </form>
         @if($solicitudes->total() > 0)
         <a href="{{ route('admin.reembolsos-viaje.excel') }}" style="padding:9px 16px;background:#dcfce7;border:1px solid #86efac;border-radius:10px;font-size:12px;font-weight:600;color:#166534;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">📊 Exportar Excel</a>
         @endif
         <a href="{{ route('admin.reembolsos-viaje.crear') }}" class="btn-nuevo">+ Nueva solicitud</a>
     </div>
 </div>
+
+@if(request('busqueda'))
+<p style="font-size:12px;color:var(--purple);margin-bottom:12px;font-weight:600;">Mostrando registros del empleado: {{ request('busqueda') }}</p>
+@endif
 
 @if($solicitudes->isEmpty())
 <div class="rv-empty">
