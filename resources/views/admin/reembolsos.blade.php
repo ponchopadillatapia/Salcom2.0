@@ -394,17 +394,35 @@
 
     // Método de pago empresa: Inntec no requiere materialidad
     metodoEmpresa.addEventListener('change', function() {
+        var cfdiDisplay = document.getElementById('uso_cfdi_display');
+        var formaPagoDisplay = document.querySelector('input[value="28 — Tarjeta de débito"]');
+        var metodoPagoDisplay = document.querySelector('input[value="PUE — Pago en Una Exhibición"]');
+
         if (this.value === 'inntec') {
             hintMetodo.textContent = 'Inntec: solo ticket, no requiere materialidad extra.';
             hintMetodo.style.color = '#2563eb';
             hintMaterialidad.textContent = 'No requerido para Inntec (solo ticket).';
             materialidadReq.style.display = 'none';
             if (inputMaterialidad) inputMaterialidad.removeAttribute('required');
+            // Bloquear y vaciar CFDI, forma de pago y método de pago
+            if (cfdiDisplay) { cfdiDisplay.value = 'N/A — No aplica (Inntec)'; cfdiDisplay.style.opacity = '0.5'; }
+            if (formaPagoDisplay) { formaPagoDisplay.value = 'N/A — No aplica'; formaPagoDisplay.style.opacity = '0.5'; }
+            if (metodoPagoDisplay) { metodoPagoDisplay.value = 'N/A — No aplica'; metodoPagoDisplay.style.opacity = '0.5'; }
+            document.getElementById('uso_cfdi').value = 'N/A';
         } else {
             hintMetodo.textContent = 'BBVA: la factura debe estar a nombre de Salcom.';
             hintMetodo.style.color = '#92400e';
             hintMaterialidad.textContent = 'Obligatorio. Sin materialidad el reembolso se rechaza automáticamente.';
             materialidadReq.style.display = 'inline';
+            // Restaurar CFDI, forma de pago y método de pago
+            var cat = document.getElementById('categoria');
+            if (cfdiDisplay) {
+                cfdiDisplay.value = (cat && cat.value === 'computo') ? 'I04 — Equipo de Cómputo' : 'G03 — Gastos en General';
+                cfdiDisplay.style.opacity = '1';
+            }
+            document.getElementById('uso_cfdi').value = (cat && cat.value === 'computo') ? 'I04' : 'G03';
+            if (formaPagoDisplay) { formaPagoDisplay.value = '28 — Tarjeta de débito'; formaPagoDisplay.style.opacity = '1'; }
+            if (metodoPagoDisplay) { metodoPagoDisplay.value = 'PUE — Pago en Una Exhibición'; metodoPagoDisplay.style.opacity = '1'; }
         }
     });
 
