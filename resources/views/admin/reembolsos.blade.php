@@ -156,6 +156,20 @@
         </div>
     </div>
 
+    {{-- Bloqueo: si no hay bitácora de gasolina, no se puede registrar reembolso --}}
+    @if(empty($tieneBitacoraGasolina))
+    <div class="rb-card" style="border-color:#f59e0b;background:#fffbeb;">
+        <div style="display:flex;align-items:center;gap:12px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <div>
+                <p style="font-size:14px;font-weight:700;color:#92400e;margin:0 0 4px;">Reembolsos bloqueados</p>
+                <p style="font-size:13px;color:#78350f;margin:0;line-height:1.5;">Para poder registrar un reembolso, primero debes completar al menos un registro en la <strong>Bitácora de Gasolina</strong>.</p>
+                <a href="{{ route('admin.bitacora-gasolina') }}" style="display:inline-block;margin-top:10px;padding:8px 18px;background:var(--purple);color:#fff;border-radius:10px;font-size:13px;font-weight:600;text-decoration:none;">Ir a Bitácora de Gasolina</a>
+            </div>
+        </div>
+    </div>
+    @else
+
     {{-- Formulario --}}
     <div class="rb-card">
         <h3>
@@ -294,6 +308,7 @@
             </div>
         </form>
     </div>
+    @endif
 
     {{-- Historial --}}
     <div class="rb-card">
