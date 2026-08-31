@@ -209,13 +209,13 @@
                 </div>
                 <div class="rb-form-group">
                     <label>Forma de pago</label>
-                    <input type="text" value="28 — Tarjeta de débito" readonly style="background:var(--gray-soft);">
-                    <input type="hidden" name="forma_pago" value="28">
+                    <input type="text" id="forma_pago_display" value="28 — Tarjeta de débito" readonly style="background:var(--gray-soft);">
+                    <input type="hidden" name="forma_pago" id="forma_pago_val" value="28">
                 </div>
                 <div class="rb-form-group">
                     <label>Método de pago</label>
-                    <input type="text" value="PUE — Pago en Una Exhibición" readonly style="background:var(--gray-soft);">
-                    <input type="hidden" name="metodo_pago" value="PUE">
+                    <input type="text" id="metodo_pago_display" value="PUE — Pago en Una Exhibición" readonly style="background:var(--gray-soft);">
+                    <input type="hidden" name="metodo_pago" id="metodo_pago_val" value="PUE">
                 </div>
                 <div class="rb-form-group">
                     <label for="fecha_factura">Fecha de la factura <span style="color:#DC2626">*</span></label>
@@ -395,8 +395,10 @@
     // Método de pago empresa: Inntec no requiere materialidad
     metodoEmpresa.addEventListener('change', function() {
         var cfdiDisplay = document.getElementById('uso_cfdi_display');
-        var formaPagoDisplay = document.querySelector('input[value="28 — Tarjeta de débito"]');
-        var metodoPagoDisplay = document.querySelector('input[value="PUE — Pago en Una Exhibición"]');
+        var formaPagoDisplay = document.getElementById('forma_pago_display');
+        var metodoPagoDisplay = document.getElementById('metodo_pago_display');
+        var formaPagoVal = document.getElementById('forma_pago_val');
+        var metodoPagoVal = document.getElementById('metodo_pago_val');
 
         if (this.value === 'inntec') {
             hintMetodo.textContent = 'Inntec: solo ticket, no requiere materialidad extra.';
@@ -404,25 +406,27 @@
             hintMaterialidad.textContent = 'No requerido para Inntec (solo ticket).';
             materialidadReq.style.display = 'none';
             if (inputMaterialidad) inputMaterialidad.removeAttribute('required');
-            // Bloquear y vaciar CFDI, forma de pago y método de pago
-            if (cfdiDisplay) { cfdiDisplay.value = 'N/A — No aplica (Inntec)'; cfdiDisplay.style.opacity = '0.5'; }
-            if (formaPagoDisplay) { formaPagoDisplay.value = 'N/A — No aplica'; formaPagoDisplay.style.opacity = '0.5'; }
-            if (metodoPagoDisplay) { metodoPagoDisplay.value = 'N/A — No aplica'; metodoPagoDisplay.style.opacity = '0.5'; }
+            // Bloquear CFDI, forma de pago y método de pago
+            if (cfdiDisplay) { cfdiDisplay.value = 'N/A — No aplica (Inntec)'; cfdiDisplay.style.opacity = '0.4'; cfdiDisplay.style.textDecoration = 'line-through'; }
+            if (formaPagoDisplay) { formaPagoDisplay.value = 'N/A — No aplica'; formaPagoDisplay.style.opacity = '0.4'; formaPagoDisplay.style.textDecoration = 'line-through'; }
+            if (metodoPagoDisplay) { metodoPagoDisplay.value = 'N/A — No aplica'; metodoPagoDisplay.style.opacity = '0.4'; metodoPagoDisplay.style.textDecoration = 'line-through'; }
             document.getElementById('uso_cfdi').value = 'N/A';
+            if (formaPagoVal) formaPagoVal.value = 'N/A';
+            if (metodoPagoVal) metodoPagoVal.value = 'N/A';
         } else {
             hintMetodo.textContent = 'BBVA: la factura debe estar a nombre de Salcom.';
             hintMetodo.style.color = '#92400e';
             hintMaterialidad.textContent = 'Obligatorio. Sin materialidad el reembolso se rechaza automáticamente.';
             materialidadReq.style.display = 'inline';
-            // Restaurar CFDI, forma de pago y método de pago
+            // Restaurar valores
             var cat = document.getElementById('categoria');
-            if (cfdiDisplay) {
-                cfdiDisplay.value = (cat && cat.value === 'computo') ? 'I04 — Equipo de Cómputo' : 'G03 — Gastos en General';
-                cfdiDisplay.style.opacity = '1';
-            }
-            document.getElementById('uso_cfdi').value = (cat && cat.value === 'computo') ? 'I04' : 'G03';
-            if (formaPagoDisplay) { formaPagoDisplay.value = '28 — Tarjeta de débito'; formaPagoDisplay.style.opacity = '1'; }
-            if (metodoPagoDisplay) { metodoPagoDisplay.value = 'PUE — Pago en Una Exhibición'; metodoPagoDisplay.style.opacity = '1'; }
+            var esComputo = cat && cat.value === 'computo';
+            if (cfdiDisplay) { cfdiDisplay.value = esComputo ? 'I04 — Equipo de Cómputo' : 'G03 — Gastos en General'; cfdiDisplay.style.opacity = '1'; cfdiDisplay.style.textDecoration = 'none'; }
+            document.getElementById('uso_cfdi').value = esComputo ? 'I04' : 'G03';
+            if (formaPagoDisplay) { formaPagoDisplay.value = '28 — Tarjeta de débito'; formaPagoDisplay.style.opacity = '1'; formaPagoDisplay.style.textDecoration = 'none'; }
+            if (metodoPagoDisplay) { metodoPagoDisplay.value = 'PUE — Pago en Una Exhibición'; metodoPagoDisplay.style.opacity = '1'; metodoPagoDisplay.style.textDecoration = 'none'; }
+            if (formaPagoVal) formaPagoVal.value = '28';
+            if (metodoPagoVal) metodoPagoVal.value = 'PUE';
         }
     });
 
