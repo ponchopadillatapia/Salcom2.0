@@ -3196,19 +3196,38 @@ class AdminPanelController extends Controller
 
     public function bitacoraGasolina(Request $request)
     {
-        $query = Alerta::where('tipo', 'bitacora_gasolina')
-            ->orderByDesc('created_at');
+        try {
+            $query = Alerta::where('tipo', 'bitacora_gasolina')
+                ->orderByDesc('created_at');
 
-        // Filtrar por número de empleado si se proporciona
-        if ($request->filled('filtro_empleado')) {
-            $filtro = $request->input('filtro_empleado');
-            $query->where(function ($q) use ($filtro) {
-                $q->where('datos->numero_empleado', 'like', "%{$filtro}%")
-                  ->orWhere('datos->empleado', 'like', "%{$filtro}%");
-            });
+            if ($request->filled('filtro_empleado')) {
+                $filtro = $request->input('filtro_empleado');
+                // Buscar en JSON — compatible con MySQL 5.7+ y 8.0
+                $query->where(function ($q) use ($filtro) {
+                    $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(datos, '$.numero_empleado')) LIKE ?", ["%{$filtro}%"])
+                      ->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(datos, '$.empleado')) LIKE ?", ["%{$filtro}%"]);
+                });
+            }
+
+            $registros = $query->limit(100)->get();
+        } catch (\Exception $e) {
+            // Fallback si JSON queries fallan: traer todo y filtrar en PHP
+            $all = Alerta::where('tipo', 'bitacora_gasolina')
+                ->orderByDesc('created_at')
+                ->limit(200)
+                ->get();
+
+            if ($request->filled('filtro_empleado')) {
+                $filtro = strtolower($request->input('filtro_empleado'));
+                $registros = $all->filter(function ($r) use ($filtro) {
+                    $d = $r->datos ?? [];
+                    return str_contains(strtolower($d['numero_empleado'] ?? ''), $filtro)
+                        || str_contains(strtolower($d['empleado'] ?? ''), $filtro);
+                });
+            } else {
+                $registros = $all;
+            }
         }
-
-        $registros = $query->limit(100)->get();
 
         return view('admin.bitacora-gasolina', compact('registros'));
     }
@@ -3264,18 +3283,21 @@ class AdminPanelController extends Controller
 
     public function bitacoraGasolinaExcel(Request $request)
     {
-        $query = Alerta::where('tipo', 'bitacora_gasolina')
-            ->orderByDesc('created_at');
+        try {
+            $query = Alerta::where('tipo', 'bitacora_gasolina')
+                ->orderByDesc('created_at');
 
-        if ($request->filled('filtro_empleado')) {
-            $filtro = $request->input('filtro_empleado');
-            $query->where(function ($q) use ($filtro) {
-                $q->where('datos->numero_empleado', 'like', "%{$filtro}%")
-                  ->orWhere('datos->empleado', 'like', "%{$filtro}%");
-            });
+            if ($request->filled('filtro_empleado')) {
+                $filtro = $request->input('filtro_empleado');
+                $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(datos, '$.numero_empleado')) LIKE ?", ["%{$filtro}%"]);
+            }
+
+            $registros = $query->get();
+        } catch (\Exception $e) {
+            $registros = Alerta::where('tipo', 'bitacora_gasolina')
+                ->orderByDesc('created_at')
+                ->get();
         }
-
-        $registros = $query->get();
 
         $output = "\xEF\xBB\xBF";
         $output .= "BITACORA DE GASOLINA\r\n";
