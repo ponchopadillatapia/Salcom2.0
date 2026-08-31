@@ -487,29 +487,26 @@
                         <span class="sb-text">Pago a proveedor</span>
                     </a>
                     {{-- Submenú Abono al proveedor --}}
-                    <div class="sb-submenu-nested {{ request()->is('admin/abono-proveedor*') ? 'open' : '' }}">
-                        <button type="button" class="sb-link sb-sublink sb-nested-toggle {{ request()->is('admin/abono-proveedor*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
+                    <div class="sb-submenu-nested {{ request()->is('admin/abono-proveedor*') || request()->is('admin/historial-abonos*') ? 'open' : '' }}">
+                        <button type="button" class="sb-link sb-sublink sb-nested-toggle {{ request()->is('admin/abono-proveedor*') || request()->is('admin/historial-abonos*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
                             <span class="sb-text">Abono al proveedor</span>
                             <svg class="sb-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
                         <div class="sb-nested-items">
-                            <a href="{{ route('admin.abono-proveedor', ['cuenta' => '8969_mxn']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '8969_mxn' ? 'active' : '' }}">
+                            <a href="{{ route('admin.historial-abonos', ['cuenta' => '8969_mxn']) }}" class="sb-link sb-sublink sb-deep {{ request()->is('admin/historial-abonos*') && request('cuenta') === '8969_mxn' ? 'active' : '' }}">
                                 <span class="sb-text">8969 — Nacionales MXN</span>
                             </a>
-                            <a href="{{ route('admin.abono-proveedor', ['cuenta' => '8969_aduanal']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '8969_aduanal' ? 'active' : '' }}">
+                            <a href="{{ route('admin.historial-abonos', ['cuenta' => '8969_aduanal']) }}" class="sb-link sb-sublink sb-deep {{ request()->is('admin/historial-abonos*') && request('cuenta') === '8969_aduanal' ? 'active' : '' }}">
                                 <span class="sb-text">8969 — Agente aduanal</span>
                             </a>
-                            <a href="{{ route('admin.abono-proveedor', ['cuenta' => '2026_base']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '2026_base' ? 'active' : '' }}">
+                            <a href="{{ route('admin.historial-abonos', ['cuenta' => '2026_base']) }}" class="sb-link sb-sublink sb-deep {{ request()->is('admin/historial-abonos*') && request('cuenta') === '2026_base' ? 'active' : '' }}">
                                 <span class="sb-text">2026 — Banco Base Dollar</span>
                             </a>
-                            <a href="{{ route('admin.abono-proveedor', ['cuenta' => '2026_extranjera']) }}" class="sb-link sb-sublink sb-deep {{ request('cuenta') === '2026_extranjera' ? 'active' : '' }}">
+                            <a href="{{ route('admin.historial-abonos', ['cuenta' => '2026_extranjera']) }}" class="sb-link sb-sublink sb-deep {{ request()->is('admin/historial-abonos*') && request('cuenta') === '2026_extranjera' ? 'active' : '' }}">
                                 <span class="sb-text">2026 — Extranjera</span>
                             </a>
                         </div>
                     </div>
-                    <a href="{{ route('admin.historial-abonos') }}" class="sb-link sb-sublink {{ request()->is('admin/historial-abonos*') ? 'active' : '' }}">
-                        <span class="sb-text">Historial de abonos</span>
-                    </a>
                     <a href="{{ route('admin.reembolsos') }}" class="sb-link sb-sublink {{ request()->is('admin/reembolsos') ? 'active' : '' }}">
                         <span class="sb-text">Reembolsos</span>
                     </a>
@@ -699,29 +696,49 @@ document.querySelectorAll('.sb-submenu').forEach(function(menu) {
     var url = '{{ route("admin.pagos.alertas") }}';
     var lastCount = {{ $adminPagosSinLeer ?? 0 }};
 
+    var MAX_TOASTS = 3; // máximo de toasts en pantalla a la vez
+
     function showToast(titulo, contenido) {
+        // Limitar cantidad: quitar los más viejos si se pasa del máximo
+        var actuales = container.querySelectorAll('.admin-toast');
+        while (actuales.length >= MAX_TOASTS) {
+            actuales[0].remove();
+            actuales = container.querySelectorAll('.admin-toast');
+        }
         var t = document.createElement('div');
         t.className = 'admin-toast';
         t.innerHTML = '<div style="flex:1"><p style="font-size:13px;font-weight:700;color:#1f2937;margin:0 0 2px">'+titulo+'</p><p style="font-size:12px;color:#6b7280;margin:0">'+contenido+'</p></div><button onclick="this.parentElement.classList.add(\'exit\');setTimeout(function(){this.parentElement.remove()}.bind(this),300)" style="background:none;border:none;color:#9ca3af;cursor:pointer;font-size:16px">&times;</button>';
         container.appendChild(t);
-        setTimeout(function(){ if(t.parentElement){t.classList.add('exit');setTimeout(function(){t.remove()},300)} }, 8000);
+        setTimeout(function(){ if(t.parentElement){t.classList.add('exit');setTimeout(function(){t.remove()},300)} }, 5000);
     }
 
+    var primerPoll = true;
     function poll() {
         fetch(url, {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}})
             .then(function(r){return r.json()})
             .then(function(data){
-                if (data.sin_leer > lastCount && data.items && data.items.length) {
-                    data.items.forEach(function(item){
+                // En el primer poll NO mostramos toasts (evita la avalancha al cargar la página)
+                if (!primerPoll && data.sin_leer > lastCount && data.items && data.items.length) {
+                    // Solo mostrar las NUEVAS (las que se sumaron desde el último conteo), máximo 3
+                    var nuevas = data.sin_leer - lastCount;
+                    var aMostrar = data.items.slice(0, Math.min(nuevas, MAX_TOASTS));
+                    aMostrar.forEach(function(item){
                         showToast(item.titulo, item.contenido);
                     });
-                    // Actualizar badge
-                    var badge = document.getElementById('notifBadge');
-                    if (badge) { badge.textContent = data.sin_leer > 9 ? '9+' : data.sin_leer; badge.style.display = 'flex'; }
-                    var label = document.getElementById('notifCountLabel');
-                    if (label) { label.textContent = data.sin_leer + ' nuevas'; label.style.display = ''; }
+                }
+                // Actualizar badge siempre
+                var badge = document.getElementById('notifBadge');
+                if (badge) {
+                    if (data.sin_leer > 0) { badge.textContent = data.sin_leer > 9 ? '9+' : data.sin_leer; badge.style.display = 'flex'; }
+                    else { badge.style.display = 'none'; }
+                }
+                var label = document.getElementById('notifCountLabel');
+                if (label) {
+                    if (data.sin_leer > 0) { label.textContent = data.sin_leer + ' nuevas'; label.style.display = ''; }
+                    else { label.style.display = 'none'; }
                 }
                 lastCount = data.sin_leer;
+                primerPoll = false;
             })
             .catch(function(){});
     }

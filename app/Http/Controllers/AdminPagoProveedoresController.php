@@ -521,42 +521,132 @@ class AdminPagoProveedoresController extends Controller
     public function historialAbonos(Request $request)
     {
         $buscar = trim((string) $request->input('q', ''));
-        $estatus = trim((string) $request->input('estatus', ''));
         $desde = $request->input('desde');
         $hasta = $request->input('hasta');
 
-        // KPIs
-        $kpiLiquidadas = Factura::where('estatus', 'liquidada')->count();
-        $kpiPagadas = Factura::where('estatus', 'pagada')->count();
-        $kpiTotal = Factura::whereIn('estatus', ['liquidada', 'pagada'])->count();
-
-        $query = Factura::query()
-            ->where('estatus', 'liquidada')
-            ->whereNotNull('validacion_detalle');
-
-        if ($estatus === 'pagada') {
-            $query = Factura::query()->where('estatus', 'pagada')->where('monto_pagado', '>', 0);
-        } elseif ($estatus === 'todas') {
-            $query = Factura::query()->whereIn('estatus', ['liquidada', 'pagada'])->where('monto_pagado', '>', 0);
+        // Cuentas (las 4 pólizas). Cuenta activa = la seleccionada o la primera.
+        $cuentas = config('polizas_pago');
+        $cuentaKey = trim((string) $request->input('cuenta', ''));
+        if (! isset($cuentas[$cuentaKey])) {
+            $cuentaKey = array_key_first($cuentas);
         }
+        $cuentaConfig = $cuentas[$cuentaKey];
 
-        if ($buscar !== '') {
-            $query->where(function ($q) use ($buscar) {
-                $q->where('codigo_proveedor', 'like', "%{$buscar}%")
-                    ->orWhere('folio_cfdi', 'like', "%{$buscar}%");
+        // Nombres de proveedores para resolver razón social
+        $provNombres = ProveedorUser::pluck('nombre', 'codigo');
+
+        // ── Fuente 1: Anticipos registrados desde Abono al proveedor (cuentas USD) ──
+        $anticipos = \App\Models\AnticipoProveedor::query()
+            ->whereNotNull('datos')
+            ->orderByDesc('created_at')
+            ->get()
+            ->filter(function ($a) use ($cuentaKey) {
+                $d = is_array($a->datos) ? $a->datos : [];
+                return ($d['origen'] ?? '') === 'abono_proveedor' && ($d['cuenta_key'] ?? '') === $cuentaKey;
+            })
+            ->map(function ($a) {
+                $d = is_array($a->datos) ? $a->datos : [];
+                return [
+                    'tipo' => 'anticipo',
+                    'fecha' => $a->fecha,
+                    'serie' => $d['serie'] ?? '',
+                    'folio' => $a->folio,
+                    'codigo' => $a->codigo_proveedor,
+                    'razon' => $a->nombre_proveedor,
+                    'total' => (float) $a->total_banco,
+                    'moneda' => $d['moneda'] ?? 'USD',
+                    'tipo_cambio' => $d['tipo_cambio'] ?? '',
+                    'pendiente' => $a->saldoPendiente(),
+                    'referencia' => $a->folio_general,
+                    'estatus' => $a->estatus,
+                    'cancelado' => $a->estatus === 'cancelado' ? 1 : 0,
+                    'registrado' => $a->created_at?->format('d/m/Y h:i a'),
+                    'anticipo_id' => $a->id,
+                ];
             });
+
+        // ── Fuente 2: Abonos internos estampados en facturas (cuentas por título) ──
+        $tituloCuenta = $cuentaConfig['titulo'] ?? '';
+        $facturasAbono = Factura::query()
+            ->where('estatus', 'liquidada')
+            ->whereNotNull('validacion_detalle')
+            ->orderByDesc('updated_at')
+            ->get()
+            ->filter(function ($f) use ($tituloCuenta) {
+                $vd = is_array($f->validacion_detalle) ? ($f->validacion_detalle['abono_interno'] ?? []) : [];
+                return ($vd['cuenta'] ?? '') === $tituloCuenta;
+            })
+            ->map(function ($f) {
+                $vd = is_array($f->validacion_detalle) ? ($f->validacion_detalle['abono_interno'] ?? []) : [];
+                return [
+                    'tipo' => 'abono',
+                    'fecha' => isset($vd['fecha']) ? \Illuminate\Support\Carbon::parse($vd['fecha']) : $f->updated_at,
+                    'serie' => $vd['serie'] ?? '',
+                    'folio' => $vd['poliza'] ?? '',
+                    'codigo' => $f->codigo_proveedor,
+                    'razon' => null, // se resuelve en la vista
+                    'total' => (float) $f->monto_pagado,
+                    'moneda' => $vd['moneda'] ?? 'MXN',
+                    'tipo_cambio' => $vd['tipo_cambio'] ?? '1.0000',
+                    'pendiente' => 0.0,
+                    'referencia' => $f->folio_cfdi ? ('FAC-' . $f->folio_cfdi) : ('FAC-' . $f->id),
+                    'estatus' => $f->estatus,
+                    'cancelado' => $f->estatus === 'cancelada' ? 1 : 0,
+                    'registrado' => $vd['registrado_at'] ?? $f->updated_at?->format('d/m/Y h:i a'),
+                    'factura_id' => $f->id,
+                ];
+            });
+
+        // ── Combinar y resolver razón social + aplicar filtros de texto/fecha ──
+        $baseRegistros = $anticipos->concat($facturasAbono)
+            ->map(function ($r) use ($provNombres) {
+                if (empty($r['razon'])) {
+                    $r['razon'] = $provNombres[$r['codigo']] ?? $r['codigo'];
+                }
+                return $r;
+            })
+            ->filter(function ($r) use ($buscar, $desde, $hasta) {
+                if ($buscar !== '') {
+                    $hay = stripos((string) $r['codigo'], $buscar) !== false
+                        || stripos((string) $r['razon'], $buscar) !== false
+                        || stripos((string) $r['folio'], $buscar) !== false
+                        || stripos((string) $r['referencia'], $buscar) !== false;
+                    if (! $hay) return false;
+                }
+                $fecha = $r['fecha'] instanceof \Illuminate\Support\Carbon ? $r['fecha'] : \Illuminate\Support\Carbon::parse($r['fecha']);
+                if ($desde && $fecha->lt(\Illuminate\Support\Carbon::parse($desde)->startOfDay())) return false;
+                if ($hasta && $fecha->gt(\Illuminate\Support\Carbon::parse($hasta)->endOfDay())) return false;
+                return true;
+            })
+            ->sortByDesc(function ($r) {
+                return $r['fecha'] instanceof \Illuminate\Support\Carbon ? $r['fecha']->timestamp : strtotime((string) $r['fecha']);
+            })
+            ->values();
+
+        // ── KPIs (contadores) ──
+        $kpiTodos = $baseRegistros->count();
+        $kpiCancelados = $baseRegistros->where('cancelado', 1)->count();
+        $kpiPendiente = $baseRegistros->filter(fn ($r) => (float) $r['pendiente'] > 0)->count();
+
+        // ── Filtro por tipo de documento (tab) ──
+        $doc = trim((string) $request->input('doc', 'todos'));
+        $registros = $baseRegistros;
+        if ($doc === 'cancelados') {
+            $registros = $baseRegistros->where('cancelado', 1)->values();
+        } elseif ($doc === 'pendiente') {
+            $registros = $baseRegistros->filter(fn ($r) => (float) $r['pendiente'] > 0)->values();
         }
 
-        if ($desde) {
-            $query->whereDate('updated_at', '>=', $desde);
-        }
-        if ($hasta) {
-            $query->whereDate('updated_at', '<=', $hasta);
-        }
+        // Totales del listado filtrado
+        $totalRegistros = $registros->count();
+        $sumaTotal = $registros->sum('total');
+        $sumaPendiente = $registros->sum('pendiente');
 
-        $facturas = $query->orderByDesc('updated_at')->paginate(50)->withQueryString();
-
-        return view('admin.historial-abonos', compact('facturas', 'buscar', 'estatus', 'kpiLiquidadas', 'kpiPagadas', 'kpiTotal'));
+        return view('admin.historial-abonos', compact(
+            'registros', 'cuentas', 'cuentaKey', 'cuentaConfig',
+            'buscar', 'totalRegistros', 'sumaTotal', 'sumaPendiente',
+            'doc', 'kpiTodos', 'kpiCancelados', 'kpiPendiente'
+        ));
     }
 
     /** Confirmar abono interno con número de póliza. */
@@ -566,7 +656,7 @@ class AdminPagoProveedoresController extends Controller
             'factura_ids' => 'required|array|min:1',
             'factura_ids.*' => 'integer',
             'poliza' => 'required|string|max:60',
-            'fecha' => 'required|date',
+            'fecha' => 'required|date|before:today',
             'serie' => 'nullable|string|max:20',
             'cuenta' => 'nullable|string|max:60',
             'cuenta_key' => 'nullable|string|max:30',
@@ -574,6 +664,11 @@ class AdminPagoProveedoresController extends Controller
             'moneda' => 'nullable|string|max:10',
             'tipo_cambio' => 'nullable|string|max:20',
             'notas' => 'nullable|string|max:500',
+            'referencia' => 'required|string|max:120',
+            'observaciones' => 'nullable|string|max:1000',
+        ], [
+            'fecha.before' => 'La fecha debe ser un día anterior a hoy.',
+            'referencia.required' => 'Escribe en Referencia las facturas o número de compra.',
         ]);
 
         $facturas = Factura::whereIn('id', $data['factura_ids'])->where('estatus', 'pagada')->get();
@@ -592,6 +687,8 @@ class AdminPagoProveedoresController extends Controller
                 'moneda' => $data['moneda'] ?? 'MXN',
                 'tipo_cambio' => $data['tipo_cambio'] ?? '1.0000',
                 'notas' => $data['notas'] ?? null,
+                'referencia' => $data['referencia'] ?? null,
+                'observaciones' => $data['observaciones'] ?? null,
                 'admin_id' => session('admin_id'),
                 'registrado_at' => now()->toDateTimeString(),
             ];
@@ -651,7 +748,108 @@ class AdminPagoProveedoresController extends Controller
             \Illuminate\Support\Facades\Log::warning('[AbonoInterno] No se pudo crear alerta proveedor: ' . $e->getMessage());
         }
 
-        return redirect()->route('admin.abono-proveedor', ['cuenta' => $data['cuenta_key'] ?? ''])->with('ok', 'Abono registrado. Póliza: ' . $data['poliza'] . ' — ' . $facturas->count() . ' factura(s) liquidadas.');
+        return redirect()->route('admin.historial-abonos', ['cuenta' => $data['cuenta_key'] ?? ''])
+            ->with('ok', 'Abono registrado. Póliza: ' . $data['poliza'] . ' — ' . $facturas->count() . ' factura(s) liquidadas.');
+    }
+
+    /**
+     * Guardar el abono como ANTICIPO cuando no hay OC/factura en el sistema.
+     * Se dispara desde el botón "Guardar" en la pestaña Información Adicional.
+     */
+    public function abonoInternoAnticipo(Request $request)
+    {
+        // Limpiar comas del monto
+        $request->merge([
+            'total_manual' => str_replace([',', '$'], '', (string) $request->input('total_manual', '')),
+        ]);
+
+        $data = $request->validate([
+            'poliza' => 'required|string|max:60',
+            'fecha' => 'required|date|before:today',
+            'serie' => 'nullable|string|max:20',
+            'cuenta_key' => 'nullable|string|max:30',
+            'codigo_proveedor' => 'required|string|max:30',
+            'moneda' => 'nullable|string|max:10',
+            'tipo_cambio' => 'nullable|string|max:20',
+            'total_manual' => 'required|numeric|min:0.01',
+            'referencia' => 'required|string|max:120',
+            'observaciones' => 'nullable|string|max:1000',
+        ], [
+            'fecha.before' => 'La fecha debe ser un día anterior a hoy.',
+        ]);
+
+        // Solo se permite guardar como anticipo en cuentas extranjeras/USD
+        if (! in_array($data['cuenta_key'] ?? '', ['2026_base', '2026_extranjera'], true)) {
+            return back()->with('error', 'Guardar como anticipo solo aplica para cuentas en dólares (Banco Base Dollar / Extranjera).');
+        }
+
+        $proveedor = ProveedorUser::where('codigo', $data['codigo_proveedor'])->first();
+        if (! $proveedor) {
+            return back()->with('error', 'Proveedor no encontrado.');
+        }
+
+        $total = (float) $data['total_manual'];
+        $cuentaTitulo = config("polizas_pago.{$data['cuenta_key']}.titulo", '');
+        $cuentaConcepto = config("polizas_pago.{$data['cuenta_key']}.concepto", 'Abono');
+        $di = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+
+        $anticipo = \App\Models\AnticipoProveedor::create([
+            'folio' => $data['poliza'], // el folio/nº póliza que capturó
+            'proveedor_id' => $proveedor->id,
+            'codigo_proveedor' => $proveedor->id_proveedor ?: $proveedor->codigo,
+            'nombre_proveedor' => $proveedor->nombre,
+            'rfc_proveedor' => strtoupper($di['rfc'] ?? ''),
+            'banco' => $di['banco'] ?? null,
+            'cuenta_banco' => $di['cuenta'] ?? null,
+            'clabe' => $di['clabe'] ?? null,
+            'importe' => $total,
+            'iva' => 0,
+            'total_banco' => $total,
+            'folio_general' => $data['referencia'], // número de orden
+            'departamento' => 'Compras',
+            'fecha' => $data['fecha'],
+            'concepto' => $cuentaConcepto,
+            'estatus' => 'pagado',
+            'creado_por' => session('admin_id'),
+            'datos' => [
+                'origen' => 'abono_proveedor',
+                'cuenta_key' => $data['cuenta_key'] ?? null,
+                'cuenta_titulo' => $cuentaTitulo,
+                'serie' => $data['serie'] ?? null,
+                'poliza' => $data['poliza'],
+                'moneda' => $data['moneda'] ?? 'MXN',
+                'tipo_cambio' => $data['tipo_cambio'] ?? '1.0000',
+                'referencia' => $data['referencia'],
+                'observaciones' => $data['observaciones'] ?? null,
+                'registrado_at' => now()->toDateTimeString(),
+            ],
+        ]);
+
+        // Alerta admin
+        try {
+            \App\Models\Alerta::create([
+                'tipo' => 'anticipo_registrado',
+                'modulo' => 'abono_proveedor',
+                'destinatario_tipo' => 'admin',
+                'destinatario_id' => session('admin_id'),
+                'titulo' => 'Anticipo registrado',
+                'contenido' => "Anticipo por \$" . number_format($total, 2) . " a {$proveedor->nombre}. Referencia/Orden: {$data['referencia']}.",
+                'nivel' => 'info',
+                'estatus' => 'nueva',
+                'datos' => [
+                    'anticipo_id' => $anticipo->id,
+                    'poliza' => $data['poliza'],
+                    'referencia' => $data['referencia'],
+                    'monto' => $total,
+                    'cuenta' => $cuentaTitulo,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[AbonoAnticipo] No se pudo crear alerta: ' . $e->getMessage());
+        }
+
+        return redirect()->route('admin.historial-abonos', ['cuenta' => $data['cuenta_key'] ?? ''])
+            ->with('ok', 'Pago registrado como anticipo. Referencia/Orden: ' . $data['referencia'] . ' — $' . number_format($total, 2) . '.');
     }
 
     // ═══════════════════════════════════════════

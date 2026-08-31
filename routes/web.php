@@ -248,6 +248,7 @@ Route::post('/admin/pago-proveedores/{abono}/cancelar', [AdminPagoProveedoresCon
 Route::get('/admin/abono-proveedor', [AdminPagoProveedoresController::class, 'abonoInterno'])->name('admin.abono-proveedor')->middleware('auth.admin');
 Route::get('/admin/abono-proveedor/facturas-json', [AdminPagoProveedoresController::class, 'abonoInternoFacturas'])->name('admin.abono-proveedor.facturas-json')->middleware('auth.admin');
 Route::post('/admin/abono-proveedor/confirmar', [AdminPagoProveedoresController::class, 'abonoInternoConfirmar'])->name('admin.abono-proveedor.confirmar')->middleware('auth.admin');
+Route::post('/admin/abono-proveedor/anticipo', [AdminPagoProveedoresController::class, 'abonoInternoAnticipo'])->name('admin.abono-proveedor.anticipo')->middleware('auth.admin');
 Route::get('/admin/historial-abonos', [AdminPagoProveedoresController::class, 'historialAbonos'])->name('admin.historial-abonos')->middleware('auth.admin');
 Route::get('/admin/anticipos', [AdminPagoProveedoresController::class, 'anticiposIndex'])->name('admin.anticipos')->middleware('auth.admin');
 Route::post('/admin/anticipos', [AdminPagoProveedoresController::class, 'anticiposStore'])->name('admin.anticipos.store')->middleware('auth.admin');
