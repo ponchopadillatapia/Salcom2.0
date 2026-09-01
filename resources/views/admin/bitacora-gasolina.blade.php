@@ -151,7 +151,7 @@
                         <td style="font-weight:600;">{{ $d['numero_empleado'] ?? '—' }}</td>
                         <td style="font-weight:600;">{{ $d['empleado'] ?? '—' }}</td>
                         <td>{{ $d['cantidad_litros'] ?? '—' }}</td>
-                        <td>{{ $d['rendimiento'] ? $d['rendimiento'] . ' km/l' : '—' }}</td>
+                        <td>{{ !empty($d['rendimiento']) ? $d['rendimiento'] . ' km/l' : '—' }}</td>
                         <td style="font-weight:600;">${{ $d['monto'] ?? '—' }}</td>
                         <td>{{ $d['vehiculo'] ?? '—' }}</td>
                         <td>{{ $d['kilometraje'] ?? '—' }}</td>
