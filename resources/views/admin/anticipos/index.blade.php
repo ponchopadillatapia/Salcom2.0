@@ -62,6 +62,9 @@
     .pay-modal-head h3{color:#fff;font-size:15px;font-weight:700;margin:0}
     .pay-modal-head .x{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1}
     .pay-modal-body{padding:18px 20px}
+    .pay-moneda{display:flex;gap:18px;margin-bottom:14px;padding:10px 14px;background:var(--gray-soft);border-radius:8px}
+    .pay-check{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--gray-text);cursor:pointer}
+    .pay-check input{width:16px;height:16px;accent-color:var(--purple);cursor:pointer}
     .pay-modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
     .btn-enviar{padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
 
@@ -90,7 +93,7 @@
 <div class="pag-alert ok anim" id="msg-ajax" style="display:none"></div>
 
 {{-- Formulario --}}
-<form method="POST" action="{{ route('admin.anticipos.store') }}">
+<form method="POST" action="{{ route('admin.anticipos.store') }}" enctype="multipart/form-data">
     @csrf
     <div class="ant-card anim">
         <div class="ant-header">
@@ -146,6 +149,18 @@
             <div class="ant-field">
                 <label>Total del banco</label>
                 <input type="text" id="ant-total-banco" readonly style="background:var(--gray-soft);font-weight:700;color:var(--green)" value="$0.00">
+            </div>
+
+            {{-- CFDI de anticipo timbrado: XML o UUID manual --}}
+            <div class="ant-field">
+                <label>XML del CFDI de anticipo (opcional)</label>
+                <input type="file" name="xml_anticipo" id="ant-xml" accept=".xml,text/xml,application/xml" onchange="leerUuidDelXml(this)">
+                <span style="font-size:11px;color:var(--gray-muted);margin-top:2px">Si lo subes, se extrae el UUID automáticamente.</span>
+            </div>
+            <div class="ant-field span2">
+                <label>UUID del CFDI de anticipo (opcional)</label>
+                <input type="text" name="uuid_cfdi" id="ant-uuid" placeholder="Ej: A1B2C3D4-... (se llena solo si subes el XML)" style="text-transform:uppercase" maxlength="36">
+                <span style="font-size:11px;color:var(--gray-muted);margin-top:2px">Sirve para ligar automáticamente la factura del proveedor que aplique este anticipo.</span>
             </div>
             <div class="ant-field">
                 <label>Departamento <span style="color:#dc2626">●</span></label>
@@ -252,7 +267,7 @@
                                     @if($a->estatus !== 'aplicado' && $a->estatus !== 'cancelado')
                                         <button type="button" class="btn-pagar"
                                             data-anticipo="{{ json_encode($payData, JSON_HEX_APOS | JSON_HEX_QUOT) }}"
-                                            onclick="abrirModalPago(this)">Pagar</button>
+                                            onclick="abrirModalPago(this)">Generar reporte</button>
                                     @else
                                         <span style="font-size:11px;color:var(--gray-muted)">
                                             {{ $facAplicada?->folio_cfdi ?: ($a->factura_id ? 'FAC-'.$a->factura_id : '—') }}
@@ -287,6 +302,11 @@
                 <strong id="pay-proveedor"></strong>
                 <span style="color:var(--gray-muted)" id="pay-codigo"></span>
                 <span style="color:var(--gray-muted)"> · Folio: </span><span id="pay-folio" style="font-weight:600;color:var(--purple)"></span>
+            </div>
+            <div class="pay-moneda">
+                <label class="pay-check"><input type="checkbox" name="pay-moneda" value="MXN" checked onclick="seleccionarMoneda(this)"> MXN</label>
+                <label class="pay-check"><input type="checkbox" name="pay-moneda" value="USD" onclick="seleccionarMoneda(this)"> USD</label>
+                <label class="pay-check"><input type="checkbox" name="pay-moneda" value="EUR" onclick="seleccionarMoneda(this)"> EUR</label>
             </div>
             <div style="overflow-x:auto">
                 <table class="bank-table">
@@ -324,7 +344,7 @@
         <div class="pay-modal-foot">
             <a href="#" id="pay-pdf" target="_blank" class="btn-cancel">Ver formato PDF</a>
             <button type="button" class="btn-ant" onclick="registrarAbonos()">Registrar abonos</button>
-            <button type="button" class="btn-enviar" onclick="enviarAbonos()">Enviar abonos</button>
+            <button type="button" class="btn-enviar" onclick="enviarAbonos()">Enviar Excel</button>
             <button type="button" class="btn-cancel" onclick="cerrarModalPago()">Cerrar</button>
         </div>
     </div>
@@ -336,6 +356,26 @@
 <script>
 function soloNumeros(el) {
     el.value = el.value.replace(/[^0-9.,]/g, '');
+}
+
+// Lee el XML del CFDI de anticipo y extrae el UUID del TimbreFiscalDigital.
+function leerUuidDelXml(input) {
+    var uuidField = document.getElementById('ant-uuid');
+    if (!input.files || input.files.length === 0) return;
+    var file = input.files[0];
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var texto = e.target.result || '';
+        // Buscar el atributo UUID="..." (del nodo TimbreFiscalDigital).
+        var m = texto.match(/UUID\s*=\s*"([0-9A-Fa-f-]{36})"/);
+        if (m && m[1]) {
+            uuidField.value = m[1].toUpperCase();
+            uuidField.style.borderColor = '#059669';
+        } else {
+            alert('No se encontró un UUID válido en el XML. Verifica que sea el CFDI de anticipo timbrado o escríbelo a mano.');
+        }
+    };
+    reader.readAsText(file);
 }
 
 function parseNum(val) {
@@ -405,10 +445,24 @@ function cerrarModalPago() {
     pagoActual = null;
 }
 
+// Solo una moneda a la vez (comportamiento tipo radio con checkboxes).
+function seleccionarMoneda(el) {
+    document.querySelectorAll('input[name="pay-moneda"]').forEach(function(c) {
+        if (c !== el) c.checked = false;
+    });
+    if (!el.checked) el.checked = true; // siempre debe haber una seleccionada
+}
+
+function monedaSeleccionada() {
+    var c = document.querySelector('input[name="pay-moneda"]:checked');
+    return c ? c.value : 'MXN';
+}
+
 function registrarAbonos() {
     if (!pagoActual) return;
+    var moneda = monedaSeleccionada();
     var msg = document.getElementById('msg-ajax');
-    msg.textContent = 'Abono registrado para ' + pagoActual.proveedor + ' (Folio ' + pagoActual.folio_general + ') por $' + pagoActual.total + '.';
+    msg.textContent = 'Abono registrado para ' + pagoActual.proveedor + ' (Folio ' + pagoActual.folio_general + ') por $' + pagoActual.total + ' ' + moneda + '.';
     msg.style.display = 'block';
     cerrarModalPago();
     window.scrollTo({top:0, behavior:'smooth'});
@@ -416,8 +470,9 @@ function registrarAbonos() {
 
 function enviarAbonos() {
     if (!pagoActual) return;
+    var moneda = monedaSeleccionada();
     var msg = document.getElementById('msg-ajax');
-    msg.textContent = 'Abono enviado a ' + pagoActual.proveedor + ' (Folio ' + pagoActual.folio_general + ') por $' + pagoActual.total + '.';
+    msg.textContent = 'Abono enviado a ' + pagoActual.proveedor + ' (Folio ' + pagoActual.folio_general + ') por $' + pagoActual.total + ' ' + moneda + '.';
     msg.style.display = 'block';
     cerrarModalPago();
     window.scrollTo({top:0, behavior:'smooth'});

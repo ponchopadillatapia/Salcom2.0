@@ -218,7 +218,10 @@ class PagoProveedorService
     public function netoFactura(Factura $factura): float
     {
         // Total CFDI ya viene neto (SubTotal + IVA − retenciones). No restar retenciones otra vez.
-        return round((float) $factura->total, 2);
+        // Sí restamos lo ya pagado (p. ej. anticipos aplicados) para mostrar el saldo real pendiente.
+        $saldo = (float) $factura->total - (float) $factura->monto_pagado;
+
+        return round(max($saldo, 0), 2);
     }
 
     /** Suma de facturas aún adeudadas al proveedor (pendiente / programada). */

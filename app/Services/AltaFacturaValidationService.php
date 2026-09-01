@@ -285,6 +285,8 @@ class AltaFacturaValidationService
             'metodo_pago' => strtoupper(trim((string) ($attrs['MetodoPago'] ?? ''))) ?: null,
             'uso_cfdi' => null,
             'conceptos' => [],
+            'cfdi_relacionados' => [],
+            'tipo_relacion' => null,
         ];
 
         if ($objeto['tipo_comprobante'] !== '' && strtoupper($objeto['tipo_comprobante']) !== 'I') {
@@ -320,6 +322,10 @@ class AltaFacturaValidationService
 
         $objeto['conceptos'] = $this->extraerConceptosConImpuestos($xml);
 
+        $relacionados = $this->extraerCfdiRelacionados($xml);
+        $objeto['cfdi_relacionados'] = $relacionados['uuids'];
+        $objeto['tipo_relacion'] = $relacionados['tipo_relacion'];
+
         return $objeto;
     }
 
@@ -349,6 +355,8 @@ class AltaFacturaValidationService
         $datos['fecha'] = $cfdi['fecha'];
         $datos['tipo_comprobante'] = $cfdi['tipo_comprobante'];
         $datos['conceptos_detalle'] = $cfdi['conceptos'];
+        $datos['cfdi_relacionados'] = $cfdi['cfdi_relacionados'] ?? [];
+        $datos['tipo_relacion'] = $cfdi['tipo_relacion'] ?? null;
     }
 
     /**
@@ -1136,6 +1144,46 @@ class AltaFacturaValidationService
         }
 
         return null;
+    }
+
+    /**
+     * Lee el nodo CfdiRelacionados del CFDI. Prioriza TipoRelacion "07"
+     * (aplicación de anticipos), que es el que liga la factura al anticipo.
+     * Devuelve los UUID relacionados (en mayúsculas) y el TipoRelacion.
+     *
+     * @return array{uuids: list<string>, tipo_relacion: ?string}
+     */
+    private function extraerCfdiRelacionados(SimpleXMLElement $xml): array
+    {
+        $nodos = $xml->xpath("//*[local-name()='CfdiRelacionados']") ?: [];
+        if (empty($nodos)) {
+            return ['uuids' => [], 'tipo_relacion' => null];
+        }
+
+        // Preferir el bloque con TipoRelacion 07; si no hay, tomar el primero.
+        $seleccionado = null;
+        foreach ($nodos as $n) {
+            $tipo = (string) ($n->attributes()['TipoRelacion'] ?? '');
+            if ($tipo === '07') {
+                $seleccionado = $n;
+                break;
+            }
+        }
+        if ($seleccionado === null) {
+            $seleccionado = $nodos[0];
+        }
+
+        $tipoRelacion = (string) ($seleccionado->attributes()['TipoRelacion'] ?? '') ?: null;
+
+        $uuids = [];
+        foreach ($seleccionado->xpath(".//*[local-name()='CfdiRelacionado']") ?: [] as $rel) {
+            $uuid = strtoupper(trim((string) ($rel->attributes()['UUID'] ?? '')));
+            if ($uuid !== '') {
+                $uuids[] = $uuid;
+            }
+        }
+
+        return ['uuids' => array_values(array_unique($uuids)), 'tipo_relacion' => $tipoRelacion];
     }
 
     private function extraerUuid(SimpleXMLElement $xml): ?string

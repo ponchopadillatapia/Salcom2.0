@@ -897,6 +897,8 @@ class AdminPagoProveedoresController extends Controller
             'departamento' => 'required|string|max:60',
             'fecha' => 'required|date',
             'concepto' => 'required|string|max:1000',
+            'uuid_cfdi' => 'nullable|string|max:36',
+            'xml_anticipo' => 'nullable|file|mimetypes:text/xml,application/xml,text/plain|max:5120',
         ]);
 
         $proveedor = ProveedorUser::findOrFail($data['proveedor_id']);
@@ -906,6 +908,20 @@ class AdminPagoProveedoresController extends Controller
 
         // Folio fijo de contabilidad
         $folio = 'FCONA-0040';
+
+        // UUID del CFDI de anticipo: si suben el XML, lo extraemos (fuente confiable);
+        // si no, usamos el capturado a mano. El XML manda sobre el texto manual.
+        $uuidCfdi = trim((string) ($data['uuid_cfdi'] ?? '')) ?: null;
+        $xmlPath = null;
+        if ($request->hasFile('xml_anticipo')) {
+            $xmlContent = file_get_contents($request->file('xml_anticipo')->getRealPath());
+            $uuidDelXml = $this->extraerUuidDeXml((string) $xmlContent);
+            if ($uuidDelXml) {
+                $uuidCfdi = $uuidDelXml;
+            }
+            $xmlPath = $request->file('xml_anticipo')->store('anticipos/xml', 'public');
+        }
+        $uuidCfdi = $uuidCfdi ? strtoupper($uuidCfdi) : null;
 
         $anticipo = \App\Models\AnticipoProveedor::create([
             'folio' => $folio,
@@ -920,11 +936,13 @@ class AdminPagoProveedoresController extends Controller
             'iva' => $iva,
             'total_banco' => $totalBanco,
             'folio_general' => $data['folio_general'],
+            'uuid_cfdi' => $uuidCfdi,
             'departamento' => $data['departamento'],
             'fecha' => $data['fecha'],
             'concepto' => $data['concepto'],
             'estatus' => 'pagado',
             'creado_por' => session('admin_id'),
+            'datos' => $xmlPath ? ['xml_anticipo' => $xmlPath] : null,
         ]);
 
         return redirect()->route('admin.anticipos', ['creado' => $anticipo->id])->with('ok', "Anticipo {$folio} registrado por \$" . number_format($totalBanco, 2) . " a {$proveedor->nombre}.");
@@ -941,7 +959,31 @@ class AdminPagoProveedoresController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.anticipos.formato-pdf', $data)
             ->setPaper('letter', 'landscape');
 
-        return $pdf->download("Formato_Anticipo_{$anticipo->folio}_{$anticipo->codigo_proveedor}.pdf");
+        // El nombre incluye el folio_general (identificador único del anticipo) y su id,
+        // para poder validar al adjuntarlo que el formato corresponde al anticipo correcto.
+        $folioGeneralSlug = \Illuminate\Support\Str::slug($anticipo->folio_general ?: 'anticipo', '-');
+
+        return $pdf->download("Formato_Anticipo_{$anticipo->id}_{$folioGeneralSlug}_{$anticipo->codigo_proveedor}.pdf");
+    }
+
+    /**
+     * Sirve el PDF del formato de anticipo adjuntado (el que se subió al aplicar).
+     * Se entrega vía Laravel para no depender del acceso directo a /storage.
+     */
+    public function anticiposFormatoAdjunto(\App\Models\AnticipoProveedor $anticipo)
+    {
+        $ruta = $anticipo->datos['formato_pdf'] ?? null;
+
+        if (! $ruta || ! \Illuminate\Support\Facades\Storage::disk('public')->exists($ruta)) {
+            abort(404, 'No hay formato de anticipo adjuntado.');
+        }
+
+        $nombre = 'Formato_Anticipo_'.$anticipo->id.'_'.($anticipo->folio_general ?: 'anticipo').'.pdf';
+
+        return response()->file(
+            \Illuminate\Support\Facades\Storage::disk('public')->path($ruta),
+            ['Content-Disposition' => 'inline; filename="'.$nombre.'"']
+        );
     }
 
     public function anticiposAplicar(Request $request, \App\Models\AnticipoProveedor $anticipo)
@@ -956,6 +998,22 @@ class AdminPagoProveedoresController extends Controller
         // No se puede reaplicar un anticipo ya aplicado o cancelado.
         if (in_array($anticipo->estatus, ['aplicado', 'cancelado'], true)) {
             $msg = 'Este anticipo ya está '.$anticipo->estatus.'. No se puede aplicar de nuevo.';
+            return $wantsJson
+                ? response()->json(['ok' => false, 'mensaje' => $msg], 422)
+                : back()->withErrors($msg);
+        }
+
+        // Validar que el PDF adjunto corresponda a ESTE anticipo.
+        // El formato se descarga como "Formato_Anticipo_{id}_{folio-general}_{codigo}.pdf",
+        // así que el nombre del archivo debe contener el id o el folio_general del anticipo.
+        $nombrePdf = strtolower($request->file('formato_pdf')->getClientOriginalName());
+        $marcaId = 'anticipo_'.$anticipo->id.'_';
+        $folioSlug = \Illuminate\Support\Str::slug($anticipo->folio_general ?: '', '-');
+        $coincideId = str_contains($nombrePdf, $marcaId);
+        $coincideFolio = $folioSlug !== '' && str_contains($nombrePdf, $folioSlug);
+
+        if (! $coincideId && ! $coincideFolio) {
+            $msg = "El formato PDF adjunto no corresponde a este anticipo ({$anticipo->folio_general}). Descarga y adjunta el formato de este anticipo.";
             return $wantsJson
                 ? response()->json(['ok' => false, 'mensaje' => $msg], 422)
                 : back()->withErrors($msg);
@@ -1087,6 +1145,43 @@ class AdminPagoProveedoresController extends Controller
         }
 
         return $meta;
+    }
+
+    /**
+     * Extrae el UUID del TimbreFiscalDigital de un XML CFDI.
+     * Devuelve el UUID en mayúsculas o null si no se encuentra.
+     */
+    private function extraerUuidDeXml(string $xmlContent): ?string
+    {
+        $xmlContent = trim($xmlContent);
+        if ($xmlContent === '' || ! str_contains($xmlContent, '<')) {
+            return null;
+        }
+
+        libxml_use_internal_errors(true);
+        try {
+            $xml = new \SimpleXMLElement($xmlContent);
+        } catch (\Throwable) {
+            // Respaldo por regex si el XML no parsea limpio.
+            if (preg_match('/UUID\s*=\s*"([0-9A-Fa-f-]{36})"/', $xmlContent, $m)) {
+                return strtoupper($m[1]);
+            }
+            return null;
+        }
+
+        $nodos = $xml->xpath("//*[local-name()='TimbreFiscalDigital']");
+        if ($nodos && isset($nodos[0])) {
+            $uuid = (string) ($nodos[0]->attributes()['UUID'] ?? '');
+            if ($uuid !== '') {
+                return strtoupper($uuid);
+            }
+        }
+
+        if (preg_match('/UUID\s*=\s*"([0-9A-Fa-f-]{36})"/', $xmlContent, $m)) {
+            return strtoupper($m[1]);
+        }
+
+        return null;
     }
 
     /**
