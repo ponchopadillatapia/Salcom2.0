@@ -1188,6 +1188,16 @@ class AdminPanelController extends Controller
                 ->selectRaw('codigo_proveedor, COALESCE(SUM(total), 0) as saldo')
                 ->pluck('saldo', 'codigo_proveedor');
 
+        // Anticipos aplicados por factura (para la columna "Anticipos").
+        $idsPagina = $facturas->getCollection()->pluck('id')->filter()->unique()->values();
+        $anticiposPorFactura = $idsPagina->isEmpty()
+            ? collect()
+            : \App\Models\AnticipoProveedor::query()
+                ->whereIn('factura_id', $idsPagina)
+                ->where('estatus', 'aplicado')
+                ->get(['id', 'factura_id', 'folio_general', 'monto_aplicado', 'total_banco', 'fecha'])
+                ->groupBy('factura_id');
+
         return view('admin.facturas', compact(
             'facturas',
             'estatus',
@@ -1206,6 +1216,7 @@ class AdminPanelController extends Controller
             'filtros',
             'filtrosActivos',
             'saldosPendientesProveedor',
+            'anticiposPorFactura',
         ));
     }
 
@@ -1215,6 +1226,7 @@ class AdminPanelController extends Controller
             'pendiente' => 'Pendiente',
             'programada' => 'Programada',
             'pagada' => 'Pagada',
+            'liquidada' => 'Liquidada',
             'cancelada' => 'Cancelada',
             'rechazada' => 'Rechazada',
         ];

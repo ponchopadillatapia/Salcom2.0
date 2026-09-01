@@ -292,6 +292,12 @@ class AdminPagoProveedoresController extends Controller
 
         $proveedor = ProveedorUser::query()->findOrFail($data['proveedor_id']);
         $codigo = $proveedor->id_proveedor ?: $proveedor->codigo;
+
+        // Validación de secuencia: solo facturas "programada" pueden pagarse aquí.
+        if ($errorSecuencia = $this->validarSecuenciaFacturas($data['factura_ids'], 'programada', 'el pago a proveedor')) {
+            return back()->withInput()->with('error', $errorSecuencia.' Primero genera el pago en "Pagos al proveedor".');
+        }
+
         $facturas = Factura::query()
             ->whereIn('id', $data['factura_ids'])
             ->where('codigo_proveedor', $codigo)
@@ -671,6 +677,11 @@ class AdminPagoProveedoresController extends Controller
             'referencia.required' => 'Escribe en Referencia las facturas o número de compra.',
         ]);
 
+        // Validación de secuencia: solo facturas "pagada" pueden liquidarse aquí.
+        if ($errorSecuencia = $this->validarSecuenciaFacturas($data['factura_ids'], 'pagada', 'el abono al proveedor')) {
+            return back()->with('error', $errorSecuencia.' El pago debe registrarse antes en "Pago a proveedor".');
+        }
+
         $facturas = Factura::whereIn('id', $data['factura_ids'])->where('estatus', 'pagada')->get();
 
         if ($facturas->isEmpty()) {
@@ -778,11 +789,7 @@ class AdminPagoProveedoresController extends Controller
             'fecha.before' => 'La fecha debe ser un día anterior a hoy.',
         ]);
 
-        // Solo se permite guardar como anticipo en cuentas extranjeras/USD
-        if (! in_array($data['cuenta_key'] ?? '', ['2026_base', '2026_extranjera'], true)) {
-            return back()->with('error', 'Guardar como anticipo solo aplica para cuentas en dólares (Banco Base Dollar / Extranjera).');
-        }
-
+        // Anticipo permitido en cualquier cuenta: cuando las facturas mostradas no corresponden al pago
         $proveedor = ProveedorUser::where('codigo', $data['codigo_proveedor'])->first();
         if (! $proveedor) {
             return back()->with('error', 'Proveedor no encontrado.');
@@ -944,17 +951,28 @@ class AdminPagoProveedoresController extends Controller
             'formato_pdf' => 'required|file|mimes:pdf|max:10240',
         ]);
 
+        $wantsJson = $request->ajax() || $request->wantsJson();
+
+        // No se puede reaplicar un anticipo ya aplicado o cancelado.
+        if (in_array($anticipo->estatus, ['aplicado', 'cancelado'], true)) {
+            $msg = 'Este anticipo ya está '.$anticipo->estatus.'. No se puede aplicar de nuevo.';
+            return $wantsJson
+                ? response()->json(['ok' => false, 'mensaje' => $msg], 422)
+                : back()->withErrors($msg);
+        }
+
         $factura = Factura::findOrFail($data['factura_id']);
 
-        // Validar que el monto del anticipo no exceda el total de la factura
-        if ((float) $anticipo->total_banco > (float) $factura->total) {
-            if ($request->ajax() || $request->wantsJson()) {
-                return response()->json([
-                    'ok' => false,
-                    'mensaje' => "El monto del anticipo (\${$anticipo->total_banco}) excede el total de la factura (\${$factura->total}). No se puede aplicar.",
-                ], 422);
-            }
-            return back()->withErrors('El monto del anticipo excede el total de la factura.');
+        // Saldo real de la factura antes de aplicar el anticipo.
+        $saldoFactura = round((float) $factura->total - (float) $factura->monto_pagado, 2);
+        $montoAnticipo = round((float) $anticipo->total_banco, 2);
+
+        // Validar que el anticipo no exceda el saldo pendiente de la factura.
+        if ($montoAnticipo > $saldoFactura) {
+            $msg = "El monto del anticipo (\$" . number_format($montoAnticipo, 2) . ") excede el saldo pendiente de la factura (\$" . number_format($saldoFactura, 2) . "). No se puede aplicar.";
+            return $wantsJson
+                ? response()->json(['ok' => false, 'mensaje' => $msg], 422)
+                : back()->withErrors($msg);
         }
 
         // Almacenar el archivo PDF
@@ -963,26 +981,102 @@ class AdminPagoProveedoresController extends Controller
             $filePath = $request->file('formato_pdf')->store('anticipos', 'public');
         }
 
-        $anticipo->update([
-            'estatus' => 'aplicado',
-            'factura_id' => $factura->id,
-            'monto_aplicado' => $anticipo->total_banco,
-            'datos' => array_merge($anticipo->datos ?? [], [
-                'aplicado_at' => now()->toDateTimeString(),
-                'aplicado_por' => session('admin_id'),
-                'factura_folio' => $factura->folio_cfdi,
-                'formato_pdf' => $filePath,
-            ]),
-        ]);
+        // Aplicar: descontar del saldo real de la factura (como un pago parcial).
+        DB::transaction(function () use ($anticipo, $factura, $montoAnticipo, $filePath) {
+            $pagadoPrevio = (float) $factura->monto_pagado;
+            $estatusPrevio = $factura->estatus;
+            $nuevoPagado = round($pagadoPrevio + $montoAnticipo, 2);
 
-        if ($request->ajax() || $request->wantsJson()) {
+            $factura->monto_pagado = $nuevoPagado;
+            // Si el anticipo cubre el total, la factura queda pagada.
+            if ($nuevoPagado >= (float) $factura->total) {
+                $factura->estatus = 'pagada';
+            }
+            $factura->save();
+
+            $anticipo->update([
+                'estatus' => 'aplicado',
+                'factura_id' => $factura->id,
+                'monto_aplicado' => $montoAnticipo,
+                'datos' => array_merge($anticipo->datos ?? [], [
+                    'aplicado_at' => now()->toDateTimeString(),
+                    'aplicado_por' => session('admin_id'),
+                    'factura_folio' => $factura->folio_cfdi,
+                    'formato_pdf' => $filePath,
+                    // Guardamos el estado previo para poder revertir al cancelar.
+                    'factura_monto_pagado_previo' => $pagadoPrevio,
+                    'factura_estatus_previo' => $estatusPrevio,
+                ]),
+            ]);
+        });
+
+        $factura->refresh();
+        $saldoRestante = round((float) $factura->total - (float) $factura->monto_pagado, 2);
+        $folioFac = $factura->folio_cfdi ?: 'FAC-'.$factura->id;
+        $msgOk = "Anticipo {$anticipo->folio_general} aplicado a factura {$folioFac}. Saldo restante: \$" . number_format($saldoRestante, 2) . ".";
+
+        if ($wantsJson) {
             return response()->json([
                 'ok' => true,
-                'mensaje' => "Anticipo {$anticipo->folio_general} aplicado a factura " . ($factura->folio_cfdi ?: 'FAC-'.$factura->id),
+                'mensaje' => $msgOk,
+                'factura' => [
+                    'id' => $factura->id,
+                    'monto_pagado' => (float) $factura->monto_pagado,
+                    'saldo' => $saldoRestante,
+                    'estatus' => $factura->estatus,
+                ],
             ]);
         }
 
-        return back()->with('ok', "Anticipo {$anticipo->folio_general} aplicado a factura {$factura->folio_cfdi}.");
+        return back()->with('ok', $msgOk);
+    }
+
+    /**
+     * Cancelar un anticipo aplicado: revierte el descuento en la factura.
+     */
+    public function anticiposCancelar(Request $request, \App\Models\AnticipoProveedor $anticipo)
+    {
+        $wantsJson = $request->ajax() || $request->wantsJson();
+
+        if ($anticipo->estatus === 'cancelado') {
+            $msg = 'El anticipo ya está cancelado.';
+            return $wantsJson ? response()->json(['ok' => false, 'mensaje' => $msg], 422) : back()->with('error', $msg);
+        }
+
+        DB::transaction(function () use ($anticipo) {
+            // Solo revertir la factura si el anticipo estaba aplicado a una.
+            if ($anticipo->estatus === 'aplicado' && $anticipo->factura_id) {
+                $factura = Factura::find($anticipo->factura_id);
+                if ($factura) {
+                    $datos = is_array($anticipo->datos) ? $anticipo->datos : [];
+                    // Preferimos restaurar el estado previo guardado; si no existe,
+                    // restamos el monto aplicado como respaldo.
+                    if (array_key_exists('factura_monto_pagado_previo', $datos)) {
+                        $factura->monto_pagado = round((float) $datos['factura_monto_pagado_previo'], 2);
+                        $factura->estatus = $datos['factura_estatus_previo'] ?? $factura->estatus;
+                    } else {
+                        $factura->monto_pagado = max(0, round((float) $factura->monto_pagado - (float) $anticipo->monto_aplicado, 2));
+                        if ($factura->estatus === 'pagada' && (float) $factura->monto_pagado < (float) $factura->total) {
+                            $factura->estatus = 'programada';
+                        }
+                    }
+                    $factura->save();
+                }
+            }
+
+            $anticipo->update([
+                'estatus' => 'cancelado',
+                'factura_id' => null,
+                'monto_aplicado' => 0,
+                'datos' => array_merge($anticipo->datos ?? [], [
+                    'cancelado_at' => now()->toDateTimeString(),
+                    'cancelado_por' => session('admin_id'),
+                ]),
+            ]);
+        });
+
+        $msg = "Anticipo {$anticipo->folio_general} cancelado. El descuento en la factura fue revertido.";
+        return $wantsJson ? response()->json(['ok' => true, 'mensaje' => $msg]) : back()->with('ok', $msg);
     }
 
     private function polizaOrFail(string $key): array
@@ -993,6 +1087,60 @@ class AdminPagoProveedoresController extends Controller
         }
 
         return $meta;
+    }
+
+    /**
+     * Orden del flujo de pago. Cada estatus solo puede avanzar al siguiente.
+     * pendiente → programada → pagada → liquidada
+     */
+    private const ORDEN_FLUJO = ['pendiente', 'programada', 'pagada', 'liquidada'];
+
+    /**
+     * Valida que todas las facturas solicitadas estén en el estatus esperado
+     * para este paso del flujo. Si alguna está en otro estatus, devuelve un
+     * mensaje que explica qué paso falta, en lugar de descartarla en silencio.
+     *
+     * @param  array<int>  $facturaIds
+     * @return string|null  Mensaje de error, o null si la secuencia es válida.
+     */
+    private function validarSecuenciaFacturas(array $facturaIds, string $estatusRequerido, string $nombrePaso): ?string
+    {
+        $facturas = Factura::query()
+            ->whereIn('id', $facturaIds)
+            ->get(['id', 'folio_cfdi', 'estatus']);
+
+        if ($facturas->isEmpty()) {
+            return "No se encontraron facturas para {$nombrePaso}.";
+        }
+
+        $fueraDeSecuencia = $facturas->filter(fn ($f) => $f->estatus !== $estatusRequerido);
+        if ($fueraDeSecuencia->isEmpty()) {
+            return null;
+        }
+
+        $posRequerida = array_search($estatusRequerido, self::ORDEN_FLUJO, true);
+        $etiquetas = [
+            'pendiente' => 'Pendiente',
+            'programada' => 'Programada (Formato para pago)',
+            'pagada' => 'Pagada (Pago a proveedor)',
+            'liquidada' => 'Liquidada (Abono al proveedor)',
+        ];
+
+        $detalles = $fueraDeSecuencia->map(function ($f) use ($posRequerida, $etiquetas) {
+            $folio = $f->folio_cfdi ?: ('FAC-'.$f->id);
+            $posActual = array_search($f->estatus, self::ORDEN_FLUJO, true);
+            $estatusActual = $etiquetas[$f->estatus] ?? ucfirst($f->estatus);
+
+            if ($posActual === false) {
+                return "{$folio} tiene un estatus no válido ({$f->estatus}).";
+            }
+            if ($posActual < $posRequerida) {
+                return "{$folio} aún está en \"{$estatusActual}\"; falta completar el paso anterior antes de continuar.";
+            }
+            return "{$folio} ya pasó este paso (está en \"{$estatusActual}\"). No se puede repetir.";
+        })->values()->all();
+
+        return 'No se puede continuar, hay facturas fuera de secuencia: '.implode(' ', $detalles);
     }
 
     private function siguienteFolio(string $serie, string $polizaKey): int

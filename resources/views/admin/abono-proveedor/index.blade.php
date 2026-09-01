@@ -136,25 +136,27 @@
                 @endphp
                 <div style="border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;background:var(--white)">
                     <input type="hidden" name="moneda" id="ab-moneda" value="{{ old('moneda', $monVal) }}">
-                    {{-- Línea Moneda (editable en las 4 cuentas) --}}
+                    {{-- Línea Moneda: bloqueada por defecto, se edita con F3 --}}
                     <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
                         <span style="font-size:13px;font-weight:600;color:var(--gray-muted);min-width:105px">Moneda:</span>
-                        <select id="ab-moneda-select" onchange="cambiarMoneda(this.value)" style="border:1px solid var(--border);border-radius:5px;padding:5px 10px;font-size:14px;font-weight:700;color:#111;font-family:inherit;background:#fff">
+                        {{-- Texto bloqueado (visible por defecto) --}}
+                        <span style="font-size:14px;font-weight:700;color:var(--gray-muted)" id="ab-moneda-label">{{ $monNombre }} ({{ $monVal }})</span>
+                        {{-- Select editable (oculto hasta F3) --}}
+                        <select id="ab-moneda-select" onchange="cambiarMoneda(this.value)" style="display:none;border:1px solid #6B3FA0;border-radius:5px;padding:5px 10px;font-size:14px;font-weight:700;color:#111;font-family:inherit;background:#fff">
                             <option value="MXN" {{ $monVal === 'MXN' ? 'selected' : '' }}>PESO MEXICANO (MXN)</option>
                             <option value="USD" {{ $monVal === 'USD' ? 'selected' : '' }}>DÓLAR AMERICANO (USD)</option>
                         </select>
-                        <span style="font-size:14px;font-weight:700;color:#111;display:none" id="ab-moneda-label">{{ $monNombre }}</span>
                     </div>
-                    {{-- Línea Tipo de cambio --}}
+                    {{-- Línea Tipo de cambio + botón F3 (desbloquea moneda y TC) --}}
                     <div style="display:flex;align-items:center;gap:8px">
                         <span style="font-size:13px;font-weight:600;color:var(--gray-muted);min-width:105px">Tipo de cambio:</span>
                         <input type="text" name="tipo_cambio" id="ab-tc" inputmode="decimal"
                             value="{{ old('tipo_cambio', $esMXN ? '1.0000' : ($cuentaConfig['tipo_cambio_default'] ?? '')) }}"
                             placeholder="{{ $esMXN ? '1.0000' : '17.9042' }}"
-                            style="flex:1;max-width:130px;border:1px solid var(--border);border-radius:5px;padding:5px 10px;font-size:14px;font-weight:600;font-family:inherit;{{ $esMXN ? 'color:var(--gray-muted);background:var(--gray-soft)' : 'color:#111;background:#fff' }}"
-                            {{ $esMXN ? 'readonly' : '' }}>
-                        {{-- Botón F3 para editar --}}
-                        <button type="button" id="ab-tc-f3" onclick="toggleTC()" title="Editar tipo de cambio" style="border:1px solid #6B3FA0;background:#faf5ff;color:#5b21b6;border-radius:5px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">F3</button>
+                            style="flex:1;max-width:130px;border:1px solid var(--border);border-radius:5px;padding:5px 10px;font-size:14px;font-weight:600;font-family:inherit;color:var(--gray-muted);background:var(--gray-soft)"
+                            readonly>
+                        {{-- Botón F3: desbloquea Moneda + Tipo de cambio --}}
+                        <button type="button" id="ab-tc-f3" onclick="toggleEdicion()" title="Editar moneda y tipo de cambio" style="border:1px solid #6B3FA0;background:#faf5ff;color:#5b21b6;border-radius:5px;padding:5px 12px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit">F3</button>
                     </div>
                 </div>
             </div>
@@ -462,7 +464,7 @@
         }
         if (typeof fechaEsValida === 'function' && !fechaEsValida()) {
             e.preventDefault();
-            alert('Recordatorio: cambia la FECHA al día del pago (un día anterior a hoy).\n\nNo se puede guardar con la fecha de hoy o una futura.');
+            alert('Recordatorio: cambia la FECHA al día del pago (una fecha anterior a hoy).\n\nNo se puede guardar con la fecha de hoy o una futura.');
             document.getElementById('ab-fecha').style.borderColor = '#dc2626';
             document.getElementById('ab-fecha').focus();
             return false;
@@ -485,25 +487,24 @@
         razonInput.value = pData.nombre || '';
         var mon = pData.moneda || 'MXN';
         document.getElementById('ab-moneda').value = mon;
-        var monLabel = document.getElementById('ab-moneda-label');
         var monNombre = mon === 'USD' ? 'DÓLAR AMERICANO' : (mon === 'MXN' ? 'PESO MEXICANO' : mon);
-        if (monLabel) monLabel.textContent = monNombre;
+        var monLabel = document.getElementById('ab-moneda-label');
+        if (monLabel) monLabel.textContent = monNombre + ' (' + mon + ')';
         var monSelect = document.getElementById('ab-moneda-select');
         if (monSelect) monSelect.value = mon;
+        // Ajustar TC según moneda, pero mantener BLOQUEADO (editar con F3)
         var tc = document.getElementById('ab-tc');
+        if (mon === 'MXN') { tc.value = '1.0000'; }
+        else { if (tc.value === '1.0000' || !tc.value) tc.value = ''; }
+        // Re-bloquear campos (por si estaban abiertos con F3)
+        _edicionMonedaAbierta = false;
+        if (monSelect) monSelect.style.display = 'none';
+        if (monLabel) monLabel.style.display = '';
+        tc.readOnly = true;
+        tc.style.color = 'var(--gray-muted)';
+        tc.style.background = 'var(--gray-soft)';
         var btnF3 = document.getElementById('ab-tc-f3');
-        if (mon === 'MXN') {
-            tc.value = '1.0000';
-            tc.readOnly = true;
-            tc.style.color = 'var(--gray-muted)';
-            tc.style.background = 'var(--gray-soft)';
-            if (btnF3) { btnF3.style.background = '#faf5ff'; btnF3.style.color = '#5b21b6'; }
-        } else {
-            tc.readOnly = false;
-            tc.style.color = '#111';
-            tc.style.background = '#fff';
-            if (btnF3) { btnF3.style.background = '#6B3FA0'; btnF3.style.color = '#fff'; }
-        }
+        if (btnF3) { btnF3.style.background = '#faf5ff'; btnF3.style.color = '#5b21b6'; }
 
         // Cargar facturas en memoria (para la ventana Saldar)
         fetch(@json(route('admin.abono-proveedor.facturas-json')) + '?codigo=' + encodeURIComponent(codigo), { headers: {'Accept':'application/json'}, credentials: 'same-origin' })
@@ -531,40 +532,46 @@
 // ═══════════════════════════════════════════
 function cambiarMoneda(val) {
     document.getElementById('ab-moneda').value = val;
+    // Actualizar el label de texto
+    var monNombre = val === 'USD' ? 'DÓLAR AMERICANO' : (val === 'MXN' ? 'PESO MEXICANO' : val);
+    var lbl = document.getElementById('ab-moneda-label');
+    if (lbl) lbl.textContent = monNombre + ' (' + val + ')';
+    // Ajustar tipo de cambio según moneda
     var tc = document.getElementById('ab-tc');
-    var btnF3 = document.getElementById('ab-tc-f3');
     if (val === 'MXN') {
         tc.value = '1.0000';
-        tc.readOnly = true;
-        tc.style.color = 'var(--gray-muted)';
-        tc.style.background = 'var(--gray-soft)';
-        if (btnF3) { btnF3.style.background = '#faf5ff'; btnF3.style.color = '#5b21b6'; }
     } else {
-        tc.readOnly = false;
-        tc.style.color = '#111';
-        tc.style.background = '#fff';
         if (tc.value === '1.0000' || !tc.value) tc.value = '';
-        if (btnF3) { btnF3.style.background = '#6B3FA0'; btnF3.style.color = '#fff'; }
-        tc.focus();
     }
 }
 
 // ═══════════════════════════════════════════
-// Toggle candado tipo de cambio
+// F3: desbloquear/bloquear Moneda + Tipo de cambio
 // ═══════════════════════════════════════════
-function toggleTC() {
+var _edicionMonedaAbierta = false;
+function toggleEdicion() {
+    var sel = document.getElementById('ab-moneda-select');
+    var lbl = document.getElementById('ab-moneda-label');
     var tc = document.getElementById('ab-tc');
     var btn = document.getElementById('ab-tc-f3');
-    if (tc.readOnly) {
-        // Desbloquear para editar
+
+    if (!_edicionMonedaAbierta) {
+        // Desbloquear: mostrar select de moneda + habilitar TC
+        _edicionMonedaAbierta = true;
+        if (sel) { sel.style.display = ''; sel.value = document.getElementById('ab-moneda').value; }
+        if (lbl) lbl.style.display = 'none';
         tc.readOnly = false;
         tc.style.color = '#111';
         tc.style.background = '#fff';
         if (btn) { btn.style.background = '#6B3FA0'; btn.style.color = '#fff'; }
-        tc.focus();
-        tc.select();
+        // Si es MXN el TC no aplica, enfocar el select; si es USD enfocar el TC
+        if (document.getElementById('ab-moneda').value === 'MXN') { if (sel) sel.focus(); }
+        else { tc.focus(); tc.select(); }
     } else {
-        // Bloquear
+        // Bloquear de nuevo
+        _edicionMonedaAbierta = false;
+        if (sel) sel.style.display = 'none';
+        if (lbl) lbl.style.display = '';
         tc.readOnly = true;
         tc.style.color = 'var(--gray-muted)';
         tc.style.background = 'var(--gray-soft)';
@@ -584,7 +591,7 @@ function guardarAbono() {
         var referencia = document.getElementById('ab-referencia').value.trim();
         if (!poliza) { alert('Falta el Folio / Nº Póliza.'); switchTab('generales'); document.getElementById('ab-poliza').focus(); return; }
         if (typeof fechaEsValida === 'function' && !fechaEsValida()) {
-            alert('Recordatorio: cambia la FECHA al día del pago (un día anterior a hoy).');
+            alert('Recordatorio: cambia la FECHA al día del pago (una fecha anterior a hoy).');
             switchTab('generales');
             document.getElementById('ab-fecha').focus();
             return;
@@ -598,14 +605,18 @@ function guardarAbono() {
         }
         document.getElementById('form-abono').submit();
     } else {
-        // Sin facturas asociadas
+        // Sin facturas asociadas → ANTICIPO pendiente (las facturas mostradas no corresponden al pago)
         var esExtranjera = @json($esExtranjera ?? false);
-        if (esExtranjera) {
-            // Extranjera sin OC → guardar como anticipo
-            guardarComoAnticipo();
-        } else {
-            alert('No has asociado ninguna factura.\n\nAbre la ventana de saldar (Enter en el Total) y asocia al menos una factura antes de guardar.');
+        if (!esExtranjera) {
+            // Nacional: el sistema arroja facturas → autollenar referencia con los folios de esas facturas
+            var refEl = document.getElementById('ab-referencia');
+            if (!refEl.value.trim()) {
+                var folios = (window._facturasProveedor || []).map(function(f){ return f.folio_cfdi || ('FAC-' + f.id); });
+                refEl.value = folios.length ? folios.slice(0, 10).join(', ') : ('POL-' + document.getElementById('ab-poliza').value.trim());
+            }
         }
+        // Extranjera: la referencia la escribe Karen a mano (se valida en guardarComoAnticipo)
+        guardarComoAnticipo();
     }
 }
 
@@ -618,7 +629,7 @@ function guardarComoAnticipo() {
     var totalRaw = document.getElementById('ab-total-input').value;
     var total = Number(String(totalRaw).replace(/,/g, '').replace(/[^0-9.]/g, '')) || 0;
 
-    if (typeof fechaEsValida === 'function' && !fechaEsValida()) { alert('Recordatorio: cambia la FECHA al día del pago (un día anterior a hoy).'); document.getElementById('ab-fecha').style.borderColor = '#dc2626'; document.getElementById('ab-fecha').focus(); return; }
+    if (typeof fechaEsValida === 'function' && !fechaEsValida()) { alert('Recordatorio: cambia la FECHA al día del pago (una fecha anterior a hoy).'); document.getElementById('ab-fecha').style.borderColor = '#dc2626'; document.getElementById('ab-fecha').focus(); return; }
     if (!poliza) { alert('Falta el Folio / Nº Póliza.'); switchTab('generales'); document.getElementById('ab-poliza').focus(); return; }
     if (!codigo) { alert('Selecciona un proveedor.'); abrirModalProv(); return; }
     if (total <= 0) { alert('Escribe el Total del pago (en la pestaña Generales).'); switchTab('generales'); document.getElementById('ab-total-input').focus(); return; }
@@ -805,7 +816,7 @@ function fechaEsValida() {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 if (!fechaEsValida()) {
-                    alert('Recordatorio: cambia la FECHA al día del pago (un día anterior a hoy).\n\nNo se puede continuar con la fecha de hoy o una futura.');
+                    alert('Recordatorio: cambia la FECHA al día del pago (una fecha anterior a hoy).\n\nNo se puede continuar con la fecha de hoy o una futura.');
                     fecha.style.borderColor = '#dc2626';
                     fecha.focus();
                     return;
@@ -822,7 +833,7 @@ function fechaEsValida() {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 if (!fechaEsValida()) {
-                    alert('Recordatorio: cambia la FECHA al día del pago (un día anterior a hoy).');
+                    alert('Recordatorio: cambia la FECHA al día del pago (una fecha anterior a hoy).');
                     document.getElementById('ab-fecha').style.borderColor = '#dc2626';
                     document.getElementById('ab-fecha').focus();
                     return;
@@ -888,7 +899,7 @@ var _saldarAsociados = [];
 function abrirModalSaldar(totalPago) {
     // Validar fecha (anterior a hoy)
     if (!fechaEsValida()) {
-        alert('Recordatorio: cambia la FECHA al día del pago (un día anterior a hoy).\n\nNo se puede continuar con la fecha de hoy o una futura.');
+        alert('Recordatorio: cambia la FECHA al día del pago (una fecha anterior a hoy).\n\nNo se puede continuar con la fecha de hoy o una futura.');
         var fEl = document.getElementById('ab-fecha');
         fEl.style.borderColor = '#dc2626';
         fEl.focus();
@@ -1072,7 +1083,9 @@ function asociarDoc(idx) {
         return;
     }
     _importeIdxActual = idx;
-    var saldoUSD = Math.max(0, (f.total || 0) - (f.monto_pagado || 0)); // saldo del documento (en su moneda)
+    var totalDoc = Number(f.total || 0);
+    var saldoDoc = Math.max(0, totalDoc - (f.monto_pagado || 0));
+    var montoPrecarga = totalDoc > 0 ? totalDoc : saldoDoc; // precargar con el total de la factura
     var monedaAbono = document.getElementById('ab-moneda').value || 'MXN';
     var inp = document.getElementById('imp-asociar-input');
     var leyenda = document.getElementById('imp-leyenda');
@@ -1080,18 +1093,15 @@ function asociarDoc(idx) {
     var tcInput = document.getElementById('imp-tc-input');
 
     if (monedaAbono === 'USD') {
-        // Documento en dólares: mostrar leyenda + TC editable, recalcular importe en MXN
         var tcAbono = Number(String(document.getElementById('ab-tc').value).replace(/[^0-9.]/g, '')) || 0;
         tcWrap.style.display = 'flex';
         tcInput.value = tcAbono ? Number(tcAbono).toFixed(4) : '';
         leyenda.style.display = 'block';
-        // El importe se calcula en recalcularImporte()
         recalcularImporte();
     } else {
-        // MXN: sin conversión, importe = saldo directo
         tcWrap.style.display = 'none';
         leyenda.style.display = 'none';
-        inp.value = Number(saldoUSD).toFixed(2);
+        inp.value = Number(montoPrecarga).toFixed(2);
     }
 
     document.getElementById('modal-importe').style.display = 'flex';
@@ -1105,7 +1115,7 @@ function recalcularImporte() {
     var f = facturas[_importeIdxActual];
     if (!f) return;
 
-    var saldoUSD = Math.max(0, (f.total || 0) - (f.monto_pagado || 0));
+    var saldoUSD = Number(f.total || 0); // total del documento en dólares
     var tcCompra = Number(f.tipo_cambio_compra || f.tipo_cambio || 0) || 0; // TC con que se registró la compra (si existe)
     var tcAbono = Number(String(document.getElementById('imp-tc-input').value).replace(/[^0-9.]/g, '')) || 0;
 

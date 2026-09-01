@@ -172,7 +172,7 @@
                             $tc = $r['tipo_cambio'] ?? '';
                             $monNombre = $r['moneda'] === 'USD' ? 'DÓLAR AMERICANO' : ($r['moneda'] === 'MXN' ? 'PESO MEXICANO' : $r['moneda']);
                         @endphp
-                        <tr style="{{ $cancelado ? 'opacity:.55' : '' }}">
+                        <tr style="{{ $cancelado ? 'opacity:.55;' : '' }}{{ (!$cancelado && $pend > 0) ? 'background:#fffbeb;box-shadow:inset 3px 0 0 #d97706;' : '' }}">
                             <td><span class="tipo-badge {{ $r['tipo'] }}">{{ $r['tipo'] }}</span></td>
                             <td style="white-space:nowrap">{{ $fecha->format('d/m/Y') }}</td>
                             <td>{{ $r['serie'] ?: '—' }}</td>
@@ -185,6 +185,9 @@
                             <td style="white-space:nowrap">{{ $monNombre }}</td>
                             <td class="pend" style="text-align:right;color:{{ $pend > 0 ? '#d97706' : '#16a34a' }}">
                                 ${{ number_format($pend, 2) }}
+                                @if(!$cancelado && $pend > 0)
+                                    <div style="font-size:9px;font-weight:800;color:#d97706;text-transform:uppercase;letter-spacing:.5px">● Pendiente</div>
+                                @endif
                             </td>
                             <td style="color:var(--gray-muted)">{{ $r['referencia'] ?: '—' }}</td>
                             <td style="text-align:center">

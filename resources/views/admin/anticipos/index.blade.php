@@ -43,6 +43,28 @@
     .pag-alert{padding:12px 14px;border-radius:10px;margin-bottom:16px;font-size:13px}
     .pag-alert.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
 
+    /* Tabla estilo Contpaqi (resumen bancario) */
+    .bank-table{width:100%;border-collapse:collapse;font-size:12px}
+    .bank-table th{background:#dbe4f0;color:#1e3a5f;font-weight:700;padding:8px 10px;text-align:left;border:1px solid #b8c6dd;white-space:nowrap;font-size:11px}
+    .bank-table td{padding:7px 10px;border:1px solid #d8dee9;font-variant-numeric:tabular-nums}
+    .bank-table td.num{text-align:right}
+    .bank-table tbody tr:hover td{background:#eef3fa}
+    .bank-total{display:flex;justify-content:flex-end;align-items:center;gap:14px;padding:12px 16px;background:#f4f7fb;border-top:2px solid #b8c6dd;font-size:14px;font-weight:700;color:#1e3a5f}
+    .bank-total .val{font-variant-numeric:tabular-nums;color:var(--green);font-size:16px}
+    .btn-pagar{padding:6px 14px;background:#059669;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit}
+    .btn-pagar:disabled{background:#9ca3af;cursor:not-allowed}
+
+    /* Modal de pago */
+    .pay-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:20px}
+    .pay-overlay.show{display:flex}
+    .pay-modal{background:#fff;border-radius:12px;width:100%;max-width:760px;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;animation:fadeUp .25s ease both}
+    .pay-modal-head{background:linear-gradient(135deg,#4a2078,#6B3FA0);padding:14px 20px;display:flex;align-items:center;justify-content:space-between}
+    .pay-modal-head h3{color:#fff;font-size:15px;font-weight:700;margin:0}
+    .pay-modal-head .x{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1}
+    .pay-modal-body{padding:18px 20px}
+    .pay-modal-foot{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+    .btn-enviar{padding:10px 20px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+
     @media(max-width:768px){.ant-body{grid-template-columns:1fr}}
 </style>
 @endpush
@@ -129,10 +151,7 @@
                 <label>Departamento <span style="color:#dc2626">●</span></label>
                 <select name="departamento" required>
                     <option value="">(Seleccionar)</option>
-                    <option value="Mantenimiento">Mantenimiento</option>
-                    <option value="IMEX">IMEX</option>
                     <option value="Compras Nacional">Compras Nacional</option>
-                    <option value="Compras Internacional">Compras Internacional</option>
                     <option value="Logística">Logística</option>
                 </select>
             </div>
@@ -171,52 +190,74 @@
         <div class="empty-state">No hay anticipos registrados.</div>
     @else
         <div style="overflow-x:auto">
-            <table class="admin-table">
+            <table class="bank-table">
                 <thead>
                     <tr>
-                        <th>Folio General</th>
-                        <th>Formato</th>
-                        <th>Proveedor</th>
-                        <th>Depto</th>
-                        <th>Total</th>
-                        <th>Factura aplicada</th>
+                        <th>Banco</th>
+                        <th>Cuenta</th>
+                        <th>CLABE</th>
+                        <th>Banco y Cuenta de Intermediario</th>
+                        <th>SWIFT</th>
+                        <th style="text-align:right">Importe</th>
+                        <th>RFC</th>
+                        <th style="text-align:right">IVA</th>
+                        <th>Folio</th>
                         <th>Estatus</th>
-                        <th style="text-align:right">Hora</th>
+                        <th style="text-align:center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach($agrupados as $fechaKey => $rows)
-                        <tr class="date-row" style="background:var(--purple-subtle)!important">
-                            <td colspan="8" style="font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)">
+                        <tr>
+                            <td colspan="11" style="font-weight:700;font-size:11px;color:var(--purple);background:var(--purple-subtle);padding:6px 10px;border:1px solid #d8dee9">
                                 @if($fechaKey === 'sin-fecha')
                                     Sin fecha
                                 @else
                                     {{ \Illuminate\Support\Carbon::parse($fechaKey)->locale('es')->isoFormat('DD [de] MMMM YYYY') }}
                                 @endif
+                                · {{ $rows->first()->nombre_proveedor }}
                             </td>
                         </tr>
                         @foreach($rows as $a)
+                            @php
+                                $facAplicada = $a->factura_id ? \App\Models\Factura::find($a->factura_id) : null;
+                                $payData = [
+                                    'id' => $a->id,
+                                    'folio_general' => $a->folio_general,
+                                    'proveedor' => $a->nombre_proveedor,
+                                    'codigo' => $a->codigo_proveedor,
+                                    'banco' => $a->banco,
+                                    'cuenta' => $a->cuenta_banco,
+                                    'clabe' => $a->clabe,
+                                    'rfc' => $a->rfc_proveedor,
+                                    'importe' => number_format((float)$a->importe, 2),
+                                    'iva' => number_format((float)$a->iva, 2),
+                                    'total' => number_format((float)$a->total_banco, 2),
+                                    'pdf' => route('admin.anticipos.formato', $a),
+                                ];
+                            @endphp
                             <tr>
-                                <td style="font-weight:700;color:var(--purple)">{{ $a->folio_general }}</td>
-                                <td style="font-size:12px;color:var(--gray-muted)">FCONA-0040</td>
-                                <td>
-                                    <div style="font-weight:600">{{ $a->nombre_proveedor }}</div>
-                                    <div style="font-size:11px;color:var(--gray-muted)">{{ $a->codigo_proveedor }}</div>
-                                </td>
-                                <td>{{ $a->departamento }}</td>
-                                <td class="monto">${{ number_format((float)$a->total_banco, 2) }}</td>
-                                <td style="font-size:12px">
-                                    @if($a->factura_id)
-                                        @php $facAplicada = \App\Models\Factura::find($a->factura_id); @endphp
-                                        <span style="color:var(--purple);font-weight:600">{{ $facAplicada?->folio_cfdi ?: 'FAC-'.$a->factura_id }}</span>
-                                    @else
-                                        <span style="color:var(--gray-muted)">—</span>
-                                    @endif
-                                </td>
+                                <td style="font-weight:600">{{ $a->banco ?: '—' }}</td>
+                                <td>{{ $a->cuenta_banco ?: '—' }}</td>
+                                <td style="font-size:11px">{{ $a->clabe ?: '—' }}</td>
+                                <td style="color:var(--gray-muted)">—</td>
+                                <td style="color:var(--gray-muted)">—</td>
+                                <td class="num" style="font-weight:700;color:var(--green)">${{ number_format((float)$a->importe, 2) }}</td>
+                                <td style="text-transform:uppercase">{{ $a->rfc_proveedor ?: '—' }}</td>
+                                <td class="num">${{ number_format((float)$a->iva, 2) }}</td>
+                                <td style="font-weight:600;color:var(--purple)">{{ $a->folio_general }}</td>
                                 <td><span class="pill {{ $a->estatus }}">{{ ucfirst($a->estatus) }}</span></td>
-                                <td style="text-align:right">
-                                    <a href="{{ route('admin.anticipos.formato', $a) }}" target="_blank" style="font-size:11px;color:var(--purple);font-weight:600;text-decoration:none;padding:4px 10px;border:1px solid var(--purple);border-radius:6px">PDF</a>
-                                    <span style="display:inline-flex;padding:3px 8px;border-radius:999px;background:var(--purple-subtle,#f3e8ff);color:var(--purple);font-size:11px;font-weight:700;margin-left:6px">{{ $a->created_at?->format('h:i a') }}</span>
+                                <td style="text-align:center;white-space:nowrap">
+                                    <a href="{{ route('admin.anticipos.formato', $a) }}" target="_blank" style="font-size:11px;color:var(--purple);font-weight:600;text-decoration:none;padding:4px 8px;border:1px solid var(--purple);border-radius:6px">PDF</a>
+                                    @if($a->estatus !== 'aplicado' && $a->estatus !== 'cancelado')
+                                        <button type="button" class="btn-pagar"
+                                            data-anticipo="{{ json_encode($payData, JSON_HEX_APOS | JSON_HEX_QUOT) }}"
+                                            onclick="abrirModalPago(this)">Pagar</button>
+                                    @else
+                                        <span style="font-size:11px;color:var(--gray-muted)">
+                                            {{ $facAplicada?->folio_cfdi ?: ($a->factura_id ? 'FAC-'.$a->factura_id : '—') }}
+                                        </span>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -224,10 +265,69 @@
                 </tbody>
             </table>
         </div>
+        <div class="bank-total">
+            <span>Total a pagar:</span>
+            <span class="val">${{ number_format((float)$anticipos->getCollection()->sum('total_banco'), 2) }}</span>
+        </div>
         @if($anticipos->hasPages())
             <div style="padding:14px;display:flex;justify-content:center">{{ $anticipos->links() }}</div>
         @endif
     @endif
+</div>
+
+{{-- Modal de pago (estilo resumen de pago a proveedor) --}}
+<div class="pay-overlay" id="pay-overlay">
+    <div class="pay-modal">
+        <div class="pay-modal-head">
+            <h3>Resumen de pago a proveedor</h3>
+            <button type="button" class="x" onclick="cerrarModalPago()">&times;</button>
+        </div>
+        <div class="pay-modal-body">
+            <div style="margin-bottom:12px;font-size:13px">
+                <strong id="pay-proveedor"></strong>
+                <span style="color:var(--gray-muted)" id="pay-codigo"></span>
+                <span style="color:var(--gray-muted)"> · Folio: </span><span id="pay-folio" style="font-weight:600;color:var(--purple)"></span>
+            </div>
+            <div style="overflow-x:auto">
+                <table class="bank-table">
+                    <thead>
+                        <tr>
+                            <th>Banco</th>
+                            <th>Cuenta</th>
+                            <th>CLABE</th>
+                            <th>Banco y Cuenta de Intermediario</th>
+                            <th>SWIFT</th>
+                            <th style="text-align:right">Importe</th>
+                            <th>RFC</th>
+                            <th style="text-align:right">IVA</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td id="pay-banco" style="font-weight:600"></td>
+                            <td id="pay-cuenta"></td>
+                            <td id="pay-clabe" style="font-size:11px"></td>
+                            <td style="color:var(--gray-muted)">—</td>
+                            <td style="color:var(--gray-muted)">—</td>
+                            <td class="num" id="pay-importe" style="font-weight:700;color:var(--green)"></td>
+                            <td id="pay-rfc" style="text-transform:uppercase"></td>
+                            <td class="num" id="pay-iva"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="bank-total" style="border-top:none;background:transparent;padding-right:0">
+                <span>Total a pagar:</span>
+                <span class="val" id="pay-total"></span>
+            </div>
+        </div>
+        <div class="pay-modal-foot">
+            <a href="#" id="pay-pdf" target="_blank" class="btn-cancel">Ver formato PDF</a>
+            <button type="button" class="btn-ant" onclick="registrarAbonos()">Registrar abonos</button>
+            <button type="button" class="btn-enviar" onclick="enviarAbonos()">Enviar abonos</button>
+            <button type="button" class="btn-cancel" onclick="cerrarModalPago()">Cerrar</button>
+        </div>
+    </div>
 </div>
 
 @endsection
@@ -279,6 +379,56 @@ if (impEl) {
         impEl.value = val > 0 ? val.toFixed(2) : '';
     });
 }
+
+// ── Modal de pago ──
+var pagoActual = null;
+
+function abrirModalPago(btn) {
+    var d = JSON.parse(btn.getAttribute('data-anticipo'));
+    pagoActual = d;
+    document.getElementById('pay-proveedor').textContent = d.proveedor || '';
+    document.getElementById('pay-codigo').textContent = d.codigo ? ' (' + d.codigo + ')' : '';
+    document.getElementById('pay-folio').textContent = d.folio_general || '—';
+    document.getElementById('pay-banco').textContent = d.banco || '—';
+    document.getElementById('pay-cuenta').textContent = d.cuenta || '—';
+    document.getElementById('pay-clabe').textContent = d.clabe || '—';
+    document.getElementById('pay-rfc').textContent = d.rfc || '—';
+    document.getElementById('pay-importe').textContent = '$' + (d.importe || '0.00');
+    document.getElementById('pay-iva').textContent = '$' + (d.iva || '0.00');
+    document.getElementById('pay-total').textContent = '$' + (d.total || '0.00');
+    document.getElementById('pay-pdf').href = d.pdf || '#';
+    document.getElementById('pay-overlay').classList.add('show');
+}
+
+function cerrarModalPago() {
+    document.getElementById('pay-overlay').classList.remove('show');
+    pagoActual = null;
+}
+
+function registrarAbonos() {
+    if (!pagoActual) return;
+    var msg = document.getElementById('msg-ajax');
+    msg.textContent = 'Abono registrado para ' + pagoActual.proveedor + ' (Folio ' + pagoActual.folio_general + ') por $' + pagoActual.total + '.';
+    msg.style.display = 'block';
+    cerrarModalPago();
+    window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function enviarAbonos() {
+    if (!pagoActual) return;
+    var msg = document.getElementById('msg-ajax');
+    msg.textContent = 'Abono enviado a ' + pagoActual.proveedor + ' (Folio ' + pagoActual.folio_general + ') por $' + pagoActual.total + '.';
+    msg.style.display = 'block';
+    cerrarModalPago();
+    window.scrollTo({top:0, behavior:'smooth'});
+}
+
+document.getElementById('pay-overlay').addEventListener('click', function(e) {
+    if (e.target === this) cerrarModalPago();
+});
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') cerrarModalPago();
+});
 
 // Al enviar, limpiar comas para el backend
 document.querySelector('form').addEventListener('submit', function() {

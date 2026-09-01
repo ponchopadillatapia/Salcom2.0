@@ -62,6 +62,7 @@
     .badge-est.liquidada{background:#ecfdf5;color:#16a34a}
     .badge-est.cancelada{background:#fef2f2;color:#7f1d1d}
     .badge-vencida{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--red-bg);color:var(--red)}
+    .badge-antic{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--purple-subtle,#f3e8ff);color:var(--purple);white-space:nowrap;cursor:help}
     .dias-count{font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2;white-space:nowrap}
     .dias-count.warn{color:var(--amber)}
     .dias-count.late{color:var(--red)}
@@ -239,6 +240,7 @@
                     <th>Monto</th>
                     <th>IVA</th>
                     <th>Total</th>
+                    <th>Anticipos</th>
                     <th>Estatus</th>
                     <th>Vencimiento</th>
                     <th style="text-align:right;">Alta</th>
@@ -304,6 +306,21 @@
                     <td style="font-variant-numeric:tabular-nums">${{ number_format($f->monto, 2) }}</td>
                     <td style="font-variant-numeric:tabular-nums;color:var(--gray-muted)">${{ number_format($f->monto_iva, 2) }}</td>
                     <td style="font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)">${{ number_format($f->total, 2) }}</td>
+                    <td>
+                        @php
+                            $antsFac = ($anticiposPorFactura[$f->id] ?? collect());
+                            $numAnts = $antsFac->count();
+                            $totalAnts = (float) $antsFac->sum('monto_aplicado');
+                        @endphp
+                        @if($numAnts > 0)
+                            <span class="badge-antic"
+                                title="{{ $antsFac->map(fn($a) => ($a->folio_general ?: 'Anticipo').' · $'.number_format((float)$a->monto_aplicado, 2))->implode(' | ') }}">
+                                {{ $numAnts }} · ${{ number_format($totalAnts, 2) }}
+                            </span>
+                        @else
+                            <span style="color:var(--gray-muted);font-size:12px">—</span>
+                        @endif
+                    </td>
                     <td>
                         <span class="badge-est {{ $f->estatus }}">{{ $estatusOpciones[$f->estatus] ?? ucfirst($f->estatus) }}</span>
                         @if($vencida)

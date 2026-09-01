@@ -415,7 +415,9 @@ class PagoProveedorService
             foreach ($pago->lineas as $linea) {
                 $factura = $linea->factura;
                 if (! $factura || ! in_array($factura->estatus, ['pendiente', 'programada'])) {
-                    throw new InvalidArgumentException('La factura '.($linea->folio_cfdi ?? $linea->factura_id).' ya no está pendiente.');
+                    $folioRef = $linea->folio_cfdi ?? $linea->factura_id;
+                    $estActual = $factura->estatus ?? 'desconocido';
+                    throw new InvalidArgumentException("La factura {$folioRef} ya no se puede programar (está en \"{$estActual}\"). Solo se programan facturas pendientes.");
                 }
                 $factura->update([
                     'estatus' => $nuevoEstatusFactura,
