@@ -318,7 +318,7 @@
                 Historial de reembolsos
             </h3>
             @if(isset($reembolsos) && $reembolsos->count())
-            <a href="{{ route('admin.reembolsos.excel') }}" style="padding:7px 14px;background:var(--green-bg,#dcfce7);border:1px solid #86efac;border-radius:8px;font-size:12px;font-weight:600;color:#166534;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">📊 Exportar Excel</a>
+            <a href="{{ route('admin.reembolsos.excel') }}" style="padding:7px 14px;background:var(--green-bg,#dcfce7);border:1px solid #86efac;border-radius:8px;font-size:12px;font-weight:600;color:#166534;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">Exportar Excel</a>
             @endif
         </div>
 
@@ -350,7 +350,7 @@
                         <td style="padding:10px 12px;">{{ strtoupper($d['metodo_pago_empresa'] ?? '—') }}</td>
                         <td style="padding:10px 12px;text-align:center;">
                             @if(!empty($d['autorizado_sandra']))
-                                <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#dcfce7;color:#166534;">✓ Autorizado</span>
+                                <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#dcfce7;color:#166534;">Autorizado</span>
                             @else
                                 <form method="POST" action="{{ route('admin.reembolsos.autorizar', $r->id) }}" style="display:inline;">
                                     @csrf
@@ -461,13 +461,13 @@
         zone.addEventListener('drop', function(e) {
             if (e.dataTransfer.files.length) {
                 input.files = e.dataTransfer.files;
-                nameEl.textContent = '📄 ' + e.dataTransfer.files[0].name;
+                nameEl.textContent = e.dataTransfer.files[0].name;
                 nameEl.style.display = 'block';
             }
         });
         input.addEventListener('change', function() {
             if (this.files.length) {
-                nameEl.textContent = '📄 ' + this.files[0].name;
+                nameEl.textContent = this.files[0].name;
                 nameEl.style.display = 'block';
             }
         });

@@ -111,12 +111,12 @@
                 <form method="POST" action="{{ route('admin.reembolsos-viaje.aprobar', $reembolso) }}">
                     @csrf
                     <input type="hidden" name="notas_revision" value="">
-                    <button type="submit" class="btn-action btn-aprobar">✓ Aprobar</button>
+                    <button type="submit" class="btn-action btn-aprobar">Aprobar</button>
                 </form>
                 <form method="POST" action="{{ route('admin.reembolsos-viaje.rechazar', $reembolso) }}" onsubmit="var n=prompt('Motivo del rechazo:');if(!n)return false;this.querySelector('[name=notas_revision]').value=n;">
                     @csrf
                     <input type="hidden" name="notas_revision" value="">
-                    <button type="submit" class="btn-action btn-rechazar">✗ Rechazar</button>
+                    <button type="submit" class="btn-action btn-rechazar">Rechazar</button>
                 </form>
             @endif
 
@@ -135,13 +135,13 @@
         @endphp
         <div style="margin-top:16px;display:flex;gap:14px;flex-wrap:wrap;">
             @if(!empty($archivos['factura_pdf']))
-            <a href="{{ asset('storage/' . $archivos['factura_pdf']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">📄 Factura PDF</a>
+            <a href="{{ asset('storage/' . $archivos['factura_pdf']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">Factura PDF</a>
             @endif
             @if(!empty($archivos['factura_xml']))
-            <a href="{{ asset('storage/' . $archivos['factura_xml']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">📋 Factura XML</a>
+            <a href="{{ asset('storage/' . $archivos['factura_xml']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">Factura XML</a>
             @endif
             @if(!empty($archivos['comprobantes']))
-            <a href="{{ asset('storage/' . $archivos['comprobantes']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">📎 Comprobantes</a>
+            <a href="{{ asset('storage/' . $archivos['comprobantes']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">Comprobantes</a>
             @endif
         </div>
         @endif

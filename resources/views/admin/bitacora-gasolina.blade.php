@@ -117,7 +117,7 @@
                     @endif
                 </form>
                 @if(isset($registros) && $registros->count())
-                <a href="{{ route('admin.bitacora-gasolina.excel', ['filtro_empleado' => request('filtro_empleado')]) }}" style="padding:7px 14px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;font-size:12px;font-weight:600;color:#166534;text-decoration:none;">📊 Exportar Excel</a>
+                <a href="{{ route('admin.bitacora-gasolina.excel', ['filtro_empleado' => request('filtro_empleado')]) }}" style="padding:7px 14px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;font-size:12px;font-weight:600;color:#166534;text-decoration:none;">Exportar Excel</a>
                 @endif
             </div>
         </div>
@@ -155,7 +155,7 @@
                         <td style="font-weight:600;">${{ $d['monto'] ?? '—' }}</td>
                         <td>{{ $d['vehiculo'] ?? '—' }}</td>
                         <td>{{ $d['kilometraje'] ?? '—' }}</td>
-                        <td>@if(!empty($d['factura']))<a href="{{ asset('storage/' . $d['factura']) }}" target="_blank" style="color:var(--purple);font-size:11px;">📄 Ver</a>@else — @endif</td>
+                        <td>@if(!empty($d['factura']))<a href="{{ asset('storage/' . $d['factura']) }}" target="_blank" style="color:var(--purple);font-size:11px;">Ver</a>@else — @endif</td>
                         <td style="font-size:11px;color:var(--gray-muted);">{{ $d['notas'] ?? '' }}</td>
                     </tr>
                     @endforeach

@@ -53,7 +53,7 @@
 
         {{-- Identificación del empleado --}}
         <div class="rv-card">
-            <h3>👤 Identificación del Empleado</h3>
+            <h3>Identificación del Empleado</h3>
             <div class="rv-row cols-3">
                 <div class="rv-group">
                     <label for="codigo_empleado">Código de empleado *</label>
@@ -72,7 +72,7 @@
 
         {{-- Destino y moneda --}}
         <div class="rv-card">
-            <h3>🌎 Destino y Moneda</h3>
+            <h3>Destino y Moneda</h3>
             <div class="rv-row cols-3">
                 <div class="rv-group">
                     <label for="pais_destino">País / Región de destino *</label>
@@ -97,7 +97,7 @@
 
         {{-- Gastos dinámicos --}}
         <div class="rv-card">
-            <h3>💰 Gastos del Viaje</h3>
+            <h3>Gastos del Viaje</h3>
             <table class="gastos-table" id="tablGastos">
                 <thead>
                     <tr>
@@ -137,7 +137,7 @@
 
         {{-- Comprobantes y Facturas --}}
         <div class="rv-card">
-            <h3>📎 Facturas y Comprobantes</h3>
+            <h3>Facturas y Comprobantes</h3>
             <div class="rv-row cols-3">
                 <div class="rv-group">
                     <label for="factura_pdf">Factura PDF</label>
