@@ -25,6 +25,7 @@ class AnticipoProveedor extends Model
         'iva',
         'total_banco',
         'folio_general',
+        'uuid_cfdi',
         'departamento',
         'fecha',
         'concepto',

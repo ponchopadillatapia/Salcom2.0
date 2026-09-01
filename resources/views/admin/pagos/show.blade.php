@@ -122,33 +122,118 @@
                     <input type="date" value="{{ now()->format('Y-m-d') }}" readonly style="background:var(--gray-soft)">
                 </div>
             </div>
+            @php
+                // Indexar los docs fiscales por clave para reordenarlos en dos grupos.
+                $docsPorClave = collect($docsFiscales)->keyBy('clave');
+                $docOpinion   = $docsPorClave->get('opinion');
+                $docFormato   = $docsPorClave->get('formato_pago');
+                $docConstancia= $docsPorClave->get('constancia');
+
+                // Buscar el/los formato(s) de anticipo adjuntados a las facturas de este lote.
+                $facturaIdsDoc = $pago->lineas->pluck('factura_id')->filter()->all();
+                $anticiposConPdf = \App\Models\AnticipoProveedor::where('codigo_proveedor', $pago->codigo_proveedor)
+                    ->where('estatus', 'aplicado')
+                    ->whereIn('factura_id', $facturaIdsDoc)
+                    ->get()
+                    ->map(function ($a) {
+                        $ruta = $a->datos['formato_pdf'] ?? null;
+                        return [
+                            'folio' => $a->folio_general,
+                            'monto' => (float) $a->total_banco,
+                            'url' => $ruta ? route('admin.anticipos.formato-adjunto', $a) : null,
+                        ];
+                    });
+            @endphp
+
+            {{-- GRUPO 1: Formatos generados (Anticipo + Pago) --}}
+            <div class="form-field" style="margin-top:14px;">
+                <label>Formatos de pago</label>
+                <p class="hint" style="margin:0 0 8px;">Formato de anticipo adjuntado y formato de pago generado de este lote.</p>
+                <div class="docs-fiscales">
+                    {{-- Formato de Anticipo --}}
+                    <div>
+                        <label style="display:block;margin-bottom:4px;">Formato de anticipo</label>
+                        @if($anticiposConPdf->count() > 0)
+                            @foreach($anticiposConPdf as $antDoc)
+                                <div class="doc-autofill ok" style="margin-bottom:8px;">
+                                    <div class="doc-autofill-top">
+                                        <span class="doc-autofill-name">{{ $antDoc['folio'] }} · ${{ number_format($antDoc['monto'], 2) }}</span>
+                                        <span class="pill ok">Anticipo</span>
+                                    </div>
+                                    <div class="doc-autofill-meta">
+                                        Formato adjuntado al aplicar el anticipo
+                                        @if(!empty($antDoc['url']))
+                                            · <a href="{{ $antDoc['url'] }}" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700;">Ver</a>
+                                        @else
+                                            · <span style="color:var(--gray-muted)">sin archivo</span>
+                                        @endif
+                                    </div>
+                                </div>
+                            @endforeach
+                        @else
+                            <div class="doc-autofill missing">
+                                <span class="doc-autofill-name">Sin anticipo aplicado</span>
+                                <span class="doc-autofill-meta">Este lote no tiene formato de anticipo</span>
+                            </div>
+                        @endif
+                    </div>
+
+                    {{-- Formato de Pago --}}
+                    <div>
+                        <label style="display:block;margin-bottom:4px;">{{ $docFormato['label'] ?? 'Formato de pago' }}</label>
+                        @if(!empty($docFormato['ok']))
+                            <div class="doc-autofill ok">
+                                <div class="doc-autofill-top">
+                                    <span class="doc-autofill-name">{{ $docFormato['nombre'] }}</span>
+                                    <span class="pill ok">{{ ($docFormato['origen'] ?? '') === 'lote' ? 'De este lote' : 'Validado' }}</span>
+                                </div>
+                                <div class="doc-autofill-meta">
+                                    {{ ($docFormato['origen'] ?? '') === 'lote' ? 'Generado del formato de pago' : 'Del expediente fiscal' }}
+                                    @if(!empty($docFormato['url']))
+                                        · <a href="{{ $docFormato['url'] }}" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700;">Ver</a>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            <div class="doc-autofill missing">
+                                <span class="doc-autofill-name">Sin archivo validado</span>
+                                <span class="doc-autofill-meta">No está en el expediente o aún no está aprobado</span>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            {{-- GRUPO 2: Documentos del expediente fiscal (Opinión + CSF) --}}
             <div class="form-field" style="margin-top:14px;">
                 <label>Documentos fiscales</label>
                 <p class="hint" style="margin:0 0 8px;">Insertados del expediente validado. No es necesario volver a subirlos.</p>
                 <div class="docs-fiscales">
-                    @foreach($docsFiscales as $doc)
-                        <div>
-                            <label style="display:block;margin-bottom:4px;">{{ $doc['label'] }}</label>
-                            @if(!empty($doc['ok']))
-                                <div class="doc-autofill ok">
-                                    <div class="doc-autofill-top">
-                                        <span class="doc-autofill-name">{{ $doc['nombre'] }}</span>
-                                        <span class="pill ok">{{ ($doc['origen'] ?? '') === 'lote' ? 'De este lote' : 'Validado' }}</span>
+                    @foreach([$docOpinion, $docConstancia] as $doc)
+                        @if($doc)
+                            <div>
+                                <label style="display:block;margin-bottom:4px;">{{ $doc['label'] }}</label>
+                                @if(!empty($doc['ok']))
+                                    <div class="doc-autofill ok">
+                                        <div class="doc-autofill-top">
+                                            <span class="doc-autofill-name">{{ $doc['nombre'] }}</span>
+                                            <span class="pill ok">{{ ($doc['origen'] ?? '') === 'lote' ? 'De este lote' : 'Validado' }}</span>
+                                        </div>
+                                        <div class="doc-autofill-meta">
+                                            {{ ($doc['origen'] ?? '') === 'lote' ? 'Generado del formato de pago' : 'Del expediente fiscal' }}
+                                            @if(!empty($doc['url']))
+                                                · <a href="{{ $doc['url'] }}" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700;">Ver</a>
+                                            @endif
+                                        </div>
                                     </div>
-                                    <div class="doc-autofill-meta">
-                                        {{ ($doc['origen'] ?? '') === 'lote' ? 'Generado del formato de pago' : 'Del expediente fiscal' }}
-                                        @if(!empty($doc['url']))
-                                            · <a href="{{ $doc['url'] }}" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700;">Ver</a>
-                                        @endif
+                                @else
+                                    <div class="doc-autofill missing">
+                                        <span class="doc-autofill-name">Sin archivo validado</span>
+                                        <span class="doc-autofill-meta">No está en el expediente o aún no está aprobado</span>
                                     </div>
-                                </div>
-                            @else
-                                <div class="doc-autofill missing">
-                                    <span class="doc-autofill-name">Sin archivo validado</span>
-                                    <span class="doc-autofill-meta">No está en el expediente o aún no está aprobado</span>
-                                </div>
-                            @endif
-                        </div>
+                                @endif
+                            </div>
+                        @endif
                     @endforeach
                 </div>
             </div>
@@ -185,13 +270,20 @@
             ->where('estatus', 'aplicado')
             ->whereIn('factura_id', $facturaIds)
             ->get();
+
+        // Monto de anticipo aplicado por factura (para restar visualmente).
+        $anticipoPorFactura = $anticiposLigados->groupBy('factura_id')->map(function ($grupo) {
+            return (float) $grupo->sum('monto_aplicado');
+        });
+        $totalAnticiposLote = (float) $anticiposLigados->sum('monto_aplicado');
     @endphp
     @if($anticiposLigados->count() > 0)
         <div style="padding:12px 18px;background:#f3e8ff;border-bottom:1px solid #c4b5fd;font-size:13px;color:#5b21b6">
             <strong>Anticipos aplicados a este lote:</strong>
             @foreach($anticiposLigados as $antL)
                 <span style="display:inline-block;margin:4px 6px 0 0;padding:3px 10px;background:#fff;border:1px solid #e9d5ff;border-radius:6px;font-size:12px">
-                    {{ $antL->folio_general }} · ${{ number_format((float)$antL->total_banco, 2) }}
+                    {{ $antL->folio_general }} · ${{ number_format((float)$antL->monto_aplicado, 2) }}
+                    → factura {{ optional(\App\Models\Factura::find($antL->factura_id))->folio_cfdi ?: ('FAC-'.$antL->factura_id) }}
                 </span>
             @endforeach
         </div>
@@ -209,7 +301,8 @@
                     <th>Uso CFDI</th>
                     <th>Total</th>
                     <th>Retenciones</th>
-                    <th>Neto</th>
+                    <th>Anticipo</th>
+                    <th>Saldo a pagar</th>
                     <th>Avisos</th>
                 </tr>
             </thead>
@@ -223,9 +316,20 @@
                         <td>{{ $dc['forma_pago'] ?? '—' }}</td>
                         <td>{{ $dc['metodo_pago'] ?? '—' }}</td>
                         <td>{{ $dc['uso_cfdi'] ?? '—' }}</td>
+                        @php
+                            $antFac = (float) ($anticipoPorFactura[$l->factura_id] ?? 0);
+                            $saldoReal = round((float) $l->total - $antFac, 2);
+                        @endphp
                         <td class="monto">${{ number_format((float)$l->total, 2) }}</td>
                         <td class="monto">IVA ${{ number_format((float)$l->retencion_iva, 2) }} / ISR ${{ number_format((float)$l->retencion_isr, 2) }}</td>
-                        <td class="monto">${{ number_format((float)$l->neto, 2) }}</td>
+                        <td class="monto">
+                            @if($antFac > 0)
+                                <span style="color:#7c3aed;font-weight:700">- ${{ number_format($antFac, 2) }}</span>
+                            @else
+                                <span style="color:var(--gray-muted)">—</span>
+                            @endif
+                        </td>
+                        <td class="monto" style="font-weight:800;{{ $antFac > 0 ? 'color:#059669' : '' }}">${{ number_format($saldoReal, 2) }}</td>
                         <td>
                             @forelse(($l->avisos ?? []) as $a)
                                 <span class="aviso">• {{ $a }}</span>
@@ -237,6 +341,9 @@
                 @endforeach
             </tbody>
             <tfoot>
+                @php
+                    $saldoLoteReal = round((float) $pago->monto_total - $totalAnticiposLote, 2);
+                @endphp
                 <tr>
                     <td colspan="7" class="meta-muted">
                         {{ $pago->num_facturas }} factura{{ $pago->num_facturas === 1 ? '' : 's' }}
@@ -249,7 +356,14 @@
                     </td>
                     <td class="monto">${{ number_format((float)$pago->monto_total, 2) }}</td>
                     <td class="monto">IVA ${{ number_format((float)$pago->monto_retencion_iva, 2) }} / ISR ${{ number_format((float)$pago->monto_retencion_isr, 2) }}</td>
-                    <td class="monto">${{ number_format((float)$pago->monto_neto, 2) }}</td>
+                    <td class="monto">
+                        @if($totalAnticiposLote > 0)
+                            <span style="color:#7c3aed;font-weight:700">- ${{ number_format($totalAnticiposLote, 2) }}</span>
+                        @else
+                            —
+                        @endif
+                    </td>
+                    <td class="monto" style="font-weight:800;{{ $totalAnticiposLote > 0 ? 'color:#059669' : '' }}">${{ number_format($saldoLoteReal, 2) }}</td>
                     <td></td>
                 </tr>
             </tfoot>

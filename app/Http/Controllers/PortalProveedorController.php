@@ -1876,6 +1876,8 @@ class PortalProveedorController extends Controller
                 'metodo_pago' => $datos['metodo_pago'] ?? null,
                 'uso_cfdi' => $datos['uso_cfdi'] ?? null,
                 'producto' => $datos['producto'] ?? null,
+                'cfdi_relacionados' => $datos['cfdi_relacionados'] ?? [],
+                'tipo_relacion' => $datos['tipo_relacion'] ?? null,
                 'pdf_cruce' => $datos['pdf_cruce'] ?? null,
                 'oc_cruce' => $datos['oc_cruce'] ?? null,
                 'naturaleza' => $pendiente['naturaleza'] ?? null,
@@ -1906,7 +1908,127 @@ class PortalProveedorController extends Controller
             // No bloquear el alta si falla la notificación
         }
 
+        // Auto-ligar anticipos timbrados que esta factura aplique (CfdiRelacionados 07),
+        // con respaldo por número de OC/folio_general.
+        try {
+            $this->autoLigarAnticipos($factura, $datos, (string) $codigoProv);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[AutoAnticipo] No se pudo auto-ligar: '.$e->getMessage());
+        }
+
         return $factura;
+    }
+
+    /**
+     * Liga automáticamente anticipos del proveedor a la factura recién creada.
+     * Prioridad: (1) por UUID relacionado del CFDI (TipoRelacion 07);
+     * (2) respaldo por número de OC (folio_general del anticipo) si aparece en la factura.
+     * Al ligar, descuenta el monto del anticipo del saldo de la factura.
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function autoLigarAnticipos(Factura $factura, array $datos, string $codigoProv): void
+    {
+        // 1) Match por UUID de CfdiRelacionados (solo si TipoRelacion es 07 = aplicación de anticipo).
+        $tipoRelacion = (string) ($datos['tipo_relacion'] ?? '');
+        $uuidsRel = array_values(array_filter(array_map(
+            fn ($u) => strtoupper(trim((string) $u)),
+            (array) ($datos['cfdi_relacionados'] ?? [])
+        )));
+
+        $anticipos = collect();
+
+        if ($tipoRelacion === '07' && ! empty($uuidsRel)) {
+            $anticipos = \App\Models\AnticipoProveedor::query()
+                ->where('codigo_proveedor', $codigoProv)
+                ->where('estatus', 'pagado')
+                ->whereNotNull('uuid_cfdi')
+                ->whereIn(\Illuminate\Support\Facades\DB::raw('UPPER(uuid_cfdi)'), $uuidsRel)
+                ->get();
+        }
+
+        // 2) Respaldo por número de OC: si el folio de la factura o su serie/folio
+        //    contienen el folio_general del anticipo. Solo si no hubo match por UUID.
+        if ($anticipos->isEmpty()) {
+            $refFactura = strtoupper(trim(
+                (string) ($factura->folio_cfdi ?? '').' '.
+                (string) ($datos['serie'] ?? '').' '.
+                (string) ($datos['folio'] ?? '')
+            ));
+
+            if ($refFactura !== '') {
+                $candidatos = \App\Models\AnticipoProveedor::query()
+                    ->where('codigo_proveedor', $codigoProv)
+                    ->where('estatus', 'pagado')
+                    ->whereNotNull('folio_general')
+                    ->get();
+
+                $anticipos = $candidatos->filter(function ($ant) use ($refFactura) {
+                    $fg = strtoupper(trim((string) $ant->folio_general));
+                    return $fg !== '' && str_contains($refFactura, $fg);
+                })->values();
+            }
+        }
+
+        if ($anticipos->isEmpty()) {
+            return;
+        }
+
+        \Illuminate\Support\Facades\DB::transaction(function () use ($anticipos, $factura, $tipoRelacion) {
+            foreach ($anticipos as $anticipo) {
+                $factura->refresh();
+                $saldoFactura = round((float) $factura->total - (float) $factura->monto_pagado, 2);
+                if ($saldoFactura <= 0) {
+                    break; // ya no queda saldo por cubrir
+                }
+
+                // No aplicar más del saldo disponible de la factura.
+                $montoAplicar = min(round((float) $anticipo->total_banco, 2), $saldoFactura);
+                if ($montoAplicar <= 0) {
+                    continue;
+                }
+
+                $nuevoPagado = round((float) $factura->monto_pagado + $montoAplicar, 2);
+                $factura->monto_pagado = $nuevoPagado;
+                if ($nuevoPagado >= (float) $factura->total) {
+                    $factura->estatus = 'pagada';
+                }
+                $factura->save();
+
+                $anticipo->update([
+                    'estatus' => 'aplicado',
+                    'factura_id' => $factura->id,
+                    'monto_aplicado' => $montoAplicar,
+                    'datos' => array_merge($anticipo->datos ?? [], [
+                        'aplicado_auto' => true,
+                        'aplicado_via' => $tipoRelacion === '07' ? 'uuid_cfdi' : 'folio_oc',
+                        'aplicado_at' => now()->toDateTimeString(),
+                        'factura_folio' => $factura->folio_cfdi,
+                    ]),
+                ]);
+
+                // Alerta para admin: anticipo ligado automáticamente.
+                try {
+                    Alerta::create([
+                        'tipo' => 'anticipo_autoligado',
+                        'modulo' => 'anticipos',
+                        'destinatario_tipo' => 'admin',
+                        'destinatario_id' => 1,
+                        'titulo' => 'Anticipo aplicado automáticamente',
+                        'contenido' => 'El anticipo '.($anticipo->folio_general ?: $anticipo->uuid_cfdi).' por $'.number_format($montoAplicar, 2).' se aplicó a la factura '.($factura->folio_cfdi ?: ('FAC-'.$factura->id)).'.',
+                        'nivel' => 'info',
+                        'estatus' => 'nueva',
+                        'datos' => [
+                            'anticipo_id' => $anticipo->id,
+                            'factura_id' => $factura->id,
+                            'monto' => $montoAplicar,
+                        ],
+                    ]);
+                } catch (\Throwable $e) {
+                    // no bloquear
+                }
+            }
+        });
     }
 
     private function conservarUiFiscalTrasRedirect(): void
