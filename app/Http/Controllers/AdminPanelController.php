@@ -3069,13 +3069,20 @@ class AdminPanelController extends Controller
 
     public function reembolsos()
     {
-        $reembolsos = Alerta::where('tipo', 'solicitud_reembolso')
-            ->orderByDesc('created_at')
-            ->limit(50)
-            ->get();
+        try {
+            $reembolsos = Alerta::where('tipo', 'solicitud_reembolso')
+                ->orderByDesc('created_at')
+                ->limit(50)
+                ->get();
+        } catch (\Exception $e) {
+            $reembolsos = collect();
+        }
 
-        // Verificar si hay registros en bitácora de gasolina (para habilitar reembolso de gasolina)
-        $tieneBitacoraGasolina = Alerta::where('tipo', 'bitacora_gasolina')->exists();
+        try {
+            $tieneBitacoraGasolina = Alerta::where('tipo', 'bitacora_gasolina')->exists();
+        } catch (\Exception $e) {
+            $tieneBitacoraGasolina = false;
+        }
 
         return view('admin.reembolsos', compact('reembolsos', 'tieneBitacoraGasolina'));
     }
