@@ -52,7 +52,8 @@
             <div class="bg-form-row cols-4">
                 <div class="bg-group">
                     <label for="fecha">Fecha <span style="color:#DC2626">*</span></label>
-                    <input type="date" id="fecha" name="fecha" required value="{{ old('fecha', date('Y-m-d')) }}">
+                    <input type="text" id="fecha_display" value="{{ date('d/m/Y') }}" readonly style="background:var(--gray-soft);cursor:not-allowed;">
+                    <input type="hidden" id="fecha" name="fecha" value="{{ date('Y-m-d') }}">
                 </div>
                 <div class="bg-group">
                     <label for="numero_empleado">Número de Empleado <span style="color:#DC2626">*</span></label>

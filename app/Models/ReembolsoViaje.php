@@ -10,6 +10,7 @@ class ReembolsoViaje extends Model
 
     protected $fillable = [
         'codigo_empleado', 'nombre_empleado', 'departamento',
+        'fecha_salida', 'fecha_regreso',
         'pais_destino', 'moneda_destino', 'tipo_cambio', 'moneda_base',
         'gastos', 'total_moneda_local', 'total_moneda_base',
         'estatus', 'archivo_comprobantes', 'notas', 'notas_revision',
@@ -18,12 +19,39 @@ class ReembolsoViaje extends Model
 
     protected $casts = [
         'gastos' => 'array',
+        'fecha_salida' => 'date',
+        'fecha_regreso' => 'date',
         'tipo_cambio' => 'decimal:4',
         'total_moneda_local' => 'decimal:2',
         'total_moneda_base' => 'decimal:2',
         'enviado_at' => 'datetime',
         'aprobado_at' => 'datetime',
     ];
+
+    public const DIAS_LIMITE_FACTURAS = 3;
+
+    /** Días restantes para subir facturas después del regreso (negativo = vencido). */
+    public function diasParaSubirFacturas(): ?int
+    {
+        if (! $this->fecha_regreso) {
+            return null;
+        }
+        $limite = \Carbon\Carbon::parse($this->fecha_regreso)->addDays(self::DIAS_LIMITE_FACTURAS)->endOfDay();
+        return (int) now()->diffInDays($limite, false);
+    }
+
+    /** True si ya pasó el plazo de 3 días y sigue sin facturas/comprobantes. */
+    public function facturasVencidas(): bool
+    {
+        if (! $this->fecha_regreso) {
+            return false;
+        }
+        $tieneArchivos = ! empty($this->archivo_comprobantes) && $this->archivo_comprobantes !== '[]';
+        if ($tieneArchivos) {
+            return false;
+        }
+        return $this->diasParaSubirFacturas() < 0;
+    }
 
     public const ESTATUS_BORRADOR = 'borrador';
     public const ESTATUS_ENVIADO = 'enviado';

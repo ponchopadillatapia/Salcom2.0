@@ -58,7 +58,24 @@
             <div class="rv-field"><div class="lbl">País destino</div><div class="val">{{ $reembolso->pais_destino }}</div></div>
             <div class="rv-field"><div class="lbl">Moneda destino</div><div class="val">{{ $reembolso->moneda_destino }}</div></div>
             <div class="rv-field"><div class="lbl">Tipo de cambio</div><div class="val">1 {{ $reembolso->moneda_destino }} = {{ $reembolso->tipo_cambio }} MXN</div></div>
+            <div class="rv-field"><div class="lbl">Fecha de salida</div><div class="val">{{ $reembolso->fecha_salida ? \Carbon\Carbon::parse($reembolso->fecha_salida)->format('d/m/Y') : '—' }}</div></div>
+            <div class="rv-field"><div class="lbl">Fecha de regreso</div><div class="val">{{ $reembolso->fecha_regreso ? \Carbon\Carbon::parse($reembolso->fecha_regreso)->format('d/m/Y') : '—' }}</div></div>
         </div>
+
+        @php $diasRestantes = $reembolso->diasParaSubirFacturas(); @endphp
+        @if($diasRestantes !== null)
+            @if($reembolso->facturasVencidas())
+            <div style="background:#fef2f2;border:1px solid #dc2626;border-radius:10px;padding:12px 14px;margin-top:8px;">
+                <p style="font-size:13px;font-weight:700;color:#991b1b;margin:0;">Plazo vencido — Reembolso bloqueado</p>
+                <p style="font-size:12px;color:#991b1b;margin:4px 0 0;">Pasaron más de 3 días desde el regreso sin subir facturas. Este reembolso queda bloqueado.</p>
+            </div>
+            @elseif($diasRestantes >= 0)
+            <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:12px 14px;margin-top:8px;">
+                <p style="font-size:13px;font-weight:700;color:#92400e;margin:0;">Tienes {{ $diasRestantes }} día(s) para subir tus facturas</p>
+                <p style="font-size:12px;color:#78350f;margin:4px 0 0;">El plazo vence 3 días después de tu fecha de regreso.</p>
+            </div>
+            @endif
+        @endif
 
         @if($reembolso->notas)
         <div style="background:var(--gray-soft);border-radius:8px;padding:12px 14px;font-size:12px;color:var(--gray-text);margin-top:8px;">

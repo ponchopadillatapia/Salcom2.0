@@ -86,7 +86,14 @@
             <td>{{ $s->pais_destino }} <span style="font-size:11px;color:var(--gray-muted);">({{ $s->moneda_destino }})</span></td>
             <td>{{ number_format($s->total_moneda_local, 2) }} {{ $s->moneda_destino }}</td>
             <td><strong>${{ number_format($s->total_moneda_base, 2) }} MXN</strong></td>
-            <td><span class="badge-est {{ $s->badgeClass() }}">{{ $s->estatusLabel() }}</span></td>
+            <td>
+                <span class="badge-est {{ $s->badgeClass() }}">{{ $s->estatusLabel() }}</span>
+                @if($s->facturasVencidas())
+                <br><span style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:#fee2e2;color:#991b1b;">Bloqueado (plazo vencido)</span>
+                @elseif($s->diasParaSubirFacturas() !== null && $s->diasParaSubirFacturas() >= 0 && empty($s->archivo_comprobantes))
+                <br><span style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;background:#fef3c7;color:#92400e;">{{ $s->diasParaSubirFacturas() }}d para facturas</span>
+                @endif
+            </td>
             <td>{{ $s->created_at->format('d/m/Y') }}</td>
             <td><a href="{{ route('admin.reembolsos-viaje.ver', $s) }}" style="color:var(--purple);font-weight:600;font-size:12px;">Ver</a></td>
         </tr>

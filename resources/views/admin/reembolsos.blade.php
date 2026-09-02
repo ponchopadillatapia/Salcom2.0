@@ -178,6 +178,11 @@
         </h3>
         <p class="card-desc">Completa los datos y sube la factura PDF firmada con su voucher y materialidad.</p>
 
+        <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:10px;padding:12px 16px;margin-bottom:18px;">
+            <p style="font-size:13px;font-weight:700;color:#1e40af;margin:0 0 4px;">Favor de verificar que sus datos sean correctos</p>
+            <p style="font-size:12px;color:#1e40af;margin:0;">Debe subir las facturas para su reembolso máximo 3 días después de su viaje o de su registro de gasolina. Pasado ese plazo, los reembolsos se bloquean automáticamente.</p>
+        </div>
+
         <form method="POST" action="{{ route('admin.reembolsos.enviar') }}" enctype="multipart/form-data" id="formReembolso">
             @csrf
 
@@ -208,7 +213,7 @@
                     <label for="metodo_pago_empresa">Método de pago empresa <span style="color:#DC2626">*</span></label>
                     <select id="metodo_pago_empresa" name="metodo_pago_empresa" required>
                         <option value="" disabled selected>Selecciona</option>
-                        <option value="bbva">BBVA (requiere factura a nombre de Salcom)</option>
+                        <option value="bbva">BBVA (requiere factura y materialidad)</option>
                         <option value="inntec">Inntec (solo ticket, sin materialidad extra)</option>
                     </select>
                     <span class="hint" id="hintMetodo"></span>
@@ -232,30 +237,35 @@
                     <input type="hidden" name="metodo_pago" id="metodo_pago_val" value="PUE">
                 </div>
                 <div class="rb-form-group">
-                    <label for="fecha_factura">Fecha de la factura <span style="color:#DC2626">*</span></label>
-                    <input type="date" id="fecha_factura" name="fecha_factura" required value="{{ old('fecha_factura', date('Y-m-d')) }}">
+                    <label>Fecha de la factura <span style="color:#DC2626">*</span></label>
+                    <input type="text" value="{{ date('d/m/Y') }}" readonly style="background:var(--gray-soft);cursor:not-allowed;">
+                    <input type="hidden" name="fecha_factura" value="{{ date('Y-m-d') }}">
                 </div>
             </div>
 
             <div class="rb-form-row cols-3">
                 <div class="rb-form-group">
-                    <label for="monto">Monto total <span style="color:#DC2626">*</span></label>
-                    <input type="text" id="monto" name="monto" placeholder="$0.00" required inputmode="decimal" value="{{ old('monto') }}">
-                </div>
-                <div class="rb-form-group">
-                    <label for="concepto">Concepto <span style="color:#DC2626">*</span></label>
-                    <input type="text" id="concepto" name="concepto" placeholder="Ej: Tóner impresora, gasolina..." required maxlength="255" value="{{ old('concepto') }}">
+                    <label for="numero_empleado">Número de empleado <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="numero_empleado" name="numero_empleado" placeholder="Ej: EMP-001" required maxlength="50" value="{{ old('numero_empleado') }}">
                 </div>
                 <div class="rb-form-group">
                     <label for="solicitante">Solicitante <span style="color:#DC2626">*</span></label>
                     <input type="text" id="solicitante" name="solicitante" placeholder="Nombre del colaborador" required maxlength="150" value="{{ old('solicitante') }}">
                 </div>
+                <div class="rb-form-group">
+                    <label for="monto">Monto total <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="monto" name="monto" placeholder="$0.00" required inputmode="decimal" value="{{ old('monto') }}">
+                </div>
             </div>
 
-            <div class="rb-form-row cols-2">
+            <div class="rb-form-row cols-3">
                 <div class="rb-form-group">
-                    <label for="numero_cuenta">Número de cuenta / tarjeta <span style="color:#DC2626">*</span></label>
-                    <input type="text" id="numero_cuenta" name="numero_cuenta" placeholder="Últimos 4 dígitos o cuenta completa" required maxlength="20" value="{{ old('numero_cuenta') }}">
+                    <label for="concepto">Concepto <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="concepto" name="concepto" placeholder="Ej: Tóner impresora, gasolina..." required maxlength="255" value="{{ old('concepto') }}">
+                </div>
+                <div class="rb-form-group">
+                    <label for="numero_cuenta">Número de cuenta de la tarjeta (completa) <span style="color:#DC2626">*</span></label>
+                    <input type="text" id="numero_cuenta" name="numero_cuenta" placeholder="Cuenta completa" required maxlength="30" value="{{ old('numero_cuenta') }}">
                 </div>
                 <div class="rb-form-group">
                     <label for="titular_cuenta">Nombre del titular de la tarjeta <span style="color:#DC2626">*</span></label>
@@ -328,6 +338,7 @@
                 <thead>
                     <tr style="border-bottom:2px solid var(--border-light);">
                         <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Fecha</th>
+                        <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Nº Empleado</th>
                         <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Solicitante</th>
                         <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Concepto</th>
                         <th style="padding:10px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;">Monto</th>
@@ -342,6 +353,7 @@
                     @php $d = $r->datos ?? []; @endphp
                     <tr style="border-bottom:1px solid var(--border-light);">
                         <td style="padding:10px 12px;">{{ $r->created_at->format('d/m/Y') }}</td>
+                        <td style="padding:10px 12px;">{{ $d['numero_empleado'] ?? '—' }}</td>
                         <td style="padding:10px 12px;font-weight:600;">{{ $d['solicitante'] ?? '—' }}</td>
                         <td style="padding:10px 12px;">{{ $d['concepto'] ?? $r->contenido ?? '—' }}</td>
                         <td style="padding:10px 12px;font-weight:600;">${{ $d['monto'] ?? '—' }}</td>
@@ -429,7 +441,7 @@
             if (formaPagoVal) formaPagoVal.value = 'N/A';
             if (metodoPagoVal) metodoPagoVal.value = 'N/A';
         } else {
-            hintMetodo.textContent = 'BBVA: la factura debe estar a nombre de Salcom.';
+            hintMetodo.textContent = 'BBVA: requiere factura y materialidad.';
             hintMetodo.style.color = '#92400e';
             hintMaterialidad.textContent = 'Obligatorio. Sin materialidad el reembolso se rechaza automáticamente.';
             materialidadReq.style.display = 'inline';

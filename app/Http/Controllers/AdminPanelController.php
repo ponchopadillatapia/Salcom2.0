@@ -3096,7 +3096,8 @@ class AdminPanelController extends Controller
             'monto' => 'required|string|max:20',
             'concepto' => 'required|string|max:255',
             'solicitante' => 'required|string|max:150',
-            'numero_cuenta' => 'required|string|max:20',
+            'numero_empleado' => 'required|string|max:50',
+            'numero_cuenta' => 'required|string|max:30',
             'titular_cuenta' => 'required|string|max:150',
             'fecha_factura' => 'required|date',
             'archivo_factura' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
@@ -3114,11 +3115,18 @@ class AdminPanelController extends Controller
             'solicitante.required' => 'Indica quién solicita el reembolso.',
         ]);
 
-        // Validar que gasolina tenga bitácora previa
+        // Validar que gasolina tenga bitácora previa y dentro del plazo de 3 días
         if ($request->input('categoria') === 'gasolina') {
-            $tieneBitacora = Alerta::where('tipo', 'bitacora_gasolina')->exists();
-            if (! $tieneBitacora) {
+            $ultimaBitacora = Alerta::where('tipo', 'bitacora_gasolina')
+                ->orderByDesc('created_at')
+                ->first();
+            if (! $ultimaBitacora) {
                 return back()->withErrors(['categoria' => 'Para reembolso de gasolina debes llenar primero la Bitácora de Gasolina.'])->withInput();
+            }
+            // Bloqueo: si pasaron más de 3 días desde el último registro de gasolina
+            $fechaRef = $ultimaBitacora->created_at;
+            if ($fechaRef && now()->diffInDays($fechaRef) > 3) {
+                return back()->withErrors(['categoria' => 'El plazo de 3 días para subir facturas de gasolina ya venció. El reembolso queda bloqueado.'])->withInput();
             }
         }
 
@@ -3153,9 +3161,10 @@ class AdminPanelController extends Controller
                     'monto' => $request->input('monto'),
                     'concepto' => $request->input('concepto'),
                     'solicitante' => $request->input('solicitante'),
+                    'numero_empleado' => $request->input('numero_empleado'),
                     'numero_cuenta' => $request->input('numero_cuenta'),
                     'titular_cuenta' => $request->input('titular_cuenta'),
-                    'fecha_factura' => $request->input('fecha_factura'),
+                    'fecha_factura' => now()->format('Y-m-d'),
                     'archivo_factura' => $pathFactura,
                     'archivo_xml' => $pathXml,
                     'archivo_materialidad' => $pathMaterialidad,
@@ -3178,12 +3187,13 @@ class AdminPanelController extends Controller
             ->get();
 
         $output = "\xEF\xBB\xBF";
-        $output .= "Fecha,Solicitante,Concepto,Monto,Numero de Cuenta,Titular de la Tarjeta,Institucion (BBVA/Inntec),Categoria,Autorizado Sandra\r\n";
+        $output .= "Fecha,Numero Empleado,Solicitante,Concepto,Monto,Numero de Cuenta,Titular de la Tarjeta,Institucion (BBVA/Inntec),Categoria,Autorizado Sandra\r\n";
 
         foreach ($reembolsos as $r) {
             $d = $r->datos ?? [];
             $output .= implode(',', [
                 $r->created_at?->format('d/m/Y') ?? '',
+                '"' . str_replace('"', '""', $d['numero_empleado'] ?? '') . '"',
                 '"' . str_replace('"', '""', $d['solicitante'] ?? '') . '"',
                 '"' . str_replace('"', '""', $d['concepto'] ?? '') . '"',
                 '"' . ($d['monto'] ?? '0') . '"',
@@ -3266,9 +3276,9 @@ class AdminPanelController extends Controller
                 'destinatario_tipo' => 'admin',
                 'destinatario_id' => 0,
                 'titulo' => 'Gasolina: $' . $request->input('monto') . ' — ' . $request->input('empleado'),
-                'contenido' => ($request->input('vehiculo') ?? '') . ' | ' . $request->input('fecha'),
+                'contenido' => ($request->input('vehiculo') ?? '') . ' | ' . now()->format('Y-m-d'),
                 'datos' => [
-                    'fecha' => $request->input('fecha'),
+                    'fecha' => now()->format('Y-m-d'),
                     'numero_empleado' => $request->input('numero_empleado'),
                     'empleado' => $request->input('empleado'),
                     'cantidad_litros' => $request->input('cantidad_litros'),

@@ -68,6 +68,17 @@
                     <input type="text" id="departamento" name="departamento" placeholder="Ej: Ventas, Promotor" value="{{ old('departamento') }}">
                 </div>
             </div>
+            <div class="rv-row cols-2">
+                <div class="rv-group">
+                    <label for="fecha_salida">Fecha de salida *</label>
+                    <input type="date" id="fecha_salida" name="fecha_salida" required value="{{ old('fecha_salida') }}">
+                </div>
+                <div class="rv-group">
+                    <label for="fecha_regreso">Fecha de regreso *</label>
+                    <input type="date" id="fecha_regreso" name="fecha_regreso" required value="{{ old('fecha_regreso') }}">
+                    <span class="hint">Tienes 3 días desde el regreso para subir tus facturas.</span>
+                </div>
+            </div>
         </div>
 
         {{-- Destino y moneda --}}
