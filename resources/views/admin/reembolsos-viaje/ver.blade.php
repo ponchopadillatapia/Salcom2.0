@@ -118,6 +118,7 @@
         <h3>Acciones</h3>
         <div class="rv-actions">
             @if($reembolso->estatus === 'borrador')
+                <a href="{{ route('admin.reembolsos-viaje.editar', $reembolso) }}" class="btn-action" style="background:#f5f3ff;color:#7c3aed;border:1.5px solid #7c3aed;text-decoration:none;display:inline-block;">Editar</a>
                 <form method="POST" action="{{ route('admin.reembolsos-viaje.enviar', $reembolso) }}">
                     @csrf
                     <button type="submit" class="btn-action btn-enviar" onclick="return confirm('¿Enviar solicitud? Ya no podrás editar.');">Enviar Solicitud</button>

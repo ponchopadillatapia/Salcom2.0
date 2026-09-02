@@ -152,6 +152,74 @@ class ReembolsoViajeController extends Controller
         return view('admin.reembolsos-viaje.ver', compact('reembolso', 'paises', 'conceptos'));
     }
 
+    public function editar(ReembolsoViaje $reembolso)
+    {
+        if (! $reembolso->estaEditable()) {
+            return redirect()->route('admin.reembolsos-viaje.ver', $reembolso)
+                ->with('error', 'Esta solicitud ya fue enviada y no se puede editar.');
+        }
+
+        $paises = ReembolsoViaje::PAISES_MONEDA;
+        $conceptos = ReembolsoViaje::CONCEPTOS_GASTO;
+
+        return view('admin.reembolsos-viaje.editar', compact('reembolso', 'paises', 'conceptos'));
+    }
+
+    public function actualizar(Request $request, ReembolsoViaje $reembolso)
+    {
+        if (! $reembolso->estaEditable()) {
+            return redirect()->route('admin.reembolsos-viaje.ver', $reembolso)
+                ->with('error', 'Esta solicitud ya fue enviada y no se puede editar.');
+        }
+
+        $request->validate([
+            'codigo_empleado' => 'required|string|max:50',
+            'nombre_empleado' => 'required|string|max:255',
+            'departamento' => 'nullable|string|max:100',
+            'fecha_salida' => 'required|date',
+            'fecha_regreso' => 'required|date|after_or_equal:fecha_salida',
+            'pais_destino' => 'required|string|max:100',
+            'moneda_destino' => 'required|string|max:10',
+            'tipo_cambio' => 'required|numeric|min:0.0001',
+            'gastos' => 'required|array|min:1',
+            'gastos.*.concepto' => 'required|string|max:100',
+            'gastos.*.monto_local' => 'required|numeric|min:0',
+            'notas' => 'nullable|string|max:1000',
+        ]);
+
+        $tipoCambio = (float) $request->input('tipo_cambio');
+        $gastos = [];
+        $totalLocal = 0;
+        foreach ($request->input('gastos') as $gasto) {
+            $montoLocal = (float) ($gasto['monto_local'] ?? 0);
+            $totalLocal += $montoLocal;
+            $gastos[] = [
+                'concepto' => $gasto['concepto'],
+                'monto_local' => $montoLocal,
+                'monto_base' => round($montoLocal * $tipoCambio, 2),
+            ];
+        }
+        $totalBase = round($totalLocal * $tipoCambio, 2);
+
+        $reembolso->update([
+            'codigo_empleado' => $request->input('codigo_empleado'),
+            'nombre_empleado' => $request->input('nombre_empleado'),
+            'departamento' => $request->input('departamento'),
+            'fecha_salida' => $request->input('fecha_salida'),
+            'fecha_regreso' => $request->input('fecha_regreso'),
+            'pais_destino' => $request->input('pais_destino'),
+            'moneda_destino' => $request->input('moneda_destino'),
+            'tipo_cambio' => $tipoCambio,
+            'gastos' => $gastos,
+            'total_moneda_local' => $totalLocal,
+            'total_moneda_base' => $totalBase,
+            'notas' => $request->input('notas'),
+        ]);
+
+        return redirect()->route('admin.reembolsos-viaje.ver', $reembolso)
+            ->with('mensaje', 'Solicitud actualizada correctamente.');
+    }
+
     public function enviar(ReembolsoViaje $reembolso)
     {
         if (! $reembolso->estaEditable()) {
