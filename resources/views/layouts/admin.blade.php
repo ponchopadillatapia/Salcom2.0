@@ -338,6 +338,19 @@
             pointer-events: auto;
         }
 
+        /* Separador de fecha estandar para tablas. Uso: fila tr.date-row con un td colspan que muestre la fecha. */
+        tr.date-row td,
+        .admin-table tr.date-row td {
+            background: var(--purple-subtle) !important;
+            font-weight: 700 !important;
+            font-size: 12px !important;
+            color: var(--purple) !important;
+            padding: 8px 16px !important;
+            border-top: 2px solid var(--purple) !important;
+            border-bottom: 2px solid var(--purple) !important;
+            text-transform: capitalize;
+        }
+
         @include('partials.portal-shell-responsive')
     </style>
     @stack('styles')

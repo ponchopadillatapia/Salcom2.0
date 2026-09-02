@@ -42,7 +42,6 @@
     .admin-table tbody tr.prov-row.is-disabled{cursor:not-allowed;opacity:.45}
     .admin-table tbody tr.prov-row.is-disabled:hover td{background:transparent}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
-    .date-row td{background:var(--purple-subtle)!important;font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)}
     .code-link{font-weight:700;color:var(--purple);text-decoration:none}
     .monto{font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)}
     .pill{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;display:inline-block}
@@ -174,7 +173,10 @@
 @endif
 
 @if($modo === 'abonos')
-    <a href="{{ route('admin.pago-proveedores', ['estatus' => $estatus, 'agente' => $agente]) }}" style="display:inline-flex;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none">← Volver a proveedores</a>
+    <a href="{{ route('admin.pago-proveedores', ['estatus' => $estatus, 'agente' => $agente]) }}" style="display:inline-flex;align-items:center;gap:8px;margin-bottom:14px;padding:9px 18px;background:#fff;border:1.5px solid var(--purple);border-radius:8px;font-size:13px;font-weight:700;color:var(--purple);text-decoration:none">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        Volver a la lista de {{ $estatus === 'cancelado' ? 'cancelados' : ($estatus === 'pagado' ? 'pagados' : 'proveedores') }}
+    </a>
     <div class="adm-section anim" style="animation-delay:.08s">
         <div class="adm-section-head">
             <div>
@@ -196,7 +198,19 @@
                     </tr>
                 </thead>
                 <tbody>
+                @php $fechaGrupoAnterior = null; @endphp
                 @forelse($abonos as $a)
+                    @php
+                        $fechaAbono = $a->fecha ?: $a->created_at;
+                        $fechaGrupo = $fechaAbono ? $fechaAbono->format('Y-m-d') : 'sin-fecha';
+                        $esNuevoGrupo = $fechaGrupo !== $fechaGrupoAnterior;
+                        $fechaGrupoAnterior = $fechaGrupo;
+                    @endphp
+                    @if($esNuevoGrupo)
+                        <tr class="date-row">
+                            <td colspan="7">{{ $fechaAbono ? $fechaAbono->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}</td>
+                        </tr>
+                    @endif
                     <tr style="cursor:pointer" onclick="window.location='{{ route('admin.pago-proveedores.show', $a) }}'">
                         <td>{{ optional($a->fecha)->format('d/m/Y') }}</td>
                         <td style="font-size:12px;color:var(--gray-muted)">{{ optional($a->created_at)->format('h:i a') }}</td>
@@ -247,7 +261,14 @@
     <div class="adm-section anim" style="animation-delay:.08s">
         <div class="adm-section-head">
             <div>
-                <h4>Proveedores</h4>
+                @php
+                    $tituloSeccion = match($estatus) {
+                        'cancelado' => 'FACTURAS CANCELADAS',
+                        'pagado' => 'FACTURAS PAGADAS',
+                        default => 'Proveedores',
+                    };
+                @endphp
+                <h4>{{ $tituloSeccion }}</h4>
                 <div class="adm-section-meta">{{ $total }} resultado{{ $total !== 1 ? 's' : '' }} · lo más reciente arriba · burbuja roja = sin revisar</div>
             </div>
         </div>
@@ -263,7 +284,7 @@
                         <tr>
                             <th>Código</th>
                             <th>Proveedor</th>
-                            <th>Facturas pendientes</th>
+                            <th>{{ $estatus === 'cancelado' ? 'Facturas canceladas' : ($estatus === 'pagado' ? 'Facturas pagadas' : 'Facturas pendientes') }}</th>
                             <th>Monto</th>
                             <th style="text-align:right">Hora alta</th>
                         </tr>

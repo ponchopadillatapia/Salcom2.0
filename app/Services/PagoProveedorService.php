@@ -114,7 +114,7 @@ class PagoProveedorService
                     'origen' => 'lote',
                     'documento_id' => null,
                     'archivo' => null,
-                    'nombre' => 'Formato_pago_lote_'.$pago->id.'.pdf',
+                    'nombre' => 'Formato_para_pago_lote_'.$pago->id.'.pdf',
                     'url' => route('admin.pagos.reporte-resumen', ['pago' => $pago, 'ver' => 1]),
                     'estatus' => 'generado',
                 ],

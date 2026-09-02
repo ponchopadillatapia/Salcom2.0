@@ -55,7 +55,7 @@
     .prov-chip{display:inline-flex;align-items:center;margin-top:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px;color:var(--purple);background:var(--purple-subtle);border:1px solid rgba(107,63,160,.28);line-height:1.3}
     .tipo-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:uppercase}
     .tipo-badge.anticipo{background:#fef3c7;color:#92400e}
-    .tipo-badge.abono{background:#dbeafe;color:#1e40af}
+    .tipo-badge.abono{background:#d9f99d;color:#3f6212}
     .totals-bar{display:flex;gap:24px;padding:14px 22px;background:var(--gray-soft);border-top:2px solid var(--border);font-size:13px;font-weight:700;justify-content:flex-end}
 </style>
 @endpush
@@ -140,6 +140,18 @@
         </div>
     </div>
 
+    <div style="display:flex;align-items:flex-start;gap:10px;margin:14px 22px 0;padding:12px 16px;background:#f0fdf4;border:1px solid #86efac;border-left:4px solid #16a34a;border-radius:10px;font-size:13px;color:#166534">
+        <span style="font-size:16px;line-height:1.2">✓</span>
+        <div>
+            <strong>Este es el registro de pagos ya completados.</strong>
+            Los movimientos que aparecen aquí <strong>ya se procesaron y quedaron liquidados</strong> en esta cuenta; no son pendientes.
+            <span style="display:inline-block;margin-top:4px">
+                <span class="tipo-badge abono">Abono</span> factura ya liquidada &nbsp;·&nbsp;
+                <span class="tipo-badge anticipo">Anticipo</span> pago adelantado registrado
+            </span>
+        </div>
+    </div>
+
     @if($registros->isEmpty())
         <div class="empty-state">
             No hay abonos ni anticipos registrados en esta cuenta.<br>
@@ -161,9 +173,11 @@
                         <th>Referencia</th>
                         <th style="text-align:center">Cancelado</th>
                         <th style="text-align:right">Tipo de cambio</th>
+                        <th style="text-align:right">Hora</th>
                     </tr>
                 </thead>
                 <tbody>
+                    @php $fechaGrupoAnterior = null; @endphp
                     @foreach($registros as $r)
                         @php
                             $fecha = $r['fecha'] instanceof \Illuminate\Support\Carbon ? $r['fecha'] : \Illuminate\Support\Carbon::parse($r['fecha']);
@@ -171,7 +185,26 @@
                             $cancelado = (int) ($r['cancelado'] ?? 0);
                             $tc = $r['tipo_cambio'] ?? '';
                             $monNombre = $r['moneda'] === 'USD' ? 'DÓLAR AMERICANO' : ($r['moneda'] === 'MXN' ? 'PESO MEXICANO' : $r['moneda']);
+
+                            // Separador por fecha (día).
+                            $fechaGrupo = $fecha->format('Y-m-d');
+                            $esNuevoGrupo = $fechaGrupo !== $fechaGrupoAnterior;
+                            $fechaGrupoAnterior = $fechaGrupo;
+
+                            // Hora del registro (viene en $r['registrado'] como "d/m/Y h:i a").
+                            $horaReg = '—';
+                            if (!empty($r['registrado'])) {
+                                try { $horaReg = \Illuminate\Support\Carbon::parse($r['registrado'])->format('h:i a'); }
+                                catch (\Throwable $e) {
+                                    if (preg_match('/(\d{1,2}:\d{2}\s*[ap]m)/i', (string) $r['registrado'], $mm)) $horaReg = $mm[1];
+                                }
+                            }
                         @endphp
+                        @if($esNuevoGrupo)
+                            <tr class="date-row">
+                                <td colspan="12">{{ $fecha->locale('es')->isoFormat('DD [de] MMMM YYYY') }}</td>
+                            </tr>
+                        @endif
                         <tr style="{{ $cancelado ? 'opacity:.55;' : '' }}{{ (!$cancelado && $pend > 0) ? 'background:#fffbeb;box-shadow:inset 3px 0 0 #d97706;' : '' }}">
                             <td><span class="tipo-badge {{ $r['tipo'] }}">{{ $r['tipo'] }}</span></td>
                             <td style="white-space:nowrap">{{ $fecha->format('d/m/Y') }}</td>
@@ -198,6 +231,7 @@
                                 @endif
                             </td>
                             <td style="text-align:right;font-variant-numeric:tabular-nums">{{ $tc !== '' ? number_format((float) $tc, 4) : '1.0000' }}</td>
+                            <td style="text-align:right;white-space:nowrap;color:var(--gray-muted);font-size:12px">{{ $horaReg }}</td>
                         </tr>
                     @endforeach
                 </tbody>

@@ -242,6 +242,7 @@ Route::get('/admin/pago-proveedores/nuevo', [AdminPagoProveedoresController::cla
 Route::get('/admin/pago-proveedores/nuevo/{poliza}', [AdminPagoProveedoresController::class, 'create'])->name('admin.pago-proveedores.create')->middleware('auth.admin');
 Route::get('/admin/pago-proveedores/facturas-json', [AdminPagoProveedoresController::class, 'facturasJson'])->name('admin.pago-proveedores.facturas-json')->middleware('auth.admin');
 Route::post('/admin/pago-proveedores', [AdminPagoProveedoresController::class, 'store'])->name('admin.pago-proveedores.store')->middleware('auth.admin');
+Route::get('/admin/pago-proveedores/{abono}/comprobante', [AdminPagoProveedoresController::class, 'comprobantePago'])->name('admin.pago-proveedores.comprobante')->middleware('auth.admin');
 Route::get('/admin/pago-proveedores/{abono}', [AdminPagoProveedoresController::class, 'show'])->name('admin.pago-proveedores.show')->middleware('auth.admin');
 Route::post('/admin/pago-proveedores/{abono}/cancelar', [AdminPagoProveedoresController::class, 'cancelar'])->name('admin.pago-proveedores.cancelar')->middleware('auth.admin');
 

@@ -43,7 +43,13 @@
 <a class="back" href="{{ route('admin.pago-proveedores') }}">← Volver al listado</a>
 
 @if(session('ok'))
-    <div class="pag-alert ok">{{ session('ok') }}</div>
+    <div class="pag-alert ok" style="border-width:2px;font-weight:600;box-shadow:0 2px 10px rgba(22,101,52,.12)">
+        ✅ {{ session('ok') }}
+        @if($abono->estatus !== 'cancelado')
+            <a href="{{ route('admin.pago-proveedores.comprobante', ['abono' => $abono, 'ver' => 1]) }}" target="_blank"
+               style="margin-left:10px;color:#166534;font-weight:700;text-decoration:underline">Ver comprobante</a>
+        @endif
+    </div>
 @endif
 @if(session('error'))
     <div class="pag-alert err">{{ session('error') }}</div>
@@ -108,9 +114,13 @@
     </div>
 
     <div class="cq-foot">
-        <div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
             @if($abono->estatus !== 'cancelado')
-            <form method="post" action="{{ route('admin.pago-proveedores.cancelar', $abono) }}" onsubmit="return confirm('¿Cancelar este abono?')">
+            <a href="{{ route('admin.pago-proveedores.comprobante', ['abono' => $abono, 'ver' => 1]) }}" target="_blank"
+               style="padding:8px 16px;background:#059669;color:#fff;border:none;border-radius:8px;font-weight:700;font-size:12px;text-decoration:none">Ver comprobante</a>
+            <a href="{{ route('admin.pago-proveedores.comprobante', $abono) }}"
+               style="padding:8px 16px;background:#fff;border:1.5px solid #059669;color:#059669;border-radius:8px;font-weight:600;font-size:12px;text-decoration:none">Descargar comprobante</a>
+            <form method="post" action="{{ route('admin.pago-proveedores.cancelar', $abono) }}" onsubmit="return confirm('¿Cancelar este abono?')" style="display:inline">
                 @csrf
                 <button type="submit" class="btn-cancel">Cancelar abono</button>
             </form>

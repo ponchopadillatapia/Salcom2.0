@@ -60,7 +60,7 @@
     .cq-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;background:#f9fafb;border-top:1px solid #e5e7eb}
     .cq-total{font-size:18px;font-weight:800;color:#166534;font-variant-numeric:tabular-nums}
     .pag-alert{padding:12px 14px;border-radius:10px;margin-bottom:14px;font-size:13px}
-    .pag-alert.err{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
+    .pag-alert.err{background:var(--red-bg);color:var(--red);border:2px solid var(--red);font-weight:600;box-shadow:0 2px 10px rgba(220,38,38,.15)}
     .pag-alert.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
     .back{display:inline-flex;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none}
     .empty-row td{text-align:center;color:#9ca3af;padding:28px!important}
@@ -75,10 +75,18 @@
     Volver a pagos
 </a>
 @if(session('error'))
-    <div class="pag-alert err">{{ session('error') }}</div>
+    <div class="pag-alert err" id="pago-error"><strong>⛔ Pago rechazado:</strong> {{ session('error') }}</div>
 @endif
 @if($errors->any())
-    <div class="pag-alert err">{{ $errors->first() }}</div>
+    <div class="pag-alert err" id="pago-error"><strong>⛔ Pago rechazado:</strong> {{ $errors->first() }}</div>
+@endif
+@if(session('error') || $errors->any())
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var box = document.getElementById('pago-error');
+            if (box) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        });
+    </script>
 @endif
 
 <form method="post" action="{{ route('admin.pago-proveedores.store') }}" id="form-abono" enctype="multipart/form-data">
@@ -242,6 +250,33 @@
         </div>
     </div>
 </form>
+
+{{-- Modal de confirmación del pago --}}
+<div id="modal-confirmar-pago" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;align-items:center;justify-content:center;padding:20px">
+    <div style="background:#fff;border-radius:12px;max-width:640px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden">
+        <div style="background:linear-gradient(135deg,#4a2078,#6B3FA0);padding:14px 20px;display:flex;align-items:center;justify-content:space-between">
+            <h3 style="margin:0;color:#fff;font-size:15px;font-weight:700">¿Confirmas el pago?</h3>
+            <button type="button" onclick="cerrarConfirmarPago()" style="background:none;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1">&times;</button>
+        </div>
+        <div style="padding:18px 20px">
+            <p style="margin:0 0 14px;font-size:13px;color:#6b7280">Revisa el resumen. Al confirmar, el pago se registrará y las facturas quedarán pagadas.</p>
+            <div style="font-size:13px;line-height:1.7">
+                <div><strong>Proveedor:</strong> <span id="cfp-prov">—</span></div>
+                <div><strong>Facturas a pagar:</strong> <span id="cfp-num">0</span></div>
+                <div><strong>Formato adjunto:</strong> <span id="cfp-formato" style="color:#059669;font-weight:600">—</span></div>
+            </div>
+            <div id="cfp-lista" style="margin-top:12px;max-height:200px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px"></div>
+            <div style="margin-top:14px;padding-top:12px;border-top:2px solid #6B3FA0;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:14px;font-weight:700;color:#374151">Total a pagar</span>
+                <span style="font-size:20px;font-weight:800;color:#166534">$<span id="cfp-total">0.00</span> {{ $poliza['moneda'] }}</span>
+            </div>
+        </div>
+        <div style="padding:14px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:10px">
+            <button type="button" onclick="cerrarConfirmarPago()" style="padding:10px 20px;background:#fff;border:1.5px solid #e5e7eb;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;color:#374151">Cancelar</button>
+            <button type="button" id="btn-confirmar-pago-final" style="padding:10px 24px;background:#059669;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Confirmar pago</button>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
@@ -365,17 +400,22 @@
     // Franja proveedor: solo visual
     document.getElementById('prov-strip').addEventListener('dblclick', () => {});
 
+    var pagoConfirmado = false;
+
     document.getElementById('form-abono').addEventListener('submit', (e) => {
+        // Si ya se confirmó en el modal, dejar pasar el submit real.
+        if (pagoConfirmado) return;
+
+        e.preventDefault();
+
         const n = body.querySelectorAll('.chk-doc:checked').length;
         if (!n) {
-            e.preventDefault();
             alert('Selecciona al menos una factura / compra a pagar.');
             return;
         }
         // Validar que se adjuntó el formato de pago
         const formatoInput = document.getElementById('formato-pago-input');
         if (!formatoInput.files || formatoInput.files.length === 0) {
-            e.preventDefault();
             alert('Debes adjuntar el formato de pago (PDF) antes de guardar.');
             document.getElementById('formato-label').style.borderColor = '#dc2626';
             return;
@@ -384,6 +424,50 @@
         body.querySelectorAll('.imp-doc').forEach(inp => {
             inp.value = parseImporte(inp.value).toFixed(2);
         });
+
+        // Construir resumen y abrir modal de confirmación.
+        abrirConfirmarPago(formatoInput.files[0]);
+    });
+
+    // Abrir modal con el resumen del pago.
+    function abrirConfirmarPago(archivoFormato) {
+        var provBtn = document.getElementById('btn-abrir-prov');
+        var provStripCode = document.getElementById('strip-code');
+        var provStripName = document.getElementById('strip-name');
+        var provTxt = (provStripCode && provStripName && provStripCode.textContent !== '—')
+            ? (provStripCode.textContent + ' — ' + provStripName.textContent)
+            : (provBtn ? provBtn.textContent.trim() : '—');
+        document.getElementById('cfp-prov').textContent = provTxt;
+        document.getElementById('cfp-formato').textContent = archivoFormato ? archivoFormato.name : '—';
+
+        var filas = body.querySelectorAll('.chk-doc:checked');
+        document.getElementById('cfp-num').textContent = filas.length;
+
+        var html = '';
+        var total = 0;
+        filas.forEach(function (chk) {
+            var tr = chk.closest('tr');
+            var folio = tr.querySelector('td:nth-child(4)') ? tr.querySelector('td:nth-child(4)').textContent.trim() : '';
+            var inp = tr.querySelector('.imp-doc');
+            var monto = inp ? parseImporte(inp.value) : 0;
+            total += monto;
+            html += '<div style="display:flex;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #f3f4f6;font-size:12px">' +
+                    '<span>' + (folio || 'Factura') + '</span>' +
+                    '<span style="font-weight:700;font-variant-numeric:tabular-nums">$' + monto.toLocaleString('en', {minimumFractionDigits:2}) + '</span>' +
+                    '</div>';
+        });
+        document.getElementById('cfp-lista').innerHTML = html;
+        document.getElementById('cfp-total').textContent = total.toLocaleString('en', {minimumFractionDigits:2});
+
+        document.getElementById('modal-confirmar-pago').style.display = 'flex';
+    }
+
+    // Confirmar: enviar el formulario de verdad.
+    document.getElementById('btn-confirmar-pago-final').addEventListener('click', function () {
+        pagoConfirmado = true;
+        this.disabled = true;
+        this.textContent = 'Procesando…';
+        document.getElementById('form-abono').submit();
     });
 
     // Checkbox master: seleccionar/deseleccionar todas
@@ -400,14 +484,31 @@
         recalc();
     });
 
-    if (select.value) {
-        // Si ya hay proveedor precargado, cargar facturas
-        loadFacturas(select.value);
-    }
-
-    // Exponer loadFacturas globalmente para el modal
+    // Exponer loadFacturas globalmente para el modal (antes de la precarga).
     window._loadFacturas = loadFacturas;
+
+    if (select.value) {
+        // Si ya hay proveedor precargado: mostrar la franja del proveedor (ocultar el
+        // selector rojo de "Seleccionar proveedor...") y cargar sus facturas.
+        var filaPre = document.querySelector('.prov-row[data-id="' + select.value + '"]');
+        if (filaPre && typeof seleccionarProv === 'function') {
+            seleccionarProv(filaPre);
+        } else {
+            loadFacturas(select.value);
+        }
+    }
 })();
+
+// ═══════════════════════════════════════════
+// Modal confirmar pago
+// ═══════════════════════════════════════════
+function cerrarConfirmarPago() {
+    document.getElementById('modal-confirmar-pago').style.display = 'none';
+}
+document.addEventListener('DOMContentLoaded', function () {
+    var m = document.getElementById('modal-confirmar-pago');
+    if (m) m.addEventListener('click', function (e) { if (e.target === m) cerrarConfirmarPago(); });
+});
 
 // ═══════════════════════════════════════════
 // Modal proveedor
