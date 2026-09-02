@@ -34,7 +34,6 @@
     .admin-table th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.4px;padding:12px 14px;text-align:left;border-bottom:1px solid var(--border)}
     .admin-table td{padding:12px 14px;font-size:13px;border-bottom:1px solid var(--border);vertical-align:top}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
-    .date-row td{background:var(--purple-subtle)!important;font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)}
     .monto{font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)}
     .pill{font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;display:inline-block;margin:1px}
     .pill.ok{background:var(--green-bg);color:var(--green)}

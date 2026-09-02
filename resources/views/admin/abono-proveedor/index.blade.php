@@ -209,6 +209,14 @@
         </div>
         {{-- Panel Información Adicional --}}
         <div id="panel-info" style="padding:16px 22px;display:none">
+            {{-- Aviso de documentos ya asociados + volver a Saldar para corregir --}}
+            <div id="info-asociados-aviso" style="display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px;padding:10px 14px;background:#f0fdf4;border:1px solid #86efac;border-left:4px solid #16a34a;border-radius:8px">
+                <span style="font-size:13px;color:#166534">
+                    <strong id="info-asociados-num">0</strong> documento(s) asociado(s) para saldar.
+                    ¿Te equivocaste? Puedes regresar a corregir.
+                </span>
+                <button type="button" onclick="reabrirSaldar()" style="padding:8px 16px;background:#6B3FA0;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">← Volver a Saldar</button>
+            </div>
             <div style="font-size:12px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;margin-bottom:10px">Referencia y observaciones</div>
             <div style="display:grid;grid-template-columns:100px 1fr;gap:8px 14px;align-items:start">
                 <label style="font-size:12px;font-weight:600;color:#374151;padding-top:8px">Referencia:</label>
@@ -589,6 +597,19 @@ function guardarAbono() {
         // Flujo abono normal: enviar el form principal (marca facturas como liquidadas)
         var poliza = document.getElementById('ab-poliza').value.trim();
         var referencia = document.getElementById('ab-referencia').value.trim();
+
+        // Validación A: el total de los documentos asociados debe ser EXACTAMENTE igual al Total capturado.
+        var totalCap = totalAbonoCapturado();
+        var totalAsoc = Math.round(totalAsociado() * 100) / 100;
+        var totalCapR = Math.round(totalCap * 100) / 100;
+        if (totalCapR > 0 && totalAsoc !== totalCapR) {
+            alert('El total de los documentos asociados ($' + totalAsoc.toLocaleString('en',{minimumFractionDigits:2}) + ') ' +
+                  'no coincide con el Total del pago ($' + totalCapR.toLocaleString('en',{minimumFractionDigits:2}) + ').\n\n' +
+                  'Debes seleccionar documentos que sumen exactamente el Total. Usa "Volver a Saldar" para corregir.');
+            switchTab('info');
+            return;
+        }
+
         if (!poliza) { alert('Falta el Folio / Nº Póliza.'); switchTab('generales'); document.getElementById('ab-poliza').focus(); return; }
         if (typeof fechaEsValida === 'function' && !fechaEsValida()) {
             alert('Recordatorio: cambia la FECHA al día del pago (una fecha anterior a hoy).');
@@ -896,7 +917,7 @@ function fechaEsValida() {
 // ═══════════════════════════════════════════
 var _saldarAsociados = [];
 
-function abrirModalSaldar(totalPago) {
+function abrirModalSaldar(totalPago, preservarAsociados) {
     // Validar fecha (anterior a hoy)
     if (!fechaEsValida()) {
         alert('Recordatorio: cambia la FECHA al día del pago (una fecha anterior a hoy).\n\nNo se puede continuar con la fecha de hoy o una futura.');
@@ -936,8 +957,10 @@ function abrirModalSaldar(totalPago) {
     document.getElementById('sal-total').textContent = totalFmt;
     document.getElementById('sal-saldo').textContent = totalFmt;
 
-    // Reset asociados
-    _saldarAsociados = [];
+    // Reset asociados (salvo que se reabra para editar, conservando lo ya asociado).
+    if (!preservarAsociados) {
+        _saldarAsociados = [];
+    }
     renderAsociados();
 
     // Mostrar modal de inmediato
@@ -994,6 +1017,27 @@ function pintarPendientes(facturas, concepto, moneda) {
     });
     resaltarSaldar(0); // resaltar la primera al pintar
 }
+// Reabrir la ventana Saldar conservando las facturas ya asociadas (para corregir).
+function reabrirSaldar() {
+    var totalPagos = 0;
+    _saldarAsociados.forEach(function(a) { totalPagos += (a.pago || 0); });
+    abrirModalSaldar(totalPagos, true);
+}
+
+// Muestra/oculta el aviso de "documentos asociados" en Información Adicional.
+function actualizarAvisoAsociados() {
+    var aviso = document.getElementById('info-asociados-aviso');
+    var num = document.getElementById('info-asociados-num');
+    if (!aviso) return;
+    var n = _saldarAsociados.length;
+    if (n > 0) {
+        if (num) num.textContent = n;
+        aviso.style.display = 'flex';
+    } else {
+        aviso.style.display = 'none';
+    }
+}
+
 function cerrarModalSaldar() {
     // Al cerrar, inyectar en el form los IDs de las facturas asociadas
     var cont = document.getElementById('facturas-asociadas-inputs');
@@ -1009,6 +1053,10 @@ function cerrarModalSaldar() {
         });
     }
     document.getElementById('modal-saldar').style.display = 'none';
+
+    // Actualizar el aviso de documentos asociados en Información Adicional.
+    actualizarAvisoAsociados();
+
     // Si asoció documentos, llevar a Información Adicional para capturar y guardar
     if (_saldarAsociados.length && typeof switchTab === 'function') {
         switchTab('info');
@@ -1145,12 +1193,38 @@ function cerrarImporte() {
     document.getElementById('modal-importe').style.display = 'none';
     _importeIdxActual = null;
 }
+// Total capturado arriba (el "disponible a repartir").
+function totalAbonoCapturado() {
+    var raw = document.getElementById('ab-total-input').value;
+    return Number(String(raw).replace(/,/g, '').replace(/[^0-9.]/g, '')) || 0;
+}
+// Suma de lo ya asociado.
+function totalAsociado() {
+    var s = 0;
+    _saldarAsociados.forEach(function(a) { s += (a.pago || 0); });
+    return s;
+}
+
 function confirmarImporte() {
     if (_importeIdxActual === null) return;
     var facturas = window._facturasProveedor || [];
     var f = facturas[_importeIdxActual];
     var pago = Number(String(document.getElementById('imp-asociar-input').value).replace(/,/g, '').replace(/[^0-9.]/g, '')) || 0;
     if (pago <= 0) { alert('Captura un importe válido.'); return; }
+
+    // Validación A: la suma de lo asociado no puede exceder el Total capturado arriba.
+    var totalCap = totalAbonoCapturado();
+    if (totalCap > 0) {
+        var nuevoTotal = Math.round((totalAsociado() + pago) * 100) / 100;
+        if (nuevoTotal > totalCap + 0.001) {
+            var disponible = Math.max(0, Math.round((totalCap - totalAsociado()) * 100) / 100);
+            alert('El importe excede el Total del pago ($' + totalCap.toLocaleString('en',{minimumFractionDigits:2}) + ').\n\n' +
+                  'Ya asociaste $' + totalAsociado().toLocaleString('en',{minimumFractionDigits:2}) + '. Disponible para asociar: $' + disponible.toLocaleString('en',{minimumFractionDigits:2}) + '.\n\n' +
+                  'Debes seleccionar documentos que sumen exactamente el Total capturado.');
+            return;
+        }
+    }
+
     var saldoPendiente = Math.max(0, (f.total || 0) - (f.monto_pagado || 0));
     var tcAbono = Number(String(document.getElementById('imp-tc-input').value).replace(/[^0-9.]/g, '')) || null;
     // Guardamos el saldo pendiente original + tc usado para el registro

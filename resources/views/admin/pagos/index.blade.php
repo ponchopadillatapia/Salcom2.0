@@ -66,7 +66,6 @@
     .pag-alert{padding:12px 14px;border-radius:10px;margin-bottom:16px;font-size:13px}
     .pag-alert.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
     .pag-alert.err{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
-    .date-row td{background:var(--purple-subtle)!important;font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)}
     .active-filters{font-size:12px;color:var(--gray-muted);display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
     .active-tag{background:var(--purple-subtle);color:var(--purple);padding:3px 10px;border-radius:999px;font-weight:600;font-size:11px}
 

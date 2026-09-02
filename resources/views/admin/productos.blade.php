@@ -62,7 +62,6 @@
     .admin-table tr:last-child td{border-bottom:none}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
     .tbl-wrap{overflow-x:auto}
-    .date-row td{background:var(--purple-subtle)!important;font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)}
 
     .badge-stock{font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;display:inline-block}
     .badge-stock.ok{background:var(--green-bg);color:var(--green)}

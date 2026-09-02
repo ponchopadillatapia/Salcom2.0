@@ -273,7 +273,7 @@ class AdminPagosController extends Controller
     {
         $pago->load(['lineas.factura', 'proveedor']);
         $data = $this->pagos->datosReporteResumen($pago);
-        $filename = 'Reporte_Resumen_Pagos_'.$pago->codigo_proveedor.'_lote'.$pago->id.'_'.now()->format('Y-m-d').'.pdf';
+        $filename = 'Formato_para_pago_'.$pago->codigo_proveedor.'_lote'.$pago->id.'_'.now()->format('Y-m-d').'.pdf';
 
         $pdf = Pdf::loadView('admin.pagos.reporte-resumen-pdf', $data)
             ->setPaper('letter', 'landscape');

@@ -51,7 +51,6 @@
     .admin-table tr:last-child td{border-bottom:none}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
     .admin-table tbody tr.date-row:hover td{background:var(--purple-subtle)!important}
-    .date-row td{background:var(--purple-subtle)!important;font-weight:700;font-size:12px;color:var(--purple);padding:8px 16px;border-bottom:2px solid var(--purple)}
     .hora-pill{display:inline-flex;padding:3px 8px;border-radius:999px;background:var(--purple-subtle);color:var(--purple);font-size:11px;font-weight:700;white-space:nowrap}
     .tbl-wrap{overflow-x:auto}
 

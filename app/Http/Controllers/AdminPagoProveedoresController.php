@@ -308,6 +308,33 @@ class AdminPagoProveedoresController extends Controller
             return back()->withInput()->with('error', 'No hay facturas programadas para abonar. Primero genera el pago en "Pagos al proveedor".');
         }
 
+        // Validar que el CONTENIDO del formato de pago corresponda a este proveedor/facturas.
+        // Leemos el texto del PDF: debe mencionar el código del proveedor o el folio de
+        // alguna de las facturas que se están pagando.
+        if ($request->hasFile('formato_pago')) {
+            $textoFormato = $this->extraerTextoPdfNormalizado($request->file('formato_pago'));
+            if ($textoFormato === null) {
+                return back()->withInput()->with('error', 'No se pudo leer el contenido del formato de pago. Adjunta el PDF generado por el sistema (no una imagen escaneada).');
+            }
+
+            $codigoNorm = $this->normalizarIdentificador($codigo);
+            $coincide = $codigoNorm !== '' && str_contains($textoFormato, $codigoNorm);
+
+            if (! $coincide) {
+                foreach ($facturas as $fac) {
+                    $folioNorm = $this->normalizarIdentificador($fac->folio_cfdi);
+                    if ($folioNorm !== '' && str_contains($textoFormato, $folioNorm)) {
+                        $coincide = true;
+                        break;
+                    }
+                }
+            }
+
+            if (! $coincide) {
+                return back()->withInput()->with('error', 'El formato de pago adjunto no corresponde a este proveedor ni a las facturas seleccionadas. El documento no las menciona. Descarga y adjunta el formato de este pago.');
+            }
+        }
+
         $estatus = 'pagado';
         $tc = $data['tipo_cambio'] ?? $meta['tipo_cambio_default'] ?? 1;
         if ($tc === null || $tc === '') {
@@ -454,6 +481,30 @@ class AdminPagoProveedoresController extends Controller
         $poliza = $abono->poliza() ?? ['titulo' => $abono->poliza_key, 'concepto' => $abono->concepto];
 
         return view('admin.pago-proveedores.show', compact('abono', 'poliza'));
+    }
+
+    /**
+     * Comprobante de pago en PDF (nuevo, sello PAGADO). Se puede ver (?ver=1) o descargar.
+     */
+    public function comprobantePago(Request $request, AbonoProveedor $abono)
+    {
+        $abono->load(['documentos', 'proveedor']);
+
+        // La cuenta bancaria guarda datos y a veces "| formato:ruta.pdf": mostrar solo la parte legible.
+        $cuentaBancaria = trim(explode('formato:', (string) $abono->cuenta_bancaria)[0], " |");
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pago-proveedores.comprobante-pdf', [
+            'abono' => $abono,
+            'cuentaBancaria' => $cuentaBancaria,
+        ])->setPaper('letter', 'portrait');
+
+        $nombre = 'Comprobante_Pago_'.$abono->etiquetaFolio().'_'.$abono->codigo_proveedor.'.pdf';
+
+        if ($request->boolean('ver')) {
+            return $pdf->stream($nombre);
+        }
+
+        return $pdf->download($nombre);
     }
 
     public function cancelar(AbonoProveedor $abono)
@@ -1003,17 +1054,24 @@ class AdminPagoProveedoresController extends Controller
                 : back()->withErrors($msg);
         }
 
-        // Validar que el PDF adjunto corresponda a ESTE anticipo.
-        // El formato se descarga como "Formato_Anticipo_{id}_{folio-general}_{codigo}.pdf",
-        // así que el nombre del archivo debe contener el id o el folio_general del anticipo.
-        $nombrePdf = strtolower($request->file('formato_pdf')->getClientOriginalName());
-        $marcaId = 'anticipo_'.$anticipo->id.'_';
-        $folioSlug = \Illuminate\Support\Str::slug($anticipo->folio_general ?: '', '-');
-        $coincideId = str_contains($nombrePdf, $marcaId);
-        $coincideFolio = $folioSlug !== '' && str_contains($nombrePdf, $folioSlug);
+        // Validar que el CONTENIDO del PDF corresponda a ESTE anticipo.
+        // Leemos el texto del PDF y exigimos que contenga el folio_general del anticipo
+        // (identificador visible en el formato). Respaldo: el código del proveedor.
+        $textoPdf = $this->extraerTextoPdfNormalizado($request->file('formato_pdf'));
+        if ($textoPdf === null) {
+            $msg = 'No se pudo leer el contenido del PDF. Asegúrate de adjuntar el formato de anticipo generado por el sistema (no una imagen escaneada).';
+            return $wantsJson
+                ? response()->json(['ok' => false, 'mensaje' => $msg], 422)
+                : back()->withErrors($msg);
+        }
 
-        if (! $coincideId && ! $coincideFolio) {
-            $msg = "El formato PDF adjunto no corresponde a este anticipo ({$anticipo->folio_general}). Descarga y adjunta el formato de este anticipo.";
+        $folioNorm = $this->normalizarIdentificador($anticipo->folio_general);
+        $codigoNorm = $this->normalizarIdentificador($anticipo->codigo_proveedor);
+        $coincide = ($folioNorm !== '' && str_contains($textoPdf, $folioNorm))
+            || ($codigoNorm !== '' && str_contains($textoPdf, $codigoNorm));
+
+        if (! $coincide) {
+            $msg = "El formato PDF adjunto no corresponde a este anticipo ({$anticipo->folio_general}). El documento no menciona este anticipo ni el proveedor. Descarga y adjunta el formato de este anticipo.";
             return $wantsJson
                 ? response()->json(['ok' => false, 'mensaje' => $msg], 422)
                 : back()->withErrors($msg);
@@ -1145,6 +1203,39 @@ class AdminPagoProveedoresController extends Controller
         }
 
         return $meta;
+    }
+
+    /**
+     * Lee el texto de un PDF (subido) y lo devuelve normalizado:
+     * mayúsculas y solo alfanumérico (sin espacios/guiones/acentos), para
+     * comparar identificadores de forma robusta. Devuelve null si no se pudo leer.
+     */
+    private function extraerTextoPdfNormalizado(\Illuminate\Http\UploadedFile $archivo): ?string
+    {
+        try {
+            $parser = new \Smalot\PdfParser\Parser();
+            $texto = $parser->parseFile($archivo->getRealPath())->getText();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[FormatoPDF] No se pudo leer el PDF: '.$e->getMessage());
+            return null;
+        }
+
+        if (trim((string) $texto) === '') {
+            return null;
+        }
+
+        // Normalizar: quitar acentos, pasar a mayúsculas, dejar solo A-Z0-9.
+        $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
+        $texto = strtoupper($texto);
+
+        return preg_replace('/[^A-Z0-9]/', '', $texto);
+    }
+
+    /** Normaliza un identificador a solo A-Z0-9 mayúsculas para comparar. */
+    private function normalizarIdentificador(?string $valor): string
+    {
+        $valor = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', (string) $valor) ?: (string) $valor;
+        return preg_replace('/[^A-Z0-9]/', '', strtoupper($valor));
     }
 
     /**
