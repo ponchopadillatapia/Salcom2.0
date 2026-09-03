@@ -4,6 +4,7 @@ use App\Http\Middleware\AdminRol;
 use App\Http\Middleware\ApiTokenAuth;
 use App\Http\Middleware\AutenticacionAdmin;
 use App\Http\Middleware\AutenticacionCliente;
+use App\Http\Middleware\AutenticacionEmpleado;
 use App\Http\Middleware\AutenticacionProveedor;
 use App\Http\Middleware\SecurityHeaders;
 use Illuminate\Foundation\Application;
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'auth.proveedor' => AutenticacionProveedor::class,
             'auth.cliente' => AutenticacionCliente::class,
+            'auth.empleado' => AutenticacionEmpleado::class,
             'auth.admin' => AutenticacionAdmin::class,
             'auth.api_token' => ApiTokenAuth::class,
             'admin.rol' => AdminRol::class,

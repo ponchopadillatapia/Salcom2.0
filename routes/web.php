@@ -335,3 +335,11 @@ Route::post('/admin/reembolsos-viaje/{reembolso}/enviar', [ReembolsoViajeControl
 Route::post('/admin/reembolsos-viaje/{reembolso}/aprobar', [ReembolsoViajeController::class, 'aprobar'])->name('admin.reembolsos-viaje.aprobar')->middleware('auth.admin');
 Route::post('/admin/reembolsos-viaje/{reembolso}/rechazar', [ReembolsoViajeController::class, 'rechazar'])->name('admin.reembolsos-viaje.rechazar')->middleware('auth.admin');
 Route::post('/admin/reembolsos-viaje/{reembolso}/reembolsado', [ReembolsoViajeController::class, 'marcarReembolsado'])->name('admin.reembolsos-viaje.reembolsado')->middleware('auth.admin');
+
+// ── Portal de Empleados ──
+use App\Http\Controllers\PortalEmpleadoController;
+
+Route::get('/login-empleado', [PortalEmpleadoController::class, 'mostrarLogin'])->name('empleados.login');
+Route::post('/login-empleado', [PortalEmpleadoController::class, 'procesarLogin'])->name('empleados.login.procesar');
+Route::post('/logout-empleado', [PortalEmpleadoController::class, 'cerrarSesion'])->name('empleados.logout');
+Route::get('/empleado/portal', [PortalEmpleadoController::class, 'portal'])->name('empleados.portal')->middleware('auth.empleado');
