@@ -542,6 +542,7 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                 <span class="sb-text">OTIF</span>
             </a>
+            @if(Route::has('admin.wiese-banco'))
             <div class="sb-submenu">
                 <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/wiese-banco*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
                     <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 20 7 4 7"/><line x1="6" y1="11" x2="6" y2="18"/><line x1="10" y1="11" x2="10" y2="18"/><line x1="14" y1="11" x2="14" y2="18"/><line x1="18" y1="11" x2="18" y2="18"/><line x1="3" y1="22" x2="21" y2="22"/></svg></div>
@@ -556,6 +557,7 @@
                     @endforeach
                 </div>
             </div>
+            @endif
 
             <div class="sb-hr"></div>
             <div class="sb-section">Proveedores</div>
