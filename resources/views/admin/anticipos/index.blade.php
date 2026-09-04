@@ -112,7 +112,8 @@
                             data-banco="{{ $di['banco'] ?? '' }}"
                             data-cuenta="{{ $di['cuenta'] ?? '' }}"
                             data-clabe="{{ $di['clabe'] ?? '' }}"
-                            data-rfc="{{ $di['rfc'] ?? '' }}">
+                            data-rfc="{{ $di['rfc'] ?? '' }}"
+                            data-moneda="{{ $p->monedaNormalizada() === 'DOLLAR' ? 'USD' : 'MXN' }}">
                             {{ $p->id_proveedor ?: $p->codigo }} — {{ $p->nombre }}
                         </option>
                     @endforeach
@@ -133,6 +134,7 @@
             <div class="ant-field">
                 <label>Importe <span style="color:#dc2626">●</span></label>
                 <input type="text" name="importe" required placeholder="236,640.00" id="ant-importe" inputmode="decimal" oninput="soloNumeros(this);calcIvaYTotal()">
+                <span style="font-size:11px;color:var(--gray-muted);margin-top:2px">Captura el <strong>subtotal</strong> de la factura (sin IVA). El IVA y el total se calculan solos.</span>
             </div>
             <div class="ant-field">
                 <label>RFC</label>
@@ -153,14 +155,27 @@
 
             {{-- CFDI de anticipo timbrado: XML o UUID manual --}}
             <div class="ant-field">
-                <label>XML del CFDI de anticipo (opcional)</label>
-                <input type="file" name="xml_anticipo" id="ant-xml" accept=".xml,text/xml,application/xml" onchange="leerUuidDelXml(this)">
-                <span style="font-size:11px;color:var(--gray-muted);margin-top:2px">Si lo subes, se extrae el UUID automáticamente.</span>
+                <label>XML o PDF del CFDI de anticipo</label>
+                <input type="file" name="xml_anticipo" id="ant-xml" accept=".xml,text/xml,application/xml,.pdf,application/pdf" onchange="leerUuidDelXml(this)">
+                <span style="font-size:11px;color:var(--gray-muted);margin-top:2px">Sube el XML (preferido) o el PDF de la factura. Se extrae el UUID automáticamente.</span>
             </div>
             <div class="ant-field span2">
-                <label>UUID del CFDI de anticipo (opcional)</label>
+                <label>UUID del CFDI de anticipo</label>
                 <input type="text" name="uuid_cfdi" id="ant-uuid" placeholder="Ej: A1B2C3D4-... (se llena solo si subes el XML)" style="text-transform:uppercase" maxlength="36">
                 <span style="font-size:11px;color:var(--gray-muted);margin-top:2px">Sirve para ligar automáticamente la factura del proveedor que aplique este anticipo.</span>
+            </div>
+            <div class="ant-field">
+                <label>Moneda <span style="color:#dc2626">●</span></label>
+                <select name="moneda" id="ant-moneda" required onchange="toggleTipoCambio()">
+                    <option value="MXN">MXN — Peso mexicano</option>
+                    <option value="USD">USD — Dólar</option>
+                    <option value="EUR">EUR — Euro</option>
+                </select>
+            </div>
+            <div class="ant-field" id="ant-tc-wrap" style="display:none">
+                <label>Tipo de cambio <span style="color:#dc2626">●</span></label>
+                <input type="text" name="tipo_cambio" id="ant-tc" inputmode="decimal" placeholder="17.7780" value="1.0000">
+                <span style="font-size:11px;color:var(--gray-muted);margin-top:2px">Solo para moneda extranjera.</span>
             </div>
             <div class="ant-field">
                 <label>Departamento <span style="color:#dc2626">●</span></label>
@@ -168,14 +183,12 @@
                     <option value="">(Seleccionar)</option>
                     <option value="Compras Nacional">Compras Nacional</option>
                     <option value="Logística">Logística</option>
+                    <option value="Mantenimiento">Mantenimiento</option>
                 </select>
             </div>
             <div class="ant-field">
                 <label>Fecha <span style="color:#dc2626">●</span></label>
                 <input type="date" name="fecha" value="{{ date('Y-m-d') }}" required>
-            </div>
-            <div class="ant-field">
-                <label>&nbsp;</label>
             </div>
             <div class="ant-field span3">
                 <label>Concepto / Notas <span style="color:#dc2626">●</span></label>
@@ -189,6 +202,51 @@
     </div>
 </form>
 
+{{-- Filtros por departamento --}}
+@php
+    $deptoColores = [
+        'Compras Nacional' => '#2563eb',
+        'Logística' => '#0891b2',
+        'Mantenimiento' => '#d97706',
+    ];
+@endphp
+<div class="anim" style="animation-delay:.04s;margin-bottom:16px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        @unless($accesoRestringido ?? false)
+        {{-- Chip: Todos --}}
+        <a href="{{ route('admin.anticipos', array_filter(['q' => $buscar])) }}"
+           style="flex:1;min-width:160px;text-decoration:none;padding:12px 16px;border-radius:10px;border:2px solid {{ $depto === '' ? 'var(--purple)' : 'var(--border)' }};background:{{ $depto === '' ? 'var(--purple-subtle)' : '#fff' }}">
+            <div style="font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase">Todos</div>
+            <div style="font-size:20px;font-weight:800;color:var(--purple)">{{ $kpiTodos['count'] }}</div>
+            <div style="font-size:12px;color:var(--green);font-weight:700">${{ number_format($kpiTodos['monto'], 2) }}</div>
+        </a>
+        @endunless
+        @foreach($departamentos as $d)
+            @php $activo = $depto === $d; $color = $deptoColores[$d] ?? '#6B3FA0'; @endphp
+            <a href="{{ route('admin.anticipos', array_filter(['departamento' => $d, 'q' => $buscar])) }}"
+               style="flex:1;min-width:160px;text-decoration:none;padding:12px 16px;border-radius:10px;border:2px solid {{ $activo ? $color : 'var(--border)' }};background:{{ $activo ? 'rgba(0,0,0,.02)' : '#fff' }}">
+                <div style="font-size:11px;font-weight:700;color:{{ $color }};text-transform:uppercase">{{ $d }}</div>
+                <div style="font-size:20px;font-weight:800;color:#111">{{ $kpiPorDepto[$d]['count'] }}</div>
+                <div style="font-size:12px;color:var(--green);font-weight:700">${{ number_format($kpiPorDepto[$d]['monto'], 2) }}</div>
+            </a>
+        @endforeach
+    </div>
+    <form method="GET" action="{{ route('admin.anticipos') }}" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        @if($depto !== '')<input type="hidden" name="departamento" value="{{ $depto }}">@endif
+        <input type="text" name="q" value="{{ $buscar }}" placeholder="Buscar por folio, proveedor o código..."
+               style="flex:1;min-width:240px;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;font-family:inherit;outline:none">
+        <button type="submit" class="btn-ant" style="padding:10px 22px">Buscar</button>
+        <a href="{{ route('admin.anticipos.excel', array_filter(['departamento' => $depto, 'q' => $buscar])) }}"
+           style="display:inline-flex;align-items:center;gap:6px;padding:10px 18px;background:#059669;color:#fff;border-radius:8px;font-size:13px;font-weight:700;text-decoration:none">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Exportar Excel{{ $depto !== '' ? ' ('.$depto.')' : '' }}
+        </a>
+        @if(($buscar !== '' || $depto !== '') && empty($accesoRestringido))
+            <a href="{{ route('admin.anticipos') }}" style="font-size:12px;color:var(--purple);font-weight:600;text-decoration:none">✕ Limpiar</a>
+        @endif
+    </form>
+</div>
+
 {{-- Historial --}}
 @php
     $agrupados = $anticipos->getCollection()->groupBy(function ($a) {
@@ -198,7 +256,7 @@
 
 <div class="adm-section anim" style="animation-delay:.05s">
     <div class="adm-section-head">
-        <h4>Anticipos registrados</h4>
+        <h4>Anticipos registrados{{ $depto !== '' ? ' — '.$depto : '' }}</h4>
         <span class="adm-section-meta">{{ $anticipos->total() }} registro{{ $anticipos->total() !== 1 ? 's' : '' }} · agrupado por fecha</span>
     </div>
     @if($anticipos->isEmpty())
@@ -217,6 +275,7 @@
                         <th>RFC</th>
                         <th style="text-align:right">IVA</th>
                         <th>Folio</th>
+                        <th>CFDI (UUID)</th>
                         <th>Estatus</th>
                         <th style="text-align:center">Acciones</th>
                     </tr>
@@ -224,7 +283,7 @@
                 <tbody>
                     @foreach($agrupados as $fechaKey => $rows)
                         <tr>
-                            <td colspan="11" style="font-weight:700;font-size:11px;color:var(--purple);background:var(--purple-subtle);padding:6px 10px;border:1px solid #d8dee9">
+                            <td colspan="12" style="font-weight:700;font-size:11px;color:var(--purple);background:var(--purple-subtle);padding:6px 10px;border:1px solid #d8dee9">
                                 @if($fechaKey === 'sin-fecha')
                                     Sin fecha
                                 @else
@@ -261,6 +320,13 @@
                                 <td style="text-transform:uppercase">{{ $a->rfc_proveedor ?: '—' }}</td>
                                 <td class="num">${{ number_format((float)$a->iva, 2) }}</td>
                                 <td style="font-weight:600;color:var(--purple)">{{ $a->folio_general }}</td>
+                                <td style="font-size:11px">
+                                    @if($a->uuid_cfdi)
+                                        <span style="font-weight:700;color:#111;font-variant-numeric:tabular-nums;white-space:nowrap">{{ $a->uuid_cfdi }}</span>
+                                    @else
+                                        <span style="color:var(--gray-muted)">sin CFDI</span>
+                                    @endif
+                                </td>
                                 <td><span class="pill {{ $a->estatus }}">{{ ucfirst($a->estatus) }}</span></td>
                                 <td style="text-align:center;white-space:nowrap">
                                     <a href="{{ route('admin.anticipos.formato', $a) }}" target="_blank" style="font-size:11px;color:var(--purple);font-weight:600;text-decoration:none;padding:4px 8px;border:1px solid var(--purple);border-radius:6px">PDF</a>
@@ -358,19 +424,24 @@ function soloNumeros(el) {
     el.value = el.value.replace(/[^0-9.,]/g, '');
 }
 
-// Lee el XML del CFDI de anticipo y extrae el UUID del TimbreFiscalDigital.
+// Lee el CFDI de anticipo y extrae el UUID. Soporta XML (lectura directa) y PDF.
 function leerUuidDelXml(input) {
     var uuidField = document.getElementById('ant-uuid');
     if (!input.files || input.files.length === 0) return;
     var file = input.files[0];
+    var esPdf = /\.pdf$/i.test(file.name) || file.type === 'application/pdf';
+
     var reader = new FileReader();
     reader.onload = function(e) {
         var texto = e.target.result || '';
-        // Buscar el atributo UUID="..." (del nodo TimbreFiscalDigital).
-        var m = texto.match(/UUID\s*=\s*"([0-9A-Fa-f-]{36})"/);
+        // Buscar UUID: en XML es UUID="...", en PDF suele venir como "UUID:...".
+        var m = texto.match(/UUID\s*[:=]\s*"?([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})"?/);
         if (m && m[1]) {
             uuidField.value = m[1].toUpperCase();
             uuidField.style.borderColor = '#059669';
+        } else if (esPdf) {
+            // En PDF comprimido no siempre se puede leer en el navegador; el servidor lo extraerá al guardar.
+            uuidField.placeholder = 'Se intentará extraer del PDF al guardar (o escríbelo a mano)';
         } else {
             alert('No se encontró un UUID válido en el XML. Verifica que sea el CFDI de anticipo timbrado o escríbelo a mano.');
         }
@@ -390,6 +461,20 @@ function calcIvaYTotal() {
     document.getElementById('ant-total-banco').value = '$' + total.toLocaleString('en', {minimumFractionDigits:2});
 }
 
+// Muestra/oculta el tipo de cambio según la moneda.
+function toggleTipoCambio() {
+    var moneda = document.getElementById('ant-moneda').value;
+    var wrap = document.getElementById('ant-tc-wrap');
+    var tc = document.getElementById('ant-tc');
+    if (moneda === 'MXN') {
+        wrap.style.display = 'none';
+        tc.value = '1.0000';
+    } else {
+        wrap.style.display = '';
+        if (tc.value === '1.0000' || tc.value === '') tc.value = '';
+    }
+}
+
 function precargarProveedor() {
     var sel = document.getElementById('ant-proveedor');
     var opt = sel.options[sel.selectedIndex];
@@ -398,6 +483,10 @@ function precargarProveedor() {
         document.getElementById('ant-cuenta').value = opt.dataset.cuenta || '';
         document.getElementById('ant-clabe').value = opt.dataset.clabe || '';
         document.getElementById('ant-rfc').value = opt.dataset.rfc || '';
+        // Autoseleccionar moneda del proveedor.
+        var monedaProv = opt.dataset.moneda || 'MXN';
+        document.getElementById('ant-moneda').value = monedaProv;
+        toggleTipoCambio();
     } else {
         document.getElementById('ant-banco').value = '';
         document.getElementById('ant-cuenta').value = '';

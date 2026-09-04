@@ -921,11 +921,158 @@ class AdminPagoProveedoresController extends Controller
             ->orderBy('nombre')
             ->get();
 
-        $anticipos = \App\Models\AnticipoProveedor::query()
-            ->orderByDesc('created_at')
-            ->paginate(50);
+        // Departamentos que hacen anticipos (para los filtros/tabs).
+        $departamentos = ['Compras Nacional', 'Logística', 'Mantenimiento'];
 
-        return view('admin.anticipos.index', compact('proveedores', 'anticipos'));
+        $depto = trim((string) $request->query('departamento', ''));
+        $buscar = trim((string) $request->query('q', ''));
+
+        // Acceso por departamento: si el admin es de un área, solo ve la suya.
+        $deptoAdmin = $this->departamentoDelAdmin();
+        $accesoRestringido = $deptoAdmin !== null;
+        if ($accesoRestringido) {
+            $depto = $deptoAdmin;
+            $departamentos = [$deptoAdmin]; // solo muestra su chip
+        }
+
+        $base = \App\Models\AnticipoProveedor::query()
+            ->when($depto !== '', fn ($qb) => $qb->where('departamento', $depto))
+            ->when($buscar !== '', function ($qb) use ($buscar) {
+                $qb->where(function ($w) use ($buscar) {
+                    $w->where('folio_general', 'like', "%{$buscar}%")
+                        ->orWhere('nombre_proveedor', 'like', "%{$buscar}%")
+                        ->orWhere('codigo_proveedor', 'like', "%{$buscar}%");
+                });
+            });
+
+        $anticipos = (clone $base)
+            ->orderByDesc('created_at')
+            ->paginate(50)
+            ->withQueryString();
+
+        // KPIs por departamento (conteo y monto total) — respetan la búsqueda pero no el filtro de depto.
+        $baseKpi = \App\Models\AnticipoProveedor::query()
+            ->when($buscar !== '', function ($qb) use ($buscar) {
+                $qb->where(function ($w) use ($buscar) {
+                    $w->where('folio_general', 'like', "%{$buscar}%")
+                        ->orWhere('nombre_proveedor', 'like', "%{$buscar}%")
+                        ->orWhere('codigo_proveedor', 'like', "%{$buscar}%");
+                });
+            });
+
+        $kpiPorDepto = [];
+        foreach ($departamentos as $d) {
+            $q = (clone $baseKpi)->where('departamento', $d);
+            $kpiPorDepto[$d] = [
+                'count' => (clone $q)->count(),
+                'monto' => (float) (clone $q)->sum('total_banco'),
+            ];
+        }
+        $kpiTodos = [
+            'count' => (clone $baseKpi)->count(),
+            'monto' => (float) (clone $baseKpi)->sum('total_banco'),
+        ];
+
+        return view('admin.anticipos.index', compact(
+            'proveedores', 'anticipos', 'departamentos', 'depto', 'buscar', 'kpiPorDepto', 'kpiTodos', 'accesoRestringido'
+        ));
+    }
+
+    /**
+     * Exporta los anticipos a CSV, respetando el filtro de departamento y búsqueda.
+     */
+    public function anticiposExcel(Request $request)
+    {
+        $depto = trim((string) $request->query('departamento', ''));
+        $buscar = trim((string) $request->query('q', ''));
+
+        // Si el admin es de un departamento, forzar su departamento (acceso por rol).
+        $deptoForzado = $this->departamentoDelAdmin();
+        if ($deptoForzado !== null) {
+            $depto = $deptoForzado;
+        }
+
+        $anticipos = \App\Models\AnticipoProveedor::query()
+            ->when($depto !== '', fn ($qb) => $qb->where('departamento', $depto))
+            ->when($buscar !== '', function ($qb) use ($buscar) {
+                $qb->where(function ($w) use ($buscar) {
+                    $w->where('folio_general', 'like', "%{$buscar}%")
+                        ->orWhere('nombre_proveedor', 'like', "%{$buscar}%")
+                        ->orWhere('codigo_proveedor', 'like', "%{$buscar}%");
+                });
+            })
+            ->orderByDesc('created_at')
+            ->get();
+
+        $lines = [];
+        $lines[] = ['INDUSTRIAS SALCOM S.A. DE C.V.'];
+        $lines[] = ['Reporte de Anticipos'.($depto !== '' ? ' — '.$depto : '')];
+        $lines[] = ['Generado', now()->format('d/m/Y H:i')];
+        $lines[] = [];
+        $lines[] = ['Fecha', 'Folio general', 'Departamento', 'Proveedor', 'Código', 'RFC', 'Banco', 'Importe', 'IVA', 'Total', 'Estatus', 'UUID CFDI', 'Concepto'];
+
+        $totalGeneral = 0.0;
+        foreach ($anticipos as $a) {
+            $totalGeneral += (float) $a->total_banco;
+            $lines[] = [
+                optional($a->fecha)->format('d/m/Y'),
+                $a->folio_general,
+                $a->departamento,
+                $a->nombre_proveedor,
+                $a->codigo_proveedor,
+                $a->rfc_proveedor,
+                $a->banco,
+                number_format((float) $a->importe, 2, '.', ''),
+                number_format((float) $a->iva, 2, '.', ''),
+                number_format((float) $a->total_banco, 2, '.', ''),
+                ucfirst($a->estatus),
+                $a->uuid_cfdi,
+                $a->concepto,
+            ];
+        }
+        $lines[] = [];
+        $lines[] = ['', '', '', '', '', '', 'TOTAL', '', '', number_format($totalGeneral, 2, '.', '')];
+
+        $handle = fopen('php://temp', 'r+');
+        fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF)); // BOM UTF-8
+        foreach ($lines as $line) {
+            fputcsv($handle, $line);
+        }
+        rewind($handle);
+        $output = stream_get_contents($handle);
+        fclose($handle);
+
+        $sufijo = $depto !== '' ? '_'.\Illuminate\Support\Str::slug($depto) : '';
+        $filename = 'Anticipos'.$sufijo.'_'.now()->format('Y-m-d').'.csv';
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
+    /**
+     * Devuelve el departamento asociado al rol del admin logueado, o null si
+     * es gerente/admin (ve todo) o su rol no corresponde a un departamento.
+     */
+    private function departamentoDelAdmin(): ?string
+    {
+        $adminId = session('admin_id');
+        if (! $adminId) {
+            return null;
+        }
+        $admin = \App\Models\AdminUser::find($adminId);
+        if (! $admin || in_array($admin->rol, ['gerente', 'admin'], true)) {
+            return null;
+        }
+
+        // Mapa rol -> departamento de anticipos.
+        $mapa = [
+            'compras_nacional' => 'Compras Nacional',
+            'logistica' => 'Logística',
+            'mantenimiento' => 'Mantenimiento',
+        ];
+
+        return $mapa[$admin->rol] ?? null;
     }
 
     public function anticiposStore(Request $request)
@@ -948,8 +1095,10 @@ class AdminPagoProveedoresController extends Controller
             'departamento' => 'required|string|max:60',
             'fecha' => 'required|date',
             'concepto' => 'required|string|max:1000',
+            'moneda' => 'nullable|string|max:10',
+            'tipo_cambio' => 'nullable|string|max:20',
             'uuid_cfdi' => 'nullable|string|max:36',
-            'xml_anticipo' => 'nullable|file|mimetypes:text/xml,application/xml,text/plain|max:5120',
+            'xml_anticipo' => 'nullable|file|mimetypes:text/xml,application/xml,text/plain,application/pdf|max:10240',
         ]);
 
         $proveedor = ProveedorUser::findOrFail($data['proveedor_id']);
@@ -960,17 +1109,28 @@ class AdminPagoProveedoresController extends Controller
         // Folio fijo de contabilidad
         $folio = 'FCONA-0040';
 
-        // UUID del CFDI de anticipo: si suben el XML, lo extraemos (fuente confiable);
-        // si no, usamos el capturado a mano. El XML manda sobre el texto manual.
+        // UUID del CFDI de anticipo: si suben el XML o PDF, lo extraemos (fuente confiable);
+        // si no, usamos el capturado a mano. El archivo manda sobre el texto manual.
         $uuidCfdi = trim((string) ($data['uuid_cfdi'] ?? '')) ?: null;
         $xmlPath = null;
         if ($request->hasFile('xml_anticipo')) {
-            $xmlContent = file_get_contents($request->file('xml_anticipo')->getRealPath());
-            $uuidDelXml = $this->extraerUuidDeXml((string) $xmlContent);
-            if ($uuidDelXml) {
-                $uuidCfdi = $uuidDelXml;
+            $archivo = $request->file('xml_anticipo');
+            $esPdf = strtolower($archivo->getClientOriginalExtension()) === 'pdf'
+                || $archivo->getMimeType() === 'application/pdf';
+
+            if ($esPdf) {
+                // Leer texto del PDF y extraer el UUID (formato "UUID:...").
+                $uuidDelArchivo = $this->extraerUuidDePdf($archivo);
+                $xmlPath = $archivo->store('anticipos/pdf', 'public');
+            } else {
+                $xmlContent = file_get_contents($archivo->getRealPath());
+                $uuidDelArchivo = $this->extraerUuidDeXml((string) $xmlContent);
+                $xmlPath = $archivo->store('anticipos/xml', 'public');
             }
-            $xmlPath = $request->file('xml_anticipo')->store('anticipos/xml', 'public');
+
+            if ($uuidDelArchivo) {
+                $uuidCfdi = $uuidDelArchivo;
+            }
         }
         $uuidCfdi = $uuidCfdi ? strtoupper($uuidCfdi) : null;
 
@@ -993,7 +1153,11 @@ class AdminPagoProveedoresController extends Controller
             'concepto' => $data['concepto'],
             'estatus' => 'pagado',
             'creado_por' => session('admin_id'),
-            'datos' => $xmlPath ? ['xml_anticipo' => $xmlPath] : null,
+            'datos' => array_filter([
+                'xml_anticipo' => $xmlPath,
+                'moneda' => $data['moneda'] ?? 'MXN',
+                'tipo_cambio' => $data['tipo_cambio'] ?? '1.0000',
+            ]),
         ]);
 
         return redirect()->route('admin.anticipos', ['creado' => $anticipo->id])->with('ok', "Anticipo {$folio} registrado por \$" . number_format($totalBanco, 2) . " a {$proveedor->nombre}.");
@@ -1236,6 +1400,28 @@ class AdminPagoProveedoresController extends Controller
     {
         $valor = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', (string) $valor) ?: (string) $valor;
         return preg_replace('/[^A-Z0-9]/', '', strtoupper($valor));
+    }
+
+    /**
+     * Extrae el UUID (Folio Fiscal) del texto de un PDF de CFDI.
+     * Busca el patrón UUID de 36 caracteres. Devuelve mayúsculas o null.
+     */
+    private function extraerUuidDePdf(\Illuminate\Http\UploadedFile $archivo): ?string
+    {
+        try {
+            $parser = new \Smalot\PdfParser\Parser();
+            $texto = $parser->parseFile($archivo->getRealPath())->getText();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[AnticipoPDF] No se pudo leer el PDF: '.$e->getMessage());
+            return null;
+        }
+
+        // El UUID puede venir como "UUID:xxxx", "Folio Fiscal xxxx" o suelto.
+        if (preg_match('/([0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12})/', (string) $texto, $m)) {
+            return strtoupper($m[1]);
+        }
+
+        return null;
     }
 
     /**
