@@ -549,7 +549,7 @@
                     <svg class="sb-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="sb-submenu-items">
-                    @foreach(config('wiese_bancos') as $wbKey => $wbNombre)
+                    @foreach((array) config('wiese_bancos', []) as $wbKey => $wbNombre)
                     <a href="{{ route('admin.wiese-banco', ['banco' => $wbKey]) }}" class="sb-link sb-sublink {{ request()->is('admin/wiese-banco/'.$wbKey) ? 'active' : '' }}">
                         <span class="sb-text">{{ $wbNombre }}</span>
                     </a>
