@@ -1178,6 +1178,32 @@ class PortalProveedorController extends Controller
         $esFisica = $request->input('tipo_persona') === 'Persona Física';
         $esMoral = $request->input('tipo_persona') === 'Persona Moral';
 
+        // ¿El proveedor es REPSE? Si sí, pide documentos REPSE en vez de los normales.
+        $esRepse = false;
+        if ($proveedorPre) {
+            $esRepse = (bool) ($proveedorPre->es_repse ?? false);
+            if (! $esRepse) {
+                $diPre = is_array($proveedorPre->datos_identificacion) ? $proveedorPre->datos_identificacion : [];
+                $esRepse = (bool) ($diPre['es_repse'] ?? false);
+            }
+        }
+
+        // El RFC debe coincidir con el del registro (fuente oficial). No se puede cambiar aquí.
+        if ($proveedorPre) {
+            $rfcRegistro = strtoupper(trim((string) ($proveedorPre->rfc ?? '')));
+            if ($rfcRegistro === '') {
+                $diReg = is_array($proveedorPre->datos_identificacion) ? $proveedorPre->datos_identificacion : [];
+                $rfcRegistro = strtoupper(trim((string) ($diReg['rfc'] ?? $diReg['RFC'] ?? '')));
+            }
+            if ($rfcRegistro !== '') {
+                $rfcForm = strtoupper(preg_replace('/\s+/', '', (string) $request->input('rfc')));
+                if ($rfcForm !== $rfcRegistro) {
+                    // Forzar el del registro (por si intentaron cambiarlo saltándose el readonly).
+                    $request->merge(['rfc' => $rfcRegistro]);
+                }
+            }
+        }
+
         $sinEmoji = 'regex:/^[\p{L}\p{N}\s\.,;#\-\/()&°\'\"]+$/u';
         $soloTexto = ['required', 'string', 'max:255', $sinEmoji];
 
@@ -1202,7 +1228,12 @@ class PortalProveedorController extends Controller
             'clabe' => ['required', 'regex:/^[0-9]{18}$/'],
             'cuenta' => ['required', 'regex:/^[0-9]{5,20}$/'],
             'banco' => 'required|string|max:255|not_in:Otro',
-            'docs' => [
+            'nombre_firma' => $soloTexto,
+        ];
+
+        // Documentos normales: obligatorios solo si NO es REPSE (los REPSE llevan su propia lista).
+        if (! $esRepse) {
+            $rules['docs'] = [
                 'required',
                 'array',
                 function (string $attribute, mixed $value, \Closure $fail) use ($esMoral) {
@@ -1227,9 +1258,29 @@ class PortalProveedorController extends Controller
                         $fail('Debes marcar todos los documentos obligatorios. Faltan: '.implode(', ', $faltan).'.');
                     }
                 },
-            ],
-            'nombre_firma' => $soloTexto,
-        ];
+            ];
+        }
+
+        // Si el proveedor es REPSE, exigir los 12 documentos REPSE.
+        if ($esRepse) {
+            $rules['docs_repse'] = [
+                'required',
+                'array',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    $docs = is_array($value) ? $value : [];
+                    $requeridos = [
+                        'repse_registro', 'repse_isr_retenido', 'repse_iva',
+                        'repse_opinion_sat', 'repse_opinion_infonavit', 'repse_opinion_imss',
+                        'repse_pago_imss_infonavit', 'repse_cedula_imss', 'repse_cedula_obrero_patronal',
+                        'repse_sipare', 'repse_sua', 'repse_cfdi_nomina',
+                    ];
+                    $faltan = array_diff($requeridos, $docs);
+                    if ($faltan !== []) {
+                        $fail('Como proveedor REPSE, debes marcar los 12 documentos REPSE. Faltan '.count($faltan).' por marcar.');
+                    }
+                },
+            ];
+        }
 
         // Si el proveedor opera en dólares, los campos USD son opcionales en este formulario
         // La confirmación se hace desde el onboarding
@@ -1435,7 +1486,17 @@ class PortalProveedorController extends Controller
         $solicitudId = null;
         $onboardingBloqueado = $proveedor?->onboardingEdicionBloqueada() ?? false;
 
-        return view('APIS.empresa', compact('identificacion', 'solicitudId', 'onboardingBloqueado'));
+        // ¿Proveedor REPSE? Para mostrar la sección extra de documentos REPSE.
+        $esRepse = false;
+        if ($proveedor) {
+            $esRepse = (bool) ($proveedor->es_repse ?? false);
+            if (! $esRepse) {
+                $diRep = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+                $esRepse = (bool) ($diRep['es_repse'] ?? false);
+            }
+        }
+
+        return view('APIS.empresa', compact('identificacion', 'solicitudId', 'onboardingBloqueado', 'esRepse'));
     }
 
     public function mostrarAdjuntoDocumentos()
@@ -1464,6 +1525,40 @@ class PortalProveedorController extends Controller
         return view('proveedores.adjunto-documentos', compact('documentos', 'tiposLabel'));
     }
 
+    /**
+     * Extrae la CLABE (18 dígitos) del texto de un PDF de carátula bancaria.
+     * Devuelve la CLABE (solo dígitos) o null si no se puede leer.
+     */
+    private function extraerClabeDePdf(\Illuminate\Http\UploadedFile $archivo): ?string
+    {
+        try {
+            $parser = new \Smalot\PdfParser\Parser();
+            $texto = $parser->parseFile($archivo->getRealPath())->getText();
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[Caratula] No se pudo leer el PDF: '.$e->getMessage());
+            return null;
+        }
+
+        if (trim((string) $texto) === '') {
+            return null;
+        }
+
+        // Preferir el patrón "CLABE ... 18 dígitos" (aunque vengan con espacios).
+        if (preg_match('/CLABE[^0-9]{0,20}((?:\d[\s-]?){18})/iu', $texto, $m)) {
+            $clabe = preg_replace('/\D/', '', $m[1]);
+            if (strlen($clabe) === 18) {
+                return $clabe;
+            }
+        }
+
+        // Respaldo: cualquier secuencia de exactamente 18 dígitos seguidos.
+        if (preg_match('/\b(\d{18})\b/', preg_replace('/\s+/', '', $texto), $m2)) {
+            return $m2[1];
+        }
+
+        return null;
+    }
+
     public function subirAdjuntoDocumentos(Request $request)
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
@@ -1479,11 +1574,33 @@ class PortalProveedorController extends Controller
         $tipos = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'caratula_banco'];
         $subidos = 0;
 
+        // CLABE declarada por el proveedor en su formulario (para validar la carátula).
+        $clabeDeclarada = '';
+        if ($proveedor) {
+            $diProv = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+            $clabeDeclarada = preg_replace('/\D/', '', (string) ($diProv['clabe'] ?? ''));
+        }
+
         foreach ($tipos as $tipo) {
             if ($request->hasFile($tipo)) {
                 $request->validate([$tipo => 'mimes:pdf|max:10240']);
 
                 $archivo = $request->file($tipo);
+
+                // Validar que la carátula de banco corresponda a la CLABE declarada.
+                if ($tipo === 'caratula_banco' && $clabeDeclarada !== '') {
+                    $clabePdf = $this->extraerClabeDePdf($archivo);
+                    if ($clabePdf === null) {
+                        return back()->withErrors(['caratula_banco' => 'No se pudo leer la CLABE en la carátula. Sube el PDF original del banco (no una imagen escaneada).']);
+                    }
+                    if ($clabePdf !== $clabeDeclarada) {
+                        return back()->withErrors(['caratula_banco' =>
+                            'La CLABE de la carátula ('.$clabePdf.') no coincide con la CLABE que registraste ('.$clabeDeclarada.'). '.
+                            'La carátula debe ser de la misma cuenta que declaraste. Documento rechazado.',
+                        ]);
+                    }
+                }
+
                 $ruta = $archivo->store("expediente_fiscal/{$tipo}", 'public');
 
                 DocumentoProveedor::updateOrCreate(

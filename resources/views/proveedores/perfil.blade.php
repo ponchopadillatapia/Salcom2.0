@@ -181,6 +181,22 @@
                     <span class="info-label">Tipo de persona</span>
                     <span class="info-value">{{ $proveedor->tipo_persona ?? '—' }}</span>
                 </div>
+                @php
+                    $diPerfil = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+                    $perfilRfc = $proveedor->rfc ?? ($diPerfil['rfc'] ?? $diPerfil['RFC'] ?? null);
+                    $perfilEsRepse = (bool) ($proveedor->es_repse ?? false);
+                    if (! $perfilEsRepse) {
+                        $perfilEsRepse = (bool) ($diPerfil['es_repse'] ?? false);
+                    }
+                @endphp
+                <div class="info-row">
+                    <span class="info-label">RFC</span>
+                    <span class="info-value" style="text-transform:uppercase">{{ $perfilRfc ?: '—' }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">REPSE</span>
+                    <span class="info-value">{{ $perfilEsRepse ? 'Sí — Proveedor REPSE' : 'No' }}</span>
+                </div>
                 @if($codigoPerfil && ! $esEspejoAdmin)
                 <div class="info-row">
                     <span class="info-label">Código proveedor</span>

@@ -116,7 +116,29 @@
 
 <form method="POST" action="{{ route('proveedores.identificacion.guardar') }}" id="formIdentificacion" novalidate>
     @csrf
-    @php $d = $identificacion ?? []; @endphp
+    @php
+        $d = $identificacion ?? [];
+
+        // Precargar campos con lo que el proveedor puso en el REGISTRO (si aún no llenó este formato).
+        if (isset($proveedor) && $proveedor) {
+            $diReg2 = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+            $prefill = [
+                'rfc' => $proveedor->rfc ?? ($diReg2['rfc'] ?? $diReg2['RFC'] ?? null),
+                'correo' => $proveedor->correo ?? null,
+                'telefono' => $proveedor->telefono ?? null,
+                'nombres' => $diReg2['nombres'] ?? null,
+                'apellido_paterno' => $diReg2['apellido_paterno'] ?? null,
+                'apellido_materno' => $diReg2['apellido_materno'] ?? null,
+                'razon_social' => $diReg2['razon_social'] ?? null,
+            ];
+            foreach ($prefill as $campo => $valor) {
+                // Solo rellenar si el formato aún no tiene ese dato guardado.
+                if ((! isset($d[$campo]) || $d[$campo] === '' || $d[$campo] === null) && ! empty($valor)) {
+                    $d[$campo] = $valor;
+                }
+            }
+        }
+    @endphp
 
     {{-- Datos generales --}}
     <div class="id-card">
@@ -192,6 +214,34 @@
                     <label for="razon_social">Denominación o Razón Social <span style="color:#DC2626">*</span></label>
                     <input type="text" id="razon_social" name="razon_social" value="{{ old('razon_social', $d['razon_social'] ?? '') }}" placeholder="Nombre completo de la empresa" class="no-emoji" maxlength="255">
                 </div>
+            </div>
+        </div>
+
+        {{-- RFC y correo: precargados del registro (RFC bloqueado para que coincida) --}}
+        <div class="form-row cols-2">
+            <div class="form-group">
+                <label for="rfc">RFC <span style="color:#DC2626">*</span></label>
+                @php
+                    // RFC del registro (fuente oficial). Se precarga y se bloquea para que coincida.
+                    $rfcRegistro = isset($proveedor) && $proveedor ? ($proveedor->rfc ?? '') : '';
+                    if ($rfcRegistro === '') {
+                        $diReg = (isset($proveedor) && is_array($proveedor->datos_identificacion)) ? $proveedor->datos_identificacion : [];
+                        $rfcRegistro = $diReg['rfc'] ?? $diReg['RFC'] ?? '';
+                    }
+                    $rfcValor = $rfcRegistro !== '' ? $rfcRegistro : old('rfc', $d['rfc'] ?? '');
+                    $rfcBloqueado = $rfcRegistro !== '';
+                @endphp
+                <input type="text" id="rfc" name="rfc" value="{{ strtoupper($rfcValor) }}" placeholder="Ej: VPA211201F67" maxlength="13" required class="no-emoji"
+                    style="text-transform:uppercase;{{ $rfcBloqueado ? 'background:#f9fafb;' : '' }}"
+                    {{ $rfcBloqueado ? 'readonly' : '' }}
+                    oninput="this.value=this.value.toUpperCase().replace(/[^A-ZÑ&0-9]/g,'')">
+                @if($rfcBloqueado)
+                    <small style="color:var(--gray-muted);font-size:10px;">Precargado desde tu registro. Debe coincidir con el RFC registrado.</small>
+                @endif
+            </div>
+            <div class="form-group">
+                <label for="correo">Correo electrónico <span style="color:#DC2626">*</span></label>
+                <input type="email" id="correo" name="correo" value="{{ old('correo', $d['correo'] ?? session('proveedor_correo')) }}" placeholder="correo@empresa.com" required>
             </div>
         </div>
     </div>
@@ -271,16 +321,6 @@
             </div>
         </div>
 
-        <div class="form-row cols-2">
-            <div class="form-group">
-                <label for="rfc">RFC <span style="color:#DC2626">*</span></label>
-                <input type="text" id="rfc" name="rfc" value="{{ old('rfc', $d['rfc'] ?? '') }}" placeholder="Ej: VPA211201F67" maxlength="13" required class="no-emoji" style="text-transform:uppercase;" oninput="this.value=this.value.toUpperCase().replace(/[^A-ZÑ&0-9]/g,'')">
-            </div>
-            <div class="form-group">
-                <label for="correo">Correo electrónico <span style="color:#DC2626">*</span></label>
-                <input type="email" id="correo" name="correo" value="{{ old('correo', $d['correo'] ?? session('proveedor_correo')) }}" placeholder="correo@empresa.com" required>
-            </div>
-        </div>
     </div>
 
     {{-- Datos bancarios MXN --}}
@@ -347,8 +387,20 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Documentos agregados
         </h3>
+        @php
+            $esRepse = false;
+            if (isset($proveedor) && $proveedor) {
+                $esRepse = (bool) ($proveedor->es_repse ?? false);
+                if (! $esRepse) {
+                    $di = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+                    $esRepse = (bool) ($di['es_repse'] ?? false);
+                }
+            }
+        @endphp
+
         <p class="card-desc">Marca todos los documentos que estás anexando a este formato. <span style="color:#DC2626">Todos son obligatorios</span>.</p>
 
+        @unless($esRepse)
         <div class="docs-grid">
             <label class="doc-check" id="doc-acta-constitutiva">
                 <input type="checkbox" name="docs[]" value="acta_constitutiva" {{ in_array('acta_constitutiva', old('docs', $d['docs'] ?? [])) ? 'checked' : '' }}>
@@ -378,6 +430,44 @@
         @error('docs')
             <p style="color:#DC2626;font-size:12px;font-weight:600;margin-top:10px;">{{ $message }}</p>
         @enderror
+        @endunless
+
+        @php
+            $docsRepse = [
+                'repse_registro' => '1. Registro REPSE vigente (copia de la aceptación del registro)',
+                'repse_isr_retenido' => '2. Declaración de ISR retenido a trabajadores + pago bancario ISR',
+                'repse_iva' => '3. Declaración de IVA + acuse IVA',
+                'repse_opinion_sat' => '4. Opinión de cumplimiento SAT',
+                'repse_opinion_infonavit' => '5. Opinión de cumplimiento INFONAVIT',
+                'repse_opinion_imss' => '6. Opinión de cumplimiento IMSS',
+                'repse_pago_imss_infonavit' => '7. Pago bancario IMSS e INFONAVIT',
+                'repse_cedula_imss' => '8. Cédula de determinación de cuotas IMSS',
+                'repse_cedula_obrero_patronal' => '9. Cédula de cuotas obrero patronales, aportaciones y amortizaciones',
+                'repse_sipare' => '10. SIPARE',
+                'repse_sua' => '11. SUA',
+                'repse_cfdi_nomina' => '12. CFDI de nóminas (XML y PDF) del personal que da el servicio',
+            ];
+        @endphp
+
+        @if($esRepse)
+        <div style="margin-top:6px">
+            <h3 style="font-size:14px;color:var(--purple);margin:0 0 4px;display:flex;align-items:center;gap:8px">
+                Documentos REPSE
+            </h3>
+            <p class="card-desc" style="margin-bottom:12px">Como proveedor REPSE, debes anexar estos documentos. <span style="color:#DC2626">Todos son obligatorios</span>.</p>
+            <div class="docs-grid">
+                @foreach($docsRepse as $val => $label)
+                    <label class="doc-check">
+                        <input type="checkbox" name="docs_repse[]" value="{{ $val }}" {{ in_array($val, old('docs_repse', $d['docs_repse'] ?? [])) ? 'checked' : '' }}>
+                        {{ $label }} <span style="color:#DC2626">*</span>
+                    </label>
+                @endforeach
+            </div>
+            @error('docs_repse')
+                <p style="color:#DC2626;font-size:12px;font-weight:600;margin-top:10px;">{{ $message }}</p>
+            @enderror
+        </div>
+        @endif
     </div>
 
     {{-- Declaración y firma --}}
@@ -638,6 +728,26 @@ function buscarCP(cp) {
                             opt.textContent = c;
                             coloniaSelect.appendChild(opt);
                         });
+                        // Opción para capturar la colonia a mano si el C.P. no la trae bien.
+                        var optOtra = document.createElement('option');
+                        optOtra.value = '__otra__';
+                        optOtra.textContent = 'Otra (escribir a mano)';
+                        coloniaSelect.appendChild(optOtra);
+                        // Al elegir "Otra", convertir el select en input de texto editable.
+                        coloniaSelect.onchange = function() {
+                            if (this.value === '__otra__') {
+                                var inp = document.createElement('input');
+                                inp.type = 'text';
+                                inp.id = 'colonia';
+                                inp.name = 'colonia';
+                                inp.required = true;
+                                inp.className = 'no-emoji';
+                                inp.placeholder = 'Escribe tu colonia o fraccionamiento';
+                                inp.style.cssText = 'padding:10px 14px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;width:100%;';
+                                this.parentNode.replaceChild(inp, this);
+                                inp.focus();
+                            }
+                        };
                     }
                 } else {
                     liberarCamposManuales();
@@ -660,5 +770,130 @@ function liberarCamposManuales() {
     var est = document.getElementById('estado');
     if (est) { est.removeAttribute('readonly'); est.style.background = ''; }
 }
+
+// ── Autollenado del banco a partir de la CLABE (3 primeros dígitos = código del banco) ──
+(function() {
+    // Código de banco (3 dígitos de la CLABE) -> nombre en la lista del select.
+    var CLABE_BANCOS = {
+        '002': 'Banamex',
+        '012': 'BBVA',
+        '014': 'Santander',
+        '019': 'Banco del Bienestar',
+        '021': 'HSBC',
+        '030': 'Banco Bajío',
+        '036': 'Inbursa',
+        '042': 'Mifel',
+        '044': 'Scotiabank',
+        '058': 'Banregio',
+        '059': 'Invex',
+        '062': 'Afirme',
+        '072': 'Banorte',
+        '106': 'Bank of America',
+        '108': 'Monex',
+        '110': 'Ve por Más',
+        '112': 'BanCoppel',
+        '113': 'Ve por Más',
+        '116': 'ING Bank',
+        '124': 'Deutsche Bank',
+        '127': 'Azteca',
+        '128': 'Autofin',
+        '130': 'CI Banco',
+        '132': 'Banco Multiva',
+        '133': 'Actinver',
+        '136': 'Intercam Banco',
+        '137': 'BanCoppel',
+        '138': 'ABC Capital',
+        '140': 'Banco Sabadell',
+        '143': 'Consubanco',
+        '145': 'Banco Base',
+        '147': 'Banco Azteca',
+        '148': 'Banco Azteca',
+        '150': 'Bansi',
+        '155': 'Banco S3 (México)',
+        '166': 'Banco del Bienestar',
+        '600': 'Compartamos Banco',
+        '638': 'Nu México (Nu)',
+        '646': 'STP',
+        '723': 'Stori',
+    };
+
+    var bancoAliases = {
+        'Banco Bajío': 'BanBajío',
+        'Banco Multiva': 'Multiva',
+        'Azteca': 'Banco Azteca',
+    };
+
+    var clabeInput = document.getElementById('clabe');
+    if (!clabeInput) return;
+
+    function bloquearBanco(select) {
+        select.disabled = true;
+        select.style.background = '#f3f4f6';
+        select.style.color = '#6b7280';
+        select.style.cursor = 'not-allowed';
+        // El proveedor no puede cambiarlo, pero el valor debe enviarse: usar hidden espejo.
+        var hid = document.getElementById('banco_hidden');
+        if (!hid) {
+            hid = document.createElement('input');
+            hid.type = 'hidden';
+            hid.id = 'banco_hidden';
+            hid.name = 'banco';
+            select.parentNode.appendChild(hid);
+            select.removeAttribute('name'); // el name lo lleva el hidden
+        }
+        hid.value = select.value;
+    }
+
+    function desbloquearBanco(select) {
+        select.disabled = false;
+        select.style.background = 'var(--white)';
+        select.style.color = 'var(--gray-text)';
+        select.style.cursor = '';
+        var hid = document.getElementById('banco_hidden');
+        if (hid) { hid.remove(); select.setAttribute('name', 'banco'); }
+    }
+
+    function autollenarBanco() {
+        var select = document.getElementById('banco');
+        if (!select) return;
+        var clabe = (clabeInput.value || '').replace(/\D/g, '');
+
+        if (clabe.length < 3) {
+            desbloquearBanco(select);
+            return;
+        }
+        var codigo = clabe.substring(0, 3);
+        var nombre = CLABE_BANCOS[codigo];
+        if (nombre && bancoAliases[nombre]) nombre = bancoAliases[nombre];
+
+        if (nombre) {
+            // Buscar la opción que coincida.
+            var encontrado = false;
+            for (var i = 0; i < select.options.length; i++) {
+                if (select.options[i].value === nombre) {
+                    select.selectedIndex = i;
+                    encontrado = true;
+                    break;
+                }
+            }
+            if (encontrado) {
+                bloquearBanco(select);
+            } else {
+                // Banco no está en la lista: dejar editable para que lo elijan.
+                desbloquearBanco(select);
+            }
+        } else {
+            // Código no reconocido: dejar editable.
+            desbloquearBanco(select);
+        }
+    }
+
+    clabeInput.addEventListener('input', autollenarBanco);
+    clabeInput.addEventListener('blur', autollenarBanco);
+    // Si ya venía con CLABE precargada, autollenar al cargar.
+    if ((clabeInput.value || '').replace(/\D/g, '').length >= 3) {
+        autollenarBanco();
+    }
+})();
 </script>
 @endpush

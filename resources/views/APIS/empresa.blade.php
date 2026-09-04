@@ -562,6 +562,72 @@
             <span id="caratula_banco_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
+        @if(!empty($esRepse))
+        {{-- ── VERIFICACIÓN EN EL PADRÓN REPSE ── --}}
+        <p class="group-title" style="color:var(--purple)"><i class="bi bi-patch-check"></i> Verificación en el padrón REPSE</p>
+        <div style="background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:14px 16px;margin-bottom:14px">
+            <p style="font-size:0.85rem;color:var(--gray-text);margin:0 0 10px;line-height:1.5">
+                Verifica que estés registrado y <strong>vigente</strong> en el padrón oficial de la STPS.
+                Consulta aquí:
+                <a href="https://repse.stps.gob.mx/" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700;text-decoration:underline">repse.stps.gob.mx</a>
+            </p>
+            <label class="doc-label" style="margin-bottom:6px">¿Apareces en el padrón REPSE?</label>
+            <div style="display:flex;gap:12px;flex-wrap:wrap">
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;cursor:pointer">
+                    <input type="radio" name="repse_en_padron" value="si" onchange="toggleAcuseRepse()"> Sí, aparezco
+                </label>
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.9rem;cursor:pointer">
+                    <input type="radio" name="repse_en_padron" value="no" onchange="toggleAcuseRepse()"> No aparezco
+                </label>
+            </div>
+
+            {{-- Si SÍ: adjuntar acuse del padrón --}}
+            <div class="doc-row" id="row_repse_acuse_padron" style="display:none;margin-top:12px">
+                <label class="doc-label" for="repse_acuse_padron"><i class="bi bi-file-earmark-check"></i> Acuse del padrón REPSE (aceptación del registro)</label>
+                <p class="doc-hint">Copia de la aceptación del registro · debe estar vigente · PDF</p>
+                <input type="file" id="repse_acuse_padron" accept=".pdf" onchange="verArchivo('repse_acuse_padron')">
+                <label for="repse_acuse_padron" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
+                <span id="repse_acuse_padron_nombre" class="file-name empty">Sin archivo</span>
+            </div>
+
+            {{-- Si NO: aviso --}}
+            <div id="aviso_repse_no" style="display:none;margin-top:12px;padding:10px 12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:0.82rem;color:#92400e">
+                Puedes continuar, pero <strong>Contabilidad revisará tu caso manualmente</strong> antes de aprobar el alta, ya que no apareces en el padrón REPSE.
+            </div>
+        </div>
+
+        {{-- ── GRUPO REPSE (solo proveedores REPSE) — se validan junto con los demás ── --}}
+        <p class="group-title" style="color:var(--purple)"><i class="bi bi-folder-check"></i> Documentos REPSE</p>
+        @php
+            $repseDocs = [
+                'repse_registro' => '1. Registro REPSE vigente (copia de la aceptación)',
+                'repse_isr_retenido' => '2. Declaración de ISR retenido + pago bancario ISR',
+                'repse_iva' => '3. Declaración de IVA + acuse IVA',
+                'repse_opinion_sat' => '4. Opinión de cumplimiento SAT',
+                'repse_opinion_infonavit' => '5. Opinión de cumplimiento INFONAVIT',
+                'repse_opinion_imss' => '6. Opinión de cumplimiento IMSS',
+                'repse_pago_imss_infonavit' => '7. Pago bancario IMSS e INFONAVIT',
+                'repse_cedula_imss' => '8. Cédula de determinación de cuotas IMSS',
+                'repse_cedula_obrero_patronal' => '9. Cédula de cuotas obrero patronales',
+                'repse_sipare' => '10. SIPARE',
+                'repse_sua' => '11. SUA',
+                'repse_cfdi_nomina' => '12. CFDI de nóminas (XML y PDF) del personal del servicio',
+            ];
+        @endphp
+        @foreach($repseDocs as $campo => $etiqueta)
+        <div class="doc-row" id="row_{{ $campo }}">
+            <label class="doc-label" for="{{ $campo }}"><i class="bi bi-file-earmark-text"></i> {{ $etiqueta }}</label>
+            <p class="doc-hint">PDF · obligatorio (REPSE)</p>
+            <input type="file" id="{{ $campo }}" accept=".pdf" onchange="verArchivo('{{ $campo }}')">
+            <label for="{{ $campo }}" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
+            <span id="{{ $campo }}_nombre" class="file-name empty">Sin archivo</span>
+        </div>
+        @endforeach
+        @endif
+
+        {{-- Bandera para el JS: proveedor REPSE --}}
+        <script>window.ES_REPSE = {{ !empty($esRepse) ? 'true' : 'false' }};</script>
+
         {{-- Botón validar --}}
         <button id="btn_validar" class="btn-salcom" onclick="enviar()">
             <span class="spinner" id="spinner"></span>
@@ -619,7 +685,28 @@ const nombresDocs = {
     rep_legal: 'ID Representante Legal',
     contribuyente: 'ID Contribuyente',
     caratula_banco: 'Carátula de Banco',
+    // REPSE
+    repse_registro: 'Registro REPSE',
+    repse_isr_retenido: 'Declaración ISR retenido',
+    repse_iva: 'Declaración IVA',
+    repse_opinion_sat: 'Opinión SAT (REPSE)',
+    repse_opinion_infonavit: 'Opinión INFONAVIT',
+    repse_opinion_imss: 'Opinión IMSS',
+    repse_pago_imss_infonavit: 'Pago IMSS/INFONAVIT',
+    repse_cedula_imss: 'Cédula cuotas IMSS',
+    repse_cedula_obrero_patronal: 'Cédula obrero patronales',
+    repse_sipare: 'SIPARE',
+    repse_sua: 'SUA',
+    repse_cfdi_nomina: 'CFDI nóminas',
 };
+
+// Lista de campos REPSE (para requeridos, envío y validación básica).
+const CAMPOS_REPSE = [
+    'repse_registro','repse_isr_retenido','repse_iva','repse_opinion_sat',
+    'repse_opinion_infonavit','repse_opinion_imss','repse_pago_imss_infonavit',
+    'repse_cedula_imss','repse_cedula_obrero_patronal','repse_sipare','repse_sua','repse_cfdi_nomina',
+];
+nombresDocs.repse_acuse_padron = 'Acuse del padrón REPSE';
 
 function getArchivo(campo) {
     const input = document.getElementById(campo);
@@ -691,6 +778,10 @@ function getCamposRequeridos() {
     } else {
         base.push('contribuyente');
     }
+    // Si es REPSE, los 12 documentos REPSE también son obligatorios.
+    if (window.ES_REPSE) {
+        CAMPOS_REPSE.forEach(function(c) { base.push(c); });
+    }
     return base;
 }
 
@@ -702,6 +793,20 @@ const campos = {
     contribuyente:  'contribuyente_pdf',
     poder:          'poder_pdf',
     caratula_banco: 'caratula_banco_pdf',
+    // REPSE (se envían al backend con nombre repse_*_pdf)
+    repse_registro:              'repse_registro_pdf',
+    repse_isr_retenido:          'repse_isr_retenido_pdf',
+    repse_iva:                   'repse_iva_pdf',
+    repse_opinion_sat:           'repse_opinion_sat_pdf',
+    repse_opinion_infonavit:     'repse_opinion_infonavit_pdf',
+    repse_opinion_imss:          'repse_opinion_imss_pdf',
+    repse_pago_imss_infonavit:   'repse_pago_imss_infonavit_pdf',
+    repse_cedula_imss:           'repse_cedula_imss_pdf',
+    repse_cedula_obrero_patronal:'repse_cedula_obrero_patronal_pdf',
+    repse_sipare:                'repse_sipare_pdf',
+    repse_sua:                   'repse_sua_pdf',
+    repse_cfdi_nomina:           'repse_cfdi_nomina_pdf',
+    repse_acuse_padron:          'repse_acuse_padron_pdf',
 };
 
 function setBadge(row, clase, texto) {
@@ -740,6 +845,23 @@ function marcarFilaReintentar(campo) {
         row.classList.remove('has-file', 'validado');
         row.classList.add('error-file');
         setBadge(row, 'doc-badge-retry', 'Requiere nuevo PDF');
+    }
+}
+
+// Mostrar/ocultar el acuse del padrón REPSE según la respuesta Sí/No.
+function toggleAcuseRepse() {
+    var val = document.querySelector('input[name="repse_en_padron"]:checked');
+    var rowAcuse = document.getElementById('row_repse_acuse_padron');
+    var avisoNo = document.getElementById('aviso_repse_no');
+    if (!val) return;
+    if (val.value === 'si') {
+        if (rowAcuse) rowAcuse.style.display = 'block';
+        if (avisoNo) avisoNo.style.display = 'none';
+    } else {
+        if (rowAcuse) rowAcuse.style.display = 'none';
+        if (avisoNo) avisoNo.style.display = 'block';
+        var inp = document.getElementById('repse_acuse_padron');
+        if (inp) inp.value = '';
     }
 }
 
@@ -842,6 +964,19 @@ function enviar() {
         }
     }
 
+    // REPSE: debe responder si aparece en el padrón, y adjuntar el acuse si dijo que sí.
+    if (window.ES_REPSE) {
+        var enPadron = document.querySelector('input[name="repse_en_padron"]:checked');
+        if (!enPadron) {
+            mostrarError('Indica si apareces en el padrón REPSE (repse.stps.gob.mx).');
+            return;
+        }
+        if (enPadron.value === 'si' && !getArchivo('repse_acuse_padron')) {
+            mostrarError('Como apareces en el padrón REPSE, adjunta el acuse del padrón (aceptación del registro).');
+            return;
+        }
+    }
+
     const requeridos = getCamposRequeridos();
     const camposImagen = ['rep_legal', 'contribuyente']; // Estos aceptan imágenes
     for (const campo of requeridos) {
@@ -891,6 +1026,12 @@ function enviar() {
 
     const formData = new FormData();
     formData.append('tipo_persona', tipoPersona);
+
+    // Respuesta de padrón REPSE (si aplica).
+    if (window.ES_REPSE) {
+        var enPadronSel = document.querySelector('input[name="repse_en_padron"]:checked');
+        if (enPadronSel) formData.append('repse_en_padron', enPadronSel.value);
+    }
 
     if (identificacion) {
         if (identificacion.nombre_esperado) formData.append('nombre_esperado', identificacion.nombre_esperado);

@@ -54,6 +54,16 @@
                 @error('tipo_persona')<span class="error-msg">{{ $message }}</span>@enderror
             </div>
 
+            <div class="ios-field"><label>¿Es proveedor REPSE? <span class="req">*</span></label>
+                <select name="es_repse" id="reg_es_repse" required>
+                    <option value="" disabled {{ old('es_repse') !== null && old('es_repse') !== '' ? '' : 'selected' }}>Selecciona una opción</option>
+                    <option value="1" {{ old('es_repse')==='1' ? 'selected' : '' }}>Sí, estoy registrado en el REPSE</option>
+                    <option value="0" {{ old('es_repse')==='0' ? 'selected' : '' }}>No</option>
+                </select>
+                <span class="hint">REPSE: Registro de Prestadoras de Servicios Especializados u Obras Especializadas (STPS).</span>
+                @error('es_repse')<span class="error-msg">{{ $message }}</span>@enderror
+            </div>
+
             <div id="campos-fisica" style="{{ old('tipo_persona', '') === 'Persona Moral' ? 'display:none' : '' }}">
                 <div class="form-row-3">
                     <div class="ios-field">

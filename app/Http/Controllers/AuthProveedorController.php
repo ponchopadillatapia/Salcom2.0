@@ -131,8 +131,11 @@ class AuthProveedorController extends Controller
                 'telefono' => 'required|string|max:20',
                 'correo' => 'required|email',
                 'password' => 'required|min:8|confirmed',
+                'es_repse' => 'required|in:0,1',
             ], [
                 'tipo_persona.required' => 'Selecciona el tipo de persona.',
+                'es_repse.required' => 'Indica si eres proveedor REPSE.',
+                'es_repse.in' => 'Selecciona una opción válida para REPSE.',
                 'nombres.required' => 'El nombre es obligatorio.',
                 'apellido_paterno.required' => 'El apellido paterno es obligatorio.',
                 'razon_social.required' => 'La razón social es obligatoria.',
@@ -203,6 +206,8 @@ class AuthProveedorController extends Controller
 
             $usuario = $this->generarUsuarioUnico($baseUsuario, $correo);
 
+            $esRepse = $request->input('es_repse') === '1';
+
             // Insertar proveedor (correo pendiente de verificación)
             $insert = [
                 'usuario' => $usuario,
@@ -218,9 +223,13 @@ class AuthProveedorController extends Controller
             if (Schema::hasColumn('proveedores_users', 'rfc')) {
                 $insert['rfc'] = $rfc;
             }
+            // Guardar REPSE en columna dedicada si existe.
+            if (Schema::hasColumn('proveedores_users', 'es_repse')) {
+                $insert['es_repse'] = $esRepse;
+            }
             if (Schema::hasColumn('proveedores_users', 'datos_identificacion')) {
                 $insert['datos_identificacion'] = json_encode(
-                    $esMoral
+                    ($esMoral
                         ? [
                             'rfc' => $rfc,
                             'razon_social' => $nombre,
@@ -234,7 +243,7 @@ class AuthProveedorController extends Controller
                             'apellido_materno' => trim((string) ($request->apellido_materno ?? '')),
                             'tipo_persona' => 'Persona Física',
                             'tipo_clave' => 'fisica',
-                        ],
+                        ]) + ['es_repse' => $esRepse],
                     JSON_UNESCAPED_UNICODE
                 );
             }

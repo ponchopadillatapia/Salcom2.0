@@ -53,6 +53,18 @@ class EmpresaApiController extends Controller
                 'poder_pdf' => 'nullable|mimes:pdf|max:20480',
             ];
 
+            // Documentos REPSE (opcionales en reglas; se guardan sin validación automática).
+            $tiposRepse = [
+                'repse_registro', 'repse_isr_retenido', 'repse_iva', 'repse_opinion_sat',
+                'repse_opinion_infonavit', 'repse_opinion_imss', 'repse_pago_imss_infonavit',
+                'repse_cedula_imss', 'repse_cedula_obrero_patronal', 'repse_sipare', 'repse_sua', 'repse_cfdi_nomina',
+                'repse_acuse_padron',
+            ];
+            foreach ($tiposRepse as $tr) {
+                $rules[$tr.'_pdf'] = 'nullable|mimes:pdf|max:20480';
+            }
+            $rules['repse_en_padron'] = 'nullable|in:si,no';
+
             // Acta constitutiva: para Persona Moral es obligatoria SALVO que suba poder notarial
             if ($tipoPersona === 'moral') {
                 if ($request->hasFile('poder_pdf') && ! $request->hasFile('acta_pdf')) {
@@ -553,6 +565,45 @@ class EmpresaApiController extends Controller
                                         ]
                                     );
                                 }
+                            }
+                        }
+
+                        // Documentos REPSE: se guardan como PENDIENTES (revisión manual del admin), sin auto-validación.
+                        foreach ($tiposRepse as $tipoRepse) {
+                            if ($request->hasFile($tipoRepse.'_pdf')) {
+                                $rutaRepse = $request->file($tipoRepse.'_pdf')->store("expediente_fiscal/{$tipoRepse}", 'public');
+                                if ($rutaRepse) {
+                                    DocumentoProveedor::updateOrCreate(
+                                        ['proveedor_id' => $proveedorId, 'tipo' => $tipoRepse],
+                                        [
+                                            'archivo' => $rutaRepse,
+                                            'estatus' => 'pendiente',
+                                            'notas_revision' => 'Documento REPSE — pendiente de revisión manual',
+                                            'resultado_validacion' => null,
+                                            'revisado_at' => null,
+                                        ]
+                                    );
+                                }
+                            }
+                        }
+
+                        // Si el proveedor REPSE dijo que NO aparece en el padrón, avisar a Contabilidad.
+                        if ($request->input('repse_en_padron') === 'no') {
+                            try {
+                                $prov = ProveedorUser::find($proveedorId);
+                                \App\Models\Alerta::create([
+                                    'tipo' => 'repse_no_padron',
+                                    'modulo' => 'proveedores',
+                                    'destinatario_tipo' => 'admin',
+                                    'destinatario_id' => 1,
+                                    'titulo' => 'Proveedor REPSE no aparece en el padrón',
+                                    'contenido' => 'El proveedor '.($prov->nombre ?? $proveedorId).' declaró que NO aparece en el padrón REPSE (repse.stps.gob.mx). Requiere revisión manual de Contabilidad antes de aprobar.',
+                                    'nivel' => 'alta',
+                                    'estatus' => 'nueva',
+                                    'datos' => ['proveedor_id' => $proveedorId, 'rfc' => $prov->rfc ?? null],
+                                ]);
+                            } catch (\Throwable $e) {
+                                Log::warning('[REPSE] No se pudo crear alerta de padrón: '.$e->getMessage());
                             }
                         }
 
