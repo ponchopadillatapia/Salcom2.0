@@ -329,8 +329,18 @@ Route::get('/admin/reembolsos-viaje', [ReembolsoViajeController::class, 'index']
 Route::get('/admin/reembolsos-viaje/excel', [ReembolsoViajeController::class, 'exportarExcel'])->name('admin.reembolsos-viaje.excel')->middleware('auth.admin');
 Route::get('/admin/reembolsos-viaje/crear', [ReembolsoViajeController::class, 'crear'])->name('admin.reembolsos-viaje.crear')->middleware('auth.admin');
 Route::post('/admin/reembolsos-viaje/guardar', [ReembolsoViajeController::class, 'guardar'])->name('admin.reembolsos-viaje.guardar')->middleware('auth.admin');
+Route::get('/admin/reembolsos-viaje/{reembolso}/editar', [ReembolsoViajeController::class, 'editar'])->name('admin.reembolsos-viaje.editar')->middleware('auth.admin');
+Route::put('/admin/reembolsos-viaje/{reembolso}', [ReembolsoViajeController::class, 'actualizar'])->name('admin.reembolsos-viaje.actualizar')->middleware('auth.admin');
 Route::get('/admin/reembolsos-viaje/{reembolso}', [ReembolsoViajeController::class, 'ver'])->name('admin.reembolsos-viaje.ver')->middleware('auth.admin');
 Route::post('/admin/reembolsos-viaje/{reembolso}/enviar', [ReembolsoViajeController::class, 'enviar'])->name('admin.reembolsos-viaje.enviar')->middleware('auth.admin');
 Route::post('/admin/reembolsos-viaje/{reembolso}/aprobar', [ReembolsoViajeController::class, 'aprobar'])->name('admin.reembolsos-viaje.aprobar')->middleware('auth.admin');
 Route::post('/admin/reembolsos-viaje/{reembolso}/rechazar', [ReembolsoViajeController::class, 'rechazar'])->name('admin.reembolsos-viaje.rechazar')->middleware('auth.admin');
 Route::post('/admin/reembolsos-viaje/{reembolso}/reembolsado', [ReembolsoViajeController::class, 'marcarReembolsado'])->name('admin.reembolsos-viaje.reembolsado')->middleware('auth.admin');
+
+// ── Portal de Empleados ──
+use App\Http\Controllers\PortalEmpleadoController;
+
+Route::get('/login-empleado', [PortalEmpleadoController::class, 'mostrarLogin'])->name('empleados.login');
+Route::post('/login-empleado', [PortalEmpleadoController::class, 'procesarLogin'])->name('empleados.login.procesar');
+Route::post('/logout-empleado', [PortalEmpleadoController::class, 'cerrarSesion'])->name('empleados.logout');
+Route::get('/empleado/portal', [PortalEmpleadoController::class, 'portal'])->name('empleados.portal')->middleware('auth.empleado');
