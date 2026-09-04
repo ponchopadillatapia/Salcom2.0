@@ -265,6 +265,10 @@ Route::get('/admin/expediente-fiscal/{documento}/descargar', [AdminPanelControll
 Route::get('/admin/documentos/excel', [AdminPanelController::class, 'documentosExcel'])->name('admin.documentos.excel')->middleware('auth.admin');
 Route::get('/admin/negocio', [AdminPanelController::class, 'negocio'])->name('admin.negocio')->middleware('auth.admin');
 Route::get('/admin/otif', [AdminPanelController::class, 'otif'])->name('admin.otif')->middleware('auth.admin');
+Route::get('/admin/wiese-banco', function () {
+    return redirect()->route('admin.wiese-banco', ['banco' => 'bbva']);
+})->middleware('auth.admin');
+Route::get('/admin/wiese-banco/{banco}', [AdminPanelController::class, 'wieseBanco'])->name('admin.wiese-banco')->middleware('auth.admin');
 Route::get('/admin/inventario', [AdminPanelController::class, 'inventario'])->name('admin.inventario')->middleware('auth.admin');
 
 // ── Áreas con control de rol ──

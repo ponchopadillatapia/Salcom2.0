@@ -1545,6 +1545,21 @@ class AdminPanelController extends Controller
         ));
     }
 
+    // ── WieseBanco ──
+
+    public function wieseBanco(string $banco)
+    {
+        $bancos = config('wiese_bancos');
+        if (! is_array($bancos) || ! isset($bancos[$banco])) {
+            abort(404);
+        }
+
+        return view('admin.wiese-banco', [
+            'bancoKey' => $banco,
+            'bancoNombre' => $bancos[$banco],
+        ]);
+    }
+
     // ── Inventario ──
 
     public function inventario(Request $request)

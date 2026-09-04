@@ -47,6 +47,7 @@ class AdminSmokeTest extends TestCase
             '/admin/documentos',
             '/admin/negocio',
             '/admin/otif',
+            '/admin/wiese-banco/bbva',
             '/admin/inventario',
             '/admin/fiscal',
             '/admin/gestion-compras',
