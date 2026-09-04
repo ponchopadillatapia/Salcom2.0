@@ -81,6 +81,12 @@
         <strong>Concepto:</strong> {{ $anticipo->concepto }}
     </div>
 
+    @if($anticipo->uuid_cfdi)
+    <div style="margin-top:10px;font-size:10px;color:#555">
+        <strong>Folio Fiscal (UUID) del CFDI de anticipo:</strong> {{ $anticipo->uuid_cfdi }}
+    </div>
+    @endif
+
     <table style="margin-top:20px">
         <tr class="total-row">
             <td colspan="7"></td>
