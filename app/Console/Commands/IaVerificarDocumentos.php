@@ -56,14 +56,22 @@ class IaVerificarDocumentos extends Command
 
                 // Ya venció
                 if ($diasRestantes < 0) {
-                    if (! $this->alertEngine->existeAlertaActiva('documento_vencido', 'admin', 1)) {
+                    // REPSE: avisar a TODOS los admins; el resto (F/M) al admin principal.
+                    $destinatariosAdmin = $esRepseDoc
+                        ? \App\Models\AdminUser::pluck('id')->all()
+                        : [1];
+
+                    foreach ($destinatariosAdmin as $adminId) {
+                        if ($this->alertEngine->existeAlertaActiva('documento_vencido', 'admin', $adminId)) {
+                            continue;
+                        }
                         $this->alertEngine->alertar([
                             'tipo' => 'documento_vencido',
                             'modulo' => 'fiscal',
                             'destinatario_tipo' => 'admin',
-                            'destinatario_id' => 1,
+                            'destinatario_id' => $adminId,
                             'titulo' => "Documento vencido: {$proveedor->nombre}",
-                            'contenido' => "El documento '{$this->tipoDocLabel($doc->tipo)}' del proveedor {$proveedor->nombre} venció hace ".abs($diasRestantes).' días.',
+                            'contenido' => "El documento '{$this->tipoDocLabel($doc->tipo)}' del proveedor {$proveedor->nombre} venció hace ".abs($diasRestantes).' días.'.($esRepseDoc ? ' (REPSE — vigencia bimestral)' : ''),
                             'datos' => [
                                 'proveedor_id' => $proveedor->id,
                                 'proveedor_nombre' => $proveedor->nombre,

@@ -2892,6 +2892,20 @@ class AdminPanelController extends Controller
             'contribuyente' => 'INE Contribuyente',
             'caratula_banco' => 'Carátula bancaria',
             'poder' => 'Poder notarial',
+            // REPSE
+            'repse_acuse_padron' => 'REPSE · Acuse del padrón',
+            'repse_registro' => 'REPSE · Registro',
+            'repse_isr_retenido' => 'REPSE · ISR retenido',
+            'repse_iva' => 'REPSE · IVA',
+            'repse_opinion_sat' => 'REPSE · Opinión SAT',
+            'repse_opinion_infonavit' => 'REPSE · Opinión INFONAVIT',
+            'repse_opinion_imss' => 'REPSE · Opinión IMSS',
+            'repse_pago_imss_infonavit' => 'REPSE · Pago IMSS/INFONAVIT',
+            'repse_cedula_imss' => 'REPSE · Cédula cuotas IMSS',
+            'repse_cedula_obrero_patronal' => 'REPSE · Cédula obrero patronales',
+            'repse_sipare' => 'REPSE · SIPARE',
+            'repse_sua' => 'REPSE · SUA',
+            'repse_cfdi_nomina' => 'REPSE · CFDI nóminas',
         ];
 
         $query = DocumentoProveedor::with('proveedor')->orderByDesc('created_at');
@@ -2977,6 +2991,20 @@ class AdminPanelController extends Controller
             'contribuyente' => 'ID Contribuyente',
             'caratula_banco' => 'Carátula de Banco',
             'poder' => 'Poder Notarial',
+            // REPSE (vigencia bimestral)
+            'repse_acuse_padron' => 'REPSE · Acuse del padrón',
+            'repse_registro' => 'REPSE · Registro vigente',
+            'repse_isr_retenido' => 'REPSE · Declaración ISR retenido',
+            'repse_iva' => 'REPSE · Declaración IVA',
+            'repse_opinion_sat' => 'REPSE · Opinión SAT',
+            'repse_opinion_infonavit' => 'REPSE · Opinión INFONAVIT',
+            'repse_opinion_imss' => 'REPSE · Opinión IMSS',
+            'repse_pago_imss_infonavit' => 'REPSE · Pago IMSS/INFONAVIT',
+            'repse_cedula_imss' => 'REPSE · Cédula cuotas IMSS',
+            'repse_cedula_obrero_patronal' => 'REPSE · Cédula obrero patronales',
+            'repse_sipare' => 'REPSE · SIPARE',
+            'repse_sua' => 'REPSE · SUA',
+            'repse_cfdi_nomina' => 'REPSE · CFDI nóminas',
         ];
 
         $docsQuery = $proveedor->documentos()->orderByDesc('created_at');

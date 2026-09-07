@@ -612,21 +612,24 @@ class EmpresaApiController extends Controller
                             }
                         }
 
-                        // Si el proveedor REPSE dijo que NO aparece en el padrón, avisar a Contabilidad.
+                        // Si el proveedor REPSE dijo que NO aparece en el padrón, avisar a Contabilidad (todos los admins).
                         if ($request->input('repse_en_padron') === 'no') {
                             try {
                                 $prov = ProveedorUser::find($proveedorId);
-                                \App\Models\Alerta::create([
-                                    'tipo' => 'repse_no_padron',
-                                    'modulo' => 'proveedores',
-                                    'destinatario_tipo' => 'admin',
-                                    'destinatario_id' => 1,
-                                    'titulo' => 'Proveedor REPSE no aparece en el padrón',
-                                    'contenido' => 'El proveedor '.($prov->nombre ?? $proveedorId).' declaró que NO aparece en el padrón REPSE (repse.stps.gob.mx). Requiere revisión manual de Contabilidad antes de aprobar.',
-                                    'nivel' => 'alta',
-                                    'estatus' => 'nueva',
-                                    'datos' => ['proveedor_id' => $proveedorId, 'rfc' => $prov->rfc ?? null],
-                                ]);
+                                $adminIds = \App\Models\AdminUser::pluck('id');
+                                foreach ($adminIds as $adminId) {
+                                    \App\Models\Alerta::create([
+                                        'tipo' => 'repse_no_padron',
+                                        'modulo' => 'proveedores',
+                                        'destinatario_tipo' => 'admin',
+                                        'destinatario_id' => $adminId,
+                                        'titulo' => 'Proveedor REPSE no aparece en el padrón',
+                                        'contenido' => 'El proveedor '.($prov->nombre ?? $proveedorId).' declaró que NO aparece en el padrón REPSE (repse.stps.gob.mx). Requiere revisión manual de Contabilidad antes de aprobar.',
+                                        'nivel' => 'alta',
+                                        'estatus' => 'nueva',
+                                        'datos' => ['proveedor_id' => $proveedorId, 'rfc' => $prov->rfc ?? null],
+                                    ]);
+                                }
                             } catch (\Throwable $e) {
                                 Log::warning('[REPSE] No se pudo crear alerta de padrón: '.$e->getMessage());
                             }
