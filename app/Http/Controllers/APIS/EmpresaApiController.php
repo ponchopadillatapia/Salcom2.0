@@ -102,28 +102,14 @@ class EmpresaApiController extends Controller
             }
 
             // ════════════════════════════════════════
-            // REPSE — rechazar documentos de bimestres vencidos (vigencia 2 meses)
+            // REPSE — extraer texto de cada documento subido (se valida más abajo,
+            // una vez resuelto el RFC del proveedor, con detalle por documento).
             // ════════════════════════════════════════
-            $repseVencidos = [];
+            $textosRepse = [];
             foreach ($tiposRepse as $tipoRepse) {
-                if ($tipoRepse === 'repse_acuse_padron' || $tipoRepse === 'repse_registro') {
-                    continue; // el registro/acuse REPSE tiene vigencia anual, no bimestral
-                }
                 if ($request->hasFile($tipoRepse.'_pdf')) {
-                    $textoRepse = $this->extraerTexto($parser, $request->file($tipoRepse.'_pdf')->getRealPath());
-                    $vencido = $this->documentoRepseVencido($textoRepse);
-                    if ($vencido === true) {
-                        $repseVencidos[] = $tipoRepse;
-                    }
+                    $textosRepse[$tipoRepse] = $this->extraerTexto($parser, $request->file($tipoRepse.'_pdf')->getRealPath());
                 }
-            }
-            if (! empty($repseVencidos)) {
-                return response()->json([
-                    'ok' => false,
-                    'estado' => 'rojo',
-                    'mensaje' => 'Uno o más documentos REPSE son de un bimestre vencido. La documentación REPSE debe ser del bimestre vigente (vigencia de 2 meses). Sube los documentos actualizados.',
-                    'repse_vencidos' => $repseVencidos,
-                ], 422);
             }
 
             $textos = [];
@@ -205,6 +191,41 @@ class EmpresaApiController extends Controller
                     if ($rfcProv) {
                         $rfcEsperado = strtoupper(trim($rfcProv));
                     }
+                }
+            }
+
+            // ════════════════════════════════════════
+            // REPSE — validación con detalle por documento (palabra clave del
+            // tipo, RFC del proveedor y vigencia bimestral/anual).
+            //
+            // RFC ancla: se toma del Registro REPSE si viene; si no, del formulario
+            // (o del CIF como último recurso). El RFC del Registro debe cuadrar con
+            // el del formulario — esa es la comparación crítica.
+            // ════════════════════════════════════════
+            $rfcFormulario = $rfcEsperado !== '' ? $rfcEsperado : ($cif['datos']['rfc'] ?? null);
+            $rfcFormularioNorm = $rfcFormulario ? strtoupper(trim($rfcFormulario)) : null;
+
+            // Extraer el RFC del Registro REPSE (documento ancla), si se subió.
+            $rfcRegistroRepse = null;
+            if (isset($textosRepse['repse_registro'])) {
+                $rfcRegistroRepse = $this->extraerRfcDeTexto($textosRepse['repse_registro']);
+            }
+
+            // RFC ancla para el resto de documentos REPSE.
+            $rfcAncla = $rfcRegistroRepse ?: $rfcFormularioNorm;
+
+            $repseResultados = [];
+            foreach ($textosRepse as $tipoRepse => $textoRepse) {
+                $repseResultados[$tipoRepse] = $this->validarRepse($textoRepse, $tipoRepse, $rfcAncla);
+            }
+
+            // Comparación crítica: RFC del Registro REPSE vs RFC del formulario.
+            if ($rfcRegistroRepse && $rfcFormularioNorm && isset($repseResultados['repse_registro'])) {
+                if ($rfcRegistroRepse === $rfcFormularioNorm) {
+                    $repseResultados['repse_registro']['hallazgos'][] = 'RFC del Registro REPSE coincide con el del formulario de datos bancarios';
+                } else {
+                    $repseResultados['repse_registro']['errores'][] = 'El RFC del Registro REPSE ('.$rfcRegistroRepse.') no coincide con el del formulario ('.$rfcFormularioNorm.')';
+                    $repseResultados['repse_registro']['valida'] = false;
                 }
             }
 
@@ -545,7 +566,16 @@ class EmpresaApiController extends Controller
             $poderOk = $poder ? $poder['valida'] : true;
             $bancoOk = $banco['valida'];
 
-            $todoOk = $cifOk && $opOk && $actaOk && $repOk && $contOk && $poderOk && $bancoOk;
+            // REPSE — todos los documentos subidos deben ser válidos.
+            $repseOk = true;
+            foreach ($repseResultados as $resRepse) {
+                if (empty($resRepse['valida'])) {
+                    $repseOk = false;
+                    break;
+                }
+            }
+
+            $todoOk = $cifOk && $opOk && $actaOk && $repOk && $contOk && $poderOk && $bancoOk && $repseOk;
 
             if ($todoOk) {
                 $estado = 'verde';
@@ -593,19 +623,25 @@ class EmpresaApiController extends Controller
                             }
                         }
 
-                        // Documentos REPSE: se guardan como PENDIENTES (revisión manual del admin), sin auto-validación.
+                        // Documentos REPSE: se guardan con el resultado de la validación
+                        // automática (palabra clave, RFC y vigencia). Al llegar aquí todos
+                        // son válidos (forman parte del semáforo), pero se conserva el detalle.
                         foreach ($tiposRepse as $tipoRepse) {
                             if ($request->hasFile($tipoRepse.'_pdf')) {
                                 $rutaRepse = $request->file($tipoRepse.'_pdf')->store("expediente_fiscal/{$tipoRepse}", 'public');
                                 if ($rutaRepse) {
+                                    $resRepse = $repseResultados[$tipoRepse] ?? null;
+                                    $repseValido = is_array($resRepse) ? ! empty($resRepse['valida']) : false;
                                     DocumentoProveedor::updateOrCreate(
                                         ['proveedor_id' => $proveedorId, 'tipo' => $tipoRepse],
                                         [
                                             'archivo' => $rutaRepse,
-                                            'estatus' => 'pendiente',
-                                            'notas_revision' => 'Documento REPSE — pendiente de revisión manual',
-                                            'resultado_validacion' => null,
-                                            'revisado_at' => null,
+                                            'estatus' => $repseValido ? 'aprobado' : 'pendiente',
+                                            'notas_revision' => $repseValido
+                                                ? 'Validación automática REPSE aprobada'
+                                                : 'Documento REPSE — pendiente de revisión manual',
+                                            'resultado_validacion' => is_array($resRepse) ? $resRepse : null,
+                                            'revisado_at' => $repseValido ? now() : null,
                                         ]
                                     );
                                 }
@@ -737,6 +773,9 @@ class EmpresaApiController extends Controller
             if ($poder) {
                 $response['poder'] = $poder;
             }
+            if (! empty($repseResultados)) {
+                $response['repse'] = $repseResultados;
+            }
 
             // ════════════════════════════════════════
             // VALIDACIÓN CRUZADA CON IA (Compliance)
@@ -856,6 +895,241 @@ class EmpresaApiController extends Controller
         // Vigencia bimestral con tolerancia: se acepta el bimestre actual y el inmediato anterior.
         // Si el documento tiene más de 2 meses de antigüedad, se considera vencido.
         return $mesesAtras > 2;
+    }
+
+    /**
+     * Extrae el primer RFC (formato válido) de un texto. Devuelve el RFC en
+     * mayúsculas o null si no se encuentra. Usado para el RFC ancla del Registro REPSE.
+     */
+    private function extraerRfcDeTexto(string $texto): ?string
+    {
+        if (strlen(trim($texto)) < 10) {
+            return null;
+        }
+        $textoNorm = str_replace(
+            ['Á', 'É', 'Í', 'Ó', 'Ú', 'á', 'é', 'í', 'ó', 'ú', 'Ñ', 'ñ'],
+            ['A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u', 'N', 'n'],
+            $texto
+        );
+        $textoUpper = strtoupper($textoNorm);
+        if (preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/u', $textoUpper, $m)) {
+            return $m[1];
+        }
+        if (preg_match('/\b([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})\b/u', $textoUpper, $m)) {
+            return $m[1];
+        }
+
+        return null;
+    }
+
+    /**
+     * Configuración de validación por tipo de documento REPSE.
+     * Para cada tipo devuelve: etiqueta, palabras clave que deben aparecer
+     * (al menos una), si su vigencia es bimestral o anual, y si debe traer
+     * el RFC del proveedor (exige_rfc). Los documentos donde el RFC visible
+     * es de un tercero (banco, IMSS por registro patronal) NO exigen RFC.
+     *
+     * @return array<string, array{etiqueta: string, claves: array<int, string>, bimestral: bool, exige_rfc: bool}>
+     */
+    private function configRepse(): array
+    {
+        return [
+            'repse_registro' => [
+                'etiqueta' => 'Registro REPSE',
+                'claves' => ['REPSE', 'PADRON PUBLICO', 'REGISTRO DE PRESTADORAS', 'SERVICIOS ESPECIALIZADOS', 'SECRETARIA DEL TRABAJO', 'STPS'],
+                'bimestral' => false, // vigencia anual
+                'exige_rfc' => true,  // documento ancla: debe traer el RFC del proveedor
+            ],
+            'repse_isr_retenido' => [
+                'etiqueta' => 'Declaración de ISR retenido',
+                'claves' => ['ISR', 'IMPUESTO SOBRE LA RENTA', 'RETENCION', 'RETENIDO', 'DECLARACION'],
+                'bimestral' => true,
+                'exige_rfc' => true,
+            ],
+            'repse_iva' => [
+                'etiqueta' => 'Declaración de IVA',
+                'claves' => ['IVA', 'IMPUESTO AL VALOR AGREGADO', 'VALOR AGREGADO', 'DECLARACION'],
+                'bimestral' => true,
+                'exige_rfc' => true,
+            ],
+            'repse_opinion_sat' => [
+                'etiqueta' => 'Opinión de cumplimiento SAT',
+                'claves' => ['OPINION DE CUMPLIMIENTO', 'CUMPLIMIENTO DE OBLIGACIONES', '32-D', 'SAT', 'SERVICIO DE ADMINISTRACION TRIBUTARIA'],
+                'bimestral' => true,
+                'exige_rfc' => true,
+            ],
+            'repse_opinion_infonavit' => [
+                'etiqueta' => 'Opinión de cumplimiento INFONAVIT',
+                'claves' => ['INFONAVIT', 'INSTITUTO DEL FONDO NACIONAL DE LA VIVIENDA', 'CONSTANCIA DE SITUACION FISCAL EN MATERIA', 'CUMPLIMIENTO'],
+                'bimestral' => true,
+                'exige_rfc' => true,
+            ],
+            'repse_opinion_imss' => [
+                'etiqueta' => 'Opinión de cumplimiento IMSS',
+                'claves' => ['IMSS', 'INSTITUTO MEXICANO DEL SEGURO SOCIAL', 'OPINION DE CUMPLIMIENTO', 'SEGURO SOCIAL'],
+                'bimestral' => true,
+                'exige_rfc' => true,
+            ],
+            'repse_pago_imss_infonavit' => [
+                'etiqueta' => 'Pago bancario IMSS e INFONAVIT',
+                'claves' => ['IMSS', 'INFONAVIT', 'PAGO', 'COMPROBANTE', 'RECIBO BANCARIO', 'LINEA DE CAPTURA'],
+                'bimestral' => true,
+                'exige_rfc' => false, // el RFC visible es el del banco (tercero)
+            ],
+            'repse_cedula_imss' => [
+                'etiqueta' => 'Cédula de determinación de cuotas IMSS',
+                'claves' => ['CEDULA DE DETERMINACION', 'CUOTAS', 'IMSS', 'EMISION', 'DETERMINACION'],
+                'bimestral' => true,
+                'exige_rfc' => false, // el IMSS identifica al patrón por Registro Patronal, no por RFC
+            ],
+            'repse_cedula_obrero_patronal' => [
+                'etiqueta' => 'Cédula de cuotas obrero patronales',
+                'claves' => ['OBRERO PATRONAL', 'CUOTAS OBRERO', 'CEDULA', 'DETERMINACION', 'IMSS'],
+                'bimestral' => true,
+                'exige_rfc' => false, // registro patronal, no RFC
+            ],
+            'repse_sipare' => [
+                'etiqueta' => 'SIPARE',
+                'claves' => ['SIPARE', 'SISTEMA DE PAGO REFERENCIADO', 'LINEA DE CAPTURA', 'IMSS'],
+                'bimestral' => true,
+                'exige_rfc' => false, // línea de captura: el RFC visible es de la institución
+            ],
+            'repse_sua' => [
+                'etiqueta' => 'SUA',
+                'claves' => ['SUA', 'SISTEMA UNICO DE AUTODETERMINACION', 'AUTODETERMINACION', 'IMSS'],
+                'bimestral' => true,
+                'exige_rfc' => false, // registro patronal, no RFC
+            ],
+            'repse_cfdi_nomina' => [
+                'etiqueta' => 'CFDI de nóminas',
+                'claves' => ['CFDI', 'NOMINA', 'COMPROBANTE FISCAL', 'RECIBO DE NOMINA', 'PERCEPCIONES'],
+                'bimestral' => true,
+                'exige_rfc' => true, // el emisor de la nómina es el proveedor
+            ],
+            'repse_acuse_padron' => [
+                'etiqueta' => 'Acuse del padrón REPSE',
+                'claves' => ['REPSE', 'ACUSE', 'PADRON', 'ACEPTACION DEL REGISTRO', 'STPS', 'SECRETARIA DEL TRABAJO'],
+                'bimestral' => false, // vigencia anual
+                'exige_rfc' => true,
+            ],
+        ];
+    }
+
+    /**
+     * Valida un documento REPSE: palabra clave del tipo correcto, RFC del
+     * proveedor y vigencia (bimestral para la mayoría, anual para registro/acuse).
+     * Devuelve la misma estructura que validarCIF/validarOpinion.
+     *
+     * @return array{valida: bool, datos: array<string, mixed>, errores: array<int, string>, hallazgos: array<int, string>}
+     */
+    private function validarRepse(string $texto, string $tipoRepse, ?string $rfcEsperado): array
+    {
+        $config = $this->configRepse();
+        $cfg = $config[$tipoRepse] ?? [
+            'etiqueta' => 'Documento REPSE',
+            'claves' => ['REPSE'],
+            'bimestral' => true,
+            'exige_rfc' => true,
+        ];
+        $exigeRfc = $cfg['exige_rfc'] ?? true;
+
+        $datos = [
+            'tipo' => $tipoRepse,
+            'etiqueta' => $cfg['etiqueta'],
+            'rfc_encontrado' => null,
+            'caracteres_leidos' => strlen($texto),
+        ];
+        $errores = [];
+        $hallazgos = [];
+
+        // PDF escaneado / ilegible → no se puede validar automáticamente.
+        if (strlen(trim($texto)) < 20) {
+            $errores[] = 'No se pudo leer el contenido del PDF — puede ser imagen escaneada. Revisar manualmente.';
+
+            return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+        }
+
+        // Normalizar (quitar acentos, mayúsculas) para detección tolerante a OCR.
+        $textoNorm = str_replace(
+            ['Á', 'É', 'Í', 'Ó', 'Ú', 'á', 'é', 'í', 'ó', 'ú', 'Ñ', 'ñ'],
+            ['A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u', 'N', 'n'],
+            $texto
+        );
+        $textoUpper = strtoupper($textoNorm);
+
+        // 1) Palabra clave del tipo correcto.
+        $claveEncontrada = null;
+        foreach ($cfg['claves'] as $clave) {
+            if (str_contains($textoUpper, $clave)) {
+                $claveEncontrada = $clave;
+                break;
+            }
+        }
+        if ($claveEncontrada !== null) {
+            $hallazgos[] = 'Documento identificado como '.$cfg['etiqueta'];
+        } else {
+            $errores[] = 'No se identificó como '.$cfg['etiqueta'].' — revisar que sea el documento correcto';
+        }
+
+        // 2) RFC.
+        //    - Documentos que exigen RFC del proveedor (Registro, ISR, IVA, Opinión
+        //      SAT/INFONAVIT/IMSS, CFDI, Acuse): comparación estricta, RFC distinto = error.
+        //    - Documentos donde el RFC visible es de un tercero (pago bancario, SIPARE,
+        //      cédulas/SUA del IMSS por registro patronal): NO se exige, solo se informa.
+        $rfcEncontrado = null;
+        if (preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/u', $textoUpper, $m)) {
+            $rfcEncontrado = $m[1];
+        } elseif (preg_match('/\b([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})\b/u', $textoUpper, $m)) {
+            $rfcEncontrado = $m[1];
+        }
+
+        $rfcEsperadoNorm = $rfcEsperado ? strtoupper(trim($rfcEsperado)) : null;
+
+        if ($rfcEncontrado) {
+            $datos['rfc_encontrado'] = $rfcEncontrado;
+            if ($exigeRfc) {
+                if ($rfcEsperadoNorm && $rfcEsperadoNorm !== '') {
+                    if ($rfcEncontrado === $rfcEsperadoNorm) {
+                        $hallazgos[] = 'RFC coincide con el del proveedor: '.$rfcEncontrado;
+                    } else {
+                        $errores[] = 'El RFC del documento ('.$rfcEncontrado.') no coincide con el del proveedor ('.$rfcEsperadoNorm.')';
+                    }
+                } else {
+                    $hallazgos[] = 'RFC encontrado: '.$rfcEncontrado;
+                }
+            } else {
+                // RFC de tercero (banco / IMSS): solo informar, no bloquear.
+                $hallazgos[] = 'RFC en el documento: '.$rfcEncontrado.' (de la institución — no se valida contra el proveedor)';
+            }
+        } else {
+            if ($exigeRfc) {
+                // No bloquea por sí solo (OCR imperfecto), pero se advierte.
+                $hallazgos[] = 'RFC del proveedor — no detectado por OCR (verificar manualmente)';
+            } else {
+                $hallazgos[] = 'RFC — no aplica para este documento (se identifica por registro patronal / institución)';
+            }
+        }
+
+        // 3) Vigencia.
+        if ($cfg['bimestral']) {
+            $vencido = $this->documentoRepseVencido($texto);
+            if ($vencido === true) {
+                $errores[] = 'Documento de un bimestre vencido — la vigencia REPSE es de 2 meses';
+            } elseif ($vencido === false) {
+                $hallazgos[] = 'Vigencia correcta — corresponde al bimestre en curso';
+            } else {
+                $hallazgos[] = 'Periodo — no detectado por OCR (verificar vigencia manualmente)';
+            }
+        } else {
+            $hallazgos[] = 'Vigencia anual — verificar fecha de aceptación del registro';
+        }
+
+        return [
+            'valida' => empty($errores),
+            'datos' => $datos,
+            'errores' => $errores,
+            'hallazgos' => $hallazgos,
+        ];
     }
 
     private function validarCIF(string $texto): array
@@ -1094,13 +1368,24 @@ class EmpresaApiController extends Controller
             $datos['sentido'] = 'POSITIVA';
             $hallazgos[] = 'Opinión: POSITIVA ✓';
 
-            // Verificar mes en curso
-            $mesActual = strtoupper($this->mesEnEspanol((int) date('n')));
-            $anioActual = date('Y');
-            if (str_contains($textoUpper, $mesActual) && str_contains($textoUpper, $anioActual)) {
-                $hallazgos[] = 'Corresponde al mes en curso: '.$mesActual.' '.$anioActual;
-            } else {
-                $errores[] = 'No corresponde al mes en curso ('.$mesActual.' '.$anioActual.')';
+            // Verificar vigencia — se acepta el mes en curso o los 2 meses anteriores
+            // (ventana ampliada para permitir opiniones recientes, ej. julio/agosto en septiembre).
+            $mesesVigentes = [];
+            for ($i = 0; $i <= 2; $i++) {
+                $ref = now()->copy()->subMonthsNoOverflow($i);
+                $mesesVigentes[] = strtoupper($this->mesEnEspanol((int) $ref->format('n'))).' '.$ref->format('Y');
+            }
+            $mesCoincide = false;
+            foreach ($mesesVigentes as $mv) {
+                [$nombreMes, $anioMv] = explode(' ', $mv);
+                if (str_contains($textoUpper, $nombreMes) && str_contains($textoUpper, $anioMv)) {
+                    $mesCoincide = true;
+                    $hallazgos[] = 'Vigencia dentro del periodo aceptado ('.$mv.')';
+                    break;
+                }
+            }
+            if (! $mesCoincide) {
+                $errores[] = 'La opinión no corresponde a un periodo vigente (se aceptan '.implode(', ', $mesesVigentes).')';
             }
 
             $hallazgos[] = 'Sin observaciones pendientes';
@@ -1545,6 +1830,69 @@ class EmpresaApiController extends Controller
         return ['valida' => empty($errores), 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
     }
 
+    /**
+     * Extrae el nombre de una INE priorizando la zona de lectura mecánica (MRZ)
+     * del reverso, que es la fuente más confiable y no depende del OCR del frente.
+     *
+     * Formato MRZ (tercera línea): APELLIDO1<APELLIDO2<<NOMBRE<SEGUNDO<...
+     * Ej: "TELLEZ<GONZALEZ<<CARLOS<ISAAC<" → "TELLEZ GONZALEZ CARLOS ISAAC".
+     *
+     * @return array{nombre: ?string, apellido_paterno: ?string, apellido_materno: ?string, nombres: ?string}
+     */
+    private function extraerNombreIne(string $textoUpper): array
+    {
+        $vacio = ['nombre' => null, 'apellido_paterno' => null, 'apellido_materno' => null, 'nombres' => null];
+
+        // La MRZ usa '<' como separador. El OCR a veces lo lee como '<', 'K' o espacios,
+        // pero buscamos el patrón claro APELLIDOS<<NOMBRES (doble separador).
+        if (preg_match('/([A-Z]+(?:<[A-Z]+)*)<<([A-Z]+(?:<[A-Z]+)*)</u', $textoUpper, $m)) {
+            $apellidos = array_values(array_filter(explode('<', $m[1]), fn ($p) => strlen($p) >= 2));
+            $nombres = array_values(array_filter(explode('<', $m[2]), fn ($p) => strlen($p) >= 2));
+
+            if (! empty($apellidos) && ! empty($nombres)) {
+                $ap1 = $apellidos[0] ?? null;
+                $ap2 = $apellidos[1] ?? null;
+                $noms = implode(' ', $nombres);
+                $completo = trim(implode(' ', array_filter([$ap1, $ap2, $noms])));
+
+                return [
+                    'nombre' => $completo !== '' ? $completo : null,
+                    'apellido_paterno' => $ap1,
+                    'apellido_materno' => $ap2,
+                    'nombres' => $noms !== '' ? $noms : null,
+                ];
+            }
+        }
+
+        // Fallback: bloque etiquetado del frente "NOMBRE\n APELLIDO1\n APELLIDO2\n NOMBRES".
+        // En la INE el orden es APELLIDO PATERNO, APELLIDO MATERNO y luego NOMBRE(S).
+        if (preg_match('/NOMBRE\s*[:\n\r]+\s*([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,})\s+([A-ZÁÉÍÓÚÑ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ]{2,})?)/u', $textoUpper, $m)) {
+            $reservadas = ['DOMICILIO', 'CLAVE', 'ELECTOR', 'CURP', 'FECHA', 'SEXO', 'SECCION', 'VIGENCIA', 'ESTADO', 'MUNICIPIO', 'LOCALIDAD', 'REGISTRO', 'CREDENCIAL'];
+            $ap1 = $m[1];
+            $ap2 = $m[2];
+            $noms = $m[3];
+            // Cortar los nombres si aparece una etiqueta reservada.
+            foreach ($reservadas as $r) {
+                $pos = strpos($noms, $r);
+                if ($pos !== false) {
+                    $noms = trim(substr($noms, 0, $pos));
+                }
+            }
+            if (! in_array($ap1, $reservadas, true) && ! in_array($ap2, $reservadas, true) && strlen($noms) >= 2) {
+                $completo = trim($ap1.' '.$ap2.' '.$noms);
+
+                return [
+                    'nombre' => $completo,
+                    'apellido_paterno' => $ap1,
+                    'apellido_materno' => $ap2,
+                    'nombres' => $noms,
+                ];
+            }
+        }
+
+        return $vacio;
+    }
+
     private function validarINE(string $texto, string $etiqueta): array
     {
         $datos = [
@@ -1603,14 +1951,23 @@ class EmpresaApiController extends Controller
         // Nombre completo — buscar apellidos y nombre por separado
         $nombreCompleto = '';
 
-        // Método 1: Buscar por etiquetas separadas
-        if (preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ]{2,})/u', $texto, $apP)) {
+        // Método 0 (prioritario): MRZ del reverso o bloque etiquetado del frente.
+        $ineNombre = $this->extraerNombreIne($texto);
+        if (! empty($ineNombre['nombre'])) {
+            $datos['apellido_paterno'] = $ineNombre['apellido_paterno'];
+            $datos['apellido_materno'] = $ineNombre['apellido_materno'];
+            $datos['nombres'] = $ineNombre['nombres'];
+            $nombreCompleto = $ineNombre['nombre'];
+        }
+
+        // Método 1: Buscar por etiquetas separadas (solo si el Método 0 no obtuvo nombre)
+        if (! $nombreCompleto && preg_match('/APELLIDO\s*PATERNO[:\s]*([A-ZÁÉÍÓÚÑ]{2,})/u', $texto, $apP)) {
             $datos['apellido_paterno'] = trim($apP[1]);
         }
-        if (preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ]{2,})/u', $texto, $apM)) {
+        if (! $nombreCompleto && preg_match('/APELLIDO\s*MATERNO[:\s]*([A-ZÁÉÍÓÚÑ]{2,})/u', $texto, $apM)) {
             $datos['apellido_materno'] = trim($apM[1]);
         }
-        if (preg_match('/NOMBRE\s*(?:\(S\))?[:\s]*([A-ZÁÉÍÓÚÑ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ]{2,})?)/u', $texto, $nms)) {
+        if (! $nombreCompleto && preg_match('/NOMBRE\s*(?:\(S\))?[:\s]*([A-ZÁÉÍÓÚÑ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ]{2,})?)/u', $texto, $nms)) {
             $candidato = trim($nms[1]);
             // Filtrar valores que NO son nombres
             $noEsNombre = ['SEXO', 'DOMICILIO', 'CLAVE', 'SECCION', 'VIGENCIA', 'ESTADO', 'MUNICIPIO', 'FECHA', 'NACIMIENTO', 'CURP', 'INE', 'IFE', 'ELECTOR', 'CREDENCIAL', 'INSTITUTO', 'NACIONAL', 'ELECTORAL'];
@@ -2156,7 +2513,13 @@ class EmpresaApiController extends Controller
             'CLAVE', 'OBLIGACIONES', 'ESTATUS', 'PADRON', 'ACTIVO',
             'INICIO DE OPERACIONES', 'ULTIMO CAMBIO',
             'FECHA DE ULTIMO CAMBIO DE ESTADO',
+            // Palabras sueltas que el OCR deja pegadas al nombre.
+            'FECHA', 'INICIO', 'OPERACIONES', 'EJERCICIO', 'ENTIDAD',
+            'MUNICIPIO', 'COLONIA', 'CALLE', 'NACIMIENTO',
         ];
+
+        // Stop-words: si aparecen dentro del bloque de nombres, se corta ahí.
+        $stopWords = ['FECHA', 'INICIO', 'OPERACIONES', 'EJERCICIO', 'ESTATUS', 'PADRON', 'ACTIVO', 'DOMICILIO', 'REGIMEN', 'OBLIGACIONES', 'CURP', 'RFC', 'CLAVE', 'CODIGO', 'ULTIMO', 'CAMBIO'];
 
         $ap1 = '';
         $ap2 = '';
@@ -2226,6 +2589,11 @@ class EmpresaApiController extends Controller
         }
 
         // ── Post-procesamiento ──
+        // Cortar el bloque de nombres en la primera stop-word (basura del OCR).
+        $nombres = $this->cortarEnStopWord($nombres, $stopWords);
+        $ap1 = $this->cortarEnStopWord($ap1, $stopWords);
+        $ap2 = $this->cortarEnStopWord($ap2, $stopWords);
+
         // Limpiar cada parte de etiquetas residuales
         $ap1 = $this->limpiarCampoNombre($ap1, $etiquetasSat);
         $ap2 = $this->limpiarCampoNombre($ap2, $etiquetasSat);
@@ -2252,6 +2620,26 @@ class EmpresaApiController extends Controller
         $nombreFinal = trim($nombreFinal);
 
         return strlen($nombreFinal) > 3 ? $nombreFinal : null;
+    }
+
+    /**
+     * Corta una cadena en la primera palabra "stop" que aparezca como token.
+     * Ej: "CARLOS ISAAC FECHA INICIO" con stop=FECHA → "CARLOS ISAAC".
+     *
+     * @param  array<int, string>  $stopWords
+     */
+    private function cortarEnStopWord(string $valor, array $stopWords): string
+    {
+        $tokens = preg_split('/\s+/', trim($valor)) ?: [];
+        $resultado = [];
+        foreach ($tokens as $tk) {
+            if (in_array($tk, $stopWords, true)) {
+                break;
+            }
+            $resultado[] = $tk;
+        }
+
+        return implode(' ', $resultado);
     }
 
     /**
@@ -2285,11 +2673,13 @@ class EmpresaApiController extends Controller
      */
     private function separarPalabrasPegadas(string $texto): string
     {
-        if (strlen($texto) <= 10 || str_contains($texto, ' ')) {
+        // Si ya trae espacio, respetar la separación existente.
+        if (str_contains($texto, ' ')) {
             return $texto;
         }
 
-        // Lista de nombres comunes para intentar separar
+        // Lista de nombres comunes para intentar separar (ordenada por longitud
+        // descendente para que prefijos largos ganen a los cortos, ej. MARIA antes que MAR).
         $nombresComunes = [
             'CARLOS', 'MARIA', 'JOSE', 'JUAN', 'LUIS', 'MIGUEL', 'ANGEL',
             'ISAAC', 'DANIEL', 'DAVID', 'PEDRO', 'PABLO', 'EDUARDO',
@@ -2299,13 +2689,33 @@ class EmpresaApiController extends Controller
             'MARTIN', 'OSCAR', 'RAFAEL', 'RAMON', 'RAUL', 'RICARDO',
             'ROBERTO', 'SERGIO', 'VICTOR', 'ANA', 'LAURA', 'SANDRA',
             'PATRICIA', 'GUADALUPE', 'ELIZABETH', 'ADRIANA', 'ROSA',
+            'PEDRO', 'ISABEL', 'TERESA', 'LUCIA', 'PILAR',
         ];
+        usort($nombresComunes, fn ($a, $b) => strlen($b) <=> strlen($a));
 
+        // Si el texto completo YA es un nombre conocido, no separar.
+        if (in_array($texto, $nombresComunes, true)) {
+            return $texto;
+        }
+
+        // Intentar: prefijo = nombre conocido y el resto también es separable/conocido.
         foreach ($nombresComunes as $nombre) {
-            if (str_starts_with($texto, $nombre) && strlen($texto) > strlen($nombre)) {
+            if ($texto !== $nombre && str_starts_with($texto, $nombre)) {
                 $resto = substr($texto, strlen($nombre));
-                if (strlen($resto) >= 2) {
-                    return $nombre.' '.$this->separarPalabrasPegadas($resto);
+                if (strlen($resto) >= 3) {
+                    $restoSeparado = $this->separarPalabrasPegadas($resto);
+                    // Aceptar solo si el resto se resolvió a nombre(s) conocido(s).
+                    $tokensResto = explode(' ', $restoSeparado);
+                    $todosConocidos = true;
+                    foreach ($tokensResto as $tk) {
+                        if (! in_array($tk, $nombresComunes, true)) {
+                            $todosConocidos = false;
+                            break;
+                        }
+                    }
+                    if ($todosConocidos) {
+                        return $nombre.' '.$restoSeparado;
+                    }
                 }
             }
         }

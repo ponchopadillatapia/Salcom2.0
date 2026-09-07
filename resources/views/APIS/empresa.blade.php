@@ -1081,16 +1081,6 @@ function enviar() {
         icon.style.display = 'inline';
         texto.textContent  = Object.keys(archivosValidos).length ? 'Revalidar documentos' : 'Validar Documentos';
 
-        // REPSE: si hay documentos de bimestre vencido, mostrar CUÁLES y por qué.
-        if (Array.isArray(data.repse_vencidos) && data.repse_vencidos.length) {
-            mostrarErrorDetallado(
-                data.mensaje || 'Documentos REPSE de bimestre vencido.',
-                data.repse_vencidos.map(function(t) {
-                    return (nombresDocs[t] || t) + ' — el periodo del documento tiene más de 2 meses (vencido).';
-                })
-            );
-            return;
-        }
         if (data.mensaje) { mostrarError(data.mensaje); return; }
         if (!data.cif && !data.estado) { mostrarError('Respuesta inesperada del servidor. Intenta de nuevo.'); return; }
         renderResultado(data);
@@ -1123,6 +1113,22 @@ function renderResultado(data) {
     if (data.contribuyente) secciones.push({ titulo: 'ID Contribuyente', doc: data.contribuyente });
     if (data.poder) secciones.push({ titulo: 'Poder Notarial', doc: data.poder });
     secciones.push({ titulo: 'Carátula de Banco', doc: data.caratula_banco });
+
+    // Documentos REPSE — una tarjeta de detalle por cada documento validado.
+    if (data.repse) {
+        const ordenRepse = [
+            'repse_registro','repse_isr_retenido','repse_iva','repse_opinion_sat',
+            'repse_opinion_infonavit','repse_opinion_imss','repse_pago_imss_infonavit',
+            'repse_cedula_imss','repse_cedula_obrero_patronal','repse_sipare','repse_sua',
+            'repse_cfdi_nomina','repse_acuse_padron',
+        ];
+        ordenRepse.forEach(function(tipo) {
+            const doc = data.repse[tipo];
+            if (!doc) return;
+            const etiqueta = (doc.datos && doc.datos.etiqueta) ? doc.datos.etiqueta : (nombresDocs[tipo] || tipo);
+            secciones.push({ titulo: 'REPSE · ' + etiqueta, doc: doc });
+        });
+    }
 
     const docsConError = secciones.filter(s => s.doc && !s.doc.valida).map(s => s.titulo);
     const todoOk = estado === 'verde';
