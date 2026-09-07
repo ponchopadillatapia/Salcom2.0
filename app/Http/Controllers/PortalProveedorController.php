@@ -1124,8 +1124,20 @@ class PortalProveedorController extends Controller
             session()->forget('identificacion_proveedor');
         }
 
-        $identificacion = session('identificacion_proveedor')
-            ?? ($proveedor !== null ? ($proveedor->datos_identificacion ?? []) : []);
+        // La sesión solo se reutiliza si corresponde al MISMO proveedor logueado.
+        // Evita que se precarguen datos de otro proveedor de una prueba/sesión anterior.
+        $sesionIdent = session('identificacion_proveedor');
+        $sesionProvId = session('identificacion_proveedor_pid');
+        if (is_array($sesionIdent) && $proveedor && (int) $sesionProvId !== (int) $proveedor->id) {
+            $sesionIdent = null;
+            session()->forget('identificacion_proveedor');
+            session()->forget('identificacion_proveedor_pid');
+        }
+
+        // Base: datos del proveedor actual (BD); la sesión solo si es del mismo proveedor.
+        $identificacion = (is_array($sesionIdent) && ! empty($sesionIdent))
+            ? $sesionIdent
+            : ($proveedor !== null ? ($proveedor->datos_identificacion ?? []) : []);
         if (! is_array($identificacion)) {
             $identificacion = $proveedor !== null
                 ? ($proveedor->datos_identificacion ?? [])
@@ -1139,6 +1151,9 @@ class PortalProveedorController extends Controller
 
         if ($identificacion && ! session('identificacion_proveedor')) {
             session(['identificacion_proveedor' => $identificacion]);
+            if ($proveedor) {
+                session(['identificacion_proveedor_pid' => $proveedor->id]);
+            }
         }
 
         $tieneDocsAprobados = false;
@@ -1348,6 +1363,9 @@ class PortalProveedorController extends Controller
         }
 
         session(['identificacion_proveedor' => $payload]);
+        if ($proveedor) {
+            session(['identificacion_proveedor_pid' => $proveedor->id]);
+        }
 
         // Guardar / actualizar solicitud de alta (una por proveedor)
         try {
@@ -1475,11 +1493,19 @@ class PortalProveedorController extends Controller
                 ->with('error', 'Tu expediente está en revisión o ya fue aprobado. No puedes volver a subir documentos hasta un rechazo de Dirección.');
         }
 
+        // Descartar sesión si es de otro proveedor (evita mezclar datos entre cuentas).
+        if ($proveedor && (int) session('identificacion_proveedor_pid') !== (int) $proveedor->id) {
+            session()->forget('identificacion_proveedor');
+            session()->forget('identificacion_proveedor_pid');
+        }
         $identificacion = session('identificacion_proveedor');
         if (! $identificacion) {
             $identificacion = $proveedor?->datos_identificacion;
             if ($identificacion) {
                 session(['identificacion_proveedor' => $identificacion]);
+                if ($proveedor) {
+                    session(['identificacion_proveedor_pid' => $proveedor->id]);
+                }
             }
         }
 

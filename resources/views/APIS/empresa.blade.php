@@ -1081,6 +1081,16 @@ function enviar() {
         icon.style.display = 'inline';
         texto.textContent  = Object.keys(archivosValidos).length ? 'Revalidar documentos' : 'Validar Documentos';
 
+        // REPSE: si hay documentos de bimestre vencido, mostrar CUÁLES y por qué.
+        if (Array.isArray(data.repse_vencidos) && data.repse_vencidos.length) {
+            mostrarErrorDetallado(
+                data.mensaje || 'Documentos REPSE de bimestre vencido.',
+                data.repse_vencidos.map(function(t) {
+                    return (nombresDocs[t] || t) + ' — el periodo del documento tiene más de 2 meses (vencido).';
+                })
+            );
+            return;
+        }
         if (data.mensaje) { mostrarError(data.mensaje); return; }
         if (!data.cif && !data.estado) { mostrarError('Respuesta inesperada del servidor. Intenta de nuevo.'); return; }
         renderResultado(data);
@@ -1202,6 +1212,27 @@ function mostrarError(msg) {
                 <span class="semaforo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
                 <span class="resultado-empresa">${msg}</span>
             </div>
+            <button type="button" class="btn-reintentar" onclick="document.getElementById('resultado').innerHTML=''; document.getElementById('formulario_docs').scrollIntoView({behavior:'smooth',block:'start'});">
+                <i class="bi bi-arrow-clockwise"></i> Reintentar
+            </button>
+        </div>`;
+}
+
+// Error con lista detallada de documentos que fallaron (cuáles y por qué).
+function mostrarErrorDetallado(titulo, lineas) {
+    var items = (lineas || []).map(function(l) {
+        return `<li style="margin:4px 0;color:#991b1b;font-size:0.85rem;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" style="vertical-align:middle;margin-right:4px"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            ${l}</li>`;
+    }).join('');
+    document.getElementById('resultado').innerHTML = `
+        <div class="resultado-card rojo">
+            <div class="resultado-header">
+                <span class="semaforo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></span>
+                <span class="resultado-empresa">${titulo}</span>
+            </div>
+            <ul style="margin:10px 0 0;padding-left:6px;list-style:none;">${items}</ul>
+            <p style="margin:10px 0 0;font-size:0.8rem;color:#7c2d12;">Corrige solo los documentos marcados y vuelve a validar.</p>
             <button type="button" class="btn-reintentar" onclick="document.getElementById('resultado').innerHTML=''; document.getElementById('formulario_docs').scrollIntoView({behavior:'smooth',block:'start'});">
                 <i class="bi bi-arrow-clockwise"></i> Reintentar
             </button>
