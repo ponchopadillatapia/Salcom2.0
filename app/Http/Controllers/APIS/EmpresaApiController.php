@@ -865,28 +865,53 @@ class EmpresaApiController extends Controller
             'noviembre' => 11, 'nov' => 11, 'diciembre' => 12, 'dic' => 12,
         ];
 
-        $anio = null;
-        $mes = null;
+        // Un documento puede traer varias fechas (folios, cláusulas legales con años
+        // viejos, etc.). En vez de quedarnos con la PRIMERA, recolectamos TODAS las
+        // fechas mes+año y usamos la MÁS RECIENTE, que es la que refleja la vigencia
+        // real del documento (fecha de emisión / periodo declarado).
+        $fechas = []; // lista de [anio, mes]
 
-        // Formato "MM-AAAA" o "AAAAMM" (periodo IMSS/SUA), ej "07-2026" o "202607".
-        if (preg_match('/\b(0[1-9]|1[0-2])[\-\/](20\d{2})\b/', $texto, $m)) {
-            $mes = (int) $m[1]; $anio = (int) $m[2];
-        } elseif (preg_match('/\b(20\d{2})(0[1-9]|1[0-2])\b/', $texto, $m)) {
-            $anio = (int) $m[1]; $mes = (int) $m[2];
-        } else {
-            // Formato con nombre de mes: "julio-2026", "de agosto de 2026", "junio ejercicio: 2026".
-            // Permite hasta ~15 caracteres entre el mes y el año (ej. "ejercicio:").
-            foreach ($meses as $nombre => $num) {
-                if (preg_match('/'.$nombre.'\b[\s\-\/a-z:]{0,15}(20\d{2})/u', $t, $m)) {
-                    $mes = $num; $anio = (int) $m[1];
-                    break;
+        // 1) Formato explícito "DD de MES de AAAA" (fecha de emisión, ej. "04 de Agosto de 2026").
+        if (preg_match_all('/\b\d{1,2}\s+de\s+([a-zñ]+)\s+de\s+(20\d{2})/u', $t, $ms, PREG_SET_ORDER)) {
+            foreach ($ms as $m) {
+                if (isset($meses[$m[1]])) {
+                    $fechas[] = [(int) $m[2], $meses[$m[1]]];
                 }
             }
         }
 
-        if ($anio === null || $mes === null) {
+        // 2) Formato "MM-AAAA" o "MM/AAAA" (periodo IMSS/SUA), ej "07-2026".
+        if (preg_match_all('/\b(0[1-9]|1[0-2])[\-\/](20\d{2})\b/', $texto, $ms, PREG_SET_ORDER)) {
+            foreach ($ms as $m) {
+                $fechas[] = [(int) $m[2], (int) $m[1]];
+            }
+        }
+
+        // 3) Formato "AAAAMM", ej "202607".
+        if (preg_match_all('/\b(20\d{2})(0[1-9]|1[0-2])\b/', $texto, $ms, PREG_SET_ORDER)) {
+            foreach ($ms as $m) {
+                $fechas[] = [(int) $m[1], (int) $m[2]];
+            }
+        }
+
+        // 4) Nombre de mes seguido de año: "julio-2026", "de agosto de 2026", "junio ejercicio: 2026".
+        foreach ($meses as $nombre => $num) {
+            if (preg_match_all('/'.$nombre.'\b[\s\-\/a-z:]{0,15}(20\d{2})/u', $t, $ms, PREG_SET_ORDER)) {
+                foreach ($ms as $m) {
+                    $fechas[] = [(int) $m[1], $num];
+                }
+            }
+        }
+
+        if (empty($fechas)) {
             return null; // no se pudo determinar el periodo → no bloquear
         }
+
+        // Quedarnos con la fecha MÁS RECIENTE (mayor año, luego mayor mes).
+        usort($fechas, function ($a, $b) {
+            return $a[0] !== $b[0] ? $b[0] <=> $a[0] : $b[1] <=> $a[1];
+        });
+        [$anio, $mes] = $fechas[0];
 
         // Antigüedad en meses respecto a hoy.
         $fechaDoc = \Carbon\Carbon::create($anio, $mes, 1);
