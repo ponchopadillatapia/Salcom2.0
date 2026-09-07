@@ -1363,8 +1363,8 @@ class PortalProveedorController extends Controller
         }
 
         session(['identificacion_proveedor' => $payload]);
-        if ($proveedor) {
-            session(['identificacion_proveedor_pid' => $proveedor->id]);
+        if ($proveedorPre) {
+            session(['identificacion_proveedor_pid' => $proveedorPre->id]);
         }
 
         // Guardar / actualizar solicitud de alta (una por proveedor)
