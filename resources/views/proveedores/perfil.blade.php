@@ -147,6 +147,19 @@
         </div>
     @endif
 
+    {{-- Banners REPSE (vigencia bimestral de 2 meses) --}}
+    @if($proveedor && method_exists($proveedor, 'documentosRepseVencidos') && $proveedor->documentosRepseVencidos())
+        <div class="alert" style="background:#fef2f2;border:1px solid #fecaca;color:#991b1b;margin-bottom:14px;">
+            Tus documentos <strong>REPSE están vencidos</strong> (vigencia bimestral de 2 meses). Debes actualizarlos en
+            <a href="{{ route('proveedores.validacion-fiscal') }}" style="color:inherit;font-weight:700;text-decoration:underline;">validación de documentos</a>.
+        </div>
+    @elseif($proveedor && method_exists($proveedor, 'documentosRepsePorRenovar') && $proveedor->documentosRepsePorRenovar())
+        <div class="alert" style="background:#fffbeb;border:1px solid #fcd34d;color:#92400e;margin-bottom:14px;">
+            Tus documentos <strong>REPSE están por vencer</strong> (vigencia bimestral). Renuévalos antes de que caduquen en
+            <a href="{{ route('proveedores.validacion-fiscal') }}" style="color:inherit;font-weight:700;text-decoration:underline;">validación de documentos</a>.
+        </div>
+    @endif
+
     <div class="perfil-grid">
         <div class="perfil-card">
             <h3>

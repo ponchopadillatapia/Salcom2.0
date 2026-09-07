@@ -47,9 +47,11 @@ class IaVerificarDocumentos extends Command
             $docsPorVencer = [];
 
             foreach ($documentos as $doc) {
-                // Ciclo de vigencia: 21 días desde última aprobación/revisión (o carga).
+                // Ciclo de vigencia: REPSE = 60 días (bimestral); resto = 21 días.
+                $esRepseDoc = str_starts_with((string) $doc->tipo, 'repse_');
+                $vigenciaDias = $esRepseDoc ? 60 : 21;
                 $base = $doc->revisado_at ?? $doc->updated_at ?? $doc->created_at;
-                $fechaVencimiento = $base->copy()->addDays(21);
+                $fechaVencimiento = $base->copy()->addDays($vigenciaDias);
                 $diasRestantes = $hoy->diffInDays($fechaVencimiento, false);
 
                 // Ya venció
@@ -114,8 +116,8 @@ class IaVerificarDocumentos extends Command
                         $alertasGeneradas += 2;
                     }
                 }
-                // Vence en 7 días (primera alerta)
-                elseif ($diasRestantes <= $diasAlerta && $diasRestantes > $diasUrgente) {
+                // Primera alerta: REPSE avisa a 15 días; el resto a 7 días.
+                elseif ($diasRestantes <= ($esRepseDoc ? 15 : $diasAlerta) && $diasRestantes > $diasUrgente) {
                     $docsPorVencer[] = $doc;
 
                     if (! $this->alertEngine->existeAlertaActiva('documento_por_vencer', 'proveedor', $proveedor->id)) {
@@ -179,6 +181,20 @@ class IaVerificarDocumentos extends Command
             'rep_legal' => 'INE Representante legal',
             'contribuyente' => 'Cédula de contribuyente',
             'caratula_banco' => 'Carátula bancaria',
+            // REPSE (vigencia bimestral)
+            'repse_registro' => 'Registro REPSE',
+            'repse_isr_retenido' => 'Declaración ISR retenido (REPSE)',
+            'repse_iva' => 'Declaración IVA (REPSE)',
+            'repse_opinion_sat' => 'Opinión SAT (REPSE)',
+            'repse_opinion_infonavit' => 'Opinión INFONAVIT (REPSE)',
+            'repse_opinion_imss' => 'Opinión IMSS (REPSE)',
+            'repse_pago_imss_infonavit' => 'Pago IMSS/INFONAVIT (REPSE)',
+            'repse_cedula_imss' => 'Cédula cuotas IMSS (REPSE)',
+            'repse_cedula_obrero_patronal' => 'Cédula obrero patronales (REPSE)',
+            'repse_sipare' => 'SIPARE (REPSE)',
+            'repse_sua' => 'SUA (REPSE)',
+            'repse_cfdi_nomina' => 'CFDI de nóminas (REPSE)',
+            'repse_acuse_padron' => 'Acuse del padrón REPSE',
             default => ucfirst(str_replace('_', ' ', $tipo)),
         };
     }

@@ -298,6 +298,106 @@ class ProveedorUser extends Authenticatable
         ];
     }
 
+    /** Vigencia bimestral de los documentos REPSE (en días). */
+    public const VIGENCIA_REPSE_DIAS = 60;
+
+    /** Días antes del vencimiento REPSE para empezar a avisar. */
+    public const AVISO_REPSE_DIAS = 15;
+
+    /** ¿El proveedor es REPSE? (columna o dentro de datos_identificacion). */
+    public function esRepse(): bool
+    {
+        if (! empty($this->es_repse)) {
+            return true;
+        }
+        $di = is_array($this->datos_identificacion) ? $this->datos_identificacion : [];
+
+        return ! empty($di['es_repse']);
+    }
+
+    /** Los 12 documentos REPSE requeridos (tipo => label). */
+    public function documentosRepseRequeridos(): array
+    {
+        return [
+            'repse_registro' => 'Registro REPSE vigente',
+            'repse_isr_retenido' => 'Declaración ISR retenido + pago',
+            'repse_iva' => 'Declaración IVA + acuse',
+            'repse_opinion_sat' => 'Opinión de cumplimiento SAT',
+            'repse_opinion_infonavit' => 'Opinión de cumplimiento INFONAVIT',
+            'repse_opinion_imss' => 'Opinión de cumplimiento IMSS',
+            'repse_pago_imss_infonavit' => 'Pago IMSS e INFONAVIT',
+            'repse_cedula_imss' => 'Cédula determinación cuotas IMSS',
+            'repse_cedula_obrero_patronal' => 'Cédula cuotas obrero patronales',
+            'repse_sipare' => 'SIPARE',
+            'repse_sua' => 'SUA',
+            'repse_cfdi_nomina' => 'CFDI de nóminas',
+        ];
+    }
+
+    /** ¿Están completos y aprobados los 12 documentos REPSE? */
+    public function documentosRepseCompletos(): bool
+    {
+        if (! $this->esRepse()) {
+            return false;
+        }
+        $docs = $this->relationLoaded('documentos') ? $this->documentos : $this->documentos()->get();
+
+        foreach (array_keys($this->documentosRepseRequeridos()) as $tipo) {
+            $doc = $docs->firstWhere('tipo', $tipo);
+            if (! $doc instanceof DocumentoProveedor || $doc->estatus !== 'aprobado') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /** Docs REPSE en la ventana de aviso (a AVISO_REPSE_DIAS del vencimiento bimestral). */
+    public function documentosRepsePorRenovar(): bool
+    {
+        if (! $this->documentosRepseCompletos()) {
+            return false;
+        }
+        $docs = $this->relationLoaded('documentos') ? $this->documentos : $this->documentos()->get();
+        $limiteAviso = self::VIGENCIA_REPSE_DIAS - self::AVISO_REPSE_DIAS; // ej. 60 - 15 = 45
+
+        foreach (array_keys($this->documentosRepseRequeridos()) as $tipo) {
+            $doc = $docs->firstWhere('tipo', $tipo);
+            if (! $doc instanceof DocumentoProveedor || $doc->estatus !== 'aprobado') {
+                continue;
+            }
+            $desde = $doc->revisado_at ?? $doc->updated_at ?? $doc->created_at;
+            $dias = $desde ? now()->diffInDays($desde) : 0;
+            if ($dias >= $limiteAviso && $dias < self::VIGENCIA_REPSE_DIAS) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /** Docs REPSE vencidos (>= 60 días desde su aprobación). */
+    public function documentosRepseVencidos(): bool
+    {
+        if (! $this->documentosRepseCompletos()) {
+            return false;
+        }
+        $docs = $this->relationLoaded('documentos') ? $this->documentos : $this->documentos()->get();
+
+        foreach (array_keys($this->documentosRepseRequeridos()) as $tipo) {
+            $doc = $docs->firstWhere('tipo', $tipo);
+            if (! $doc instanceof DocumentoProveedor || $doc->estatus !== 'aprobado') {
+                continue;
+            }
+            $desde = $doc->revisado_at ?? $doc->updated_at ?? $doc->created_at;
+            if ($desde && now()->diffInDays($desde) >= self::VIGENCIA_REPSE_DIAS) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function tieneFormularioDatosBancarios(): bool
     {
         // Solo con datos bancarios reales en el formulario (no contar SolicitudAlta rechazada).

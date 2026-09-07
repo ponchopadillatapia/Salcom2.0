@@ -101,6 +101,31 @@ class EmpresaApiController extends Controller
                 $archivos['poder'] = $request->file('poder_pdf')->store('poder', 'local');
             }
 
+            // ════════════════════════════════════════
+            // REPSE — rechazar documentos de bimestres vencidos (vigencia 2 meses)
+            // ════════════════════════════════════════
+            $repseVencidos = [];
+            foreach ($tiposRepse as $tipoRepse) {
+                if ($tipoRepse === 'repse_acuse_padron' || $tipoRepse === 'repse_registro') {
+                    continue; // el registro/acuse REPSE tiene vigencia anual, no bimestral
+                }
+                if ($request->hasFile($tipoRepse.'_pdf')) {
+                    $textoRepse = $this->extraerTexto($parser, $request->file($tipoRepse.'_pdf')->getRealPath());
+                    $vencido = $this->documentoRepseVencido($textoRepse);
+                    if ($vencido === true) {
+                        $repseVencidos[] = $tipoRepse;
+                    }
+                }
+            }
+            if (! empty($repseVencidos)) {
+                return response()->json([
+                    'ok' => false,
+                    'estado' => 'rojo',
+                    'mensaje' => 'Uno o más documentos REPSE son de un bimestre vencido. La documentación REPSE debe ser del bimestre vigente (vigencia de 2 meses). Sube los documentos actualizados.',
+                    'repse_vencidos' => $repseVencidos,
+                ], 422);
+            }
+
             $textos = [];
             foreach ($archivos as $clave => $ruta) {
                 $textos[$clave] = $this->extraerTexto($parser, storage_path('app/private/'.$ruta));
@@ -778,6 +803,57 @@ class EmpresaApiController extends Controller
     // ──────────────────────────────────────────────────
     // VALIDADORES POR DOCUMENTO
     // ──────────────────────────────────────────────────
+
+    /**
+     * Determina si un documento REPSE es de un periodo vencido (más de 2 meses atrás).
+     * Devuelve true (vencido), false (vigente) o null (no se pudo leer la fecha → no bloquea).
+     * Lee periodos tipo "Julio-2026", "07-2026", "04 de agosto de 2026", "202607", "07-Ago-2026".
+     */
+    private function documentoRepseVencido(string $texto): ?bool
+    {
+        if (trim($texto) === '') {
+            return null; // escaneado / ilegible → no bloquear, queda para revisión manual
+        }
+        $t = mb_strtolower($texto);
+
+        $meses = [
+            'enero' => 1, 'ene' => 1, 'febrero' => 2, 'feb' => 2, 'marzo' => 3, 'mar' => 3,
+            'abril' => 4, 'abr' => 4, 'mayo' => 5, 'junio' => 6, 'jun' => 6, 'julio' => 7, 'jul' => 7,
+            'agosto' => 8, 'ago' => 8, 'septiembre' => 9, 'sep' => 9, 'octubre' => 10, 'oct' => 10,
+            'noviembre' => 11, 'nov' => 11, 'diciembre' => 12, 'dic' => 12,
+        ];
+
+        $anio = null;
+        $mes = null;
+
+        // Formato "MM-AAAA" o "AAAAMM" (periodo IMSS/SUA), ej "07-2026" o "202607".
+        if (preg_match('/\b(0[1-9]|1[0-2])[\-\/](20\d{2})\b/', $texto, $m)) {
+            $mes = (int) $m[1]; $anio = (int) $m[2];
+        } elseif (preg_match('/\b(20\d{2})(0[1-9]|1[0-2])\b/', $texto, $m)) {
+            $anio = (int) $m[1]; $mes = (int) $m[2];
+        } else {
+            // Formato con nombre de mes: "julio-2026", "de agosto de 2026", "junio ejercicio: 2026".
+            // Permite hasta ~15 caracteres entre el mes y el año (ej. "ejercicio:").
+            foreach ($meses as $nombre => $num) {
+                if (preg_match('/'.$nombre.'\b[\s\-\/a-z:]{0,15}(20\d{2})/u', $t, $m)) {
+                    $mes = $num; $anio = (int) $m[1];
+                    break;
+                }
+            }
+        }
+
+        if ($anio === null || $mes === null) {
+            return null; // no se pudo determinar el periodo → no bloquear
+        }
+
+        // Antigüedad en meses respecto a hoy.
+        $fechaDoc = \Carbon\Carbon::create($anio, $mes, 1);
+        $mesesAtras = $fechaDoc->diffInMonths(now()->startOfMonth(), false);
+
+        // Vigencia bimestral con tolerancia: se acepta el bimestre actual y el inmediato anterior.
+        // Si el documento tiene más de 2 meses de antigüedad, se considera vencido.
+        return $mesesAtras > 2;
+    }
 
     private function validarCIF(string $texto): array
     {
