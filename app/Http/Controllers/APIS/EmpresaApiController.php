@@ -894,7 +894,15 @@ class EmpresaApiController extends Controller
 
         // Vigencia bimestral con tolerancia: se acepta el bimestre actual y el inmediato anterior.
         // Si el documento tiene más de 2 meses de antigüedad, se considera vencido.
-        return $mesesAtras > 2;
+        //
+        // ⚠️ TEMPORAL — VENTANA DE PRUEBAS (quitar después del 2026-09-28):
+        // Durante el periodo de pruebas se amplía la tolerancia a 4 meses para
+        // que documentos de junio/julio/agosto 2026 pasen como vigentes.
+        // Al llegar la fecha de corte, vuelve automáticamente al comportamiento normal (>2).
+        $finVentanaPruebas = \Carbon\Carbon::create(2026, 9, 28, 23, 59, 59);
+        $toleranciaMeses = now()->lte($finVentanaPruebas) ? 4 : 2;
+
+        return $mesesAtras > $toleranciaMeses;
     }
 
     /**
