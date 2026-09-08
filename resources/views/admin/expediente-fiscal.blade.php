@@ -82,7 +82,7 @@
     </div>
 
     @forelse($proveedoresConDocs as $item)
-        @php $p = $item['proveedor']; $tienePend = $item['pendientes'] > 0; @endphp
+        @php $p = $item['proveedor']; $tienePend = ($item['pendientes_no_vistos'] ?? 0) > 0; @endphp
         <a class="exp-row {{ $tienePend ? 'tiene-pend' : '' }}" href="{{ route('admin.expediente-fiscal.ver', $p) }}?{{ http_build_query(request()->only(['busqueda','persona','tipo','mes','estatus'])) }}">
             <div>
                 <p class="exp-nombre">@if($tienePend)<span class="exp-dot" title="Documentos pendientes de revisión manual"></span>@endif{{ $p->nombre ?? $p->usuario }}</p>

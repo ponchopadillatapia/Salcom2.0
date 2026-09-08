@@ -3028,6 +3028,12 @@ class AdminPanelController extends Controller
             $aprobados = $docs->where('estatus', 'aprobado')->count();
             $pendientes = $docs->where('estatus', 'pendiente')->count();
             $rechazados = $docs->where('estatus', 'rechazado')->count();
+            // Pendientes que aún NO se han visto (para el punto rojo estilo WhatsApp).
+            $pendientesNoVistos = $docs->where('estatus', 'pendiente')->filter(function ($d) {
+                $rv = is_array($d->resultado_validacion) ? $d->resultado_validacion : [];
+
+                return empty($rv['revision_vista']);
+            })->count();
 
             return [
                 'proveedor' => $prov,
@@ -3035,21 +3041,22 @@ class AdminPanelController extends Controller
                 'total' => $docs->count(),
                 'aprobados' => $aprobados,
                 'pendientes' => $pendientes,
+                'pendientes_no_vistos' => $pendientesNoVistos,
                 'rechazados' => $rechazados,
                 'ultimo_at' => $ultimo?->created_at,
                 'meses' => $docs->map(fn ($d) => $d->created_at?->format('Y-m'))->filter()->unique()->count(),
             ];
         })->filter()
-            // Primero los que tienen documentos pendientes de revisión; dentro de cada
+            // Primero los que tienen documentos pendientes NO vistos; dentro de cada
             // grupo, los más recientes arriba.
             ->sortByDesc(fn ($item) => [
-                $item['pendientes'] > 0 ? 1 : 0,
+                $item['pendientes_no_vistos'] > 0 ? 1 : 0,
                 optional($item['ultimo_at'])->timestamp ?? 0,
             ])
             ->values();
 
-        // Total de documentos pendientes de revisión manual (para el punto rojo del sidebar).
-        $totalPendientesRevision = $proveedoresConDocs->sum('pendientes');
+        // Total de documentos pendientes NO vistos (para el punto rojo del sidebar).
+        $totalPendientesRevision = $proveedoresConDocs->sum('pendientes_no_vistos');
 
         return view('admin.expediente-fiscal', compact('proveedoresConDocs', 'tipos', 'mesesDisponibles', 'totalPendientesRevision'));
     }
@@ -3094,6 +3101,28 @@ class AdminPanelController extends Controller
         }
 
         $docs = $docsQuery->get();
+
+        // "Visto" estilo WhatsApp: al abrir el expediente del proveedor, sus documentos
+        // pendientes de revisión manual se marcan como vistos (flag en resultado_validacion).
+        // Esto quita el punto rojo del sidebar/fila SIN cambiar el estatus (sigue 'pendiente').
+        try {
+            $pendientesNoVistos = $proveedor->documentos()
+                ->where('estatus', 'pendiente')
+                ->get()
+                ->filter(function ($d) {
+                    $rv = is_array($d->resultado_validacion) ? $d->resultado_validacion : [];
+
+                    return empty($rv['revision_vista']);
+                });
+            foreach ($pendientesNoVistos as $docPend) {
+                $rv = is_array($docPend->resultado_validacion) ? $docPend->resultado_validacion : [];
+                $rv['revision_vista'] = true;
+                $docPend->resultado_validacion = $rv;
+                $docPend->save();
+            }
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo marcar documentos como vistos: '.$e->getMessage());
+        }
 
         // Dentro del proveedor: expedientes agrupados mes por mes (más reciente primero)
         /** @var Collection<int, DocumentoProveedor> $docs */

@@ -573,7 +573,13 @@
                     $sbSolicitudesPend = \App\Models\SolicitudAlta::where('estatus', 'pendiente')->count();
                 } catch (\Throwable $e) { $sbSolicitudesPend = 0; }
                 try {
-                    $sbDocsRevision = \App\Models\DocumentoProveedor::where('estatus', 'pendiente')->count();
+                    // Solo pendientes que aún NO han sido vistos (estilo WhatsApp).
+                    $sbDocsRevision = \App\Models\DocumentoProveedor::where('estatus', 'pendiente')
+                        ->where(function ($q) {
+                            $q->whereNull('resultado_validacion')
+                                ->orWhere('resultado_validacion', 'not like', '%"revision_vista":true%');
+                        })
+                        ->count();
                 } catch (\Throwable $e) { $sbDocsRevision = 0; }
             @endphp
             <a href="{{ route('admin.proveedores') }}" class="sb-link {{ request()->is('admin/proveedores') || request()->is('admin/proveedores/*') ? 'active' : '' }}">
