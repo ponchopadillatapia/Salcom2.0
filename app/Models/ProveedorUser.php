@@ -279,7 +279,7 @@ class ProveedorUser extends Authenticatable
         $esMoral = str_contains(strtolower((string) $this->tipo_persona), 'moral');
 
         if ($esMoral) {
-            return [
+            $docs = [
                 'cif' => 'CIF',
                 'opinion' => 'Opinión SAT',
                 'acta' => 'Acta constitutiva',
@@ -287,15 +287,24 @@ class ProveedorUser extends Authenticatable
                 'contribuyente' => 'INE Contribuyente',
                 'caratula_banco' => 'Carátula bancaria',
             ];
+        } else {
+            // Persona Física
+            $docs = [
+                'cif' => 'CIF',
+                'opinion' => 'Opinión SAT',
+                'contribuyente' => 'INE Contribuyente',
+                'caratula_banco' => 'Carátula bancaria',
+            ];
         }
 
-        // Persona Física
-        return [
-            'cif' => 'CIF',
-            'opinion' => 'Opinión SAT',
-            'contribuyente' => 'INE Contribuyente',
-            'caratula_banco' => 'Carátula bancaria',
-        ];
+        // El "Formato de Identificación del Proveedor" (FCONT-0010) solo se exige a
+        // proveedores en proceso de alta (aún NO activos). Los proveedores ya activos
+        // quedan exentos para no bloquear sus pagos con un requisito retroactivo.
+        if (! $this->activo) {
+            $docs['formato_identificacion'] = 'Formato de Identificación del Proveedor';
+        }
+
+        return $docs;
     }
 
     /** Vigencia bimestral de los documentos REPSE (en días). */

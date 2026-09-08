@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Recordatorio ventana REPSE temporal",
+      "trigger": "SessionStart",
+      "description": "Avisa si ya expiró (o está por expirar) la ventana temporal de 4 meses de vigencia REPSE, para recordar quitar el bloque temporal en documentoRepseVencido().",
+      "action": {
+        "type": "command",
+        "command": "powershell -NoProfile -Command \"$fin = Get-Date '2026-09-28 23:59:59'; $hoy = Get-Date; if ($hoy -gt $fin) { Write-Output 'RECORDATORIO REPSE: La ventana temporal de 4 meses YA EXPIRO (28-sep-2026). El sistema ya volvio solo a la regla de 2 meses, pero conviene BORRAR el bloque temporal en app/Http/Controllers/APIS/EmpresaApiController.php -> documentoRepseVencido() (buscar finVentanaPruebas) para dejar limpio el codigo.'; exit 0 } else { $dias = [math]::Ceiling(($fin - $hoy).TotalDays); Write-Output ('Aviso REPSE: la ventana temporal de vigencia de 4 meses (acepta docs de junio) sigue ACTIVA. Expira en ' + $dias + ' dia(s), el 28-sep-2026, y se desactiva sola.') }\""
+      }
+    }
+  ]
+}

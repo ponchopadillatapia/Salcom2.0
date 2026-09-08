@@ -47,11 +47,20 @@ class EmpresaApiController extends Controller
 
             $tipoPersona = $request->input('tipo_persona', 'moral'); // moral | fisica
 
+            // ¿El proveedor ya está activo? Los activos quedan exentos del Formato de
+            // Identificación (requisito nuevo, no retroactivo). Para ellos es opcional.
+            $provActualReglas = $provId ? ProveedorUser::find($provId) : null;
+            $proveedorYaActivo = $provActualReglas && $provActualReglas->activo;
+            $reglaFormato = $proveedorYaActivo
+                ? 'nullable|mimes:pdf|max:20480'
+                : 'required|mimes:pdf|max:20480';
+
             // Reglas de validación dinámicas (hasta 20MB por PDF)
             $rules = [
                 'cif_pdf' => 'required|mimes:pdf|max:20480',
                 'opinion_pdf' => 'required|mimes:pdf|max:20480',
                 'caratula_banco_pdf' => 'required|mimes:pdf|max:20480',
+                'formato_identificacion_pdf' => $reglaFormato,
                 'rep_legal_pdf' => 'nullable|mimes:pdf,jpg,jpeg,png|max:20480',
                 'contribuyente_pdf' => 'nullable|mimes:pdf,jpg,jpeg,png|max:20480',
                 'poder_pdf' => 'nullable|mimes:pdf|max:20480',
@@ -89,6 +98,11 @@ class EmpresaApiController extends Controller
                 'opinion' => $request->file('opinion_pdf')->store('opiniones', 'local'),
                 'caratula_banco' => $request->file('caratula_banco_pdf')->store('caratula_banco', 'local'),
             ];
+
+            // Formato de Identificación: obligatorio para altas nuevas, opcional para activos.
+            if ($request->hasFile('formato_identificacion_pdf')) {
+                $archivos['formato_identificacion'] = $request->file('formato_identificacion_pdf')->store('formato_identificacion', 'local');
+            }
 
             // Acta: solo si se subió
             if ($request->hasFile('acta_pdf')) {
@@ -221,6 +235,17 @@ class EmpresaApiController extends Controller
             $repseResultados = [];
             foreach ($textosRepse as $tipoRepse => $textoRepse) {
                 $repseResultados[$tipoRepse] = $this->validarRepse($textoRepse, $tipoRepse, $rfcAncla);
+            }
+
+            // ════════════════════════════════════════
+            // FORMATO DE IDENTIFICACIÓN DEL PROVEEDOR (FCONT-0010)
+            // Obligatorio para Persona Moral y Física. Lo que da fe es la
+            // firma electrónica; sin ella se marca para revisión manual.
+            // ════════════════════════════════════════
+            $formatoId = null;
+            if (isset($textos['formato_identificacion'])) {
+                $nombreParaFormato = $nombreEsperado !== '' ? $nombreEsperado : ($cif['datos']['nombre'] ?? null);
+                $formatoId = $this->validarFormatoIdentificacion($textos['formato_identificacion'], $rfcFormularioNorm, $nombreParaFormato);
             }
 
             // Comparación crítica: RFC del Registro REPSE vs RFC del formulario.
@@ -598,6 +623,7 @@ class EmpresaApiController extends Controller
             $contOk = $contribuyente ? $contribuyente['valida'] : true;
             $poderOk = $poder ? $poder['valida'] : true;
             $bancoOk = $banco['valida'];
+            $formatoOk = $formatoId ? $formatoId['valida'] : true;
 
             // REPSE — todos los documentos subidos deben ser válidos.
             $repseOk = true;
@@ -608,7 +634,7 @@ class EmpresaApiController extends Controller
                 }
             }
 
-            $todoOk = $cifOk && $opOk && $actaOk && $repOk && $contOk && $poderOk && $bancoOk && $repseOk;
+            $todoOk = $cifOk && $opOk && $actaOk && $repOk && $contOk && $poderOk && $bancoOk && $repseOk && $formatoOk;
 
             if ($todoOk) {
                 $estado = 'verde';
@@ -635,8 +661,9 @@ class EmpresaApiController extends Controller
                             'contribuyente' => $contribuyente,
                             'poder' => $poder,
                             'caratula_banco' => $banco,
+                            'formato_identificacion' => $formatoId,
                         ];
-                        $tiposGuardar = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'poder', 'caratula_banco'];
+                        $tiposGuardar = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'poder', 'caratula_banco', 'formato_identificacion'];
                         foreach ($tiposGuardar as $tipo) {
                             if ($request->hasFile($tipo.'_pdf')) {
                                 $rutaPublica = $request->file($tipo.'_pdf')->store("expediente_fiscal/{$tipo}", 'public');
@@ -805,6 +832,9 @@ class EmpresaApiController extends Controller
             }
             if ($poder) {
                 $response['poder'] = $poder;
+            }
+            if ($formatoId) {
+                $response['formato_identificacion'] = $formatoId;
             }
             if (! empty($repseResultados)) {
                 $response['repse'] = $repseResultados;
@@ -1897,6 +1927,107 @@ class EmpresaApiController extends Controller
     }
 
     /**
+     * Valida el "Formato de Identificación del Proveedor" (FCONT-0010), el documento
+     * interno de Salcom. Reglas:
+     *   1. Debe ser el formato correcto (título/código Salcom).
+     *   2. RFC del documento debe coincidir con el del proveedor (si viene).
+     *   3. FIRMA: lo que da fe es la FIRMA ELECTRÓNICA (certificado criptográfico
+     *      de la última página). Si el documento la trae → aprobado. Si NO la trae
+     *      (solo firma manuscrita) → NO se aprueba solo: se marca para revisión
+     *      manual de Contabilidad. La firma dibujada a mano no se juzga por software.
+     *
+     * @return array{valida: bool, datos: array<string, mixed>, errores: array<int, string>, hallazgos: array<int, string>}
+     */
+    private function validarFormatoIdentificacion(string $texto, ?string $rfcEsperado = null, ?string $nombreEsperado = null): array
+    {
+        $datos = [
+            'firma_electronica' => false,
+            'rfc_encontrado' => null,
+            'caracteres_leidos' => strlen($texto),
+        ];
+        $errores = [];
+        $hallazgos = [];
+
+        // PDF escaneado / ilegible.
+        if (strlen(trim($texto)) < 20) {
+            $errores[] = 'No se pudo leer el contenido del PDF — puede ser imagen escaneada. Sube un PDF con texto seleccionable.';
+
+            return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+        }
+
+        // Normalizar (quitar acentos, mayúsculas).
+        $textoNorm = str_replace(
+            ['Á', 'É', 'Í', 'Ó', 'Ú', 'á', 'é', 'í', 'ó', 'ú', 'Ñ', 'ñ'],
+            ['A', 'E', 'I', 'O', 'U', 'a', 'e', 'i', 'o', 'u', 'N', 'n'],
+            $texto
+        );
+        $textoUpper = strtoupper($textoNorm);
+
+        // 1) ¿Es el Formato de Identificación del Proveedor de Salcom?
+        if (str_contains($textoUpper, 'FORMATO DE IDENTIFICACION DEL PROVEEDOR')
+            || str_contains($textoUpper, 'IDENTIFICACION DEL PROVEEDOR')
+            || str_contains($textoUpper, 'FCONT-0010')
+            || str_contains($textoUpper, 'FCONT 0010')
+            || (str_contains($textoUpper, 'INDUSTRIAS SALCOM') && str_contains($textoUpper, 'PROVEEDOR'))) {
+            $hallazgos[] = 'Documento identificado como Formato de Identificación del Proveedor (Salcom)';
+        } else {
+            $errores[] = 'No se identificó como el Formato de Identificación del Proveedor de Salcom (FCONT-0010)';
+        }
+
+        // 2) RFC del documento vs proveedor.
+        $rfcEncontrado = null;
+        if (preg_match('/RFC[:\s]*([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})/u', $textoUpper, $m)) {
+            $rfcEncontrado = $m[1];
+        } elseif (preg_match('/\b([A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3})\b/u', $textoUpper, $m)) {
+            $rfcEncontrado = $m[1];
+        }
+        $rfcEsperadoNorm = $rfcEsperado ? strtoupper(trim($rfcEsperado)) : null;
+        if ($rfcEncontrado) {
+            $datos['rfc_encontrado'] = $rfcEncontrado;
+            if ($rfcEsperadoNorm && $rfcEsperadoNorm !== '') {
+                if ($rfcEncontrado === $rfcEsperadoNorm) {
+                    $hallazgos[] = 'RFC coincide con el del proveedor: '.$rfcEncontrado;
+                } else {
+                    $errores[] = 'El RFC del formato ('.$rfcEncontrado.') no coincide con el del proveedor ('.$rfcEsperadoNorm.')';
+                }
+            } else {
+                $hallazgos[] = 'RFC encontrado: '.$rfcEncontrado;
+            }
+        } else {
+            $hallazgos[] = 'RFC — no detectado por OCR (verificar manualmente)';
+        }
+
+        // 3) FIRMA ELECTRÓNICA — el punto clave.
+        //    Busca el certificado criptográfico de la última página.
+        $tieneFirmaElectronica = str_contains($textoUpper, 'FIRMA ELECTRONICA FIABLE')
+            || str_contains($textoUpper, 'EVIDENCIA CRIPTOGRAFICA')
+            || str_contains($textoUpper, 'CERTIFICADO DE MENSAJE DE DATOS')
+            || str_contains($textoUpper, 'VINCULACION DE FIRMA ELECTRONICA')
+            || (str_contains($textoUpper, 'FIRMADO Y COMPLETO') && str_contains($textoUpper, 'HASH'))
+            || (str_contains($textoUpper, 'FIRMA ELECTRONICA') && str_contains($textoUpper, 'HASH'));
+
+        $datos['firma_electronica'] = $tieneFirmaElectronica;
+
+        if ($tieneFirmaElectronica) {
+            $hallazgos[] = 'Firmado electrónicamente — firma con fe pública (certificado detectado)';
+            // Estatus de la firma, si aparece.
+            if (str_contains($textoUpper, 'FIRMADO Y COMPLETO')) {
+                $hallazgos[] = 'Estatus de firma: Firmado y Completo';
+            }
+        } else {
+            // Sin firma electrónica: NO se aprueba solo → revisión manual de Contabilidad.
+            $errores[] = 'Sin certificado de firma electrónica — la firma manuscrita requiere revisión manual de Contabilidad (no se aprueba automáticamente)';
+        }
+
+        return [
+            'valida' => empty($errores),
+            'datos' => $datos,
+            'errores' => $errores,
+            'hallazgos' => $hallazgos,
+        ];
+    }
+
+    /**
      * Extrae el nombre de una INE priorizando la zona de lectura mecánica (MRZ)
      * del reverso, que es la fuente más confiable y no depende del OCR del frente.
      *
@@ -1908,6 +2039,26 @@ class EmpresaApiController extends Controller
     private function extraerNombreIne(string $textoUpper): array
     {
         $vacio = ['nombre' => null, 'apellido_paterno' => null, 'apellido_materno' => null, 'nombres' => null];
+
+        // MRZ de PASAPORTE: "P<MEXAPELLIDO1<APELLIDO2<<NOMBRE<SEGUNDO<<<".
+        // Quitamos el prefijo "P<MEX" (tipo + país) para dejar APELLIDOS<<NOMBRES.
+        if (preg_match('/P<[A-Z]{3}([A-Z]+(?:<[A-Z]+)*)<<([A-Z]+(?:<[A-Z]+)*)/u', $textoUpper, $mp)) {
+            $apellidos = array_values(array_filter(explode('<', $mp[1]), fn ($p) => strlen($p) >= 2));
+            $nombres = array_values(array_filter(explode('<', $mp[2]), fn ($p) => strlen($p) >= 2));
+            if (! empty($apellidos) && ! empty($nombres)) {
+                $ap1 = $apellidos[0] ?? null;
+                $ap2 = $apellidos[1] ?? null;
+                $noms = implode(' ', $nombres);
+                $completo = trim(implode(' ', array_filter([$ap1, $ap2, $noms])));
+
+                return [
+                    'nombre' => $completo !== '' ? $completo : null,
+                    'apellido_paterno' => $ap1,
+                    'apellido_materno' => $ap2,
+                    'nombres' => $noms !== '' ? $noms : null,
+                ];
+            }
+        }
 
         // La MRZ usa '<' como separador. El OCR a veces lo lee como '<', 'K' o espacios,
         // pero buscamos el patrón claro APELLIDOS<<NOMBRES (doble separador).
@@ -1982,6 +2133,13 @@ class EmpresaApiController extends Controller
             return ['valida' => true, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
         }
 
+        // Detectar PASAPORTE — MRZ tipo "P<MEX..." o menciones explícitas.
+        $esPasaporte = str_contains($texto, 'PASAPORTE')
+              || str_contains($texto, 'PASSPORT')
+              || str_contains($texto, 'ESTADOS UNIDOS MEXICANOS')
+              || preg_match('/P<[A-Z]{3}[A-Z<]+<<[A-Z<]+/', $texto) // MRZ pasaporte línea 1
+              || preg_match('/\bP\s+[A-Z]{3}\b/', $texto);           // "Tipo P  MEX"
+
         // Detectar INE/IFE — ser muy flexible porque el OCR de INEs es difícil
         $esIne = str_contains($texto, 'INSTITUTO NACIONAL ELECTORAL')
               || str_contains($texto, 'INE')
@@ -1991,14 +2149,17 @@ class EmpresaApiController extends Controller
               || str_contains($texto, 'ELECTOR')
               || str_contains($texto, 'VOTAR')
               || str_contains($texto, 'SECCION')
-              || str_contains($texto, 'VIGENCIA')
               || preg_match('/[A-Z]{6}\d{8}[HM]\d{3}/', $texto) // Patrón de clave de elector
               || preg_match('/[A-Z]{4}\d{6}[HM][A-Z]{5}/', $texto); // Patrón de CURP
 
-        if ($esIne) {
+        // El pasaporte tiene prioridad si se detecta claramente su MRZ.
+        if ($esPasaporte && ! str_contains($texto, 'INSTITUTO NACIONAL ELECTORAL')) {
+            $esIne = false;
+            $hallazgos[] = 'Documento identificado como Pasaporte';
+        } elseif ($esIne) {
             $hallazgos[] = 'Documento identificado como INE/IFE';
         } else {
-            // No bloquear — si tiene clave de elector o nombre, asumir que es INE
+            // No bloquear — si tiene clave de elector, CURP o nombre, aceptar como ID oficial
             $hallazgos[] = 'Documento aceptado como identificación oficial';
         }
 
@@ -2111,13 +2272,10 @@ class EmpresaApiController extends Controller
             $hallazgos[] = 'Nombre no detectado en el documento';
         }
 
-        // Fecha de nacimiento
-        if (preg_match('/FECHA\s*(?:DE\s*)?NACIMIENTO[:\s]*([\d\/\-\.]+)/', $texto, $fn)) {
-            $datos['fecha_nacimiento'] = $fn[1];
-            $hallazgos[] = 'Fecha de nacimiento: '.$fn[1];
-        } elseif (preg_match('/NACIMIENTO[:\s]*([\d\/\-\.]+)/', $texto, $fn2)) {
-            $datos['fecha_nacimiento'] = $fn2[1];
-            $hallazgos[] = 'Fecha de nacimiento: '.$fn2[1];
+        // Fecha de nacimiento (se ignora si la capturada es muy corta, ej. "11" por OCR con espacios)
+        if (preg_match('/FECHA\s*(?:DE\s*)?NACIMIENTO[:\s]*([\d]{1,2}[\/\-\.\s][\d]{1,2}[\/\-\.\s][\d]{2,4})/', $texto, $fn)) {
+            $datos['fecha_nacimiento'] = trim($fn[1]);
+            $hallazgos[] = 'Fecha de nacimiento: '.trim($fn[1]);
         } elseif ($datos['curp'] && strlen($datos['curp']) >= 10) {
             // Extraer fecha del CURP (posiciones 5-10: AAMMDD)
             $curpFecha = substr($datos['curp'], 4, 6);
@@ -2141,8 +2299,23 @@ class EmpresaApiController extends Controller
         $vigenciaEncontrada = false;
         $anioActual = (int) date('Y');
 
+        // Método 0 (PASAPORTE): fecha de caducidad.
+        //  - Campo legible "FECHA DE CADUCIDAD ... dd mm aaaa".
+        //  - MRZ línea 2: tras el sexo (H/M) vienen 6 dígitos AAMMDD de caducidad.
+        if ($esPasaporte) {
+            if (preg_match('/CADUCIDAD[^\d]{0,20}(\d{2})[\s\/\-](\d{2})[\s\/\-](\d{4})/i', $texto, $cad)) {
+                $datos['vigencia'] = $cad[3];
+                $vigenciaEncontrada = true;
+            } elseif (preg_match('/[A-Z0-9<]{9}\d[A-Z]{3}\d{7}[HM<](\d{2})(\d{2})(\d{2})/', $texto, $mrz)) {
+                // MRZ línea 2: ...<sexo><AA><MM><DD> de caducidad.
+                $anio = (int) $mrz[1] > 50 ? '19'.$mrz[1] : '20'.$mrz[1];
+                $datos['vigencia'] = $anio;
+                $vigenciaEncontrada = true;
+            }
+        }
+
         // Método 1: Buscar "VIGENCIA" seguido de un año
-        if (preg_match('/VIGENCIA[:\s]*(\d{4})/i', $texto, $vigM)) {
+        if (! $vigenciaEncontrada && preg_match('/VIGENCIA[:\s]*(\d{4})/i', $texto, $vigM)) {
             $anioCandidate = (int) $vigM[1];
             // Solo aceptar si es un año razonable de vigencia (>= 2020)
             if ($anioCandidate >= 2020) {
@@ -2197,7 +2370,11 @@ class EmpresaApiController extends Controller
         $hallazgosOrdenados = [];
 
         // 1. Documento identificado
-        $hallazgosOrdenados[] = $esIne ? 'Documento identificado como INE/IFE' : 'Documento aceptado como identificación oficial';
+        if ($esPasaporte && ! str_contains($texto, 'INSTITUTO NACIONAL ELECTORAL')) {
+            $hallazgosOrdenados[] = 'Documento identificado como Pasaporte';
+        } else {
+            $hallazgosOrdenados[] = $esIne ? 'Documento identificado como INE/IFE' : 'Documento aceptado como identificación oficial';
+        }
 
         // 2. CURP
         if ($datos['curp']) {

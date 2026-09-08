@@ -1755,6 +1755,70 @@ class AdminPanelController extends Controller
         return view('admin.reporte-proveedores', compact('reporte', 'totales', 'anioActual', 'anioAnterior'));
     }
 
+    // ── Catálogo de Proveedores ──
+
+    public function catalogoProveedores(Request $request)
+    {
+        $busqueda = trim((string) $request->input('busqueda', ''));
+
+        $query = ProveedorUser::query();
+        if ($busqueda !== '') {
+            $query->where(function ($q) use ($busqueda) {
+                $q->where('nombre', 'like', "%{$busqueda}%")
+                    ->orWhere('rfc', 'like', "%{$busqueda}%")
+                    ->orWhere('id_proveedor', 'like', "%{$busqueda}%")
+                    ->orWhere('codigo', 'like', "%{$busqueda}%")
+                    ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
+            });
+        }
+
+        // Más recientes primero; los que no tienen fecha caen al final ("Sin fecha").
+        $proveedores = $query->orderByDesc('created_at')->orderBy('nombre')->get();
+
+        // Armar filas y agrupar por fecha de alta (created_at).
+        $agrupados = [];
+        foreach ($proveedores as $prov) {
+            $di = is_array($prov->datos_identificacion) ? $prov->datos_identificacion : [];
+
+            // Dirección legible desde datos_identificacion.
+            $partesDir = array_filter([
+                trim((string) ($di['calle'] ?? '')),
+                trim((string) ($di['num_exterior'] ?? '')) !== '' ? 'No. '.$di['num_exterior'] : '',
+                trim((string) ($di['colonia'] ?? '')),
+                trim((string) ($di['municipio'] ?? $di['ciudad'] ?? '')),
+                trim((string) ($di['estado'] ?? '')),
+                trim((string) ($di['cp'] ?? '')) !== '' ? 'C.P. '.$di['cp'] : '',
+            ], fn ($v) => $v !== '');
+            $direccion = implode(', ', $partesDir);
+
+            $moneda = $prov->moneda === self::monedaDollarConst() ? 'DÓLAR' : 'MXN';
+
+            $fila = [
+                'id' => $prov->id,
+                'codigo' => $prov->id_proveedor ?? $prov->codigo ?? $prov->codigo_compras ?? '—',
+                'nombre' => $prov->nombre ?? $prov->usuario ?? '—',
+                'rfc' => $prov->rfc ?? ($di['rfc'] ?? '—'),
+                'segmento_contable' => $di['segmento_contable_1'] ?? $di['segmento_contable'] ?? '—',
+                'direccion' => $direccion !== '' ? $direccion : '—',
+                'moneda' => $moneda,
+                'fecha_alta' => $prov->created_at,
+            ];
+
+            $claveFecha = $prov->created_at ? $prov->created_at->format('Y-m-d') : 'sin-fecha';
+            $agrupados[$claveFecha][] = $fila;
+        }
+
+        $total = $proveedores->count();
+
+        return view('admin.catalogo-proveedores', compact('agrupados', 'busqueda', 'total'));
+    }
+
+    /** Helper para el valor de moneda dólar (evita acoplar la constante en la vista). */
+    private static function monedaDollarConst(): string
+    {
+        return ProveedorUser::MONEDA_DOLLAR;
+    }
+
     public function reporteProveedoresExcel()
     {
         $anioActual = (int) date('Y');

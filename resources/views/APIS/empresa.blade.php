@@ -540,6 +540,14 @@
             <span id="contribuyente_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
+        <div class="doc-row" id="row_formato_identificacion">
+            <label class="doc-label" for="formato_identificacion"><i class="bi bi-file-earmark-person"></i> Formato de Identificación del Proveedor</label>
+            <p class="doc-hint">Formato de Salcom (FCONT-0010) firmado electrónicamente · PDF</p>
+            <input type="file" id="formato_identificacion" accept=".pdf" onchange="verArchivo('formato_identificacion')">
+            <label for="formato_identificacion" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
+            <span id="formato_identificacion_nombre" class="file-name empty">Sin archivo</span>
+        </div>
+
         {{-- ── GRUPO 3: Poder Notarial (opcional) ── --}}
         <p class="group-title"><i class="bi bi-shield-lock"></i> Poder Notarial <span class="optional-badge">Opcional</span></p>
 
@@ -685,6 +693,7 @@ const nombresDocs = {
     rep_legal: 'ID Representante Legal',
     contribuyente: 'ID Contribuyente',
     caratula_banco: 'Carátula de Banco',
+    formato_identificacion: 'Formato de Identificación del Proveedor',
     // REPSE
     repse_registro: 'Registro REPSE',
     repse_isr_retenido: 'Declaración ISR retenido',
@@ -762,7 +771,7 @@ if (identificacion && identificacion.tipo_clave) {
 }
 
 function getCamposRequeridos() {
-    const base = ['cif', 'opinion', 'caratula_banco'];
+    const base = ['cif', 'opinion', 'caratula_banco', 'formato_identificacion'];
     if (tipoPersona === 'moral') {
         base.push('rep_legal');
         base.push('contribuyente');
@@ -793,6 +802,7 @@ const campos = {
     contribuyente:  'contribuyente_pdf',
     poder:          'poder_pdf',
     caratula_banco: 'caratula_banco_pdf',
+    formato_identificacion: 'formato_identificacion_pdf',
     // REPSE (se envían al backend con nombre repse_*_pdf)
     repse_registro:              'repse_registro_pdf',
     repse_isr_retenido:          'repse_isr_retenido_pdf',
@@ -1117,6 +1127,7 @@ function renderResultado(data) {
     if (data.contribuyente) secciones.push({ titulo: 'ID Contribuyente', doc: data.contribuyente });
     if (data.poder) secciones.push({ titulo: 'Poder Notarial', doc: data.poder });
     secciones.push({ titulo: 'Carátula de Banco', doc: data.caratula_banco });
+    if (data.formato_identificacion) secciones.push({ titulo: 'Formato de Identificación del Proveedor', doc: data.formato_identificacion });
 
     // Documentos REPSE — una tarjeta de detalle por cada documento validado.
     if (data.repse) {
