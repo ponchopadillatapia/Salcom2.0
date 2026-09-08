@@ -1780,16 +1780,12 @@ class AdminPanelController extends Controller
         foreach ($proveedores as $prov) {
             $di = is_array($prov->datos_identificacion) ? $prov->datos_identificacion : [];
 
-            // Dirección legible desde datos_identificacion.
-            $partesDir = array_filter([
-                trim((string) ($di['calle'] ?? '')),
-                trim((string) ($di['num_exterior'] ?? '')) !== '' ? 'No. '.$di['num_exterior'] : '',
-                trim((string) ($di['colonia'] ?? '')),
-                trim((string) ($di['municipio'] ?? $di['ciudad'] ?? '')),
-                trim((string) ($di['estado'] ?? '')),
-                trim((string) ($di['cp'] ?? '')) !== '' ? 'C.P. '.$di['cp'] : '',
-            ], fn ($v) => $v !== '');
-            $direccion = implode(', ', $partesDir);
+            // Calle (incluye número exterior si existe).
+            $calle = trim((string) ($di['calle'] ?? ''));
+            $numExt = trim((string) ($di['num_exterior'] ?? ''));
+            if ($numExt !== '') {
+                $calle = trim($calle.' '.$numExt);
+            }
 
             $moneda = $prov->moneda === self::monedaDollarConst() ? 'DÓLAR' : 'MXN';
 
@@ -1799,9 +1795,12 @@ class AdminPanelController extends Controller
                 'nombre' => $prov->nombre ?? $prov->usuario ?? '—',
                 'rfc' => $prov->rfc ?? ($di['rfc'] ?? '—'),
                 'segmento_contable' => $di['segmento_contable_1'] ?? $di['segmento_contable'] ?? '—',
-                'direccion' => $direccion !== '' ? $direccion : '—',
-                'moneda' => $moneda,
                 'fecha_alta' => $prov->created_at,
+                'calle' => $calle !== '' ? $calle : '—',
+                'ciudad' => trim((string) ($di['ciudad'] ?? $di['municipio'] ?? '')) ?: '—',
+                'cp' => trim((string) ($di['cp'] ?? '')) ?: '—',
+                'colonia' => trim((string) ($di['colonia'] ?? '')) ?: '—',
+                'moneda' => $moneda,
             ];
 
             $claveFecha = $prov->created_at ? $prov->created_at->format('Y-m-d') : 'sin-fecha';

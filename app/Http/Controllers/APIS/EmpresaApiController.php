@@ -669,14 +669,20 @@ class EmpresaApiController extends Controller
                                 $rutaPublica = $request->file($tipo.'_pdf')->store("expediente_fiscal/{$tipo}", 'public');
                                 if ($rutaPublica) {
                                     $res = $resultadosPorTipo[$tipo] ?? null;
+                                    // Si el documento se validó pero requiere revisión manual
+                                    // (ej. acta escaneada ilegible), se guarda como PENDIENTE
+                                    // para que Contabilidad lo confirme, no como aprobado.
+                                    $requiereRevision = is_array($res) && ! empty($res['datos']['revision_manual']);
                                     DocumentoProveedor::updateOrCreate(
                                         ['proveedor_id' => $proveedorId, 'tipo' => $tipo],
                                         [
                                             'archivo' => $rutaPublica,
-                                            'estatus' => 'aprobado',
-                                            'notas_revision' => 'Validación automática aprobada',
+                                            'estatus' => $requiereRevision ? 'pendiente' : 'aprobado',
+                                            'notas_revision' => $requiereRevision
+                                                ? 'Documento recibido — requiere revisión manual de Contabilidad (no legible por OCR)'
+                                                : 'Validación automática aprobada',
                                             'resultado_validacion' => is_array($res) ? $res : null,
-                                            'revisado_at' => now(),
+                                            'revisado_at' => $requiereRevision ? null : now(),
                                         ]
                                     );
                                 }
@@ -729,6 +735,49 @@ class EmpresaApiController extends Controller
                             } catch (\Throwable $e) {
                                 Log::warning('[REPSE] No se pudo crear alerta de padrón: '.$e->getMessage());
                             }
+                        }
+
+                        // Documentos que quedaron PENDIENTES de revisión manual (ej. acta
+                        // escaneada ilegible, o formato sin firma electrónica): avisar al admin
+                        // para que los confirme en el Expediente Fiscal.
+                        try {
+                            $etiquetasDoc = [
+                                'acta' => 'Acta Constitutiva',
+                                'formato_identificacion' => 'Formato de Identificación del Proveedor',
+                                'cif' => 'Constancia de Situación Fiscal',
+                                'opinion' => 'Opinión de Cumplimiento',
+                                'rep_legal' => 'ID Representante Legal',
+                                'contribuyente' => 'ID Contribuyente',
+                                'poder' => 'Poder Notarial',
+                                'caratula_banco' => 'Carátula de Banco',
+                            ];
+                            $docsRevision = [];
+                            foreach ($resultadosPorTipo as $tipoDoc => $resDoc) {
+                                if (is_array($resDoc) && ! empty($resDoc['datos']['revision_manual'])) {
+                                    $docsRevision[] = $etiquetasDoc[$tipoDoc] ?? $tipoDoc;
+                                }
+                            }
+
+                            if (! empty($docsRevision)) {
+                                $prov = ProveedorUser::find($proveedorId);
+                                $listaDocs = implode(', ', $docsRevision);
+                                $adminIds = AdminUser::pluck('id');
+                                foreach ($adminIds as $adminId) {
+                                    Alerta::create([
+                                        'tipo' => 'doc_revision_manual',
+                                        'modulo' => 'fiscal',
+                                        'destinatario_tipo' => 'admin',
+                                        'destinatario_id' => $adminId,
+                                        'titulo' => 'Documento requiere revisión manual',
+                                        'contenido' => 'El proveedor '.($prov->nombre ?? $proveedorId).' subió documento(s) que no se pudieron leer automáticamente: '.$listaDocs.'. Revísalos manualmente en el Expediente Fiscal.',
+                                        'nivel' => 'alta',
+                                        'estatus' => 'nueva',
+                                        'datos' => ['proveedor_id' => $proveedorId, 'rfc' => $prov->rfc ?? null, 'documentos' => $docsRevision],
+                                    ]);
+                                }
+                            }
+                        } catch (\Throwable $e) {
+                            Log::warning('[Fiscal] No se pudo crear alerta de revisión manual: '.$e->getMessage());
                         }
 
                         // Tras validación en verde, la solicitud queda visible para Dirección.
@@ -1557,12 +1606,15 @@ class EmpresaApiController extends Controller
                 }
             }
 
-            // Si aún no hay texto suficiente
+            // Si aún no hay texto suficiente: el acta es un documento largo y escaneado;
+            // no se rechaza (evita pedir re-escaneo al proveedor). Se ACEPTA pero se marca
+            // para REVISIÓN MANUAL de Contabilidad, que confirmará su validez a ojo.
             if (strlen($texto) < 20) {
-                $hallazgos[] = 'PDF escaneado — calidad de imagen insuficiente para lectura';
-                $errores[] = 'El documento escaneado es ilegible. Favor de subir un PDF con mejor calidad de escaneo (mayor resolución, sin manchas ni texto borroso).';
+                $datos['revision_manual'] = true;
+                $hallazgos[] = 'Acta recibida — no se pudo leer por OCR (documento escaneado)';
+                $hallazgos[] = 'Requiere revisión manual de Contabilidad para confirmar su validez';
 
-                return ['valida' => false, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
+                return ['valida' => true, 'datos' => $datos, 'errores' => $errores, 'hallazgos' => $hallazgos];
             }
         }
 

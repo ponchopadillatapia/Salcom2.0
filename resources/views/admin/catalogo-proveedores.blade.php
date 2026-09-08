@@ -47,19 +47,22 @@
         <table class="admin-table">
             <thead>
                 <tr>
-                    <th>Código</th>
+                    <th>Código proveedor</th>
                     <th>Razón social</th>
-                    <th>RFC</th>
+                    <th>R.F.C.</th>
                     <th>Segmento contable 1</th>
-                    <th>Dirección</th>
-                    <th>Moneda</th>
                     <th>Fecha de alta</th>
+                    <th>Calle</th>
+                    <th>Ciudad</th>
+                    <th>Código Postal</th>
+                    <th>Colonia</th>
+                    <th>Moneda</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($agrupados as $fechaKey => $filas)
                     <tr class="date-row">
-                        <td colspan="7">
+                        <td colspan="10">
                             @if($fechaKey === 'sin-fecha')
                                 Sin fecha de alta
                             @else
@@ -73,16 +76,19 @@
                             <td style="font-weight:600">{{ $prov['nombre'] }}</td>
                             <td style="font-variant-numeric:tabular-nums">{{ $prov['rfc'] }}</td>
                             <td class="muted">{{ $prov['segmento_contable'] }}</td>
-                            <td class="muted" style="max-width:280px">{{ $prov['direccion'] }}</td>
+                            <td class="muted">{{ $prov['fecha_alta'] ? $prov['fecha_alta']->format('d/m/Y') : '—' }}</td>
+                            <td class="muted">{{ $prov['calle'] }}</td>
+                            <td class="muted">{{ $prov['ciudad'] }}</td>
+                            <td class="muted">{{ $prov['cp'] }}</td>
+                            <td class="muted">{{ $prov['colonia'] }}</td>
                             <td>
                                 <span class="moneda-pill {{ $prov['moneda'] === 'DÓLAR' ? 'usd' : 'mxn' }}">{{ $prov['moneda'] }}</span>
                             </td>
-                            <td class="muted">{{ $prov['fecha_alta'] ? $prov['fecha_alta']->format('d/m/Y') : '—' }}</td>
                         </tr>
                     @endforeach
                 @empty
                     <tr>
-                        <td colspan="7" class="empty-state">
+                        <td colspan="10" class="empty-state">
                             @if($busqueda !== '')
                                 No se encontraron proveedores para "{{ $busqueda }}".
                             @else
