@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Recordatorio pruebas KAESER produccion",
+      "trigger": "SessionStart",
+      "description": "Recuerda hacer las pruebas en produccion con un nuevo registro del proveedor KAESER y muestra el checklist de despliegue.",
+      "action": {
+        "type": "agent",
+        "prompt": "RECORDATORIO: El usuario quiere hacer pruebas en PRODUCCION con un nuevo registro del proveedor KAESER (Persona Moral, RFC KCM951027BN2). Muestrale este checklist antes de empezar:\n\n1. DESPLEGAR primero los cambios pendientes: commit + push, luego en produccion `git pull origin main`, y resetear OPcache (crear public/opcache-reset.php, abrirlo en el navegador, borrarlo). Cambios pendientes por desplegar: nuevo documento \"Formato de Identificacion del Proveedor\" (obligatorio solo para proveedores NO activos), soporte de PASAPORTE en validarINE, y la exencion del formato para proveedores ya activos.\n2. Registrar un proveedor NUEVO en produccion como Persona Moral: Razon social KAESER COMPRESORES DE MEXICO S DE RL DE CV, RFC KCM951027BN2, CP 76100, CLABE 012680004507713411, Cuenta 0450771341.\n3. Subir los documentos: CIF y Opinion SAT de KAESER, pasaporte de MILTON (ID rep legal y contribuyente), CARATULA_BANCO_PRUEBA_KAESER.pdf, FORMATO_IDENTIFICACION_PRUEBA_KAESER.pdf, y el acta (preguntar si la tiene o generarla).\n4. Verificar que todo salga verde, especialmente el pasaporte y el nuevo Formato de Identificacion.\n\nPreguntale al usuario si ya paso el tiempo y si quiere empezar con el despliegue o directamente con las pruebas."
+      }
+    }
+  ]
+}
