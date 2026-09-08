@@ -177,6 +177,7 @@ Route::post('/proveedor/aviso-privacidad', [PortalProveedorController::class, 'a
 
 // ── Admin: Proveedores con score ──
 Route::get('/admin/proveedores', [AdminPanelController::class, 'proveedores'])->name('admin.proveedores')->middleware('auth.admin');
+Route::get('/admin/catalogo-proveedores', [AdminPanelController::class, 'catalogoProveedores'])->name('admin.catalogo-proveedores')->middleware('auth.admin');
 Route::get('/admin/solicitudes-alta', [AdminPanelController::class, 'solicitudesAlta'])->name('admin.solicitudes-alta')->middleware('auth.admin');
 Route::get('/admin/solicitudes-alta/{proveedor}/revisar', [AdminPanelController::class, 'revisarSolicitud'])->name('admin.solicitudes.revisar')->middleware('auth.admin');
 Route::get('/admin/solicitudes-alta/{proveedor}/ver', [AdminPanelController::class, 'verDocumentosAprobadosSolicitud'])->name('admin.solicitudes-alta.ver')->middleware('auth.admin');
