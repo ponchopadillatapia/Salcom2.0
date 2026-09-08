@@ -1040,6 +1040,10 @@ function enviar() {
         if (identificacion.cuenta) formData.append('cuenta_esperada', identificacion.cuenta);
         if (identificacion.banco) formData.append('banco_esperado', identificacion.banco);
         if (identificacion.cp) formData.append('cp_esperado', identificacion.cp);
+        if (identificacion.apellido_paterno) formData.append('apellido_paterno', identificacion.apellido_paterno);
+        if (identificacion.apellido_materno) formData.append('apellido_materno', identificacion.apellido_materno);
+        if (identificacion.nombres) formData.append('nombres', identificacion.nombres);
+        if (identificacion.razon_social) formData.append('razon_social', identificacion.razon_social);
     }
 
     for (const [campo, nombreCampo] of Object.entries(campos)) {

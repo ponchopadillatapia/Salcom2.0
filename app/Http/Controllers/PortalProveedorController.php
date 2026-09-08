@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\AdminUser;
 use App\Models\Alerta;
+use App\Models\AnticipoProveedor;
 use App\Models\ContactoProveedor;
 use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
@@ -12,9 +13,14 @@ use App\Models\PagoProveedor;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
+use App\Models\SolicitudModificacionDatos;
 use App\Services\AlertEngineService;
 use App\Services\AltaFacturaValidationService;
+use App\Services\Bancario\CaratulaBancariaValidationService;
+use App\Services\ProveedorApiService;
+use App\Services\SolicitudModificacionDatosService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -141,13 +147,13 @@ class PortalProveedorController extends Controller
             $wieseError = null;
 
             // Si docs están completos pero cuenta Wiese no confirmada, buscar por RFC
-            if ($pasoDocs && !$pasoWiese && empty($cuentasWiese)) {
+            if ($pasoDocs && ! $pasoWiese && empty($cuentasWiese)) {
                 $rfcProveedor = strtoupper(trim((string) $proveedor->rfc));
-                if (!empty($rfcProveedor)) {
+                if (! empty($rfcProveedor)) {
                     try {
-                        $wieseApi = app(\App\Services\ProveedorApiService::class);
+                        $wieseApi = app(ProveedorApiService::class);
                         $resultado = $wieseApi->buscarProveedorPorRFC($rfcProveedor);
-                        if ($resultado['success'] && !empty($resultado['data']['cuentas'])) {
+                        if ($resultado['success'] && ! empty($resultado['data']['cuentas'])) {
                             $cuentasWiese = $resultado['data']['cuentas'];
                             // Guardar las cuentas encontradas
                             $datos = $proveedor->datos_identificacion ?? [];
@@ -168,11 +174,11 @@ class PortalProveedorController extends Controller
                 } else {
                     $wieseError = 'No tienes RFC registrado. Actualiza tu perfil.';
                 }
-            } elseif ($pasoDocs && !$pasoWiese && !empty($cuentasWiese)) {
+            } elseif ($pasoDocs && ! $pasoWiese && ! empty($cuentasWiese)) {
                 $wiesePendiente = true;
             }
 
-            $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos && $pasoWiese && !$cuentasDualPendientes;
+            $pasoListoDireccion = $pasoBancarios && $pasoDocs && $pasoContactos && $pasoWiese && ! $cuentasDualPendientes;
             $pasoActivo = (bool) $proveedor->activo;
             $onboardingBloqueado = $proveedor->onboardingEdicionBloqueada();
             $estatusAlta = $proveedor->solicitud_alta_estatus ?? null;
@@ -370,7 +376,7 @@ class PortalProveedorController extends Controller
         $wieseCodigo = trim((string) ($proveedor?->id_proveedor ?? $proveedor?->codigo ?? ''));
         if ($wieseCodigo !== '') {
             try {
-                $wieseApi = app(\App\Services\ProveedorApiService::class);
+                $wieseApi = app(ProveedorApiService::class);
                 $fechaInicio = $request->input('fecha_desde', now()->subYear()->startOfYear()->format('Y-m-d'));
                 $fechaFin = $request->input('fecha_hasta', now()->format('Y-m-d'));
                 $ocResult = $wieseApi->listarDocumentosOCPorProveedorFechas($wieseCodigo, $fechaInicio, $fechaFin);
@@ -386,6 +392,7 @@ class PortalProveedorController extends Controller
                         } else {
                             $doc['_estatus'] = 'pagada';
                         }
+
                         return $doc;
                     })->values();
 
@@ -583,7 +590,7 @@ class PortalProveedorController extends Controller
         $solicitudNombrePendiente = null;
         if ($proveedor) {
             try {
-                $solicitudNombrePendiente = \App\Models\SolicitudModificacionDatos::where('proveedor_id', $proveedor->id)
+                $solicitudNombrePendiente = SolicitudModificacionDatos::where('proveedor_id', $proveedor->id)
                     ->where('estatus', 'pendiente')
                     ->latest()
                     ->first();
@@ -668,18 +675,18 @@ class PortalProveedorController extends Controller
         return redirect()->route('proveedores.perfil')->with('mensaje', 'Datos actualizados correctamente.');
     }
 
-    public function mostrarSolicitudModificacionNombre(\App\Services\SolicitudModificacionDatosService $service)
+    public function mostrarSolicitudModificacionNombre(SolicitudModificacionDatosService $service)
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         if (! $proveedor) {
             return redirect()->route('proveedores.login');
         }
 
-        $pendiente = \App\Models\SolicitudModificacionDatos::where('proveedor_id', $proveedor->id)
+        $pendiente = SolicitudModificacionDatos::where('proveedor_id', $proveedor->id)
             ->where('estatus', 'pendiente')
             ->latest()
             ->first();
-        $historial = \App\Models\SolicitudModificacionDatos::where('proveedor_id', $proveedor->id)
+        $historial = SolicitudModificacionDatos::where('proveedor_id', $proveedor->id)
             ->orderByDesc('id')
             ->limit(10)
             ->get();
@@ -689,7 +696,7 @@ class PortalProveedorController extends Controller
 
     public function enviarSolicitudModificacionNombre(
         Request $request,
-        \App\Services\SolicitudModificacionDatosService $service
+        SolicitudModificacionDatosService $service
     ) {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         if (! $proveedor) {
@@ -1050,7 +1057,7 @@ class PortalProveedorController extends Controller
                     'destinatario_tipo' => 'proveedor',
                     'destinatario_id' => $proveedor->id,
                     'titulo' => 'Cuentas bancarias MXN y USD confirmadas',
-                    'contenido' => 'Confirmaste tus 2 cuentas bancarias: MXN (' . ($datos['banco'] ?? '') . ') y USD (' . ($datos['banco_usd'] ?? '') . ').',
+                    'contenido' => 'Confirmaste tus 2 cuentas bancarias: MXN ('.($datos['banco'] ?? '').') y USD ('.($datos['banco_usd'] ?? '').').',
                     'datos' => [
                         'banco_mxn' => $datos['banco'] ?? null,
                         'clabe_mxn' => $datos['clabe'] ?? null,
@@ -1079,7 +1086,7 @@ class PortalProveedorController extends Controller
     public function confirmarCuentaWiese(Request $request)
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
-        if (!$proveedor) {
+        if (! $proveedor) {
             return redirect()->route('proveedores.onboarding')
                 ->with('error', 'No se encontró tu cuenta.');
         }
@@ -1093,7 +1100,7 @@ class PortalProveedorController extends Controller
 
             // Asignar el código del proveedor si viene de las cuentas encontradas
             $cuentas = $datos['cuentas_wiese'] ?? [];
-            if (!empty($cuentas) && !empty($cuentas[0]['codigo'])) {
+            if (! empty($cuentas) && ! empty($cuentas[0]['codigo'])) {
                 $proveedor->update(['id_proveedor' => $cuentas[0]['codigo']]);
             }
 
@@ -1551,40 +1558,6 @@ class PortalProveedorController extends Controller
         return view('proveedores.adjunto-documentos', compact('documentos', 'tiposLabel'));
     }
 
-    /**
-     * Extrae la CLABE (18 dígitos) del texto de un PDF de carátula bancaria.
-     * Devuelve la CLABE (solo dígitos) o null si no se puede leer.
-     */
-    private function extraerClabeDePdf(\Illuminate\Http\UploadedFile $archivo): ?string
-    {
-        try {
-            $parser = new \Smalot\PdfParser\Parser();
-            $texto = $parser->parseFile($archivo->getRealPath())->getText();
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('[Caratula] No se pudo leer el PDF: '.$e->getMessage());
-            return null;
-        }
-
-        if (trim((string) $texto) === '') {
-            return null;
-        }
-
-        // Preferir el patrón "CLABE ... 18 dígitos" (aunque vengan con espacios).
-        if (preg_match('/CLABE[^0-9]{0,20}((?:\d[\s-]?){18})/iu', $texto, $m)) {
-            $clabe = preg_replace('/\D/', '', $m[1]);
-            if (strlen($clabe) === 18) {
-                return $clabe;
-            }
-        }
-
-        // Respaldo: cualquier secuencia de exactamente 18 dígitos seguidos.
-        if (preg_match('/\b(\d{18})\b/', preg_replace('/\s+/', '', $texto), $m2)) {
-            return $m2[1];
-        }
-
-        return null;
-    }
-
     public function subirAdjuntoDocumentos(Request $request)
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
@@ -1600,38 +1573,63 @@ class PortalProveedorController extends Controller
         $tipos = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'caratula_banco'];
         $subidos = 0;
 
-        // CLABE declarada por el proveedor en su formulario (para validar la carátula).
-        $clabeDeclarada = '';
-        if ($proveedor) {
-            $diProv = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
-            $clabeDeclarada = preg_replace('/\D/', '', (string) ($diProv['clabe'] ?? ''));
-        }
+        $diProv = $proveedor && is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
 
         foreach ($tipos as $tipo) {
             if ($request->hasFile($tipo)) {
                 $request->validate([$tipo => 'mimes:pdf|max:10240']);
 
                 $archivo = $request->file($tipo);
+                $resultadoCaratula = null;
 
-                // Validar que la carátula de banco corresponda a la CLABE declarada.
-                if ($tipo === 'caratula_banco' && $clabeDeclarada !== '') {
-                    $clabePdf = $this->extraerClabeDePdf($archivo);
-                    if ($clabePdf === null) {
-                        return back()->withErrors(['caratula_banco' => 'No se pudo leer la CLABE en la carátula. Sube el PDF original del banco (no una imagen escaneada).']);
-                    }
-                    if ($clabePdf !== $clabeDeclarada) {
-                        return back()->withErrors(['caratula_banco' =>
-                            'La CLABE de la carátula ('.$clabePdf.') no coincide con la CLABE que registraste ('.$clabeDeclarada.'). '.
-                            'La carátula debe ser de la misma cuenta que declaraste. Documento rechazado.',
+                if ($tipo === 'caratula_banco') {
+                    $resultadoCaratula = app(CaratulaBancariaValidationService::class)->validarPdf(
+                        $archivo->getRealPath(),
+                        [
+                            'clabe' => preg_replace('/\D/', '', (string) ($diProv['clabe'] ?? '')),
+                            'banco' => $diProv['banco'] ?? '',
+                            'nombres_candidato' => array_values(array_filter([
+                                $proveedor?->nombre,
+                                $diProv['razon_social'] ?? null,
+                                $diProv['nombre_esperado'] ?? null,
+                            ])),
+                            'rfc' => $proveedor?->rfc ?: ($diProv['rfc'] ?? ''),
+                            'tipo_persona' => $diProv['tipo_clave'] ?? $diProv['tipo_persona'] ?? $proveedor?->tipo_persona,
+                            'apellido_paterno' => $diProv['apellido_paterno'] ?? '',
+                            'apellido_materno' => $diProv['apellido_materno'] ?? '',
+                            'nombres' => $diProv['nombres'] ?? '',
+                            'razon_social' => $diProv['razon_social'] ?? '',
+                        ]
+                    );
+
+                    $motivoTitular = (string) ($resultadoCaratula['datos']['titular_motivo'] ?? '');
+                    $pedirOriginal = in_array($motivoTitular, ['titular_no_extraido', 'sin_nombre_declarado'], true);
+                    if ($resultadoCaratula['decision'] === 'rechazado' || $pedirOriginal) {
+                        return back()->withErrors([
+                            'caratula_banco' => $resultadoCaratula['errores'][0]
+                                ?? 'La carátula bancaria no se pudo validar. Documento rechazado.',
                         ]);
                     }
                 }
 
                 $ruta = $archivo->store("expediente_fiscal/{$tipo}", 'public');
 
+                $notas = null;
+                if ($tipo === 'caratula_banco' && ($resultadoCaratula['decision'] ?? '') === 'revision') {
+                    $notas = $resultadoCaratula['advertencias'][0]
+                        ?? $resultadoCaratula['errores'][0]
+                        ?? 'El titular de la cuenta no coincidió con claridad. Revisión manual.';
+                }
+
                 DocumentoProveedor::updateOrCreate(
                     ['proveedor_id' => session('proveedor_id'), 'tipo' => $tipo],
-                    ['archivo' => $ruta, 'estatus' => 'pendiente', 'notas_revision' => null, 'revisado_at' => null]
+                    [
+                        'archivo' => $ruta,
+                        'estatus' => 'pendiente',
+                        'notas_revision' => $notas,
+                        'resultado_validacion' => $tipo === 'caratula_banco' ? $resultadoCaratula : null,
+                        'revisado_at' => null,
+                    ]
                 );
                 $subidos++;
             }
@@ -2056,7 +2054,7 @@ class PortalProveedorController extends Controller
         try {
             $this->autoLigarAnticipos($factura, $datos, (string) $codigoProv);
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('[AutoAnticipo] No se pudo auto-ligar: '.$e->getMessage());
+            Log::warning('[AutoAnticipo] No se pudo auto-ligar: '.$e->getMessage());
         }
 
         return $factura;
@@ -2082,11 +2080,11 @@ class PortalProveedorController extends Controller
         $anticipos = collect();
 
         if ($tipoRelacion === '07' && ! empty($uuidsRel)) {
-            $anticipos = \App\Models\AnticipoProveedor::query()
+            $anticipos = AnticipoProveedor::query()
                 ->where('codigo_proveedor', $codigoProv)
                 ->where('estatus', 'pagado')
                 ->whereNotNull('uuid_cfdi')
-                ->whereIn(\Illuminate\Support\Facades\DB::raw('UPPER(uuid_cfdi)'), $uuidsRel)
+                ->whereIn(DB::raw('UPPER(uuid_cfdi)'), $uuidsRel)
                 ->get();
         }
 
@@ -2100,7 +2098,7 @@ class PortalProveedorController extends Controller
             ));
 
             if ($refFactura !== '') {
-                $candidatos = \App\Models\AnticipoProveedor::query()
+                $candidatos = AnticipoProveedor::query()
                     ->where('codigo_proveedor', $codigoProv)
                     ->where('estatus', 'pagado')
                     ->whereNotNull('folio_general')
@@ -2108,6 +2106,7 @@ class PortalProveedorController extends Controller
 
                 $anticipos = $candidatos->filter(function ($ant) use ($refFactura) {
                     $fg = strtoupper(trim((string) $ant->folio_general));
+
                     return $fg !== '' && str_contains($refFactura, $fg);
                 })->values();
             }
@@ -2117,7 +2116,7 @@ class PortalProveedorController extends Controller
             return;
         }
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($anticipos, $factura, $tipoRelacion) {
+        DB::transaction(function () use ($anticipos, $factura, $tipoRelacion) {
             foreach ($anticipos as $anticipo) {
                 $factura->refresh();
                 $saldoFactura = round((float) $factura->total - (float) $factura->monto_pagado, 2);

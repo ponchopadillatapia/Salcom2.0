@@ -3,15 +3,19 @@
 namespace App\Http\Controllers\APIS;
 
 use App\Http\Controllers\Controller;
+use App\Models\AdminUser;
+use App\Models\Alerta;
 use App\Models\AuditLog;
 use App\Models\DocumentoProveedor;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
 use App\Models\SolicitudModificacionDatos;
 use App\Services\AlertEngineService;
+use App\Services\Bancario\CaratulaBancariaValidationService;
 use App\Services\DocumentCrossCheckService;
 use App\Services\IaService;
 use Aws\Textract\TextractClient;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -177,13 +181,13 @@ class EmpresaApiController extends Controller
             $nombreEsperado = trim((string) $request->input('nombre_esperado', ''));
             $rfcEsperado = strtoupper(trim((string) $request->input('rfc_esperado', '')));
 
-             // Si no viene RFC del formulario, intentar desde el proveedor logueado
+            // Si no viene RFC del formulario, intentar desde el proveedor logueado
             if ($rfcEsperado === '' && $provId) {
                 $provActual = ProveedorUser::find($provId);
                 if ($provActual) {
                     // Buscar RFC en columna directa
                     $rfcProv = $provActual->rfc ?? null;
-                    if (!$rfcProv) {
+                    if (! $rfcProv) {
                         // Buscar en datos_identificacion
                         $datosId = $provActual->datos_identificacion ?? [];
                         $rfcProv = $datosId['rfc'] ?? null;
@@ -252,12 +256,12 @@ class EmpresaApiController extends Controller
                 if ($rfcEsperado !== '') {
                     $rfcCifExtraido = $cif['datos']['rfc'] ?? '';
                     if ($rfcCifExtraido !== '' && $rfcCifExtraido === $rfcEsperado) {
-                        $cif['hallazgos'][] = 'RFC coincide con el formulario de identificación ✓ (' . $rfcEsperado . ')';
+                        $cif['hallazgos'][] = 'RFC coincide con el formulario de identificación ✓ ('.$rfcEsperado.')';
                     } elseif ($rfcCifExtraido !== '' && $rfcCifExtraido !== $rfcEsperado) {
                         $cif['errores'][] = "RFC del formulario ({$rfcEsperado}) NO coincide con el CIF ({$rfcCifExtraido}) — los documentos no pertenecen al proveedor registrado";
                         $cif['valida'] = false;
                     } else {
-                        $cif['hallazgos'][] = 'RFC del formulario: ' . $rfcEsperado . ' (no se pudo verificar contra CIF)';
+                        $cif['hallazgos'][] = 'RFC del formulario: '.$rfcEsperado.' (no se pudo verificar contra CIF)';
                     }
                 }
 
@@ -329,6 +333,35 @@ class EmpresaApiController extends Controller
                 }
             }
 
+            $diProv = [];
+            if ($provId) {
+                $provBanco = ProveedorUser::find($provId);
+                $diProv = is_array($provBanco?->datos_identificacion) ? $provBanco->datos_identificacion : [];
+            }
+
+            $banco = app(CaratulaBancariaValidationService::class)->enriquecer(
+                $banco,
+                $textos['caratula_banco'],
+                [
+                    'clabe' => $clabeEsperada,
+                    'banco' => $bancoEsperado !== '' ? $bancoEsperado : (string) ($diProv['banco'] ?? ''),
+                    'nombres_candidato' => array_values(array_filter([
+                        $nombreEsperado,
+                        $cif['datos']['nombre'] ?? null,
+                        is_array($acta) ? ($acta['datos']['nombre_acta'] ?? null) : null,
+                        $diProv['razon_social'] ?? null,
+                        $diProv['nombre_esperado'] ?? null,
+                    ])),
+                    'rfc' => $rfcEsperado !== '' ? $rfcEsperado : (string) ($cif['datos']['rfc'] ?? $diProv['rfc'] ?? ''),
+                    'tipo_persona' => $tipoPersona,
+                    'apellido_paterno' => $request->input('apellido_paterno', $diProv['apellido_paterno'] ?? ''),
+                    'apellido_materno' => $request->input('apellido_materno', $diProv['apellido_materno'] ?? ''),
+                    'nombres' => $request->input('nombres', $diProv['nombres'] ?? ''),
+                    'razon_social' => $request->input('razon_social', $diProv['razon_social'] ?? ''),
+                ],
+                compararClabe: false,
+            );
+
             // ════════════════════════════════════════
             // CRUCE ENTRE DOCUMENTOS
             // ════════════════════════════════════════
@@ -355,9 +388,9 @@ class EmpresaApiController extends Controller
                         if ($rfcEsperado !== '') {
                             $rfcCif = $cif['datos']['rfc'] ?? '';
                             if ($rfcCif !== '' && $rfcCif === $rfcEsperado) {
-                                $ineParaCruce['hallazgos'][] = 'RFC del CIF coincide con el RFC del registro ✓ (' . $rfcEsperado . ')';
+                                $ineParaCruce['hallazgos'][] = 'RFC del CIF coincide con el RFC del registro ✓ ('.$rfcEsperado.')';
                             } elseif ($rfcCif !== '' && $rfcCif !== $rfcEsperado) {
-                                $ineParaCruce['errores'][] = '⚠ RFC del CIF (' . $rfcCif . ') NO coincide con el RFC del registro (' . $rfcEsperado . ')';
+                                $ineParaCruce['errores'][] = '⚠ RFC del CIF ('.$rfcCif.') NO coincide con el RFC del registro ('.$rfcEsperado.')';
                                 $ineParaCruce['valida'] = false;
                             }
                         }
@@ -398,7 +431,7 @@ class EmpresaApiController extends Controller
                         if ($rfcEsperado !== '') {
                             $rfcCif = $cif['datos']['rfc'] ?? '';
                             if ($rfcCif !== '' && $rfcCif !== $rfcEsperado) {
-                                $ineParaCruce['errores'][] = '⚠ RFC del CIF (' . $rfcCif . ') NO coincide con el RFC del registro (' . $rfcEsperado . ')';
+                                $ineParaCruce['errores'][] = '⚠ RFC del CIF ('.$rfcCif.') NO coincide con el RFC del registro ('.$rfcEsperado.')';
                                 $ineParaCruce['valida'] = false;
                             }
                         }
@@ -652,9 +685,9 @@ class EmpresaApiController extends Controller
                         if ($request->input('repse_en_padron') === 'no') {
                             try {
                                 $prov = ProveedorUser::find($proveedorId);
-                                $adminIds = \App\Models\AdminUser::pluck('id');
+                                $adminIds = AdminUser::pluck('id');
                                 foreach ($adminIds as $adminId) {
-                                    \App\Models\Alerta::create([
+                                    Alerta::create([
                                         'tipo' => 'repse_no_padron',
                                         'modulo' => 'proveedores',
                                         'destinatario_tipo' => 'admin',
@@ -914,7 +947,7 @@ class EmpresaApiController extends Controller
         [$anio, $mes] = $fechas[0];
 
         // Antigüedad en meses respecto a hoy.
-        $fechaDoc = \Carbon\Carbon::create($anio, $mes, 1);
+        $fechaDoc = Carbon::create($anio, $mes, 1);
         $mesesAtras = $fechaDoc->diffInMonths(now()->startOfMonth(), false);
 
         // Vigencia bimestral con tolerancia: se acepta el bimestre actual y el inmediato anterior.
@@ -924,7 +957,7 @@ class EmpresaApiController extends Controller
         // Durante el periodo de pruebas se amplía la tolerancia a 4 meses para
         // que documentos de junio/julio/agosto 2026 pasen como vigentes.
         // Al llegar la fecha de corte, vuelve automáticamente al comportamiento normal (>2).
-        $finVentanaPruebas = \Carbon\Carbon::create(2026, 9, 28, 23, 59, 59);
+        $finVentanaPruebas = Carbon::create(2026, 9, 28, 23, 59, 59);
         $toleranciaMeses = now()->lte($finVentanaPruebas) ? 4 : 2;
 
         return $mesesAtras > $toleranciaMeses;

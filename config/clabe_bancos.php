@@ -1,0 +1,51 @@
+<?php
+
+/**
+ * Catálogo de participantes SPEI (3 primeros dígitos de la CLABE).
+ * El primer nombre de cada código es el canónico; el resto son alias de comparación.
+ */
+return [
+    'instituciones' => [
+        '002' => ['Banamex', 'Citibanamex', 'Citi', 'Banco Nacional de Mexico'],
+        '012' => ['BBVA', 'Bancomer', 'BBVA Mexico', 'BBVA Bancomer'],
+        '014' => ['Santander', 'Banco Santander', 'Santander Mexico'],
+        '019' => ['Banco del Bienestar', 'Bienestar'],
+        '021' => ['HSBC', 'HSBC Mexico'],
+        '030' => ['Banco Bajío', 'BanBajío', 'Banbajio', 'Bajio'],
+        '036' => ['Inbursa', 'Banco Inbursa'],
+        '042' => ['Mifel', 'Banca Mifel'],
+        '044' => ['Scotiabank', 'Scotiabank Mexico'],
+        '058' => ['Banregio', 'Banco Regional'],
+        '059' => ['Invex', 'Banco Invex'],
+        '062' => ['Afirme', 'Banca Afirme'],
+        '072' => ['Banorte', 'Banco Mercantil del Norte'],
+        '106' => ['Bank of America', 'Bofa'],
+        '108' => ['Monex', 'Banco Monex'],
+        '110' => ['Ve por Más', 'Ve por Mas', 'BX+'],
+        '112' => ['BanCoppel', 'Bancoppel', 'Coppel'],
+        '113' => ['Ve por Más', 'Ve por Mas', 'BX+'],
+        '116' => ['ING Bank', 'ING'],
+        '124' => ['Deutsche Bank', 'Deutsche'],
+        '127' => ['Azteca', 'Banco Azteca'],
+        '128' => ['Autofin', 'Banco Autofin'],
+        '130' => ['CI Banco', 'CIBanco'],
+        '132' => ['Banco Multiva', 'Multiva'],
+        '133' => ['Actinver', 'Banco Actinver'],
+        '136' => ['Intercam Banco', 'Intercam'],
+        '137' => ['BanCoppel', 'Bancoppel'],
+        '138' => ['ABC Capital', 'ABC'],
+        '140' => ['Banco Sabadell', 'Sabadell'],
+        '143' => ['Consubanco'],
+        '145' => ['Banco Base', 'Base'],
+        '147' => ['Banco Azteca', 'Azteca'],
+        '148' => ['Banco Azteca', 'Azteca'],
+        '150' => ['Bansi'],
+        '155' => ['Banco S3 (México)', 'Banco S3'],
+        '166' => ['Banco del Bienestar', 'Bienestar'],
+        '600' => ['Compartamos Banco', 'Compartamos'],
+        '638' => ['Nu México (Nu)', 'Nu', 'Nu Mexico', 'Nubank'],
+        '646' => ['STP', 'Sistema de Transferencias y Pagos'],
+        '722' => ['Mercado Pago', 'MercadoPago'],
+        '723' => ['Stori'],
+    ],
+];
