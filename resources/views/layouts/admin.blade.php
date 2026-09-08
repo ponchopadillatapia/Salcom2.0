@@ -567,6 +567,15 @@
 
             <div class="sb-hr"></div>
             <div class="sb-section">Proveedores</div>
+            @php
+                // Conteos para los puntos rojos del sidebar (se recalculan en cada carga).
+                try {
+                    $sbSolicitudesPend = \App\Models\SolicitudAlta::where('estatus', 'pendiente')->count();
+                } catch (\Throwable $e) { $sbSolicitudesPend = 0; }
+                try {
+                    $sbDocsRevision = \App\Models\DocumentoProveedor::where('estatus', 'pendiente')->count();
+                } catch (\Throwable $e) { $sbDocsRevision = 0; }
+            @endphp
             <a href="{{ route('admin.proveedores') }}" class="sb-link {{ request()->is('admin/proveedores') || request()->is('admin/proveedores/*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                 <span class="sb-text">Proveedores / Score</span>
@@ -578,6 +587,7 @@
             <a href="{{ route('admin.solicitudes-alta') }}" class="sb-link {{ request()->is('admin/solicitudes-alta*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div>
                 <span class="sb-text">Solicitudes de alta</span>
+                @if($sbSolicitudesPend > 0)<span class="sb-badge">{{ $sbSolicitudesPend }}</span>@endif
             </a>
             <a href="{{ route('admin.solicitudes-docs') }}" class="sb-link {{ request()->is('admin/solicitudes-docs*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
@@ -586,6 +596,7 @@
             <a href="{{ route('admin.expediente-fiscal') }}" class="sb-link {{ request()->is('admin/expediente-fiscal*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
                 <span class="sb-text">Expediente Fiscal</span>
+                @if($sbDocsRevision > 0)<span class="sb-badge">{{ $sbDocsRevision }}</span>@endif
             </a>
             <a href="{{ route('admin.opinion-positiva') }}" class="sb-link {{ request()->is('admin/opinion-positiva*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>

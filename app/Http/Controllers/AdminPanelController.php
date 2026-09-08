@@ -3039,9 +3039,19 @@ class AdminPanelController extends Controller
                 'ultimo_at' => $ultimo?->created_at,
                 'meses' => $docs->map(fn ($d) => $d->created_at?->format('Y-m'))->filter()->unique()->count(),
             ];
-        })->filter()->sortBy(fn ($item) => mb_strtoupper($item['proveedor']->nombre ?? $item['proveedor']->usuario ?? ''))->values();
+        })->filter()
+            // Primero los que tienen documentos pendientes de revisión; dentro de cada
+            // grupo, los más recientes arriba.
+            ->sortByDesc(fn ($item) => [
+                $item['pendientes'] > 0 ? 1 : 0,
+                optional($item['ultimo_at'])->timestamp ?? 0,
+            ])
+            ->values();
 
-        return view('admin.expediente-fiscal', compact('proveedoresConDocs', 'tipos', 'mesesDisponibles'));
+        // Total de documentos pendientes de revisión manual (para el punto rojo del sidebar).
+        $totalPendientesRevision = $proveedoresConDocs->sum('pendientes');
+
+        return view('admin.expediente-fiscal', compact('proveedoresConDocs', 'tipos', 'mesesDisponibles', 'totalPendientesRevision'));
     }
 
     public function expedienteFiscalVer(Request $request, ProveedorUser $proveedor)

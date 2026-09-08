@@ -18,6 +18,10 @@
         transition:box-shadow .15s, border-color .15s;
     }
     .exp-row:hover{border-color:var(--purple-mid, #c4b5fd);box-shadow:0 2px 10px rgba(0,0,0,.06)}
+    /* Fila con documentos pendientes de revisión manual: realce y punto rojo */
+    .exp-row.tiene-pend{border-color:#fecaca;background:#fff7f7}
+    .exp-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--red,#dc2626);margin-right:7px;vertical-align:middle;animation:expBlink 1.2s ease-in-out infinite}
+    @keyframes expBlink{0%,100%{opacity:1}50%{opacity:.3}}
     .exp-nombre{font-size:14px;font-weight:700;color:var(--purple);margin:0}
     .exp-meta{font-size:12px;color:var(--gray-muted);margin-top:3px}
     .exp-stats{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
@@ -78,10 +82,10 @@
     </div>
 
     @forelse($proveedoresConDocs as $item)
-        @php $p = $item['proveedor']; @endphp
-        <a class="exp-row" href="{{ route('admin.expediente-fiscal.ver', $p) }}?{{ http_build_query(request()->only(['busqueda','persona','tipo','mes','estatus'])) }}">
+        @php $p = $item['proveedor']; $tienePend = $item['pendientes'] > 0; @endphp
+        <a class="exp-row {{ $tienePend ? 'tiene-pend' : '' }}" href="{{ route('admin.expediente-fiscal.ver', $p) }}?{{ http_build_query(request()->only(['busqueda','persona','tipo','mes','estatus'])) }}">
             <div>
-                <p class="exp-nombre">{{ $p->nombre ?? $p->usuario }}</p>
+                <p class="exp-nombre">@if($tienePend)<span class="exp-dot" title="Documentos pendientes de revisión manual"></span>@endif{{ $p->nombre ?? $p->usuario }}</p>
                 <div class="exp-meta">
                     Código: {{ $p->id_proveedor ?? '—' }}
                     · {{ $p->tipo_persona ?? '—' }}
