@@ -68,4 +68,82 @@ class PortalEmpleadoController extends Controller
 
         return view('empleados.portal', compact('reembolsos', 'viajes', 'gasolina', 'numero'));
     }
+
+    // ── Admin: Gestión de empleados ──
+
+    public function adminIndex(Request $request)
+    {
+        $query = Empleado::query()->orderBy('nombre');
+
+        if ($request->filled('busqueda')) {
+            $b = $request->input('busqueda');
+            $query->where(function ($q) use ($b) {
+                $q->where('numero_empleado', 'like', "%{$b}%")
+                  ->orWhere('nombre', 'like', "%{$b}%")
+                  ->orWhere('departamento', 'like', "%{$b}%");
+            });
+        }
+
+        $empleados = $query->paginate(30)->withQueryString();
+
+        return view('admin.empleados.index', compact('empleados'));
+    }
+
+    public function adminGuardar(Request $request)
+    {
+        $request->validate([
+            'numero_empleado' => 'required|string|max:50|unique:empleados,numero_empleado',
+            'nombre' => 'required|string|max:255',
+            'departamento' => 'nullable|string|max:100',
+            'correo' => 'nullable|email|max:255',
+        ], [
+            'numero_empleado.unique' => 'Ese número de empleado ya existe.',
+            'numero_empleado.required' => 'El número de empleado es obligatorio.',
+            'nombre.required' => 'El nombre es obligatorio.',
+        ]);
+
+        Empleado::create([
+            'numero_empleado' => trim($request->input('numero_empleado')),
+            'nombre' => $request->input('nombre'),
+            'departamento' => $request->input('departamento'),
+            'correo' => $request->input('correo'),
+            'activo' => true,
+        ]);
+
+        return redirect()->route('admin.empleados')->with('mensaje', 'Empleado dado de alta correctamente.');
+    }
+
+    public function adminToggle(Empleado $empleado)
+    {
+        $empleado->update(['activo' => ! $empleado->activo]);
+
+        return redirect()->route('admin.empleados')
+            ->with('mensaje', 'Empleado ' . ($empleado->activo ? 'activado' : 'desactivado') . '.');
+    }
+
+    public function adminActualizar(Request $request, Empleado $empleado)
+    {
+        $request->validate([
+            'numero_empleado' => 'required|string|max:50|unique:empleados,numero_empleado,' . $empleado->id,
+            'nombre' => 'required|string|max:255',
+            'departamento' => 'nullable|string|max:100',
+            'correo' => 'nullable|email|max:255',
+        ]);
+
+        $empleado->update([
+            'numero_empleado' => trim($request->input('numero_empleado')),
+            'nombre' => $request->input('nombre'),
+            'departamento' => $request->input('departamento'),
+            'correo' => $request->input('correo'),
+        ]);
+
+        return redirect()->route('admin.empleados')->with('mensaje', 'Empleado actualizado.');
+    }
+
+    public function adminEliminar(Empleado $empleado)
+    {
+        $empleado->delete();
+
+        return redirect()->route('admin.empleados')->with('mensaje', 'Empleado eliminado.');
+    }
 }

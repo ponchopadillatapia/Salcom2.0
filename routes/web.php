@@ -348,3 +348,10 @@ Route::get('/login-empleado', [PortalEmpleadoController::class, 'mostrarLogin'])
 Route::post('/login-empleado', [PortalEmpleadoController::class, 'procesarLogin'])->name('empleados.login.procesar');
 Route::post('/logout-empleado', [PortalEmpleadoController::class, 'cerrarSesion'])->name('empleados.logout');
 Route::get('/empleado/portal', [PortalEmpleadoController::class, 'portal'])->name('empleados.portal')->middleware('auth.empleado');
+
+// ── Admin: Gestión de Empleados ──
+Route::get('/admin/empleados', [PortalEmpleadoController::class, 'adminIndex'])->name('admin.empleados')->middleware('auth.admin');
+Route::post('/admin/empleados', [PortalEmpleadoController::class, 'adminGuardar'])->name('admin.empleados.guardar')->middleware('auth.admin');
+Route::put('/admin/empleados/{empleado}', [PortalEmpleadoController::class, 'adminActualizar'])->name('admin.empleados.actualizar')->middleware('auth.admin');
+Route::post('/admin/empleados/{empleado}/toggle', [PortalEmpleadoController::class, 'adminToggle'])->name('admin.empleados.toggle')->middleware('auth.admin');
+Route::delete('/admin/empleados/{empleado}', [PortalEmpleadoController::class, 'adminEliminar'])->name('admin.empleados.eliminar')->middleware('auth.admin');
