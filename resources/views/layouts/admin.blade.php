@@ -520,17 +520,23 @@
                             </a>
                         </div>
                     </div>
-                    <a href="{{ route('admin.reembolsos') }}" class="sb-link sb-sublink {{ request()->is('admin/reembolsos') ? 'active' : '' }}">
-                        <span class="sb-text">Reembolsos</span>
-                    </a>
-                    <a href="{{ route('admin.reembolsos-viaje') }}" class="sb-link sb-sublink {{ request()->is('admin/reembolsos-viaje*') ? 'active' : '' }}">
-                        <span class="sb-text">Reembolsos Viaje</span>
-                    </a>
-                    <a href="{{ route('admin.bitacora-gasolina') }}" class="sb-link sb-sublink {{ request()->is('admin/bitacora-gasolina*') ? 'active' : '' }}">
-                        <span class="sb-text">Bitácora Gasolina</span>
-                    </a>
                 </div>
             </div>
+
+            <div class="sb-hr"></div>
+            <div class="sb-section">Reembolsos a Empleados</div>
+            <a href="{{ route('admin.reembolsos') }}" class="sb-link {{ request()->is('admin/reembolsos') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
+                <span class="sb-text">Reembolsos</span>
+            </a>
+            <a href="{{ route('admin.reembolsos-viaje') }}" class="sb-link {{ request()->is('admin/reembolsos-viaje*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21v-4a4 4 0 0 1 4-4h11"/><polyline points="15 9 21 13 15 17"/></svg></div>
+                <span class="sb-text">Reembolsos Viaje</span>
+            </a>
+            <a href="{{ route('admin.bitacora-gasolina') }}" class="sb-link {{ request()->is('admin/bitacora-gasolina*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="18.7 8 12 14.7 9 11.7 3 17.7"/></svg></div>
+                <span class="sb-text">Bitácora Gasolina</span>
+            </a>
 
             <div class="sb-hr"></div>
             <div class="sb-section">Operación</div>
