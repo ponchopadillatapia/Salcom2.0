@@ -30,6 +30,11 @@
     .btn-rechazar{padding:7px 16px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
     .btn-revisar:hover,.btn-aprobar:hover,.btn-rechazar:hover{opacity:.9}
     .sol-empty{text-align:center;padding:40px;color:var(--gray-muted);font-size:14px}
+    /* Aviso de revisión manual: punto rojo pulsante + banner en la tarjeta */
+    .sol-card.rev-manual{border-color:#fecaca;box-shadow:0 0 0 1px #fecaca}
+    .sol-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--red,#dc2626);margin-right:7px;vertical-align:middle;animation:solBlink 1.2s ease-in-out infinite}
+    @keyframes solBlink{0%,100%{opacity:1}50%{opacity:.3}}
+    .sol-banner-rev{background:#fff7f7;border:1px solid #fecaca;color:#991b1b;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:600;margin-bottom:12px}
     .sol-filtros{display:flex;gap:8px;margin-bottom:16px}
     .sol-filtro-btn{padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;border:1.5px solid var(--border);background:var(--white);color:var(--gray-text);text-decoration:none;cursor:pointer}
     .sol-filtro-btn.active{background:var(--purple);color:#fff;border-color:var(--purple)}
@@ -55,20 +60,41 @@
 
     {{-- Lista de proveedores pendientes --}}
     <div id="solCards">
+    @php
+        $etiquetasDocRev = [
+            'formato_identificacion' => 'Formato de Identificación del Proveedor',
+            'acta' => 'Acta Constitutiva',
+            'cif' => 'Constancia de Situación Fiscal',
+            'opinion' => 'Opinión de Cumplimiento',
+            'rep_legal' => 'ID Representante Legal',
+            'contribuyente' => 'ID Contribuyente',
+            'caratula_banco' => 'Carátula de Banco',
+        ];
+    @endphp
     @forelse($pendientes ?? collect() as $item)
-        @php $prov = $item->proveedor; @endphp
-        <div class="sol-card pendiente" data-proveedor-id="{{ $prov->id }}" data-con-datos="{{ $item->con_datos ? '1' : '0' }}">
+        @php
+            $prov = $item->proveedor;
+            $revManual = $item->tiene_revision_manual ?? false;
+            $docsRev = collect($item->docs_revision_manual ?? [])->map(fn ($t) => $etiquetasDocRev[$t] ?? $t)->all();
+        @endphp
+        <div class="sol-card pendiente {{ $revManual ? 'rev-manual' : '' }}" data-proveedor-id="{{ $prov->id }}" data-con-datos="{{ $item->con_datos ? '1' : '0' }}">
             <div class="sol-head">
                 <div>
-                    <div class="sol-nombre">{{ $prov->nombre ?? $prov->usuario }}</div>
+                    <div class="sol-nombre">@if($revManual)<span class="sol-dot" title="Requiere revisión manual"></span>@endif{{ $prov->nombre ?? $prov->usuario }}</div>
                     <div class="sol-meta">
                         {{ $prov->tipo_persona ?? '—' }} ·
                         Código: {{ $prov->id_proveedor ?? '—' }} ·
                         Registrado: {{ $prov->created_at?->format('d/m/Y H:i') ?? '—' }}
                     </div>
                 </div>
-                <span class="sol-badge {{ ($item->docs_ok ?? false) ? 'con-datos' : 'pendiente' }}">{{ ($item->docs_ok ?? false) ? 'Listo' : 'Con validación' }}</span>
+                <span class="sol-badge {{ $revManual ? 'pendiente' : (($item->docs_ok ?? false) ? 'con-datos' : 'pendiente') }}">{{ $revManual ? 'Revisión manual' : (($item->docs_ok ?? false) ? 'Listo' : 'Con validación') }}</span>
             </div>
+
+            @if($revManual)
+            <div class="sol-banner-rev">
+                Requiere revisión manual: {{ implode(', ', $docsRev) }} (firmado a mano / sin firma electrónica). Revisa el documento antes de aprobar.
+            </div>
+            @endif
 
             <div class="sol-datos">
                 <div><span class="sol-dato-label">Correo:</span> <span class="sol-dato-value">{{ $prov->correo ?? '—' }}</span></div>
