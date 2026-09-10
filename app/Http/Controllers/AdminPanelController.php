@@ -2340,11 +2340,27 @@ class AdminPanelController extends Controller
                 $listo = $p->listoParaDireccion();
                 $conDatos = $bancarios && $tieneValidacion;
 
-                // Documentos que quedaron en revisión manual (pendiente), ej. Formato de
-                // Identificación firmado a mano/escaneado sin firma electrónica.
+                // Documentos en revisión manual (pendiente), con el MOTIVO correcto según
+                // el tipo: el Formato sin firma electrónica vs. un documento escaneado ilegible.
+                $etiquetasRev = [
+                    'formato_identificacion' => 'Formato de Identificación del Proveedor',
+                    'acta' => 'Acta Constitutiva',
+                    'cif' => 'Constancia de Situación Fiscal',
+                    'opinion' => 'Opinión de Cumplimiento',
+                    'rep_legal' => 'ID Representante Legal',
+                    'contribuyente' => 'ID Contribuyente',
+                    'caratula_banco' => 'Carátula de Banco',
+                ];
                 $docsRevisionManual = $p->documentos
                     ->where('estatus', 'pendiente')
-                    ->map(fn ($d) => $d->tipo)
+                    ->map(function ($d) use ($etiquetasRev) {
+                        $etiqueta = $etiquetasRev[$d->tipo] ?? ucfirst(str_replace('_', ' ', $d->tipo));
+                        $motivo = $d->tipo === 'formato_identificacion'
+                            ? 'firmado a mano / sin firma electrónica'
+                            : 'documento escaneado, no legible automáticamente';
+
+                        return $etiqueta.' ('.$motivo.')';
+                    })
                     ->values()
                     ->all();
                 $tieneRevisionManual = count($docsRevisionManual) > 0;
@@ -2982,7 +2998,11 @@ class AdminPanelController extends Controller
             'repse_cfdi_nomina' => 'REPSE · CFDI nóminas',
         ];
 
-        $query = DocumentoProveedor::with('proveedor')->orderByDesc('created_at');
+        // Expediente Fiscal = historial de proveedores YA APROBADOS (activos).
+        // Los que siguen en proceso de alta se ven en "Solicitudes de alta", no aquí.
+        $query = DocumentoProveedor::with('proveedor')
+            ->whereHas('proveedor', fn ($q) => $q->where('activo', true))
+            ->orderByDesc('created_at');
 
         if ($request->filled('tipo')) {
             $query->where('tipo', $request->tipo);
@@ -3022,6 +3042,7 @@ class AdminPanelController extends Controller
         $documentos = $query->get();
 
         $mesesDisponibles = DocumentoProveedor::query()
+            ->whereHas('proveedor', fn ($q) => $q->where('activo', true))
             ->whereNotNull('created_at')
             ->orderByDesc('created_at')
             ->pluck('created_at')

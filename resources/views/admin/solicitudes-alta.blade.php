@@ -60,22 +60,11 @@
 
     {{-- Lista de proveedores pendientes --}}
     <div id="solCards">
-    @php
-        $etiquetasDocRev = [
-            'formato_identificacion' => 'Formato de Identificación del Proveedor',
-            'acta' => 'Acta Constitutiva',
-            'cif' => 'Constancia de Situación Fiscal',
-            'opinion' => 'Opinión de Cumplimiento',
-            'rep_legal' => 'ID Representante Legal',
-            'contribuyente' => 'ID Contribuyente',
-            'caratula_banco' => 'Carátula de Banco',
-        ];
-    @endphp
     @forelse($pendientes ?? collect() as $item)
         @php
             $prov = $item->proveedor;
             $revManual = $item->tiene_revision_manual ?? false;
-            $docsRev = collect($item->docs_revision_manual ?? [])->map(fn ($t) => $etiquetasDocRev[$t] ?? $t)->all();
+            $docsRev = $item->docs_revision_manual ?? [];
         @endphp
         <div class="sol-card pendiente {{ $revManual ? 'rev-manual' : '' }}" data-proveedor-id="{{ $prov->id }}" data-con-datos="{{ $item->con_datos ? '1' : '0' }}">
             <div class="sol-head">
@@ -92,7 +81,7 @@
 
             @if($revManual)
             <div class="sol-banner-rev">
-                Requiere revisión manual: {{ implode(', ', $docsRev) }} (firmado a mano / sin firma electrónica). Revisa el documento antes de aprobar.
+                Requiere revisión manual: {{ implode('; ', $docsRev) }}. Revisa el documento antes de aprobar.
             </div>
             @endif
 
