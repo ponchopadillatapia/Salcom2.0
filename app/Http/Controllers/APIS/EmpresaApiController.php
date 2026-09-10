@@ -252,6 +252,35 @@ class EmpresaApiController extends Controller
                 $formatoId = $this->validarFormatoIdentificacion($textos['formato_identificacion'], $rfcFormularioNorm, $nombreParaFormato);
             }
 
+            // ════════════════════════════════════════
+            // DOCUMENTO ESCANEADO ILEGIBLE → REVISIÓN MANUAL
+            // Si el OCR/parser no pudo leer el texto (PDF escaneado), el documento
+            // NO se aprueba ni rechaza solo: se marca para revisión manual del admin.
+            // La carátula bancaria NO entra aquí: debe ser PDF legible o se rechaza.
+            // ════════════════════════════════════════
+            $docsIlegibles = [
+                'cif' => &$cif,
+                'opinion' => &$opinion,
+                'acta' => &$acta,
+                'rep_legal' => &$repLegal,
+                'contribuyente' => &$contribuyente,
+                'poder' => &$poder,
+                'formato_identificacion' => &$formatoId,
+            ];
+            foreach ($docsIlegibles as $claveDoc => &$resDoc) {
+                if (! isset($textos[$claveDoc]) || ! is_array($resDoc)) {
+                    continue;
+                }
+                if (strlen(trim((string) $textos[$claveDoc])) < 20) {
+                    $resDoc['datos'] = is_array($resDoc['datos'] ?? null) ? $resDoc['datos'] : [];
+                    $resDoc['datos']['revision_manual'] = true;
+                    $resDoc['errores'] = [];
+                    $resDoc['hallazgos'] = ['Documento escaneado — no se pudo leer automáticamente', 'Requiere revisión manual del admin'];
+                    $resDoc['valida'] = true; // válido pero pendiente de revisión
+                }
+            }
+            unset($resDoc);
+
             // Comparación crítica: RFC del Registro REPSE vs RFC del formulario.
             if ($rfcRegistroRepse && $rfcFormularioNorm && isset($repseResultados['repse_registro'])) {
                 if ($rfcRegistroRepse === $rfcFormularioNorm) {
