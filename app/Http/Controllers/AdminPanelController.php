@@ -2602,8 +2602,11 @@ class AdminPanelController extends Controller
             'poder' => 'Poder Notarial',
         ];
 
+        // Todos los documentos (aprobados + pendientes de revisión manual), para que
+        // el admin vea también los que quedaron en naranja y decida.
         $docsAprobados = $proveedor->documentos()
-            ->where('estatus', 'aprobado')
+            ->whereIn('estatus', ['aprobado', 'pendiente'])
+            ->orderByRaw("CASE WHEN estatus = 'pendiente' THEN 0 ELSE 1 END") // pendientes primero
             ->orderBy('tipo')
             ->get();
 

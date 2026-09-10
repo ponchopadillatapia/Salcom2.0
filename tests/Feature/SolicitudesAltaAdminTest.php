@@ -165,7 +165,7 @@ class SolicitudesAltaAdminTest extends TestCase
 
         $this->get(route('admin.solicitudes-alta.ver', $p))
             ->assertOk()
-            ->assertSee('DOCUMENTOS CORRECTOS')
+            ->assertSee('DOCUMENTOS DEL EXPEDIENTE')
             ->assertSee('Constancia de Situación Fiscal')
             ->assertSee('Sello del SAT detectado')
             ->assertSee('Clic para descargar PDF');
@@ -689,7 +689,7 @@ class SolicitudesAltaAdminTest extends TestCase
             ->assertOk()
             ->assertSee('DATOS DEL FORMULARIO')
             ->assertSee('BBVA')
-            ->assertSee('DOCUMENTOS CORRECTOS');
+            ->assertSee('DOCUMENTOS DEL EXPEDIENTE');
     }
 
     public function test_ver_solo_muestra_documentos_aprobados(): void
