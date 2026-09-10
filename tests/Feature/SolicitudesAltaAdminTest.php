@@ -9,6 +9,7 @@ use App\Models\ContactoProveedor;
 use App\Models\DocumentoProveedor;
 use App\Models\ProveedorUser;
 use App\Models\SolicitudAlta;
+use App\Services\Bancario\ClabeValidator;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
@@ -46,6 +47,7 @@ class SolicitudesAltaAdminTest extends TestCase
             'nombre' => 'Solicitante SA',
             'correo' => 'solicitante@test.com',
             'tipo_persona' => 'Persona Moral',
+            'rfc' => 'EMP010203XX9',
             'telefono' => '5551112233',
             'activo' => false,
         ], $extra));
@@ -73,6 +75,47 @@ class SolicitudesAltaAdminTest extends TestCase
             'proveedor_id' => $p->id, 'nombre' => 'Dos', 'rol' => 'compras',
             'telefono' => '3322222222', 'correo' => 'u2@t.com',
         ]);
+    }
+
+    /** Misma CLABE de ejemplo que ClabeValidatorTest (BBVA + checksum Banxico). */
+    private function clabeValida(): string
+    {
+        $validador = new ClabeValidator;
+        $base = '01218000123456789';
+
+        return $base.$validador->digitoVerificador($base);
+    }
+
+    private function payloadIdentificacionMoral(array $extra = []): array
+    {
+        return array_merge([
+            'fecha' => '2026-07-15',
+            'tipo_persona' => 'Persona Moral',
+            'razon_social' => 'Empresa Demo SA de CV',
+            'calle' => 'Calle 1',
+            'num_exterior' => '100',
+            'colonia' => 'Centro',
+            'municipio' => 'Guadalajara',
+            'estado' => 'Jalisco',
+            'ciudad' => 'Guadalajara',
+            'pais' => 'México',
+            'cp' => '44100',
+            'telefono' => '3312345678',
+            'celular' => '3387654321',
+            'correo' => 'solicitante@test.com',
+            'banco' => 'Banorte',
+            'clabe' => $this->clabeValida(),
+            'cuenta' => '99887766',
+            'nombre_firma' => 'Juan Perez',
+            'docs' => [
+                'acta_constitutiva',
+                'id_rep_legal',
+                'id_contribuyente',
+                'constancia_fiscal',
+                'opinion_cumplimiento',
+                'caratula_banco',
+            ],
+        ], $extra);
     }
 
     public function test_pagina_solicitudes_carga(): void
@@ -226,7 +269,7 @@ class SolicitudesAltaAdminTest extends TestCase
             'celular' => '3387654321',
             'correo' => 'solicitante@test.com',
             'banco' => 'Banorte',
-            'clabe' => '012345678901234567',
+            'clabe' => $this->clabeValida(),
             'cuenta' => '99887766',
             'nombre_firma' => 'Juan Perez',
             'docs' => [
@@ -241,7 +284,277 @@ class SolicitudesAltaAdminTest extends TestCase
 
         $fresh = $p->fresh();
         $this->assertSame('Banorte', $fresh->datos_identificacion['banco'] ?? null);
+        $this->assertSame('EMP010203XX9', $fresh->datos_identificacion['rfc'] ?? null);
+        $this->assertSame($this->clabeValida(), $fresh->datos_identificacion['clabe'] ?? null);
         $this->assertTrue($fresh->tieneFormularioDatosBancarios());
+    }
+
+    public function test_guardar_identificacion_conserva_flags_previos(): void
+    {
+        $p = $this->proveedorPendiente([
+            'datos_identificacion' => [
+                'banco' => 'BBVA',
+                'clabe' => '012345678901234567',
+                'es_repse' => false,
+                'cuenta_wiese_confirmada' => true,
+                'cuentas_wiese' => [['codigo' => 'P001']],
+                'cuentas_dual_confirmadas' => true,
+            ],
+        ]);
+
+        $this->withSession([
+            'proveedor_id' => $p->id,
+            'proveedor_nombre' => $p->nombre,
+            'proveedor_correo' => $p->correo,
+        ])->post(route('proveedores.identificacion.guardar'), [
+            'fecha' => '2026-07-15',
+            'tipo_persona' => 'Persona Moral',
+            'razon_social' => 'Empresa Demo SA de CV',
+            'calle' => 'Calle 1',
+            'num_exterior' => '100',
+            'colonia' => 'Centro',
+            'municipio' => 'Guadalajara',
+            'estado' => 'Jalisco',
+            'ciudad' => 'Guadalajara',
+            'pais' => 'México',
+            'cp' => '44100',
+            'telefono' => '3312345678',
+            'celular' => '3387654321',
+            'correo' => 'solicitante@test.com',
+            'banco' => 'Banorte',
+            'clabe' => $this->clabeValida(),
+            'cuenta' => '99887766',
+            'nombre_firma' => 'Juan Perez',
+            'docs' => [
+                'acta_constitutiva',
+                'id_rep_legal',
+                'id_contribuyente',
+                'constancia_fiscal',
+                'opinion_cumplimiento',
+                'caratula_banco',
+            ],
+        ])->assertRedirect(route('proveedores.onboarding'));
+
+        $di = $p->fresh()->datos_identificacion;
+        $this->assertSame('Banorte', $di['banco'] ?? null);
+        $this->assertFalse($di['es_repse'] ?? true);
+        $this->assertTrue($di['cuenta_wiese_confirmada'] ?? false);
+        $this->assertSame([['codigo' => 'P001']], $di['cuentas_wiese'] ?? null);
+        $this->assertTrue($di['cuentas_dual_confirmadas'] ?? false);
+        $this->assertSame('EMP010203XX9', $di['rfc'] ?? null);
+        $this->assertSame('moral', $di['tipo_clave'] ?? null);
+        $this->assertSame('Empresa Demo SA de CV', $di['nombre_esperado'] ?? null);
+    }
+
+    public function test_guardar_identificacion_persona_fisica_sin_acta(): void
+    {
+        $p = $this->proveedorPendiente([
+            'tipo_persona' => 'Persona Física',
+            'rfc' => 'PEPJ800101ABC',
+            'nombre' => 'Juan Perez',
+        ]);
+
+        $this->withSession([
+            'proveedor_id' => $p->id,
+            'proveedor_nombre' => $p->nombre,
+            'proveedor_correo' => $p->correo,
+        ])->post(route('proveedores.identificacion.guardar'), [
+            'fecha' => '2026-07-15',
+            'tipo_persona' => 'Persona Física',
+            'apellido_paterno' => 'Perez',
+            'apellido_materno' => 'Lopez',
+            'nombres' => 'Juan',
+            'calle' => 'Calle 1',
+            'num_exterior' => '100',
+            'colonia' => 'Centro',
+            'municipio' => 'Guadalajara',
+            'estado' => 'Jalisco',
+            'ciudad' => 'Guadalajara',
+            'pais' => 'México',
+            'cp' => '44100',
+            'telefono' => '3312345678',
+            'celular' => '3387654321',
+            'correo' => 'solicitante@test.com',
+            'banco' => 'Banorte',
+            'clabe' => $this->clabeValida(),
+            'cuenta' => '99887766',
+            'docs' => [
+                'id_contribuyente',
+                'constancia_fiscal',
+                'opinion_cumplimiento',
+                'caratula_banco',
+            ],
+        ])->assertRedirect(route('proveedores.onboarding'));
+
+        $di = $p->fresh()->datos_identificacion;
+        $this->assertSame('fisica', $di['tipo_clave'] ?? null);
+        $this->assertSame('Perez Lopez Juan', $di['nombre_esperado'] ?? null);
+        $this->assertSame('Perez Lopez Juan', $di['nombre_firma'] ?? null);
+        $this->assertSame('PEPJ800101ABC', $di['rfc'] ?? null);
+        $this->assertNotContains('acta_constitutiva', $di['docs'] ?? []);
+        $this->assertNotContains('id_rep_legal', $di['docs'] ?? []);
+    }
+
+    public function test_persona_moral_exige_id_rep_legal_y_acta(): void
+    {
+        $p = $this->proveedorPendiente();
+        $base = [
+            'fecha' => '2026-07-15',
+            'tipo_persona' => 'Persona Moral',
+            'razon_social' => 'Empresa Demo SA de CV',
+            'calle' => 'Calle 1',
+            'num_exterior' => '100',
+            'colonia' => 'Centro',
+            'municipio' => 'Guadalajara',
+            'estado' => 'Jalisco',
+            'ciudad' => 'Guadalajara',
+            'pais' => 'México',
+            'cp' => '44100',
+            'telefono' => '3312345678',
+            'celular' => '3387654321',
+            'correo' => 'solicitante@test.com',
+            'banco' => 'Banorte',
+            'clabe' => $this->clabeValida(),
+            'cuenta' => '99887766',
+            'nombre_firma' => 'Juan Perez',
+        ];
+        $docsBase = [
+            'id_contribuyente',
+            'constancia_fiscal',
+            'opinion_cumplimiento',
+            'caratula_banco',
+        ];
+
+        $session = [
+            'proveedor_id' => $p->id,
+            'proveedor_nombre' => $p->nombre,
+            'proveedor_correo' => $p->correo,
+        ];
+
+        $this->withSession($session)
+            ->from(route('proveedores.identificacion'))
+            ->post(route('proveedores.identificacion.guardar'), $base + [
+                'docs' => array_merge($docsBase, ['acta_constitutiva']),
+            ])
+            ->assertRedirect(route('proveedores.identificacion'))
+            ->assertSessionHasErrors('docs');
+
+        $this->withSession($session)
+            ->from(route('proveedores.identificacion'))
+            ->post(route('proveedores.identificacion.guardar'), $base + [
+                'docs' => array_merge($docsBase, ['id_rep_legal']),
+            ])
+            ->assertRedirect(route('proveedores.identificacion'))
+            ->assertSessionHasErrors('docs');
+    }
+
+    public function test_identificacion_acepta_clabe_con_checksum_valido(): void
+    {
+        $p = $this->proveedorPendiente();
+        $clabe = $this->clabeValida();
+
+        $this->withSession([
+            'proveedor_id' => $p->id,
+            'proveedor_nombre' => $p->nombre,
+            'proveedor_correo' => $p->correo,
+        ])->post(route('proveedores.identificacion.guardar'), $this->payloadIdentificacionMoral([
+            'clabe' => $clabe,
+        ]))->assertRedirect(route('proveedores.onboarding'));
+
+        $this->assertSame($clabe, $p->fresh()->datos_identificacion['clabe'] ?? null);
+    }
+
+    public function test_identificacion_rechaza_clabe_con_checksum_invalido(): void
+    {
+        $p = $this->proveedorPendiente();
+
+        $this->withSession([
+            'proveedor_id' => $p->id,
+            'proveedor_nombre' => $p->nombre,
+            'proveedor_correo' => $p->correo,
+        ])->from(route('proveedores.identificacion'))
+            ->post(route('proveedores.identificacion.guardar'), $this->payloadIdentificacionMoral([
+                'clabe' => '012345678901234567',
+            ]))
+            ->assertRedirect(route('proveedores.identificacion'))
+            ->assertSessionHasErrors('clabe');
+
+        $this->assertStringContainsString(
+            'dígito verificador',
+            session('errors')->first('clabe')
+        );
+        $this->assertNull($p->fresh()->datos_identificacion);
+    }
+
+    public function test_identificacion_rechaza_clabe_que_no_tiene_18_digitos(): void
+    {
+        $p = $this->proveedorPendiente();
+
+        $this->withSession([
+            'proveedor_id' => $p->id,
+            'proveedor_nombre' => $p->nombre,
+            'proveedor_correo' => $p->correo,
+        ])->from(route('proveedores.identificacion'))
+            ->post(route('proveedores.identificacion.guardar'), $this->payloadIdentificacionMoral([
+                'clabe' => '01234567890123456',
+            ]))
+            ->assertRedirect(route('proveedores.identificacion'))
+            ->assertSessionHasErrors('clabe');
+
+        $this->assertStringContainsString(
+            '18 dígitos',
+            session('errors')->first('clabe')
+        );
+        $this->assertNull($p->fresh()->datos_identificacion);
+    }
+
+    public function test_guardar_identificacion_repse_conserva_flag_y_docs(): void
+    {
+        $p = $this->proveedorPendiente([
+            'es_repse' => true,
+            'datos_identificacion' => [
+                'es_repse' => true,
+                'cuenta_wiese_confirmada' => true,
+            ],
+        ]);
+
+        $docsRepse = [
+            'repse_registro', 'repse_isr_retenido', 'repse_iva',
+            'repse_opinion_sat', 'repse_opinion_infonavit', 'repse_opinion_imss',
+            'repse_pago_imss_infonavit', 'repse_cedula_imss', 'repse_cedula_obrero_patronal',
+            'repse_sipare', 'repse_sua', 'repse_cfdi_nomina',
+        ];
+
+        $this->withSession([
+            'proveedor_id' => $p->id,
+            'proveedor_nombre' => $p->nombre,
+            'proveedor_correo' => $p->correo,
+        ])->post(route('proveedores.identificacion.guardar'), [
+            'fecha' => '2026-07-15',
+            'tipo_persona' => 'Persona Moral',
+            'razon_social' => 'Empresa Demo SA de CV',
+            'calle' => 'Calle 1',
+            'num_exterior' => '100',
+            'colonia' => 'Centro',
+            'municipio' => 'Guadalajara',
+            'estado' => 'Jalisco',
+            'ciudad' => 'Guadalajara',
+            'pais' => 'México',
+            'cp' => '44100',
+            'telefono' => '3312345678',
+            'celular' => '3387654321',
+            'correo' => 'solicitante@test.com',
+            'banco' => 'Banorte',
+            'clabe' => $this->clabeValida(),
+            'cuenta' => '99887766',
+            'nombre_firma' => 'Juan Perez',
+            'docs_repse' => $docsRepse,
+        ])->assertRedirect(route('proveedores.onboarding'));
+
+        $di = $p->fresh()->datos_identificacion;
+        $this->assertTrue($di['es_repse'] ?? false);
+        $this->assertTrue($di['cuenta_wiese_confirmada'] ?? false);
+        $this->assertSame($docsRepse, $di['docs_repse'] ?? []);
     }
 
     public function test_rechaza_solicitud_sin_eliminar_cuenta(): void
@@ -325,7 +638,7 @@ class SolicitudesAltaAdminTest extends TestCase
             'celular' => '3387654321',
             'correo' => 'solicitante@test.com',
             'banco' => 'Banorte',
-            'clabe' => '012345678901234567',
+            'clabe' => $this->clabeValida(),
             'cuenta' => '99887766',
             'nombre_firma' => 'Juan Perez',
             'docs' => [
@@ -355,7 +668,7 @@ class SolicitudesAltaAdminTest extends TestCase
         $this->withSession($adminSession)
             ->get(route('admin.solicitudes-alta'))
             ->assertOk()
-            ->assertSee('Solicitante SA')
+            ->assertSee('Empresa Demo SA de CV')
             ->assertSee('data-proveedor-id="'.$p->id.'"', false);
     }
 

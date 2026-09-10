@@ -17,6 +17,7 @@ use App\Models\SolicitudModificacionDatos;
 use App\Services\AlertEngineService;
 use App\Services\AltaFacturaValidationService;
 use App\Services\Bancario\CaratulaBancariaValidationService;
+use App\Services\Bancario\ClabeValidator;
 use App\Services\ProveedorApiService;
 use App\Services\SolicitudModificacionDatosService;
 use Illuminate\Http\Request;
@@ -1211,6 +1212,7 @@ class PortalProveedorController extends Controller
         }
 
         // El RFC debe coincidir con el del registro (fuente oficial). No se puede cambiar aquí.
+        $rfcRegistro = '';
         if ($proveedorPre) {
             $rfcRegistro = strtoupper(trim((string) ($proveedorPre->rfc ?? '')));
             if ($rfcRegistro === '') {
@@ -1218,11 +1220,7 @@ class PortalProveedorController extends Controller
                 $rfcRegistro = strtoupper(trim((string) ($diReg['rfc'] ?? $diReg['RFC'] ?? '')));
             }
             if ($rfcRegistro !== '') {
-                $rfcForm = strtoupper(preg_replace('/\s+/', '', (string) $request->input('rfc')));
-                if ($rfcForm !== $rfcRegistro) {
-                    // Forzar el del registro (por si intentaron cambiarlo saltándose el readonly).
-                    $request->merge(['rfc' => $rfcRegistro]);
-                }
+                $request->merge(['rfc' => $rfcRegistro]);
             }
         }
 
@@ -1246,11 +1244,24 @@ class PortalProveedorController extends Controller
             'telefono2' => ['nullable', 'regex:/^[0-9]{10}$/'],
             'extension' => ['nullable', 'regex:/^[0-9]{1,6}$/'],
             'correo' => 'required|email|max:255',
-            'rfc' => ['required', 'string', 'regex:/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/'],
-            'clabe' => ['required', 'regex:/^[0-9]{18}$/'],
+            'rfc' => $esMoral
+                ? ['required', 'string', 'regex:/^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/u']
+                : ['required', 'string', 'regex:/^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/u'],
+            'clabe' => [
+                'bail',
+                'required',
+                'regex:/^[0-9]{18}$/',
+                function (string $attribute, mixed $value, \Closure $fail) {
+                    if (! app(ClabeValidator::class)->tieneChecksumValido((string) $value)) {
+                        $fail('La CLABE no es válida. Verifica el dígito verificador.');
+                    }
+                },
+            ],
             'cuenta' => ['required', 'regex:/^[0-9]{5,20}$/'],
             'banco' => 'required|string|max:255|not_in:Otro',
-            'nombre_firma' => $soloTexto,
+            'nombre_firma' => $esMoral
+                ? $soloTexto
+                : ['nullable', 'string', 'max:255', $sinEmoji],
         ];
 
         // Documentos normales: obligatorios solo si NO es REPSE (los REPSE llevan su propia lista).
@@ -1261,14 +1272,16 @@ class PortalProveedorController extends Controller
                 function (string $attribute, mixed $value, \Closure $fail) use ($esMoral) {
                     $docs = is_array($value) ? $value : [];
                     $requeridos = [
-                        'id_rep_legal' => 'Identificación oficial del representante legal',
                         'id_contribuyente' => 'Identificación oficial del contribuyente',
                         'constancia_fiscal' => 'Constancia de Situación Fiscal',
                         'opinion_cumplimiento' => 'Opinión de Cumplimiento',
                         'caratula_banco' => 'Carátula de banco',
                     ];
                     if ($esMoral) {
-                        $requeridos = ['acta_constitutiva' => 'Acta Constitutiva'] + $requeridos;
+                        $requeridos = [
+                            'acta_constitutiva' => 'Acta Constitutiva',
+                            'id_rep_legal' => 'Identificación oficial del representante legal',
+                        ] + $requeridos;
                     }
                     $faltan = [];
                     foreach ($requeridos as $clave => $etiqueta) {
@@ -1331,6 +1344,9 @@ class PortalProveedorController extends Controller
             'required' => 'El campo :attribute es obligatorio.',
             'docs.required' => 'Debes marcar todos los documentos obligatorios.',
             'regex' => 'El campo :attribute tiene un formato inválido.',
+            'rfc.regex' => $esMoral
+                ? 'El RFC de persona moral debe tener 12 caracteres válidos (ej. ABC010203XY9).'
+                : 'El RFC de persona física debe tener 13 caracteres válidos (ej. ABCD010203XY9).',
             'telefono.regex' => 'El teléfono debe tener exactamente 10 dígitos numéricos.',
             'celular.regex' => 'El celular debe tener exactamente 10 dígitos numéricos.',
             'telefono2.regex' => 'El teléfono 2 debe tener exactamente 10 dígitos numéricos.',
@@ -1355,18 +1371,19 @@ class PortalProveedorController extends Controller
                 $data['nombres'] ?? '',
             ])));
 
-        $payload = array_merge($data, [
+        if ($esFisica && trim((string) ($data['nombre_firma'] ?? '')) === '') {
+            $data['nombre_firma'] = $nombreEsperado;
+        }
+
+        $datosAnteriores = is_array($proveedorPre?->datos_identificacion) ? $proveedorPre->datos_identificacion : [];
+        $payload = $this->fusionarDatosIdentificacion($datosAnteriores, array_merge($data, [
             'tipo_clave' => $esMoral ? 'moral' : 'fisica',
             'nombre_esperado' => $nombreEsperado,
-        ]);
+        ]));
 
-        // Incluir datos USD si aplica (la confirmación se hace desde onboarding, no aquí)
-        if ($proveedorMoneda && ! empty($data['clabe_usd'])) {
-            $payload['clabe_usd'] = $data['clabe_usd'];
-            $payload['cuenta_usd'] = $data['cuenta_usd'];
-            $payload['banco_usd'] = $data['banco_usd'];
-            // No marcar cuentas_dual_confirmadas aquí — se confirma en onboarding
-            unset($payload['cuentas_dual_confirmadas']);
+        // Si el RFC oficial existe, siempre prevalece sobre cualquier valor del formulario.
+        if ($rfcRegistro !== '') {
+            $payload['rfc'] = $rfcRegistro;
         }
 
         session(['identificacion_proveedor' => $payload]);
@@ -2427,6 +2444,47 @@ class PortalProveedorController extends Controller
         }
 
         return 'El tipo de persona ya quedó fijado y no se puede cambiar (como en el SAT). Si hay un error de registro, contacta a Compras.';
+    }
+
+    /**
+     * Combina el JSON ya guardado con lo que acaba de enviar el formulario.
+     * Los campos del form se actualizan; flags y datos ajenos al form se conservan.
+     *
+     * @param  array<string, mixed>  $existentes
+     * @param  array<string, mixed>  $formulario
+     * @return array<string, mixed>
+     */
+    private function fusionarDatosIdentificacion(array $existentes, array $formulario): array
+    {
+        // Inputs USD hidden: no pisar valores previos con vacío.
+        foreach (['clabe_usd', 'cuenta_usd', 'banco_usd'] as $k) {
+            if (! array_key_exists($k, $formulario)) {
+                continue;
+            }
+            $val = $formulario[$k];
+            if ($val === null || $val === '') {
+                unset($formulario[$k]);
+            }
+        }
+
+        $usdCambio = false;
+        foreach (['clabe_usd', 'cuenta_usd', 'banco_usd'] as $k) {
+            if (! isset($formulario[$k])) {
+                continue;
+            }
+            if ((string) ($existentes[$k] ?? '') !== (string) $formulario[$k]) {
+                $usdCambio = true;
+                break;
+            }
+        }
+
+        $fusion = array_merge($existentes, $formulario);
+
+        if ($usdCambio) {
+            unset($fusion['cuentas_dual_confirmadas']);
+        }
+
+        return $fusion;
     }
 
     /** Campos que, si cambian, invalidan la validación fiscal ya hecha. */
