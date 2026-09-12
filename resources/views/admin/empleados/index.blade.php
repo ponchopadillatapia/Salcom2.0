@@ -43,7 +43,7 @@
         <h3>Dar de alta empleado</h3>
         <form method="POST" action="{{ route('admin.empleados.guardar') }}">
             @csrf
-            <div class="emp-row">
+            <div class="emp-row" style="grid-template-columns: 1fr 1.5fr 1fr 1.5fr;">
                 <div class="emp-group">
                     <label for="numero_empleado">Número de empleado *</label>
                     <input type="text" id="numero_empleado" name="numero_empleado" required placeholder="Ej: 31542" value="{{ old('numero_empleado') }}">
@@ -53,12 +53,28 @@
                     <input type="text" id="nombre" name="nombre" required placeholder="Nombre del empleado" value="{{ old('nombre') }}">
                 </div>
                 <div class="emp-group">
-                    <label for="departamento">Departamento</label>
-                    <input type="text" id="departamento" name="departamento" placeholder="Ej: Ventas" value="{{ old('departamento') }}">
+                    <label for="departamento">Departamento / Área / Ruta</label>
+                    <input type="text" id="departamento" name="departamento" placeholder="Ej: Ventas, Ruta" value="{{ old('departamento') }}">
                 </div>
                 <div class="emp-group">
                     <label for="correo">Correo</label>
                     <input type="email" id="correo" name="correo" placeholder="correo@salcom.com" value="{{ old('correo') }}">
+                </div>
+            </div>
+            <div class="emp-row" style="grid-template-columns: 1fr 1.5fr auto; margin-top:14px;">
+                <div class="emp-group" style="grid-column: 1 / -1; flex-direction:row; align-items:center; gap:8px;">
+                    <input type="checkbox" id="requiere_gasolina" name="requiere_gasolina" value="1" {{ old('requiere_gasolina') ? 'checked' : '' }} style="width:16px;height:16px;accent-color:var(--purple);">
+                    <label for="requiere_gasolina" style="margin:0;cursor:pointer;">Este empleado es de ruta/gasolina (debe llenar bitácora de gasolina antes de poder pedir reembolsos)</label>
+                </div>
+            </div>
+            <div class="emp-row" style="grid-template-columns: 1fr 1.5fr auto; margin-top:14px;">
+                <div class="emp-group">
+                    <label for="numero_cuenta">Número de cuenta de la tarjeta</label>
+                    <input type="text" id="numero_cuenta" name="numero_cuenta" placeholder="Cuenta completa" value="{{ old('numero_cuenta') }}">
+                </div>
+                <div class="emp-group">
+                    <label for="titular_cuenta">Titular de la tarjeta (a nombre de quién)</label>
+                    <input type="text" id="titular_cuenta" name="titular_cuenta" placeholder="Nombre como aparece en la tarjeta" value="{{ old('titular_cuenta') }}">
                 </div>
                 <div class="emp-group">
                     <label>&nbsp;</label>
@@ -80,14 +96,16 @@
 
         @if($empleados->count())
         <table class="emp-table">
-            <thead><tr><th>Nº Empleado</th><th>Nombre</th><th>Departamento</th><th>Correo</th><th>Estatus</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Nº Empleado</th><th>Nombre</th><th>Departamento</th><th>Ruta/Gas</th><th>Nº Cuenta</th><th>Titular</th><th>Estatus</th><th>Acciones</th></tr></thead>
             <tbody>
                 @foreach($empleados as $emp)
                 <tr>
                     <td><strong>{{ $emp->numero_empleado }}</strong></td>
                     <td>{{ $emp->nombre }}</td>
                     <td>{{ $emp->departamento ?: '—' }}</td>
-                    <td>{{ $emp->correo ?: '—' }}</td>
+                    <td>@if($emp->requiere_gasolina)<span class="badge b-pendiente" style="background:#fef3c7;color:#92400e;">Sí</span>@else — @endif</td>
+                    <td>{{ $emp->numero_cuenta ?: '—' }}</td>
+                    <td>{{ $emp->titular_cuenta ?: '—' }}</td>
                     <td><span class="badge {{ $emp->activo ? 'b-activo' : 'b-inactivo' }}">{{ $emp->activo ? 'Activo' : 'Inactivo' }}</span></td>
                     <td style="display:flex;gap:12px;align-items:center;">
                         <form method="POST" action="{{ route('admin.empleados.toggle', $emp) }}" style="display:inline;">

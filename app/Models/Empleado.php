@@ -10,9 +10,11 @@ class Empleado extends Model
 
     protected $fillable = [
         'numero_empleado', 'nombre', 'departamento', 'correo', 'activo',
+        'numero_cuenta', 'titular_cuenta', 'requiere_gasolina',
     ];
 
     protected $casts = [
         'activo' => 'boolean',
+        'requiere_gasolina' => 'boolean',
     ];
 }

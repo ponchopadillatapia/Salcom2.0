@@ -96,6 +96,8 @@ class PortalEmpleadoController extends Controller
             'nombre' => 'required|string|max:255',
             'departamento' => 'nullable|string|max:100',
             'correo' => 'nullable|email|max:255',
+            'numero_cuenta' => 'nullable|string|max:30',
+            'titular_cuenta' => 'nullable|string|max:255',
         ], [
             'numero_empleado.unique' => 'Ese número de empleado ya existe.',
             'numero_empleado.required' => 'El número de empleado es obligatorio.',
@@ -107,6 +109,9 @@ class PortalEmpleadoController extends Controller
             'nombre' => $request->input('nombre'),
             'departamento' => $request->input('departamento'),
             'correo' => $request->input('correo'),
+            'numero_cuenta' => $request->input('numero_cuenta'),
+            'titular_cuenta' => $request->input('titular_cuenta'),
+            'requiere_gasolina' => $request->boolean('requiere_gasolina'),
             'activo' => true,
         ]);
 
@@ -128,6 +133,8 @@ class PortalEmpleadoController extends Controller
             'nombre' => 'required|string|max:255',
             'departamento' => 'nullable|string|max:100',
             'correo' => 'nullable|email|max:255',
+            'numero_cuenta' => 'nullable|string|max:30',
+            'titular_cuenta' => 'nullable|string|max:255',
         ]);
 
         $empleado->update([
@@ -135,6 +142,9 @@ class PortalEmpleadoController extends Controller
             'nombre' => $request->input('nombre'),
             'departamento' => $request->input('departamento'),
             'correo' => $request->input('correo'),
+            'numero_cuenta' => $request->input('numero_cuenta'),
+            'titular_cuenta' => $request->input('titular_cuenta'),
+            'requiere_gasolina' => $request->boolean('requiere_gasolina'),
         ]);
 
         return redirect()->route('admin.empleados')->with('mensaje', 'Empleado actualizado.');

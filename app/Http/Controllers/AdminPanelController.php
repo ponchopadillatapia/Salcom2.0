@@ -3260,6 +3260,17 @@ class AdminPanelController extends Controller
             'solicitante.required' => 'Indica quién solicita el reembolso.',
         ]);
 
+        // Si el empleado es de ruta/gasolina, debe tener bitácora antes de cualquier reembolso
+        $numEmp = $request->input('numero_empleado');
+        $empleado = \App\Models\Empleado::where('numero_empleado', $numEmp)->first();
+        if ($empleado && $empleado->requiere_gasolina) {
+            $suBitacora = Alerta::where('tipo', 'bitacora_gasolina')->get()
+                ->first(fn ($r) => ($r->datos['numero_empleado'] ?? null) == $numEmp);
+            if (! $suBitacora) {
+                return back()->withErrors(['numero_empleado' => 'Este empleado es de ruta/gasolina. Debe llenar primero su Bitácora de Gasolina antes de pedir un reembolso.'])->withInput();
+            }
+        }
+
         // Validar que gasolina tenga bitácora previa y dentro del plazo de 3 días
         if ($request->input('categoria') === 'gasolina') {
             $ultimaBitacora = Alerta::where('tipo', 'bitacora_gasolina')
