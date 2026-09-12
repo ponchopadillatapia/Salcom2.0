@@ -30,6 +30,21 @@
         border-bottom: 1px solid var(--border-light);
     }
 
+    /* Carpetas de mes (acordeón) */
+    .mes-carpeta { border: 1px solid var(--border-light); border-radius: 10px; margin-bottom: 12px; overflow: hidden; background: var(--white); }
+    .mes-carpeta-head {
+        display: flex; align-items: center; gap: 10px; cursor: pointer;
+        padding: 12px 14px; font-size: 13px; font-weight: 700; color: var(--purple);
+        background: var(--purple-subtle, #f3e8ff); list-style: none; user-select: none;
+    }
+    .mes-carpeta-head::-webkit-details-marker { display: none; }
+    .mes-carpeta-titulo { flex: 1; }
+    .mes-carpeta-count { font-weight: 600; font-size: 11px; color: var(--gray-muted); background: var(--white); padding: 2px 10px; border-radius: 999px; }
+    .mes-chevron { transition: transform .2s; color: var(--purple); flex-shrink: 0; }
+    .mes-carpeta[open] .mes-chevron { transform: rotate(180deg); }
+    .mes-carpeta[open] .mes-folder-icon { fill: var(--purple-subtle, #f3e8ff); }
+    .mes-carpeta-body { padding: 12px 14px; }
+
     .seccion-doc {
         display: block; text-decoration: none; color: inherit;
         border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 0.65rem;
@@ -107,7 +122,15 @@
                         $tituloMes = $mesKey;
                     }
                 @endphp
-                <div class="mes-head">{{ $tituloMes }} · {{ $docsMes->count() }} documento(s)</div>
+                {{-- Carpeta de mes: clic para abrir/cerrar. El primer mes abierto por defecto. --}}
+                <details class="mes-carpeta" {{ $loop->first ? 'open' : '' }}>
+                    <summary class="mes-carpeta-head">
+                        <svg class="mes-folder-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        <span class="mes-carpeta-titulo">{{ $tituloMes }}</span>
+                        <span class="mes-carpeta-count">{{ $docsMes->count() }} documento(s)</span>
+                        <svg class="mes-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </summary>
+                    <div class="mes-carpeta-body">
 
                 @foreach($docsMes as $doc)
                     @php
@@ -170,6 +193,8 @@
                         </div>
                     </a>
                 @endforeach
+                    </div>
+                </details>
             @endforeach
         </div>
     @endif

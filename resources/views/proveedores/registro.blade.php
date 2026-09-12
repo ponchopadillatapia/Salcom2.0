@@ -8,9 +8,45 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="/css/ios-theme.css" rel="stylesheet">
     <style>
-        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
-        .divider { display: flex; align-items: center; gap: 12px; margin: 4px 0 16px; color: rgba(255,255,255,0.3); font-size: 12px; }
+        .ios-login-container.registro-wide {
+            max-width: 860px;
+        }
+        .ios-login-card.registro-card {
+            padding: 28px 32px 24px;
+        }
+        .registro-head { margin-bottom: 6px; }
+        .registro-head .card-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #fff;
+            margin: 0;
+            letter-spacing: -0.4px;
+            line-height: 1.2;
+        }
+        .registro-head .card-sub {
+            font-size: 14px;
+            line-height: 1.45;
+            color: rgba(255,255,255,0.5);
+            margin: 4px 0 0;
+        }
+        .form-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: .7px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.42);
+            margin: 2px 0 0;
+        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 18px; }
+        .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 18px; }
+        .form-row-foot {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .form-row-foot .g-recaptcha { display: inline-block; }
+        .divider { display: flex; align-items: center; gap: 12px; margin: 2px 0 0; color: rgba(255,255,255,0.3); font-size: 12px; }
         .divider::before, .divider::after { content: ''; flex: 1; border-top: 1px solid rgba(255,255,255,0.1); }
         .ios-field select { width: 100%; border: 1px solid rgba(255,255,255,0.12); border-radius: var(--radius); padding: 13px 16px; font-size: 15px; font-family: inherit; color: #fff; background: rgba(255,255,255,0.05); transition: var(--transition); outline: none; cursor: pointer; }
         .ios-field select:focus { border-color: rgba(139,92,246,0.5); background: rgba(255,255,255,0.08); box-shadow: 0 0 0 4px rgba(107,63,160,0.15); }
@@ -19,15 +55,23 @@
         .hint { font-size: 11px; color: rgba(255,255,255,0.45); margin-top: 4px; display: block; }
         .error-msg { font-size: 11px; color: #fca5a5; margin-top: 3px; }
         .usuario-preview { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.02em; }
-        @media (max-width: 500px) {
+        .ios-login-card.registro-card > form .ios-btn-primary {
+            width: auto;
+            min-width: 240px;
+            margin: 0 auto;
+        }
+        @media (max-width: 760px) {
+            .ios-login-container.registro-wide { max-width: 420px; }
+            .ios-login-card.registro-card { padding: 22px 18px 20px; }
             .form-row, .form-row-3 { grid-template-columns: 1fr; }
+            .ios-login-card.registro-card > form .ios-btn-primary { width: 100%; }
         }
     </style>
 </head>
 <body class="ios-login-bg">
 <div class="orb-accent"></div>
 
-<div class="ios-login-container">
+<div class="ios-login-container registro-wide">
     <a href="/login-proveedor" class="ios-back-link">← Volver al login</a>
 
     <div class="ios-brand">
@@ -35,9 +79,11 @@
         <p>PORTAL DE PROVEEDORES</p>
     </div>
 
-    <div class="ios-login-card">
-        <div class="card-title">Registro de Proveedor</div>
-        <div class="card-sub">Completa tus datos para crear tu cuenta</div>
+    <div class="ios-login-card registro-card">
+        <div class="registro-head">
+            <div class="card-title">Registro de Proveedor</div>
+            <div class="card-sub">Completa tus datos para crear tu cuenta</div>
+        </div>
 
         @if ($errors->any())
             <div class="ios-alert ios-alert-error"><ul style="padding-left:16px;">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
@@ -45,23 +91,28 @@
 
         <form method="POST" action="{{ route('proveedores.registro.guardar') }}" id="form-registro">
             @csrf
-            <div class="ios-field"><label>Tipo de persona <span class="req">*</span></label>
-                <select name="tipo_persona" id="reg_tipo_persona" required>
-                    <option value="" disabled {{ old('tipo_persona') ? '' : 'selected' }}>Selecciona una opción</option>
-                    <option value="Persona Física" {{ old('tipo_persona')=='Persona Física'?'selected':'' }}>Persona Física</option>
-                    <option value="Persona Moral" {{ old('tipo_persona')=='Persona Moral'?'selected':'' }}>Persona Moral</option>
-                </select>
-                @error('tipo_persona')<span class="error-msg">{{ $message }}</span>@enderror
-            </div>
 
-            <div class="ios-field"><label>¿Es proveedor REPSE? <span class="req">*</span></label>
-                <select name="es_repse" id="reg_es_repse" required>
-                    <option value="" disabled {{ old('es_repse') !== null && old('es_repse') !== '' ? '' : 'selected' }}>Selecciona una opción</option>
-                    <option value="1" {{ old('es_repse')==='1' ? 'selected' : '' }}>Sí, estoy registrado en el REPSE</option>
-                    <option value="0" {{ old('es_repse')==='0' ? 'selected' : '' }}>No</option>
-                </select>
-                <span class="hint">REPSE: Registro de Prestadoras de Servicios Especializados u Obras Especializadas (STPS).</span>
-                @error('es_repse')<span class="error-msg">{{ $message }}</span>@enderror
+            <div class="form-section-title">Identificación</div>
+            <div class="form-row">
+                <div class="ios-field">
+                    <label>Tipo de persona <span class="req">*</span></label>
+                    <select name="tipo_persona" id="reg_tipo_persona" required>
+                        <option value="" disabled {{ old('tipo_persona') ? '' : 'selected' }}>Selecciona una opción</option>
+                        <option value="Persona Física" {{ old('tipo_persona')=='Persona Física'?'selected':'' }}>Persona Física</option>
+                        <option value="Persona Moral" {{ old('tipo_persona')=='Persona Moral'?'selected':'' }}>Persona Moral</option>
+                    </select>
+                    @error('tipo_persona')<span class="error-msg">{{ $message }}</span>@enderror
+                </div>
+                <div class="ios-field">
+                    <label>¿Es proveedor REPSE? <span class="req">*</span></label>
+                    <select name="es_repse" id="reg_es_repse" required>
+                        <option value="" disabled {{ old('es_repse') !== null && old('es_repse') !== '' ? '' : 'selected' }}>Selecciona una opción</option>
+                        <option value="1" {{ old('es_repse')==='1' ? 'selected' : '' }}>Sí, estoy registrado en el REPSE</option>
+                        <option value="0" {{ old('es_repse')==='0' ? 'selected' : '' }}>No</option>
+                    </select>
+                    <span class="hint">Registro de Prestadoras de Servicios Especializados (STPS).</span>
+                    @error('es_repse')<span class="error-msg">{{ $message }}</span>@enderror
+                </div>
             </div>
 
             <div id="campos-fisica" style="{{ old('tipo_persona', '') === 'Persona Moral' ? 'display:none' : '' }}">
@@ -92,35 +143,54 @@
                 </div>
             </div>
 
-            <div class="ios-field" id="campo-rfc">
-                <label>RFC <span class="req">*</span></label>
-                <input type="text" name="rfc" id="reg_rfc" placeholder="Ej. ABCD010203XY9" value="{{ old('rfc') }}" maxlength="13" autocomplete="off" style="text-transform: uppercase;" required>
-                <span class="hint" id="reg_rfc_hint">13 caracteres (persona física).</span>
-                @error('rfc')<span class="error-msg">{{ $message }}</span>@enderror
+            <div class="form-row">
+                <div class="ios-field" id="campo-rfc">
+                    <label>RFC <span class="req">*</span></label>
+                    <input type="text" name="rfc" id="reg_rfc" placeholder="Ej. ABCD010203XY9" value="{{ old('rfc') }}" maxlength="13" autocomplete="off" style="text-transform: uppercase;" required>
+                    <span class="hint" id="reg_rfc_hint">13 caracteres (persona física).</span>
+                    @error('rfc')<span class="error-msg">{{ $message }}</span>@enderror
+                </div>
+                <div class="ios-field">
+                    <label>Usuario de acceso</label>
+                    <input type="text" id="reg_usuario_preview" class="usuario-preview" value="{{ old('usuario_sugerido', '') }}" readonly tabindex="-1" aria-live="polite">
+                    <input type="hidden" name="usuario_sugerido" id="reg_usuario_sugerido" value="{{ old('usuario_sugerido', '') }}">
+                    <span class="hint" id="reg_usuario_hint">Se genera automáticamente (ej. juan.garcia). También podrás entrar con tu correo.</span>
+                </div>
             </div>
 
-            <div class="ios-field">
-                <label>Usuario de acceso</label>
-                <input type="text" id="reg_usuario_preview" class="usuario-preview" value="{{ old('usuario_sugerido', '') }}" readonly tabindex="-1" aria-live="polite">
-                <input type="hidden" name="usuario_sugerido" id="reg_usuario_sugerido" value="{{ old('usuario_sugerido', '') }}">
-                <span class="hint" id="reg_usuario_hint">Se genera automaticamente: (ej. juan.garcia). También podrás entrar con tu correo.</span>
-            </div>
-
+            <div class="form-section-title">Contacto y acceso</div>
             <div class="form-row">
                 <div class="ios-field">
                     <label>Teléfono <span class="req">*</span></label>
                     <input type="tel" name="telefono" id="reg_telefono" placeholder="10 dígitos" value="{{ old('telefono') }}" required maxlength="10" inputmode="numeric" pattern="[0-9]{10}">
                     @error('telefono')<span class="error-msg">{{ $message }}</span>@enderror
                 </div>
-                <div class="ios-field"><label>Correo electrónico <span class="req">*</span></label><input type="email" name="correo" id="reg_correo" placeholder="tu@correo.com" value="{{ old('correo') }}" required>@error('correo')<span class="error-msg">{{ $message }}</span>@enderror</div>
+                <div class="ios-field">
+                    <label>Correo electrónico <span class="req">*</span></label>
+                    <input type="email" name="correo" id="reg_correo" placeholder="tu@correo.com" value="{{ old('correo') }}" required>
+                    @error('correo')<span class="error-msg">{{ $message }}</span>@enderror
+                </div>
             </div>
             <div class="form-row">
-                <div class="ios-field"><label>Contraseña <span class="req">*</span></label><input type="password" name="password" placeholder="Mínimo 8 caracteres" required>@error('password')<span class="error-msg">{{ $message }}</span>@enderror</div>
-                <div class="ios-field"><label>Confirmar contraseña <span class="req">*</span></label><input type="password" name="password_confirmation" placeholder="Repite tu contraseña" required></div>
+                <div class="ios-field">
+                    <label>Contraseña <span class="req">*</span></label>
+                    <input type="password" name="password" placeholder="Mínimo 8 caracteres" required>
+                    @error('password')<span class="error-msg">{{ $message }}</span>@enderror
+                </div>
+                <div class="ios-field">
+                    <label>Confirmar contraseña <span class="req">*</span></label>
+                    <input type="password" name="password_confirmation" placeholder="Repite tu contraseña" required>
+                </div>
             </div>
+
             <div class="divider">Verificación de seguridad</div>
-            <div style="margin-bottom:16px;"><div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}"></div>@error('g-recaptcha-response')<span class="error-msg" style="display:block;margin-top:6px;">Por favor completa el captcha</span>@enderror</div>
-            <button type="submit" class="ios-btn-primary">Crear mi cuenta</button>
+            <div class="form-row-foot">
+                <div>
+                    <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}"></div>
+                    @error('g-recaptcha-response')<span class="error-msg" style="display:block;margin-top:6px;">Por favor completa el captcha</span>@enderror
+                </div>
+                <button type="submit" class="ios-btn-primary">Crear mi cuenta</button>
+            </div>
         </form>
         <p class="ios-register-link">¿Ya tienes cuenta? <a href="{{ route('proveedores.login') }}">Inicia sesión aquí</a></p>
     </div>

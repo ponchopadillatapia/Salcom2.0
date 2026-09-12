@@ -52,6 +52,7 @@ class OnboardingLockTest extends TestCase
             'correo' => 'demo.lock@test.com',
             'password' => 'password12',
             'password_confirmation' => 'password12',
+            'es_repse' => '0',
         ])->assertRedirect('/login-proveedor')
             ->assertSessionHas('mensaje');
 

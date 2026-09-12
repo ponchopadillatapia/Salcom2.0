@@ -568,19 +568,14 @@
             <div class="sb-hr"></div>
             <div class="sb-section">Proveedores</div>
             @php
-                // Conteos para los puntos rojos del sidebar (se recalculan en cada carga).
+                // Punto rojo del sidebar en "Solicitudes de alta": proveedores NO activos
+                // con documentos pendientes de revisión manual (ej. Formato firmado a mano).
+                // Ahí es donde el admin acepta/rechaza/revisa. Se recalcula en cada carga.
                 try {
-                    $sbSolicitudesPend = \App\Models\SolicitudAlta::where('estatus', 'pendiente')->count();
-                } catch (\Throwable $e) { $sbSolicitudesPend = 0; }
-                try {
-                    // Solo pendientes que aún NO han sido vistos (estilo WhatsApp).
-                    $sbDocsRevision = \App\Models\DocumentoProveedor::where('estatus', 'pendiente')
-                        ->where(function ($q) {
-                            $q->whereNull('resultado_validacion')
-                                ->orWhere('resultado_validacion', 'not like', '%"revision_vista":true%');
-                        })
+                    $sbSolicitudesPend = \App\Models\ProveedorUser::where('activo', false)
+                        ->whereHas('documentos', fn ($q) => $q->where('estatus', 'pendiente'))
                         ->count();
-                } catch (\Throwable $e) { $sbDocsRevision = 0; }
+                } catch (\Throwable $e) { $sbSolicitudesPend = 0; }
             @endphp
             <a href="{{ route('admin.proveedores') }}" class="sb-link {{ request()->is('admin/proveedores') || request()->is('admin/proveedores/*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
@@ -602,7 +597,6 @@
             <a href="{{ route('admin.expediente-fiscal') }}" class="sb-link {{ request()->is('admin/expediente-fiscal*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
                 <span class="sb-text">Expediente Fiscal</span>
-                @if($sbDocsRevision > 0)<span class="sb-badge">{{ $sbDocsRevision }}</span>@endif
             </a>
             <a href="{{ route('admin.opinion-positiva') }}" class="sb-link {{ request()->is('admin/opinion-positiva*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>

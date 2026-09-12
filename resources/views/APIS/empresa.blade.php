@@ -540,6 +540,8 @@
             <span id="contribuyente_nombre" class="file-name empty">Sin archivo</span>
         </div>
 
+        {{-- Formato de Identificación: NO aplica a proveedores REPSE --}}
+        @if(empty($esRepse))
         <div class="doc-row" id="row_formato_identificacion">
             <label class="doc-label" for="formato_identificacion"><i class="bi bi-file-earmark-person"></i> Formato de Identificación del Proveedor</label>
             <p class="doc-hint">Formato de Salcom (FCONT-0010) firmado electrónicamente · PDF</p>
@@ -547,6 +549,7 @@
             <label for="formato_identificacion" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
             <span id="formato_identificacion_nombre" class="file-name empty">Sin archivo</span>
         </div>
+        @endif
 
         {{-- ── GRUPO 3: Poder Notarial (opcional) ── --}}
         <p class="group-title"><i class="bi bi-shield-lock"></i> Poder Notarial <span class="optional-badge">Opcional</span></p>
@@ -771,7 +774,10 @@ if (identificacion && identificacion.tipo_clave) {
 }
 
 function getCamposRequeridos() {
-    const base = ['cif', 'opinion', 'caratula_banco', 'formato_identificacion'];
+    // El Formato de Identificación no aplica a proveedores REPSE.
+    const base = window.ES_REPSE
+        ? ['cif', 'opinion', 'caratula_banco']
+        : ['cif', 'opinion', 'caratula_banco', 'formato_identificacion'];
     if (tipoPersona === 'moral') {
         base.push('rep_legal');
         base.push('contribuyente');

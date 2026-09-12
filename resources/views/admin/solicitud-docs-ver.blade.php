@@ -5,7 +5,7 @@
 @section('hero')
 <div class="hero-band">
     <h1>Resultado de validación</h1>
-    <p>{{ $proveedor->nombre ?? $proveedor->usuario }} — solo documentos correctos (aprobados)</p>
+    <p>{{ $proveedor->nombre ?? $proveedor->usuario }} — documentos del expediente (revisa los marcados en naranja)</p>
 </div>
 @endsection
 
@@ -32,10 +32,14 @@
         cursor: pointer;
     }
     .seccion-doc:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); transform: translateY(-1px); }
+    /* Documento pendiente de revisión manual = naranja */
+    .seccion-doc.pendiente { border-left-color: #d97706; background: #fffbeb; }
     .seccion-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.55rem; flex-wrap: wrap; }
     .seccion-titulo { font-weight: 700; font-size: 0.9rem; color: var(--gray-text); flex: 1; }
     .status-pill { font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; background: #ecfdf5; color: #059669; }
+    .status-pill.pendiente { background: #fffbeb; color: #d97706; }
     .detalle-item { font-size: 0.82rem; padding: 4px 0; display: flex; align-items: flex-start; gap: 0.5rem; color: #047857; line-height: 1.4; }
+    .seccion-doc.pendiente .detalle-item { color: #92400e; }
     .detalle-item svg { flex-shrink: 0; margin-top: 2px; }
     .doc-dl-hint { margin-top: 10px; font-size: 12px; font-weight: 600; color: var(--purple); display: inline-flex; align-items: center; gap: 6px; }
     .ver-empty { text-align: center; padding: 40px 20px; background: var(--white); border-radius: 14px; border: 1px solid var(--border-light); color: var(--gray-muted); font-size: 14px; }
@@ -88,19 +92,22 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                 </span>
                 <div>
-                    <div class="resultado-empresa">DOCUMENTOS CORRECTOS</div>
+                    <div class="resultado-empresa">DOCUMENTOS DEL EXPEDIENTE</div>
                     <div class="resultado-rfc">
                         {{ $proveedor->nombre ?? $proveedor->usuario }}
                         · {{ $proveedor->tipo_persona ?? '—' }}
-                        · {{ $docsAprobados->count() }} documento(s) aprobado(s)
+                        · {{ $docsAprobados->where('estatus', 'aprobado')->count() }} aprobado(s){{ $docsAprobados->where('estatus', 'pendiente')->count() > 0 ? ' · '.$docsAprobados->where('estatus', 'pendiente')->count().' en revisión manual' : '' }}
                     </div>
                 </div>
             </div>
             <hr class="resultado-divider">
-            <p class="ver-hint">Haz clic en un documento para descargarlo y revisarlo manualmente. Solo se listan los que pasaron la validación.</p>
+            <p class="ver-hint">Haz clic en un documento para descargarlo y revisarlo. Los marcados en <strong style="color:#d97706;">naranja</strong> requieren revisión manual (escaneados o sin firma electrónica).</p>
 
             @foreach($docsAprobados as $doc)
                 @php
+                    $estatus = $doc->estatus ?? 'aprobado';
+                    $esPendiente = $estatus === 'pendiente';
+                    $stroke = $esPendiente ? '#d97706' : '#059669';
                     $resultado = is_array($doc->resultado_validacion) ? $doc->resultado_validacion : [];
                     $hallazgos = $resultado['hallazgos'] ?? [];
                     if ($hallazgos === [] && isset($resultado['checklist']) && is_array($resultado['checklist'])) {
@@ -113,19 +120,19 @@
                         ? route('admin.expediente-fiscal.descargar', $doc)
                         : '#';
                 @endphp
-                <a href="{{ $href }}" class="seccion-doc" title="Descargar PDF">
+                <a href="{{ $href }}" class="seccion-doc {{ $esPendiente ? 'pendiente' : '' }}" title="Descargar PDF">
                     <div class="seccion-header">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ $stroke }}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                         <span class="seccion-titulo">{{ $tiposLabel[$doc->tipo] ?? ucfirst($doc->tipo) }}</span>
-                        <span class="status-pill">Aprobado</span>
+                        <span class="status-pill {{ $esPendiente ? 'pendiente' : '' }}">{{ $esPendiente ? 'Revisión manual' : 'Aprobado' }}</span>
                     </div>
                     @forelse($hallazgos as $h)
                         <div class="detalle-item">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{ $stroke }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                             {{ is_array($h) ? json_encode($h, JSON_UNESCAPED_UNICODE) : $h }}
                         </div>
                     @empty
-                        <div class="detalle-item">Validación automática aprobada</div>
+                        <div class="detalle-item">{{ $esPendiente ? 'Requiere revisión manual del admin' : 'Validación automática aprobada' }}</div>
                     @endforelse
                     <div class="doc-dl-hint">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>

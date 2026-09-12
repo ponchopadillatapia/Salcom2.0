@@ -432,6 +432,19 @@ class AltaFacturaValidationService
      */
     private function validarPeriodoMes(array $datos, array &$errores, array &$checklist): void
     {
+        // ⚠️ TEMPORAL — VENTANA DE PRUEBAS (quitar después del 2026-09-28):
+        // Durante el periodo de pruebas se aceptan facturas de cualquier mes.
+        // Al llegar la fecha de corte, vuelve automáticamente a exigir el mes en curso.
+        $finVentanaPruebas = Carbon::create(2026, 9, 28, 23, 59, 59);
+        if (now()->lte($finVentanaPruebas)) {
+            $checklist['periodo'] = [
+                'ok' => true,
+                'label' => 'Periodo no restringido (ventana de pruebas)',
+            ];
+
+            return;
+        }
+
         if (! config('facturas.solo_mes_actual', true)) {
             $checklist['periodo'] = [
                 'ok' => true,
