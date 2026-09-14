@@ -477,7 +477,7 @@
             <div class="sb-hr"></div>
             <div class="sb-section">Pagos</div>
             <div class="sb-submenu">
-                <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/pagos*') || request()->is('admin/pago-proveedores*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
+                <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/pagos*') || request()->is('admin/pago-proveedores*') || request()->is('admin/expedientes-pago*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
                     <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
                     <span class="sb-text">Pagos</span>
                     <svg class="sb-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -490,6 +490,9 @@
                             ->groupBy('poliza_key')
                             ->pluck('total', 'poliza_key');
                     @endphp
+                    <a href="{{ route('admin.expedientes-pago') }}" class="sb-link sb-sublink {{ request()->is('admin/expedientes-pago*') ? 'active' : '' }}">
+                        <span class="sb-text">Expedientes de pago</span>
+                    </a>
                     <a href="{{ route('admin.anticipos') }}" class="sb-link sb-sublink {{ request()->is('admin/anticipos*') ? 'active' : '' }}">
                         <span class="sb-text">Anticipo</span>
                     </a>

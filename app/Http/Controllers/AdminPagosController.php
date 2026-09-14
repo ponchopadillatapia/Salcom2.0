@@ -6,9 +6,11 @@ use App\Models\Alerta;
 use App\Models\Factura;
 use App\Models\PagoProveedor;
 use App\Models\ProveedorUser;
+use App\Services\AuditService;
 use App\Services\PagoProveedorService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 
 class AdminPagosController extends Controller
@@ -325,5 +327,206 @@ class AdminPagosController extends Controller
         return response($output)
             ->header('Content-Type', 'text/csv; charset=UTF-8')
             ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
+    // ── Expediente de Pago ──
+
+    /** NIVEL 1 — Archivero: lista de proveedores (carpetas), con cuántos expedientes tiene cada uno. */
+    public function expedientes(Request $request)
+    {
+        $busqueda = trim((string) $request->input('busqueda', ''));
+
+        $query = PagoProveedor::with('proveedor')
+            ->where('estatus', 'confirmado'); // solo pagos confirmados tienen expediente
+
+        if ($busqueda !== '') {
+            $query->where(function ($q) use ($busqueda) {
+                $q->where('codigo_proveedor', 'like', "%{$busqueda}%")
+                    ->orWhereHas('proveedor', fn ($p) => $p->where('nombre', 'like', "%{$busqueda}%"));
+            });
+        }
+
+        $pagos = $query->get();
+
+        // Agrupar por proveedor. Cada carpeta = un proveedor con sus totales.
+        // Ordenados por el expediente MÁS RECIENTE arriba (como van llegando).
+        // Punto azul: el proveedor tiene expedientes que aún NO se han abierto (estilo WhatsApp).
+        $proveedores = $pagos->groupBy(fn ($p) => $p->proveedor->nombre ?? $p->codigo_proveedor ?? 'Sin proveedor')
+            ->map(function ($exps, $nombre) {
+                $primero = $exps->first();
+                $noVistos = $exps->filter(function ($e) {
+                    $dc = is_array($e->datos_confirmacion) ? $e->datos_confirmacion : [];
+
+                    return empty($dc['visto_archivero']);
+                })->count();
+
+                return (object) [
+                    'nombre' => $nombre,
+                    'codigo' => $primero->codigo_proveedor,
+                    'proveedor_id' => $primero->proveedor_id,
+                    'total' => $exps->count(),
+                    'pendientes' => $exps->where('estatus_autorizacion', 'pendiente')->count(),
+                    'no_vistos' => $noVistos,
+                    'monto_total' => $exps->sum('monto_total'),
+                    'ultimo_at' => $exps->max(fn ($e) => $e->confirmado_at ?? $e->created_at),
+                ];
+            })
+            ->sortByDesc('ultimo_at')
+            ->values();
+
+        $total = $pagos->count();
+
+        return view('admin.pagos.expedientes', compact('proveedores', 'busqueda', 'total'));
+    }
+
+    /** NIVEL 2 — Expedientes de un proveedor, agrupados por mes (mes actual abierto). */
+    public function expedientesProveedor(Request $request, ProveedorUser $proveedor)
+    {
+        $estatus = $request->input('estatus', ''); // '' | pendiente | autorizado | rechazado
+
+        $query = PagoProveedor::with('proveedor')
+            ->where('estatus', 'confirmado')
+            ->where('proveedor_id', $proveedor->id)
+            ->orderByDesc('confirmado_at')
+            ->orderByDesc('id');
+
+        if (in_array($estatus, ['pendiente', 'autorizado', 'rechazado'], true)) {
+            $query->where('estatus_autorizacion', $estatus);
+        }
+
+        $pagos = $query->get();
+
+        // Marcar qué expedientes NO se habían visto (para el punto rojo estilo WhatsApp),
+        // ANTES de marcarlos como vistos.
+        $idsNoVistos = $pagos->filter(function ($p) {
+            $dc = is_array($p->datos_confirmacion) ? $p->datos_confirmacion : [];
+
+            return empty($dc['visto_archivero']);
+        })->pluck('id')->all();
+
+        // "Visto" estilo WhatsApp: al abrir el proveedor, sus expedientes quedan marcados
+        // como vistos (flag en datos_confirmacion). No cambia estatus ni autorización.
+        try {
+            foreach ($pagos as $p) {
+                $dc = is_array($p->datos_confirmacion) ? $p->datos_confirmacion : [];
+                if (empty($dc['visto_archivero'])) {
+                    $dc['visto_archivero'] = true;
+                    $p->datos_confirmacion = $dc;
+                    $p->saveQuietly();
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('No se pudo marcar expedientes como vistos: '.$e->getMessage());
+        }
+
+        // Agrupar por MES/AÑO: el mes actual abierto, los anteriores como carpetas.
+        $grupos = $pagos->groupBy(function ($p) {
+            $fecha = $p->confirmado_at ?? $p->created_at;
+
+            return $fecha ? $fecha->format('Y-m') : 'sin-fecha';
+        });
+
+        $mesActual = now()->format('Y-m');
+        $total = $pagos->count();
+
+        return view('admin.pagos.expedientes-proveedor', compact('proveedor', 'grupos', 'estatus', 'total', 'mesActual', 'idsNoVistos'));
+    }
+
+    /** Pantalla del expediente: todos los documentos del pago juntos + autorización. */
+    public function expediente(PagoProveedor $pago)
+    {
+        $pago->load(['lineas.factura', 'proveedor']);
+        $grupos = $this->pagos->documentosExpedientePago($pago);
+
+        return view('admin.pagos.expediente', compact('pago', 'grupos'));
+    }
+
+    /** Adjuntar un documento manual al expediente (póliza de Contpaqi, hojas engrapadas, etc.). */
+    public function adjuntarDocumento(Request $request, PagoProveedor $pago)
+    {
+        $data = $request->validate([
+            'tipo' => 'required|string|max:100',
+            'archivo' => 'required|file|mimes:pdf,jpg,jpeg,png,xml|max:20480',
+        ]);
+
+        $ruta = $request->file('archivo')->store('pagos_comprobantes/'.$pago->id.'/adjuntos', 'public');
+
+        $adjuntos = $pago->documentos_adjuntos ?? [];
+        $adjuntos[] = [
+            'tipo' => $data['tipo'],
+            'nombre' => $data['tipo'].' — '.$request->file('archivo')->getClientOriginalName(),
+            'archivo' => $ruta,
+            'subido_por' => session('admin_nombre'),
+            'subido_at' => now()->toDateTimeString(),
+        ];
+        $pago->update(['documentos_adjuntos' => $adjuntos]);
+
+        AuditService::registrar('adjuntar', 'pagos', "Adjuntó {$data['tipo']} al expediente de pago #{$pago->id}");
+
+        return back()->with('mensaje', 'Documento adjuntado al expediente.');
+    }
+
+    /** Eliminar un adjunto manual del expediente. */
+    public function eliminarAdjunto(PagoProveedor $pago, int $indice)
+    {
+        $adjuntos = $pago->documentos_adjuntos ?? [];
+        if (isset($adjuntos[$indice])) {
+            if (! empty($adjuntos[$indice]['archivo'])) {
+                Storage::disk('public')->delete($adjuntos[$indice]['archivo']);
+            }
+            unset($adjuntos[$indice]);
+            $pago->update(['documentos_adjuntos' => array_values($adjuntos)]);
+            AuditService::registrar('eliminar', 'pagos', "Eliminó un adjunto del expediente de pago #{$pago->id}");
+        }
+
+        return back()->with('mensaje', 'Documento eliminado del expediente.');
+    }
+
+    /** Autorizar el expediente de pago (firma digital de Sandra/Karen). */
+    public function autorizarExpediente(Request $request, PagoProveedor $pago)
+    {
+        $request->validate(['notas' => 'nullable|string|max:1000']);
+
+        $pago->update([
+            'estatus_autorizacion' => 'autorizado',
+            'autorizado_por' => session('admin_id'),
+            'autorizado_por_nombre' => session('admin_nombre'),
+            'autorizado_at' => now(),
+            'notas_autorizacion' => $request->input('notas'),
+        ]);
+
+        AuditService::registrar(
+            'autorizar',
+            'pagos',
+            (session('admin_nombre') ?? 'Admin').' autorizó el expediente de pago #'.$pago->id,
+            null,
+            ['pago_id' => $pago->id, 'monto' => (float) $pago->monto_total]
+        );
+
+        return back()->with('mensaje', 'Expediente autorizado.');
+    }
+
+    /** Rechazar el expediente de pago. */
+    public function rechazarExpediente(Request $request, PagoProveedor $pago)
+    {
+        $request->validate(['notas' => 'nullable|string|max:1000']);
+
+        $pago->update([
+            'estatus_autorizacion' => 'rechazado',
+            'autorizado_por' => session('admin_id'),
+            'autorizado_por_nombre' => session('admin_nombre'),
+            'autorizado_at' => now(),
+            'notas_autorizacion' => $request->input('notas'),
+        ]);
+
+        AuditService::registrar(
+            'rechazar',
+            'pagos',
+            (session('admin_nombre') ?? 'Admin').' rechazó el expediente de pago #'.$pago->id,
+            null,
+            ['pago_id' => $pago->id, 'motivo' => $request->input('notas')]
+        );
+
+        return back()->with('mensaje', 'Expediente rechazado.');
     }
 }

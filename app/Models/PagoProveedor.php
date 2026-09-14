@@ -34,13 +34,21 @@ class PagoProveedor extends Model
         'creado_por',
         'confirmado_por',
         'confirmado_at',
+        'estatus_autorizacion',
+        'autorizado_por',
+        'autorizado_por_nombre',
+        'autorizado_at',
+        'notas_autorizacion',
+        'documentos_adjuntos',
     ];
 
     protected $casts = [
         'fecha_pago' => 'date',
         'confirmado_at' => 'datetime',
+        'autorizado_at' => 'datetime',
         'comprobantes' => 'array',
         'datos_confirmacion' => 'array',
+        'documentos_adjuntos' => 'array',
         'monto_subtotal' => 'decimal:2',
         'monto_iva' => 'decimal:2',
         'monto_retencion_iva' => 'decimal:2',
@@ -69,5 +77,22 @@ class PagoProveedor extends Model
     public function estaConfirmado(): bool
     {
         return $this->estatus === 'confirmado';
+    }
+
+    // ── Expediente de Pago: autorización (firma digital de Sandra/Karen) ──
+
+    public function autorizacionPendiente(): bool
+    {
+        return ($this->estatus_autorizacion ?? 'pendiente') === 'pendiente';
+    }
+
+    public function estaAutorizado(): bool
+    {
+        return $this->estatus_autorizacion === 'autorizado';
+    }
+
+    public function autorizacionRechazada(): bool
+    {
+        return $this->estatus_autorizacion === 'rechazado';
     }
 }

@@ -127,6 +127,99 @@ class PagoProveedorService
     }
 
     /**
+     * Expediente de Pago completo: TODOS los documentos que respaldan el pago,
+     * agrupados en secciones. Junta lo que ya existe en el sistema (facturas,
+     * formato de pago, opinión, CIF, carátula bancaria) + los adjuntos manuales
+     * (póliza de Contpaqi, hojas engrapadas, etc.).
+     *
+     * @return array<int, array{grupo: string, items: list<array<string, mixed>>}>
+     */
+    public function documentosExpedientePago(PagoProveedor $pago): array
+    {
+        $pago->loadMissing(['lineas.factura', 'proveedor.documentos']);
+        $proveedor = $pago->proveedor;
+
+        // 1) Facturas del lote (PDF, XML y OC de cada una).
+        $itemsFactura = [];
+        foreach ($pago->lineas as $linea) {
+            $f = $linea->factura;
+            if (! $f) {
+                continue;
+            }
+            $folio = $this->folioFacturaDisplay($f);
+            if ($f->archivo_pdf) {
+                $itemsFactura[] = $this->slotArchivo('Factura '.$folio.' (PDF)', $f->archivo_pdf);
+            }
+            if ($f->archivo_xml) {
+                $itemsFactura[] = $this->slotArchivo('Factura '.$folio.' (XML)', $f->archivo_xml);
+            }
+            if ($f->archivo_oc) {
+                $itemsFactura[] = $this->slotArchivo('Orden de compra '.$folio, $f->archivo_oc);
+            }
+        }
+
+        // 2) Formato de pago + fiscales (opinión, CIF) — reusa lo existente.
+        $fiscales = $this->documentosFiscalesParaPago($pago);
+
+        // 3) Carátula de banco del expediente fiscal del proveedor.
+        $caratula = $proveedor ? $this->ultimoDocumentoAprobado($proveedor, ['caratula_banco']) : null;
+        $itemsBanco = [];
+        if ($caratula) {
+            $itemsBanco[] = $this->slotDocumentoFiscal('caratula_banco', 'Carátula de banco', $caratula);
+        }
+
+        // 4) Documentos adjuntos manuales (póliza de Contpaqi, hojas engrapadas, etc.).
+        $itemsAdjuntos = [];
+        foreach (($pago->documentos_adjuntos ?? []) as $i => $adj) {
+            if (! is_array($adj) || empty($adj['archivo'])) {
+                continue;
+            }
+            $itemsAdjuntos[] = [
+                'clave' => 'adjunto_'.$i,
+                'label' => $adj['nombre'] ?? ($adj['tipo'] ?? 'Documento adjunto'),
+                'ok' => true,
+                'origen' => 'adjunto',
+                'archivo' => $adj['archivo'],
+                'url' => \Illuminate\Support\Facades\Storage::disk('public')->exists($adj['archivo'])
+                    ? asset('storage/'.$adj['archivo'])
+                    : null,
+                'indice' => $i,
+            ];
+        }
+
+        return [
+            ['grupo' => 'Factura(s)', 'items' => $itemsFactura],
+            ['grupo' => 'Formato de pago y fiscales', 'items' => $fiscales],
+            ['grupo' => 'Datos bancarios', 'items' => $itemsBanco],
+            ['grupo' => 'Adjuntos (póliza, hojas engrapadas, etc.)', 'items' => $itemsAdjuntos],
+        ];
+    }
+
+    /** Slot genérico para un archivo por ruta (factura PDF/XML, OC, adjuntos). */
+    private function slotArchivo(string $label, ?string $archivo): array
+    {
+        $archivo = ltrim((string) $archivo, '/');
+        $url = null;
+        if ($archivo !== '') {
+            foreach (['public', 'local'] as $disk) {
+                if (\Illuminate\Support\Facades\Storage::disk($disk)->exists($archivo)) {
+                    $url = $disk === 'public' ? asset('storage/'.$archivo) : null;
+                    break;
+                }
+            }
+        }
+
+        return [
+            'clave' => 'archivo',
+            'label' => $label,
+            'ok' => $archivo !== '',
+            'origen' => 'factura',
+            'archivo' => $archivo,
+            'url' => $url,
+        ];
+    }
+
+    /**
      * Copia al lote los PDFs del expediente y genera el formato de pago si hace falta.
      *
      * @param  list<array<string, mixed>>  $slots
