@@ -349,6 +349,8 @@ Route::get('/login-empleado', [PortalEmpleadoController::class, 'mostrarLogin'])
 Route::post('/login-empleado', [PortalEmpleadoController::class, 'procesarLogin'])->name('empleados.login.procesar');
 Route::post('/logout-empleado', [PortalEmpleadoController::class, 'cerrarSesion'])->name('empleados.logout');
 Route::get('/empleado/portal', [PortalEmpleadoController::class, 'portal'])->name('empleados.portal')->middleware('auth.empleado');
+Route::post('/empleado/gasolina', [PortalEmpleadoController::class, 'guardarGasolina'])->name('empleados.gasolina.guardar')->middleware('auth.empleado');
+Route::post('/empleado/reembolso', [PortalEmpleadoController::class, 'guardarReembolso'])->name('empleados.reembolso.guardar')->middleware('auth.empleado');
 
 // ── Admin: Gestión de Empleados ──
 Route::get('/admin/empleados', [PortalEmpleadoController::class, 'adminIndex'])->name('admin.empleados')->middleware('auth.admin');

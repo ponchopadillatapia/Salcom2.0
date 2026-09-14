@@ -66,7 +66,109 @@ class PortalEmpleadoController extends Controller
         $gasolina = Alerta::where('tipo', 'bitacora_gasolina')->orderByDesc('created_at')->get()
             ->filter(fn ($r) => ($r->datos['numero_empleado'] ?? null) == $numero)->values();
 
-        return view('empleados.portal', compact('reembolsos', 'viajes', 'gasolina', 'numero'));
+        $empleado = Empleado::find(session('empleado_id'));
+
+        return view('empleados.portal', compact('reembolsos', 'viajes', 'gasolina', 'numero', 'empleado'));
+    }
+
+    // ── Empleado: registrar bitácora de gasolina ──
+    public function guardarGasolina(Request $request)
+    {
+        $request->validate([
+            'cantidad_litros' => 'nullable|numeric|min:0',
+            'rendimiento' => 'nullable|numeric|min:0',
+            'monto' => 'required|string|max:20',
+            'vehiculo' => 'nullable|string|max:100',
+            'kilometraje' => 'nullable|numeric|min:0',
+            'notas' => 'nullable|string|max:255',
+            'factura_gasolina' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
+
+        $pathFactura = $request->hasFile('factura_gasolina')
+            ? $request->file('factura_gasolina')->store('bitacora-gasolina', 'public')
+            : null;
+
+        Alerta::create([
+            'tipo' => 'bitacora_gasolina',
+            'modulo' => 'gasolina',
+            'destinatario_tipo' => 'admin',
+            'destinatario_id' => 0,
+            'titulo' => 'Gasolina: $' . $request->input('monto') . ' — ' . session('empleado_nombre'),
+            'contenido' => ($request->input('vehiculo') ?? '') . ' | ' . now()->format('Y-m-d'),
+            'datos' => [
+                'fecha' => now()->format('Y-m-d'),
+                'numero_empleado' => session('empleado_numero'),
+                'empleado' => session('empleado_nombre'),
+                'cantidad_litros' => $request->input('cantidad_litros'),
+                'rendimiento' => $request->input('rendimiento'),
+                'monto' => $request->input('monto'),
+                'vehiculo' => $request->input('vehiculo'),
+                'kilometraje' => $request->input('kilometraje'),
+                'notas' => $request->input('notas'),
+                'factura' => $pathFactura,
+            ],
+            'estatus' => 'pendiente',
+            'nivel' => 'info',
+        ]);
+
+        return redirect()->route('empleados.portal')->with('mensaje', 'Registro de gasolina guardado.');
+    }
+
+    // ── Empleado: registrar reembolso ──
+    public function guardarReembolso(Request $request)
+    {
+        $empleado = Empleado::find(session('empleado_id'));
+
+        // Si es de ruta/gasolina, debe tener bitácora primero
+        if ($empleado && $empleado->requiere_gasolina) {
+            $suBitacora = Alerta::where('tipo', 'bitacora_gasolina')->get()
+                ->first(fn ($r) => ($r->datos['numero_empleado'] ?? null) == session('empleado_numero'));
+            if (! $suBitacora) {
+                return back()->withErrors(['general' => 'Debes registrar primero tu Bitácora de Gasolina antes de pedir un reembolso.'])->withInput();
+            }
+        }
+
+        $request->validate([
+            'categoria' => 'required|string|in:gasto_general,gasolina,computo,viaticos_nacional',
+            'razon_social' => 'required|string|in:Industrias Salcom S.A. de C.V.,Franfoods S.A. de C.V.',
+            'metodo_pago_empresa' => 'required|string|in:bbva,inntec',
+            'monto' => 'required|string|max:20',
+            'concepto' => 'required|string|max:255',
+            'archivo_factura' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+            'archivo_materialidad' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ]);
+
+        $pathFactura = $request->file('archivo_factura')->store('reembolsos/facturas', 'public');
+        $pathMaterialidad = $request->hasFile('archivo_materialidad')
+            ? $request->file('archivo_materialidad')->store('reembolsos/materialidad', 'public')
+            : null;
+
+        Alerta::create([
+            'tipo' => 'solicitud_reembolso',
+            'modulo' => 'reembolsos',
+            'destinatario_tipo' => 'admin',
+            'destinatario_id' => 0,
+            'titulo' => 'Reembolso: $' . $request->input('monto') . ' — ' . session('empleado_nombre'),
+            'contenido' => $request->input('concepto'),
+            'datos' => [
+                'categoria' => $request->input('categoria'),
+                'razon_social' => $request->input('razon_social'),
+                'metodo_pago_empresa' => $request->input('metodo_pago_empresa'),
+                'monto' => $request->input('monto'),
+                'concepto' => $request->input('concepto'),
+                'solicitante' => session('empleado_nombre'),
+                'numero_empleado' => session('empleado_numero'),
+                'numero_cuenta' => $empleado->numero_cuenta ?? null,
+                'titular_cuenta' => $empleado->titular_cuenta ?? null,
+                'fecha_factura' => now()->format('Y-m-d'),
+                'archivo_factura' => $pathFactura,
+                'archivo_materialidad' => $pathMaterialidad,
+            ],
+            'estatus' => 'pendiente',
+            'nivel' => 'info',
+        ]);
+
+        return redirect()->route('empleados.portal')->with('mensaje', 'Reembolso enviado correctamente.');
     }
 
     // ── Admin: Gestión de empleados ──

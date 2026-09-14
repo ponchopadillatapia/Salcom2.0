@@ -31,7 +31,26 @@
         .b-aprobado { background:#dcfce7;color:#166534; } .b-rechazado { background:#fee2e2;color:#991b1b; }
         .b-pagado { background:#dbeafe;color:#1e40af; } .b-pendiente { background:#fef3c7;color:#92400e; }
         .empty { text-align: center; padding: 20px; color: var(--gray-muted); font-size: 13px; }
-        @media(max-width:768px){ .cards { grid-template-columns: 1fr; } }
+        .sec-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+        .sec-head h2 { margin: 0; }
+        .btn-nuevo { padding: 7px 14px; background: var(--purple); color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; text-decoration: none; }
+        .btn-nuevo:hover { background: var(--purple-dark); }
+        .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 9999; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 40px 20px; }
+        .modal-bg.show { display: flex; }
+        .modal { background: #fff; border-radius: 16px; padding: 26px; width: 100%; max-width: 560px; }
+        .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 18px; }
+        .m-row { display: grid; gap: 14px; margin-bottom: 14px; }
+        .m-row.c2 { grid-template-columns: 1fr 1fr; }
+        .m-group { display: flex; flex-direction: column; gap: 6px; }
+        .m-group label { font-size: 12px; font-weight: 600; color: var(--gray-muted); }
+        .m-group input, .m-group select, .m-group textarea { border: 1.5px solid var(--border-light); border-radius: 8px; padding: 10px 12px; font-size: 13px; font-family: inherit; width: 100%; box-sizing: border-box; outline: none; }
+        .m-group input:focus, .m-group select:focus { border-color: var(--purple); }
+        .m-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+        .btn-cancel { padding: 10px 18px; border: 1.5px solid var(--border-light); border-radius: 8px; background: #fff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; color: var(--gray-muted); }
+        .btn-save { padding: 10px 20px; background: var(--purple); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
+        .err-box { background:#fef2f2;border:1px solid #dc2626;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#991b1b;font-size:13px; }
+        .ok-box { background:#ecfdf5;border:1px solid #059669;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#059669;font-size:13px;font-weight:600; }
+        @media(max-width:768px){ .cards { grid-template-columns: 1fr; } .m-row.c2 { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
@@ -48,7 +67,10 @@
 
     <div class="wrap">
         <div class="hello">Hola, {{ session('empleado_nombre') }}</div>
-        <div class="hello-sub">Aquí puedes consultar tus reembolsos, viáticos y registros de gasolina.</div>
+        <div class="hello-sub">Aquí puedes registrar y consultar tus reembolsos, viáticos y registros de gasolina.</div>
+
+        @if(session('mensaje'))<div class="ok-box">{{ session('mensaje') }}</div>@endif
+        @if($errors->any())<div class="err-box"><ul style="margin:0;padding-left:16px;">@foreach($errors->all() as $e)<li>{{ $e }}</li>@endforeach</ul></div>@endif
 
         <div class="cards">
             <div class="kpi"><div class="num">{{ $reembolsos->count() }}</div><div class="lbl">Reembolsos</div></div>
@@ -58,7 +80,10 @@
 
         {{-- Reembolsos --}}
         <div class="section">
-            <h2>Mis Reembolsos</h2>
+            <div class="sec-head">
+                <h2>Mis Reembolsos</h2>
+                <button type="button" class="btn-nuevo" onclick="document.getElementById('modalReembolso').classList.add('show')">+ Nuevo reembolso</button>
+            </div>
             @if($reembolsos->count())
             <table>
                 <thead><tr><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Institución</th><th>Autorización</th></tr></thead>
@@ -82,7 +107,10 @@
 
         {{-- Reembolsos de Viaje --}}
         <div class="section">
-            <h2>Mis Reembolsos de Viaje</h2>
+            <div class="sec-head">
+                <h2>Mis Reembolsos de Viaje</h2>
+                <a href="{{ route('admin.reembolsos-viaje.crear') }}" class="btn-nuevo" style="display:none;">+ Nuevo</a>
+            </div>
             @if($viajes->count())
             <table>
                 <thead><tr><th>Fecha</th><th>Destino</th><th>Total MXN</th><th>Estatus</th></tr></thead>
@@ -104,7 +132,10 @@
 
         {{-- Gasolina --}}
         <div class="section">
-            <h2>Mi Bitácora de Gasolina</h2>
+            <div class="sec-head">
+                <h2>Mi Bitácora de Gasolina</h2>
+                <button type="button" class="btn-nuevo" onclick="document.getElementById('modalGasolina').classList.add('show')">+ Registrar gasolina</button>
+            </div>
             @if($gasolina->count())
             <table>
                 <thead><tr><th>Fecha</th><th>Litros</th><th>Monto</th><th>Vehículo</th><th>Km</th></tr></thead>
@@ -124,6 +155,117 @@
             @else
             <div class="empty">No tienes registros de gasolina.</div>
             @endif
+        </div>
+    </div>
+
+    {{-- Modal Reembolso --}}
+    <div class="modal-bg" id="modalReembolso">
+        <div class="modal">
+            <h3>Nuevo Reembolso</h3>
+            <form method="POST" action="{{ route('empleados.reembolso.guardar') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="m-row c2">
+                    <div class="m-group">
+                        <label>Categoría *</label>
+                        <select name="categoria" required>
+                            <option value="gasto_general">Gasto general</option>
+                            <option value="gasolina">Gasolina</option>
+                            <option value="computo">Equipo de cómputo</option>
+                            <option value="viaticos_nacional">Viáticos nacionales</option>
+                        </select>
+                    </div>
+                    <div class="m-group">
+                        <label>Razón social *</label>
+                        <select name="razon_social" required>
+                            <option value="Industrias Salcom S.A. de C.V.">Industrias Salcom S.A. de C.V.</option>
+                            <option value="Franfoods S.A. de C.V.">Franfoods S.A. de C.V.</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="m-row c2">
+                    <div class="m-group">
+                        <label>Método de pago empresa *</label>
+                        <select name="metodo_pago_empresa" required>
+                            <option value="bbva">BBVA (requiere factura y materialidad)</option>
+                            <option value="inntec">Inntec (solo ticket)</option>
+                        </select>
+                    </div>
+                    <div class="m-group">
+                        <label>Monto *</label>
+                        <input type="text" name="monto" placeholder="$0.00" required>
+                    </div>
+                </div>
+                <div class="m-row">
+                    <div class="m-group">
+                        <label>Concepto *</label>
+                        <input type="text" name="concepto" placeholder="Descripción del gasto" required maxlength="255">
+                    </div>
+                </div>
+                <div class="m-row c2">
+                    <div class="m-group">
+                        <label>Factura (PDF o imagen) *</label>
+                        <input type="file" name="archivo_factura" accept=".pdf,.jpg,.jpeg,.png" required>
+                    </div>
+                    <div class="m-group">
+                        <label>Materialidad (correo/foto)</label>
+                        <input type="file" name="archivo_materialidad" accept=".pdf,.jpg,.jpeg,.png">
+                    </div>
+                </div>
+                <div class="m-actions">
+                    <button type="button" class="btn-cancel" onclick="document.getElementById('modalReembolso').classList.remove('show')">Cancelar</button>
+                    <button type="submit" class="btn-save">Enviar reembolso</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {{-- Modal Gasolina --}}
+    <div class="modal-bg" id="modalGasolina">
+        <div class="modal">
+            <h3>Registrar carga de gasolina</h3>
+            <form method="POST" action="{{ route('empleados.gasolina.guardar') }}" enctype="multipart/form-data">
+                @csrf
+                <div class="m-row c2">
+                    <div class="m-group">
+                        <label>Monto ($) *</label>
+                        <input type="text" name="monto" placeholder="$0.00" required>
+                    </div>
+                    <div class="m-group">
+                        <label>Litros</label>
+                        <input type="number" name="cantidad_litros" step="0.01" min="0" placeholder="Ej: 40.5">
+                    </div>
+                </div>
+                <div class="m-row c2">
+                    <div class="m-group">
+                        <label>Rendimiento (km/l)</label>
+                        <input type="number" name="rendimiento" step="0.01" min="0" placeholder="Ej: 12.5">
+                    </div>
+                    <div class="m-group">
+                        <label>Kilometraje</label>
+                        <input type="number" name="kilometraje" min="0" placeholder="Km del odómetro">
+                    </div>
+                </div>
+                <div class="m-row c2">
+                    <div class="m-group">
+                        <label>Vehículo / Placa</label>
+                        <input type="text" name="vehiculo" placeholder="Ej: Nissan NP300 - JHL-1234">
+                    </div>
+                    <div class="m-group">
+                        <label>Notas</label>
+                        <input type="text" name="notas" placeholder="Ruta, gasolinera, etc." maxlength="255">
+                    </div>
+                </div>
+                <div class="m-row">
+                    <div class="m-group">
+                        <label>Factura (PDF o imagen)</label>
+                        <input type="file" name="factura_gasolina" accept=".pdf,.jpg,.jpeg,.png">
+                    </div>
+                </div>
+                <div class="m-actions">
+                    <button type="button" class="btn-cancel" onclick="document.getElementById('modalGasolina').classList.remove('show')">Cancelar</button>
+                    <button type="submit" class="btn-save">Registrar</button>
+                </div>
+            </form>
         </div>
     </div>
 </body>
