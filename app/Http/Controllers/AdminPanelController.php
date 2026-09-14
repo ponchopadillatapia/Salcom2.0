@@ -2600,6 +2600,7 @@ class AdminPanelController extends Controller
             'contribuyente' => 'ID Contribuyente',
             'caratula_banco' => 'Carátula de Banco',
             'poder' => 'Poder Notarial',
+            'formato_identificacion' => 'Formato de Identificación del Proveedor',
         ];
 
         // Todos los documentos (aprobados + pendientes de revisión manual), para que

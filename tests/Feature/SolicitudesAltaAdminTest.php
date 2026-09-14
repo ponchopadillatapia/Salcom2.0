@@ -165,6 +165,13 @@ class SolicitudesAltaAdminTest extends TestCase
 
         $this->get(route('admin.solicitudes-alta.ver', $p))
             ->assertOk()
+            ->assertSee('Identificación del Proveedor')
+            ->assertSee('Identificación del proveedor')
+            ->assertSee('Domicilio fiscal')
+            ->assertSee('Datos bancarios')
+            ->assertSee('Solicitante SA de CV')
+            ->assertSee('Av Test')
+            ->assertSee('BBVA')
             ->assertSee('DOCUMENTOS DEL EXPEDIENTE')
             ->assertSee('Constancia de Situación Fiscal')
             ->assertSee('Sello del SAT detectado')
@@ -687,7 +694,7 @@ class SolicitudesAltaAdminTest extends TestCase
 
         $this->get(route('admin.solicitudes-alta.ver', $p))
             ->assertOk()
-            ->assertSee('DATOS DEL FORMULARIO')
+            ->assertSee('Identificación del proveedor')
             ->assertSee('BBVA')
             ->assertSee('DOCUMENTOS DEL EXPEDIENTE');
     }
@@ -716,6 +723,7 @@ class SolicitudesAltaAdminTest extends TestCase
             ->assertOk()
             ->assertSee('Constancia de Situación Fiscal')
             ->assertSee('Aprobado')
-            ->assertDontSee('Opinión de Cumplimiento SAT');
+            ->assertSee('Opinión de Cumplimiento SAT')
+            ->assertSee('Revisión manual');
     }
 }
