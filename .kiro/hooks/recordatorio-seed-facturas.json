@@ -1,0 +1,14 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Recordatorio borrar comando SeedFacturasPrueba",
+      "trigger": "SessionStart",
+      "description": "Recuerda que el comando SeedFacturasPrueba.php es solo para pruebas y no debe subirse a produccion.",
+      "action": {
+        "type": "agent",
+        "prompt": "RECORDATORIO para el usuario: El comando de prueba app/Console/Commands/SeedFacturasPrueba.php (facturas:seed-prueba) fue creado SOLO para generar facturas de prueba. Preguntale al usuario si ya terminó de probar el flujo de pagos; si sí, ofrecer borrarlo o dejarlo sin subir a git para que NO llegue a producción. También recordar que hay facturas de prueba en la BD marcadas con [PRUEBA-SEED] que se pueden limpiar con: php artisan facturas:seed-prueba SAID001 --limpiar"
+      }
+    }
+  ]
+}

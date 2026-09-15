@@ -170,7 +170,7 @@
                 @if($pago->notas_autorizacion)<br><span style="font-size:12px;">Motivo: {{ $pago->notas_autorizacion }}</span>@endif
             </div>
         @else
-            <p style="font-size:12px;color:var(--gray-muted);margin:0 0 10px;">Revisa los documentos del expediente y autoriza o rechaza el pago.</p>
+            <p style="font-size:12px;color:var(--gray-muted);margin:0 0 10px;">Revisa los documentos del expediente y autoriza o rechaza el pago. Al autorizar, el sistema genera un <strong>comprobante de autorización sellado</strong> automáticamente (no necesitas subir ningún PDF).</p>
             <form method="POST" action="{{ route('admin.pagos.expediente.autorizar', $pago) }}">
                 @csrf
                 <textarea name="notas" rows="2" placeholder="Notas (opcional)"></textarea>

@@ -63,6 +63,16 @@
     .doc-autofill-top{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
     .doc-autofill-name{font-size:13px;font-weight:600;color:var(--gray-text);word-break:break-all}
     .doc-autofill-meta{font-size:11px;color:var(--gray-muted)}
+    /* Tarjetas de carga coloridas (autorización / factura) */
+    .upload-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+    .upload-card{border:1.5px solid var(--border);border-radius:10px;padding:14px;background:var(--white)}
+    .upload-card.autoriza{border-color:#c4b5fd;background:#faf5ff}
+    .upload-card.factura{border-color:#93c5fd;background:#eff6ff}
+    .upload-card-head{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;margin-bottom:10px}
+    .upload-card.autoriza .upload-card-head{color:#6b21a8}
+    .upload-card.factura .upload-card-head{color:#1e40af}
+    .upload-card input[type=file]{width:100%;font-size:12px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:8px}
+    .upload-card-hint{display:block;font-size:11px;color:var(--gray-muted);margin-top:8px}
 </style>
 @endpush
 @section('content')
@@ -238,11 +248,44 @@
                     @endforeach
                 </div>
             </div>
+            {{-- GRUPO 3: Factura(s) del lote — precargadas para verlas a mano --}}
             <div class="form-field" style="margin-top:14px;">
-                <label>Otros comprobantes (opcional)</label>
-                <input type="file" name="comprobantes[]" accept=".pdf,.jpg,.jpeg,.png,.xml" multiple>
+                <label>Factura(s) del lote</label>
+                <p class="hint" style="margin:0 0 8px;">Precargadas del lote. Ábrelas para verificar a mano.</p>
+                <div class="docs-fiscales">
+                    @forelse($facturasLote as $fac)
+                        @php
+                            $tieneArch = $fac['tiene_archivo'];
+                            $pdfUrl = $fac['pdf_url'];
+                            $xmlUrl = $fac['xml_url'];
+                        @endphp
+                        <div class="doc-autofill {{ $tieneArch ? 'ok' : 'missing' }}">
+                            <div class="doc-autofill-top">
+                                <span class="doc-autofill-name">{{ $fac['folio'] }} · ${{ number_format($fac['total'], 2) }}</span>
+                                <span class="pill {{ $tieneArch ? 'ok' : '' }}">{{ $tieneArch ? 'Del lote' : 'Sin archivo' }}</span>
+                            </div>
+                            <div class="doc-autofill-meta">
+                                @if($pdfUrl)
+                                    <a href="{{ $pdfUrl }}" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700;">Ver PDF</a>
+                                @endif
+                                @if($xmlUrl)
+                                    @if($pdfUrl) · @endif
+                                    <a href="{{ $xmlUrl }}" target="_blank" rel="noopener" style="color:var(--purple);font-weight:700;">Ver XML</a>
+                                @endif
+                                @unless($tieneArch)
+                                    La factura no tiene archivo cargado
+                                @endunless
+                            </div>
+                        </div>
+                    @empty
+                        <div class="doc-autofill missing">
+                            <span class="doc-autofill-name">Sin facturas en el lote</span>
+                        </div>
+                    @endforelse
+                </div>
             </div>
-            <p class="hint" style="margin-top:12px;">Al confirmar, las facturas pasan a estatus «programada».</p>
+
+            <p class="hint" style="margin-top:12px;">Al confirmar, las facturas pasan a estatus «programada» y el expediente queda <strong>pendiente de autorizar</strong> por Dirección.</p>
             <div style="margin-top:14px;">
                 <button type="submit" class="btn btn-primary" @disabled(!empty($errorDatosAuto))>Confirmar pago</button>
             </div>

@@ -218,13 +218,35 @@ class AdminPagosController extends Controller
                 ->exists()
             : false;
 
+        // Facturas del lote precargadas (PDF/XML) para verlas a mano y verificar.
+        $facturasLote = [];
+        foreach ($pago->lineas as $linea) {
+            $f = $linea->factura;
+            if (! $f) {
+                continue;
+            }
+            $folio = $this->pagos->folioFacturaDisplay($f);
+            $pdfUrl = $f->archivo_pdf && \Illuminate\Support\Facades\Storage::disk('public')->exists($f->archivo_pdf)
+                ? asset('storage/'.$f->archivo_pdf) : null;
+            $xmlUrl = $f->archivo_xml && \Illuminate\Support\Facades\Storage::disk('public')->exists($f->archivo_xml)
+                ? asset('storage/'.$f->archivo_xml) : null;
+            $facturasLote[] = [
+                'folio' => $folio,
+                'total' => (float) $f->total,
+                'pdf_url' => $pdfUrl,
+                'xml_url' => $xmlUrl,
+                'tiene_archivo' => $pdfUrl !== null || $xmlUrl !== null,
+            ];
+        }
+
         return view('admin.pagos.show', compact(
             'pago',
             'expediente',
             'datosAuto',
             'errorDatosAuto',
             'tieneMasFacturasPendientes',
-            'docsFiscales'
+            'docsFiscales',
+            'facturasLote'
         ));
     }
 
@@ -232,14 +254,9 @@ class AdminPagosController extends Controller
     {
         $request->validate([
             'fecha_pago' => 'nullable|date',
-            'comprobantes' => 'nullable|array',
-            'comprobantes.*' => 'file|mimes:pdf,jpg,jpeg,png,xml|max:10240',
         ]);
 
         $paths = [];
-        foreach ($request->file('comprobantes', []) as $file) {
-            $paths[] = $file->store('pagos_comprobantes/'.$pago->id, 'public');
-        }
 
         try {
             $this->pagos->confirmar(
@@ -506,25 +523,78 @@ class AdminPagosController extends Controller
     /** Autorizar el expediente de pago (firma digital de Sandra/Karen). */
     public function autorizarExpediente(Request $request, PagoProveedor $pago)
     {
-        $request->validate(['notas' => 'nullable|string|max:1000']);
+        $request->validate([
+            'notas' => 'nullable|string|max:1000',
+        ]);
 
-        $pago->update([
+        $pago->load(['lineas.factura', 'proveedor']);
+
+        $autorizadoPor = session('admin_nombre') ?? 'Admin';
+        $fechaHora = now();
+        $ip = $request->ip();
+        $notas = $request->input('notas');
+        $folioAut = 'AUT-'.str_pad((string) $pago->id, 5, '0', STR_PAD_LEFT);
+
+        // Sello electrónico: hash SHA-256 de la cadena original (datos del pago + quién + cuándo).
+        // Actúa como "timbre local" que garantiza integridad e identidad.
+        $cadenaOriginal = implode('|', [
+            'EXP:'.$pago->id,
+            'PROV:'.$pago->codigo_proveedor,
+            'MONTO:'.number_format((float) $pago->monto_total, 2, '.', ''),
+            'FACT:'.$pago->num_facturas,
+            'POR:'.$autorizadoPor,
+            'ADMIN:'.session('admin_id'),
+            'FECHA:'.$fechaHora->toIso8601String(),
+            'IP:'.$ip,
+        ]);
+        $hash = hash('sha256', $cadenaOriginal.'|'.config('app.key'));
+
+        // Generar el PDF de autorización timbrado y guardarlo en el expediente.
+        try {
+            $pdf = Pdf::loadView('admin.pagos.autorizacion-pdf', [
+                'pago' => $pago,
+                'folioAut' => $folioAut,
+                'autorizadoPor' => $autorizadoPor,
+                'fechaHora' => $fechaHora->format('d/m/Y H:i:s'),
+                'ip' => $ip,
+                'notas' => $notas,
+                'hash' => $hash,
+            ])->setPaper('letter');
+
+            $rutaPdf = 'pagos_comprobantes/'.$pago->id.'/adjuntos/autorizacion_'.$folioAut.'.pdf';
+            Storage::disk('public')->put($rutaPdf, $pdf->output());
+
+            $adjuntos = $pago->documentos_adjuntos ?? [];
+            $adjuntos[] = [
+                'tipo' => 'Autorización timbrada',
+                'nombre' => 'Autorización '.$folioAut.' (sellada)',
+                'archivo' => $rutaPdf,
+                'subido_por' => $autorizadoPor,
+                'subido_at' => $fechaHora->toDateTimeString(),
+                'hash' => $hash,
+            ];
+            $pago->documentos_adjuntos = $adjuntos;
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[Autorizacion] No se pudo generar el PDF timbrado: '.$e->getMessage());
+        }
+
+        $pago->fill([
             'estatus_autorizacion' => 'autorizado',
             'autorizado_por' => session('admin_id'),
-            'autorizado_por_nombre' => session('admin_nombre'),
-            'autorizado_at' => now(),
-            'notas_autorizacion' => $request->input('notas'),
-        ]);
+            'autorizado_por_nombre' => $autorizadoPor,
+            'autorizado_at' => $fechaHora,
+            'notas_autorizacion' => $notas,
+        ])->save();
 
         AuditService::registrar(
             'autorizar',
             'pagos',
-            (session('admin_nombre') ?? 'Admin').' autorizó el expediente de pago #'.$pago->id,
+            $autorizadoPor.' autorizó el expediente de pago #'.$pago->id,
             null,
-            ['pago_id' => $pago->id, 'monto' => (float) $pago->monto_total]
+            ['pago_id' => $pago->id, 'monto' => (float) $pago->monto_total, 'hash' => $hash]
         );
 
-        return back()->with('mensaje', 'Expediente autorizado.');
+        return back()->with('mensaje', 'Expediente autorizado. Se generó el comprobante de autorización sellado.');
     }
 
     /** Rechazar el expediente de pago. */

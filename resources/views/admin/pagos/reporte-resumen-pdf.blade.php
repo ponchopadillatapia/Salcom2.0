@@ -32,8 +32,7 @@
     <table style="border:none;margin-bottom:10px">
         <tr>
             <td style="border:none;padding:0;width:60%">
-                <div style="font-size:16px;font-weight:bold">INDUSTRIAS SALCOM</div>
-                <div style="font-size:9px;color:#666">S.A. DE C.V.</div>
+                @include('admin.pagos._logo-salcom')
                 <div style="font-size:11px;margin-top:4px">FORMATO PARA PAGO</div>
             </td>
             <td style="border:none;padding:0;text-align:right">

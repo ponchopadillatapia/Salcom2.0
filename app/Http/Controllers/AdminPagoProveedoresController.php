@@ -308,30 +308,62 @@ class AdminPagoProveedoresController extends Controller
             return back()->withInput()->with('error', 'No hay facturas programadas para abonar. Primero genera el pago en "Pagos al proveedor".');
         }
 
-        // Validar que el CONTENIDO del formato de pago corresponda a este proveedor/facturas.
-        // Leemos el texto del PDF: debe mencionar el código del proveedor o el folio de
-        // alguna de las facturas que se están pagando.
+        // OPCIÓN B (control de dos manos): solo se puede pagar si el EXPEDIENTE de estas
+        // facturas ya fue AUTORIZADO (Sandra/Karen). Si el expediente sigue pendiente de
+        // autorizar, no se permite el pago.
+        $sinAutorizar = [];
+        foreach ($facturas as $fac) {
+            $linea = \App\Models\PagoProveedorFactura::where('factura_id', $fac->id)
+                ->whereHas('pago', fn ($q) => $q->where('estatus', 'confirmado'))
+                ->latest('id')
+                ->first();
+            $expediente = $linea?->pago;
+            if (! $expediente || ($expediente->estatus_autorizacion ?? 'pendiente') !== 'autorizado') {
+                $sinAutorizar[] = $fac->folio_cfdi ?: ('#'.$fac->id);
+            }
+        }
+        if (! empty($sinAutorizar)) {
+            return back()->withInput()->with('error',
+                'No se puede pagar: el expediente de estas facturas aún NO ha sido autorizado por Dirección: '.
+                implode(', ', $sinAutorizar).'. Autoriza el expediente de pago antes de abonar.'
+            );
+        }
+
+        // Validar que el CONTENIDO del formato de pago corresponda a ESTE proveedor
+        // Y a TODAS las facturas que se están pagando. No basta con que mencione el
+        // código del proveedor: cada factura seleccionada debe aparecer en el formato
+        // (por su folio CFDI o su UUID). Así se evita adjuntar el formato de otro lote.
         if ($request->hasFile('formato_pago')) {
             $textoFormato = $this->extraerTextoPdfNormalizado($request->file('formato_pago'));
             if ($textoFormato === null) {
                 return back()->withInput()->with('error', 'No se pudo leer el contenido del formato de pago. Adjunta el PDF generado por el sistema (no una imagen escaneada).');
             }
 
+            // 1) El formato debe mencionar al proveedor.
             $codigoNorm = $this->normalizarIdentificador($codigo);
-            $coincide = $codigoNorm !== '' && str_contains($textoFormato, $codigoNorm);
+            $mencionaProveedor = $codigoNorm !== '' && str_contains($textoFormato, $codigoNorm);
+            if (! $mencionaProveedor) {
+                return back()->withInput()->with('error', 'El formato de pago adjunto no corresponde a este proveedor ('.$codigo.'). Descarga y adjunta el formato de ESTE pago.');
+            }
 
-            if (! $coincide) {
-                foreach ($facturas as $fac) {
-                    $folioNorm = $this->normalizarIdentificador($fac->folio_cfdi);
-                    if ($folioNorm !== '' && str_contains($textoFormato, $folioNorm)) {
-                        $coincide = true;
-                        break;
-                    }
+            // 2) TODAS las facturas seleccionadas deben aparecer en el formato (folio o UUID).
+            $facturasFaltantes = [];
+            foreach ($facturas as $fac) {
+                $folioNorm = $this->normalizarIdentificador($fac->folio_cfdi);
+                $uuidNorm = $this->normalizarIdentificador($fac->uuid_cfdi);
+                $enFormato = ($folioNorm !== '' && str_contains($textoFormato, $folioNorm))
+                    || ($uuidNorm !== '' && str_contains($textoFormato, $uuidNorm));
+                if (! $enFormato) {
+                    $facturasFaltantes[] = $fac->folio_cfdi ?: ('#'.$fac->id);
                 }
             }
 
-            if (! $coincide) {
-                return back()->withInput()->with('error', 'El formato de pago adjunto no corresponde a este proveedor ni a las facturas seleccionadas. El documento no las menciona. Descarga y adjunta el formato de este pago.');
+            if (! empty($facturasFaltantes)) {
+                return back()->withInput()->with('error',
+                    'El formato de pago adjunto NO corresponde a las facturas seleccionadas. '.
+                    'No menciona: '.implode(', ', $facturasFaltantes).'. '.
+                    'Descarga y adjunta el formato generado para ESTE pago (no el de otro lote).'
+                );
             }
         }
 

@@ -640,7 +640,7 @@
 
     <div class="main-content">
         @yield('hero')
-        @unless(request()->is('admin/dashboard'))
+        @unless(request()->is('admin/dashboard') || request()->is('admin/pagos/*/expediente'))
         <nav class="admin-back-nav" aria-label="Navegación secundaria">
             <a href="{{ route('admin.dashboard') }}" class="admin-back-link">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
