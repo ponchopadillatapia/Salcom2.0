@@ -60,8 +60,9 @@
     .cq-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;background:#f9fafb;border-top:1px solid #e5e7eb}
     .cq-total{font-size:18px;font-weight:800;color:#166534;font-variant-numeric:tabular-nums}
     .pag-alert{padding:12px 14px;border-radius:10px;margin-bottom:14px;font-size:13px}
-    .pag-alert.err{background:var(--red-bg);color:var(--red);border:2px solid var(--red);font-weight:600;box-shadow:0 2px 10px rgba(220,38,38,.15)}
+    .pag-alert.err{background:var(--red-bg);color:var(--red);border:2px solid var(--red);font-weight:600;box-shadow:0 2px 10px rgba(220,38,38,.15);animation:pagShake .5s ease}
     .pag-alert.ok{background:var(--green-bg);color:var(--green);border:1px solid var(--green)}
+    @keyframes pagShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
     .back{display:inline-flex;margin-bottom:12px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none}
     .empty-row td{text-align:center;color:#9ca3af;padding:28px!important}
     @media(max-width:960px){
@@ -74,13 +75,10 @@
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
     Volver a pagos
 </a>
-@if(session('error'))
-    <div class="pag-alert err" id="pago-error"><strong>⛔ Pago rechazado:</strong> {{ session('error') }}</div>
-@endif
-@if($errors->any())
-    <div class="pag-alert err" id="pago-error"><strong>⛔ Pago rechazado:</strong> {{ $errors->first() }}</div>
-@endif
-@if(session('error') || $errors->any())
+@if(session('error') || $errors->any() || request()->boolean('pago_error'))
+    <div class="pag-alert err" id="pago-error">
+        <strong>No se pudo registrar el pago. Inténtalo de nuevo.</strong>
+    </div>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var box = document.getElementById('pago-error');

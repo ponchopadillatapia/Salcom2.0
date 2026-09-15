@@ -267,7 +267,30 @@ class AdminPagoProveedoresController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        // Mensaje único de rechazo (sin explicar el motivo, a petición del usuario).
+        $MSG_RECHAZO = 'No se pudo registrar el pago. Verifica el formato para pago e inténtalo de nuevo.';
+
+        // Redirige SIEMPRE a la pantalla del formulario con el mensaje rojo garantizado.
+        // Se usa una ruta explícita (no back()) para que el flash nunca se pierda.
+        $rechazar = function (string $motivo = 'sin_detalle') use ($request, $MSG_RECHAZO) {
+            $key = (string) $request->input('poliza_key', '');
+            $meta = config('polizas_pago.'.$key);
+            $codigo = '';
+            if ($provId = (int) $request->input('proveedor_id', 0)) {
+                $prov = ProveedorUser::query()->find($provId);
+                $codigo = $prov ? ($prov->id_proveedor ?: $prov->codigo) : '';
+            }
+            // Se pasa el error TAMBIÉN por query string (pago_error=1) para que el aviso
+            // rojo aparezca aunque el flash de sesión se pierda por cualquier motivo.
+            $destino = is_array($meta)
+                ? redirect()->route('admin.pago-proveedores.create', array_filter(['poliza' => $key, 'codigo' => $codigo, 'pago_error' => 1]))
+                : redirect()->route('admin.pago-proveedores', ['pago_error' => 1]);
+
+            return $destino->withInput()->with('error', $MSG_RECHAZO);
+        };
+
+        // Validación de campos: si falla, mostrar el mismo mensaje rojo simple.
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'poliza_key' => 'required|string',
             'fecha' => 'required|date',
             'proveedor_id' => 'required|integer|exists:proveedores_users,id',
@@ -284,10 +307,16 @@ class AdminPagoProveedoresController extends Controller
             'formato_pago' => 'required|file|mimes:pdf|max:10240',
         ]);
 
+        if ($validator->fails()) {
+            return $rechazar();
+        }
+
+        $data = $validator->validated();
+
         try {
             $meta = $this->polizaOrFail($data['poliza_key']);
         } catch (InvalidArgumentException $e) {
-            return back()->withInput()->with('error', $e->getMessage());
+            return $rechazar();
         }
 
         $proveedor = ProveedorUser::query()->findOrFail($data['proveedor_id']);
@@ -295,7 +324,7 @@ class AdminPagoProveedoresController extends Controller
 
         // Validación de secuencia: solo facturas "programada" pueden pagarse aquí.
         if ($errorSecuencia = $this->validarSecuenciaFacturas($data['factura_ids'], 'programada', 'el pago a proveedor')) {
-            return back()->withInput()->with('error', $errorSecuencia.' Primero genera el pago en "Pagos al proveedor".');
+            return $rechazar();
         }
 
         $facturas = Factura::query()
@@ -305,7 +334,7 @@ class AdminPagoProveedoresController extends Controller
             ->get();
 
         if ($facturas->isEmpty()) {
-            return back()->withInput()->with('error', 'No hay facturas programadas para abonar. Primero genera el pago en "Pagos al proveedor".');
+            return $rechazar();
         }
 
         // OPCIÓN B (control de dos manos): solo se puede pagar si el EXPEDIENTE de estas
@@ -323,10 +352,7 @@ class AdminPagoProveedoresController extends Controller
             }
         }
         if (! empty($sinAutorizar)) {
-            return back()->withInput()->with('error',
-                'No se puede pagar: el expediente de estas facturas aún NO ha sido autorizado por Dirección: '.
-                implode(', ', $sinAutorizar).'. Autoriza el expediente de pago antes de abonar.'
-            );
+            return $rechazar();
         }
 
         // Validar que el CONTENIDO del formato de pago corresponda a ESTE proveedor
@@ -336,14 +362,14 @@ class AdminPagoProveedoresController extends Controller
         if ($request->hasFile('formato_pago')) {
             $textoFormato = $this->extraerTextoPdfNormalizado($request->file('formato_pago'));
             if ($textoFormato === null) {
-                return back()->withInput()->with('error', 'No se pudo leer el contenido del formato de pago. Adjunta el PDF generado por el sistema (no una imagen escaneada).');
+                return $rechazar();
             }
 
             // 1) El formato debe mencionar al proveedor.
             $codigoNorm = $this->normalizarIdentificador($codigo);
             $mencionaProveedor = $codigoNorm !== '' && str_contains($textoFormato, $codigoNorm);
             if (! $mencionaProveedor) {
-                return back()->withInput()->with('error', 'El formato de pago adjunto no corresponde a este proveedor ('.$codigo.'). Descarga y adjunta el formato de ESTE pago.');
+                return $rechazar();
             }
 
             // 2) TODAS las facturas seleccionadas deben aparecer en el formato (folio o UUID).
@@ -359,11 +385,7 @@ class AdminPagoProveedoresController extends Controller
             }
 
             if (! empty($facturasFaltantes)) {
-                return back()->withInput()->with('error',
-                    'El formato de pago adjunto NO corresponde a las facturas seleccionadas. '.
-                    'No menciona: '.implode(', ', $facturasFaltantes).'. '.
-                    'Descarga y adjunta el formato generado para ESTE pago (no el de otro lote).'
-                );
+                return $rechazar();
             }
         }
 
@@ -446,7 +468,7 @@ class AdminPagoProveedoresController extends Controller
         } catch (\Throwable $e) {
             report($e);
 
-            return back()->withInput()->with('error', 'No se pudo guardar el abono: '.$e->getMessage());
+            return $rechazar();
         }
 
         // Guardar el formato de pago adjunto

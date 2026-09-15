@@ -103,7 +103,7 @@
         </form>
     @else
         <a class="btn btn-primary" href="{{ route('admin.pagos.reporte-resumen', ['pago' => $pago, 'ver' => 1]) }}" target="_blank" rel="noopener">Ver reporte resumen</a>
-        <a class="btn btn-outline" href="{{ route('admin.pagos.expediente', $pago) }}">📁 Expediente de pago</a>
+        <a class="btn btn-outline" href="{{ route('admin.pagos.expediente', $pago) }}">Expediente de pago</a>
     @endif
 </div>
 
