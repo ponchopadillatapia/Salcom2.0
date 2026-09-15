@@ -43,6 +43,11 @@
     .admin-table td{padding:14px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border)}
     .admin-table tbody tr.prov-row{cursor:pointer}
     .admin-table tbody tr.prov-row:hover td{background:var(--purple-subtle)}
+    .admin-table tbody tr.row-nuevo td{background:#f5f9ff}
+    /* Patrón "visto": punto azul (nivel padre con items nuevos) y rojo (item sin ver) */
+    .dot-azul{display:inline-block;width:9px;height:9px;border-radius:50%;background:#2563eb;margin-right:7px;vertical-align:middle;animation:dotBlink 1.3s ease-in-out infinite}
+    .dot-rojo{display:inline-block;width:8px;height:8px;border-radius:50%;background:#dc2626;margin-right:7px;vertical-align:middle;animation:dotBlink 1.2s ease-in-out infinite}
+    @keyframes dotBlink{0%,100%{opacity:1}50%{opacity:.3}}
     .tbl-wrap{overflow-x:auto}
     .code-link{font-weight:700;color:var(--purple);text-decoration:none}
     .monto{font-weight:700;font-variant-numeric:tabular-nums;color:var(--green)}
@@ -212,16 +217,16 @@
                                     ? $row->ultima_factura_at->format('h:i a')
                                     : '—';
                             @endphp
-                            <tr class="prov-row" onclick="window.location='{{ route('admin.pagos.proveedor', $row->codigo) }}'">
+                            <tr class="prov-row {{ $sinLeer ? 'row-nuevo' : '' }}" onclick="window.location='{{ route('admin.pagos.proveedor', $row->codigo) }}'">
                                 <td>
                                     <a class="code-link" href="{{ route('admin.pagos.proveedor', $row->codigo) }}" onclick="event.stopPropagation()">{{ $row->codigo }}</a>
                                 </td>
-                                <td style="font-weight:600;">{{ $row->nombre }}</td>
+                                <td style="font-weight:600;">@if($sinLeer)<span class="dot-azul" title="Facturas nuevas sin ver"></span>@endif{{ $row->nombre }}</td>
                                 <td>{{ $row->num_facturas }}</td>
                                 <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
                                 <td style="text-align:right;white-space:nowrap">
                                     <span class="hora-bubble leida">{{ $hora }}</span>
-                                    <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#dc2626;margin-left:8px;vertical-align:middle"></span>
+                                    @if($sinLeer)<span class="dot-azul" style="margin-left:8px;" title="Facturas nuevas sin ver"></span>@endif
                                 </td>
                             </tr>
                         @endforeach

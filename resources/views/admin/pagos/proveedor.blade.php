@@ -9,6 +9,9 @@
 @push('styles')
 <style>
     @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+    /* Patrón "visto": punto rojo en factura sin ver */
+    .dot-rojo{display:inline-block;width:8px;height:8px;border-radius:50%;background:#dc2626;margin-right:6px;vertical-align:middle;animation:dotBlink 1.2s ease-in-out infinite}
+    @keyframes dotBlink{0%,100%{opacity:1}50%{opacity:.3}}
     .anim{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
 
     .pag-back{display:inline-flex;align-items:center;gap:6px;margin-bottom:16px;font-size:13px;font-weight:600;color:var(--purple);text-decoration:none}
@@ -253,6 +256,7 @@
                         <tr>
                             <td><input type="checkbox" class="chk fact-chk" name="factura_ids[]" value="{{ $f->id }}"></td>
                             <td>
+                                @if(in_array($f->id, $idsFacturasNoVistas ?? []))<span class="dot-rojo" title="Factura nueva sin ver"></span>@endif
                                 <strong style="color:var(--purple);">{{ $f->folio_display }}</strong>
                             </td>
                             <td>

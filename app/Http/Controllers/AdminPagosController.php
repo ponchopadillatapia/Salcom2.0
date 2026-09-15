@@ -50,7 +50,28 @@ class AdminPagosController extends Controller
                 return $f;
             });
 
-        return view('admin.pagos.proveedor', compact('proveedor', 'codigo', 'facturas', 'expediente'));
+        // Patrón "visto": punto rojo en las facturas nuevas sin ver.
+        // Capturamos las no vistas ANTES de marcarlas, y luego las marcamos como vistas.
+        $idsFacturasNoVistas = $facturas->filter(function (Factura $f) {
+            $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
+
+            return empty($vd['visto_pago']);
+        })->pluck('id')->all();
+
+        try {
+            foreach ($facturas as $f) {
+                $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
+                if (empty($vd['visto_pago'])) {
+                    $vd['visto_pago'] = true;
+                    $f->validacion_detalle = $vd;
+                    $f->saveQuietly();
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('No se pudo marcar facturas como vistas: '.$e->getMessage());
+        }
+
+        return view('admin.pagos.proveedor', compact('proveedor', 'codigo', 'facturas', 'expediente', 'idsFacturasNoVistas'));
     }
 
     /** Campanita admin: facturas nuevas pendientes de pago. */

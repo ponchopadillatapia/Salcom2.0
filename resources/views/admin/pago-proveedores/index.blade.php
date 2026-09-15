@@ -39,6 +39,9 @@
     .admin-table td{padding:14px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border)}
     .admin-table tbody tr.prov-row{cursor:pointer}
     .admin-table tbody tr.prov-row:hover td{background:var(--purple-subtle)}
+    .admin-table tbody tr.prov-row.row-nuevo td{background:#f5f9ff}
+    .dot-azul{display:inline-block;width:9px;height:9px;border-radius:50%;background:#2563eb;margin-right:7px;vertical-align:middle;animation:dotBlink 1.3s ease-in-out infinite}
+    @keyframes dotBlink{0%,100%{opacity:1}50%{opacity:.3}}
     .admin-table tbody tr.prov-row.is-disabled{cursor:not-allowed;opacity:.45}
     .admin-table tbody tr.prov-row.is-disabled:hover td{background:transparent}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
@@ -305,17 +308,18 @@
                                     $hora = $row->ultima_factura_at
                                         ? $row->ultima_factura_at->format('h:i a')
                                         : '—';
+                                    $sinLeer = ($row->notif_sin_leer ?? 0) > 0;
                                 @endphp
-                                <tr class="prov-row {{ $agente === '' ? 'is-disabled' : '' }}" data-codigo="{{ $row->codigo }}">
+                                <tr class="prov-row {{ $agente === '' ? 'is-disabled' : '' }} {{ $sinLeer ? 'row-nuevo' : '' }}" data-codigo="{{ $row->codigo }}">
                                     <td>
                                         <a class="code-link js-abrir-abono" href="#" data-codigo="{{ $row->codigo }}">{{ $row->codigo }}</a>
                                     </td>
-                                    <td style="font-weight:600;">{{ $row->nombre }}</td>
+                                    <td style="font-weight:600;">@if($sinLeer)<span class="dot-azul" title="Facturas nuevas sin ver"></span>@endif{{ $row->nombre }}</td>
                                     <td style="text-align:center">{{ $row->num_facturas }}</td>
                                     <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
                                     <td style="text-align:right;white-space:nowrap">
                                         <span class="hora-bubble leida">{{ $hora }}</span>
-                                        <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#dc2626;margin-left:8px;vertical-align:middle"></span>
+                                        @if($sinLeer)<span class="dot-azul" style="margin-left:8px;" title="Facturas nuevas sin ver"></span>@endif
                                     </td>
                                 </tr>
                             @endforeach
