@@ -237,9 +237,20 @@ class ProveedorUser extends Authenticatable
     {
         $columnas = array_unique([static::columnaCodigoProveedor(), 'codigo']);
 
-        return $query->where(function ($q) use ($columnas, $valor) {
+        // Código provisional "P<id>": cuando el proveedor aún no tiene id_proveedor,
+        // las facturas se guardan con 'P'.$proveedor->id (ej. P55). Si el valor tiene
+        // ese patrón, también permitimos buscarlo por el id real del proveedor.
+        $idProvisional = null;
+        if (preg_match('/^P(\d+)$/i', trim($valor), $m)) {
+            $idProvisional = (int) $m[1];
+        }
+
+        return $query->where(function ($q) use ($columnas, $valor, $idProvisional) {
             foreach ($columnas as $col) {
                 $q->orWhere($col, $valor);
+            }
+            if ($idProvisional !== null) {
+                $q->orWhere('id', $idProvisional);
             }
         });
     }
