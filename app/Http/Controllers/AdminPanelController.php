@@ -2429,6 +2429,14 @@ class AdminPanelController extends Controller
             return $this->respuestaSolicitudAlta($request, 'No se puede aprobar: faltan datos bancarios.', false);
         }
 
+        if ($prov->documentos()->where('estatus', 'pendiente')->exists()) {
+            return $this->respuestaSolicitudAlta(
+                $request,
+                'No se puede aprobar: hay documentos en revisión manual. Ábrelos en Ver y márcalos como revisados.',
+                false
+            );
+        }
+
         if (! $prov->documentosFiscalesCompletos()) {
             return $this->respuestaSolicitudAlta($request, 'No se puede aprobar: faltan documentos fiscales aprobados.', false);
         }
@@ -2620,6 +2628,58 @@ class AdminPanelController extends Controller
             'tiposLabel',
             'datosIdent'
         ));
+    }
+
+    /** Marca un documento en revisión manual como ya revisado (aprobado) para poder dar de alta. */
+    public function marcarDocumentoSolicitudRevisado(DocumentoProveedor $documento)
+    {
+        $documento->load('proveedor');
+        $prov = $documento->proveedor;
+
+        if (! $prov) {
+            return back()->with('error', 'No se encontró el proveedor de este documento.');
+        }
+
+        if ($prov->activo) {
+            return redirect()
+                ->route('admin.solicitudes-alta.ver', $prov)
+                ->with('error', 'Este proveedor ya está activo; no hay revisión de alta pendiente.');
+        }
+
+        if ($documento->estatus !== 'pendiente') {
+            return redirect()
+                ->route('admin.solicitudes-alta.ver', $prov)
+                ->with('error', 'Solo se pueden marcar como revisados los documentos en revisión manual.');
+        }
+
+        $resultado = is_array($documento->resultado_validacion) ? $documento->resultado_validacion : [];
+        $resultado['revision_manual_confirmada'] = true;
+        $resultado['revision_manual_confirmada_at'] = now()->toIso8601String();
+
+        $notas = trim((string) ($documento->notas_revision ?? ''));
+        $notaRevision = 'Revisado manualmente por Contabilidad/Dirección.';
+
+        $documento->update([
+            'estatus' => 'aprobado',
+            'revisado_at' => now(),
+            'notas_revision' => $notas !== '' ? $notas.' · '.$notaRevision : $notaRevision,
+            'resultado_validacion' => $resultado,
+        ]);
+
+        $etiqueta = [
+            'cif' => 'Constancia de Situación Fiscal',
+            'opinion' => 'Opinión de Cumplimiento SAT',
+            'acta' => 'Acta Constitutiva',
+            'rep_legal' => 'ID Representante Legal',
+            'contribuyente' => 'ID Contribuyente',
+            'caratula_banco' => 'Carátula de Banco',
+            'poder' => 'Poder Notarial',
+            'formato_identificacion' => 'Formato de Identificación del Proveedor',
+        ][$documento->tipo] ?? ucfirst(str_replace('_', ' ', (string) $documento->tipo));
+
+        return redirect()
+            ->route('admin.solicitudes-alta.ver', $prov)
+            ->with('mensaje', $etiqueta.' marcado como revisado. Ya cuenta como aprobado para el alta.');
     }
 
     /** Solicitudes de actualización/renovación de docs de proveedores activos. */

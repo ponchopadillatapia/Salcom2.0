@@ -27,6 +27,7 @@
     .sol-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
     .btn-revisar{padding:7px 18px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
     .btn-aprobar{padding:7px 16px;background:var(--green);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
+    .btn-aprobar:disabled{opacity:.45;cursor:not-allowed}
     .btn-rechazar{padding:7px 16px;background:var(--red);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit}
     .btn-revisar:hover,.btn-aprobar:hover,.btn-rechazar:hover{opacity:.9}
     .sol-empty{text-align:center;padding:40px;color:var(--gray-muted);font-size:14px}
@@ -81,7 +82,7 @@
 
             @if($revManual)
             <div class="sol-banner-rev">
-                Requiere revisión manual: {{ implode('; ', $docsRev) }}. Revisa el documento antes de aprobar.
+                Requiere revisión manual: {{ implode('; ', $docsRev) }}. Ábrelo en Ver y marca cada documento como revisado para poder aprobar.
             </div>
             @endif
 
@@ -95,11 +96,15 @@
             </div>
 
             <div class="sol-actions">
-                <form method="POST" action="{{ route('admin.solicitudes-alta.aprobar') }}" class="sol-action-form" data-confirm="¿Aprobar y activar a {{ addslashes($prov->nombre ?? $prov->usuario) }}?">
-                    @csrf
-                    <input type="hidden" name="proveedor_id" value="{{ $prov->id }}">
-                    <button type="submit" class="btn-aprobar">✓ Aprobar</button>
-                </form>
+                @if($revManual)
+                    <button type="button" class="btn-aprobar" disabled title="Marca los documentos en revisión manual como revisados en Ver">✓ Aprobar</button>
+                @else
+                    <form method="POST" action="{{ route('admin.solicitudes-alta.aprobar') }}" class="sol-action-form" data-confirm="¿Aprobar y activar a {{ addslashes($prov->nombre ?? $prov->usuario) }}?">
+                        @csrf
+                        <input type="hidden" name="proveedor_id" value="{{ $prov->id }}">
+                        <button type="submit" class="btn-aprobar">✓ Aprobar</button>
+                    </form>
+                @endif
                 <form method="POST" action="{{ route('admin.solicitudes-alta.rechazar') }}" class="sol-action-form" data-confirm="¿Rechazar la solicitud de {{ addslashes($prov->nombre ?? $prov->usuario) }}?&#10;&#10;No se elimina la cuenta: el proveedor sigue registrado e inactivo y deberá volver a llenar datos bancarios y documentos.">
                     @csrf
                     <input type="hidden" name="proveedor_id" value="{{ $prov->id }}">
@@ -107,7 +112,7 @@
                 </form>
                 <a href="{{ route('admin.solicitudes-alta.ver', $prov->id) }}" class="btn-revisar">
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    Ver
+                    {{ $revManual ? 'Ver y revisar' : 'Ver' }}
                 </a>
             </div>
         </div>

@@ -724,6 +724,70 @@ class SolicitudesAltaAdminTest extends TestCase
             ->assertSee('Constancia de Situación Fiscal')
             ->assertSee('Aprobado')
             ->assertSee('Opinión de Cumplimiento SAT')
-            ->assertSee('Revisión manual');
+            ->assertSee('Revisión manual')
+            ->assertSee('Marcar como revisado');
+    }
+
+    public function test_marcar_documento_revisado_permite_aprobar(): void
+    {
+        Mail::fake();
+        $this->withSession($this->sesionAdmin());
+        $p = $this->proveedorPendiente([
+            'datos_identificacion' => ['banco' => 'BBVA', 'clabe' => '012345678901234567'],
+        ]);
+        $this->completarContactos($p);
+
+        foreach (array_keys($p->documentosRequeridos()) as $tipo) {
+            DocumentoProveedor::create([
+                'proveedor_id' => $p->id,
+                'tipo' => $tipo,
+                'archivo' => "expediente_fiscal/{$tipo}/ok.pdf",
+                'estatus' => $tipo === 'formato_identificacion' ? 'pendiente' : 'aprobado',
+                'notas_revision' => $tipo === 'formato_identificacion'
+                    ? 'Sin certificado de firma electrónica'
+                    : 'Validación automática aprobada',
+            ]);
+        }
+
+        $docPendiente = $p->documentos()->where('tipo', 'formato_identificacion')->first();
+        $this->assertNotNull($docPendiente);
+
+        $this->post(route('admin.solicitudes-alta.aprobar'), [
+            'proveedor_id' => $p->id,
+        ])->assertRedirect();
+        $this->assertFalse($p->fresh()->activo);
+
+        $this->post(route('admin.solicitudes-alta.documento.revisar', $docPendiente))
+            ->assertRedirect(route('admin.solicitudes-alta.ver', $p))
+            ->assertSessionHas('mensaje');
+
+        $docPendiente->refresh();
+        $this->assertSame('aprobado', $docPendiente->estatus);
+        $this->assertNotNull($docPendiente->revisado_at);
+        $this->assertStringContainsString('Revisado manualmente', (string) $docPendiente->notas_revision);
+
+        $this->post(route('admin.solicitudes-alta.aprobar'), [
+            'proveedor_id' => $p->id,
+        ])->assertRedirect(route('admin.solicitudes-alta'));
+
+        $this->assertTrue($p->fresh()->activo);
+    }
+
+    public function test_no_marca_como_revisado_un_documento_ya_aprobado(): void
+    {
+        $this->withSession($this->sesionAdmin());
+        $p = $this->proveedorPendiente();
+        $doc = DocumentoProveedor::create([
+            'proveedor_id' => $p->id,
+            'tipo' => 'cif',
+            'archivo' => 'expediente_fiscal/cif/ok.pdf',
+            'estatus' => 'aprobado',
+        ]);
+
+        $this->post(route('admin.solicitudes-alta.documento.revisar', $doc))
+            ->assertRedirect(route('admin.solicitudes-alta.ver', $p))
+            ->assertSessionHas('error');
+
+        $this->assertSame('aprobado', $doc->fresh()->estatus);
     }
 }

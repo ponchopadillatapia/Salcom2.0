@@ -183,6 +183,7 @@ Route::get('/admin/solicitudes-alta/{proveedor}/revisar', [AdminPanelController:
 Route::get('/admin/solicitudes-alta/{proveedor}/ver', [AdminPanelController::class, 'verDocumentosAprobadosSolicitud'])->name('admin.solicitudes-alta.ver')->middleware('auth.admin');
 Route::post('/admin/solicitudes-alta/aprobar', [AdminPanelController::class, 'aprobarSolicitudAlta'])->name('admin.solicitudes-alta.aprobar')->middleware('auth.admin');
 Route::post('/admin/solicitudes-alta/rechazar', [AdminPanelController::class, 'rechazarSolicitudAlta'])->name('admin.solicitudes-alta.rechazar')->middleware('auth.admin');
+Route::post('/admin/solicitudes-alta/documentos/{documento}/revisar', [AdminPanelController::class, 'marcarDocumentoSolicitudRevisado'])->name('admin.solicitudes-alta.documento.revisar')->middleware('auth.admin');
 Route::get('/admin/solicitudes-docs', [AdminPanelController::class, 'solicitudesActualizacionDocs'])->name('admin.solicitudes-docs')->middleware('auth.admin');
 Route::post('/admin/solicitudes-docs/marcar', [AdminPanelController::class, 'marcarSolicitudActualizacionDocs'])->name('admin.solicitudes-docs.marcar')->middleware('auth.admin');
 Route::get('/admin/proveedores/{codigo}/facturas', [AdminPanelController::class, 'proveedorFacturas'])->name('admin.proveedor-facturas')->middleware('auth.admin');

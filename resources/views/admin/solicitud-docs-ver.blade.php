@@ -69,20 +69,28 @@
     .aviso-box { background: var(--gray-soft); border-radius: 10px; padding: 16px 18px; font-size: 11px; color: var(--gray-muted); line-height: 1.6; }
     .aviso-box strong { color: var(--gray-text); display: block; margin-bottom: 6px; font-size: 12px; }
 
-    .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 16px; flex-wrap: wrap; align-items: center; }
     .btn-aprobar { padding: 10px 24px; background: var(--green, #16a34a); color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
     .btn-rechazar { padding: 10px 24px; background: var(--red, #dc2626); color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; }
     .btn-aprobar:hover, .btn-rechazar:hover { opacity: .92; }
+    .btn-aprobar:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-revisado { padding: 8px 16px; background: #d97706; color: #fff; border: none; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-revisado:hover { background: #b45309; }
+    .doc-revisar-form { margin-top: 12px; }
+    .ver-flash { border-radius: 10px; padding: 12px 16px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+    .ver-flash.ok { background: #ecfdf5; border: 1px solid #a7f3d0; color: #059669; }
+    .ver-flash.err { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+    .aprobar-hint { font-size: 12px; color: #92400e; margin: 0; flex: 1; min-width: 220px; }
 
     .seccion-doc {
         display: block; text-decoration: none; color: inherit;
         border-radius: 10px; padding: 1rem 1.1rem; margin-bottom: 0.65rem;
         border: 1px solid var(--border-light); background: var(--white);
         border-left: 4px solid var(--green); transition: box-shadow .15s, transform .15s;
-        cursor: pointer;
     }
     .seccion-doc:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); transform: translateY(-1px); }
     .seccion-doc.pendiente { border-left-color: #d97706; background: #fffbeb; }
+    .seccion-doc-body { display: block; text-decoration: none; color: inherit; }
     .seccion-header { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.55rem; flex-wrap: wrap; }
     .seccion-titulo { font-weight: 700; font-size: 0.9rem; color: var(--gray-text); flex: 1; }
     .status-pill { font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; text-transform: uppercase; background: #ecfdf5; color: #059669; }
@@ -168,9 +176,17 @@
     }
 
     $puedeActuar = ! $proveedor->activo;
+    $tienePendientes = $docsAprobados->where('estatus', 'pendiente')->isNotEmpty();
 @endphp
 
 <a href="{{ route('admin.solicitudes-alta') }}" class="ver-back">← Volver a solicitudes</a>
+
+@if(session('mensaje'))
+    <div class="ver-flash ok">{{ session('mensaje') }}</div>
+@endif
+@if(session('error'))
+    <div class="ver-flash err">{{ session('error') }}</div>
+@endif
 
 {{-- A. Identificación del proveedor --}}
 <div class="id-card">
@@ -462,7 +478,7 @@
         <p class="ver-hint">
             {{ $proveedor->tipo_persona ?? '—' }}
             · {{ $docsAprobados->where('estatus', 'aprobado')->count() }} aprobado(s){{ $docsAprobados->where('estatus', 'pendiente')->count() > 0 ? ' · '.$docsAprobados->where('estatus', 'pendiente')->count().' en revisión manual' : '' }}.
-            Haz clic en un documento para descargarlo. Los marcados en <strong style="color:#d97706;">naranja</strong> requieren revisión manual.
+            Haz clic en un documento para descargarlo. Los marcados en <strong style="color:#d97706;">naranja</strong> requieren revisión manual: márcalos como revisados para poder aprobar.
         </p>
 
         @foreach($docsAprobados as $doc)
@@ -482,25 +498,33 @@
                     ? route('admin.expediente-fiscal.descargar', $doc)
                     : '#';
             @endphp
-            <a href="{{ $href }}" class="seccion-doc {{ $esPendiente ? 'pendiente' : '' }}" title="Descargar PDF">
-                <div class="seccion-header">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ $stroke }}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    <span class="seccion-titulo">{{ $tiposLabel[$doc->tipo] ?? ucfirst(str_replace('_', ' ', (string) $doc->tipo)) }}</span>
-                    <span class="status-pill {{ $esPendiente ? 'pendiente' : '' }}">{{ $esPendiente ? 'Revisión manual' : 'Aprobado' }}</span>
-                </div>
-                @forelse($hallazgos as $h)
-                    <div class="detalle-item">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{ $stroke }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                        {{ is_array($h) ? json_encode($h, JSON_UNESCAPED_UNICODE) : $h }}
+            <div class="seccion-doc {{ $esPendiente ? 'pendiente' : '' }}">
+                <a href="{{ $href }}" class="seccion-doc-body" title="Descargar PDF">
+                    <div class="seccion-header">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ $stroke }}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <span class="seccion-titulo">{{ $tiposLabel[$doc->tipo] ?? ucfirst(str_replace('_', ' ', (string) $doc->tipo)) }}</span>
+                        <span class="status-pill {{ $esPendiente ? 'pendiente' : '' }}">{{ $esPendiente ? 'Revisión manual' : 'Aprobado' }}</span>
                     </div>
-                @empty
-                    <div class="detalle-item">{{ $esPendiente ? 'Requiere revisión manual del admin' : 'Validación automática aprobada' }}</div>
-                @endforelse
-                <div class="doc-dl-hint">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Clic para descargar PDF
-                </div>
-            </a>
+                    @forelse($hallazgos as $h)
+                        <div class="detalle-item">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{ $stroke }}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                            {{ is_array($h) ? json_encode($h, JSON_UNESCAPED_UNICODE) : $h }}
+                        </div>
+                    @empty
+                        <div class="detalle-item">{{ $esPendiente ? 'Requiere revisión manual del admin' : 'Validación automática aprobada' }}</div>
+                    @endforelse
+                    <div class="doc-dl-hint">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        Clic para descargar PDF
+                    </div>
+                </a>
+                @if($esPendiente && $puedeActuar)
+                    <form method="POST" action="{{ route('admin.solicitudes-alta.documento.revisar', $doc) }}" class="doc-revisar-form" onsubmit="return confirm('¿Confirmas que revisaste este documento y es válido?\n\nQuedará aprobado para el alta del proveedor.');">
+                        @csrf
+                        <button type="submit" class="btn-revisado">✓ Marcar como revisado</button>
+                    </form>
+                @endif
+            </div>
         @endforeach
     @endif
 </div>
@@ -513,16 +537,23 @@
 
     @if($puedeActuar)
     <div class="form-actions">
+        @if($tienePendientes)
+            <p class="aprobar-hint">Hay documentos en revisión manual. Márcalos como revisados para habilitar la aprobación.</p>
+        @endif
         <form method="POST" action="{{ route('admin.solicitudes-alta.rechazar') }}" onsubmit="return confirm('¿Rechazar la solicitud de {{ addslashes($proveedor->nombre ?? $proveedor->usuario) }}?\n\nNo se elimina la cuenta: el proveedor sigue registrado e inactivo y deberá volver a llenar datos bancarios y documentos.');">
             @csrf
             <input type="hidden" name="proveedor_id" value="{{ $proveedor->id }}">
             <button type="submit" class="btn-rechazar">✕ Rechazar</button>
         </form>
-        <form method="POST" action="{{ route('admin.solicitudes-alta.aprobar') }}" onsubmit="return confirm('¿Aprobar y activar a {{ addslashes($proveedor->nombre ?? $proveedor->usuario) }}?');">
-            @csrf
-            <input type="hidden" name="proveedor_id" value="{{ $proveedor->id }}">
-            <button type="submit" class="btn-aprobar">✓ Aprobar</button>
-        </form>
+        @if($tienePendientes)
+            <button type="button" class="btn-aprobar" disabled title="Marca los documentos en revisión manual como revisados">✓ Aprobar</button>
+        @else
+            <form method="POST" action="{{ route('admin.solicitudes-alta.aprobar') }}" onsubmit="return confirm('¿Aprobar y activar a {{ addslashes($proveedor->nombre ?? $proveedor->usuario) }}?');">
+                @csrf
+                <input type="hidden" name="proveedor_id" value="{{ $proveedor->id }}">
+                <button type="submit" class="btn-aprobar">✓ Aprobar</button>
+            </form>
+        @endif
     </div>
     @endif
 </div>
