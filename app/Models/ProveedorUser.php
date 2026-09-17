@@ -227,6 +227,23 @@ class ProveedorUser extends Authenticatable
         return $query->where(static::columnaCodigoProveedor(), $operador, $valor);
     }
 
+    /**
+     * Busca un proveedor por su código, probando TODAS las columnas donde puede
+     * vivir (id_proveedor / codigo_compras y también 'codigo'). El código que
+     * llega desde las facturas (columna codigo_proveedor) no siempre coincide con
+     * la columna principal, así que probamos ambas para no dar 404 de más.
+     */
+    public function scopePorCualquierCodigo($query, string $valor)
+    {
+        $columnas = array_unique([static::columnaCodigoProveedor(), 'codigo']);
+
+        return $query->where(function ($q) use ($columnas, $valor) {
+            foreach ($columnas as $col) {
+                $q->orWhere($col, $valor);
+            }
+        });
+    }
+
     public function contactos(): HasMany
     {
         return $this->hasMany(ContactoProveedor::class, 'proveedor_id');

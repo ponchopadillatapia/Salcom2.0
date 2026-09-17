@@ -26,7 +26,7 @@ class AdminPagosController extends Controller
 
     public function proveedor(string $codigo)
     {
-        $proveedor = ProveedorUser::whereCodigo($codigo)->firstOrFail();
+        $proveedor = ProveedorUser::porCualquierCodigo($codigo)->firstOrFail();
         $expediente = $this->pagos->evaluarExpediente($proveedor);
 
         // Al abrir el proveedor, se marcan como vistas las notifs de pago pendiente
@@ -63,8 +63,12 @@ class AdminPagosController extends Controller
                 $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
                 if (empty($vd['visto_pago'])) {
                     $vd['visto_pago'] = true;
+                    // Actualizamos SOLO la columna validacion_detalle con una consulta directa,
+                    // para no arrastrar los atributos calculados (avisos_pago, neto_pago,
+                    // folio_display) que le pegamos arriba y que NO existen como columnas.
+                    Factura::whereKey($f->id)->update(['validacion_detalle' => $vd]);
+                    // Reflejamos el cambio en el objeto en memoria por si la vista lo consulta.
                     $f->validacion_detalle = $vd;
-                    $f->saveQuietly();
                 }
             }
         } catch (\Throwable $e) {
@@ -329,7 +333,7 @@ class AdminPagosController extends Controller
     /** Estado de cuenta histórico del proveedor (CSV). */
     public function estadoCuenta(string $codigo)
     {
-        $proveedor = ProveedorUser::whereCodigo($codigo)->firstOrFail();
+        $proveedor = ProveedorUser::porCualquierCodigo($codigo)->firstOrFail();
         $facturas = Factura::query()
             ->where('codigo_proveedor', $codigo)
             ->orderByDesc('created_at')
