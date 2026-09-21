@@ -204,31 +204,46 @@ class ProveedorApiService
             return $configError;
         }
 
-        $endpoint = '/Documento/ListaDocumentosOCPorProveedorFechas';
-        $params = [
-            'codigoProveedor' => $codigoProveedor,
-            'fechaInicio' => $fechaInicio,
-            'fechaFin' => $fechaFin,
-        ];
+        // Endpoint real (confirmado en Swagger Wiese): ListaDocumentosOCPorProveedor.
+        // Los 3 parámetros son OBLIGATORIOS:
+        //   - codigoProveedor: código Wiese del proveedor.
+        //   - strIdConceptosOC: ID del concepto de OC. NO acepta 0 como "todos"; hay que
+        //       pedir cada concepto de Orden de Compra. IDs confirmados en Wiese:
+        //       19 = OC Materia Prima, 2004 = OC Producto Terminado, 3015 = OC Importación,
+        //       3151 = OC Mantenimiento, 3130 = OC EPP.
+        //   - fecha: fecha de corte válida (SQL Server rechaza fechas vacías/año 0).
+        // Iteramos sobre todos los conceptos de OC y juntamos los resultados, para que
+        // funcione con cualquier proveedor (sea de M.P., P.T., etc.).
+        $fechaCorte = trim($fechaInicio) !== '' ? $fechaInicio : '2000-01-01';
+        $conceptosOC = ['19', '2004', '3015', '3151', '3130'];
+
+        $endpoint = '/Documento/ListaDocumentosOCPorProveedor';
+        $items = [];
 
         try {
-            $response = Http::connectTimeout($this->connectTimeout)
-                ->timeout(max($this->timeout, 60))
-                ->withToken($token)
-                ->acceptJson()
-                ->get($this->docsUrl.$endpoint, $params);
+            foreach ($conceptosOC as $idConcepto) {
+                $response = Http::connectTimeout($this->connectTimeout)
+                    ->timeout(max($this->timeout, 60))
+                    ->withToken($token)
+                    ->acceptJson()
+                    ->get($this->docsUrl.$endpoint, [
+                        'codigoProveedor' => $codigoProveedor,
+                        'strIdConceptosOC' => $idConcepto,
+                        'fecha' => $fechaCorte,
+                    ]);
 
-            if (! $response->successful()) {
-                return $this->procesarRespuesta($response, $endpoint);
+                if (! $response->successful()) {
+                    continue; // este concepto fallo; seguimos con los demas
+                }
+
+                $body = $response->json();
+                if (is_array($body) && $body !== []) {
+                    $lote = array_is_list($body) ? $body : [$body];
+                    foreach ($lote as $oc) {
+                        $items[] = $oc;
+                    }
+                }
             }
-
-            $body = $response->json();
-            if (! is_array($body)) {
-                $body = [];
-            }
-
-            // La API regresa un array raíz; [] es válido (sin OC en el rango).
-            $items = array_is_list($body) ? $body : [$body];
 
             return $this->buildSuccessResponse([
                 'items' => $items,
@@ -261,11 +276,83 @@ class ProveedorApiService
     }
 
     /**
-     * Buscar proveedor por RFC en AdSalcom18.
-     * Devuelve las cuentas encontradas (puede ser 1 o 2: MXN y USD).
+     * Consulta REAL a Wiese: busca un proveedor por su CÓDIGO o por su RFC.
+     * Usa el host de docs (172.16.1.250) que es donde vive ClienteProveedor.
+     * Confirmado funcionando con ORPACK (BuscarPorCodigo / BuscarPorRFC).
      *
-     * PLACEHOLDER: cuando Alan pase el endpoint real, se conecta aquí.
-     * Por ahora simula la respuesta esperada.
+     * @param  string  $valor  código Wiese o RFC del proveedor
+     * @param  bool  $porRfc  true = buscar por RFC; false = por código
+     * @return array{success: bool, data?: array, message: string, error_type: ?string}
+     */
+    public function buscarProveedorWiese(string $valor, bool $porRfc = false): array
+    {
+        $valor = trim($valor);
+        if ($valor === '') {
+            return $this->buildErrorResponse('Escribe un código o RFC.', 'validation');
+        }
+
+        $configError = $this->validarDocsConfiguracion();
+        if ($configError) {
+            return $configError;
+        }
+
+        // Login de servicio para obtener el token de Wiese.
+        $login = $this->loginServicio();
+        if (! ($login['success'] ?? false)) {
+            return $login;
+        }
+        $token = (string) ($login['data']['tokenCreado'] ?? '');
+
+        $endpoint = $porRfc
+            ? '/ClienteProveedor/BuscarPorRFC'
+            : '/ClienteProveedor/BuscarPorCodigo';
+        $params = $porRfc ? ['rfc' => strtoupper($valor)] : ['codigo' => $valor];
+
+        try {
+            $response = Http::connectTimeout($this->connectTimeout)
+                ->timeout(max($this->timeout, 30))
+                ->withToken($token)
+                ->acceptJson()
+                ->get($this->docsUrl.$endpoint, $params);
+
+            if (! $response->successful()) {
+                return $this->procesarRespuesta($response, $endpoint);
+            }
+
+            $body = $response->json();
+            if (! is_array($body) || empty($body)) {
+                return $this->buildErrorResponse('No se encontró el proveedor en Wiese.', ProveedorApiException::NO_ENCONTRADO);
+            }
+
+            return $this->buildSuccessResponse($body);
+        } catch (ConnectionException $e) {
+            Log::error('ProveedorAPI: conexión fallida (buscar proveedor Wiese)', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse('No se pudo conectar con Wiese (¿VPN activa?).', ProveedorApiException::API_CAIDA);
+        } catch (\Exception $e) {
+            Log::error('ProveedorAPI: error buscar proveedor Wiese', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse('Ocurrió un error al consultar Wiese.', ProveedorApiException::ERROR_DESCONOCIDO);
+        }
+    }
+
+    /**
+     * Buscar proveedor por RFC en Wiese y devolver sus cuentas (1 o 2: MXN y USD).
+     *
+     * POR QUÉ EXISTE: lo usa el onboarding (paso "Confirmación de cuenta") para preguntarle
+     * al proveedor recién registrado si la cuenta que Wiese tiene con su RFC es suya. Al
+     * confirmar, se guarda el código Wiese (id_proveedor) y quedan ligados portal <-> Wiese.
+     *
+     * ANTES estaba SIMULADO (hardcodeado solo para ORPACK). Ahora hace la llamada REAL al
+     * endpoint /ClienteProveedor/BuscarPorRFC vía buscarProveedorWiese(), y adapta la
+     * respuesta cruda de Wiese al formato { cuentas: [{codigo, razonSocial, moneda, fechaAlta}] }
+     * que espera el onboarding.
      */
     public function buscarProveedorPorRFC(string $rfc): array
     {
@@ -275,34 +362,37 @@ class ProveedorApiService
             return $this->buildErrorResponse('RFC vacío', 'validation');
         }
 
-        // TODO: Reemplazar con llamada real a la API cuando esté disponible
-        // Endpoint esperado: GET /Proveedor/BuscarPorRFC?rfc={rfc}
-        // Respuesta esperada: { success: true, data: { cuentas: [{codigo, razonSocial, moneda, fechaAlta}] } }
+        // Llamada REAL a Wiese (login + /ClienteProveedor/BuscarPorRFC).
+        $res = $this->buscarProveedorWiese($rfc, true);
 
-        // --- INICIO PLACEHOLDER (quitar cuando llegue API real) ---
-        // Simular respuesta para ORPACK (RFC de prueba)
-        if ($rfc === 'OME0207015E8') {
-            return [
-                'success' => true,
-                'data' => [
-                    'cuentas' => [
-                        [
-                            'codigo' => 'M213015002',
-                            'razonSocial' => 'ORPACK DE MEXICO',
-                            'moneda' => 'MXN',
-                            'fechaAlta' => '2005-06-15',
-                        ],
-                    ],
-                ],
-            ];
+        // Si no se encontró el proveedor en Wiese, devolvemos lista vacía (no es error:
+        // simplemente ese RFC no está dado de alta en el sistema contable todavía).
+        if (! ($res['success'] ?? false)) {
+            $tipo = $res['error_type'] ?? null;
+            if ($tipo === ProveedorApiException::NO_ENCONTRADO) {
+                return ['success' => true, 'data' => ['cuentas' => []]];
+            }
+
+            return $res; // error real (conexión / VPN) — se propaga tal cual
         }
 
-        // Para cualquier otro RFC: simular "no encontrado"
-        return [
-            'success' => true,
-            'data' => ['cuentas' => []],
-        ];
-        // --- FIN PLACEHOLDER ---
+        // Wiese devuelve UN objeto de proveedor. Lo adaptamos al formato de "cuentas".
+        $prov = $res['data'] ?? [];
+        $codigo = trim((string) ($prov['codigo'] ?? ''));
+
+        if ($codigo === '') {
+            return ['success' => true, 'data' => ['cuentas' => []]];
+        }
+
+        $cuentas = [[
+            'codigo' => $codigo,
+            'razonSocial' => $prov['crazonsocial'] ?? ($prov['nombre'] ?? ''),
+            'moneda' => (int) ($prov['cidmoneda'] ?? 1) === 1 ? 'MXN' : 'USD',
+            'fechaAlta' => $prov['fechaCreacion'] ?? null,
+            'rfc' => $prov['crfc'] ?? $rfc,
+        ]];
+
+        return ['success' => true, 'data' => ['cuentas' => $cuentas]];
     }
 
     // ── Métodos privados ──
