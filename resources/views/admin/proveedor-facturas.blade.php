@@ -44,17 +44,23 @@
 <a class="pag-back" href="{{ route('admin.proveedores', ['tab' => 'facturas']) }}">← Volver a proveedores</a>
 
 @php
+    // KPIs de la BD (facturas del portal)
     $pendientes = $facturas->where('estatus', 'pendiente');
-    $totalDeuda = $pendientes->sum('total');
-    $totalPagado = $facturas->where('estatus', 'pagada')->sum('total');
-    $vencidas = $pendientes->filter(fn($f) => $f->fecha_vencimiento && $f->fecha_vencimiento->isPast());
-    $diasMaxVencido = $vencidas->count() > 0 ? $vencidas->max(fn($f) => $f->fecha_vencimiento->diffInDays(now())) : 0;
+    $deudaBd = $pendientes->sum('total');
+    $pagadoBd = $facturas->where('estatus', 'pagada')->sum('total');
+    $vencidasBd = $pendientes->filter(fn($f) => $f->fecha_vencimiento && $f->fecha_vencimiento->isPast());
+    $diasMaxVencido = $vencidasBd->count() > 0 ? $vencidasBd->max(fn($f) => $f->fecha_vencimiento->diffInDays(now())) : 0;
+
+    // KPIs COMBINADOS: BD + Wiese (las variables wiese* llegan del controlador)
+    $totalDeuda   = $deudaBd + ($wieseDeuda ?? 0);
+    $totalPagado  = $pagadoBd + ($wiesePagado ?? 0);
+    $totalVencidas = $vencidasBd->count() + ($wieseVencidas ?? 0);
 @endphp
 
 <div class="summary">
     <div class="sum-card"><div class="sum-val" style="color:#dc2626">${{ number_format($totalDeuda, 0) }}</div><div class="sum-label">Deuda total</div></div>
     <div class="sum-card"><div class="sum-val" style="color:#059669">${{ number_format($totalPagado, 0) }}</div><div class="sum-label">Pagado</div></div>
-    <div class="sum-card"><div class="sum-val" style="color:#dc2626">{{ $vencidas->count() }}</div><div class="sum-label">Facturas vencidas</div></div>
+    <div class="sum-card"><div class="sum-val" style="color:#dc2626">{{ $totalVencidas }}</div><div class="sum-label">Vencidas (BD + Wiese)</div></div>
     <div class="sum-card"><div class="sum-val" style="color:#d97706">{{ $diasMaxVencido }}</div><div class="sum-label">Máx. días vencido</div></div>
 </div>
 
@@ -159,7 +165,6 @@
             <table class="tbl" id="oc-tabla">
                 <thead>
                     <tr>
-                        <th style="width:28px;"></th>
                         <th>Folio</th>
                         <th>Fecha</th>
                         <th>Razón social</th>
@@ -188,14 +193,9 @@
                         if ($cancelado) { $estatusOc = 'cancelada'; }
                         elseif ($pendienteMonto > 0) { $estatusOc = 'pendiente'; }
                         else { $estatusOc = 'pagada'; }
-
-                        $venc = $doc['cfechavencimiento'] ?? null;
-                        try { $vencFmt = $venc ? \Illuminate\Support\Carbon::parse($venc)->format('d/m/Y') : '—'; }
-                        catch (\Throwable) { $vencFmt = '—'; }
                     @endphp
-                    {{-- Fila principal: clic para desplegar detalle --}}
-                    <tr class="oc-row" data-fila="{{ $i }}" onclick="toggleOc({{ $i }})" style="cursor:pointer;">
-                        <td style="text-align:center;color:var(--purple);font-weight:700;" id="oc-flecha-{{ $i }}">▸</td>
+                    {{-- Clic en la fila abre el modal de detalle (mismo estilo que el portal del proveedor) --}}
+                    <tr class="oc-row" data-idx="{{ $i }}" onclick="abrirModalOc({{ $i }})" style="cursor:pointer;">
                         <td style="font-weight:700;color:var(--purple)">{{ $folioDisp }}</td>
                         <td>{{ $fechaFmt }}</td>
                         <td>{{ $doc['crazonsocial'] ?? '—' }}</td>
@@ -212,21 +212,6 @@
                             @endif
                         </td>
                     </tr>
-                    {{-- Fila de detalle: oculta hasta hacer clic --}}
-                    <tr class="oc-detalle" id="oc-detalle-{{ $i }}" style="display:none;background:#faf9ff;">
-                        <td colspan="8" style="padding:16px 24px;">
-                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 24px;">
-                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">ID Documento Wiese</span><br>{{ $doc['ciddocumento'] ?? '—' }}</div>
-                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Fecha vencimiento</span><br>{{ $vencFmt }}</div>
-                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Moneda</span><br>{{ (int)($doc['cidmoneda'] ?? 1) === 1 ? 'MXN' : 'USD' }} · TC {{ $doc['ctipocambio'] ?? '1' }}</div>
-                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Unidades</span><br>{{ $doc['ctotalunidades'] ?? '—' }} (pend: {{ $doc['cunidadespendientes'] ?? '—' }})</div>
-                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Referencia</span><br>{{ $doc['creferencia'] ?: '—' }}</div>
-                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Observaciones</span><br>{{ $doc['cobservaciones'] ?: '—' }}</div>
-                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Registró</span><br>{{ $doc['cusuario'] ?? '—' }}</div>
-                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Entrega/recepción</span><br>@php try { echo !empty($doc['cfechaentregarecepcion']) ? \Illuminate\Support\Carbon::parse($doc['cfechaentregarecepcion'])->format('d/m/Y') : '—'; } catch (\Throwable) { echo '—'; } @endphp</div>
-                            </div>
-                        </td>
-                    </tr>
                 @endforeach
                 </tbody>
             </table>
@@ -235,7 +220,20 @@
             <button type="button" class="btn-primary" id="oc-vermas" onclick="verMasOc()" style="display:none;">Ver más (50)</button>
             <div style="font-size:12px;color:var(--gray-muted);margin-top:8px;" id="oc-contador"></div>
         </div>
+
+        {{-- Modal de detalle de la OC (mismo diseño que el portal del proveedor) --}}
+        <div id="modalOc" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;" onclick="if(event.target===this)cerrarModalOc()">
+            <div style="background:#fff;border-radius:14px;padding:28px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;position:relative;">
+                <button onclick="cerrarModalOc()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:var(--gray-muted);">&times;</button>
+                <h3 style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--purple);">Detalle de Orden de Compra</h3>
+                <div id="modalOcContenido"></div>
+            </div>
+        </div>
+
         <script>
+            // Datos de las OC para el modal (se leen en JS, sin recargar).
+            var ocDocs = @json($ocItems->values());
+
             // Paginación en el navegador: mostramos de 50 en 50 para que no se trabe.
             const OC_POR_PAGINA = 50;
             let ocMostradas = 0;
@@ -247,14 +245,10 @@
             function pintarOc() {
                 const filas = filasOc();
                 filas.forEach((fila, idx) => {
-                    const visible = idx < ocMostradas;
-                    fila.style.display = visible ? '' : 'none';
-                    const det = document.getElementById('oc-detalle-' + fila.dataset.fila);
-                    if (det && !visible) det.style.display = 'none';
+                    fila.style.display = idx < ocMostradas ? '' : 'none';
                 });
                 const total = filas.length;
-                const btn = document.getElementById('oc-vermas');
-                btn.style.display = ocMostradas < total ? 'inline-flex' : 'none';
+                document.getElementById('oc-vermas').style.display = ocMostradas < total ? 'inline-flex' : 'none';
                 document.getElementById('oc-contador').textContent =
                     'Mostrando ' + Math.min(ocMostradas, total) + ' de ' + total;
             }
@@ -264,13 +258,46 @@
                 pintarOc();
             }
 
-            function toggleOc(i) {
-                const det = document.getElementById('oc-detalle-' + i);
-                const flecha = document.getElementById('oc-flecha-' + i);
-                if (!det) return;
-                const abierto = det.style.display !== 'none';
-                det.style.display = abierto ? 'none' : 'table-row';
-                if (flecha) flecha.textContent = abierto ? '▾' : '▸';
+            function filaOc(label, valor) {
+                return '<tr><td style="padding:8px 0;font-weight:600;color:var(--gray-muted);width:140px;vertical-align:top;">' + label +
+                       '</td><td style="padding:8px 0;color:var(--gray-text);">' + valor + '</td></tr>';
+            }
+
+            function abrirModalOc(idx) {
+                var doc = ocDocs[idx];
+                if (!doc) return;
+                var serie = doc.cseriedocumento || '';
+                var folio = doc.cfolio != null ? String(parseInt(doc.cfolio)) : '';
+                var folioDisp = (serie + folio) || '—';
+                var fecha = doc.cfecha ? new Date(doc.cfecha).toLocaleDateString('es-MX') : '—';
+                var venc = doc.cfechavencimiento ? new Date(doc.cfechavencimiento).toLocaleDateString('es-MX') : '—';
+                var cancelado = Number(doc.ccancelado) === 1;
+                var pend = Number(doc.cpendiente || 0);
+                var estatus = cancelado ? 'cancelada' : (pend > 0 ? 'pendiente' : 'pagada');
+                var badge = estatus === 'pagada' ? 'badge-pagada' : (estatus === 'cancelada' ? 'badge-vencida' : 'badge-pendiente');
+
+                var html = '<table style="width:100%;font-size:13px;border-collapse:collapse;">';
+                html += filaOc('Folio', folioDisp);
+                html += filaOc('Fecha', fecha);
+                html += filaOc('Razón Social', doc.crazonsocial || '—');
+                html += filaOc('RFC', doc.crfc || '—');
+                html += filaOc('Total', '$' + Number(doc.ctotal || 0).toLocaleString('es-MX', {minimumFractionDigits:2}));
+                html += filaOc('Pendiente', '$' + pend.toLocaleString('es-MX', {minimumFractionDigits:2}));
+                html += filaOc('Vencimiento', venc);
+                html += filaOc('Moneda', (Number(doc.cidmoneda) === 1 ? 'MXN' : 'USD') + ' · TC ' + (doc.ctipocambio || '1'));
+                html += filaOc('Unidades', (doc.ctotalunidades ?? '—') + ' (pend: ' + (doc.cunidadespendientes ?? '—') + ')');
+                html += filaOc('Referencia', doc.creferencia || '—');
+                html += filaOc('Observaciones', doc.cobservaciones || '—');
+                html += filaOc('Registró', doc.cusuario || '—');
+                html += filaOc('Estatus', '<span class="badge ' + badge + '">' + estatus + '</span>');
+                html += '</table>';
+
+                document.getElementById('modalOcContenido').innerHTML = html;
+                document.getElementById('modalOc').style.display = 'flex';
+            }
+
+            function cerrarModalOc() {
+                document.getElementById('modalOc').style.display = 'none';
             }
 
             ocMostradas = OC_POR_PAGINA;

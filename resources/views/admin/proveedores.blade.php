@@ -125,29 +125,18 @@
 @endphp
 
 <div class="inv-metrics anim">
-    <a class="inv-metric {{ $rendimiento === 'alto' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'alto'])) }}">
-        <div class="accent" style="background:var(--green,#16a34a)"></div>
-        <div class="inv-metric-label">Alto rendimiento</div>
-        <div class="inv-metric-val">{{ $proveedoresAltoScore }}</div>
-        <div class="inv-metric-sub">Score ≥ 80%</div>
-    </a>
+    {{-- Orden pedido: Bajo (izq) · Alto (der) · Todas (morado, extrema der). Se quitó "Con OCs vencidas". --}}
     <a class="inv-metric {{ $rendimiento === 'bajo' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'bajo'])) }}">
         <div class="accent" style="background:var(--red,#dc2626)"></div>
         <div class="inv-metric-label">Bajo rendimiento</div>
         <div class="inv-metric-val">{{ $proveedoresBajoScore }}</div>
         <div class="inv-metric-sub">Score &lt; 60%</div>
     </a>
-    <a class="inv-metric {{ $rendimiento === 'facturas' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'facturas'])) }}">
-        <div class="accent" style="background:var(--amber,#d97706)"></div>
-        <div class="inv-metric-label">Con facturas pend.</div>
-        <div class="inv-metric-val">{{ $proveedoresConFacturasPend }}</div>
-        <div class="inv-metric-sub">{{ $conteoFacturasPendientes }} facturas</div>
-    </a>
-    <a class="inv-metric {{ $rendimiento === 'ocs' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'ocs'])) }}">
-        <div class="accent" style="background:var(--blue,#2563eb)"></div>
-        <div class="inv-metric-label">Con OCs vencidas</div>
-        <div class="inv-metric-val">{{ $proveedoresConOcVencidas }}</div>
-        <div class="inv-metric-sub">{{ $conteoOcVencidas }} órdenes</div>
+    <a class="inv-metric {{ $rendimiento === 'alto' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'alto'])) }}">
+        <div class="accent" style="background:var(--green,#16a34a)"></div>
+        <div class="inv-metric-label">Alto rendimiento</div>
+        <div class="inv-metric-val">{{ $proveedoresAltoScore }}</div>
+        <div class="inv-metric-sub">Score ≥ 80%</div>
     </a>
     <a class="inv-metric {{ $rendimiento === '' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', $chipBase) }}">
         <div class="accent" style="background:var(--purple,#6B3FA0)"></div>
@@ -166,12 +155,9 @@
             <button type="button" class="filter-btn prov-tab-btn {{ $tab === 'forecast' ? 'active' : '' }}" data-tab="forecast" onclick="switchProvTab('forecast', this)">
                 Forecast <span class="filter-count">{{ $proveedores->total() }}</span>
             </button>
-            <button type="button" class="filter-btn prov-tab-btn {{ $tab === 'ordenes' ? 'active' : '' }}" data-tab="ordenes" onclick="switchProvTab('ordenes', this)">
-                Órdenes <span class="filter-count">{{ $totalOrdenes }}</span>
-            </button>
-            <button type="button" class="filter-btn prov-tab-btn {{ $tab === 'facturas' ? 'active' : '' }}" data-tab="facturas" onclick="switchProvTab('facturas', this)">
-                Facturas <span class="filter-count">{{ $conteoFacturasPendientes }}</span>
-            </button>
+            {{-- Pestaña "Órdenes" eliminada a petición del usuario. --}}
+            {{-- Pestaña "Facturas" eliminada: las facturas de cada proveedor (BD + Wiese) se ven
+                 con el botón "Ver facturas →" del directorio. --}}
         </div>
         <span class="badge-count" id="prov-panel-count">
             @if($tab === 'ordenes'){{ $ordenes->count() }} resultados
@@ -262,10 +248,12 @@
                     <td><span class="pct-val">{{ number_format($p->score_puntualidad, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_puntualidad'] ?? 0, 'size' => '11'])</span></td>
                     <td><span class="badge-est {{ $p->activo ? 'ok' : 'err' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span></td>
                     <td>
-                        <form method="POST" action="{{ route('admin.proveedores.eliminar', $p) }}" onsubmit="return confirm('¿Eliminar a {{ addslashes($p->nombre ?? $p->usuario) }}?')">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="btn-sm">Eliminar</button>
-                        </form>
+                        @php
+                            // Código para ver facturas/OC: usamos id_proveedor (código Wiese) o el
+                            // provisional 'P'.id si aún no tiene código, para que SIEMPRE haya enlace.
+                            $codigoVer = $p->id_proveedor ?: ($p->codigo ?: 'P'.$p->id);
+                        @endphp
+                        <a href="{{ route('admin.proveedor-facturas', $codigoVer) }}" class="btn-sm" style="background:var(--purple);color:#fff;text-decoration:none;">Ver facturas →</a>
                     </td>
                 </tr>
             @endforeach
@@ -472,50 +460,10 @@
     </div>
 </div>
 
-{{-- ═══ TAB FACTURAS PENDIENTES ═══ --}}
-<div class="prov-panel {{ $tab === 'facturas' ? 'active' : '' }}" id="panel-facturas" data-count="{{ $facturasPendientes->count() }} resultados">
-    <div class="filters-panel">
-        <form method="GET" action="{{ route('admin.proveedores') }}" class="filter-form">
-            <input type="hidden" name="tab" value="facturas">
-            @include('partials.prov-admin-preserve-filters', ['preserve' => $preserveProv])
-            @include('partials.prov-admin-preserve-filters', ['preserve' => $preserveOc])
-            <div class="filter-field search-field">
-                <label>Buscar</label>
-                <input type="text" name="f_fact_folio" value="{{ $filtrosFact['folio'] ?? '' }}" placeholder="Folio o código proveedor…">
-            </div>
-            <div class="filter-field">
-                <label>Proveedor</label>
-                <input type="text" name="f_fact_proveedor" value="{{ $filtrosFact['proveedor'] ?? '' }}" placeholder="ID proveedor o #ID sistema">
-            </div>
-            <div class="filter-field">
-                <label>Vencimiento</label>
-                <select name="f_fact_vencidas">
-                    <option value="">Todas las pendientes</option>
-                    <option value="1" {{ ($filtrosFact['vencidas'] ?? '') === '1' ? 'selected' : '' }}>Solo vencidas ({{ $conteoFacturasVencidas }})</option>
-                </select>
-            </div>
-            <div class="filter-field">
-                <label>Vence desde</label>
-                <input type="date" name="f_fact_vence_desde" value="{{ $filtrosFact['vence_desde'] ?? '' }}">
-            </div>
-            <div class="filter-field">
-                <label>Vence hasta</label>
-                <input type="date" name="f_fact_vence_hasta" value="{{ $filtrosFact['vence_hasta'] ?? '' }}">
-            </div>
-            <div class="filter-actions">
-                <button type="submit" class="btn-primary">Filtrar</button>
-                @if($filtrosFactActivos)<a href="{{ route('admin.proveedores', ['tab' => 'facturas']) }}" class="btn-outline">Limpiar</a>@endif
-            </div>
-        </form>
-        @if($filtrosFactActivos)
-        <div class="active-filters">
-            <span>Filtros activos:</span>
-            @if($filtrosFact['folio'])<span class="active-tag">Folio «{{ $filtrosFact['folio'] }}»</span>@endif
-            @if($filtrosFact['proveedor'])<span class="active-tag">{{ $filtrosFact['proveedor'] }}</span>@endif
-            @if($filtrosFact['vencidas'])<span class="active-tag">Vencidas</span>@endif
-        </div>
-        @endif
-    </div>
+{{-- TAB FACTURAS PENDIENTES: eliminado. Las facturas de cada proveedor (BD + Wiese) se ven
+     con el botón "Ver facturas →" del directorio. Bloque quitado a petición del usuario. --}}
+@if(false)
+<div class="prov-panel" id="panel-facturas-oculto" style="display:none;">
     <div class="admin-table-wrap">
     <div class="adm-section-head">
         <div>
@@ -570,6 +518,8 @@
     @endif
     </div>
 </div>
+@endif
+{{-- fin TAB FACTURAS eliminado --}}
 
 @endsection
 @push('scripts')

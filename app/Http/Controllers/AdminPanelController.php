@@ -509,7 +509,8 @@ class AdminPanelController extends Controller
             default => null,
         };
 
-        $proveedores = $query->orderBy('score_total', 'desc')->paginate(20)->withQueryString();
+        // Orden: los más recientes (como van llegando) arriba; los primeros abajo.
+        $proveedores = $query->orderByDesc('created_at')->paginate(20)->withQueryString();
         $metricasProveedores = $this->buildProveedoresMetricas($proveedores->getCollection());
 
         // Primero solo IDs (evita Out of sort memory al ordenar filas con JSON `productos`).
@@ -671,11 +672,11 @@ class AdminPanelController extends Controller
 
         $facturas = Factura::where('codigo_proveedor', $codigo)->orderBy('fecha_vencimiento', 'desc')->get();
 
-        // Código Wiese (campo codigo). Si vacío, se intenta con el de la URL.
-        $wieseCodigo = trim((string) ($proveedor?->codigo ?? ''));
-        if ($wieseCodigo === '') {
-            $wieseCodigo = $codigo;
-        }
+        // Código Wiese del proveedor: primero id_proveedor (donde se guarda el código Wiese
+        // al confirmar la cuenta en el onboarding), luego la columna codigo, y por último el
+        // de la URL. POR QUÉ: ORPACK tiene su código Wiese en id_proveedor (M213015002), no
+        // en codigo; usar solo 'codigo' dejaba vacío el código y fallaba la consulta a Wiese.
+        $wieseCodigo = trim((string) ($proveedor?->id_proveedor ?: $proveedor?->codigo ?: $codigo));
 
         $fechaInicio = (string) request('fecha_inicio', now()->subYear()->startOfYear()->format('Y-m-d'));
         $fechaFin = (string) request('fecha_fin', now()->format('Y-m-d'));
@@ -685,6 +686,13 @@ class AdminPanelController extends Controller
         $ocError = null;
         $ocLimit = 500;
 
+        // KPIs de Wiese (se SUMAN a los de la BD para dar el total real del proveedor).
+        // POR QUÉ: el usuario quiere ver en un solo lugar las facturas de su sistema Y las
+        // compras (OC) de Wiese juntas, con KPIs que cuenten ambas fuentes.
+        $wieseDeuda = 0.0;      // suma de cpendiente de OC no canceladas (lo que aún se debe)
+        $wiesePagado = 0.0;     // suma de ctotal de OC ya pagadas (cpendiente = 0, no canceladas)
+        $wieseVencidas = 0;     // OC con saldo cuya fecha de vencimiento ya pasó
+
         if ($wieseCodigo === '') {
             $ocError = 'Este proveedor no tiene código Wiese. Llénalo en el campo código.';
         } else {
@@ -693,6 +701,31 @@ class AdminPanelController extends Controller
                 $all = collect($ocResult['data']['items'] ?? []);
                 $ocTotal = (int) ($ocResult['data']['total'] ?? $all->count());
                 $ocItems = $all->take($ocLimit);
+
+                // Recorremos TODAS las OC (no solo las mostradas) para los KPIs.
+                foreach ($all as $oc) {
+                    // Regla de Alan: cancelado=1 no cuenta; cpendiente>0 = pendiente; else pagada.
+                    if ((int) ($oc['ccancelado'] ?? 0) === 1) {
+                        continue;
+                    }
+                    $pend = (float) ($oc['cpendiente'] ?? 0);
+                    if ($pend > 0) {
+                        $wieseDeuda += $pend;
+                        // ¿Vencida? su fecha de vencimiento ya pasó.
+                        $fv = $oc['cfechavencimiento'] ?? null;
+                        if ($fv) {
+                            try {
+                                if (Carbon::parse($fv)->isPast()) {
+                                    $wieseVencidas++;
+                                }
+                            } catch (\Throwable) {
+                                // fecha no parseable: la ignoramos para vencidas
+                            }
+                        }
+                    } else {
+                        $wiesePagado += (float) ($oc['ctotal'] ?? 0);
+                    }
+                }
             } else {
                 $ocError = $ocResult['message'] ?? 'No se pudieron cargar las OC desde Wiese.';
             }
@@ -755,7 +788,10 @@ class AdminPanelController extends Controller
             'ocItems',
             'ocTotal',
             'ocError',
-            'ocLimit'
+            'ocLimit',
+            'wieseDeuda',
+            'wiesePagado',
+            'wieseVencidas'
         ));
     }
 
