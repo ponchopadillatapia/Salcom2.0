@@ -156,42 +156,126 @@
         </div>
         @if($ocItems->count())
         <div style="overflow-x:auto;">
-            <table class="tbl">
+            <table class="tbl" id="oc-tabla">
                 <thead>
                     <tr>
+                        <th style="width:28px;"></th>
                         <th>Folio</th>
                         <th>Fecha</th>
                         <th>Razón social</th>
                         <th>RFC</th>
                         <th>Total</th>
                         <th>Pendiente</th>
+                        <th>Estatus</th>
                     </tr>
                 </thead>
                 <tbody>
-                @foreach($ocItems as $doc)
+                @foreach($ocItems as $i => $doc)
                     @php
                         $serie = $doc['cseriedocumento'] ?? '';
                         $folio = $doc['cfolio'] ?? '';
-                        $folioDisp = trim($serie.(string)$folio) !== '' ? $serie.$folio : '—';
+                        $folioNum = is_numeric($folio) ? (string)(int)$folio : (string)$folio;
+                        $folioDisp = trim($serie.$folioNum) !== '' ? $serie.$folioNum : '—';
                         $fecha = $doc['cfecha'] ?? null;
                         try {
                             $fechaFmt = $fecha ? \Illuminate\Support\Carbon::parse($fecha)->format('d/m/Y') : '—';
                         } catch (\Throwable) {
                             $fechaFmt = is_string($fecha) ? $fecha : '—';
                         }
+                        // Estatus segun regla de Alan: cancelado=1 -> cancelada; pendiente>0 -> pendiente; else pagada
+                        $cancelado = (int)($doc['ccancelado'] ?? 0) === 1;
+                        $pendienteMonto = (float)($doc['cpendiente'] ?? 0);
+                        if ($cancelado) { $estatusOc = 'cancelada'; }
+                        elseif ($pendienteMonto > 0) { $estatusOc = 'pendiente'; }
+                        else { $estatusOc = 'pagada'; }
+
+                        $venc = $doc['cfechavencimiento'] ?? null;
+                        try { $vencFmt = $venc ? \Illuminate\Support\Carbon::parse($venc)->format('d/m/Y') : '—'; }
+                        catch (\Throwable) { $vencFmt = '—'; }
                     @endphp
-                    <tr>
+                    {{-- Fila principal: clic para desplegar detalle --}}
+                    <tr class="oc-row" data-fila="{{ $i }}" onclick="toggleOc({{ $i }})" style="cursor:pointer;">
+                        <td style="text-align:center;color:var(--purple);font-weight:700;" id="oc-flecha-{{ $i }}">▸</td>
                         <td style="font-weight:700;color:var(--purple)">{{ $folioDisp }}</td>
                         <td>{{ $fechaFmt }}</td>
                         <td>{{ $doc['crazonsocial'] ?? '—' }}</td>
                         <td style="color:var(--gray-muted)">{{ $doc['crfc'] ?? '—' }}</td>
                         <td style="font-weight:700;font-variant-numeric:tabular-nums">${{ number_format((float)($doc['ctotal'] ?? 0), 2) }}</td>
-                        <td style="font-variant-numeric:tabular-nums">${{ number_format((float)($doc['cpendiente'] ?? 0), 2) }}</td>
+                        <td style="font-variant-numeric:tabular-nums">${{ number_format($pendienteMonto, 2) }}</td>
+                        <td>
+                            @if($estatusOc === 'cancelada')
+                                <span class="badge badge-vencida">Cancelada</span>
+                            @elseif($estatusOc === 'pendiente')
+                                <span class="badge badge-pendiente">Pendiente</span>
+                            @else
+                                <span class="badge badge-pagada">Pagada</span>
+                            @endif
+                        </td>
+                    </tr>
+                    {{-- Fila de detalle: oculta hasta hacer clic --}}
+                    <tr class="oc-detalle" id="oc-detalle-{{ $i }}" style="display:none;background:#faf9ff;">
+                        <td colspan="8" style="padding:16px 24px;">
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px 24px;">
+                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">ID Documento Wiese</span><br>{{ $doc['ciddocumento'] ?? '—' }}</div>
+                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Fecha vencimiento</span><br>{{ $vencFmt }}</div>
+                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Moneda</span><br>{{ (int)($doc['cidmoneda'] ?? 1) === 1 ? 'MXN' : 'USD' }} · TC {{ $doc['ctipocambio'] ?? '1' }}</div>
+                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Unidades</span><br>{{ $doc['ctotalunidades'] ?? '—' }} (pend: {{ $doc['cunidadespendientes'] ?? '—' }})</div>
+                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Referencia</span><br>{{ $doc['creferencia'] ?: '—' }}</div>
+                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Observaciones</span><br>{{ $doc['cobservaciones'] ?: '—' }}</div>
+                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Registró</span><br>{{ $doc['cusuario'] ?? '—' }}</div>
+                                <div><span style="font-size:10px;color:var(--gray-muted);text-transform:uppercase;font-weight:700;">Entrega/recepción</span><br>@php try { echo !empty($doc['cfechaentregarecepcion']) ? \Illuminate\Support\Carbon::parse($doc['cfechaentregarecepcion'])->format('d/m/Y') : '—'; } catch (\Throwable) { echo '—'; } @endphp</div>
+                            </div>
+                        </td>
                     </tr>
                 @endforeach
                 </tbody>
             </table>
         </div>
+        <div style="text-align:center;padding:16px;" id="oc-vermas-wrap">
+            <button type="button" class="btn-primary" id="oc-vermas" onclick="verMasOc()" style="display:none;">Ver más (50)</button>
+            <div style="font-size:12px;color:var(--gray-muted);margin-top:8px;" id="oc-contador"></div>
+        </div>
+        <script>
+            // Paginación en el navegador: mostramos de 50 en 50 para que no se trabe.
+            const OC_POR_PAGINA = 50;
+            let ocMostradas = 0;
+
+            function filasOc() {
+                return Array.from(document.querySelectorAll('#oc-tabla tr.oc-row'));
+            }
+
+            function pintarOc() {
+                const filas = filasOc();
+                filas.forEach((fila, idx) => {
+                    const visible = idx < ocMostradas;
+                    fila.style.display = visible ? '' : 'none';
+                    const det = document.getElementById('oc-detalle-' + fila.dataset.fila);
+                    if (det && !visible) det.style.display = 'none';
+                });
+                const total = filas.length;
+                const btn = document.getElementById('oc-vermas');
+                btn.style.display = ocMostradas < total ? 'inline-flex' : 'none';
+                document.getElementById('oc-contador').textContent =
+                    'Mostrando ' + Math.min(ocMostradas, total) + ' de ' + total;
+            }
+
+            function verMasOc() {
+                ocMostradas += OC_POR_PAGINA;
+                pintarOc();
+            }
+
+            function toggleOc(i) {
+                const det = document.getElementById('oc-detalle-' + i);
+                const flecha = document.getElementById('oc-flecha-' + i);
+                if (!det) return;
+                const abierto = det.style.display !== 'none';
+                det.style.display = abierto ? 'none' : 'table-row';
+                if (flecha) flecha.textContent = abierto ? '▾' : '▸';
+            }
+
+            ocMostradas = OC_POR_PAGINA;
+            pintarOc();
+        </script>
         @else
             <div class="empty">Sin OC en ese rango de fechas</div>
         @endif

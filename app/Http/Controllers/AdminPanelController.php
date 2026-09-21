@@ -683,7 +683,7 @@ class AdminPanelController extends Controller
         $ocItems = collect();
         $ocTotal = 0;
         $ocError = null;
-        $ocLimit = 100;
+        $ocLimit = 500;
 
         if ($wieseCodigo === '') {
             $ocError = 'Este proveedor no tiene código Wiese. Llénalo en el campo código.';
