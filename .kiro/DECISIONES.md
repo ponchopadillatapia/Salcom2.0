@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-09-22 — Empleado ahora crea sus Reembolsos de Viaje desde su portal
+- **Qué:** se agregó botón "+ Nuevo viaje" en el portal del empleado y una pantalla propia con formulario dinámico (país, moneda, tipo de cambio, gastos múltiples con conversión a MXN en vivo). El empleado ya puede crear los 3 módulos: reembolso, gasolina y viaje.
+- **Por qué:** los promotores/vendedores gestionan sus propios viáticos; no depender de que el admin capture. El código de empleado y departamento se toman de la sesión, no se re-piden.
+- **Dónde:** `PortalEmpleadoController::crearViaje/guardarViaje`, vista `resources/views/empleados/viaje-crear.blade.php`, rutas `empleados.viaje.crear` y `empleados.viaje.guardar` en `routes/web.php`.
+
+## 2026-09-22 — Portal de Empleados con auto-registro de reembolsos/gasolina
+- **Qué:** los empleados ahora pueden ENTRAR a su propio portal (login solo con número de empleado, sin contraseña) y REGISTRAR ellos mismos sus reembolsos y su bitácora de gasolina desde modales, además de consultarlos. Antes solo el admin capturaba.
+- **Por qué:** dirección pidió que el personal de ventas/promotores gestione sus propios gastos. El número de cuenta y titular de tarjeta se jalan automáticamente del alta del empleado para no re-capturarlos.
+- **Dónde:** `PortalEmpleadoController` (`guardarGasolina`, `guardarReembolso`, `portal`), vista `resources/views/empleados/portal.blade.php` (modales), rutas `empleados.gasolina.guardar` y `empleados.reembolso.guardar` en `routes/web.php`.
+
+## 2026-09-22 — Alta de Empleados en admin + regla de bloqueo por gasolina
+- **Qué:** módulo admin para dar de alta empleados (número, nombre, departamento, cuenta de tarjeta, titular). Checkbox "es de ruta/gasolina": si está marcado, el empleado NO puede pedir reembolsos hasta registrar al menos una bitácora de gasolina.
+- **Por qué:** el personal de ruta debe comprobar su consumo de gasolina antes de reembolsar. Regla operativa de dirección.
+- **Dónde:** `PortalEmpleadoController::adminGuardar/adminActualizar`, modelo `App\Models\Empleado` (campo `requiere_gasolina`), migraciones `2026_09_04_*` y `2026_09_05_*`, validación en `AdminPanelController::enviarReembolso`.
+
 ## 2026-09-20 — Conexión REAL de "buscar proveedor por RFC" (Wiese)
 - **Qué:** `buscarProveedorPorRFC()` dejó de estar simulado/hardcodeado (antes solo servía para ORPACK). Ahora hace la llamada real a Wiese vía `/ClienteProveedor/BuscarPorRFC`.
 - **Por qué:** el onboarding (paso "Confirmación de cuenta") lo usa para detectar la cuenta del proveedor en Wiese por su RFC y ligarla automáticamente. Debía funcionar con cualquier proveedor, no solo ORPACK.
