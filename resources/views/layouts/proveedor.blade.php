@@ -470,8 +470,9 @@
         <div class="notif-wrapper" style="position:relative;"
              data-alertas-url="{{ route('proveedores.alertas.recientes') }}"
              data-alertas-leer-url="{{ url('/proveedor/alertas') }}"
+             data-alertas-leer-todas-url="{{ route('proveedores.alertas.leer-todas') }}"
              data-csrf="{{ csrf_token() }}">
-            <button type="button" class="notif-bell" id="notifBellBtn" onclick="document.getElementById('notifDropdown').classList.toggle('show')" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;" title="Notificaciones" aria-label="Notificaciones">
+            <button type="button" class="notif-bell" id="notifBellBtn" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;" title="Notificaciones" aria-label="Notificaciones">
                 <svg id="notifBellIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $alertasSinLeer > 0 ? 'var(--purple)' : 'var(--gray-muted)' }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                 <span id="notifBadge" style="position:absolute;top:-2px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;{{ $alertasSinLeer > 0 ? 'display:flex' : 'display:none' }};align-items:center;justify-content:center;">{{ $alertasSinLeer > 9 ? '9+' : $alertasSinLeer }}</span>
             </button>
@@ -681,8 +682,12 @@ document.addEventListener('click', function(e) {
     if (!wrap) return;
     var url = wrap.getAttribute('data-alertas-url');
     var leerBase = wrap.getAttribute('data-alertas-leer-url');
+    var leerTodasUrl = wrap.getAttribute('data-alertas-leer-todas-url');
     var csrf = wrap.getAttribute('data-csrf') || '';
     if (!url) return;
+
+    var dropdownOpen = false;
+    var marcandoTodas = false;
 
     function esc(s) {
         return String(s == null ? '' : s)
@@ -704,12 +709,64 @@ document.addEventListener('click', function(e) {
             label.style.display = n > 0 ? '' : 'none';
             label.textContent = n + ' nuevas';
         }
+        // Toast polling usa este conteo para saber qué es "nuevo"
+        if (typeof window.__salcomNotifUltimoCount !== 'undefined') {
+            window.__salcomNotifUltimoCount = n;
+        }
+    }
+
+    function marcarTodasAlAbrir() {
+        if (!leerTodasUrl || marcandoTodas) return;
+        marcandoTodas = true;
+        updateBadge(0);
+        fetch(leerTodasUrl, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ _token: csrf })
+        })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (data && typeof data.sin_leer !== 'undefined') {
+                    updateBadge(data.sin_leer);
+                }
+            })
+            .catch(function () {})
+            .finally(function () { marcandoTodas = false; });
+    }
+
+    var bellBtn = document.getElementById('notifBellBtn');
+    var dropdown = document.getElementById('notifDropdown');
+    if (bellBtn && dropdown) {
+        bellBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var opening = !dropdown.classList.contains('show');
+            dropdown.classList.toggle('show', opening);
+            dropdownOpen = opening;
+            if (opening) {
+                marcarTodasAlAbrir();
+            }
+        });
     }
 
     function render(data) {
-        updateBadge(data.sin_leer || 0);
+        // Con el dropdown abierto ya se descontó: no revivir el badge con datos viejos
+        if (!dropdownOpen) {
+            updateBadge(data.sin_leer || 0);
+        } else {
+            updateBadge(0);
+        }
         var items = document.getElementById('notifItems');
         if (items) {
+            // Si está abierto, no vaciar la lista (para que pueda leer lo que abrió)
+            if (dropdownOpen && items.querySelector('.notif-item')) {
+                return;
+            }
             var list = (data.items || []).filter(function (it) { return !it.leida; });
             if (!list.length) {
                 items.innerHTML = '<div class="notif-empty">Sin notificaciones nuevas</div>';
@@ -806,6 +863,13 @@ document.addEventListener('click', function(e) {
             .catch(function () {});
     }
 
+    // Sync dropdownOpen cuando se cierra por clic fuera
+    document.addEventListener('click', function () {
+        if (dropdown && !dropdown.classList.contains('show')) {
+            dropdownOpen = false;
+        }
+    });
+
     // Al instante + cada 3s (no 8)
     poll();
     setInterval(poll, 3000);
@@ -833,7 +897,8 @@ document.addEventListener('click', function(e) {
 (function(){
     var container = document.getElementById('toast-container');
     var url = '{{ route("proveedores.alertas.recientes") }}';
-    var ultimoCount = {{ $alertasSinLeer ?? 0 }};
+    window.__salcomNotifUltimoCount = {{ $alertasSinLeer ?? 0 }};
+    var ultimoCount = window.__salcomNotifUltimoCount;
     var ultimosIds = [];
 
     function showToast(titulo, contenido) {
@@ -851,6 +916,10 @@ document.addEventListener('click', function(e) {
         fetch(url, {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}})
             .then(function(r){return r.json()})
             .then(function(data){
+                // Si la campana ya descontó al abrirse, respetar ese conteo
+                if (typeof window.__salcomNotifUltimoCount === 'number') {
+                    ultimoCount = Math.min(ultimoCount, window.__salcomNotifUltimoCount);
+                }
                 if (data.sin_leer > ultimoCount && data.items && data.items.length) {
                     // Mostrar toast solo para alertas nuevas
                     data.items.forEach(function(item){
@@ -863,6 +932,7 @@ document.addEventListener('click', function(e) {
                     if (badge) { badge.textContent = data.sin_leer; badge.style.display = 'flex'; }
                 }
                 ultimoCount = data.sin_leer;
+                window.__salcomNotifUltimoCount = data.sin_leer;
                 ultimosIds = (data.items || []).map(function(i){return i.id});
             })
             .catch(function(){});

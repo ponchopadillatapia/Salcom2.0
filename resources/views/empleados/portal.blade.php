@@ -109,7 +109,7 @@
         <div class="section">
             <div class="sec-head">
                 <h2>Mis Reembolsos de Viaje</h2>
-                <a href="{{ route('admin.reembolsos-viaje.crear') }}" class="btn-nuevo" style="display:none;">+ Nuevo</a>
+                <a href="{{ route('empleados.viaje.crear') }}" class="btn-nuevo">+ Nuevo viaje</a>
             </div>
             @if($viajes->count())
             <table>

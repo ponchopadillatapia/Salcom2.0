@@ -171,6 +171,67 @@ class PortalEmpleadoController extends Controller
         return redirect()->route('empleados.portal')->with('mensaje', 'Reembolso enviado correctamente.');
     }
 
+    // ── Empleado: registrar reembolso de viaje ──
+    public function crearViaje()
+    {
+        $paises = ReembolsoViaje::PAISES_MONEDA;
+        $conceptos = ReembolsoViaje::CONCEPTOS_GASTO;
+        $empleado = Empleado::find(session('empleado_id'));
+
+        return view('empleados.viaje-crear', compact('paises', 'conceptos', 'empleado'));
+    }
+
+    public function guardarViaje(Request $request)
+    {
+        $request->validate([
+            'fecha_salida' => 'required|date',
+            'fecha_regreso' => 'required|date|after_or_equal:fecha_salida',
+            'pais_destino' => 'required|string|max:100',
+            'moneda_destino' => 'required|string|max:10',
+            'tipo_cambio' => 'required|numeric|min:0.0001',
+            'gastos' => 'required|array|min:1',
+            'gastos.*.concepto' => 'required|string|max:100',
+            'gastos.*.monto_local' => 'required|numeric|min:0',
+            'notas' => 'nullable|string|max:1000',
+        ], [
+            'gastos.required' => 'Agrega al menos un concepto de gasto.',
+        ]);
+
+        // POR QUÉ: convertimos cada gasto a MXN al momento de guardar para que el
+        // total en moneda base quede fijo aunque el tipo de cambio cambie después.
+        $tipoCambio = (float) $request->input('tipo_cambio');
+        $gastos = [];
+        $totalLocal = 0;
+        foreach ($request->input('gastos') as $gasto) {
+            $montoLocal = (float) ($gasto['monto_local'] ?? 0);
+            $totalLocal += $montoLocal;
+            $gastos[] = [
+                'concepto' => $gasto['concepto'],
+                'monto_local' => $montoLocal,
+                'monto_base' => round($montoLocal * $tipoCambio, 2),
+            ];
+        }
+
+        ReembolsoViaje::create([
+            'codigo_empleado' => session('empleado_numero'),
+            'nombre_empleado' => session('empleado_nombre'),
+            'departamento' => session('empleado_departamento'),
+            'fecha_salida' => $request->input('fecha_salida'),
+            'fecha_regreso' => $request->input('fecha_regreso'),
+            'pais_destino' => $request->input('pais_destino'),
+            'moneda_destino' => $request->input('moneda_destino'),
+            'tipo_cambio' => $tipoCambio,
+            'moneda_base' => 'MXN',
+            'gastos' => $gastos,
+            'total_moneda_local' => $totalLocal,
+            'total_moneda_base' => round($totalLocal * $tipoCambio, 2),
+            'estatus' => 'borrador',
+            'notas' => $request->input('notas'),
+        ]);
+
+        return redirect()->route('empleados.portal')->with('mensaje', 'Reembolso de viaje creado como borrador.');
+    }
+
     // ── Admin: Gestión de empleados ──
 
     public function adminIndex(Request $request)
