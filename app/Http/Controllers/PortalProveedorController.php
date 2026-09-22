@@ -245,11 +245,11 @@ class PortalProveedorController extends Controller
     public function mostrarPaymentHistory(Request $request)
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
-        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+        [$codigo, $codigos] = $this->resolverCodigosFacturaProveedor($proveedor);
 
         $base = PagoProveedor::query()
             ->when($proveedor?->id, fn ($q) => $q->where('proveedor_id', $proveedor->id))
-            ->when(! $proveedor?->id && $codigo, fn ($q) => $q->where('codigo_proveedor', $codigo));
+            ->when(! $proveedor?->id, fn ($q) => $q->whereIn('codigo_proveedor', $codigos));
 
         if ($request->filled('fecha_desde')) {
             $base->whereDate('fecha_pago', '>=', $request->input('fecha_desde'));
@@ -305,10 +305,10 @@ class PortalProveedorController extends Controller
     public function mostrarFacturas(Request $request)
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
-        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+        [$codigo, $codigos] = $this->resolverCodigosFacturaProveedor($proveedor);
 
         $baseAll = Factura::query()
-            ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo));
+            ->whereIn('codigo_proveedor', $codigos);
 
         if ($request->filled('fecha_desde')) {
             $baseAll->whereDate('created_at', '>=', $request->input('fecha_desde'));
@@ -419,17 +419,17 @@ class PortalProveedorController extends Controller
             }
         }
 
-        return view('proveedores.facturas', compact('proveedor', 'facturas', 'filtros', 'codigo', 'kpis', 'wieseFacturas', 'wieseTotal', 'wieseError', 'wieseKpis'));
+        return view('proveedores.facturas', compact('proveedor', 'facturas', 'filtros', 'codigo', 'codigos', 'kpis', 'wieseFacturas', 'wieseTotal', 'wieseError', 'wieseKpis'));
     }
 
     /** KPIs de facturas en JSON (polling en tiempo real). */
     public function facturasKpisJson()
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
-        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+        [, $codigos] = $this->resolverCodigosFacturaProveedor($proveedor);
 
         $base = Factura::query()
-            ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo));
+            ->whereIn('codigo_proveedor', $codigos);
 
         return response()->json([
             'rechazadas' => (clone $base)->where('estatus', 'rechazada')->count(),
@@ -443,10 +443,10 @@ class PortalProveedorController extends Controller
     public function facturasExcel(Request $request)
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
-        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+        [, $codigos] = $this->resolverCodigosFacturaProveedor($proveedor);
 
         $query = Factura::query()
-            ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo))
+            ->whereIn('codigo_proveedor', $codigos)
             ->where('estatus', '!=', 'rechazada')
             ->orderByDesc('created_at');
 
@@ -552,6 +552,28 @@ class PortalProveedorController extends Controller
             'ok' => true,
             'sin_leer' => $sinLeer,
             'id' => $alerta->id,
+        ]);
+    }
+
+    /** Marca todas las alertas del proveedor como leídas (al abrir la campanita). */
+    public function marcarTodasAlertasLeidas()
+    {
+        $proveedorId = (int) session('proveedor_id');
+        if (! $proveedorId) {
+            return response()->json(['ok' => false, 'sin_leer' => 0], 401);
+        }
+
+        Alerta::where('destinatario_tipo', 'proveedor')
+            ->where('destinatario_id', $proveedorId)
+            ->whereNotIn('estatus', ['leida', 'accionada'])
+            ->update([
+                'estatus' => 'leida',
+                'leida_at' => now(),
+            ]);
+
+        return response()->json([
+            'ok' => true,
+            'sin_leer' => 0,
         ]);
     }
 
@@ -1665,10 +1687,10 @@ class PortalProveedorController extends Controller
     public function mostrarAltaFacturas()
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
-        $codigo = $proveedor?->id_proveedor ?: session('proveedor_codigo');
+        [, $codigos] = $this->resolverCodigosFacturaProveedor($proveedor);
 
         $facturas = Factura::query()
-            ->when($codigo, fn ($q) => $q->where('codigo_proveedor', $codigo))
+            ->whereIn('codigo_proveedor', $codigos)
             ->where('estatus', '!=', 'rechazada')
             ->orderByDesc('created_at')
             ->limit(15)
@@ -1999,7 +2021,7 @@ class PortalProveedorController extends Controller
             throw new \InvalidArgumentException('El plazo de días no es válido.');
         }
         $dias = $diasPlazo;
-        $codigoProv = $proveedor->id_proveedor ?: session('proveedor_codigo') ?: ('P'.$proveedor->id);
+        $codigoProv = $proveedor->codigoParaFacturas(session('proveedor_codigo'));
         $esFletera = (bool) ($pendiente['es_fletera'] ?? false);
         $total = (float) (($datos['total'] ?? 0) ?: (($datos['subtotal'] ?? 0) + ($datos['iva'] ?? 0)));
 
@@ -2304,6 +2326,29 @@ class PortalProveedorController extends Controller
             Storage::disk('local')->deleteDirectory($dir);
         }
         session()->forget('fiscal_pendiente');
+    }
+
+    /**
+     * Código(s) con los que este proveedor puede tener facturas.
+     * Nunca devolver lista vacía: un filtro vacío mostraría el historial de todos.
+     *
+     * @return array{0: string, 1: list<string>}
+     */
+    private function resolverCodigosFacturaProveedor(?ProveedorUser $proveedor): array
+    {
+        $codigoSesion = trim((string) (session('proveedor_codigo') ?? ''));
+
+        if ($proveedor) {
+            $codigo = $proveedor->codigoParaFacturas($codigoSesion !== '' ? $codigoSesion : null);
+            $codigos = $proveedor->codigosParaFacturas($codigoSesion !== '' ? $codigoSesion : null);
+
+            return [$codigo, $codigos];
+        }
+
+        $pid = (int) session('proveedor_id');
+        $codigo = $codigoSesion !== '' ? $codigoSesion : ($pid > 0 ? 'P'.$pid : '__sin_proveedor__');
+
+        return [$codigo, [$codigo]];
     }
 
     /**

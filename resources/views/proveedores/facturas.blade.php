@@ -114,19 +114,19 @@
     <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'programada'])) }}">
         <div class="accent" style="background:#dc2626"></div>
         <div class="inv-metric-label">Programadas</div>
-        <div class="inv-metric-val" id="kpi-programadas">{{ \App\Models\Factura::where('codigo_proveedor', $codigo)->where('estatus', 'programada')->count() }}</div>
+        <div class="inv-metric-val" id="kpi-programadas">{{ \App\Models\Factura::whereIn('codigo_proveedor', $codigos)->where('estatus', 'programada')->count() }}</div>
         <div class="inv-metric-sub">En proceso de pago</div>
     </a>
     <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pagada'])) }}">
         <div class="accent" style="background:#ca8a04"></div>
         <div class="inv-metric-label">Pagadas</div>
-        <div class="inv-metric-val" id="kpi-pagadas">{{ \App\Models\Factura::where('codigo_proveedor', $codigo)->where('estatus', 'pagada')->count() }}</div>
+        <div class="inv-metric-val" id="kpi-pagadas">{{ \App\Models\Factura::whereIn('codigo_proveedor', $codigos)->where('estatus', 'pagada')->count() }}</div>
         <div class="inv-metric-sub">Pago realizado</div>
     </a>
     <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'liquidada'])) }}">
         <div class="accent" style="background:#16a34a"></div>
         <div class="inv-metric-label">Liquidadas</div>
-        <div class="inv-metric-val" id="kpi-liquidadas">{{ \App\Models\Factura::where('codigo_proveedor', $codigo)->where('estatus', 'liquidada')->count() }}</div>
+        <div class="inv-metric-val" id="kpi-liquidadas">{{ \App\Models\Factura::whereIn('codigo_proveedor', $codigos)->where('estatus', 'liquidada')->count() }}</div>
         <div class="inv-metric-sub">Cerradas</div>
     </a>
     <div class="inv-metric">
@@ -407,7 +407,7 @@ document.querySelectorAll('#tablaFacturas .fac-row').forEach(function(tr) {
 (function(){
     var kpiUrl = '{{ route("proveedores.facturas.kpis") }}';
     var lastPendientes = {{ $kpis['pendientes'] }};
-    var lastPagadas = {{ \App\Models\Factura::where('codigo_proveedor', $codigo)->where('estatus', 'pagada')->count() }};
+    var lastPagadas = {{ \App\Models\Factura::whereIn('codigo_proveedor', $codigos)->where('estatus', 'pagada')->count() }};
 
     function refreshKpis() {
         if (document.hidden) return;

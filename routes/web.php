@@ -161,6 +161,7 @@ Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'adminProveedo
 
 // ── Contactos del proveedor ──
 Route::get('/proveedor/alertas/recientes', [PortalProveedorController::class, 'alertasRecientesJson'])->name('proveedores.alertas.recientes')->middleware('auth.proveedor');
+Route::post('/proveedor/alertas/leer-todas', [PortalProveedorController::class, 'marcarTodasAlertasLeidas'])->name('proveedores.alertas.leer-todas')->middleware('auth.proveedor');
 Route::post('/proveedor/alertas/{alerta}/leer', [PortalProveedorController::class, 'marcarAlertaLeida'])->name('proveedores.alertas.leer')->middleware('auth.proveedor');
 Route::post('/proveedor/contactos', [PortalProveedorController::class, 'guardarContacto'])->name('proveedores.contactos.guardar')->middleware('auth.proveedor');
 Route::delete('/proveedor/contactos/{contacto}', [PortalProveedorController::class, 'eliminarContacto'])->name('proveedores.contactos.eliminar')->middleware('auth.proveedor');
@@ -227,6 +228,7 @@ use App\Http\Controllers\AdminPagosController;
 
 Route::get('/admin/pagos', [AdminPagosController::class, 'index'])->name('admin.pagos')->middleware('auth.admin');
 Route::get('/admin/pagos/alertas', [AdminPagosController::class, 'alertasJson'])->name('admin.pagos.alertas')->middleware('auth.admin');
+Route::post('/admin/pagos/alertas/leer-todas', [AdminPagosController::class, 'marcarTodasAlertasLeidas'])->name('admin.pagos.alertas.leer-todas')->middleware('auth.admin');
 Route::post('/admin/pagos/alertas/{alerta}/leer', [AdminPagosController::class, 'marcarAlertaLeida'])->name('admin.pagos.alertas.leer')->middleware('auth.admin');
 Route::get('/admin/pagos/proveedor/{codigo}', [AdminPagosController::class, 'proveedor'])->name('admin.pagos.proveedor')->middleware('auth.admin');
 Route::get('/admin/pagos/proveedor/{codigo}/estado-cuenta', [AdminPagosController::class, 'estadoCuenta'])->name('admin.pagos.estado-cuenta')->middleware('auth.admin');

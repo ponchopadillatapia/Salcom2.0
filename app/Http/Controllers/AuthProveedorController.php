@@ -408,7 +408,7 @@ class AuthProveedorController extends Controller
                 $proveedor->markCorreoAsVerified();
             }
 
-            return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->id_proveedor, 'correo' => $proveedor->correo, 'token' => null];
+            return ['id' => $proveedor->id, 'nombre' => $proveedor->nombre, 'codigo' => $proveedor->codigoParaFacturas(), 'correo' => $proveedor->correo, 'token' => null];
         }
 
         // Admins y staff interno pueden entrar al portal de proveedores (cuenta espejo).
@@ -428,7 +428,7 @@ class AuthProveedorController extends Controller
                 return [
                     'id' => $proveedor->id,
                     'nombre' => $proveedor->nombre ?? $admin->nombre,
-                    'codigo' => $proveedor->id_proveedor ?? $proveedor->codigo_compras ?? ('ADMIN-'.$admin->id),
+                    'codigo' => $proveedor->codigoParaFacturas(),
                     'correo' => $proveedor->correo ?? $admin->correo,
                     'token' => null,
                 ];

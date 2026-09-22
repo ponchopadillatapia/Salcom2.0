@@ -392,8 +392,9 @@
         <div class="notif-wrapper" style="position:relative;"
              data-alertas-url="{{ route('admin.pagos.alertas') }}"
              data-alertas-leer-url="{{ url('/admin/pagos/alertas') }}"
+             data-alertas-leer-todas-url="{{ route('admin.pagos.alertas.leer-todas') }}"
              data-csrf="{{ csrf_token() }}">
-            <button type="button" class="notif-bell" id="notifBellBtn" onclick="document.getElementById('notifDropdown').classList.toggle('show')" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;" title="Notificaciones" aria-label="Notificaciones">
+            <button type="button" class="notif-bell" id="notifBellBtn" style="background:none;border:none;cursor:pointer;position:relative;padding:4px;" title="Notificaciones" aria-label="Notificaciones">
                 <svg id="notifBellIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{ $adminPagosSinLeer > 0 ? 'var(--purple)' : 'var(--gray-muted)' }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                 <span id="notifBadge" style="position:absolute;top:-2px;right:-4px;background:var(--red);color:#fff;font-size:10px;font-weight:700;width:18px;height:18px;border-radius:50%;{{ $adminPagosSinLeer > 0 ? 'display:flex' : 'display:none' }};align-items:center;justify-content:center;">{{ $adminPagosSinLeer > 9 ? '9+' : $adminPagosSinLeer }}</span>
             </button>
@@ -710,7 +711,66 @@ document.querySelectorAll('.sb-submenu').forEach(function(menu) {
     var wrap = document.querySelector('.notif-wrapper');
     if (!wrap) return;
     var leerBase = wrap.getAttribute('data-alertas-leer-url');
+    var leerTodasUrl = wrap.getAttribute('data-alertas-leer-todas-url');
     var csrf = wrap.getAttribute('data-csrf');
+    var marcandoTodas = false;
+
+    function updateBadge(n) {
+        n = Math.max(0, parseInt(n, 10) || 0);
+        var badge = document.getElementById('notifBadge');
+        var icon = document.getElementById('notifBellIcon');
+        var label = document.getElementById('notifCountLabel');
+        if (badge) {
+            badge.style.display = n > 0 ? 'flex' : 'none';
+            badge.textContent = n > 9 ? '9+' : String(n);
+        }
+        if (icon) icon.setAttribute('stroke', n > 0 ? 'var(--purple)' : 'var(--gray-muted)');
+        if (label) {
+            label.style.display = n > 0 ? '' : 'none';
+            label.textContent = n + ' nuevas';
+        }
+        if (typeof window.__salcomAdminNotifCount !== 'undefined') {
+            window.__salcomAdminNotifCount = n;
+        }
+    }
+
+    function marcarTodasAlAbrir() {
+        if (!leerTodasUrl || marcandoTodas) return;
+        marcandoTodas = true;
+        updateBadge(0);
+        fetch(leerTodasUrl, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrf || '',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({ _token: csrf })
+        })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+                if (data && typeof data.sin_leer !== 'undefined') {
+                    updateBadge(data.sin_leer);
+                }
+            })
+            .catch(function () {})
+            .finally(function () { marcandoTodas = false; });
+    }
+
+    var bellBtn = document.getElementById('notifBellBtn');
+    var dropdown = document.getElementById('notifDropdown');
+    if (bellBtn && dropdown) {
+        bellBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var opening = !dropdown.classList.contains('show');
+            dropdown.classList.toggle('show', opening);
+            if (opening) {
+                marcarTodasAlAbrir();
+            }
+        });
+    }
 
     var itemsBox = document.getElementById('notifItems');
     if (itemsBox) {
@@ -751,7 +811,8 @@ document.querySelectorAll('.sb-submenu').forEach(function(menu) {
 (function(){
     var container = document.getElementById('admin-toast-container');
     var url = '{{ route("admin.pagos.alertas") }}';
-    var lastCount = {{ $adminPagosSinLeer ?? 0 }};
+    window.__salcomAdminNotifCount = {{ $adminPagosSinLeer ?? 0 }};
+    var lastCount = window.__salcomAdminNotifCount;
 
     var MAX_TOASTS = 3; // máximo de toasts en pantalla a la vez
 
@@ -774,6 +835,9 @@ document.querySelectorAll('.sb-submenu').forEach(function(menu) {
         fetch(url, {headers:{'Accept':'application/json','X-Requested-With':'XMLHttpRequest'}})
             .then(function(r){return r.json()})
             .then(function(data){
+                if (typeof window.__salcomAdminNotifCount === 'number') {
+                    lastCount = Math.min(lastCount, window.__salcomAdminNotifCount);
+                }
                 // En el primer poll NO mostramos toasts (evita la avalancha al cargar la página)
                 if (!primerPoll && data.sin_leer > lastCount && data.items && data.items.length) {
                     // Solo mostrar las NUEVAS (las que se sumaron desde el último conteo), máximo 3
@@ -783,18 +847,31 @@ document.querySelectorAll('.sb-submenu').forEach(function(menu) {
                         showToast(item.titulo, item.contenido);
                     });
                 }
-                // Actualizar badge siempre
+                // Actualizar badge siempre (salvo si la campana está abierta: ya se descontó)
+                var dropdown = document.getElementById('notifDropdown');
+                var abierta = dropdown && dropdown.classList.contains('show');
                 var badge = document.getElementById('notifBadge');
                 if (badge) {
-                    if (data.sin_leer > 0) { badge.textContent = data.sin_leer > 9 ? '9+' : data.sin_leer; badge.style.display = 'flex'; }
-                    else { badge.style.display = 'none'; }
+                    if (abierta || data.sin_leer <= 0) {
+                        badge.style.display = 'none';
+                    } else {
+                        badge.textContent = data.sin_leer > 9 ? '9+' : data.sin_leer;
+                        badge.style.display = 'flex';
+                    }
                 }
                 var label = document.getElementById('notifCountLabel');
                 if (label) {
-                    if (data.sin_leer > 0) { label.textContent = data.sin_leer + ' nuevas'; label.style.display = ''; }
-                    else { label.style.display = 'none'; }
+                    if (abierta || data.sin_leer <= 0) {
+                        label.style.display = 'none';
+                    } else {
+                        label.textContent = data.sin_leer + ' nuevas';
+                        label.style.display = '';
+                    }
                 }
-                lastCount = data.sin_leer;
+                var icon = document.getElementById('notifBellIcon');
+                if (icon) icon.setAttribute('stroke', (!abierta && data.sin_leer > 0) ? 'var(--purple)' : 'var(--gray-muted)');
+                lastCount = abierta ? 0 : data.sin_leer;
+                window.__salcomAdminNotifCount = lastCount;
                 primerPoll = false;
             })
             .catch(function(){});

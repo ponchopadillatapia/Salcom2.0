@@ -280,6 +280,53 @@ class ProveedorUser extends Authenticatable
     }
 
     /**
+     * Código principal con el que se asocian facturas/pagos.
+     * Si aún no tiene id_proveedor (alta nueva), usa P{id} — mismo criterio que al subir factura.
+     */
+    public function codigoParaFacturas(?string $codigoSesion = null): string
+    {
+        $candidatos = [
+            $this->id_proveedor,
+            $this->attributes['codigo_compras'] ?? null,
+            $this->attributes['codigo'] ?? null,
+            $codigoSesion,
+        ];
+        foreach ($candidatos as $c) {
+            $c = trim((string) ($c ?? ''));
+            if ($c !== '') {
+                return $c;
+            }
+        }
+
+        return 'P'.$this->id;
+    }
+
+    /**
+     * Todos los códigos con los que este proveedor pudo haber guardado facturas.
+     * Evita que un proveedor sin id_proveedor vea el historial global (filtro vacío).
+     *
+     * @return list<string>
+     */
+    public function codigosParaFacturas(?string $codigoSesion = null): array
+    {
+        $codigos = [];
+        foreach ([
+            $this->id_proveedor,
+            $this->attributes['codigo_compras'] ?? null,
+            $this->attributes['codigo'] ?? null,
+            $codigoSesion,
+            'P'.$this->id,
+        ] as $c) {
+            $c = trim((string) ($c ?? ''));
+            if ($c !== '') {
+                $codigos[$c] = $c;
+            }
+        }
+
+        return array_values($codigos);
+    }
+
+    /**
      * Código visible para Compras (columna id_proveedor en BD).
      */
     public function idProveedorDisplay(): string

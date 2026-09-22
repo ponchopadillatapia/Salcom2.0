@@ -145,6 +145,23 @@ class AdminPagosController extends Controller
         ]);
     }
 
+    /** Marca todas las alertas de la campanita admin como leídas al abrirla. */
+    public function marcarTodasAlertasLeidas()
+    {
+        $tipos = ['factura_pago_pendiente', 'abono_interno_registrado', 'pago_programado', 'pago_realizado'];
+
+        Alerta::query()
+            ->where('destinatario_tipo', 'admin')
+            ->whereIn('tipo', $tipos)
+            ->whereNotIn('estatus', ['leida', 'accionada'])
+            ->update(['estatus' => 'leida', 'leida_at' => now()]);
+
+        return response()->json([
+            'ok' => true,
+            'sin_leer' => 0,
+        ]);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([
