@@ -365,6 +365,9 @@ Route::post('/empleado/reembolso', [PortalEmpleadoController::class, 'guardarRee
 Route::get('/empleado/viaje/crear', [PortalEmpleadoController::class, 'crearViaje'])->name('empleados.viaje.crear')->middleware('auth.empleado');
 Route::post('/empleado/viaje', [PortalEmpleadoController::class, 'guardarViaje'])->name('empleados.viaje.guardar')->middleware('auth.empleado');
 
+// ── Buscar empleado por número (autocompletar en reembolsos) ──
+Route::get('/admin/empleados/buscar/{numero}', [PortalEmpleadoController::class, 'buscarPorNumero'])->name('admin.empleados.buscar')->middleware('auth.admin');
+
 // ── Admin: Gestión de Empleados ──
 Route::get('/admin/empleados', [PortalEmpleadoController::class, 'adminIndex'])->name('admin.empleados')->middleware('auth.admin');
 Route::post('/admin/empleados', [PortalEmpleadoController::class, 'adminGuardar'])->name('admin.empleados.guardar')->middleware('auth.admin');

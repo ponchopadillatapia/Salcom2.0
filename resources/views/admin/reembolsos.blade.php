@@ -487,6 +487,33 @@
     setupUpload('uploadZone1', 'archivo_factura', 'fileName1');
     setupUpload('uploadZone2', 'archivo_materialidad', 'fileName2');
     setupUpload('uploadZone3', 'archivo_xml', 'fileName3');
+
+    // ── Autocompletar datos del empleado al escribir su número ──
+    // POR QUÉ: los datos de tarjeta ya están dados de alta; evita re-teclearlos y errores.
+    var numEmpInput = document.getElementById('numero_empleado');
+    if (numEmpInput) {
+        var buscarTimer = null;
+        numEmpInput.addEventListener('input', function() {
+            var num = this.value.trim();
+            clearTimeout(buscarTimer);
+            if (num.length < 2) return;
+            // Espera 400ms tras dejar de teclear para no llamar en cada tecla
+            buscarTimer = setTimeout(function() {
+                fetch('/admin/empleados/buscar/' + encodeURIComponent(num))
+                    .then(function(res) { return res.ok ? res.json() : null; })
+                    .then(function(data) {
+                        if (!data || !data.encontrado) return;
+                        var sol = document.getElementById('solicitante');
+                        var cta = document.getElementById('numero_cuenta');
+                        var tit = document.getElementById('titular_cuenta');
+                        if (sol && !sol.value) sol.value = data.nombre || '';
+                        if (cta) cta.value = data.numero_cuenta || '';
+                        if (tit) tit.value = data.titular_cuenta || '';
+                    })
+                    .catch(function() {});
+            }, 400);
+        });
+    }
 })();
 </script>
 @endpush

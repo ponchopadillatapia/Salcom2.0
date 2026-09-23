@@ -232,6 +232,27 @@ class PortalEmpleadoController extends Controller
         return redirect()->route('empleados.portal')->with('mensaje', 'Reembolso de viaje creado como borrador.');
     }
 
+    // ── Buscar empleado por número (para autocompletar en reembolsos) ──
+    // POR QUÉ: el admin captura reembolsos y necesita que al teclear el número
+    // se llenen solos los datos de tarjeta que ya están dados de alta, sin re-escribirlos.
+    public function buscarPorNumero(string $numero)
+    {
+        $empleado = Empleado::where('numero_empleado', trim($numero))->first();
+
+        if (! $empleado) {
+            return response()->json(['encontrado' => false], 404);
+        }
+
+        return response()->json([
+            'encontrado' => true,
+            'nombre' => $empleado->nombre,
+            'numero_cuenta' => $empleado->numero_cuenta,
+            'titular_cuenta' => $empleado->titular_cuenta,
+            'departamento' => $empleado->departamento,
+            'requiere_gasolina' => (bool) $empleado->requiere_gasolina,
+        ]);
+    }
+
     // ── Admin: Gestión de empleados ──
 
     public function adminIndex(Request $request)
