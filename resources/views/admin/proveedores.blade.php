@@ -125,25 +125,27 @@
 @endphp
 
 <div class="inv-metrics anim">
-    {{-- Orden pedido: Bajo (izq) · Alto (der) · Todas (morado, extrema der). Se quitó "Con OCs vencidas". --}}
-    <a class="inv-metric {{ $rendimiento === 'bajo' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'bajo'])) }}">
+    {{-- KPIs SIN acción por ahora: Bajo/Alto rendimiento filtraban por score LOCAL, pero el
+         directorio ahora muestra proveedores de Wiese (que solo trae nombre y RFC, sin score).
+         Se dejan como tarjetas informativas quietas (div, no enlaces) para no confundir. --}}
+    <div class="inv-metric" style="cursor:default">
         <div class="accent" style="background:var(--red,#dc2626)"></div>
         <div class="inv-metric-label">Bajo rendimiento</div>
-        <div class="inv-metric-val">{{ $proveedoresBajoScore }}</div>
-        <div class="inv-metric-sub">Score &lt; 60%</div>
-    </a>
-    <a class="inv-metric {{ $rendimiento === 'alto' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', array_merge($chipBase, ['rendimiento' => 'alto'])) }}">
+        <div class="inv-metric-val">—</div>
+        <div class="inv-metric-sub">Pendiente de Wiese</div>
+    </div>
+    <div class="inv-metric" style="cursor:default">
         <div class="accent" style="background:var(--green,#16a34a)"></div>
         <div class="inv-metric-label">Alto rendimiento</div>
-        <div class="inv-metric-val">{{ $proveedoresAltoScore }}</div>
-        <div class="inv-metric-sub">Score ≥ 80%</div>
-    </a>
-    <a class="inv-metric {{ $rendimiento === '' ? 'is-active' : '' }}" href="{{ route('admin.proveedores', $chipBase) }}">
+        <div class="inv-metric-val">—</div>
+        <div class="inv-metric-sub">Pendiente de Wiese</div>
+    </div>
+    <div class="inv-metric" style="cursor:default">
         <div class="accent" style="background:var(--purple,#6B3FA0)"></div>
         <div class="inv-metric-label">Todas</div>
-        <div class="inv-metric-val">{{ $totalProveedores }}</div>
-        <div class="inv-metric-sub">Proveedores totales</div>
-    </a>
+        <div class="inv-metric-val">{{ number_format($totalWiese) }}</div>
+        <div class="inv-metric-sub">Proveedores en Wiese</div>
+    </div>
 </div>
 
 <div class="toolbar anim" style="margin-bottom:14px;animation-delay:.04s">
@@ -213,8 +215,8 @@
     <div class="admin-table-wrap">
     <div class="adm-section-head">
         <div>
-            <h4>Directorio de proveedores</h4>
-            <div class="adm-section-meta">{{ $proveedores->total() }} resultado{{ $proveedores->total() !== 1 ? 's' : '' }} · ordenados por score OTIF</div>
+            <h4>Directorio de proveedores (Wiese)</h4>
+            <div class="adm-section-meta">{{ number_format($totalWiese) }} proveedor{{ $totalWiese !== 1 ? 'es' : '' }} · datos reales del sistema contable</div>
         </div>
         <div class="adm-section-toolbar">
             <button type="button" class="btn-export" onclick="exportProvTable('tableProveedores', 'Admin_Proveedores')">
@@ -223,48 +225,33 @@
             </button>
         </div>
     </div>
-    @if($proveedores->count())
+    {{-- Aviso si Wiese no responde (típico: VPN apagada, ya que la API vive en la red interna). --}}
+    @if($wieseError)
+        <div style="background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:14px 16px;border-radius:10px;font-size:13px;margin:0 0 16px;">
+            <strong>No se pudieron cargar los proveedores de Wiese.</strong> {{ $wieseError }}<br>
+            <small>Revisa que la VPN de la empresa esté activa.</small>
+        </div>
+    @endif
+    @if($proveedoresWiese->count())
         <table class="admin-table" id="tableProveedores">
-            <thead><tr><th>ID sistema</th><th>ID Proveedor</th><th>Nombre</th><th>Correo</th><th>OTIF</th><th>Entrega</th><th>Puntualidad</th><th>Estado</th><th>Acción</th></tr></thead>
+            <thead><tr><th style="width:70px;">#</th><th>Nombre / Razón social</th><th style="width:220px;">RFC</th></tr></thead>
             <tbody>
-            @foreach($proveedores as $p)
-                @php
-                    $m = $metricasProveedores[$p->id] ?? [];
-                    $sc = (float) $p->score_total;
-                    $scClass = $sc >= 80 ? 'score-val-high' : ($sc >= 60 ? 'score-val-mid' : 'score-val-low');
-                @endphp
+            {{-- Datos REALES de Wiese: la API devuelve nombre (crazonsocial) y RFC (crfc). --}}
+            @foreach($proveedoresWiese as $i => $p)
                 <tr>
-                    <td style="font-weight:600;color:var(--gray-muted)">#{{ $p->id }}</td>
-                    <td style="font-weight:700;color:var(--purple)">{{ $p->idProveedorDisplay() }}</td>
-                    <td style="font-weight:600">{{ $p->nombre ?? '—' }}</td>
-                    <td>{{ $p->correo ?? '—' }}</td>
-                    <td>
-                        <div class="pct-cell">
-                            <div class="score-bar {{ $m['score_class'] ?? 'score-low' }}"><div class="score-fill" style="width:{{ min(100, $sc) }}%"></div></div>
-                            <span class="pct-val {{ $scClass }}"><strong>{{ number_format($sc, 0) }}%</strong>@include('partials.trend-arrow', ['value' => $m['trend_otif'] ?? 0, 'size' => '11'])</span>
-                        </div>
-                    </td>
-                    <td><span class="pct-val">{{ number_format($p->score_entrega, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_entrega'] ?? 0, 'size' => '11'])</span></td>
-                    <td><span class="pct-val">{{ number_format($p->score_puntualidad, 0) }}%@include('partials.trend-arrow', ['value' => $m['trend_puntualidad'] ?? 0, 'size' => '11'])</span></td>
-                    <td><span class="badge-est {{ $p->activo ? 'ok' : 'err' }}">{{ $p->activo ? 'Activo' : 'Inactivo' }}</span></td>
-                    <td>
-                        @php
-                            // Código para ver facturas/OC: usamos id_proveedor (código Wiese) o el
-                            // provisional 'P'.id si aún no tiene código, para que SIEMPRE haya enlace.
-                            $codigoVer = $p->id_proveedor ?: ($p->codigo ?: 'P'.$p->id);
-                        @endphp
-                        <a href="{{ route('admin.proveedor-facturas', $codigoVer) }}" class="btn-sm" style="background:var(--purple);color:#fff;text-decoration:none;">Ver facturas →</a>
-                    </td>
+                    <td style="font-weight:600;color:var(--gray-muted)">{{ $proveedoresWiese->firstItem() + $i }}</td>
+                    <td style="font-weight:600">{{ $p['nombre'] ?? $p['Nombre'] ?? '—' }}</td>
+                    <td style="font-family:monospace;color:var(--purple);font-weight:700">{{ $p['rfc'] ?? $p['Rfc'] ?? '—' }}</td>
                 </tr>
             @endforeach
             </tbody>
         </table>
-        @if($proveedores->hasPages())<div class="pagination-wrap">{{ $proveedores->links() }}</div>@endif
-    @else
+        @if($proveedoresWiese->hasPages())<div class="pagination-wrap">{{ $proveedoresWiese->links() }}</div>@endif
+    @elseif(! $wieseError)
         <div class="empty-state">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-            <p>No se encontraron proveedores con los filtros seleccionados.</p>
-            @if($filtrosProvActivos)<p style="margin-top:8px;"><a href="{{ route('admin.proveedores', ['tab' => 'proveedores']) }}" style="color:var(--purple);font-weight:600;">Quitar filtros</a></p>@endif
+            @php $msgVacio = $busquedaWiese !== '' ? 'No se encontraron proveedores en Wiese con «'.$busquedaWiese.'».' : 'No se encontraron proveedores en Wiese.'; @endphp
+            <p>{{ $msgVacio }}</p>
         </div>
     @endif
     </div>
