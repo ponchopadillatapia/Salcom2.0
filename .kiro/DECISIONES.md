@@ -20,6 +20,13 @@
 - **Verificado:** Blade compila sin errores (`view:clear` + `Blade::compileString`) y `php -l` limpio en modelo y middlewares.
 - **OJO:** los nombres deben coincidir EXACTO con el campo `usuario` de `admin_users` (se comparan en minúsculas). Si Rebeca está como `rebeca.algo`, hay que ajustar la constante.
 
+## PENDIENTES ABIERTOS (actualizado 24-sep-2026) — hoja de ruta
+1. **Estudiar el código C# de Alan** (API Wiese): entidades, servicios, controllers, nomenclatura. (En curso — hay apuntes.)
+2. **APIs de proveedor + sus OC/facturas:** ESPERANDO que Alan autorice y suba el cambio donde `ListarProveedorWeb` devuelve el `codigo` (CCODIGOCLIENTE). Sin el código directo NO se puede enlazar "Ver facturas" (el RFC NO sirve: BuscarPorRFC devuelve el registro inactivo — ej. ORPACK RFC→103015031 con 0 facturas, cuando el bueno es M213015002 con 6,362). El botón "Ver facturas" ya está en el directorio de Wiese, deshabilitado ("Sin código aún") hasta que llegue el código.
+3. **Montar servidor LOCAL en la empresa (El Salto):** Alan NO expondrá la API a internet (nunca). El plan a futuro es un servidor on-premise en la red interna (PHP+MySQL+servidor web) para que producción alcance Wiese sin exponerlo. Pendiente de hardware/red + tiempo de Alan.
+4. **APIs de pagos / flujo de pagos:** pendientes de negocio con Karen (folio/póliza, validación de secuencia, cancelaciones, pagos parciales). Ver `.kiro/steering/pendientes-flujo-pagos.md`. El código de anticipos y la columna "Anticipos" en facturas YA está.
+5. **API de productos / alta de producto:** pendiente por definir/conectar.
+
 ## 2026-09-22 — DECISIÓN de Alan: las APIs de Wiese se trabajan SOLO en local (~2 meses)
 - **Qué:** Alan NO va a exponer la API de Wiese a internet por ahora. Razones: (1) no tiene seguridad (va por HTTP, sin HTTPS), (2) está saturado de trabajo los próximos ~2 meses. Acuerdo: mientras tanto se desarrolla/usa en LOCAL (con VPN de la oficina).
 - **Qué implica:** el CÓDIGO que consume Wiese ya está en producción (listar proveedores + OC/facturas de ORPACK), PERO en producción NO funcionará (SiteGround no alcanza la IP interna 172.16.1.250). Las pantallas de Wiese mostrarán el aviso rojo "no se pudieron cargar (revisa VPN)" — esto es esperado, no rompe el resto de la página.

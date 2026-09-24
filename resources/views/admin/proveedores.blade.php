@@ -234,14 +234,27 @@
     @endif
     @if($proveedoresWiese->count())
         <table class="admin-table" id="tableProveedores">
-            <thead><tr><th style="width:70px;">#</th><th>Nombre / Razón social</th><th style="width:220px;">RFC</th></tr></thead>
+            <thead><tr><th style="width:70px;">#</th><th>Nombre / Razón social</th><th style="width:220px;">RFC</th><th style="width:140px;">Acción</th></tr></thead>
             <tbody>
-            {{-- Datos REALES de Wiese: la API devuelve nombre (crazonsocial) y RFC (crfc). --}}
+            {{-- Datos REALES de Wiese: la API devuelve nombre (crazonsocial) y RFC (crfc).
+                 El botón "Ver facturas" usa el CÓDIGO del proveedor (CCODIGOCLIENTE). La API
+                 aún no lo devuelve (pendiente: Alan sube el cambio). Mientras no venga el código,
+                 el botón se muestra deshabilitado. NO se usa el RFC porque BuscarPorRFC devuelve
+                 el registro inactivo (ej. ORPACK: RFC->103015031 con 0 facturas, cuando el bueno
+                 es M213015002 con 6,362). Por eso el código directo es obligatorio. --}}
             @foreach($proveedoresWiese as $i => $p)
+                @php $codigoProv = $p['codigo'] ?? $p['Codigo'] ?? ''; @endphp
                 <tr>
                     <td style="font-weight:600;color:var(--gray-muted)">{{ $proveedoresWiese->firstItem() + $i }}</td>
                     <td style="font-weight:600">{{ $p['nombre'] ?? $p['Nombre'] ?? '—' }}</td>
                     <td style="font-family:monospace;color:var(--purple);font-weight:700">{{ $p['rfc'] ?? $p['Rfc'] ?? '—' }}</td>
+                    <td>
+                        @if($codigoProv !== '')
+                            <a href="{{ route('admin.proveedor-facturas', $codigoProv) }}" class="btn-sm" style="background:var(--purple);color:#fff;text-decoration:none;padding:6px 12px;border-radius:6px;font-size:12px;">Ver facturas →</a>
+                        @else
+                            <span style="color:var(--gray-muted);font-size:12px;" title="Pendiente: la API de Wiese aún no devuelve el código del proveedor">Sin código aún</span>
+                        @endif
+                    </td>
                 </tr>
             @endforeach
             </tbody>

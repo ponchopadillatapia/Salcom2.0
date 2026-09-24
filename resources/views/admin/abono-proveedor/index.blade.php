@@ -186,7 +186,9 @@
                 </div>
                 <div>
                     <label style="font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase">Cuenta</label>
-                    <input type="text" name="cuenta_info" id="ab-cuenta" value="{{ old('cuenta_info', '(Ninguno)') }}" style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;width:100%;margin-top:4px">
+                    {{-- Autocarga la cuenta activa (ej. "8969 — Nacionales MXN"), la misma que se
+                         muestra en la barra superior. Antes arrancaba en "(Ninguno)" y salía vacío. --}}
+                    <input type="text" name="cuenta_info" id="ab-cuenta" value="{{ old('cuenta_info', $cuentaConfig['titulo'] ?? '') }}" style="border:1.5px solid var(--border);border-radius:6px;padding:8px 12px;font-size:13px;font-family:inherit;width:100%;margin-top:4px;background:var(--gray-soft)" readonly>
                 </div>
                 <div>
                     <label style="font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase">Total</label>
