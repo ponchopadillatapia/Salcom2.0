@@ -62,6 +62,9 @@
     .admin-table td{padding:12px 16px;font-size:13px;color:var(--gray-text);border-bottom:1px solid var(--border)}
     .admin-table tr:last-child td{border-bottom:none}
     .admin-table tbody tr:hover td{background:var(--purple-subtle)}
+    /* Botón "Ver facturas" del directorio de Wiese: morado sólido, sin borde, no se parte el texto */
+    .btn-ver-facturas{display:inline-flex;align-items:center;gap:4px;background:var(--purple,#6B3FA0);color:#fff;border:none;text-decoration:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;white-space:nowrap;transition:background .15s,transform .1s;cursor:pointer}
+    .btn-ver-facturas:hover{background:#582f88;transform:translateY(-1px)}
 
     .score-bar{width:80px;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px}
     .score-fill{height:100%;border-radius:4px}
@@ -236,12 +239,11 @@
         <table class="admin-table" id="tableProveedores">
             <thead><tr><th style="width:70px;">#</th><th>Nombre / Razón social</th><th style="width:220px;">RFC</th><th style="width:140px;">Acción</th></tr></thead>
             <tbody>
-            {{-- Datos REALES de Wiese: la API devuelve nombre (crazonsocial) y RFC (crfc).
-                 El botón "Ver facturas" usa el CÓDIGO del proveedor (CCODIGOCLIENTE). La API
-                 aún no lo devuelve (pendiente: Alan sube el cambio). Mientras no venga el código,
-                 el botón se muestra deshabilitado. NO se usa el RFC porque BuscarPorRFC devuelve
-                 el registro inactivo (ej. ORPACK: RFC->103015031 con 0 facturas, cuando el bueno
-                 es M213015002 con 6,362). Por eso el código directo es obligatorio. --}}
+            {{-- Datos REALES de Wiese: la API devuelve nombre (crazonsocial), RFC (crfc) y
+                 CÓDIGO (CCODIGOCLIENTE, agregado por Alan en el PR #101). El botón "Ver facturas"
+                 usa ese CÓDIGO directo. NO se usa el RFC porque es ambiguo: ORPACK tiene 2 registros
+                 con el mismo RFC (M213015002 con 6,363 facturas vs 103015031 con 0). El código
+                 distingue cuál es el bueno. --}}
             @foreach($proveedoresWiese as $i => $p)
                 @php $codigoProv = $p['codigo'] ?? $p['Codigo'] ?? ''; @endphp
                 <tr>
@@ -250,7 +252,9 @@
                     <td style="font-family:monospace;color:var(--purple);font-weight:700">{{ $p['rfc'] ?? $p['Rfc'] ?? '—' }}</td>
                     <td>
                         @if($codigoProv !== '')
-                            <a href="{{ route('admin.proveedor-facturas', $codigoProv) }}" class="btn-sm" style="background:var(--purple);color:#fff;text-decoration:none;padding:6px 12px;border-radius:6px;font-size:12px;">Ver facturas →</a>
+                            {{-- Botón propio (sin la clase btn-sm que metía borde rojo). nowrap para
+                                 que "Ver facturas" no se parta en dos líneas. --}}
+                            <a href="{{ route('admin.proveedor-facturas', $codigoProv) }}" class="btn-ver-facturas">Ver facturas →</a>
                         @else
                             <span style="color:var(--gray-muted);font-size:12px;" title="Pendiente: la API de Wiese aún no devuelve el código del proveedor">Sin código aún</span>
                         @endif

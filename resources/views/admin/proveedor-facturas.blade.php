@@ -41,7 +41,7 @@
 @endpush
 @section('content')
 
-<a class="pag-back" href="{{ route('admin.proveedores', ['tab' => 'facturas']) }}">← Volver a proveedores</a>
+<a class="pag-back" href="{{ route('admin.proveedores') }}">← Volver a proveedores</a>
 
 @php
     // KPIs de la BD (facturas del portal)

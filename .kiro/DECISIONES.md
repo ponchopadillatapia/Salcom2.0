@@ -6,9 +6,18 @@
 
 ---
 
+## 2026-09-24 — HALLAZGO: por qué hay proveedores "duplicados" en Wiese (moneda + RFC extranjero)
+- **Qué se descubrió (confirmado con SQL en admClientes):** un mismo RFC puede tener VARIOS registros. Causas reales:
+  1. **Moneda (la principal):** proveedor nacional con una cuenta en MXN y otra en USD. `CIDMONEDA`: 1 = MXN (4,795 provs), 2 = DÓLAR USD (879 provs) — confirmado en tabla `admMonedas`. Decenas de RFC tienen 1 registro MXN + 1 USD.
+  2. **RFC genérico de extranjeros `XEXX010101000`:** el SAT lo usa para proveedores del exterior sin RFC mexicano. 246 registros lo comparten (240 en USD) — NO son el mismo proveedor, son extranjeros distintos.
+  3. **Duplicado real (caso ORPACK):** 2 altas del mismo proveedor (2003 y 2010), ambas MXN. Solo M213015002 tiene las 6,363 OC; 103015031 tiene 0.
+- **Por qué importa:** ni el nombre ni el RFC identifican de forma única a un proveedor (por moneda y por extranjeros). Por eso el `CCODIGOCLIENTE` (código) era OBLIGATORIO para enlazar facturas — lo confirma este análisis.
+- **A futuro:** si se trabaja el módulo de proveedores a fondo, considerar la moneda (`CIDMONEDA`) y el caso del RFC genérico. Query útil guardado: proveedores en USD = `WHERE CIDMONEDA = 2`.
+- **Dónde:** análisis hecho en SSMS sobre `adSalcom18.dbo.admClientes` y `admMonedas`. No se cambió código por esto (solo investigación).
+
 ## PENDIENTES ABIERTOS (actualizado 24-sep-2026) — hoja de ruta
 1. **Estudiar el código C# de Alan** (API Wiese): entidades, servicios, controllers, nomenclatura. (En curso — hay apuntes.)
-2. **APIs de proveedor + sus OC/facturas:** ESPERANDO que Alan autorice y suba el cambio donde `ListarProveedorWeb` devuelve el `codigo` (CCODIGOCLIENTE). Sin el código directo NO se puede enlazar "Ver facturas" (el RFC NO sirve: BuscarPorRFC devuelve el registro inactivo — ej. ORPACK RFC→103015031 con 0 facturas, cuando el bueno es M213015002 con 6,362). El botón "Ver facturas" ya está en el directorio de Wiese, deshabilitado ("Sin código aún") hasta que llegue el código.
+2. ✅ **APIs de proveedor + sus OC/facturas — RESUELTO (24-sep).** Alan aprobó y mergeó el PR #101: `ListarProveedorWeb` ya devuelve el `codigo` (CCODIGOCLIENTE). El botón "Ver facturas" del directorio de Wiese usa ese código y trae las facturas/OC reales (probado: ORPACK M213015002 → 6,363 OC). Confirmado que el RFC era ambiguo (ORPACK tiene 2 registros: M213015002 con 6,363 vs 103015031 con 0), por eso el código directo era obligatorio. Funciona en LOCAL con VPN.
 3. **Montar servidor LOCAL en la empresa (El Salto):** Alan NO expondrá la API a internet (nunca). El plan a futuro es un servidor on-premise en la red interna (PHP+MySQL+servidor web) para que producción alcance Wiese sin exponerlo. Pendiente de hardware/red + tiempo de Alan.
 4. **APIs de pagos / flujo de pagos:** pendientes de negocio con Karen (folio/póliza, validación de secuencia, cancelaciones, pagos parciales). Ver `.kiro/steering/pendientes-flujo-pagos.md`. El código de anticipos y la columna "Anticipos" en facturas YA está.
 5. **API de productos / alta de producto:** pendiente por definir/conectar.
