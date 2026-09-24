@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-09-24 — Acceso de Nayeli: solo Reembolsos + Alta de Empleados
+- **Qué:** Se creó la sección de permiso `reembolsos` y se asignó al usuario `nayeli`. Con eso ve solo: Reembolsos, Reembolsos Viaje, Bitácora Gasolina y Alta de Empleados (todo lo demás del panel queda bloqueado). En el sidebar se separó "Reembolsos a Empleados" (Dirección + Nayeli) de "Operación" (solo Dirección), y a Nayeli se le agregó un enlace "Alta de Empleados" propio (Dirección sigue viendo "Empleados" en la sección Negocio).
+- **Por qué:** dirección pidió que Nayeli gestione reembolsos y altas de empleados, nada más.
+- **OJO:** Nayeli AÚN NO tiene usuario en la BD. El permiso ya está listo; en cuanto se cree el registro en `admin_users` con `usuario = 'nayeli'` (en minúsculas), el acceso queda activo sin tocar código.
+- **Dónde:** `app/Models/AdminUser.php` (`ACCESOS_RESTRINGIDOS['nayeli'] = ['reembolsos']`), `app/Http/Middleware/AutenticacionAdmin.php` (mapa `$rutasPorSeccion['reembolsos']` + destino de redirección), `resources/views/layouts/admin.blade.php` (bloque Reembolsos con `@if($puedeReembolsos)` y enlace de alta para Nayeli).
+- **Verificado:** `php -l` limpio y Blade compila sin errores.
+
+## 2026-09-24 — Panel "Administrador" renombrado a "Dirección" + control de accesos por usuario
+- **Qué:** (1) El panel admin ahora se llama "Dirección" (navbar y `<title>`). (2) Se agregó control de accesos por usuario: acceso TOTAL para `fredcominu`, `alex.salazar`, `jesus.espinoza`, `sandra.gutierrez`, `rebeca` (más roles gerente/admin). (3) Acceso RESTRINGIDO: `brenda.pliego` solo ve Productos + Anticipos; `karen.bravo` solo ve Pagos + Proveedores. (4) El sidebar oculta secciones según el usuario; la sección "Negocio" (Clientes/Empleados/Negocio/Fiscal) es solo-Dirección (Karen ve Proveedores pero NO Negocio). (5) "Mi Perfil" (Cuenta) queda visible para todos.
+- **Por qué:** dirección pidió que cada persona externa a Dirección solo gestione su área y no vea el resto del panel.
+- **Dónde:** `app/Models/AdminUser.php` (constantes `USUARIOS_DIRECCION`/`ACCESOS_RESTRINGIDOS` y métodos `esDireccion`, `esRestringido`, `seccionesPermitidas`, `puedeVer`); `app/Http/Middleware/AutenticacionAdmin.php` (comparte `$adminEsDireccion`/`$adminEsRestringido`/`$adminUser` a las vistas y bloquea rutas por sección con el mapa `$rutasPorSeccion`); `resources/views/layouts/admin.blade.php` (secciones envueltas con `@if`).
+- **Verificado:** Blade compila sin errores (`view:clear` + `Blade::compileString`) y `php -l` limpio en modelo y middlewares.
+- **OJO:** los nombres deben coincidir EXACTO con el campo `usuario` de `admin_users` (se comparan en minúsculas). Si Rebeca está como `rebeca.algo`, hay que ajustar la constante.
+
 ## 2026-09-22 — DECISIÓN de Alan: las APIs de Wiese se trabajan SOLO en local (~2 meses)
 - **Qué:** Alan NO va a exponer la API de Wiese a internet por ahora. Razones: (1) no tiene seguridad (va por HTTP, sin HTTPS), (2) está saturado de trabajo los próximos ~2 meses. Acuerdo: mientras tanto se desarrolla/usa en LOCAL (con VPN de la oficina).
 - **Qué implica:** el CÓDIGO que consume Wiese ya está en producción (listar proveedores + OC/facturas de ORPACK), PERO en producción NO funcionará (SiteGround no alcanza la IP interna 172.16.1.250). Las pantallas de Wiese mostrarán el aviso rojo "no se pudieron cargar (revisa VPN)" — esto es esperado, no rompe el resto de la página.

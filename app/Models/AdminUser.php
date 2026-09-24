@@ -43,11 +43,21 @@ class AdminUser extends Authenticatable
     ];
 
     /**
-     * Usuarios con acceso RESTRINGIDO: solo Productos y Anticipos.
-     * POR QUÉ: Brenda solo gestiona productos y anticipos; el resto va bloqueado.
+     * Usuarios con acceso RESTRINGIDO y qué secciones puede ver cada uno.
+     * POR QUÉ: cada persona externa a Dirección solo gestiona su área.
+     * Las "secciones" son claves internas que el menú y el bloqueo usan.
+     *  - productos  → Alta de producto + Productos
+     *  - anticipos  → solo Anticipos dentro de Pagos
+     *  - pagos      → todo el módulo de Pagos
+     *  - proveedores→ módulo de Proveedores
+     *  - reembolsos → Reembolsos a empleados (+ viaje + gasolina) y Alta de Empleados
      */
-    public const USUARIOS_RESTRINGIDOS = [
-        'brenda',
+    public const ACCESOS_RESTRINGIDOS = [
+        'brenda.pliego' => ['productos', 'anticipos'],
+        'karen.bravo'   => ['pagos', 'proveedores'],
+        // POR QUÉ: Nayeli gestiona reembolsos y da de alta empleados. Aún no tiene
+        // usuario en la BD; en cuanto se cree con usuario 'nayeli' quedará habilitado.
+        'nayeli'        => ['reembolsos'],
     ];
 
     /** ¿Tiene acceso total al panel de Dirección? */
@@ -61,9 +71,29 @@ class AdminUser extends Authenticatable
         return in_array(strtolower(trim((string) $this->usuario)), self::USUARIOS_DIRECCION, true);
     }
 
-    /** ¿Es un usuario restringido (solo Productos + Anticipos)? */
+    /** ¿Es un usuario con acceso restringido a ciertas secciones? */
     public function esRestringido(): bool
     {
-        return in_array(strtolower(trim((string) $this->usuario)), self::USUARIOS_RESTRINGIDOS, true);
+        if ($this->esDireccion()) {
+            return false;
+        }
+
+        return array_key_exists(strtolower(trim((string) $this->usuario)), self::ACCESOS_RESTRINGIDOS);
+    }
+
+    /** Lista de secciones que este usuario restringido puede ver. */
+    public function seccionesPermitidas(): array
+    {
+        return self::ACCESOS_RESTRINGIDOS[strtolower(trim((string) $this->usuario))] ?? [];
+    }
+
+    /** ¿Puede ver una sección específica? (Dirección ve todo). */
+    public function puedeVer(string $seccion): bool
+    {
+        if ($this->esDireccion()) {
+            return true;
+        }
+
+        return in_array($seccion, $this->seccionesPermitidas(), true);
     }
 }

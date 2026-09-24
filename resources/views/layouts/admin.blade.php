@@ -453,6 +453,8 @@
             <div class="sb-hr"></div>
             @endif
 
+            @php $puedeProductos = $adminUser ? $adminUser->puedeVer('productos') : true; @endphp
+            @if($puedeProductos)
             <div class="sb-section">Productos</div>
             <div class="sb-submenu">
                 <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/alta-producto*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
@@ -476,8 +478,14 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
                 <span class="sb-text">Productos</span>
             </a>
-
             <div class="sb-hr"></div>
+            @endif
+
+            @php
+                $puedePagos = $adminUser ? $adminUser->puedeVer('pagos') : true;
+                $puedeAnticipos = $adminUser ? $adminUser->puedeVer('anticipos') : true;
+            @endphp
+            @if($puedePagos || $puedeAnticipos)
             <div class="sb-section">Pagos</div>
             <div class="sb-submenu">
                 <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/pagos*') || request()->is('admin/pago-proveedores*') || request()->is('admin/expedientes-pago*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
@@ -493,16 +501,18 @@
                             ->groupBy('poliza_key')
                             ->pluck('total', 'poliza_key');
                     @endphp
-                    @if($adminEsDireccion ?? true)
+                    @if($puedePagos)
                     <a href="{{ route('admin.expedientes-pago') }}" class="sb-link sb-sublink {{ request()->is('admin/expedientes-pago*') ? 'active' : '' }}">
                         <span class="sb-text">Expedientes de pago</span>
                     </a>
                     @endif
-                    {{-- Anticipo: visible para Dirección y para Brenda (acceso restringido) --}}
+                    {{-- Anticipo: visible si puede ver Pagos o si tiene permiso de Anticipos (Brenda) --}}
+                    @if($puedePagos || $puedeAnticipos)
                     <a href="{{ route('admin.anticipos') }}" class="sb-link sb-sublink {{ request()->is('admin/anticipos*') ? 'active' : '' }}">
                         <span class="sb-text">Anticipo</span>
                     </a>
-                    @if($adminEsDireccion ?? true)
+                    @endif
+                    @if($puedePagos)
                     <a href="{{ route('admin.pagos') }}" class="sb-link sb-sublink {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
                         <span class="sb-text">Formato para pago</span>
                     </a>
@@ -533,9 +543,12 @@
                     @endif
                 </div>
             </div>
-
-            @if($adminEsDireccion ?? true)
             <div class="sb-hr"></div>
+            @endif
+
+            @php $puedeReembolsos = $adminUser ? $adminUser->puedeVer('reembolsos') : true; @endphp
+            {{-- Reembolsos a empleados: Dirección y Nayeli (permiso 'reembolsos'). --}}
+            @if($puedeReembolsos)
             <div class="sb-section">Reembolsos a Empleados</div>
             <a href="{{ route('admin.reembolsos') }}" class="sb-link {{ request()->is('admin/reembolsos') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
@@ -549,7 +562,18 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="18.7 8 12 14.7 9 11.7 3 17.7"/></svg></div>
                 <span class="sb-text">Bitácora Gasolina</span>
             </a>
+            {{-- Alta de Empleados aquí solo para Nayeli. Dirección ya lo ve en la sección Negocio,
+                 así evitamos duplicarle el enlace. --}}
+            @if(!($adminEsDireccion ?? true))
+            <a href="{{ route('admin.empleados') }}" class="sb-link {{ request()->is('admin/empleados*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
+                <span class="sb-text">Alta de Empleados</span>
+            </a>
+            @endif
+            @endif {{-- fin bloque Reembolsos (Nayeli también lo ve) --}}
 
+            {{-- Operación: solo Dirección. --}}
+            @if($adminEsDireccion ?? true)
             <div class="sb-hr"></div>
             <div class="sb-section">Operación</div>
             <a href="{{ route('admin.pedidos') }}" class="sb-link {{ request()->is('admin/pedidos*') ? 'active' : '' }}">
@@ -577,6 +601,10 @@
             </div>
             @endif
 
+            @endif {{-- fin bloque Operación solo-Dirección --}}
+
+            @php $puedeProveedores = $adminUser ? $adminUser->puedeVer('proveedores') : true; @endphp
+            @if($puedeProveedores)
             <div class="sb-hr"></div>
             <div class="sb-section">Proveedores</div>
             @php
@@ -615,7 +643,11 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg></div>
                 <span class="sb-text">Reportes</span>
             </a>
+            @endif {{-- fin bloque Proveedores (Karen sí lo ve) --}}
 
+            {{-- Negocio (Clientes, Empleados, Negocio, Fiscal): solo Dirección.
+                 POR QUÉ: Karen ve Proveedores pero NO debe ver la info de negocio/clientes. --}}
+            @if($adminEsDireccion ?? true)
             <div class="sb-hr"></div>
             <div class="sb-section">Negocio</div>
             <a href="{{ route('admin.clientes') }}" class="sb-link {{ request()->is('admin/clientes*') ? 'active' : '' }}">
@@ -634,8 +666,9 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
                 <span class="sb-text">Fiscal</span>
             </a>
-            @endif
+            @endif {{-- fin bloque Negocio solo-Dirección --}}
 
+            {{-- Cuenta (Mi Perfil): visible para TODOS los usuarios del panel. --}}
             <div class="sb-hr"></div>
             <div class="sb-section">Cuenta</div>
             <a href="{{ route('admin.perfil') }}" class="sb-link {{ request()->routeIs('admin.perfil') ? 'active' : '' }}">

@@ -23,29 +23,47 @@ class AutenticacionAdmin
         View::share('adminEsRestringido', $adminUser ? $adminUser->esRestringido() : false);
         View::share('adminUser', $adminUser);
 
-        // Control de acceso centralizado para usuarios restringidos (Brenda):
-        // solo pueden entrar a Productos y Anticipos; el resto se bloquea aquí
+        // Control de acceso centralizado para usuarios restringidos.
+        // Cada usuario tiene sus secciones permitidas; el resto se bloquea aquí
         // para no tener que marcar cada ruta una por una.
         if ($adminUser && $adminUser->esRestringido()) {
             $path = $request->path(); // ej: "admin/pedidos"
-            $rutasPermitidas = [
-                'admin/productos',
-                'admin/anticipos',
-                'admin/perfil',
+            $secciones = $adminUser->seccionesPermitidas();
+
+            // Mapa: sección interna → prefijos de ruta que abarca
+            $rutasPorSeccion = [
+                'productos'   => ['admin/productos', 'admin/alta-producto', 'admin/alta-producto-mto', 'admin/alta-producto-pt', 'admin/migracion-masiva'],
+                'anticipos'   => ['admin/anticipos'],
+                'pagos'       => ['admin/pagos', 'admin/pago-proveedores', 'admin/abono-proveedor', 'admin/historial-abonos', 'admin/expedientes-pago'],
+                'proveedores' => ['admin/proveedores', 'admin/catalogo-proveedores', 'admin/solicitudes-alta', 'admin/solicitudes-docs', 'admin/expediente-fiscal', 'admin/proveedor-facturas'],
+                // reembolsos: 3 módulos de reembolso a empleados + alta/gestión de empleados (Nayeli)
+                'reembolsos'  => ['admin/reembolsos', 'admin/reembolsos-viaje', 'admin/bitacora-gasolina', 'admin/empleados'],
             ];
+
+            // Rutas que cualquier usuario logueado puede tocar (perfil, salir)
+            $rutasBase = ['admin/perfil'];
+            $permitidas = $rutasBase;
+            foreach ($secciones as $sec) {
+                $permitidas = array_merge($permitidas, $rutasPorSeccion[$sec] ?? []);
+            }
+
             $permitida = false;
-            foreach ($rutasPermitidas as $permitidaBase) {
-                if ($path === $permitidaBase || str_starts_with($path, $permitidaBase.'/')) {
+            foreach ($permitidas as $base) {
+                if ($path === $base || str_starts_with($path, $base.'/')) {
                     $permitida = true;
                     break;
                 }
             }
-            // El logout siempre permitido para que pueda cerrar sesión
             $esLogout = $request->is('logout-admin') || $request->routeIs('admin.logout');
 
             if (! $permitida && ! $esLogout) {
-                return redirect('/admin/productos')
-                    ->with('error', 'Solo tienes acceso a Productos y Anticipos.');
+                // Redirigir a la primera sección que sí puede ver
+                $destino = in_array('productos', $secciones, true) ? '/admin/productos'
+                    : (in_array('pagos', $secciones, true) ? '/admin/pagos'
+                    : (in_array('proveedores', $secciones, true) ? '/admin/proveedores'
+                    : (in_array('reembolsos', $secciones, true) ? '/admin/reembolsos' : '/admin/perfil')));
+
+                return redirect($destino)->with('error', 'No tienes acceso a esa sección.');
             }
         }
 
