@@ -15,6 +15,20 @@
 - **A futuro:** si se trabaja el módulo de proveedores a fondo, considerar la moneda (`CIDMONEDA`) y el caso del RFC genérico. Query útil guardado: proveedores en USD = `WHERE CIDMONEDA = 2`.
 - **Dónde:** análisis hecho en SSMS sobre `adSalcom18.dbo.admClientes` y `admMonedas`. No se cambió código por esto (solo investigación).
 
+## 2026-09-24 — Acceso de Nayeli: solo Reembolsos + Alta de Empleados
+- **Qué:** Se creó la sección de permiso `reembolsos` y se asignó al usuario `nayeli`. Con eso ve solo: Reembolsos, Reembolsos Viaje, Bitácora Gasolina y Alta de Empleados (todo lo demás del panel queda bloqueado). En el sidebar se separó "Reembolsos a Empleados" (Dirección + Nayeli) de "Operación" (solo Dirección), y a Nayeli se le agregó un enlace "Alta de Empleados" propio (Dirección sigue viendo "Empleados" en la sección Negocio).
+- **Por qué:** dirección pidió que Nayeli gestione reembolsos y altas de empleados, nada más.
+- **OJO:** Nayeli AÚN NO tiene usuario en la BD. El permiso ya está listo; en cuanto se cree el registro en `admin_users` con `usuario = 'nayeli'` (en minúsculas), el acceso queda activo sin tocar código.
+- **Dónde:** `app/Models/AdminUser.php` (`ACCESOS_RESTRINGIDOS['nayeli'] = ['reembolsos']`), `app/Http/Middleware/AutenticacionAdmin.php` (mapa `$rutasPorSeccion['reembolsos']` + destino de redirección), `resources/views/layouts/admin.blade.php` (bloque Reembolsos con `@if($puedeReembolsos)` y enlace de alta para Nayeli).
+- **Verificado:** `php -l` limpio y Blade compila sin errores.
+
+## 2026-09-24 — Panel "Administrador" renombrado a "Dirección" + control de accesos por usuario
+- **Qué:** (1) El panel admin ahora se llama "Dirección" (navbar y `<title>`). (2) Se agregó control de accesos por usuario: acceso TOTAL para `fredcominu`, `alex.salazar`, `jesus.espinoza`, `sandra.gutierrez`, `rebeca` (más roles gerente/admin). (3) Acceso RESTRINGIDO: `brenda.pliego` solo ve Productos + Anticipos; `karen.bravo` solo ve Pagos + Proveedores. (4) El sidebar oculta secciones según el usuario; la sección "Negocio" (Clientes/Empleados/Negocio/Fiscal) es solo-Dirección (Karen ve Proveedores pero NO Negocio). (5) "Mi Perfil" (Cuenta) queda visible para todos.
+- **Por qué:** dirección pidió que cada persona externa a Dirección solo gestione su área y no vea el resto del panel.
+- **Dónde:** `app/Models/AdminUser.php` (constantes `USUARIOS_DIRECCION`/`ACCESOS_RESTRINGIDOS` y métodos `esDireccion`, `esRestringido`, `seccionesPermitidas`, `puedeVer`); `app/Http/Middleware/AutenticacionAdmin.php` (comparte `$adminEsDireccion`/`$adminEsRestringido`/`$adminUser` a las vistas y bloquea rutas por sección con el mapa `$rutasPorSeccion`); `resources/views/layouts/admin.blade.php` (secciones envueltas con `@if`).
+- **Verificado:** Blade compila sin errores (`view:clear` + `Blade::compileString`) y `php -l` limpio en modelo y middlewares.
+- **OJO:** los nombres deben coincidir EXACTO con el campo `usuario` de `admin_users` (se comparan en minúsculas). Si Rebeca está como `rebeca.algo`, hay que ajustar la constante.
+
 ## PENDIENTES ABIERTOS (actualizado 24-sep-2026) — hoja de ruta
 1. **Estudiar el código C# de Alan** (API Wiese): entidades, servicios, controllers, nomenclatura. (En curso — hay apuntes.)
 2. ✅ **APIs de proveedor + sus OC/facturas — RESUELTO (24-sep).** Alan aprobó y mergeó el PR #101: `ListarProveedorWeb` ya devuelve el `codigo` (CCODIGOCLIENTE). El botón "Ver facturas" del directorio de Wiese usa ese código y trae las facturas/OC reales (probado: ORPACK M213015002 → 6,363 OC). Confirmado que el RFC era ambiguo (ORPACK tiene 2 registros: M213015002 con 6,363 vs 103015031 con 0), por eso el código directo era obligatorio. Funciona en LOCAL con VPN.
@@ -64,6 +78,11 @@
 - **Qué:** en el formulario de Reembolsos (admin), al escribir el número de empleado se llenan solos "Solicitante", "Número de cuenta" y "Titular de la tarjeta" desde la tabla `empleados`.
 - **Por qué:** los datos bancarios ya están dados de alta una vez; re-escribirlos causa errores de captura. Se jala vía fetch a un endpoint JSON con debounce de 400ms.
 - **Dónde:** `PortalEmpleadoController::buscarPorNumero`, ruta `admin.empleados.buscar`, JS al final de `resources/views/admin/reembolsos.blade.php`.
+
+## 2026-09-22 — Panel "Administrador" renombrado a "Dirección" + control de accesos
+- **Qué:** el panel admin ahora se llama "Dirección". Acceso total: fredcominu, alex.salazar, jesus.espinoza, sandra.gutierrez, rebeca (más roles gerente/admin). Brenda tiene acceso RESTRINGIDO: solo Productos y Anticipos; todo lo demás bloqueado (menú oculto + bloqueo por ruta).
+- **Por qué:** dirección definió quién ve qué. Brenda solo gestiona productos y anticipos.
+- **Dónde:** `AdminUser::esDireccion()/esRestringido()` con listas `USUARIOS_DIRECCION`/`USUARIOS_RESTRINGIDOS`; bloqueo centralizado en `AutenticacionAdmin` (revisa la ruta si el user es restringido); vistas comparten `$adminEsDireccion`/`$adminEsRestringido`; menú en `layouts/admin.blade.php` con `@if($adminEsDireccion)`. Título cambiado a "Dirección".
 
 ## 2026-09-22 — Empleado ahora crea sus Reembolsos de Viaje desde su portal
 - **Qué:** se agregó botón "+ Nuevo viaje" en el portal del empleado y una pantalla propia con formulario dinámico (país, moneda, tipo de cambio, gastos múltiples con conversión a MXN en vivo). El empleado ya puede crear los 3 módulos: reembolso, gasolina y viaje.
