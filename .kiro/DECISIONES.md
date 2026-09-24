@@ -31,6 +31,11 @@
 - **Por qué:** los datos bancarios ya están dados de alta una vez; re-escribirlos causa errores de captura. Se jala vía fetch a un endpoint JSON con debounce de 400ms.
 - **Dónde:** `PortalEmpleadoController::buscarPorNumero`, ruta `admin.empleados.buscar`, JS al final de `resources/views/admin/reembolsos.blade.php`.
 
+## 2026-09-22 — Panel "Administrador" renombrado a "Dirección" + control de accesos
+- **Qué:** el panel admin ahora se llama "Dirección". Acceso total: fredcominu, alex.salazar, jesus.espinoza, sandra.gutierrez, rebeca (más roles gerente/admin). Brenda tiene acceso RESTRINGIDO: solo Productos y Anticipos; todo lo demás bloqueado (menú oculto + bloqueo por ruta).
+- **Por qué:** dirección definió quién ve qué. Brenda solo gestiona productos y anticipos.
+- **Dónde:** `AdminUser::esDireccion()/esRestringido()` con listas `USUARIOS_DIRECCION`/`USUARIOS_RESTRINGIDOS`; bloqueo centralizado en `AutenticacionAdmin` (revisa la ruta si el user es restringido); vistas comparten `$adminEsDireccion`/`$adminEsRestringido`; menú en `layouts/admin.blade.php` con `@if($adminEsDireccion)`. Título cambiado a "Dirección".
+
 ## 2026-09-22 — Empleado ahora crea sus Reembolsos de Viaje desde su portal
 - **Qué:** se agregó botón "+ Nuevo viaje" en el portal del empleado y una pantalla propia con formulario dinámico (país, moneda, tipo de cambio, gastos múltiples con conversión a MXN en vivo). El empleado ya puede crear los 3 módulos: reembolso, gasolina y viaje.
 - **Por qué:** los promotores/vendedores gestionan sus propios viáticos; no depender de que el admin capture. El código de empleado y departamento se toman de la sesión, no se re-piden.

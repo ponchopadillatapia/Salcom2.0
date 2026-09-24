@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'Admin') — Industrias Salcom</title>
+    <title>@yield('title', 'Dirección') — Industrias Salcom</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="/css/ios-theme.css" rel="stylesheet">
     <style>
@@ -374,7 +374,7 @@
             <svg class="icon-close" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
         @include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])
-        <span class="nav-title">Portal Administrativo</span>
+        <span class="nav-title">Dirección</span>
     </div>
     <div class="nav-right">
         @php
@@ -443,14 +443,16 @@
             </button>
         </div>
         <nav class="sb-nav">
-            {{-- Orden alineado al portal de proveedores --}}
+            {{-- Inicio: solo Dirección (Brenda no ve el dashboard) --}}
+            @if($adminEsDireccion ?? true)
             <div class="sb-section">Inicio</div>
             <a href="{{ route('admin.dashboard') }}" class="sb-link {{ request()->is('admin/dashboard*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                 <span class="sb-text">Inicio</span>
             </a>
-
             <div class="sb-hr"></div>
+            @endif
+
             <div class="sb-section">Productos</div>
             <div class="sb-submenu">
                 <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/alta-producto*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
@@ -491,12 +493,16 @@
                             ->groupBy('poliza_key')
                             ->pluck('total', 'poliza_key');
                     @endphp
+                    @if($adminEsDireccion ?? true)
                     <a href="{{ route('admin.expedientes-pago') }}" class="sb-link sb-sublink {{ request()->is('admin/expedientes-pago*') ? 'active' : '' }}">
                         <span class="sb-text">Expedientes de pago</span>
                     </a>
+                    @endif
+                    {{-- Anticipo: visible para Dirección y para Brenda (acceso restringido) --}}
                     <a href="{{ route('admin.anticipos') }}" class="sb-link sb-sublink {{ request()->is('admin/anticipos*') ? 'active' : '' }}">
                         <span class="sb-text">Anticipo</span>
                     </a>
+                    @if($adminEsDireccion ?? true)
                     <a href="{{ route('admin.pagos') }}" class="sb-link sb-sublink {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
                         <span class="sb-text">Formato para pago</span>
                     </a>
@@ -524,9 +530,11 @@
                             </a>
                         </div>
                     </div>
+                    @endif
                 </div>
             </div>
 
+            @if($adminEsDireccion ?? true)
             <div class="sb-hr"></div>
             <div class="sb-section">Reembolsos a Empleados</div>
             <a href="{{ route('admin.reembolsos') }}" class="sb-link {{ request()->is('admin/reembolsos') ? 'active' : '' }}">
@@ -629,6 +637,7 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
                 <span class="sb-text">Fiscal</span>
             </a>
+            @endif
 
             <div class="sb-hr"></div>
             <div class="sb-section">Cuenta</div>
@@ -641,7 +650,7 @@
 
     <div class="main-content">
         @yield('hero')
-        @unless(request()->is('admin/dashboard') || request()->is('admin/pagos/*/expediente'))
+        @unless(request()->is('admin/dashboard') || request()->is('admin/pagos/*/expediente') || ($adminEsRestringido ?? false))
         <nav class="admin-back-nav" aria-label="Navegación secundaria">
             <a href="{{ route('admin.dashboard') }}" class="admin-back-link">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
