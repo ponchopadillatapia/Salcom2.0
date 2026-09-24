@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-09-22 — DECISIÓN de Alan: las APIs de Wiese se trabajan SOLO en local (~2 meses)
+- **Qué:** Alan NO va a exponer la API de Wiese a internet por ahora. Razones: (1) no tiene seguridad (va por HTTP, sin HTTPS), (2) está saturado de trabajo los próximos ~2 meses. Acuerdo: mientras tanto se desarrolla/usa en LOCAL (con VPN de la oficina).
+- **Qué implica:** el CÓDIGO que consume Wiese ya está en producción (listar proveedores + OC/facturas de ORPACK), PERO en producción NO funcionará (SiteGround no alcanza la IP interna 172.16.1.250). Las pantallas de Wiese mostrarán el aviso rojo "no se pudieron cargar (revisa VPN)" — esto es esperado, no rompe el resto de la página.
+- **Cuando Alan tenga tiempo (en ~2 meses):** exponer la API con HTTPS en una URL pública y luego, en el `.env` de PRODUCCIÓN, cambiar `PROVEEDOR_API_DOCS_URL` a esa URL. Es el único cambio necesario para que producción jale. No hay que reprogramar nada.
+- **Dónde:** config en `.env` (`PROVEEDOR_API_DOCS_URL` = interna 172.16.1.250; `PROVEEDOR_API_URL` = pública AWS 54.210.85.103 que hoy NO responde). Los métodos de Wiese usan `docsUrl` en `app/Services/ProveedorApiService.php`.
+
+## 2026-09-22 — Directorio de Proveedores ahora muestra los REALES de Wiese (API de Alan)
+- **Qué:** (1) Se agregó `ProveedorApiService::listarProveedoresWiese()` que consume el endpoint `/ClienteProveedor/ListarProveedorWeb` de la API C#/.NET de Alan (login de servicio `web`, GET, solo lectura). Trae ~5,684 proveedores reales (nombre=crazonsocial, rfc=crfc) de la base contable adSalcom18. (2) La pestaña "Proveedores" del admin ahora lista esos proveedores de Wiese (paginado 50/pág, buscador por nombre/RFC en memoria), en vez de los `proveedores_users` locales (que aquí son de prueba). (3) KPIs Bajo/Alto rendimiento quedaron SIN acción (tarjetas quietas) porque filtraban por score local que Wiese no manda; "Todas" muestra el total de Wiese.
+- **Por qué:** los proveedores reales viven en Wiese (Salcom = Wiese, son lo mismo). El directorio debía mostrar esos, no los fakes locales.
+- **Dónde:** `app/Services/ProveedorApiService.php` (método nuevo), `AdminPanelController::proveedores()` (inyecta lista Wiese paginada), `resources/views/admin/proveedores.blade.php` (tabla Nombre+RFC y KPIs sin acción).
+- **PENDIENTE:** la API solo devuelve nombre y RFC (SELECT limitado en `ConProveedorWeb.cs`); si se quieren más columnas, Alan amplía el SELECT. Falta subir a PRODUCCIÓN. Nota: producción necesita alcanzar la red interna de Wiese (VPN/whitelist).
+
+## 2026-09-22 — Eliminado por completo el "Catálogo de Proveedores" (era redundante)
+- **Qué:** (1) La usuaria quitó a mano el enlace del sidebar y renombró "Proveedores / Score" → "Proveedores". (2) Después se borró TODO el catálogo: la ruta `admin/catalogo-proveedores`, el método `catalogoProveedores()` y su helper `monedaDollarConst()` en `AdminPanelController`, y la vista `admin/catalogo-proveedores.blade.php`. Ahora esa URL da 404.
+- **Por qué:** era redundante con el nuevo directorio de Proveedores (Wiese). Cerrar el ciclo (no dejar código muerto ni ruta huérfana).
+- **Dónde:** `resources/views/layouts/admin.blade.php`, `routes/web.php`, `app/Http/Controllers/AdminPanelController.php`, vista borrada.
+- **Verificado:** `php -l` sin errores y `route:list` carga bien (no quedaron referencias rotas).
+
 ## 2026-09-22 — MySQL/MariaDB corrupto: reinicializado y salcom20 recreada desde migraciones
 - **Qué:** XAMPP daba "MySQL shutdown unexpectedly". Diagnóstico: corrupción de InnoDB ("LSN in the future") y, lo grave, la instalación de MariaDB 10.4.32 quedó dañada a NIVEL MOTOR: cualquier consulta a `information_schema.columns` (de CUALQUIER base) crasheaba el server sin dejar error en el log. Por eso ni mysqldump ni migraciones funcionaban (moría en la migración add_rol_to_admin_users al leer metadatos).
 - **Cómo se arregló:** (1) Backup completo de la carpeta data. (2) Se apartaron (NO borraron) los archivos corruptos a `C:\xampp\mysql\CORRUPTO_20260922_103917`. (3) Se reinicializaron las tablas de sistema con `mysql_install_db.exe` en carpeta temporal y se trajeron limpias a data. (4) Se recreó `salcom20` con `php artisan migrate --force` (72 migraciones OK) + `php artisan db:seed --force`. (5) Se subió `innodb_buffer_pool_size` de 16M a 256M en my.ini.

@@ -343,6 +343,79 @@ class ProveedorApiService
     }
 
     /**
+     * Lista TODOS los proveedores desde la API de Wiese (endpoint que armó Alan).
+     *
+     * POR QUÉ EXISTE: hasta ahora solo podíamos traer proveedores de Wiese de UNO en UNO
+     * (por código o RFC). Alan creó en su API de C#/.NET el endpoint
+     * `/ClienteProveedor/ListarProveedorWeb`, que hace un SELECT a la base contable
+     * (adSalcom18.dbo.admClientes) y devuelve la lista completa. Esto nos permite mostrar
+     * en el portal admin los proveedores REALES de Wiese, no solo los que se registraron.
+     *
+     * Reutiliza loginServicio() (mismo usuario 'web' de servicio) para el token Bearer.
+     * Solo LEE (GET): no modifica nada del sistema de Alan.
+     *
+     * @return array{success: bool, data?: array{items: list<mixed>, total: int}, message: string, error_type: ?string}
+     */
+    public function listarProveedoresWiese(?string $token = null): array
+    {
+        // Si no nos pasan token, hacemos login de servicio para obtenerlo.
+        if ($token === null || $token === '') {
+            $login = $this->loginServicio();
+            if (! ($login['success'] ?? false)) {
+                return $login;
+            }
+            $token = (string) ($login['data']['tokenCreado'] ?? '');
+        }
+
+        $configError = $this->validarDocsConfiguracion();
+        if ($configError) {
+            return $configError;
+        }
+
+        // Ruta confirmada con Alan: movió el endpoint a ClienteProveedor para que
+        // apareciera en Swagger (antes no salía con su propia etiqueta).
+        $endpoint = '/ClienteProveedor/ListarProveedorWeb';
+
+        try {
+            $response = Http::connectTimeout($this->connectTimeout)
+                ->timeout(max($this->timeout, 60)) // puede traer muchos registros
+                ->withToken($token)
+                ->acceptJson()
+                ->get($this->docsUrl.$endpoint);
+
+            if (! $response->successful()) {
+                return $this->procesarRespuesta($response, $endpoint);
+            }
+
+            $body = $response->json();
+            // La API devuelve una lista JSON. Si viene un solo objeto, lo envolvemos.
+            $items = [];
+            if (is_array($body) && $body !== []) {
+                $items = array_is_list($body) ? $body : [$body];
+            }
+
+            return $this->buildSuccessResponse([
+                'items' => $items,
+                'total' => count($items),
+            ]);
+        } catch (ConnectionException $e) {
+            Log::error('ProveedorAPI: conexión fallida (listar proveedores Wiese)', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse('No se pudo conectar con Wiese (¿VPN activa?).', ProveedorApiException::API_CAIDA);
+        } catch (\Exception $e) {
+            Log::error('ProveedorAPI: error listar proveedores Wiese', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse('Ocurrió un error al listar proveedores de Wiese.', ProveedorApiException::ERROR_DESCONOCIDO);
+        }
+    }
+
+    /**
      * Buscar proveedor por RFC en Wiese y devolver sus cuentas (1 o 2: MXN y USD).
      *
      * POR QUÉ EXISTE: lo usa el onboarding (paso "Confirmación de cuenta") para preguntarle

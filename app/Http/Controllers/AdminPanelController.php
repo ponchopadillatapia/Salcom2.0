@@ -24,6 +24,7 @@ use App\Services\ProveedorApiService;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -414,9 +415,40 @@ class AdminPanelController extends Controller
 
     // ── Proveedores con Score ──
 
-    public function proveedores(Request $request)
+    public function proveedores(Request $request, ProveedorApiService $wieseApi)
     {
         $tabActiva = $request->input('tab', 'proveedores');
+
+        // ── Directorio de proveedores = los REALES de Wiese (API de Alan) ──
+        // POR QUÉ: los proveedores locales (proveedores_users) en este entorno son de prueba.
+        // Los reales viven en Wiese; se traen en vivo por /ClienteProveedor/ListarProveedorWeb.
+        // Se pagina EN MEMORIA de 50 en 50 (la API entrega toda la lista de golpe).
+        $busquedaWiese = trim((string) $request->input('busqueda', ''));
+        $wieseError = null;
+        $itemsWiese = collect();
+        $resWiese = $wieseApi->listarProveedoresWiese();
+        if ($resWiese['success'] ?? false) {
+            $itemsWiese = collect($resWiese['data']['items'] ?? []);
+            if ($busquedaWiese !== '') {
+                $needle = mb_strtolower($busquedaWiese);
+                $itemsWiese = $itemsWiese->filter(function ($p) use ($needle) {
+                    $nombre = mb_strtolower((string) ($p['nombre'] ?? $p['Nombre'] ?? ''));
+                    $rfc = mb_strtolower((string) ($p['rfc'] ?? $p['Rfc'] ?? ''));
+                    return str_contains($nombre, $needle) || str_contains($rfc, $needle);
+                })->values();
+            }
+        } else {
+            $wieseError = $resWiese['message'] ?? 'No se pudo obtener la lista de proveedores de Wiese.';
+        }
+        $totalWiese = $itemsWiese->count();
+        $paginaWiese = LengthAwarePaginator::resolveCurrentPage();
+        $proveedoresWiese = new LengthAwarePaginator(
+            $itemsWiese->forPage($paginaWiese, 50)->values(),
+            $totalWiese,
+            50,
+            $paginaWiese,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         $filtrosProv = [
             'busqueda' => $request->input('busqueda', ''),
@@ -630,6 +662,10 @@ class AdminPanelController extends Controller
 
         return view('admin.proveedores', compact(
             'proveedores',
+            'proveedoresWiese',
+            'busquedaWiese',
+            'wieseError',
+            'totalWiese',
             'filtrosProv',
             'filtrosOc',
             'filtrosFact',
@@ -1789,69 +1825,6 @@ class AdminPanelController extends Controller
             : ($totales['facturas_actual'] > 0 ? 100 : 0);
 
         return view('admin.reporte-proveedores', compact('reporte', 'totales', 'anioActual', 'anioAnterior'));
-    }
-
-    // ── Catálogo de Proveedores ──
-
-    public function catalogoProveedores(Request $request)
-    {
-        $busqueda = trim((string) $request->input('busqueda', ''));
-
-        $query = ProveedorUser::query();
-        if ($busqueda !== '') {
-            $query->where(function ($q) use ($busqueda) {
-                $q->where('nombre', 'like', "%{$busqueda}%")
-                    ->orWhere('rfc', 'like', "%{$busqueda}%")
-                    ->orWhere('id_proveedor', 'like', "%{$busqueda}%")
-                    ->orWhere('codigo', 'like', "%{$busqueda}%")
-                    ->orWhere('codigo_compras', 'like', "%{$busqueda}%");
-            });
-        }
-
-        // Más recientes primero; los que no tienen fecha caen al final ("Sin fecha").
-        $proveedores = $query->orderByDesc('created_at')->orderBy('nombre')->get();
-
-        // Armar filas y agrupar por fecha de alta (created_at).
-        $agrupados = [];
-        foreach ($proveedores as $prov) {
-            $di = is_array($prov->datos_identificacion) ? $prov->datos_identificacion : [];
-
-            // Calle (incluye número exterior si existe).
-            $calle = trim((string) ($di['calle'] ?? ''));
-            $numExt = trim((string) ($di['num_exterior'] ?? ''));
-            if ($numExt !== '') {
-                $calle = trim($calle.' '.$numExt);
-            }
-
-            $moneda = $prov->moneda === self::monedaDollarConst() ? 'DÓLAR' : 'MXN';
-
-            $fila = [
-                'id' => $prov->id,
-                'codigo' => $prov->id_proveedor ?? $prov->codigo ?? $prov->codigo_compras ?? '—',
-                'nombre' => $prov->nombre ?? $prov->usuario ?? '—',
-                'rfc' => $prov->rfc ?? ($di['rfc'] ?? '—'),
-                'segmento_contable' => $di['segmento_contable_1'] ?? $di['segmento_contable'] ?? '—',
-                'fecha_alta' => $prov->created_at,
-                'calle' => $calle !== '' ? $calle : '—',
-                'ciudad' => trim((string) ($di['ciudad'] ?? $di['municipio'] ?? '')) ?: '—',
-                'cp' => trim((string) ($di['cp'] ?? '')) ?: '—',
-                'colonia' => trim((string) ($di['colonia'] ?? '')) ?: '—',
-                'moneda' => $moneda,
-            ];
-
-            $claveFecha = $prov->created_at ? $prov->created_at->format('Y-m-d') : 'sin-fecha';
-            $agrupados[$claveFecha][] = $fila;
-        }
-
-        $total = $proveedores->count();
-
-        return view('admin.catalogo-proveedores', compact('agrupados', 'busqueda', 'total'));
-    }
-
-    /** Helper para el valor de moneda dólar (evita acoplar la constante en la vista). */
-    private static function monedaDollarConst(): string
-    {
-        return ProveedorUser::MONEDA_DOLLAR;
     }
 
     public function reporteProveedoresExcel()
