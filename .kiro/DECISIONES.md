@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-09-24 — Dashboard: todas las tarjetas KPI en un solo grid parejo
+- **Qué:** Se unificaron las 9 tarjetas KPI en UN solo grid de 4 columnas. Antes "Docs. fiscales" vivía en un segundo grid aparte, así que quedaba sola y el dashboard se veía disparejo. El bloque `@php` que calcula los proveedores con docs faltantes se movió ARRIBA del grid para poder meter esa tarjeta en la misma cuadrícula.
+- **Por qué:** dirección pidió que todos los recuadros queden del mismo tamaño y formato. Ahora todas usan la misma clase con altura fija (188px) y quedan alineadas 4+4+1.
+- **Dónde:** `resources/views/admin/dashboard.blade.php` (sección `.pp-kpi-section`).
+- **Verificado:** Blade compila sin errores.
+
 ## 2026-09-24 — Comando para borrar SOLO datos de prueba (dejar dashboard en cero)
 - **Qué:** Se creó el comando `php artisan salcom:limpiar-prueba`. Borra únicamente los registros sembrados por los seeders de prueba/demo, identificándolos por sus "huellas" fijas: proveedores (`PROV001-003`, `said`, `demo`, `Rebeca`, `sinonboarding`, `proveedor.test`, `said.padilla`, `diegococca@gmail.com`, `FAKEPAGO1-10`), clientes (`CLI001/CLI002`), facturas (`CFDI-A-*`, `CFDI-P-*`, `FAKE-PAGO-*`, `SAID-FAC-*`), productos (`SAL-*`), pedidos (`PED-2025/2026-*`), muestras (`LOTE-2026-*`), y sus encuestas/alertas/OC/docs/contactos/notificaciones ligadas.
 - **Por qué:** dirección pidió dejar los recuadros del dashboard en cero, borrando SOLO datos de prueba sin tocar datos reales ni la estructura.

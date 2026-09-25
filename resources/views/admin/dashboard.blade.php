@@ -74,7 +74,25 @@
 @section('content')
 <div class="pp-wrap">
 
-    {{-- KPIs: 2 filas × 4 columnas, misma altura --}}
+    {{-- Faltantes de documentación fiscal (se usa en la tarjeta "Docs. fiscales").
+         POR QUÉ: se calcula ANTES del grid para poder meter esa tarjeta en el MISMO
+         grid que las demás y que todas queden en una sola cuadrícula pareja. --}}
+    @php
+        $tiposRequeridosDash = ['cif' => 'CIF', 'opinion' => 'Opinión SAT', 'caratula_banco' => 'Carátula'];
+        $proveedoresConFaltantes = ($proveedoresActivosList ?? collect())->filter(function ($prov) use ($tiposRequeridosDash) {
+            try {
+                $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
+            } catch (\Exception $e) {
+                return true;
+            }
+
+            return count(array_intersect(array_keys($tiposRequeridosDash), $docsAprobados)) < count($tiposRequeridosDash);
+        });
+        $nFaltantes = $proveedoresConFaltantes->count();
+        $nombresFaltantes = $proveedoresConFaltantes->take(3)->map(fn ($p) => $p->nombre ?? $p->usuario)->values();
+    @endphp
+
+    {{-- KPIs: todos en UN solo grid de 4 columnas, misma altura (188px) --}}
     <div class="pp-kpi-section">
         <a href="{{ route('admin.negocio') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
@@ -199,24 +217,7 @@
             </div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
-    </div>
 
-    {{-- Documentación fiscal: mismo tamaño que los KPI de arriba --}}
-    @php
-        $tiposRequeridosDash = ['cif' => 'CIF', 'opinion' => 'Opinión SAT', 'caratula_banco' => 'Carátula'];
-        $proveedoresConFaltantes = ($proveedoresActivosList ?? collect())->filter(function ($prov) use ($tiposRequeridosDash) {
-            try {
-                $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
-            } catch (\Exception $e) {
-                return true;
-            }
-
-            return count(array_intersect(array_keys($tiposRequeridosDash), $docsAprobados)) < count($tiposRequeridosDash);
-        });
-        $nFaltantes = $proveedoresConFaltantes->count();
-        $nombresFaltantes = $proveedoresConFaltantes->take(3)->map(fn ($p) => $p->nombre ?? $p->usuario)->values();
-    @endphp
-    <div class="pp-kpi-section" style="margin-bottom:14px;">
         <a href="{{ route('admin.expediente-fiscal') }}" style="text-decoration:none;color:inherit;">
             <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
                 <h4>Docs. fiscales</h4>
