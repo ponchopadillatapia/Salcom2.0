@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-09-24 — Vistas de Reembolsos/Bitácora/Empleados ahora usan todo el ancho
+- **Qué:** Se quitó el `max-width` fijo (880-960px) de los contenedores de las pantallas Reembolsos, Bitácora de Gasolina, Alta de Empleados y Reembolsos de Viaje (crear/editar/ver). Ahora usan `max-width: 100%` y ocupan todo el ancho del panel, sin dejar hueco a la derecha.
+- **Por qué:** dirección pidió que se ajustaran al tamaño de la página.
+- **Dónde:** `.reembolsos-wrap` (reembolsos), `.bg-wrap` (bitacora-gasolina), `.emp-wrap` (empleados/index), `.rv-wrap` (reembolsos-viaje/crear|editar|ver).
+- **Verificado:** las 6 vistas compilan sin errores de Blade.
+
 ## 2026-09-24 — Bloqueo de módulos EN CONSTRUCCIÓN (OTIF y Clientes)
 - **Qué:** Se bloqueó el acceso a OTIF (`admin/otif`) y Clientes (`admin/clientes`) porque aún no sirven / tienen datos fake. Si alguien entra por URL directa, el middleware lo redirige al dashboard con el aviso "Ese módulo está en construcción". Aplica a TODOS, incluida Dirección. Los enlaces del sidebar ya estaban ocultos.
 - **Por qué:** dirección pidió que nadie pueda meterse a las partes del proyecto que todavía están en construcción.

@@ -4,7 +4,8 @@
 
 @push('styles')
 <style>
-    .reembolsos-wrap { max-width: 920px; }
+    /* POR QUÉ: antes topaba a 920px y dejaba hueco a la derecha; ahora usa todo el ancho del panel. */
+    .reembolsos-wrap { max-width: 100%; }
     .rb-card { background: var(--white); border: 1px solid var(--border-light); border-radius: 14px; padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow-sm); }
     .rb-card h3 { font-size: 15px; font-weight: 700; color: var(--gray-text); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
     .rb-card .card-desc { font-size: 13px; color: var(--gray-muted); margin-bottom: 20px; line-height: 1.5; }

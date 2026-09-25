@@ -3,7 +3,8 @@
 
 @push('styles')
 <style>
-    .rv-wrap { max-width: 880px; }
+    /* POR QUÉ: antes topaba a 880px y dejaba hueco a la derecha; ahora usa todo el ancho del panel. */
+    .rv-wrap { max-width: 100%; }
     .rv-card { background: var(--white); border: 1px solid var(--border-light); border-radius: 14px; padding: 24px; margin-bottom: 20px; }
     .rv-card h3 { font-size: 15px; font-weight: 700; color: var(--gray-text); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
     .rv-row { display: grid; gap: 16px; margin-bottom: 16px; }

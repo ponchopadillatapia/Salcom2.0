@@ -3,7 +3,8 @@
 
 @push('styles')
 <style>
-    .emp-wrap { max-width: 960px; }
+    /* POR QUÉ: antes topaba a 960px y dejaba hueco a la derecha; ahora usa todo el ancho del panel. */
+    .emp-wrap { max-width: 100%; }
     .emp-card { background: var(--white); border: 1px solid var(--border-light); border-radius: 14px; padding: 24px; margin-bottom: 20px; }
     .emp-card h3 { font-size: 15px; font-weight: 700; color: var(--gray-text); margin-bottom: 16px; }
     .emp-row { display: grid; grid-template-columns: 1fr 1.5fr 1fr 1.5fr auto; gap: 12px; align-items: end; }

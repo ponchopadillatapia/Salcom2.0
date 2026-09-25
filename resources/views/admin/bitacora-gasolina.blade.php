@@ -3,7 +3,8 @@
 
 @push('styles')
 <style>
-    .bg-wrap { max-width: 900px; }
+    /* POR QUÉ: antes topaba a 900px y dejaba hueco a la derecha; ahora usa todo el ancho del panel. */
+    .bg-wrap { max-width: 100%; }
     .bg-card { background: var(--white); border: 1px solid var(--border-light); border-radius: 14px; padding: 24px; margin-bottom: 20px; box-shadow: var(--shadow-sm); }
     .bg-card h3 { font-size: 15px; font-weight: 700; color: var(--gray-text); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
     .bg-form-row { display: grid; gap: 16px; margin-bottom: 16px; }
