@@ -577,10 +577,13 @@
             <div class="sb-hr"></div>
             <div class="sb-section">Operación</div>
             {{-- OC (Pedidos) oculto del menú a petición del usuario: mostraba datos de prueba/fake. --}}
+            {{-- OTIF oculto: módulo EN CONSTRUCCIÓN (bloqueado también en el middleware). --}}
+            @if(false)
             <a href="{{ route('admin.otif') }}" class="sb-link {{ request()->is('admin/otif*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                 <span class="sb-text">OTIF</span>
             </a>
+            @endif
             @if(Route::has('admin.wiese-banco'))
             <div class="sb-submenu">
                 <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/wiese-banco*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">

@@ -23,6 +23,23 @@ class AutenticacionAdmin
         View::share('adminEsRestringido', $adminUser ? $adminUser->esRestringido() : false);
         View::share('adminUser', $adminUser);
 
+        // Bloqueo de módulos EN CONSTRUCCIÓN (aplica a TODOS, incluida Dirección).
+        // POR QUÉ: hay pantallas que aún no sirven / tienen datos fake; dirección pidió
+        // que nadie pueda entrar hasta que estén listas. Para bloquear un módulo nuevo,
+        // basta con agregar su prefijo de ruta a esta lista.
+        $rutasEnConstruccion = [
+            'admin/otif',      // OTIF: pendiente de datos reales
+            'admin/clientes',  // Clientes: en construcción
+        ];
+        $pathActual = $request->path();
+        foreach ($rutasEnConstruccion as $prefijo) {
+            if ($pathActual === $prefijo || str_starts_with($pathActual, $prefijo.'/')) {
+                // Se comparte una bandera por si la vista de destino quiere avisar algo.
+                return redirect()->route('admin.dashboard')
+                    ->with('error', 'Ese módulo está en construcción y aún no está disponible.');
+            }
+        }
+
         // Control de acceso centralizado para usuarios restringidos.
         // Cada usuario tiene sus secciones permitidas; el resto se bloquea aquí
         // para no tener que marcar cada ruta una por una.

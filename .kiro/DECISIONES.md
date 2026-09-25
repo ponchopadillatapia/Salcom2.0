@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-09-24 — Bloqueo de módulos EN CONSTRUCCIÓN (OTIF y Clientes)
+- **Qué:** Se bloqueó el acceso a OTIF (`admin/otif`) y Clientes (`admin/clientes`) porque aún no sirven / tienen datos fake. Si alguien entra por URL directa, el middleware lo redirige al dashboard con el aviso "Ese módulo está en construcción". Aplica a TODOS, incluida Dirección. Los enlaces del sidebar ya estaban ocultos.
+- **Por qué:** dirección pidió que nadie pueda meterse a las partes del proyecto que todavía están en construcción.
+- **Cómo agregar más:** añadir el prefijo de ruta al arreglo `$rutasEnConstruccion` en el middleware. Para reactivar un módulo, quitarlo de esa lista (y volver a mostrar su enlace cambiando el `@if(false)` del sidebar).
+- **Dónde:** `app/Http/Middleware/AutenticacionAdmin.php` (arreglo `$rutasEnConstruccion`), `resources/views/layouts/admin.blade.php` (enlace OTIF envuelto en `@if(false)`).
+- **Verificado:** `php -l` limpio y Blade compila sin errores.
+
 ## 2026-09-24 — Dashboard: todas las tarjetas KPI en un solo grid parejo
 - **Qué:** Se unificaron las 9 tarjetas KPI en UN solo grid de 4 columnas. Antes "Docs. fiscales" vivía en un segundo grid aparte, así que quedaba sola y el dashboard se veía disparejo. El bloque `@php` que calcula los proveedores con docs faltantes se movió ARRIBA del grid para poder meter esa tarjeta en la misma cuadrícula.
 - **Por qué:** dirección pidió que todos los recuadros queden del mismo tamaño y formato. Ahora todas usan la misma clase con altura fija (188px) y quedan alineadas 4+4+1.
