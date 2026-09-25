@@ -6,12 +6,71 @@ use App\Models\AbonoProveedor;
 use App\Models\Factura;
 use App\Models\ProveedorUser;
 use App\Services\PagoProveedorService;
+use App\Services\ProveedorApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
 class AdminPagoProveedoresController extends Controller
 {
+    /**
+     * Devuelve los proveedores REALES de Wiese en el MISMO formato que esperan las vistas
+     * del flujo de pago (objetos con ->codigo, ->nombre, ->moneda, y ->datos_identificacion['rfc']).
+     *
+     * POR QUÉ: el flujo (formato/pago/abono) mostraba proveedores LOCALES (de prueba). Los reales
+     * viven en Wiese; este helper los trae vía ProveedorApiService y los adapta a objetos con las
+     * mismas propiedades que usaban las vistas, para no tener que reescribir las plantillas.
+     * Si Wiese no responde (VPN/servidor), cae de vuelta a los proveedores locales (no rompe).
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    private function proveedoresParaFlujoPago()
+    {
+        try {
+            $res = app(ProveedorApiService::class)->listarProveedoresWiese();
+            if ($res['success'] ?? false) {
+                return collect($res['data']['items'] ?? [])
+                    ->map(function ($p) {
+                        $codigo = (string) ($p['codigo'] ?? $p['Codigo'] ?? '');
+                        $monRaw = (string) ($p['moneda'] ?? $p['Moneda'] ?? '');
+                        // Wiese: "1"=MXN, "2"=USD. El modelo local usa 'MXN'/'DOLLAR'.
+                        $moneda = $monRaw === '2' ? 'DOLLAR' : 'MXN';
+                        // Objeto anónimo con las MISMAS propiedades que la vista espera de ProveedorUser.
+                        return (object) [
+                            'id' => null, // Wiese no tiene id local; el flujo se enlaza por código.
+                            'codigo' => $codigo,
+                            'id_proveedor' => $codigo,
+                            'nombre' => (string) ($p['nombre'] ?? $p['Nombre'] ?? ''),
+                            'moneda' => $moneda,
+                            'datos_identificacion' => ['rfc' => (string) ($p['rfc'] ?? $p['Rfc'] ?? '')],
+                        ];
+                    })
+                    // Descartar registros basura: código/nombre vacíos, "0", o el literal "(Ninguno)"
+                    // (Wiese devuelve un registro genérico con código y nombre = "(Ninguno)").
+                    ->filter(function ($p) {
+                        $cod = trim($p->codigo);
+                        $nom = trim($p->nombre);
+                        if ($cod === '' || $cod === '0' || $nom === '') {
+                            return false;
+                        }
+                        // Descartar el registro genérico "(Ninguno)" venga en código o nombre.
+                        return stripos($cod, 'ninguno') === false
+                            && stripos($nom, 'ninguno') === false;
+                    })
+                    ->sortBy('nombre')
+                    ->values();
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[FlujoPago] Wiese no disponible, uso proveedores locales: '.$e->getMessage());
+        }
+
+        // Fallback: si Wiese no responde, usar los locales (para no romper el flujo).
+        return ProveedorUser::query()
+            ->select('id', 'codigo', 'nombre', 'moneda', 'id_proveedor', 'datos_identificacion')
+            ->orderBy('nombre')
+            ->get();
+    }
+
     public function index(Request $request)
     {
         $q = trim((string) $request->query('q', ''));
@@ -178,11 +237,8 @@ class AdminPagoProveedoresController extends Controller
         }
 
         $codigoPref = trim((string) $request->query('codigo', ''));
-        $proveedores = ProveedorUser::query()
-            ->where('activo', true)
-            ->orderBy('nombre')
-            ->orderBy('moneda')
-            ->get(['id', 'nombre', 'codigo', 'id_proveedor', 'moneda', 'datos_identificacion']);
+        // Proveedores REALES de Wiese (antes salían los locales de prueba).
+        $proveedores = $this->proveedoresParaFlujoPago();
 
         $folioSiguiente = $this->siguienteFolio($meta['serie'], $meta['key']);
 
@@ -275,8 +331,9 @@ class AdminPagoProveedoresController extends Controller
         $rechazar = function (string $motivo = 'sin_detalle') use ($request, $MSG_RECHAZO) {
             $key = (string) $request->input('poliza_key', '');
             $meta = config('polizas_pago.'.$key);
-            $codigo = '';
-            if ($provId = (int) $request->input('proveedor_id', 0)) {
+            // El código viene directo en la request (identificador real, funciona con Wiese).
+            $codigo = trim((string) $request->input('codigo_proveedor', ''));
+            if ($codigo === '' && ($provId = (int) $request->input('proveedor_id', 0))) {
                 $prov = ProveedorUser::query()->find($provId);
                 $codigo = $prov ? ($prov->id_proveedor ?: $prov->codigo) : '';
             }
@@ -293,7 +350,10 @@ class AdminPagoProveedoresController extends Controller
         $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'poliza_key' => 'required|string',
             'fecha' => 'required|date',
-            'proveedor_id' => 'required|integer|exists:proveedores_users,id',
+            // Antes se exigía proveedor_id local (bloqueaba proveedores de Wiese).
+            // Ahora el identificador real es codigo_proveedor; proveedor_id queda opcional.
+            'codigo_proveedor' => 'required|string|max:30',
+            'proveedor_id' => 'nullable|integer',
             'agente' => 'nullable|string|max:120',
             'poliza' => 'nullable|string|max:120',
             'tipo_cambio' => 'nullable|numeric|min:0',
@@ -319,8 +379,10 @@ class AdminPagoProveedoresController extends Controller
             return $rechazar();
         }
 
-        $proveedor = ProveedorUser::query()->findOrFail($data['proveedor_id']);
-        $codigo = $proveedor->id_proveedor ?: $proveedor->codigo;
+        // El código es el identificador real (funciona con proveedores de Wiese).
+        $codigo = trim((string) $data['codigo_proveedor']);
+        // El proveedor local es OPCIONAL: puede no existir si viene de Wiese. Se busca por código.
+        $proveedor = ProveedorUser::query()->porCualquierCodigo($codigo)->first();
 
         // Validación de secuencia: solo facturas "programada" pueden pagarse aquí.
         if ($errorSecuencia = $this->validarSecuenciaFacturas($data['factura_ids'], 'programada', 'el pago a proveedor')) {
@@ -430,9 +492,10 @@ class AdminPagoProveedoresController extends Controller
                     'concepto' => $meta['concepto'],
                     'agente' => trim((string) ($data['poliza'] ?? $data['agente'] ?? '')) ?: null,
                     'fecha' => $data['fecha'],
-                    'proveedor_id' => $proveedor->id,
+                    // Proveedor local puede ser null (viene de Wiese). Se guarda el código igual.
+                    'proveedor_id' => $proveedor?->id,
                     'codigo_proveedor' => $codigo,
-                    'nombre_proveedor' => $proveedor->nombre,
+                    'nombre_proveedor' => $proveedor?->nombre ?: trim((string) $request->input('nombre_proveedor', '')) ?: $codigo,
                     'moneda' => $meta['moneda'],
                     'tipo_cambio' => $tc,
                     'cuenta_bancaria' => $data['cuenta_bancaria'] ?? null,
@@ -477,27 +540,30 @@ class AdminPagoProveedoresController extends Controller
             $abono->update(['cuenta_bancaria' => ($abono->cuenta_bancaria ? $abono->cuenta_bancaria . ' | ' : '') . 'formato:' . $formatoPath]);
         }
 
-        // Crear alerta para el proveedor (notificación en tiempo real)
-        try {
-            $montoFmt = number_format((float) $abono->monto_pago, 2);
-            \App\Models\Alerta::create([
-                'tipo' => 'pago_confirmado',
-                'modulo' => 'abonos',
-                'destinatario_tipo' => 'proveedor',
-                'destinatario_id' => $proveedor->id,
-                'titulo' => 'Pago recibido',
-                'contenido' => "Salcom registró un pago por \${$montoFmt} " . $meta['moneda'] . " a tus facturas.",
-                'nivel' => 'info',
-                'estatus' => 'nueva',
-                'datos' => [
-                    'abono_id' => $abono->id,
-                    'monto' => (float) $abono->monto_pago,
-                    'moneda' => $meta['moneda'],
-                    'num_facturas' => $facturas->count(),
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('[Abono] No se pudo crear alerta proveedor: ' . $e->getMessage());
+        // Crear alerta para el proveedor (notificación en tiempo real).
+        // Solo si el proveedor existe LOCALMENTE (los de Wiese no tienen cuenta en el portal aún).
+        if ($proveedor) {
+            try {
+                $montoFmt = number_format((float) $abono->monto_pago, 2);
+                \App\Models\Alerta::create([
+                    'tipo' => 'pago_confirmado',
+                    'modulo' => 'abonos',
+                    'destinatario_tipo' => 'proveedor',
+                    'destinatario_id' => $proveedor->id,
+                    'titulo' => 'Pago recibido',
+                    'contenido' => "Salcom registró un pago por \${$montoFmt} " . $meta['moneda'] . " a tus facturas.",
+                    'nivel' => 'info',
+                    'estatus' => 'nueva',
+                    'datos' => [
+                        'abono_id' => $abono->id,
+                        'monto' => (float) $abono->monto_pago,
+                        'moneda' => $meta['moneda'],
+                        'num_facturas' => $facturas->count(),
+                    ],
+                ]);
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[Abono] No se pudo crear alerta proveedor: ' . $e->getMessage());
+            }
         }
 
         // Crear alerta para admin (campanita + badge)
@@ -597,10 +663,8 @@ class AdminPagoProveedoresController extends Controller
         $cuentaKey = trim((string) $request->input('cuenta', ''));
         $cuentaConfig = config("polizas_pago.{$cuentaKey}");
 
-        $proveedores = ProveedorUser::query()
-            ->select('codigo', 'nombre', 'moneda')
-            ->orderBy('nombre')
-            ->get();
+        // Proveedores REALES de Wiese (antes salían los locales de prueba).
+        $proveedores = $this->proveedoresParaFlujoPago();
 
         return view('admin.abono-proveedor.index', compact('proveedores', 'cuentaKey', 'cuentaConfig'));
     }

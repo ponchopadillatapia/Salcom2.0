@@ -415,6 +415,21 @@ class AdminPanelController extends Controller
 
     // ── Proveedores con Score ──
 
+    /**
+     * Interpreta la moneda de un proveedor de Wiese. Devuelve 1 (MXN), 2 (USD) o null (sin dato).
+     * POR QUÉ: la API manda la moneda en la clave 'moneda' (como texto "1"/"2"). Este helper
+     * centraliza la lectura para el filtro y para mostrar la etiqueta en la tabla.
+     */
+    private function monedaWieseId(array $p): ?int
+    {
+        $raw = $p['moneda'] ?? $p['Moneda'] ?? $p['cidmoneda'] ?? $p['cidMoneda'] ?? null;
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        $n = (int) $raw;
+        return in_array($n, [1, 2], true) ? $n : null;
+    }
+
     public function proveedores(Request $request, ProveedorApiService $wieseApi)
     {
         $tabActiva = $request->input('tab', 'proveedores');
@@ -424,11 +439,24 @@ class AdminPanelController extends Controller
         // Los reales viven en Wiese; se traen en vivo por /ClienteProveedor/ListarProveedorWeb.
         // Se pagina EN MEMORIA de 50 en 50 (la API entrega toda la lista de golpe).
         $busquedaWiese = trim((string) $request->input('busqueda', ''));
+        // Filtro por tipo de proveedor: '' (todos) | 'mxn' | 'usd' | 'extranjero'.
+        $filtroWiese = (string) $request->input('filtro_wiese', '');
         $wieseError = null;
         $itemsWiese = collect();
         $resWiese = $wieseApi->listarProveedoresWiese();
         if ($resWiese['success'] ?? false) {
             $itemsWiese = collect($resWiese['data']['items'] ?? []);
+
+            // Descartar el registro genérico de Wiese (código/nombre = "(Ninguno)" o vacíos).
+            $itemsWiese = $itemsWiese->filter(function ($p) {
+                $cod = trim((string) ($p['codigo'] ?? $p['Codigo'] ?? ''));
+                $nom = trim((string) ($p['nombre'] ?? $p['Nombre'] ?? ''));
+                if ($cod === '' || $cod === '0' || $nom === '') {
+                    return false;
+                }
+                return stripos($cod, 'ninguno') === false && stripos($nom, 'ninguno') === false;
+            })->values();
+
             if ($busquedaWiese !== '') {
                 $needle = mb_strtolower($busquedaWiese);
                 $itemsWiese = $itemsWiese->filter(function ($p) use ($needle) {
@@ -437,6 +465,32 @@ class AdminPanelController extends Controller
                     return str_contains($nombre, $needle) || str_contains($rfc, $needle);
                 })->values();
             }
+
+            // Filtro por tipo/moneda.
+            // - extranjero: RFC genérico del SAT XEXX010101000 (ya funciona, el RFC sí viene).
+            // - mxn / usd: dependen de que la API mande 'cidmoneda' (1=MXN, 2=USD). Cuando Alan
+            //   lo agregue, estos filtros funcionan solos; mientras, no filtran (no rompen nada).
+            if ($filtroWiese === 'extranjero') {
+                $itemsWiese = $itemsWiese->filter(
+                    fn ($p) => strtoupper((string) ($p['rfc'] ?? $p['Rfc'] ?? '')) === 'XEXX010101000'
+                )->values();
+            } elseif ($filtroWiese === 'mxn' || $filtroWiese === 'usd') {
+                $itemsWiese = $itemsWiese->filter(function ($p) use ($filtroWiese) {
+                    // La API manda la moneda en la clave 'moneda' (valor "1"=MXN, "2"=USD).
+                    // Si aún viene vacía (Alan no ha publicado el cambio), no filtramos (no rompe nada).
+                    $mon = $this->monedaWieseId($p);
+                    if ($mon === null) {
+                        return true; // sin dato de moneda todavía → no filtra
+                    }
+                    return $filtroWiese === 'mxn' ? $mon === 1 : $mon === 2;
+                })->values();
+            }
+
+            // Orden pedido: por CÓDIGO interno de Wiese, de menor a mayor.
+            $itemsWiese = $itemsWiese->sortBy(
+                fn ($p) => (string) ($p['codigo'] ?? $p['Codigo'] ?? ''),
+                SORT_NATURAL
+            )->values();
         } else {
             $wieseError = $resWiese['message'] ?? 'No se pudo obtener la lista de proveedores de Wiese.';
         }
@@ -664,6 +718,7 @@ class AdminPanelController extends Controller
             'proveedores',
             'proveedoresWiese',
             'busquedaWiese',
+            'filtroWiese',
             'wieseError',
             'totalWiese',
             'filtrosProv',

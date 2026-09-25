@@ -143,8 +143,11 @@
             </div>
         </div>
 
-        {{-- Proveedor: hidden input + botón modal --}}
+        {{-- Proveedor: hidden inputs + botón modal.
+             proveedor_id: id local (puede ir vacío si el proveedor viene de Wiese).
+             codigo_proveedor: el CÓDIGO Wiese, que es el identificador REAL del flujo. --}}
         <input type="hidden" name="proveedor_id" id="proveedor_id" value="{{ old('proveedor_id', $proveedorIdPref ?? '') }}">
+        <input type="hidden" name="codigo_proveedor" id="codigo_proveedor" value="{{ old('codigo_proveedor', $codigoPref ?? '') }}">
         <div id="prov-select-wrap" style="padding:0 14px 14px">
             <div class="cq-field">
                 <label>Proveedor <span style="color:#dc2626">●</span></label>
@@ -185,8 +188,12 @@
                                     $cod = $p->id_proveedor ?: $p->codigo;
                                     $di = is_array($p->datos_identificacion) ? $p->datos_identificacion : [];
                                     $rfc = $di['rfc'] ?? '';
+                                    // La moneda: los proveedores de Wiese son objetos simples (sin método
+                                    // etiquetaMoneda()). Se lee el campo 'moneda' directo (MXN/DOLLAR).
+                                    $monEtq = strtoupper((string) ($p->moneda ?? 'MXN'));
+                                    $monEtq = in_array($monEtq, ['DOLLAR','USD','DOLAR','DÓLAR'], true) ? 'DOLLAR' : 'MXN';
                                 @endphp
-                                <tr class="prov-row" data-id="{{ $p->id }}" data-codigo="{{ $cod }}" data-nombre="{{ $p->nombre }}" data-rfc="{{ $rfc }}" data-moneda="{{ $p->etiquetaMoneda() }}" data-banco="{{ $di['banco'] ?? '' }}" data-clabe="{{ $di['clabe'] ?? '' }}" onclick="seleccionarProv(this)" style="cursor:pointer;border-bottom:1px solid #f3f4f6">
+                                <tr class="prov-row" data-id="{{ $p->id ?? '' }}" data-codigo="{{ $cod }}" data-nombre="{{ $p->nombre }}" data-rfc="{{ $rfc }}" data-moneda="{{ $monEtq }}" data-banco="{{ $di['banco'] ?? '' }}" data-clabe="{{ $di['clabe'] ?? '' }}" onclick="seleccionarProv(this)" style="cursor:pointer;border-bottom:1px solid #f3f4f6">
                                     <td style="padding:10px 16px;font-weight:700;color:#6B3FA0">{{ $cod }}</td>
                                     <td style="padding:10px 16px;color:#111">{{ $p->nombre }}</td>
                                     <td style="padding:10px 16px;font-size:12px;color:#6b7280;font-family:monospace">{{ $rfc }}</td>
@@ -378,9 +385,9 @@
         recalc();
     }
 
-    async function loadFacturas(proveedorId) {
+    async function loadFacturas(codigoProv) {
         body.innerHTML = '<tr class="empty-row"><td colspan="11">Cargando…</td></tr>';
-        const res = await fetch(urlBase + '?proveedor_id=' + encodeURIComponent(proveedorId), {
+        const res = await fetch(urlBase + '?codigo=' + encodeURIComponent(codigoProv), {
             headers: {'Accept': 'application/json'}
         });
         const data = await res.json();
@@ -485,14 +492,15 @@
     // Exponer loadFacturas globalmente para el modal (antes de la precarga).
     window._loadFacturas = loadFacturas;
 
-    if (select.value) {
-        // Si ya hay proveedor precargado: mostrar la franja del proveedor (ocultar el
-        // selector rojo de "Seleccionar proveedor...") y cargar sus facturas.
-        var filaPre = document.querySelector('.prov-row[data-id="' + select.value + '"]');
+    // Precarga: si llega un proveedor por código (?codigo= en la URL), mostrar su franja
+    // y cargar sus facturas. Se busca la fila por data-codigo (funciona con Wiese).
+    var codigoPre = document.getElementById('codigo_proveedor').value;
+    if (codigoPre) {
+        var filaPre = document.querySelector('.prov-row[data-codigo="' + codigoPre + '"]');
         if (filaPre && typeof seleccionarProv === 'function') {
             seleccionarProv(filaPre);
         } else {
-            loadFacturas(select.value);
+            loadFacturas(codigoPre);
         }
     }
 })();
@@ -535,8 +543,9 @@ function seleccionarProv(tr) {
     var clabe = tr.dataset.clabe || '';
     var moneda = tr.dataset.moneda || '';
 
-    // Setear hidden input
-    document.getElementById('proveedor_id').value = id;
+    // Setear hidden inputs. El CÓDIGO es el identificador real del flujo (funciona con Wiese).
+    document.getElementById('proveedor_id').value = id || '';
+    document.getElementById('codigo_proveedor').value = codigo || '';
 
     // Actualizar botón
     var btn = document.getElementById('btn-abrir-prov');
@@ -559,8 +568,8 @@ function seleccionarProv(tr) {
         cuentaField.value = 'Sin datos bancarios registrados';
     }
 
-    // Cargar facturas
-    if (window._loadFacturas) window._loadFacturas(id);
+    // Cargar facturas POR CÓDIGO (funciona con proveedores de Wiese, que no tienen id local).
+    if (window._loadFacturas) window._loadFacturas(codigo);
 
     // Cerrar modal
     cerrarModalProv();

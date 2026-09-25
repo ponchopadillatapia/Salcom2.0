@@ -65,6 +65,15 @@
     /* Botón "Ver facturas" del directorio de Wiese: morado sólido, sin borde, no se parte el texto */
     .btn-ver-facturas{display:inline-flex;align-items:center;gap:4px;background:var(--purple,#6B3FA0);color:#fff;border:none;text-decoration:none;padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600;white-space:nowrap;transition:background .15s,transform .1s;cursor:pointer}
     .btn-ver-facturas:hover{background:#582f88;transform:translateY(-1px)}
+    /* Chips de filtro rápido (Todos / Nacionales / Dólar / Extranjeros) */
+    .wiese-filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+    .wiese-chip{display:inline-flex;align-items:center;padding:7px 16px;border-radius:20px;font-size:13px;font-weight:600;text-decoration:none;color:var(--gray-text);background:var(--white);border:1.5px solid var(--border);transition:all .15s;white-space:nowrap}
+    .wiese-chip:hover{border-color:var(--purple,#6B3FA0);color:var(--purple,#6B3FA0)}
+    .wiese-chip.is-active{background:var(--purple,#6B3FA0);color:#fff;border-color:var(--purple,#6B3FA0)}
+    /* Etiquetas de moneda en la tabla */
+    .mon-badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700;letter-spacing:.3px}
+    .mon-mxn{background:#dcfce7;color:#166534}
+    .mon-usd{background:#dbeafe;color:#1e40af}
 
     .score-bar{width:80px;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:8px}
     .score-fill{height:100%;border-radius:4px}
@@ -175,9 +184,25 @@
 
 {{-- ═══ TAB PROVEEDORES ═══ --}}
 <div class="prov-panel {{ $tab === 'proveedores' ? 'active' : '' }}" id="panel-proveedores" data-count="{{ $proveedores->total() }} resultados">
+    {{-- Filtros rápidos por tipo/moneda. "Extranjeros" ya funciona (RFC XEXX010101000).
+         "Nacionales/Dólar" quedan listos; filtran de verdad cuando la API mande cidmoneda. --}}
+    <div class="wiese-filtros">
+        @php $fw = $filtroWiese ?? ''; @endphp
+        <a href="{{ route('admin.proveedores', array_filter(['busqueda' => $busquedaWiese ?: null])) }}"
+           class="wiese-chip {{ $fw === '' ? 'is-active' : '' }}">Todos</a>
+        <a href="{{ route('admin.proveedores', array_filter(['filtro_wiese' => 'mxn', 'busqueda' => $busquedaWiese ?: null])) }}"
+           class="wiese-chip {{ $fw === 'mxn' ? 'is-active' : '' }}">Nacionales (MXN)</a>
+        <a href="{{ route('admin.proveedores', array_filter(['filtro_wiese' => 'usd', 'busqueda' => $busquedaWiese ?: null])) }}"
+           class="wiese-chip {{ $fw === 'usd' ? 'is-active' : '' }}">Dólar (USD)</a>
+        <a href="{{ route('admin.proveedores', array_filter(['filtro_wiese' => 'extranjero', 'busqueda' => $busquedaWiese ?: null])) }}"
+           class="wiese-chip {{ $fw === 'extranjero' ? 'is-active' : '' }}">Extranjeros</a>
+    </div>
     <div class="filters-panel">
         <form method="GET" action="{{ route('admin.proveedores') }}" class="filter-form">
             <input type="hidden" name="tab" value="proveedores">
+            @if($filtroWiese)
+                <input type="hidden" name="filtro_wiese" value="{{ $filtroWiese }}">
+            @endif
             @if($rendimiento)
                 <input type="hidden" name="rendimiento" value="{{ $rendimiento }}">
             @endif
@@ -237,7 +262,7 @@
     @endif
     @if($proveedoresWiese->count())
         <table class="admin-table" id="tableProveedores">
-            <thead><tr><th style="width:70px;">#</th><th>Nombre / Razón social</th><th style="width:220px;">RFC</th><th style="width:140px;">Acción</th></tr></thead>
+            <thead><tr><th style="width:60px;">#</th><th style="width:130px;">Código</th><th>Nombre / Razón social</th><th style="width:170px;">RFC</th><th style="width:90px;">Moneda</th><th style="width:130px;">Acción</th></tr></thead>
             <tbody>
             {{-- Datos REALES de Wiese: la API devuelve nombre (crazonsocial), RFC (crfc) y
                  CÓDIGO (CCODIGOCLIENTE, agregado por Alan en el PR #101). El botón "Ver facturas"
@@ -245,15 +270,29 @@
                  con el mismo RFC (M213015002 con 6,363 facturas vs 103015031 con 0). El código
                  distingue cuál es el bueno. --}}
             @foreach($proveedoresWiese as $i => $p)
-                @php $codigoProv = $p['codigo'] ?? $p['Codigo'] ?? ''; @endphp
+                @php
+                    $codigoProv = $p['codigo'] ?? $p['Codigo'] ?? '';
+                    // Moneda: la API la manda en 'moneda' como "1" (MXN) o "2" (USD). Puede venir vacía
+                    // si Alan aún no publica el cambio; en ese caso mostramos "—".
+                    $monRaw = $p['moneda'] ?? $p['Moneda'] ?? '';
+                    $monLabel = (string) $monRaw === '1' ? 'MXN' : ((string) $monRaw === '2' ? 'USD' : '—');
+                @endphp
                 <tr>
                     <td style="font-weight:600;color:var(--gray-muted)">{{ $proveedoresWiese->firstItem() + $i }}</td>
+                    <td style="font-family:monospace;font-weight:700;color:var(--purple)">{{ $codigoProv !== '' ? $codigoProv : '—' }}</td>
                     <td style="font-weight:600">{{ $p['nombre'] ?? $p['Nombre'] ?? '—' }}</td>
-                    <td style="font-family:monospace;color:var(--purple);font-weight:700">{{ $p['rfc'] ?? $p['Rfc'] ?? '—' }}</td>
+                    <td style="font-family:monospace;color:var(--gray-text)">{{ $p['rfc'] ?? $p['Rfc'] ?? '—' }}</td>
+                    <td>
+                        @if($monLabel === 'MXN')
+                            <span class="mon-badge mon-mxn">MXN</span>
+                        @elseif($monLabel === 'USD')
+                            <span class="mon-badge mon-usd">USD</span>
+                        @else
+                            <span style="color:var(--gray-muted);font-size:12px">—</span>
+                        @endif
+                    </td>
                     <td>
                         @if($codigoProv !== '')
-                            {{-- Botón propio (sin la clase btn-sm que metía borde rojo). nowrap para
-                                 que "Ver facturas" no se parta en dos líneas. --}}
                             <a href="{{ route('admin.proveedor-facturas', $codigoProv) }}" class="btn-ver-facturas">Ver facturas →</a>
                         @else
                             <span style="color:var(--gray-muted);font-size:12px;" title="Pendiente: la API de Wiese aún no devuelve el código del proveedor">Sin código aún</span>
