@@ -276,6 +276,113 @@ class ProveedorApiService
     }
 
     /**
+     * GET /DatoDocumentoProveedor/ListarDocumentosRFC
+     *
+     * Trae las FACTURAS de un proveedor buscando por su RFC (endpoint que armó Alan).
+     * A diferencia del de OC (por código), este devuelve directamente las facturas de compra
+     * con su saldo pendiente, ideal para "Formato para pago".
+     *
+     * Regla de negocio (confirmada con Said): factura PENDIENTE = saldo > 0; PAGADA = saldo 0.
+     * Cada item de Wiese trae, entre otros: codigo, folio, serie, fechaFactura, fechaVence,
+     * total, saldo, idMoneda (1=MXN, 2=USD), tipoCambio, idDocumento.
+     *
+     * Se mapea a un formato limpio y estable para las vistas. Si $token es null, hace login solo.
+     *
+     * @param  string  $rfc  RFC del proveedor
+     * @param  string  $fechaInicial  ISO date-time (ej. 2020-01-01T00:00:00)
+     * @param  string  $fechaFinal    ISO date-time (ej. 2026-12-31T23:59:59)
+     * @return array{success: bool, data?: array{items: list<array>, total: int}, message: string, error_type: ?string}
+     */
+    public function listarFacturasProveedorPorRFC(
+        string $rfc,
+        string $fechaInicial = '2020-01-01T00:00:00',
+        string $fechaFinal = '2035-12-31T23:59:59',
+        ?string $token = null
+    ): array {
+        $rfc = trim($rfc);
+        if ($rfc === '') {
+            return $this->buildErrorResponse('Falta el RFC del proveedor.', 'validation');
+        }
+
+        $configError = $this->validarDocsConfiguracion();
+        if ($configError) {
+            return $configError;
+        }
+
+        if ($token === null || $token === '') {
+            $login = $this->loginServicio();
+            if (! ($login['success'] ?? false)) {
+                return $login;
+            }
+            $token = (string) ($login['data']['tokenCreado'] ?? '');
+        }
+
+        $endpoint = '/DatoDocumentoProveedor/ListarDocumentosRFC';
+
+        try {
+            $response = Http::connectTimeout($this->connectTimeout)
+                ->timeout(max($this->timeout, 60))
+                ->withToken($token)
+                ->acceptJson()
+                ->get($this->docsUrl.$endpoint, [
+                    'RFC' => strtoupper($rfc),
+                    'fechaInicial' => $fechaInicial,
+                    'fechaFinal' => $fechaFinal,
+                ]);
+
+            if (! $response->successful()) {
+                return $this->procesarRespuesta($response, $endpoint);
+            }
+
+            $body = $response->json();
+            $lote = is_array($body) ? (array_is_list($body) ? $body : [$body]) : [];
+
+            // Mapear cada factura a un formato limpio y estable para las vistas.
+            $items = [];
+            foreach ($lote as $f) {
+                $saldo = (float) ($f['saldo'] ?? 0);
+                $total = (float) ($f['total'] ?? 0);
+                $items[] = [
+                    'codigo' => (string) ($f['codigo'] ?? ''),
+                    'folio' => $f['folio'] ?? null,
+                    'serie' => (string) ($f['serie'] ?? ''),
+                    'nombre' => (string) ($f['nombre'] ?? ''),
+                    'fecha_factura' => $f['fechaFactura'] ?? null,
+                    'fecha_vence' => $f['fechaVence'] ?? null,
+                    'total' => $total,
+                    'saldo' => $saldo,
+                    'moneda' => ((string) ($f['idMoneda'] ?? '1')) === '2' ? 'USD' : 'MXN',
+                    'tipo_cambio' => (float) ($f['tipoCambio'] ?? 1),
+                    'id_documento' => $f['idDocumento'] ?? null,
+                    'referencia' => (string) ($f['referencia'] ?? ''),
+                    // Bandera de negocio: saldo > 0 = pendiente de pago.
+                    'pendiente' => $saldo > 0,
+                ];
+            }
+
+            return $this->buildSuccessResponse([
+                'items' => $items,
+                'total' => count($items),
+                'rfc' => strtoupper($rfc),
+            ]);
+        } catch (ConnectionException $e) {
+            Log::error('ProveedorAPI: conexión fallida (facturas por RFC)', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse('No se pudo conectar con Wiese (¿VPN activa?).', ProveedorApiException::API_CAIDA);
+        } catch (\Exception $e) {
+            Log::error('ProveedorAPI: error facturas por RFC', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse('Ocurrió un error al consultar facturas en Wiese.', ProveedorApiException::ERROR_DESCONOCIDO);
+        }
+    }
+
+    /**
      * Consulta REAL a Wiese: busca un proveedor por su CÓDIGO o por su RFC.
      * Usa el host de docs (172.16.1.250) que es donde vive ClienteProveedor.
      * Confirmado funcionando con ORPACK (BuscarPorCodigo / BuscarPorRFC).

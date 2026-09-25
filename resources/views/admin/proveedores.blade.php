@@ -165,10 +165,9 @@
         <div class="filter-group">
             <button type="button" class="filter-btn prov-tab-btn {{ $tab === 'proveedores' ? 'active' : '' }}" data-tab="proveedores" onclick="switchProvTab('proveedores', this)">
                 Proveedores <span class="filter-count">{{ $totalProveedores }}</span>
+               
             </button>
-            <button type="button" class="filter-btn prov-tab-btn {{ $tab === 'forecast' ? 'active' : '' }}" data-tab="forecast" onclick="switchProvTab('forecast', this)">
-                Forecast <span class="filter-count">{{ $proveedores->total() }}</span>
-            </button>
+
             {{-- Pestaña "Órdenes" eliminada a petición del usuario. --}}
             {{-- Pestaña "Facturas" eliminada: las facturas de cada proveedor (BD + Wiese) se ven
                  con el botón "Ver facturas →" del directorio. --}}

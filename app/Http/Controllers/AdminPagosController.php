@@ -17,16 +17,86 @@ class AdminPagosController extends Controller
 {
     public function __construct(private PagoProveedorService $pagos) {}
 
-    public function index()
+    public function index(Request $request)
     {
-        $proveedoresPendientes = $this->pagos->proveedoresConPendientes();
+        // POR QUÉ: la vista lista TODOS los proveedores de Wiese (5,685), con los que tienen
+        // facturas pendientes arriba. Como son miles, se pagina de 50 en 50 para no reventar
+        // el navegador. El filtrado (búsqueda) y la paginación se hacen aquí, no en la vista.
+        $q = trim((string) $request->query('q', ''));
+        $codigo = trim((string) $request->query('codigo', ''));
+        $expediente = trim((string) $request->query('expediente', '')); // '' | ok | pendiente | sin_revisar
 
-        return view('admin.pagos.index', compact('proveedoresPendientes'));
+        // Lista completa fusionada (Wiese + pendientes locales, pendientes arriba).
+        $todos = $this->pagos->proveedoresParaFormatoPago();
+
+        // KPIs: se calculan solo sobre los que tienen facturas pendientes (no sobre los 5,685).
+        $conPendientes = $todos->filter(fn ($r) => ($r->num_facturas ?? 0) > 0);
+        $kpiSinRevisar = $conPendientes->filter(fn ($r) => ($r->notif_sin_leer ?? 0) > 0)->count();
+        $kpiExpOk = $conPendientes->filter(fn ($r) => ! empty($r->expediente['ok']))->count();
+        $kpiExpPend = $conPendientes->filter(fn ($r) => empty($r->expediente['ok']))->count();
+        $kpiTotales = $conPendientes->count();
+
+        // Aplicar filtros de búsqueda sobre TODA la lista.
+        $filtrada = $todos;
+        if ($q !== '') {
+            $filtrada = $filtrada->filter(fn ($r) => str_contains(mb_strtolower($r->nombre), mb_strtolower($q))
+                || str_contains((string) $r->codigo, $q));
+        }
+        if ($codigo !== '') {
+            $filtrada = $filtrada->filter(fn ($r) => str_contains((string) $r->codigo, $codigo));
+        }
+        if ($expediente === 'sin_revisar') {
+            $filtrada = $filtrada->filter(fn ($r) => ($r->notif_sin_leer ?? 0) > 0);
+        } elseif ($expediente === 'ok') {
+            $filtrada = $filtrada->filter(fn ($r) => ! empty($r->expediente['ok']));
+        } elseif ($expediente === 'pendiente') {
+            $filtrada = $filtrada->filter(fn ($r) => empty($r->expediente['ok']));
+        }
+        $filtrada = $filtrada->values();
+
+        // Paginar la colección de 50 en 50. Como es una Collection (no query), se usa
+        // LengthAwarePaginator manualmente: se corta la página actual con slice().
+        $porPagina = 50;
+        $pagina = max(1, (int) $request->query('page', 1));
+        $itemsPagina = $filtrada->slice(($pagina - 1) * $porPagina, $porPagina)->values();
+
+        $proveedoresPendientes = new \Illuminate\Pagination\LengthAwarePaginator(
+            $itemsPagina,
+            $filtrada->count(),
+            $porPagina,
+            $pagina,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
+        return view('admin.pagos.index', compact(
+            'proveedoresPendientes',
+            'kpiSinRevisar',
+            'kpiExpOk',
+            'kpiExpPend',
+            'kpiTotales',
+            'q',
+            'codigo',
+            'expediente'
+        ));
     }
 
     public function proveedor(string $codigo)
     {
-        $proveedor = ProveedorUser::porCualquierCodigo($codigo)->firstOrFail();
+        // Buscar primero en la base local. Si no está, es un proveedor que solo vive en
+        // Wiese (los 5,685): lo resolvemos desde la API y armamos un ProveedorUser EN MEMORIA
+        // (sin guardarlo) para que la pantalla cargue y se le pueda registrar el pago.
+        // POR QUÉ: antes hacía firstOrFail() y tronaba con 404 para cualquier proveedor de Wiese.
+        $proveedor = ProveedorUser::porCualquierCodigo($codigo)->first();
+
+        if (! $proveedor) {
+            $proveedor = $this->proveedorWieseEnMemoria($codigo);
+        }
+
+        // firstOrFail real: si NO está ni en local ni en Wiese, entonces sí es 404.
+        if (! $proveedor) {
+            abort(404, 'Proveedor no encontrado en el sistema local ni en Wiese.');
+        }
+
         $expediente = $this->pagos->evaluarExpediente($proveedor);
 
         // Al abrir el proveedor, se marcan como vistas las notifs de pago pendiente
@@ -75,7 +145,84 @@ class AdminPagosController extends Controller
             \Illuminate\Support\Facades\Log::warning('No se pudo marcar facturas como vistas: '.$e->getMessage());
         }
 
-        return view('admin.pagos.proveedor', compact('proveedor', 'codigo', 'facturas', 'expediente', 'idsFacturasNoVistas'));
+        // Facturas PENDIENTES desde Wiese (por RFC). POR QUÉ: las facturas reales de compra
+        // viven en Wiese; el endpoint ListarDocumentosRFC (de Alan) las trae con su saldo.
+        // Solo se muestran las de saldo > 0 (lo que se debe pagar). Si no hay RFC o Wiese
+        // no responde, la sección simplemente no aparece (no rompe la pantalla).
+        $facturasWiese = collect();
+        $wieseError = null;
+        $rfc = '';
+        $di = $proveedor->datos_identificacion;
+        if (is_array($di)) {
+            $rfc = trim((string) ($di['rfc'] ?? ''));
+        }
+        if ($rfc !== '') {
+            try {
+                $res = app(\App\Services\ProveedorApiService::class)->listarFacturasProveedorPorRFC($rfc);
+                if ($res['success'] ?? false) {
+                    // Solo pendientes (saldo > 0), más recientes arriba.
+                    $facturasWiese = collect($res['data']['items'] ?? [])
+                        ->where('pendiente', true)
+                        ->sortByDesc('fecha_factura')
+                        ->values();
+                } else {
+                    $wieseError = $res['message'] ?? 'No se pudieron cargar las facturas de Wiese.';
+                }
+            } catch (\Throwable $e) {
+                $wieseError = 'No se pudo conectar con Wiese (¿VPN activa?).';
+            }
+        }
+
+        return view('admin.pagos.proveedor', compact('proveedor', 'codigo', 'facturas', 'expediente', 'idsFacturasNoVistas', 'facturasWiese', 'wieseError', 'rfc'));
+    }
+
+    /**
+     * Arma un ProveedorUser EN MEMORIA (no guardado en la base) a partir de los datos
+     * de Wiese, para proveedores que solo existen allá (los 5,685).
+     *
+     * POR QUÉ no se guarda: el detalle de pago solo necesita mostrar el nombre y evaluar
+     * expediente. Crear el registro local recién aquí ensuciaría la base con miles de
+     * proveedores. Si más adelante se le registra un pago, ese flujo ya crea/enlaza lo que necesite.
+     *
+     * @return ProveedorUser|null  null si tampoco está en Wiese (o Wiese no responde).
+     */
+    private function proveedorWieseEnMemoria(string $codigo): ?ProveedorUser
+    {
+        try {
+            $res = app(\App\Services\ProveedorApiService::class)->buscarProveedorWiese($codigo);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[PagoProveedor] Wiese no disponible al abrir proveedor: '.$e->getMessage());
+
+            return null;
+        }
+
+        if (! ($res['success'] ?? false)) {
+            return null;
+        }
+
+        $d = $res['data'] ?? [];
+        // Wiese usa nombres de campo variados; se cubren mayúsculas/minúsculas.
+        $nombre = trim((string) ($d['nombre'] ?? $d['Nombre'] ?? $d['crazonsocial'] ?? $d['CRAZONSOCIAL'] ?? ''));
+        $rfc = trim((string) ($d['rfc'] ?? $d['Rfc'] ?? $d['crfc'] ?? $d['CRFC'] ?? ''));
+        $monRaw = (string) ($d['moneda'] ?? $d['Moneda'] ?? $d['cidmoneda'] ?? $d['CIDMONEDA'] ?? '');
+        $moneda = $monRaw === '2' ? 'DOLLAR' : 'MXN';
+
+        if ($nombre === '') {
+            return null; // sin nombre no hay proveedor válido
+        }
+
+        // Modelo NO persistido: se rellenan solo los campos que la vista y evaluarExpediente usan.
+        $prov = new ProveedorUser;
+        $prov->codigo = $codigo;
+        $prov->id_proveedor = $codigo;
+        $prov->nombre = $nombre;
+        $prov->moneda = $moneda;
+        $prov->datos_identificacion = ['rfc' => $rfc];
+        // Relación documentos vacía en memoria: evita consultas y evaluarExpediente lo trata
+        // como expediente incompleto (correcto: un proveedor de Wiese no tiene expediente local).
+        $prov->setRelation('documentos', collect());
+
+        return $prov;
     }
 
     /** Campanita admin: facturas nuevas pendientes de pago. */
@@ -350,7 +497,12 @@ class AdminPagosController extends Controller
     /** Estado de cuenta histórico del proveedor (CSV). */
     public function estadoCuenta(string $codigo)
     {
-        $proveedor = ProveedorUser::porCualquierCodigo($codigo)->firstOrFail();
+        // Igual que proveedor(): si no está en local, resolver desde Wiese (en memoria).
+        $proveedor = ProveedorUser::porCualquierCodigo($codigo)->first()
+            ?? $this->proveedorWieseEnMemoria($codigo);
+        if (! $proveedor) {
+            abort(404, 'Proveedor no encontrado en el sistema local ni en Wiese.');
+        }
         $facturas = Factura::query()
             ->where('codigo_proveedor', $codigo)
             ->orderByDesc('created_at')

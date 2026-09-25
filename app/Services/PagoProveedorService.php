@@ -735,6 +735,84 @@ class PagoProveedorService
     }
 
     /**
+     * Lista para "Formato para pago": TODOS los proveedores de Wiese (5,685),
+     * pero mostrando ARRIBA a los que tienen facturas pendientes (con su conteo/monto).
+     *
+     * POR QUÉ: Karen/Contabilidad necesita poder buscar a CUALQUIER proveedor de Wiese
+     * para registrarle un pago desde cero, no solo a los que ya deben dinero. Pero los
+     * que sí tienen pendientes deben salir primero (es lo urgente por pagar).
+     *
+     * Estrategia: se toman los pendientes locales (ya calculados) y se "fusionan" con la
+     * lista de Wiese por CÓDIGO. Si un proveedor de Wiese tiene pendientes, hereda sus
+     * datos (num_facturas, monto, notifs); si no, va con ceros. Orden final:
+     *   1) primero los que tienen pendientes, por factura más reciente
+     *   2) luego el resto de Wiese, alfabético
+     * Si Wiese no responde (sin VPN), cae de vuelta a solo-pendientes (no rompe la pantalla).
+     */
+    public function proveedoresParaFormatoPago(): Collection
+    {
+        // 1) Pendientes locales, indexados por código para búsqueda rápida.
+        $pendientes = $this->proveedoresConPendientes()->keyBy('codigo');
+
+        // 2) Traer los proveedores de Wiese. Si falla, devolvemos solo los pendientes.
+        try {
+            $res = app(ProveedorApiService::class)->listarProveedoresWiese();
+        } catch (\Throwable $e) {
+            Log::warning('[FormatoPago] Wiese no disponible, muestro solo pendientes: '.$e->getMessage());
+            return $pendientes->values();
+        }
+
+        if (! ($res['success'] ?? false)) {
+            return $pendientes->values();
+        }
+
+        // 3) Fusionar: cada proveedor de Wiese, con sus pendientes si los tiene.
+        $wiese = collect($res['data']['items'] ?? [])
+            ->map(function ($p) use ($pendientes) {
+                $codigo = trim((string) ($p['codigo'] ?? $p['Codigo'] ?? ''));
+                $nombre = trim((string) ($p['nombre'] ?? $p['Nombre'] ?? ''));
+
+                // Descartar basura de Wiese (vacíos, "0", o el genérico "(Ninguno)").
+                if ($codigo === '' || $codigo === '0' || $nombre === ''
+                    || stripos($codigo, 'ninguno') !== false
+                    || stripos($nombre, 'ninguno') !== false) {
+                    return null;
+                }
+
+                // ¿Este proveedor de Wiese tiene facturas pendientes locales?
+                $pend = $pendientes->get($codigo);
+                if ($pend) {
+                    // Ya trae num_facturas/monto/notifs/expediente calculados; solo aseguramos el nombre de Wiese.
+                    $pend->nombre = $pend->nombre ?: $nombre;
+
+                    return $pend;
+                }
+
+                // Sin pendientes: fila "en cero" para poder buscarlo y registrarle pago desde cero.
+                return (object) [
+                    'codigo' => $codigo,
+                    'proveedor' => null,
+                    'nombre' => $nombre,
+                    'num_facturas' => 0,
+                    'monto_total' => 0.0,
+                    'ultima_factura_at' => null,
+                    'proximo_vencimiento' => null,
+                    'expediente' => ['ok' => false, 'motivos' => ['Sin facturas pendientes']],
+                    'notif_sin_leer' => 0,
+                ];
+            })
+            ->filter(); // quita los null (basura)
+
+        // 4) Ordenar: primero CON pendientes (el que DEBE MÁS arriba, por monto), luego el resto alfabético.
+        $conPendientes = $wiese->filter(fn ($r) => ($r->num_facturas ?? 0) > 0)
+            ->sortByDesc(fn ($r) => (float) ($r->monto_total ?? 0));
+        $sinPendientes = $wiese->filter(fn ($r) => ($r->num_facturas ?? 0) === 0)
+            ->sortBy(fn ($r) => mb_strtolower($r->nombre));
+
+        return $conPendientes->concat($sinPendientes)->values();
+    }
+
+    /**
      * Filas CSV del reporte de folios.
      *
      * @return list<list<string>>

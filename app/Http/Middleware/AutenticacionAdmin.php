@@ -49,7 +49,18 @@ class AutenticacionAdmin
 
             // Mapa: sección interna → prefijos de ruta que abarca
             $rutasPorSeccion = [
-                'productos'   => ['admin/productos', 'admin/alta-producto', 'admin/alta-producto-mto', 'admin/alta-producto-pt', 'admin/migracion-masiva'],
+                // 'productos' = catálogo + alta nacional/MPI + migración. NO incluye mto/pt
+                // (esas son áreas propias de Mantenimiento y Comercial PT).
+                'productos'   => ['admin/productos', 'admin/alta-producto', 'admin/migracion-masiva'],
+                // Altas separadas por área: cada comprador solo entra a la suya.
+                // OJO: 'admin/alta-producto' es prefijo de 'admin/alta-producto-mto/pt',
+                // pero el bloqueo compara con base.'/', y '-mto'/'-pt' no empiezan con '/',
+                // así que NO se cruzan entre sí.
+                'alta_mpi'    => ['admin/alta-producto'],       // Compras Importación (misma pantalla de alta general)
+                'alta_pt'     => ['admin/alta-producto-pt'],    // Comercial PT
+                'alta_mto'    => ['admin/alta-producto-mto'],   // Mantenimiento
+                // 'catalogo' = SOLO ver el catálogo de Productos, sin ninguna alta.
+                'catalogo'    => ['admin/productos'],
                 'anticipos'   => ['admin/anticipos'],
                 'pagos'       => ['admin/pagos', 'admin/pago-proveedores', 'admin/abono-proveedor', 'admin/historial-abonos', 'admin/expedientes-pago'],
                 'proveedores' => ['admin/proveedores', 'admin/catalogo-proveedores', 'admin/solicitudes-alta', 'admin/solicitudes-docs', 'admin/expediente-fiscal', 'admin/proveedor-facturas'],
@@ -76,9 +87,12 @@ class AutenticacionAdmin
             if (! $permitida && ! $esLogout) {
                 // Redirigir a la primera sección que sí puede ver
                 $destino = in_array('productos', $secciones, true) ? '/admin/productos'
+                    : (in_array('alta_mpi', $secciones, true) ? '/admin/alta-producto'
+                    : (in_array('alta_pt', $secciones, true) ? '/admin/alta-producto-pt'
+                    : (in_array('alta_mto', $secciones, true) ? '/admin/alta-producto-mto'
                     : (in_array('pagos', $secciones, true) ? '/admin/pagos'
                     : (in_array('proveedores', $secciones, true) ? '/admin/proveedores'
-                    : (in_array('reembolsos', $secciones, true) ? '/admin/reembolsos' : '/admin/perfil')));
+                    : (in_array('reembolsos', $secciones, true) ? '/admin/reembolsos' : '/admin/perfil'))))));
 
                 return redirect($destino)->with('error', 'No tienes acceso a esa sección.');
             }

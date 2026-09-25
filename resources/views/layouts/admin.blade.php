@@ -453,9 +453,26 @@
             <div class="sb-hr"></div>
             @endif
 
-            @php $puedeProductos = $adminUser ? $adminUser->puedeVer('productos') : true; @endphp
-            @if($puedeProductos)
+            @php
+                // Cada tipo de alta es una sección propia; un usuario solo ve la suya.
+                // 'productos' (Compras Nacional/MPI) incluye la pantalla de alta general.
+                $puedeProductos = $adminUser ? $adminUser->puedeVer('productos') : true;
+                $puedeAltaMpi   = $adminUser ? $adminUser->puedeVer('alta_mpi') : true;
+                $puedeAltaMto   = $adminUser ? $adminUser->puedeVer('alta_mto') : true;
+                $puedeAltaPt    = $adminUser ? $adminUser->puedeVer('alta_pt') : true;
+                // 'catalogo' = solo ver el catálogo de Productos (sin altas).
+                $puedeCatalogo  = $adminUser ? $adminUser->puedeVer('catalogo') : true;
+                // Ver el link "Productos" (catálogo): quien tiene 'productos' completo o solo 'catalogo'.
+                $puedeVerCatalogo = $puedeProductos || $puedeCatalogo;
+                // La pantalla de alta "Compras" (admin/alta-producto) la comparten Nacional (productos) y MPI.
+                $puedeAltaCompras = $puedeProductos || $puedeAltaMpi;
+                // ¿Mostrar todo el bloque Productos?
+                $mostrarBloqueProductos = $puedeProductos || $puedeAltaMpi || $puedeAltaMto || $puedeAltaPt || $puedeCatalogo;
+            @endphp
+            @if($mostrarBloqueProductos)
             <div class="sb-section">Productos</div>
+            @php $tieneAlgunaAlta = $puedeAltaCompras || $puedeAltaMto || $puedeAltaPt; @endphp
+            @if($tieneAlgunaAlta)
             <div class="sb-submenu">
                 <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/alta-producto*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
                     <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
@@ -463,21 +480,30 @@
                     <svg class="sb-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="sb-submenu-items">
+                    @if($puedeAltaCompras)
                     <a href="{{ route('admin.alta-producto') }}" class="sb-link sb-sublink {{ request()->is('admin/alta-producto') ? 'active' : '' }}">
                         <span class="sb-text">Compras</span>
                     </a>
+                    @endif
+                    @if($puedeAltaMto)
                     <a href="{{ route('admin.alta-producto-mto') }}" class="sb-link sb-sublink {{ request()->is('admin/alta-producto-mto*') ? 'active' : '' }}">
                         <span class="sb-text">Mantenimiento</span>
                     </a>
+                    @endif
+                    @if($puedeAltaPt)
                     <a href="{{ route('admin.alta-producto-pt') }}" class="sb-link sb-sublink {{ request()->is('admin/alta-producto-pt*') ? 'active' : '' }}">
                         <span class="sb-text">Comercial</span>
                     </a>
+                    @endif
                 </div>
             </div>
+            @endif {{-- fin submenu Alta de Producto (solo si tiene alguna alta) --}}
+            @if($puedeVerCatalogo)
             <a href="{{ route('admin.productos') }}" class="sb-link {{ request()->is('admin/productos*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg></div>
                 <span class="sb-text">Productos</span>
             </a>
+            @endif
             <div class="sb-hr"></div>
             @endif
 
@@ -617,11 +643,16 @@
                         ->count();
                 } catch (\Throwable $e) { $sbSolicitudesPend = 0; }
             @endphp
-            <a href="{{ route('admin.proveedores') }}" class="sb-link {{ request()->is('admin/proveedores') || request()->is('admin/proveedores/*') ? 'active' : '' }}">
+            <a href="{{ route('admin.proveedores') }}" class="sb-link {{ request()->is('admin/proveedores') && request('tab') !== 'forecast' ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
                 <span class="sb-text">Proveedores</span>
             </a>
-            
+            {{-- Forecast: es la misma pantalla de Proveedores con ?tab=forecast; se saca al
+                 sidebar como acceso directo. Se marca activo solo si tab=forecast. --}}
+            <a href="{{ route('admin.proveedores', ['tab' => 'forecast']) }}" class="sb-link {{ request()->is('admin/proveedores') && request('tab') === 'forecast' ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><polyline points="16 6 21 12 16 18"/></svg></div>
+                <span class="sb-text">Forecast</span>
+            </a>
             <a href="{{ route('admin.solicitudes-alta') }}" class="sb-link {{ request()->is('admin/solicitudes-alta*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg></div>
                 <span class="sb-text">Solicitudes de alta</span>

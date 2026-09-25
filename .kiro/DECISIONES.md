@@ -6,6 +6,70 @@
 
 ---
 
+## 2026-09-25 — acela y blanca: agregar acceso al catálogo de Productos (sin abrir otras altas)
+- **Qué:** Se creó una sección nueva `catalogo` (solo ver `admin/productos`, sin ninguna alta) y se asignó a acela.bolanos (→ alta_mpi + catalogo) y blanca.paganoni (→ alta_mto + catalogo).
+- **Por qué:** dirección pidió que además de su alta, ambas puedan ver el catálogo de Productos. NO se usó la sección `productos` porque esa incluye la alta de Compras (abriría una alta que no les toca). `catalogo` da SOLO el catálogo.
+- **Dónde:** `app/Models/AdminUser.php` (sección `catalogo` en el comentario + accesos de acela/blanca); `app/Http/Middleware/AutenticacionAdmin.php` (`'catalogo' => ['admin/productos']`); `resources/views/layouts/admin.blade.php` (banderas `$puedeCatalogo`/`$puedeVerCatalogo`, el submenu de altas solo se muestra si tiene alguna alta, y el link "Productos" aparece con `productos` o `catalogo`).
+- **Verificado:** `php -l` limpio, Blade compila, y en tinker: acela=[alta_mpi,catalogo], blanca=[alta_mto,catalogo], ambas ve_catalogo=SI y ve_productos_completo=NO (no se les cuela la alta de Compras).
+
+## 2026-09-25 — Fix ParseError en vista de pago + orden por monto + columna alineada
+- **Qué (bug):** La vista `admin/pagos/proveedor.blade.php` tronaba con "syntax error, unexpected end of file" al abrir un proveedor. CAUSA: en la sección Wiese usé el patrón `@if(...)${{ number_format(...) }}` — el `$` PEGADO al `{{` hacía que Blade lo compilara como `${` (variable-variable de PHP), dejando una expresión abierta que se comía el archivo hasta el EOF. FIX: mover el signo `$` DENTRO de la expresión: `{{ '$'.number_format(...) }}` (nunca `${{`).
+- **Qué (mejoras pedidas):** (1) En Formato para pago, la tabla ahora ordena a los que DEBEN MÁS arriba (por `monto_total` desc, antes era por fecha). (2) Se quitó el agrupado por fecha (`$agrupados`) y se pinta tabla plana respetando ese orden. (3) Se arregló la columna "Facturas pendientes" que se veía chueca: el `date-row` usaba `colspan=5` con solo 3 columnas; ahora la tabla tiene 3 columnas alineadas y el número va centrado.
+- **Dónde:** `resources/views/admin/pagos/proveedor.blade.php` (celdas de la sección Wiese sin `${{`); `app/Services/PagoProveedorService.php::proveedoresParaFormatoPago()` (sortByDesc por monto_total); `resources/views/admin/pagos/index.blade.php` (tabla plana, thead/tbody 3 columnas, número centrado).
+- **Verificado:** `php -l` limpio, Blade compila, y render real del proveedor 213026052 → OK (68,885 chars, ya no truena).
+- **LECCIÓN (para el glosario):** en Blade nunca pegar `$` justo antes de `{{ }}`. Escribir `{{ '$'.$valor }}` en vez de `${{ $valor }}`.
+
+## 2026-09-25 — Facturas reales de Wiese por RFC en "Formato para pago" (endpoint nuevo de Alan)
+- **Qué:** Alan creó el endpoint `GET /DatoDocumentoProveedor/ListarDocumentosRFC` (params: RFC, fechaInicial, fechaFinal en date-time). Devuelve las facturas de compra del proveedor con su saldo. Se integró para que, al abrir un proveedor en Formato para pago, se vean sus facturas PENDIENTES reales de Wiese (solo saldo > 0), en una sección de solo lectura arriba.
+- **Regla de negocio (confirmada con Said):** saldo > 0 = factura PENDIENTE; saldo 0 = PAGADA. Las pendientes van a Formato para pago; el historial completo (pagadas+pendientes) irá en Proveedores → "Ver facturas" (pendiente de migrar a este endpoint; hoy usa el de OC por código).
+- **Puerto API:** 7183 (Alan dijo 7181 por error; el correcto es 7183). En `.env`: `PROVEEDOR_API_DOCS_URL=http://172.16.1.250:7183/api`.
+- **Formato de respuesta de Wiese (campos):** codigo, folio, serie, fechaFactura, fechaVence, total, saldo, idMoneda (1=MXN/2=USD), tipoCambio, idDocumento, nombre, referencia. Se mapean a snake_case limpio + bandera `pendiente` (saldo>0).
+- **Dónde:** `app/Services/ProveedorApiService.php` (método nuevo `listarFacturasProveedorPorRFC()` con login de servicio + mapeo); `app/Http/Controllers/AdminPagosController.php::proveedor()` (trae facturas Wiese por RFC del proveedor, solo pendientes, pasa `$facturasWiese`/`$wieseError`/`$rfc`); `resources/views/admin/pagos/proveedor.blade.php` (sección "Facturas pendientes en Wiese", tabla solo-lectura con totales MXN/USD).
+- **Decisión de diseño:** la sección de Wiese es INFORMATIVA (solo lectura), separada del flujo local de selección/pago (que es crítico y aún no probado). Así no se toca ese flujo.
+- **Verificado:** endpoint probado (RFC GORJ560821SV8 → 1 factura $28,228.50 MXN, serie MTTO); `php -l` limpio, Blade compila, y abrir proveedor 2148844400 trae WIESE_PEND=1 sin error.
+- **PENDIENTE:** migrar Proveedores → "Ver facturas" a este endpoint por RFC para mostrar el historial completo (pagadas + pendientes).
+
+## 2026-09-25 — Base local desincronizada: 12 migraciones pendientes (faltaba anticipos_proveedor, etc.)
+- **Qué:** Al abrir un proveedor en Formato para pago tronaba con "Table 'salcom20.anticipos_proveedor' doesn't exist". La base local de Poncho tenía 12 migraciones pendientes (anticipos, dias_plazo, es_repse, tarjeta empleados, expediente_pago, 3 de datos Wiese, etc.).
+- **Complicación:** la base estaba DESINCRONIZADA — algunos cambios ya existían en la estructura (monto_pagado, tabla empleados, requiere_gasolina) pero NO estaban registrados en la tabla `migrations`. Por eso `migrate` de corrido fallaba con "columna/tabla ya existe".
+- **Cómo se arregló:** (1) Se corrieron UNA POR UNA las que faltaban de verdad: anticipos_proveedor + uuid_cfdi, dias_plazo (facturas), es_repse (proveedores), tarjeta (empleados), expediente_pago (pagos), y las 3 de datos Wiese. (2) Las 3 cuya estructura ya existía (monto_pagado, empleados, requiere_gasolina) se marcaron como corridas insertándolas en la tabla `migrations` (sin ejecutar su SQL).
+- **Verificado:** `migrate:status` → sin pendientes; abrir proveedor 104001090 ("ABARROTES MENDEZ SERRANO") ya carga sin error.
+- **Nota:** esto fue en la base LOCAL de Poncho. En el servidor/producción, correr `php artisan migrate` normal debería bastar (esa base no debería tener el desajuste).
+
+## 2026-09-25 — Fix 404 al abrir un proveedor de Wiese en Formato para pago
+- **Qué:** Al hacer clic en un proveedor de Wiese (ej. 103014037) en Formato para pago, daba 404. Ahora la pantalla de detalle (`admin.pagos.proveedor`) y el estado de cuenta cargan aunque el proveedor solo exista en Wiese.
+- **Por qué:** `proveedor()` y `estadoCuenta()` hacían `ProveedorUser::porCualquierCodigo($codigo)->firstOrFail()`, que busca SOLO en la base local. Los 5,685 de Wiese no están en local → 404.
+- **Cómo se arregló:** nuevo helper privado `proveedorWieseEnMemoria($codigo)`: busca en Wiese con `buscarProveedorWiese()` y arma un `ProveedorUser` EN MEMORIA (no guardado) con nombre/código/moneda/rfc y relación `documentos` vacía. Así la vista muestra el nombre y `evaluarExpediente()` corre (lo marca incompleto, que es correcto). Si no está ni en local ni en Wiese → abort(404) real.
+- **Por qué NO se guarda en la base:** crear el registro local aquí ensuciaría la base con miles de proveedores; el detalle solo necesita mostrar y evaluar.
+- **Dónde:** `app/Http/Controllers/AdminPagosController.php` (`proveedor()`, `estadoCuenta()` y helper `proveedorWieseEnMemoria()`).
+- **Verificado:** simulando `proveedor("103014037")` → OK, NOMBRE="180 NATURAL S DE RL DE CV", EXP_OK=NO, FACTURAS=0 (ya no truena).
+- **PENDIENTE (crítico, NO tocado):** el método que GUARDA el pago (`store`, ~línea 295) todavía hace `whereCodigo(...)->firstOrFail()`. Si se intenta guardar un pago a un proveedor que solo está en Wiese, tronará. NO se modificó porque el guardado real de pagos aún no se ha probado con VPN/datos reales (flujo crítico). Decidir con Said/Karen cómo debe crearse/enlazarse el proveedor al guardar el primer pago.
+
+## 2026-09-25 — "Formato para pago" lista TODOS los proveedores de Wiese, PAGINADO 50/pág (pendientes arriba)
+- **Qué:** La pantalla de Formato para pago (`admin/pagos`) antes solo mostraba proveedores con facturas pendientes LOCALES. Ahora lista los 5,685 de Wiese PAGINADOS de 50 en 50 (114 páginas), con los que tienen facturas pendientes ARRIBA (con su conteo/monto). Se puede buscar por nombre/código en toda la lista.
+- **Por qué:** Contabilidad necesita poder pagarle a CUALQUIER proveedor de Wiese, no solo a los que ya deben; pero lo urgente (pendientes) debe verse primero. Se pidió paginado para navegarlos todos sin tener que buscar.
+- **Rendimiento:** NO se pintan los 5,685 de golpe (reventaría el DOM). Se pagina con `LengthAwarePaginator` manual (la fuente es una Collection, no query): se corta la página con `slice()`. La paginación conserva búsqueda/filtros con `appends(request()->query())`. KPIs (sin revisar/expediente) se calculan solo sobre los que tienen pendientes.
+- **Fallback:** si Wiese no responde (sin VPN), `proveedoresParaFormatoPago()` devuelve solo los pendientes locales (no rompe).
+- **Evolución:** primero se hizo "solo pendientes + búsqueda" (tope 200), luego el usuario pidió paginado 50/pág → el filtrado/KPIs/paginación se MOVIERON de la vista al controlador.
+- **Dónde:** `app/Services/PagoProveedorService.php` (`proveedoresParaFormatoPago()` fusiona pendientes+Wiese por código y ordena); `app/Http/Controllers/AdminPagosController.php::index(Request)` (filtra, calcula KPIs, pagina 50/pág con LengthAwarePaginator); `resources/views/admin/pagos/index.blade.php` (solo pinta; agrupa por fecha la página actual; `pagination-wrap` con `->links()`).
+- **Verificado:** `php -l` limpio, Blade compila, y simulando la request: TOTAL=5685, POR_PAGINA=50, EN_ESTA_PAGINA=50, ULTIMA_PAGINA=114.
+
+## 2026-09-25 — Alta de usuarios admin + accesos por área (altas de producto separadas)
+- **Qué:** (1) Se crearon 11 usuarios en `admin_users` (base LOCAL de la máquina de Poncho): Dirección/acceso total → fredcominu, alex.salazar, jesus.espinoza, sandra.gutierrez, aneso.cominu, Rebeca (con R mayúscula). Restringidos por área → brenda.pliego (productos+anticipos), karen.bravo (pagos+proveedores), blanca.paganoni (alta_mto), acela.bolanos (alta_mpi), cinthya.martinez (alta_mpi+productos). (2) Se agregaron secciones NUEVAS al modelo para separar las altas por área: `alta_mpi`, `alta_pt`, `alta_mto` (antes todo era una sola sección `productos`).
+- **Por qué:** dirección pidió que cada comprador gestione SOLO su tipo de alta y no se cuele a las de otras áreas (MPI, PT, Mantenimiento separadas).
+- **Cómo quedó el acceso a altas:** `productos` = catálogo + alta Compras (nacional/MPI) + migración; `alta_mpi` = solo pantalla de alta Compras (comparte URL con nacional, no ve catálogo ni otras altas); `alta_pt` = solo Comercial PT; `alta_mto` = solo Mantenimiento. OJO técnico: `admin/alta-producto` es prefijo de `-mto`/`-pt`, pero el bloqueo compara con `base.'/'` y `-mto`/`-pt` no empiezan con `/`, así que NO se cruzan.
+- **Dónde:** `app/Models/AdminUser.php` (constantes `USUARIOS_DIRECCION` +aneso.cominu, y `ACCESOS_RESTRINGIDOS` con las nuevas secciones); `app/Http/Middleware/AutenticacionAdmin.php` (mapa `$rutasPorSeccion` con alta_mpi/alta_pt/alta_mto + destinos de redirección); `resources/views/layouts/admin.blade.php` (bloque Productos: cada sub-link Compras/Mantenimiento/Comercial se muestra según la sección; catálogo "Productos" solo con sección `productos`).
+- **Verificado:** `php -l` limpio en modelo y middleware; confirmado en tinker que los accesos se enganchan (aneso/Rebeca=Dirección, brenda=productos+anticipos, acela=alta_mpi, cinthya=alta_mpi+productos).
+- **PENDIENTE:** `cintia.barrera` (Comercial PT, sección `alta_pt`) NO se creó porque no se dio contraseña. Crearla cuando Said defina el password.
+- **Nota:** las contraseñas se pusieron encriptadas (`Hash::make`). El script temporal con las contraseñas se borró tras crear los usuarios. Correos con placeholder `@salcom.local` salvo cinthya (@wiese.com.mx).
+
+## 2026-09-25 — Limpieza de datos de prueba (facturas y proveedores locales)
+- **Qué:** Se borraron las 8 facturas y 13 proveedores locales de prueba (seeders) de la base local. Antes se hizo backup en `storage/backup_prueba_20260925_150330.sql`.
+- **Por qué:** en Formato para pago y Pago a proveedor salían proveedores/facturas fake que estorbaban en las pruebas. El listado de Formato/Pago se arma desde la tabla `facturas` (PagoProveedorService::proveedoresConPendientes), así que al vaciarla, ese listado queda limpio. En el servidor real esos datos no existen.
+- **Dónde:** tablas `facturas` y `proveedores_users` (OJO: la tabla es `proveedores_users`, con "es"). Ejecutado vía tinker con forceDelete y FOREIGN_KEY_CHECKS=0.
+- **Nota:** hecho en la máquina de Poncho (Said trabajando desde ahí). Si se quieren de vuelta los datos de prueba: `php artisan db:seed` o restaurar el backup.
+- **Verificado:** FACTURAS=0 y PROVEEDORES_LOCAL=0 tras el borrado.
+
 ## 2026-09-24 — Vistas de Reembolsos/Bitácora/Empleados ahora usan todo el ancho
 - **Qué:** Se quitó el `max-width` fijo (880-960px) de los contenedores de las pantallas Reembolsos, Bitácora de Gasolina, Alta de Empleados y Reembolsos de Viaje (crear/editar/ver). Ahora usan `max-width: 100%` y ocupan todo el ancho del panel, sin dejar hueco a la derecha.
 - **Por qué:** dirección pidió que se ajustaran al tamaño de la página.

@@ -83,41 +83,14 @@
 @endpush
 @section('content')
 @php
-    $q = trim((string) request('q', ''));
-    $codigo = trim((string) request('codigo', ''));
-    $expediente = trim((string) request('expediente', '')); // '' | ok | pendiente | sin_revisar
-    $baseAll = $proveedoresPendientes;
-
-    $kpiSinRevisar = $baseAll->filter(fn ($r) => ($r->notif_sin_leer ?? 0) > 0)->count();
-    $kpiExpOk = $baseAll->filter(fn ($r) => !empty($r->expediente['ok']))->count();
-    $kpiExpPend = $baseAll->filter(fn ($r) => empty($r->expediente['ok']))->count();
-    $kpiTotales = $baseAll->count();
-
-    $lista = $baseAll;
-    if ($q !== '') {
-        $lista = $lista->filter(fn ($r) => str_contains(mb_strtolower($r->nombre), mb_strtolower($q))
-            || str_contains((string) $r->codigo, $q));
-    }
-    if ($codigo !== '') {
-        $lista = $lista->filter(fn ($r) => str_contains((string) $r->codigo, $codigo));
-    }
-    if ($expediente === 'sin_revisar') {
-        $lista = $lista->filter(fn ($r) => ($r->notif_sin_leer ?? 0) > 0);
-    } elseif ($expediente === 'ok') {
-        $lista = $lista->filter(fn ($r) => !empty($r->expediente['ok']));
-    } elseif ($expediente === 'pendiente') {
-        $lista = $lista->filter(fn ($r) => empty($r->expediente['ok']));
-    }
-
-    $lista = $lista->values();
-    $total = $lista->count();
+    // El filtrado, los KPIs y la paginación ahora vienen del controlador
+    // (AdminPagosController::index). Aquí solo se pinta.
+    $filtrosBusqueda = $q !== '' || $codigo !== '';
     $filtrosActivos = $q !== '' || $codigo !== '' || $expediente !== '';
 
-    $agrupados = $lista->groupBy(function ($row) {
-        return $row->ultima_factura_at
-            ? $row->ultima_factura_at->format('Y-m-d')
-            : 'sin-fecha';
-    });
+    // $proveedoresPendientes es un paginador (LengthAwarePaginator). Se pinta plano,
+    // respetando el orden del controlador (los que deben más, arriba).
+    $total = $proveedoresPendientes->total();
 
     $chipBase = array_filter([
         'q' => $q ?: null,
@@ -179,13 +152,20 @@
     <div class="adm-section-head">
         <div>
             <h4>Proveedores</h4>
-            <div class="adm-section-meta">{{ $total }} resultado{{ $total !== 1 ? 's' : '' }} · lo más reciente arriba · burbuja roja = sin revisar</div>
+            <div class="adm-section-meta">
+                {{ number_format($total) }} proveedor{{ $total !== 1 ? 'es' : '' }} · pendientes arriba · burbuja roja = sin revisar
+                @if($proveedoresPendientes->lastPage() > 1) · página {{ $proveedoresPendientes->currentPage() }} de {{ $proveedoresPendientes->lastPage() }} @endif
+            </div>
         </div>
     </div>
 
-    @if($lista->isEmpty())
+    @if($proveedoresPendientes->isEmpty())
         <div class="empty-state">
-            <p>No hay proveedores con facturas pendientes{{ $filtrosActivos ? ' para esos filtros' : '' }}.</p>
+            @if($filtrosBusqueda)
+                <p>No se encontró ningún proveedor para esa búsqueda.</p>
+            @else
+                <p>No hay proveedores con facturas pendientes. Busca por nombre o código para registrarle un pago a cualquier proveedor de Wiese.</p>
+            @endif
         </div>
     @else
         <div class="tbl-wrap">
@@ -194,46 +174,30 @@
                     <tr>
                         <th>Código</th>
                         <th>Proveedor</th>
-                        <th>Facturas pendientes</th>
-                        <th>Monto</th>
-                        <th style="text-align:right">Hora alta</th>
+                        <th style="text-align:center;">Facturas pendientes</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($agrupados as $fechaKey => $rows)
-                        <tr class="date-row">
-                            <td colspan="5">
-                                @if($fechaKey === 'sin-fecha')
-                                    Sin fecha
-                                @else
-                                    {{ \Illuminate\Support\Carbon::parse($fechaKey)->locale('es')->isoFormat('DD [de] MMMM YYYY') }}
-                                @endif
+                    {{-- Tabla plana, sin agrupar por fecha: el orden viene del controlador
+                         (los que deben MÁS, arriba). Columnas alineadas con el thead (3). --}}
+                    @foreach($proveedoresPendientes as $row)
+                        @php $sinLeer = ($row->notif_sin_leer ?? 0) > 0; @endphp
+                        <tr class="prov-row {{ $sinLeer ? 'row-nuevo' : '' }}" onclick="window.location='{{ route('admin.pagos.proveedor', $row->codigo) }}'" style="cursor:pointer;">
+                            <td>
+                                <a class="code-link" href="{{ route('admin.pagos.proveedor', $row->codigo) }}" onclick="event.stopPropagation()">{{ $row->codigo }}</a>
                             </td>
+                            <td style="font-weight:600;">@if($sinLeer)<span class="dot-azul" title="Facturas nuevas sin ver"></span>@endif{{ $row->nombre }}</td>
+                            <td style="text-align:center;">{{ $row->num_facturas }}</td>
                         </tr>
-                        @foreach($rows as $row)
-                            @php
-                                $sinLeer = ($row->notif_sin_leer ?? 0) > 0;
-                                $hora = $row->ultima_factura_at
-                                    ? $row->ultima_factura_at->format('h:i a')
-                                    : '—';
-                            @endphp
-                            <tr class="prov-row {{ $sinLeer ? 'row-nuevo' : '' }}" onclick="window.location='{{ route('admin.pagos.proveedor', $row->codigo) }}'">
-                                <td>
-                                    <a class="code-link" href="{{ route('admin.pagos.proveedor', $row->codigo) }}" onclick="event.stopPropagation()">{{ $row->codigo }}</a>
-                                </td>
-                                <td style="font-weight:600;">@if($sinLeer)<span class="dot-azul" title="Facturas nuevas sin ver"></span>@endif{{ $row->nombre }}</td>
-                                <td>{{ $row->num_facturas }}</td>
-                                <td class="monto">${{ number_format((float) $row->monto_total, 2) }}</td>
-                                <td style="text-align:right;white-space:nowrap">
-                                    <span class="hora-bubble leida">{{ $hora }}</span>
-                                    @if($sinLeer)<span class="dot-azul" style="margin-left:8px;" title="Facturas nuevas sin ver"></span>@endif
-                                </td>
-                            </tr>
-                        @endforeach
                     @endforeach
                 </tbody>
             </table>
         </div>
+
+        {{-- Paginación: 50 por página. appends(request()->query()) conserva la búsqueda/filtros al cambiar de página. --}}
+        @if($proveedoresPendientes->hasPages())
+            <div class="pagination-wrap">{{ $proveedoresPendientes->appends(request()->query())->links() }}</div>
+        @endif
     @endif
 </div>
 @endsection

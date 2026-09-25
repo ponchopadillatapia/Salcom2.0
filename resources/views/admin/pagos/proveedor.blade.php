@@ -88,6 +88,69 @@
 
 <a class="pag-back anim" href="{{ route('admin.pagos') }}">← Volver a proveedores</a>
 
+{{-- Facturas pendientes de Wiese por RFC (solo lectura, saldo mayor a 0). --}}
+@if($rfc !== '')
+<div class="adm-section anim" style="margin-bottom:20px;">
+    <div class="adm-section-head">
+        <div>
+            <h4>Facturas pendientes en Wiese</h4>
+            <div class="adm-section-meta">Datos reales del sistema contable · RFC {{ $rfc }} · solo saldo por pagar</div>
+        </div>
+    </div>
+    @if($wieseError)
+        <div class="pag-alert err">No se pudieron cargar las facturas de Wiese. {{ $wieseError }}</div>
+    @elseif($facturasWiese->isEmpty())
+        <div class="empty-state"><p>Este proveedor no tiene facturas pendientes en Wiese.</p></div>
+    @else
+        @php
+            $totalWieseMxn = $facturasWiese->where('moneda', 'MXN')->sum('saldo');
+            $totalWieseUsd = $facturasWiese->where('moneda', 'USD')->sum('saldo');
+        @endphp
+        <div class="tbl-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Folio</th>
+                        <th>Serie</th>
+                        <th>Fecha factura</th>
+                        <th>Vence</th>
+                        <th>Moneda</th>
+                        <th style="text-align:right">Total</th>
+                        <th style="text-align:right">Saldo pendiente</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($facturasWiese as $fw)
+                        <tr>
+                            <td style="font-weight:600;">{{ $fw['folio'] ?? '—' }}</td>
+                            <td>{{ $fw['serie'] ?: '—' }}</td>
+                            <td>{{ $fw['fecha_factura'] ? \Illuminate\Support\Carbon::parse($fw['fecha_factura'])->format('d/m/Y') : '—' }}</td>
+                            <td>{{ $fw['fecha_vence'] ? \Illuminate\Support\Carbon::parse($fw['fecha_vence'])->format('d/m/Y') : '—' }}</td>
+                            <td>{{ $fw['moneda'] }}</td>
+                            <td style="text-align:right">{{ '$'.number_format((float) $fw['total'], 2) }}</td>
+                            <td style="text-align:right;font-weight:700;color:#b45309">{{ '$'.number_format((float) $fw['saldo'], 2) }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="6" style="text-align:right;font-weight:700;">Saldo pendiente total</td>
+                        <td style="text-align:right;font-weight:800;color:#b45309;">
+                            @if($totalWieseMxn > 0)
+                                <div>{{ '$'.number_format($totalWieseMxn, 2) }} MXN</div>
+                            @endif
+                            @if($totalWieseUsd > 0)
+                                <div>{{ '$'.number_format($totalWieseUsd, 2) }} USD</div>
+                            @endif
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    @endif
+</div>
+@endif
+
 @if(session('error'))
     <div class="pag-alert err anim">{{ session('error') }}</div>
 @endif
