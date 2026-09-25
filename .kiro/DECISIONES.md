@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-09-24 — Comando para borrar SOLO datos de prueba (dejar dashboard en cero)
+- **Qué:** Se creó el comando `php artisan salcom:limpiar-prueba`. Borra únicamente los registros sembrados por los seeders de prueba/demo, identificándolos por sus "huellas" fijas: proveedores (`PROV001-003`, `said`, `demo`, `Rebeca`, `sinonboarding`, `proveedor.test`, `said.padilla`, `diegococca@gmail.com`, `FAKEPAGO1-10`), clientes (`CLI001/CLI002`), facturas (`CFDI-A-*`, `CFDI-P-*`, `FAKE-PAGO-*`, `SAID-FAC-*`), productos (`SAL-*`), pedidos (`PED-2025/2026-*`), muestras (`LOTE-2026-*`), y sus encuestas/alertas/OC/docs/contactos/notificaciones ligadas.
+- **Por qué:** dirección pidió dejar los recuadros del dashboard en cero, borrando SOLO datos de prueba sin tocar datos reales ni la estructura.
+- **Seguridad:** por defecto SIMULA (solo cuenta, no borra); requiere `--force` para borrar de verdad, con confirmación y dentro de una transacción. NO usa TRUNCATE (respeta datos reales que ya existan). NO toca `admin_users` ni `empleados`.
+- **OJO:** el proveedor de prueba con usuario `Rebeca` (correo framfoods) NO es lo mismo que el admin `rebeca` de Dirección (tablas separadas). Borrarlo NO afecta el acceso admin.
+- **Deploy:** en el servidor correr primero `php artisan salcom:limpiar-prueba` (simulación) para ver los números; si se ven bien, `php artisan salcom:limpiar-prueba --force`.
+- **Dónde:** `app/Console/Commands/LimpiarDatosPrueba.php`.
+
 ## 2026-09-24 — HALLAZGO: por qué hay proveedores "duplicados" en Wiese (moneda + RFC extranjero)
 - **Qué se descubrió (confirmado con SQL en admClientes):** un mismo RFC puede tener VARIOS registros. Causas reales:
   1. **Moneda (la principal):** proveedor nacional con una cuenta en MXN y otra en USD. `CIDMONEDA`: 1 = MXN (4,795 provs), 2 = DÓLAR USD (879 provs) — confirmado en tabla `admMonedas`. Decenas de RFC tienen 1 registro MXN + 1 USD.
