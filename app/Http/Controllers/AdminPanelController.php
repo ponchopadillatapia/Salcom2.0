@@ -486,6 +486,25 @@ class AdminPanelController extends Controller
                 })->values();
             }
 
+            // Detectar RFC DUPLICADOS: un mismo RFC que aparece en 2+ registros de Wiese.
+            // POR QUÉ: hay proveedores repetidos (por moneda MXN/USD o altas dobles); a menudo
+            // uno de los duplicados no tiene facturas. Marcamos los duplicados para pintarlos
+            // en gris y avisar "ojo, este RFC está repetido, revisa cuál usar".
+            // Esto NO consulta Wiese: solo compara los RFC de la lista que ya tenemos (rápido).
+            // Se ignora el RFC genérico de extranjeros (XEXX010101000), que se repite a propósito.
+            $conteoRfc = $itemsWiese
+                ->map(fn ($p) => strtoupper(trim((string) ($p['rfc'] ?? $p['Rfc'] ?? ''))))
+                ->filter(fn ($rfc) => $rfc !== '' && $rfc !== 'XEXX010101000')
+                ->countBy();
+
+            $itemsWiese = $itemsWiese->map(function ($p) use ($conteoRfc) {
+                $rfc = strtoupper(trim((string) ($p['rfc'] ?? $p['Rfc'] ?? '')));
+                // Es duplicado si su RFC (real, no el genérico) aparece 2 o más veces.
+                $p['rfc_duplicado'] = $rfc !== '' && $rfc !== 'XEXX010101000' && ($conteoRfc[$rfc] ?? 0) > 1;
+
+                return $p;
+            });
+
             // Orden pedido: por CÓDIGO interno de Wiese, de menor a mayor.
             $itemsWiese = $itemsWiese->sortBy(
                 fn ($p) => (string) ($p['codigo'] ?? $p['Codigo'] ?? ''),

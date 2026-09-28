@@ -12,6 +12,20 @@
 - **Dónde:** `app/Models/AdminUser.php` (sección `catalogo` en el comentario + accesos de acela/blanca); `app/Http/Middleware/AutenticacionAdmin.php` (`'catalogo' => ['admin/productos']`); `resources/views/layouts/admin.blade.php` (banderas `$puedeCatalogo`/`$puedeVerCatalogo`, el submenu de altas solo se muestra si tiene alguna alta, y el link "Productos" aparece con `productos` o `catalogo`).
 - **Verificado:** `php -l` limpio, Blade compila, y en tinker: acela=[alta_mpi,catalogo], blanca=[alta_mto,catalogo], ambas ve_catalogo=SI y ve_productos_completo=NO (no se les cuela la alta de Compras).
 
+## 2026-09-26 — Directorio de Proveedores: marcar en gris los RFC duplicados
+- **Qué:** En el directorio de Proveedores (Wiese), los proveedores cuyo RFC aparece 2+ veces (cuentas duplicadas por moneda MXN/USD o altas dobles) ahora salen en GRIS/atenuados, con una etiqueta "RFC duplicado" junto al RFC y un tooltip que avisa "revisa cuál tiene facturas".
+- **Por qué:** Said pidió distinguir visualmente los duplicados; a menudo uno de los dos no tiene facturas. Ayuda a saber cuál usar.
+- **CLAVE (rendimiento):** NO se consulta Wiese por cada proveedor (eso congelaría). Solo se COMPARAN los RFC de la lista que ya tenemos en memoria (`countBy` sobre los 5,685). Rápido. Se ignora el RFC genérico de extranjeros XEXX010101000 (se repite a propósito, no es duplicado real).
+- **LÍMITE honesto:** esto marca los que están repetidos, pero NO sabe cuál de los dos específicamente tiene facturas (eso sí requeriría llamar a Wiese por cada uno). El gris es un "ojo, revisa", no "este está vacío".
+- **Dónde:** `app/Http/Controllers/AdminPanelController.php::proveedores()` (calcula `$conteoRfc` y marca `rfc_duplicado` en cada item); `resources/views/admin/proveedores.blade.php` (fila atenuada + etiqueta "RFC duplicado").
+- **Verificado:** `php -l` limpio, Blade compila.
+
+## 2026-09-26 — Formato para pago: solo proveedores CON pendientes + caché import + quitar botón
+- **Qué:** (1) La lista de Formato para pago ya NO muestra los 5,685 de Wiese (salían casi todos en "0" y consultarlos congela). Ahora por defecto muestra SOLO los proveedores con facturas pendientes LOCALES. El buscador SÍ busca en todo Wiese (para hallar e importar uno nuevo al abrirlo). (2) Se quitó el botón "Re-sincronizar/Importar" de la vista del proveedor (ya es automático). (3) Optimización: el import automático solo llama a Wiese si NO se hizo en los últimos 5 min para ese proveedor (Cache 5 min por `wiese_import_{codigo}`), así abrir/recargar seguido no repite la llamada lenta.
+- **Por qué:** Said pidió no ver los 5,685 con "0"; que liste solo los que deben. Y que se optimice la caché para que no tarde.
+- **Dónde:** `app/Http/Controllers/AdminPagosController.php` (`index()`: usa `proveedoresConPendientes()` sin búsqueda y `proveedoresParaFormatoPago()` con búsqueda; `proveedor()`: import con Cache 5 min); `resources/views/admin/pagos/proveedor.blade.php` (botón quitado).
+- **Verificado:** `php -l` limpio, ambas vistas compilan.
+
 ## 2026-09-26 — Importación AUTOMÁTICA de facturas Wiese al abrir el proveedor (sin botón)
 - **Qué:** Al abrir un proveedor en Formato para pago (`proveedor()`), ahora se importan solas sus facturas pendientes de Wiese a local. Ya no hay que darle al botón. Said lo pidió así.
 - **Cómo:** se extrajo la lógica de import a un método reutilizable `importarFacturasWieseAlLocal($codigo)` (lo usan el botón Y la carga automática). Usa `firstOrNew`, así no duplica (si la factura ya existe, la actualiza). Si Wiese no responde, se captura el error y NO rompe la pantalla (try/catch + log).

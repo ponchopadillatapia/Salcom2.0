@@ -275,12 +275,18 @@
                     // si Alan aún no publica el cambio; en ese caso mostramos "—".
                     $monRaw = $p['moneda'] ?? $p['Moneda'] ?? '';
                     $monLabel = (string) $monRaw === '1' ? 'MXN' : ((string) $monRaw === '2' ? 'USD' : '—');
+                    // RFC duplicado: registro cuyo RFC se repite en Wiese (posible cuenta doble).
+                    // Se pinta en gris/atenuado para avisar "revisa cuál usar".
+                    $rfcDup = ! empty($p['rfc_duplicado']);
                 @endphp
-                <tr>
+                <tr @if($rfcDup) style="opacity:.55;background:#f9fafb;" title="Este RFC está repetido en Wiese (posible cuenta duplicada). Revisa cuál tiene facturas." @endif>
                     <td style="font-weight:600;color:var(--gray-muted)">{{ $proveedoresWiese->firstItem() + $i }}</td>
-                    <td style="font-family:monospace;font-weight:700;color:var(--purple)">{{ $codigoProv !== '' ? $codigoProv : '—' }}</td>
-                    <td style="font-weight:600">{{ $p['nombre'] ?? $p['Nombre'] ?? '—' }}</td>
-                    <td style="font-family:monospace;color:var(--gray-text)">{{ $p['rfc'] ?? $p['Rfc'] ?? '—' }}</td>
+                    <td style="font-family:monospace;font-weight:700;color:{{ $rfcDup ? '#9ca3af' : 'var(--purple)' }}">{{ $codigoProv !== '' ? $codigoProv : '—' }}</td>
+                    <td style="font-weight:600;color:{{ $rfcDup ? '#9ca3af' : 'inherit' }}">{{ $p['nombre'] ?? $p['Nombre'] ?? '—' }}</td>
+                    <td style="font-family:monospace;color:var(--gray-text)">
+                        {{ $p['rfc'] ?? $p['Rfc'] ?? '—' }}
+                        @if($rfcDup)<span style="display:inline-block;margin-left:6px;font-size:10px;font-weight:700;color:#9ca3af;background:#f3f4f6;border:1px solid #e5e7eb;padding:1px 6px;border-radius:10px;font-family:sans-serif;">RFC duplicado</span>@endif
+                    </td>
                     <td>
                         @if($monLabel === 'MXN')
                             <span class="mon-badge mon-mxn">MXN</span>
