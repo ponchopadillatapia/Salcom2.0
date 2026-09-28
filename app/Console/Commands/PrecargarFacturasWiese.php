@@ -75,10 +75,21 @@ class PrecargarFacturasWiese extends Command
 
         foreach ($items as $p) {
             try {
-                $fac = $api->listarFacturasProveedorPorRFC($p['rfc']);
+                // Consultar Wiese con hasta 3 reintentos. POR QUÉ: al hacer muchas llamadas
+                // seguidas Wiese a veces rechaza/tarda; un pequeño reintento con pausa recupera
+                // la mayoría de esos fallos temporales (evita cientos de "omitidos").
+                $fac = null;
+                for ($intento = 1; $intento <= 3; $intento++) {
+                    $fac = $api->listarFacturasProveedorPorRFC($p['rfc']);
+                    if ($fac['success'] ?? false) {
+                        break;
+                    }
+                    usleep(300000); // 0.3s antes de reintentar
+                }
                 if (! ($fac['success'] ?? false)) {
                     $errores++;
                     $bar->advance();
+                    usleep(150000); // pausa igual para no saturar
 
                     continue;
                 }
@@ -148,6 +159,8 @@ class PrecargarFacturasWiese extends Command
                 $errores++;
             }
             $bar->advance();
+            // Pausa breve entre proveedores para no saturar Wiese (rate limiting suave).
+            usleep(120000); // 0.12s
         }
 
         $bar->finish();

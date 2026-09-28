@@ -12,6 +12,13 @@
 - **Dónde:** `app/Models/AdminUser.php` (sección `catalogo` en el comentario + accesos de acela/blanca); `app/Http/Middleware/AutenticacionAdmin.php` (`'catalogo' => ['admin/productos']`); `resources/views/layouts/admin.blade.php` (banderas `$puedeCatalogo`/`$puedeVerCatalogo`, el submenu de altas solo se muestra si tiene alguna alta, y el link "Productos" aparece con `productos` o `catalogo`).
 - **Verificado:** `php -l` limpio, Blade compila, y en tinker: acela=[alta_mpi,catalogo], blanca=[alta_mto,catalogo], ambas ve_catalogo=SI y ve_productos_completo=NO (no se les cuela la alta de Compras).
 
+## 2026-09-26 — Fixes: limpieza con foreign keys + precarga con reintentos/pausa (Wiese satura)
+- **Fix limpieza:** `wiese:limpiar-prueba-pagos --force` tronaba con foreign key (factura #9 estaba enganchada a un pago en `pago_proveedor_facturas`, constraint RESTRICT). Ahora borra en ORDEN: (1) líneas `pago_proveedor_facturas` de esas facturas, (2) los pagos `pago_proveedor` de esos códigos, (3) facturas, (4) proveedores. Todo en transacción.
+- **Fix precarga:** al correr `wiese:precargar-facturas` con 5,030 proveedores, Wiese rechazó 214 llamadas (encontró 215 con facturas pero solo importó 6). CAUSA: demasiadas llamadas seguidas saturan Wiese. FIX: hasta 3 REINTENTOS por proveedor (con pausa 0.3s) + pausa de 0.12s entre proveedores. Más lento pero mucho más confiable.
+- **PENDIENTE fuerte:** esto confirma que ir proveedor-por-proveedor es frágil. URGE preguntar a Alan por un endpoint que devuelva TODAS las facturas pendientes de golpe. Es la solución correcta; la precarga es un parche.
+- **Dónde:** `app/Console/Commands/LimpiarPruebaPagos.php` (borrado en orden por FK), `app/Console/Commands/PrecargarFacturasWiese.php` (reintentos + pausas).
+- **Verificado:** `php -l` limpio en ambos.
+
 ## 2026-09-26 — Precarga masiva de facturas Wiese (para que salgan TODOS los que deben)
 - **Qué:** Comando `wiese:precargar-facturas` que recorre TODOS los proveedores de Wiese, consulta sus facturas pendientes por RFC y las importa a local. Así Formato para pago muestra a TODOS los que deben, sin abrir cada proveedor a mano. Con barra de progreso.
 - **Por qué:** antes solo salía ASCENCIO porque era el único importado (con el botón). Said quiere que salgan todos automáticamente.

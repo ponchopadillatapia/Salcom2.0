@@ -77,11 +77,35 @@ class LimpiarPruebaPagos extends Command
             return self::SUCCESS;
         }
 
-        // Borrado real, protegido en transacción.
+        // Borrado real, protegido en transacción. ORDEN IMPORTANTE por foreign keys:
+        // 1) líneas de pago que referencian estas facturas (pago_proveedor_facturas)
+        // 2) los pagos (lotes) que quedaron vacíos / eran de estos proveedores basura
+        // 3) las facturas
+        // 4) los proveedores
+        // POR QUÉ: no se puede borrar una factura si un pago la referencia (constraint RESTRICT).
         DB::transaction(function () use ($facturas, $proveedores) {
+            $facturaIds = $facturas->pluck('id')->all();
+            $codigosProv = $this->codigosBasura;
+
+            // 1) Borrar líneas de pago que usan estas facturas.
+            \App\Models\PagoProveedorFactura::whereIn('factura_id', $facturaIds)->forceDelete();
+
+            // 2) Borrar los pagos (lotes) de estos proveedores basura.
+            \App\Models\PagoProveedor::withTrashed()
+                ->whereIn('codigo_proveedor', $codigosProv)
+                ->get()
+                ->each(function ($pago) {
+                    // Por si tiene más líneas, limpiarlas primero.
+                    \App\Models\PagoProveedorFactura::where('pago_id', $pago->id)->forceDelete();
+                    $pago->forceDelete();
+                });
+
+            // 3) Facturas.
             foreach ($facturas as $f) {
                 $f->forceDelete();
             }
+
+            // 4) Proveedores.
             foreach ($proveedores as $p) {
                 $p->forceDelete();
             }
