@@ -42,11 +42,14 @@ class ProbarListarDocumentos extends Command
         $fi = '2020-01-01T00:00:00';
         $ff = '2026-12-31T23:59:59';
 
-        // Distintas combinaciones (el filtroDeDocumentos puede cambiar qué tipo trae).
+        // razonSocial y filtroDeDocumentos son OBLIGATORIOS. Probamos comodines para
+        // intentar que traiga TODOS (razonSocial vacía no la acepta; probamos "%", "*", " ").
         $combos = [
-            'solo fechas' => ['fechaInicio' => $fi, 'fechaFinal' => $ff],
-            'fechas + filtro vacio' => ['fechaInicio' => $fi, 'fechaFinal' => $ff, 'filtroDeDocumentos' => '', 'razonSocial' => ''],
-            'fechas + filtro TODOS' => ['fechaInicio' => $fi, 'fechaFinal' => $ff, 'filtroDeDocumentos' => 'TODOS', 'razonSocial' => ''],
+            'razon="%" filtro="TODOS"' => ['fechaInicio' => $fi, 'fechaFinal' => $ff, 'filtroDeDocumentos' => 'TODOS', 'razonSocial' => '%'],
+            'razon="*" filtro="TODOS"' => ['fechaInicio' => $fi, 'fechaFinal' => $ff, 'filtroDeDocumentos' => 'TODOS', 'razonSocial' => '*'],
+            'razon=" " filtro="TODOS"' => ['fechaInicio' => $fi, 'fechaFinal' => $ff, 'filtroDeDocumentos' => 'TODOS', 'razonSocial' => ' '],
+            'razon="%" filtro="%"' => ['fechaInicio' => $fi, 'fechaFinal' => $ff, 'filtroDeDocumentos' => '%', 'razonSocial' => '%'],
+            'razon="A" filtro="TODOS"' => ['fechaInicio' => $fi, 'fechaFinal' => $ff, 'filtroDeDocumentos' => 'TODOS', 'razonSocial' => 'A'],
         ];
 
         foreach ($combos as $nombre => $params) {
@@ -79,7 +82,6 @@ class ProbarListarDocumentos extends Command
                 $primero = array_is_list($body) ? $body[0] : $body;
                 $this->line('  primer item: '.json_encode($primero, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
                 $this->info('  >>> Esta combinación SIRVE. Trae varios de golpe.');
-                break;
             }
         }
 
