@@ -96,6 +96,18 @@
             <h4>Facturas pendientes en Wiese</h4>
             <div class="adm-section-meta">Datos reales del sistema contable · RFC {{ $rfc }} · solo saldo por pagar</div>
         </div>
+        @if(! $wieseError && $facturasWiese->isNotEmpty())
+        <div class="adm-section-toolbar">
+            {{-- Botón: importa estas facturas de Wiese a local para poder pagarlas
+                 (sin usar la terminal). Envía POST a importarFacturasWiese. --}}
+            <form method="POST" action="{{ route('admin.pagos.importar-facturas', $codigo) }}" style="margin:0;">
+                @csrf
+                <button type="submit" class="btn-primary" onclick="return confirm('¿Importar estas facturas de Wiese para poder pagarlas?')">
+                    ↓ Importar estas facturas para pagar
+                </button>
+            </form>
+        </div>
+        @endif
     </div>
     @if($wieseError)
         <div class="pag-alert err">No se pudieron cargar las facturas de Wiese. {{ $wieseError }}</div>

@@ -12,6 +12,14 @@
 - **Dónde:** `app/Models/AdminUser.php` (sección `catalogo` en el comentario + accesos de acela/blanca); `app/Http/Middleware/AutenticacionAdmin.php` (`'catalogo' => ['admin/productos']`); `resources/views/layouts/admin.blade.php` (banderas `$puedeCatalogo`/`$puedeVerCatalogo`, el submenu de altas solo se muestra si tiene alguna alta, y el link "Productos" aparece con `productos` o `catalogo`).
 - **Verificado:** `php -l` limpio, Blade compila, y en tinker: acela=[alta_mpi,catalogo], blanca=[alta_mto,catalogo], ambas ve_catalogo=SI y ve_productos_completo=NO (no se les cuela la alta de Compras).
 
+## 2026-09-26 — Botón "Importar facturas de Wiese" + fix campo usuario obligatorio
+- **Qué:** (1) FIX: al auto-crear un proveedor de Wiese tronaba con "Field 'usuario' doesn't have a default value" (la tabla `proveedores_users` exige `usuario` y `password`). Ahora se generan: `usuario = 'wiese_'.$codigo` y password aleatorio (el proveedor no inicia sesión, es solo para el flujo de pago). (2) BOTÓN: se agregó "↓ Importar estas facturas para pagar" en la sección Wiese del detalle del proveedor, para importar sin usar la terminal (lo pidió Said). Hace lo mismo que el comando artisan.
+- **Por qué:** Said no quiere correr el comando en terminal cada vez; el botón lo hace desde la interfaz. Y sin el fix del `usuario`, la creación del proveedor fallaba.
+- **Dónde:** `app/Console/Commands/ImportarFacturasWiese.php` (fix usuario/password); `app/Http/Controllers/AdminPagosController.php` (fix en `asegurarProveedorLocalDesdeWiese()` + método nuevo `importarFacturasWiese()`); `routes/web.php` (ruta `admin.pagos.importar-facturas`); `resources/views/admin/pagos/proveedor.blade.php` (botón en la sección Wiese).
+- **Flujo para probar:** abrir proveedor en Formato para pago → clic "Importar estas facturas para pagar" → las facturas quedan en local → seleccionar → pago → abono.
+- **Verificado:** `php -l` limpio en controlador/comando/rutas, Blade compila.
+- **Proveedores con facturas para demo (hallados con wiese:buscar-con-facturas):** 213004004 DISTRIBUIDORA ELECTRICA ASCENCIO (6 fact, $63,840.71), 213001001 ABARROTES ABEJA (3), M214884129 DE LA MORA (2), 2148844400 JUAN JOSE GONZALEZ (1).
+
 ## 2026-09-26 — store() ahora auto-crea el proveedor de Wiese al registrar su primer pago
 - **Qué:** El guardado de pago (`AdminPagosController::store`) hacía `whereCodigo(...)->firstOrFail()` y tronaba con proveedores que solo existen en Wiese. Ahora, si el proveedor no está en local, se crea AHÍ mismo (auto-registro) con sus datos de Wiese (nombre, código, moneda, rfc), marcado `activo=false`, para poder enlazar el lote de pago.
 - **Por qué:** un proveedor de Wiese "nace" en el sistema local al registrarle su primer pago; el flujo (crearLote) necesita un ProveedorUser con id real.

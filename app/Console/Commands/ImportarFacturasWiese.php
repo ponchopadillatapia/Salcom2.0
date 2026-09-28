@@ -74,9 +74,15 @@ class ImportarFacturasWiese extends Command
         if (! $prov) {
             $primera = $pendientes->first();
             $prov = ProveedorUser::create([
+                // usuario/password son obligatorios en la tabla. Este proveedor "nace" solo
+                // para el flujo de pago (no inicia sesión), así que le damos un usuario único
+                // por código y una contraseña aleatoria (no se usa para login real).
+                'usuario' => 'wiese_'.$codigo,
+                'password' => bcrypt(\Illuminate\Support\Str::random(32)),
                 'codigo' => $codigo,
                 'id_proveedor' => $codigo,
                 'nombre' => (string) ($primera['nombre'] ?? $codigo),
+                'rfc' => $rfc,
                 'moneda' => (string) ($primera['moneda'] ?? 'MXN') === 'USD' ? 'DOLLAR' : 'MXN',
                 'datos_identificacion' => ['rfc' => $rfc],
                 'activo' => false,

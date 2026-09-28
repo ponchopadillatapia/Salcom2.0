@@ -177,6 +177,73 @@ class AdminPagosController extends Controller
     }
 
     /**
+     * Botón "Importar facturas de Wiese": baja a la base local las facturas pendientes
+     * (saldo > 0) del proveedor, para poder pagarlas en el flujo. Hace lo mismo que el
+     * comando artisan `wiese:importar-facturas`, pero desde la interfaz (sin terminal).
+     */
+    public function importarFacturasWiese(string $codigo)
+    {
+        // 1) Resolver el proveedor (local o en memoria desde Wiese) para tener su RFC.
+        $proveedor = ProveedorUser::porCualquierCodigo($codigo)->first()
+            ?? $this->proveedorWieseEnMemoria($codigo);
+        if (! $proveedor) {
+            return back()->with('error', 'No se encontró el proveedor en Wiese.');
+        }
+
+        $di = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+        $rfc = trim((string) ($di['rfc'] ?? ''));
+        if ($rfc === '') {
+            return back()->with('error', 'El proveedor no tiene RFC; no se pueden traer sus facturas de Wiese.');
+        }
+
+        // 2) Traer facturas pendientes de Wiese por RFC.
+        $res = app(\App\Services\ProveedorApiService::class)->listarFacturasProveedorPorRFC($rfc);
+        if (! ($res['success'] ?? false)) {
+            return back()->with('error', 'No se pudieron traer las facturas de Wiese: '.($res['message'] ?? ''));
+        }
+        $pendientes = collect($res['data']['items'] ?? [])->where('pendiente', true);
+        if ($pendientes->isEmpty()) {
+            return back()->with('mensaje', 'Este proveedor no tiene facturas pendientes en Wiese.');
+        }
+
+        // 3) Asegurar el proveedor en local (para enlazar por código).
+        $provLocal = ProveedorUser::porCualquierCodigo($codigo)->first()
+            ?? $this->asegurarProveedorLocalDesdeWiese($codigo);
+
+        // 4) Insertar/actualizar cada factura pendiente en local.
+        $creadas = 0;
+        $actualizadas = 0;
+        foreach ($pendientes as $f) {
+            $folio = (string) ($f['folio'] ?? '');
+            $total = (float) ($f['total'] ?? 0);
+            $saldo = (float) ($f['saldo'] ?? 0);
+            $pagado = max($total - $saldo, 0);
+
+            $factura = Factura::withTrashed()->firstOrNew([
+                'folio_cfdi' => $folio !== '' ? $folio : ('WIESE-'.($f['id_documento'] ?? uniqid())),
+                'codigo_proveedor' => $codigo,
+            ]);
+            $existia = $factura->exists;
+            $factura->fill([
+                'monto' => $total,
+                'monto_iva' => 0,
+                'total' => $total,
+                'monto_pagado' => $pagado,
+                'estatus' => 'pendiente',
+                'fecha_vencimiento' => ! empty($f['fecha_vence']) ? \Illuminate\Support\Carbon::parse($f['fecha_vence'])->toDateString() : null,
+                'notas' => 'Importada de Wiese · serie '.($f['serie'] ?? '').' · idDoc '.($f['id_documento'] ?? ''),
+            ]);
+            if ($factura->trashed()) {
+                $factura->restore();
+            }
+            $factura->save();
+            $existia ? $actualizadas++ : $creadas++;
+        }
+
+        return back()->with('mensaje', "Facturas de Wiese importadas: {$creadas} nuevas, {$actualizadas} actualizadas. Ya puedes pagarlas abajo.");
+    }
+
+    /**
      * Arma un ProveedorUser EN MEMORIA (no guardado en la base) a partir de los datos
      * de Wiese, para proveedores que solo existen allá (los 5,685).
      *
@@ -245,9 +312,14 @@ class AdminPagosController extends Controller
         $di = is_array($enMemoria->datos_identificacion) ? $enMemoria->datos_identificacion : [];
 
         return ProveedorUser::create([
+            // usuario/password son obligatorios en la tabla. Este proveedor "nace" solo para
+            // el flujo de pago (no inicia sesión); usuario único por código, password aleatorio.
+            'usuario' => 'wiese_'.$codigo,
+            'password' => bcrypt(\Illuminate\Support\Str::random(32)),
             'codigo' => $codigo,
             'id_proveedor' => $codigo,
             'nombre' => $enMemoria->nombre,
+            'rfc' => trim((string) ($di['rfc'] ?? '')),
             'moneda' => $enMemoria->moneda,
             'datos_identificacion' => $di,
             'activo' => false,
