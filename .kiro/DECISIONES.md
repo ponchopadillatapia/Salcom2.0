@@ -42,6 +42,14 @@
 - **Dónde:** `app/Console/Commands/LimpiarPruebaPagos.php`.
 - **Verificado:** `php -l` limpio, comando registrado.
 
+## 2026-09-26 — Proveedores en USD con degradado azul (reemplaza el gris de RFC duplicado)
+- **Qué:** En el directorio de Proveedores, los proveedores en DÓLARES (moneda "2") ahora se distinguen con una fila de degradado azulito y el código en azul. Se QUITÓ la marca gris de "RFC duplicado" anterior.
+- **Por qué:** Alan aclaró que los "duplicados" (mismo RFC, 2 registros) NO son error: uno es la cuenta en MXN y otro en USD. Ambos válidos. Lo correcto es distinguir por moneda, no marcar como sospechoso. Said pidió el tono azul para los de dólares.
+- **Confirmado:** el listado de Wiese (`ListarProveedorWeb`) YA devuelve el campo `moneda` ("1"=MXN, "2"=USD) — Alan ya lo publicó. Verificado con `wiese:ver-campos-proveedor` (5,686 proveedores, cada uno con su `moneda`).
+- **Sobre facturas pendientes (aclaración de Alan):** de `ListaDocumentosOCPorProveedor` los campos útiles son `cpendiente` (saldo) y `cfechavencimiento`. Confirma que el endpoint por proveedor es el bueno; NO hay endpoint masivo, así que la precarga (`wiese:precargar-facturas`) sigue siendo el método para llenar la lista.
+- **Dónde:** `resources/views/admin/proveedores.blade.php` (fila USD con gradient azul + código azul), `app/Http/Controllers/AdminPanelController.php` (se quitó el cálculo `rfc_duplicado`).
+- **Verificado:** `php -l` limpio, Blade compila.
+
 ## 2026-09-26 — Directorio de Proveedores: marcar en gris los RFC duplicados
 - **Qué:** En el directorio de Proveedores (Wiese), los proveedores cuyo RFC aparece 2+ veces (cuentas duplicadas por moneda MXN/USD o altas dobles) ahora salen en GRIS/atenuados, con una etiqueta "RFC duplicado" junto al RFC y un tooltip que avisa "revisa cuál tiene facturas".
 - **Por qué:** Said pidió distinguir visualmente los duplicados; a menudo uno de los dos no tiene facturas. Ayuda a saber cuál usar.

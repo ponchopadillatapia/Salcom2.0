@@ -271,22 +271,19 @@
             @foreach($proveedoresWiese as $i => $p)
                 @php
                     $codigoProv = $p['codigo'] ?? $p['Codigo'] ?? '';
-                    // Moneda: la API la manda en 'moneda' como "1" (MXN) o "2" (USD). Puede venir vacía
-                    // si Alan aún no publica el cambio; en ese caso mostramos "—".
+                    // Moneda: la API la manda en 'moneda' como "1" (MXN) o "2" (USD).
                     $monRaw = $p['moneda'] ?? $p['Moneda'] ?? '';
                     $monLabel = (string) $monRaw === '1' ? 'MXN' : ((string) $monRaw === '2' ? 'USD' : '—');
-                    // RFC duplicado: registro cuyo RFC se repite en Wiese (posible cuenta doble).
-                    // Se pinta en gris/atenuado para avisar "revisa cuál usar".
-                    $rfcDup = ! empty($p['rfc_duplicado']);
+                    // Los proveedores en DÓLARES (USD) se distinguen con un degradado azulito,
+                    // porque un mismo proveedor puede tener cuenta en MXN y otra en USD (por eso
+                    // salían "duplicados"). Así se ve claro cuál es la cuenta en dólares.
+                    $esUsd = $monLabel === 'USD';
                 @endphp
-                <tr @if($rfcDup) style="opacity:.55;background:#f9fafb;" title="Este RFC está repetido en Wiese (posible cuenta duplicada). Revisa cuál tiene facturas." @endif>
+                <tr @if($esUsd) style="background:linear-gradient(90deg,#eff6ff 0%,#f8fbff 60%,#ffffff 100%);" title="Proveedor en DÓLARES (USD)" @endif>
                     <td style="font-weight:600;color:var(--gray-muted)">{{ $proveedoresWiese->firstItem() + $i }}</td>
-                    <td style="font-family:monospace;font-weight:700;color:{{ $rfcDup ? '#9ca3af' : 'var(--purple)' }}">{{ $codigoProv !== '' ? $codigoProv : '—' }}</td>
-                    <td style="font-weight:600;color:{{ $rfcDup ? '#9ca3af' : 'inherit' }}">{{ $p['nombre'] ?? $p['Nombre'] ?? '—' }}</td>
-                    <td style="font-family:monospace;color:var(--gray-text)">
-                        {{ $p['rfc'] ?? $p['Rfc'] ?? '—' }}
-                        @if($rfcDup)<span style="display:inline-block;margin-left:6px;font-size:10px;font-weight:700;color:#9ca3af;background:#f3f4f6;border:1px solid #e5e7eb;padding:1px 6px;border-radius:10px;font-family:sans-serif;">RFC duplicado</span>@endif
-                    </td>
+                    <td style="font-family:monospace;font-weight:700;color:{{ $esUsd ? '#1d4ed8' : 'var(--purple)' }}">{{ $codigoProv !== '' ? $codigoProv : '—' }}</td>
+                    <td style="font-weight:600">{{ $p['nombre'] ?? $p['Nombre'] ?? '—' }}</td>
+                    <td style="font-family:monospace;color:var(--gray-text)">{{ $p['rfc'] ?? $p['Rfc'] ?? '—' }}</td>
                     <td>
                         @if($monLabel === 'MXN')
                             <span class="mon-badge mon-mxn">MXN</span>
