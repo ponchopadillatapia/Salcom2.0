@@ -12,6 +12,14 @@
 - **Dónde:** `app/Models/AdminUser.php` (sección `catalogo` en el comentario + accesos de acela/blanca); `app/Http/Middleware/AutenticacionAdmin.php` (`'catalogo' => ['admin/productos']`); `resources/views/layouts/admin.blade.php` (banderas `$puedeCatalogo`/`$puedeVerCatalogo`, el submenu de altas solo se muestra si tiene alguna alta, y el link "Productos" aparece con `productos` o `catalogo`).
 - **Verificado:** `php -l` limpio, Blade compila, y en tinker: acela=[alta_mpi,catalogo], blanca=[alta_mto,catalogo], ambas ve_catalogo=SI y ve_productos_completo=NO (no se les cuela la alta de Compras).
 
+## 2026-09-26 — Importación AUTOMÁTICA de facturas Wiese al abrir el proveedor (sin botón)
+- **Qué:** Al abrir un proveedor en Formato para pago (`proveedor()`), ahora se importan solas sus facturas pendientes de Wiese a local. Ya no hay que darle al botón. Said lo pidió así.
+- **Cómo:** se extrajo la lógica de import a un método reutilizable `importarFacturasWieseAlLocal($codigo)` (lo usan el botón Y la carga automática). Usa `firstOrNew`, así no duplica (si la factura ya existe, la actualiza). Si Wiese no responde, se captura el error y NO rompe la pantalla (try/catch + log).
+- **El botón se quedó** como "Re-sincronizar facturas" (refrescar manual), ya no es obligatorio.
+- **Dónde:** `app/Http/Controllers/AdminPagosController.php` (nuevo `importarFacturasWieseAlLocal()`, llamada automática en `proveedor()`, `importarFacturasWiese()` ahora delega); `resources/views/admin/pagos/proveedor.blade.php` (texto/ícono del botón → Re-sincronizar).
+- **OJO rendimiento:** importar corre en CADA apertura del proveedor (1 llamada a Wiese por RFC). Es aceptable porque es un solo proveedor. Si se vuelve lento, se puede cachear.
+- **Verificado:** `php -l` limpio, Blade compila.
+
 ## 2026-09-26 — Facturas importadas con datos fiscales por defecto + visual del expediente de pago
 - **Qué:** (1) Al importar facturas de Wiese (botón y comando) ahora se rellenan datos fiscales por defecto en `validacion_detalle`: forma_pago=03 (transferencia), metodo_pago=PUE, uso_cfdi=G03, regimen=601. POR QUÉ: Wiese no devuelve esos datos, y sin ellos `confirmar()` bloquea con "sin forma_pago". Con esto el lote se puede confirmar en pruebas. (2) Se agregó un panel VISUAL del "Expediente de pago" en la vista `admin/pagos/show` (Pago #N): muestra los 5 documentos fiscales (CIF, Opinión SAT, INE, carátula banco, formato ID) con ✅/⭕ y un badge Completo/Incompleto. Es informativo, no bloquea.
 - **Botón mejorado:** el botón "Importar facturas" ahora es verde con ícono, más grande y con hover (antes se veía feo/apretado).

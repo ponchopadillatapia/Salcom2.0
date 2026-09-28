@@ -108,8 +108,8 @@
                            padding:11px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;
                            box-shadow:0 2px 6px rgba(22,163,74,.25);transition:background .15s"
                     onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><line x1="5" y1="21" x2="19" y2="21"/></svg>
-                    Importar facturas para pagar
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    Re-sincronizar facturas
                 </button>
             </form>
         </div>

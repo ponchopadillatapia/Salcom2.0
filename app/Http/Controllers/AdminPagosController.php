@@ -99,6 +99,16 @@ class AdminPagosController extends Controller
 
         $expediente = $this->pagos->evaluarExpediente($proveedor);
 
+        // IMPORTACIÓN AUTOMÁTICA: al abrir el proveedor, bajamos sus facturas pendientes
+        // de Wiese a local (sin necesidad de botón). Usa firstOrNew, así no duplica: si ya
+        // existen las actualiza. Si Wiese no responde, no rompe (sigue con lo que haya local).
+        // POR QUÉ: Said pidió que las facturas se carguen solas al entrar al proveedor.
+        try {
+            $this->importarFacturasWieseAlLocal($codigo);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[Pagos] Import automático Wiese falló: '.$e->getMessage());
+        }
+
         // Al abrir el proveedor, se marcan como vistas las notifs de pago pendiente
         Alerta::query()
             ->where('destinatario_tipo', 'admin')
@@ -183,31 +193,51 @@ class AdminPagosController extends Controller
      */
     public function importarFacturasWiese(string $codigo)
     {
+        $r = $this->importarFacturasWieseAlLocal($codigo);
+        if (! ($r['ok'] ?? false)) {
+            return back()->with('error', $r['mensaje'] ?? 'No se pudieron importar las facturas.');
+        }
+
+        return back()->with('mensaje', $r['mensaje']);
+    }
+
+    /**
+     * Lógica reutilizable: importa a local las facturas pendientes de Wiese de un proveedor.
+     * La usan el botón (importarFacturasWiese) y la carga automática al abrir el proveedor.
+     *
+     * @return array{ok: bool, mensaje: string, creadas?: int, actualizadas?: int}
+     */
+    private function importarFacturasWieseAlLocal(string $codigo): array
+    {
         // 1) Resolver el proveedor (local o en memoria desde Wiese) para tener su RFC.
         $proveedor = ProveedorUser::porCualquierCodigo($codigo)->first()
             ?? $this->proveedorWieseEnMemoria($codigo);
         if (! $proveedor) {
-            return back()->with('error', 'No se encontró el proveedor en Wiese.');
+            return ['ok' => false, 'mensaje' => 'No se encontró el proveedor en Wiese.'];
         }
 
         $di = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
         $rfc = trim((string) ($di['rfc'] ?? ''));
         if ($rfc === '') {
-            return back()->with('error', 'El proveedor no tiene RFC; no se pueden traer sus facturas de Wiese.');
+            return ['ok' => false, 'mensaje' => 'El proveedor no tiene RFC; no se pueden traer sus facturas de Wiese.'];
         }
 
         // 2) Traer facturas pendientes de Wiese por RFC.
-        $res = app(\App\Services\ProveedorApiService::class)->listarFacturasProveedorPorRFC($rfc);
+        try {
+            $res = app(\App\Services\ProveedorApiService::class)->listarFacturasProveedorPorRFC($rfc);
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'mensaje' => 'No se pudo conectar con Wiese (¿VPN/red?).'];
+        }
         if (! ($res['success'] ?? false)) {
-            return back()->with('error', 'No se pudieron traer las facturas de Wiese: '.($res['message'] ?? ''));
+            return ['ok' => false, 'mensaje' => 'No se pudieron traer las facturas de Wiese: '.($res['message'] ?? '')];
         }
         $pendientes = collect($res['data']['items'] ?? [])->where('pendiente', true);
         if ($pendientes->isEmpty()) {
-            return back()->with('mensaje', 'Este proveedor no tiene facturas pendientes en Wiese.');
+            return ['ok' => true, 'mensaje' => 'Este proveedor no tiene facturas pendientes en Wiese.', 'creadas' => 0, 'actualizadas' => 0];
         }
 
         // 3) Asegurar el proveedor en local (para enlazar por código).
-        $provLocal = ProveedorUser::porCualquierCodigo($codigo)->first()
+        ProveedorUser::porCualquierCodigo($codigo)->first()
             ?? $this->asegurarProveedorLocalDesdeWiese($codigo);
 
         // 4) Insertar/actualizar cada factura pendiente en local.
@@ -235,7 +265,6 @@ class AdminPagosController extends Controller
                 'notas' => 'Importada de Wiese · serie '.($f['serie'] ?? '').' · idDoc '.($f['id_documento'] ?? ''),
                 // Datos fiscales por defecto para que el lote se pueda confirmar en pruebas.
                 // Wiese no los devuelve en este endpoint; se rellenan con valores SAT estándar.
-                // POR QUÉ: sin estos, confirmar() bloquea ("sin forma_pago"). Ajustables luego.
                 'validacion_detalle' => array_merge(
                     is_array($factura->validacion_detalle) ? $factura->validacion_detalle : [],
                     [
@@ -254,7 +283,12 @@ class AdminPagosController extends Controller
             $existia ? $actualizadas++ : $creadas++;
         }
 
-        return back()->with('mensaje', "Facturas de Wiese importadas: {$creadas} nuevas, {$actualizadas} actualizadas. Ya puedes pagarlas abajo.");
+        return [
+            'ok' => true,
+            'mensaje' => "Facturas de Wiese importadas: {$creadas} nuevas, {$actualizadas} actualizadas.",
+            'creadas' => $creadas,
+            'actualizadas' => $actualizadas,
+        ];
     }
 
     /**
