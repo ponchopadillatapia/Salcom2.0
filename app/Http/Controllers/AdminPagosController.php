@@ -225,6 +225,35 @@ class AdminPagosController extends Controller
         return $prov;
     }
 
+    /**
+     * Igual que proveedorWieseEnMemoria(), pero GUARDA el proveedor en la base local.
+     * Se usa al registrar el PRIMER pago de un proveedor que solo existía en Wiese:
+     * el flujo de pago necesita un ProveedorUser con id real para enlazar el lote.
+     *
+     * @return ProveedorUser|null  null si no se pudo resolver desde Wiese.
+     */
+    private function asegurarProveedorLocalDesdeWiese(string $codigo): ?ProveedorUser
+    {
+        $enMemoria = $this->proveedorWieseEnMemoria($codigo);
+        if (! $enMemoria) {
+            return null;
+        }
+
+        // Crear el registro local con los datos de Wiese. Se marca inactivo y sin
+        // expediente aprobado (es correcto: aún no pasó el onboarding). El pago se puede
+        // registrar igual; el expediente solo es aviso, no bloquea el borrador.
+        $di = is_array($enMemoria->datos_identificacion) ? $enMemoria->datos_identificacion : [];
+
+        return ProveedorUser::create([
+            'codigo' => $codigo,
+            'id_proveedor' => $codigo,
+            'nombre' => $enMemoria->nombre,
+            'moneda' => $enMemoria->moneda,
+            'datos_identificacion' => $di,
+            'activo' => false,
+        ]);
+    }
+
     /** Campanita admin: facturas nuevas pendientes de pago. */
     public function alertasJson()
     {
@@ -320,7 +349,17 @@ class AdminPagosController extends Controller
             'confirmar' => 'nullable|boolean',
         ]);
 
-        $proveedor = ProveedorUser::whereCodigo($data['codigo_proveedor'])->firstOrFail();
+        // Buscar el proveedor en local. Si no está (solo vive en Wiese), lo creamos AHORA
+        // en la base local para poder enlazar el pago. POR QUÉ: el flujo de pago necesita
+        // un ProveedorUser con id; un proveedor de Wiese "nace" en el sistema al registrarle
+        // su primer pago. Antes hacía firstOrFail() y tronaba para proveedores de Wiese.
+        $proveedor = ProveedorUser::porCualquierCodigo($data['codigo_proveedor'])->first();
+        if (! $proveedor) {
+            $proveedor = $this->asegurarProveedorLocalDesdeWiese($data['codigo_proveedor']);
+        }
+        if (! $proveedor) {
+            return back()->withInput()->with('error', 'No se encontró el proveedor ni en local ni en Wiese.');
+        }
         $autoConfirmar = $request->boolean('confirmar');
 
         try {
