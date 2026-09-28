@@ -88,16 +88,17 @@ class LimpiarPruebaPagos extends Command
             $codigosProv = $this->codigosBasura;
 
             // 1) Borrar líneas de pago que usan estas facturas.
-            \App\Models\PagoProveedorFactura::whereIn('factura_id', $facturaIds)->forceDelete();
+            //    PagoProveedorFactura NO usa soft-deletes → delete() normal (borra de verdad).
+            \App\Models\PagoProveedorFactura::whereIn('factura_id', $facturaIds)->delete();
 
             // 2) Borrar los pagos (lotes) de estos proveedores basura.
-            \App\Models\PagoProveedor::withTrashed()
-                ->whereIn('codigo_proveedor', $codigosProv)
+            //    PagoProveedor tampoco usa soft-deletes → delete() normal.
+            \App\Models\PagoProveedor::whereIn('codigo_proveedor', $codigosProv)
                 ->get()
                 ->each(function ($pago) {
                     // Por si tiene más líneas, limpiarlas primero.
-                    \App\Models\PagoProveedorFactura::where('pago_id', $pago->id)->forceDelete();
-                    $pago->forceDelete();
+                    \App\Models\PagoProveedorFactura::where('pago_id', $pago->id)->delete();
+                    $pago->delete();
                 });
 
             // 3) Facturas.

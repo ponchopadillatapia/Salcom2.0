@@ -12,6 +12,12 @@
 - **Dónde:** `app/Models/AdminUser.php` (sección `catalogo` en el comentario + accesos de acela/blanca); `app/Http/Middleware/AutenticacionAdmin.php` (`'catalogo' => ['admin/productos']`); `resources/views/layouts/admin.blade.php` (banderas `$puedeCatalogo`/`$puedeVerCatalogo`, el submenu de altas solo se muestra si tiene alguna alta, y el link "Productos" aparece con `productos` o `catalogo`).
 - **Verificado:** `php -l` limpio, Blade compila, y en tinker: acela=[alta_mpi,catalogo], blanca=[alta_mto,catalogo], ambas ve_catalogo=SI y ve_productos_completo=NO (no se les cuela la alta de Compras).
 
+## 2026-09-26 — Fix: PagoProveedor/PagoProveedorFactura NO usan soft-deletes (delete, no forceDelete/withTrashed)
+- **Qué:** La limpieza tronaba con "Call to undefined method PagoProveedor::withTrashed()". CAUSA: ni `PagoProveedor` ni `PagoProveedorFactura` usan SoftDeletes, así que no tienen `withTrashed()` ni `forceDelete()`. FIX: usar `delete()` normal para esos dos (borran de verdad porque no hay soft-delete). Solo Factura y ProveedorUser (que sí usan SoftDeletes) conservan `forceDelete()`.
+- **Nota precarga:** con `--limite=300` da "5 con facturas, 6 actualizadas, 4 errores". Es correcto: de los primeros 300 proveedores pocos deben; los reintentos ya funcionan (4 errores de 300 = 1.3%, aceptable). La corrida completa encontrará los ~215 con facturas.
+- **Dónde:** `app/Console/Commands/LimpiarPruebaPagos.php`.
+- **Verificado:** `php -l` limpio.
+
 ## 2026-09-26 — Fixes: limpieza con foreign keys + precarga con reintentos/pausa (Wiese satura)
 - **Fix limpieza:** `wiese:limpiar-prueba-pagos --force` tronaba con foreign key (factura #9 estaba enganchada a un pago en `pago_proveedor_facturas`, constraint RESTRICT). Ahora borra en ORDEN: (1) líneas `pago_proveedor_facturas` de esas facturas, (2) los pagos `pago_proveedor` de esos códigos, (3) facturas, (4) proveedores. Todo en transacción.
 - **Fix precarga:** al correr `wiese:precargar-facturas` con 5,030 proveedores, Wiese rechazó 214 llamadas (encontró 215 con facturas pero solo importó 6). CAUSA: demasiadas llamadas seguidas saturan Wiese. FIX: hasta 3 REINTENTOS por proveedor (con pausa 0.3s) + pausa de 0.12s entre proveedores. Más lento pero mucho más confiable.
