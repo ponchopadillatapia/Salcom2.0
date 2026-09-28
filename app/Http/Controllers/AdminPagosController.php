@@ -230,8 +230,22 @@ class AdminPagosController extends Controller
                 'total' => $total,
                 'monto_pagado' => $pagado,
                 'estatus' => 'pendiente',
+                'regimen_fiscal' => $factura->regimen_fiscal ?: '601',
                 'fecha_vencimiento' => ! empty($f['fecha_vence']) ? \Illuminate\Support\Carbon::parse($f['fecha_vence'])->toDateString() : null,
                 'notas' => 'Importada de Wiese · serie '.($f['serie'] ?? '').' · idDoc '.($f['id_documento'] ?? ''),
+                // Datos fiscales por defecto para que el lote se pueda confirmar en pruebas.
+                // Wiese no los devuelve en este endpoint; se rellenan con valores SAT estándar.
+                // POR QUÉ: sin estos, confirmar() bloquea ("sin forma_pago"). Ajustables luego.
+                'validacion_detalle' => array_merge(
+                    is_array($factura->validacion_detalle) ? $factura->validacion_detalle : [],
+                    [
+                        'forma_pago' => '03',   // 03 = Transferencia electrónica (SAT)
+                        'metodo_pago' => 'PUE', // PUE = Pago en una exhibición
+                        'uso_cfdi' => 'G03',    // G03 = Gastos en general
+                        'regimen_fiscal' => '601',
+                        'producto' => 'Importado de Wiese',
+                    ]
+                ),
             ]);
             if ($factura->trashed()) {
                 $factura->restore();

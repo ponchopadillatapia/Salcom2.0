@@ -95,6 +95,58 @@
     </div>
 @endif
 
+{{-- Panel visual del EXPEDIENTE DE PAGO: muestra de un vistazo qué documentos lleva
+     el expediente y cuáles están OK o pendientes. Es informativo (no bloquea el pago). --}}
+@php
+    // Documentos que integran el expediente fiscal de un proveedor.
+    $docsExpediente = [
+        'cif' => 'Constancia de Situación Fiscal (CIF)',
+        'opinion' => 'Opinión de cumplimiento SAT',
+        'contribuyente' => 'INE / Identificación',
+        'caratula_banco' => 'Carátula bancaria',
+        'rep_legal' => 'Formato de identificación del proveedor',
+    ];
+    $docsProv = $pago->proveedor && $pago->proveedor->relationLoaded('documentos')
+        ? $pago->proveedor->documentos
+        : ($pago->proveedor?->documentos ?? collect());
+    $totalDocs = count($docsExpediente);
+    $aprobados = 0;
+    foreach ($docsExpediente as $tipo => $label) {
+        $doc = $docsProv->firstWhere('tipo', $tipo);
+        if ($doc && $doc->estatus === 'aprobado') { $aprobados++; }
+    }
+@endphp
+<div class="adm-section anim" style="margin-bottom:18px;">
+    <div class="adm-section-head">
+        <div>
+            <h4>Expediente de pago</h4>
+            <div class="adm-section-meta">Documentos fiscales del proveedor · {{ $aprobados }} de {{ $totalDocs }} aprobados</div>
+        </div>
+        <span style="font-size:12px;font-weight:700;padding:6px 12px;border-radius:20px;
+            {{ $expediente['ok'] ? 'background:#dcfce7;color:#15803d' : 'background:#fef3c7;color:#b45309' }}">
+            {{ $expediente['ok'] ? '✓ Completo' : '⚠ Incompleto (aviso)' }}
+        </span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;padding:4px 2px;">
+        @foreach($docsExpediente as $tipo => $label)
+            @php
+                $doc = $docsProv->firstWhere('tipo', $tipo);
+                $ok = $doc && $doc->estatus === 'aprobado';
+            @endphp
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;border:1px solid {{ $ok ? '#bbf7d0' : '#fde68a' }};background:{{ $ok ? '#f0fdf4' : '#fffbeb' }};">
+                <span style="font-size:16px;">{{ $ok ? '✅' : '⭕' }}</span>
+                <div>
+                    <div style="font-size:12px;font-weight:600;color:#374151;">{{ $label }}</div>
+                    <div style="font-size:11px;color:{{ $ok ? '#15803d' : '#b45309' }};">{{ $ok ? 'Aprobado' : 'Pendiente / no aprobado' }}</div>
+                </div>
+            </div>
+        @endforeach
+    </div>
+    <p class="hint" style="margin-top:10px;font-size:11px;color:#6b7280;">
+        El expediente es solo un aviso: puedes registrar el pago aunque falten documentos. La autorización final la da Dirección.
+    </p>
+</div>
+
 <div class="pag-actions anim">
     @if($pago->esBorrador())
         <form method="POST" action="{{ route('admin.pagos.cancelar', $pago) }}" onsubmit="return confirm('¿Cancelar este borrador?');">

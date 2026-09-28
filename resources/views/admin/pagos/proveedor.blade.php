@@ -102,8 +102,14 @@
                  (sin usar la terminal). Envía POST a importarFacturasWiese. --}}
             <form method="POST" action="{{ route('admin.pagos.importar-facturas', $codigo) }}" style="margin:0;">
                 @csrf
-                <button type="submit" class="btn-primary" onclick="return confirm('¿Importar estas facturas de Wiese para poder pagarlas?')">
-                    ↓ Importar estas facturas para pagar
+                <button type="submit"
+                    onclick="return confirm('¿Importar estas facturas de Wiese para poder pagarlas?')"
+                    style="display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:#fff;border:none;
+                           padding:11px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;
+                           box-shadow:0 2px 6px rgba(22,163,74,.25);transition:background .15s"
+                    onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><line x1="5" y1="21" x2="19" y2="21"/></svg>
+                    Importar facturas para pagar
                 </button>
             </form>
         </div>

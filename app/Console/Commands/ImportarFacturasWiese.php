@@ -113,8 +113,21 @@ class ImportarFacturasWiese extends Command
                 'total' => $total,
                 'monto_pagado' => $pagado,
                 'estatus' => 'pendiente',
+                'regimen_fiscal' => $factura->regimen_fiscal ?: '601',
                 'fecha_vencimiento' => ! empty($f['fecha_vence']) ? Carbon::parse($f['fecha_vence'])->toDateString() : null,
                 'notas' => 'Importada de Wiese · serie '.($f['serie'] ?? '').' · idDoc '.($f['id_documento'] ?? ''),
+                // Datos fiscales por defecto para poder confirmar el lote en pruebas
+                // (Wiese no los devuelve en este endpoint). Valores SAT estándar.
+                'validacion_detalle' => array_merge(
+                    is_array($factura->validacion_detalle) ? $factura->validacion_detalle : [],
+                    [
+                        'forma_pago' => '03',
+                        'metodo_pago' => 'PUE',
+                        'uso_cfdi' => 'G03',
+                        'regimen_fiscal' => '601',
+                        'producto' => 'Importado de Wiese',
+                    ]
+                ),
             ]);
             if ($factura->trashed()) {
                 $factura->restore();
