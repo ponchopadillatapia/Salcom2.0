@@ -41,10 +41,40 @@ class VerCamposFactura extends Command
             ]);
 
         $body = $resp->json();
-        if (! is_array($body) || $body === []) {
-            $this->warn("Sin facturas para RFC {$rfc} (HTTP ".$resp->status().'). Prueba otro RFC con facturas.');
 
-            return self::SUCCESS;
+        // Si el RFC dado no tiene facturas ahora, buscar automáticamente uno que SÍ tenga
+        // (Wiese cambia en tiempo real; un RFC puede quedarse sin pendientes en cualquier momento).
+        if (! is_array($body) || $body === []) {
+            $this->warn("Sin facturas para {$rfc}. Buscando automáticamente un proveedor con facturas...");
+            $lista = $api->listarProveedoresWiese($token);
+            $rfcs = collect($lista['data']['items'] ?? [])
+                ->map(fn ($p) => strtoupper(trim((string) ($p['rfc'] ?? ''))))
+                ->filter(fn ($r) => $r !== '' && $r !== 'XEXX010101000')
+                ->unique()
+                ->take(80);
+
+            foreach ($rfcs as $r) {
+                $rr = Http::connectTimeout(5)->timeout(60)->withToken($token)->acceptJson()
+                    ->get($docsUrl.'/DatoDocumentoProveedor/ListarDocumentosRFC', [
+                        'RFC' => $r,
+                        'fechaInicial' => '2020-01-01T00:00:00',
+                        'fechaFinal' => '2026-12-31T23:59:59',
+                    ]);
+                $b = $rr->json();
+                if (is_array($b) && $b !== []) {
+                    $body = $b;
+                    $rfc = $r;
+                    $this->info("Encontrado RFC con facturas: {$r}");
+                    break;
+                }
+                usleep(120000);
+            }
+
+            if (! is_array($body) || $body === []) {
+                $this->warn('No se encontró ningún proveedor con facturas en los primeros 80. Reintenta luego.');
+
+                return self::SUCCESS;
+            }
         }
 
         $primera = array_is_list($body) ? $body[0] : $body;
