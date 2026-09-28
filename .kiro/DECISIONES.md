@@ -12,6 +12,23 @@
 - **Dónde:** `app/Models/AdminUser.php` (sección `catalogo` en el comentario + accesos de acela/blanca); `app/Http/Middleware/AutenticacionAdmin.php` (`'catalogo' => ['admin/productos']`); `resources/views/layouts/admin.blade.php` (banderas `$puedeCatalogo`/`$puedeVerCatalogo`, el submenu de altas solo se muestra si tiene alguna alta, y el link "Productos" aparece con `productos` o `catalogo`).
 - **Verificado:** `php -l` limpio, Blade compila, y en tinker: acela=[alta_mpi,catalogo], blanca=[alta_mto,catalogo], ambas ve_catalogo=SI y ve_productos_completo=NO (no se les cuela la alta de Compras).
 
+## 2026-09-26 — Precarga masiva de facturas Wiese (para que salgan TODOS los que deben)
+- **Qué:** Comando `wiese:precargar-facturas` que recorre TODOS los proveedores de Wiese, consulta sus facturas pendientes por RFC y las importa a local. Así Formato para pago muestra a TODOS los que deben, sin abrir cada proveedor a mano. Con barra de progreso.
+- **Por qué:** antes solo salía ASCENCIO porque era el único importado (con el botón). Said quiere que salgan todos automáticamente.
+- **Rendimiento (clave):** es LENTO la primera vez (1 llamada a Wiese por proveedor = varios min), pero corre en la TERMINAL del servidor, NO afecta la web. Después la lista carga al instante. NO es "una vez para siempre": las facturas cambian, así que hay que re-correrlo periódicamente (idealmente una tarea programada diaria). El usuario NUNCA ve traba (la web siempre lee de local).
+- **Opción --limite=N:** para probar con los primeros N proveedores antes de correr los 5,685.
+- **PENDIENTE (mejor solución):** preguntar a Alan si Wiese tiene un endpoint que devuelva TODAS las facturas pendientes de golpe (sin ir proveedor por proveedor). Eso haría innecesaria la precarga masiva. No se pudo revisar el Swagger (la laptop de Poncho no alcanzaba Wiese en ese momento).
+- **Dónde:** `app/Console/Commands/PrecargarFacturasWiese.php`.
+- **Verificado:** `php -l` limpio, comando registrado.
+
+## 2026-09-26 — Comando para limpiar basura de prueba del flujo de pagos (P55, ADMIN-8, 102003241)
+- **Qué:** Comando `wiese:limpiar-prueba-pagos` que borra SOLO los proveedores/facturas fake que estorbaban en Formato para pago: P55, ADMIN-8 (Aneso Cominu), 102003241. NO toca proveedores reales (ej. 213004004 ASCENCIO).
+- **Por qué:** en la base de producción quedaron datos de prueba de sesiones anteriores que salían en la lista de pendientes.
+- **Seguridad:** lista blanca de códigos basura (no borra por RFC ni nada genérico). Sin `--force` solo simula (muestra qué borraría); con `--force` borra en transacción.
+- **Uso en servidor:** `php artisan wiese:limpiar-prueba-pagos` (simula) → si se ve bien → `php artisan wiese:limpiar-prueba-pagos --force`.
+- **Dónde:** `app/Console/Commands/LimpiarPruebaPagos.php`.
+- **Verificado:** `php -l` limpio, comando registrado.
+
 ## 2026-09-26 — Directorio de Proveedores: marcar en gris los RFC duplicados
 - **Qué:** En el directorio de Proveedores (Wiese), los proveedores cuyo RFC aparece 2+ veces (cuentas duplicadas por moneda MXN/USD o altas dobles) ahora salen en GRIS/atenuados, con una etiqueta "RFC duplicado" junto al RFC y un tooltip que avisa "revisa cuál tiene facturas".
 - **Por qué:** Said pidió distinguir visualmente los duplicados; a menudo uno de los dos no tiene facturas. Ayuda a saber cuál usar.
