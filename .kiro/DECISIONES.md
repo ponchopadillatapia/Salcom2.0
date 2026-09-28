@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-09-26 — Detalle de proveedor: la tabla de Wiese ES el formulario de pago
+- **Qué:** En `admin/pagos/proveedor.blade.php` la tabla "Facturas pendientes en Wiese" pasó de solo lectura a ser el formulario de pago. Ahora tiene checkbox por fila (`name="folios[]"` con el folio de Wiese como value), un "seleccionar todas" (`chkAll`), barra con contador (`selCount`) y botón "Pagar seleccionadas" (`btnConfirmar`, arranca disabled). Se eliminó por completo la tabla vieja de facturas LOCALES (la que usaba `$facturas`, `factura_ids[]`, columnas Flete/Régimen/Docs, etc.).
+- **Por qué:** el controlador `proveedor()` ya no pasa `$facturas`/`$idsFacturasNoVistas`/`$monto`; ahora `store()` recibe los `folios[]` seleccionados y materializa esas facturas en local solo. La vista debía dejar de depender de datos locales y pagar directo sobre lo que está EN VIVO en Wiese.
+- **Dónde:** `resources/views/admin/pagos/proveedor.blade.php` — form `#formPagarLote` sobre `$facturasWiese`; el `.adm-summary` ahora calcula conteo y saldo desde `$facturasWiese->sum('saldo')`; el JS del modal de anticipos se adaptó para leer folio y saldo (`.monto-saldo`) desde la nueva tabla.
+- **Anticipos:** el modal `#modal-anticipos` y su JS se conservaron intactos; se mantuvieron los ids/clases (`fact-chk`, `selCount`, `btnConfirmar`, `chkAll`) para no romperlo.
+- **Verificado:** `php artisan view:clear` + `Blade::compileString` → OK; grep confirma que no quedan referencias a `$facturas`, `$idsFacturasNoVistas`, `$monto` ni `factura_ids`.
+
+## 2026-09-26 — Pago EN VIVO desde Wiese (adiós importación al abrir; se materializa solo lo seleccionado)
+- **Qué:** Se eliminó la importación automática de TODAS las facturas al abrir el proveedor (causaba timeout con ORPACK y duplicaba la vista). Ahora: al abrir, se LEEN las facturas en vivo de Wiese (sección única con checkboxes). Al PAGAR, se materializan en local SOLO las facturas seleccionadas (2-3), rápido, y con esos IDs se crea el lote. `crearLote`/`confirmar` quedan intactos.
+- **Por qué:** (1) ORPACK tronaba con "Maximum execution time 30s" al importar cientos de facturas. (2) La vista mostraba las facturas duplicadas (tabla Wiese en vivo + tabla local importada). (3) Said: la BD local se desactualiza; leer en vivo evita el desfase.
+- **Cómo:** `proveedor()` ya no importa (solo lee `$facturasWiese` en vivo, pasa `proveedor/codigo/expediente/facturasWiese/wieseError/rfc`). El form de pago está sobre la tabla de Wiese, manda `folios[]`. `store()` valida `folios` y llama a `materializarFacturasSeleccionadas($codigo,$folios)` (nuevo) que baja de Wiese SOLO las seleccionadas, las guarda en local con datos fiscales por defecto, y devuelve sus IDs → `crearLote`.
+- **Quitado:** método `importarFacturasWiese` + ruta `admin.pagos.importar-facturas` + botón. La vista ya no tiene tabla local ni `factura_ids[]`. El modal de anticipos se conservó.
+- **Dónde:** `app/Http/Controllers/AdminPagosController.php` (`proveedor()`, `store()`, nuevo `materializarFacturasSeleccionadas()`, se quitó `importarFacturasWiese()`); `routes/web.php` (ruta quitada); `resources/views/admin/pagos/proveedor.blade.php` (tabla Wiese = form de pago con checkboxes `folios[]`, se quitó tabla local).
+- **Nota:** el comando `wiese:importar-facturas` y la precarga quedan como código pero ya no son el camino. `estadoCuenta()` sigue usando su propia $facturas local (correcto, no se tocó).
+- **Verificado:** `php -l` limpio en controlador y rutas, Blade compila, sin referencias muertas a $facturas/factura_ids/idsFacturasNoVistas en el flujo de pago.
+
 ## 2026-09-26 — Formato para pago rediseñado a BÚSQUEDA (Opción 3, sin precarga)
 - **Qué:** Como Alan no puede hacer el endpoint masivo (está ocupado), Formato para pago YA NO lista miles ni precarga nada. Ahora es por BÚSQUEDA: el usuario escribe código/nombre/RFC, se filtra sobre el directorio de Wiese (1 sola llamada, en memoria) y al abrir el proveedor se ven sus facturas EN VIVO de Wiese. Sin desfase, sin trabar.
 - **Por qué:** resuelve la crítica de Said (la BD local se desactualiza). Al no copiar nada por adelantado y leer en vivo al abrir, siempre está fresco.

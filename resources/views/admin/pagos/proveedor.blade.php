@@ -81,14 +81,13 @@
 </style>
 @endpush
 @section('content')
-@php
-    // Monto real pendiente: total menos lo ya pagado (anticipos aplicados).
-    $monto = $facturas->sum(fn ($f) => max((float) $f->total - (float) $f->monto_pagado, 0));
-@endphp
 
 <a class="pag-back anim" href="{{ route('admin.pagos') }}">← Volver a proveedores</a>
 
-{{-- Facturas pendientes de Wiese por RFC (solo lectura, saldo mayor a 0). --}}
+{{-- Facturas pendientes de Wiese por RFC = FORMULARIO DE PAGO.
+     POR QUÉ: ahora se paga directo sobre las facturas EN VIVO de Wiese (no locales).
+     Al enviar los folios[] seleccionados, el controlador store() materializa esas
+     facturas en local automáticamente. Ya no existe la tabla de facturas locales. --}}
 @if($rfc !== '')
 <div class="adm-section anim" style="margin-bottom:20px;">
     <div class="adm-section-head">
@@ -108,47 +107,66 @@
             $totalWieseMxn = $facturasWiese->where('moneda', 'MXN')->sum('saldo');
             $totalWieseUsd = $facturasWiese->where('moneda', 'USD')->sum('saldo');
         @endphp
-        <div class="tbl-wrap">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th>Folio</th>
-                        <th>Serie</th>
-                        <th>Fecha factura</th>
-                        <th>Vence</th>
-                        <th>Moneda</th>
-                        <th style="text-align:right">Total</th>
-                        <th style="text-align:right">Saldo pendiente</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($facturasWiese as $fw)
+        <form method="POST" action="{{ route('admin.pagos.store') }}" id="formPagarLote">
+            @csrf
+            {{-- POR QUÉ: el controlador identifica al proveedor por su código, no por RFC. --}}
+            <input type="hidden" name="codigo_proveedor" value="{{ $codigo }}">
+            <div class="bulk-bar">
+                <div class="sel-meta"><span id="selCount">0</span> seleccionada(s)</div>
+                <div class="bulk-actions">
+                    {{-- Arranca deshabilitado: se habilita cuando hay ≥1 factura marcada. --}}
+                    <button type="submit" name="confirmar" value="1" class="btn-pagar" id="btnConfirmar" disabled
+                        onclick="return confirm('¿Pagar y confirmar las facturas seleccionadas? Se usarán los datos del XML.');">
+                        Pagar seleccionadas
+                    </button>
+                </div>
+            </div>
+            <div class="tbl-wrap" style="overflow-x:auto;">
+                <table class="admin-table">
+                    <thead>
                         <tr>
-                            <td style="font-weight:600;">{{ $fw['folio'] ?? '—' }}</td>
-                            <td>{{ $fw['serie'] ?: '—' }}</td>
-                            <td>{{ $fw['fecha_factura'] ? \Illuminate\Support\Carbon::parse($fw['fecha_factura'])->format('d/m/Y') : '—' }}</td>
-                            <td>{{ $fw['fecha_vence'] ? \Illuminate\Support\Carbon::parse($fw['fecha_vence'])->format('d/m/Y') : '—' }}</td>
-                            <td>{{ $fw['moneda'] }}</td>
-                            <td style="text-align:right">{{ '$'.number_format((float) $fw['total'], 2) }}</td>
-                            <td style="text-align:right;font-weight:700;color:#b45309">{{ '$'.number_format((float) $fw['saldo'], 2) }}</td>
+                            <th style="width:36px;"><input type="checkbox" class="chk" id="chkAll" title="Seleccionar todas"></th>
+                            <th>Folio</th>
+                            <th>Serie</th>
+                            <th>Fecha factura</th>
+                            <th>Vence</th>
+                            <th>Moneda</th>
+                            <th style="text-align:right">Total</th>
+                            <th style="text-align:right">Saldo pendiente</th>
                         </tr>
-                    @endforeach
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="6" style="text-align:right;font-weight:700;">Saldo pendiente total</td>
-                        <td style="text-align:right;font-weight:800;color:#b45309;">
-                            @if($totalWieseMxn > 0)
-                                <div>{{ '$'.number_format($totalWieseMxn, 2) }} MXN</div>
-                            @endif
-                            @if($totalWieseUsd > 0)
-                                <div>{{ '$'.number_format($totalWieseUsd, 2) }} USD</div>
-                            @endif
-                        </td>
-                    </tr>
-                </tfoot>
-            </table>
-        </div>
+                    </thead>
+                    <tbody>
+                        @foreach($facturasWiese as $fw)
+                            {{-- POR QUÉ: las facturas en USD se resaltan con un degradado azul suave,
+                                 igual que en otras vistas, para distinguirlas de un vistazo. --}}
+                            <tr @if(($fw['moneda'] ?? '') === 'USD') style="background:linear-gradient(90deg,#eff6ff 0%,#f8fbff 60%,#ffffff 100%);" @endif>
+                                <td><input type="checkbox" class="chk fact-chk" name="folios[]" value="{{ $fw['folio'] }}"></td>
+                                <td style="font-weight:600;">{{ $fw['folio'] ?? '—' }}</td>
+                                <td>{{ $fw['serie'] ?: '—' }}</td>
+                                <td>{{ $fw['fecha_factura'] ? \Illuminate\Support\Carbon::parse($fw['fecha_factura'])->format('d/m/Y') : '—' }}</td>
+                                <td>{{ $fw['fecha_vence'] ? \Illuminate\Support\Carbon::parse($fw['fecha_vence'])->format('d/m/Y') : '—' }}</td>
+                                <td>{{ $fw['moneda'] }}</td>
+                                <td style="text-align:right">{{ '$'.number_format((float) $fw['total'], 2) }}</td>
+                                <td style="text-align:right;font-weight:700;color:#b45309" class="monto-saldo">{{ '$'.number_format((float) $fw['saldo'], 2) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="7" style="text-align:right;font-weight:700;">Saldo pendiente total</td>
+                            <td style="text-align:right;font-weight:800;color:#b45309;">
+                                @if($totalWieseMxn > 0)
+                                    <div>{{ '$'.number_format($totalWieseMxn, 2) }} MXN</div>
+                                @endif
+                                @if($totalWieseUsd > 0)
+                                    <div>{{ '$'.number_format($totalWieseUsd, 2) }} USD</div>
+                                @endif
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </form>
     @endif
 </div>
 @endif
@@ -245,15 +263,21 @@
     </div>
 @endif
 
+@php
+    // Resumen calculado desde las facturas EN VIVO de Wiese (ya no hay $facturas locales).
+    // POR QUÉ: el monto pendiente es la suma de los saldos por pagar reales del contable.
+    $countWiese = $rfc !== '' && !$wieseError ? $facturasWiese->count() : 0;
+    $montoWiese = $rfc !== '' && !$wieseError ? $facturasWiese->sum('saldo') : 0;
+@endphp
 <div class="adm-summary anim">
     <div class="adm-summary-main">
-        <div class="adm-summary-pct">{{ $facturas->count() }}</div>
+        <div class="adm-summary-pct">{{ $countWiese }}</div>
         <div class="adm-summary-label">Facturas pendientes</div>
     </div>
     <div class="adm-summary-metrics">
         <div>
-            <div class="adm-metric-label">Monto total</div>
-            <div class="adm-metric-val">${{ number_format($monto, 2) }}</div>
+            <div class="adm-metric-label">Saldo pendiente total</div>
+            <div class="adm-metric-val">${{ number_format($montoWiese, 2) }}</div>
         </div>
     </div>
     <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
@@ -264,175 +288,7 @@
     </div>
 </div>
 
-<div class="adm-section anim">
-    <div class="adm-section-head">
-        <div>
-            <h4>Facturas pendientes</h4>
-            <div class="adm-section-meta">{{ $facturas->count() }} resultado{{ $facturas->count() !== 1 ? 's' : '' }} · agrupados por fecha de alta</div>
-        </div>
-    </div>
-    @if($facturas->isEmpty())
-        <div class="empty">Sin facturas pendientes para este proveedor.</div>
-    @else
-        <form method="POST" action="{{ route('admin.pagos.store') }}" id="formPagarLote">
-            @csrf
-            <input type="hidden" name="codigo_proveedor" value="{{ $codigo }}">
-            <div class="bulk-bar">
-                <div class="sel-meta"><span id="selCount">0</span> seleccionada(s)</div>
-                <div class="bulk-actions">
-                    <button type="submit" name="confirmar" value="1" class="btn-pagar" id="btnConfirmar" disabled
-                        onclick="return confirm('¿Pagar y confirmar las facturas seleccionadas? Se usarán los datos del XML.');">
-                        Pagar seleccionadas
-                    </button>
-                </div>
-            </div>
-            <div style="overflow-x:auto;">
-            <table class="admin-table">
-                <thead>
-                    <tr>
-                        <th style="width:36px;"><input type="checkbox" class="chk" id="chkAll" title="Seleccionar todas"></th>
-                        <th>Folio</th>
-                        <th>Vencimiento</th>
-                        <th>Flete</th>
-                        <th>Régimen</th>
-                        <th>Proveedor</th>
-                        <th>Retenciones</th>
-                        <th>Subtotal</th>
-                        <th>Total</th>
-                        <th>Saldo</th>
-                        <th>Status</th>
-                        <th>Hora</th>
-                        <th style="text-align:right;">Docs</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @php $lastDate = null; @endphp
-                    @foreach($facturas as $f)
-                        @php
-                            $currentDate = $f->created_at ? $f->created_at->format('Y-m-d') : null;
-                            $saldo = (float) $f->neto_pago;
-                        @endphp
-                        @if($currentDate !== $lastDate)
-                            <tr class="date-row">
-                                <td colspan="12">{{ $f->created_at ? $f->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY') : 'Sin fecha' }}</td>
-                            </tr>
-                            @php $lastDate = $currentDate; @endphp
-                        @endif
-                        <tr>
-                            <td><input type="checkbox" class="chk fact-chk" name="factura_ids[]" value="{{ $f->id }}"></td>
-                            <td>
-                                @if(in_array($f->id, $idsFacturasNoVistas ?? []))<span class="dot-rojo" title="Factura nueva sin ver"></span>@endif
-                                <strong style="color:var(--purple);">{{ $f->folio_display }}</strong>
-                            </td>
-                            <td>
-                                @include('partials.celda-vencimiento', [
-                                    'fecha' => $f->fecha_vencimiento,
-                                    'plazo' => $f->dias_plazo,
-                                ])
-                            </td>
-                            <td>
-                                @if($f->es_fletera)
-                                    <span class="pill warn">Sí</span>
-                                @else
-                                    <span class="pill neut">No</span>
-                                @endif
-                            </td>
-                            <td>{{ $f->regimen_fiscal ?: '—' }}</td>
-                            <td style="max-width:160px;">
-                                <div style="font-weight:600;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $proveedor->nombre }}</div>
-                                <div style="font-size:10px;color:var(--gray-muted);">{{ $codigo }}</div>
-                            </td>
-                            <td style="font-size:12px;white-space:nowrap;">
-                                IVA ${{ number_format((float)($f->retencion_iva ?? 0), 2) }}<br>
-                                ISR ${{ number_format((float)($f->retencion_isr ?? 0), 2) }}
-                            </td>
-                            <td class="monto">${{ number_format((float)$f->monto, 2) }}</td>
-                            <td class="monto">${{ number_format((float)$f->total, 2) }}</td>
-                            <td class="monto">
-                                @php $pagadoFac = (float) $f->monto_pagado; @endphp
-                                @if($pagadoFac > 0)
-                                    <div style="font-size:11px;color:#7c3aed;font-weight:700">Anticipo: - ${{ number_format($pagadoFac, 2) }}</div>
-                                    <div style="font-weight:800;color:#059669">${{ number_format($saldo, 2) }}</div>
-                                    <div style="font-size:10px;color:var(--gray-muted);text-decoration:line-through">${{ number_format((float)$f->total, 2) }}</div>
-                                @else
-                                    ${{ number_format($saldo, 2) }}
-                                @endif
-                            </td>
-                            <td style="min-width:180px;">
-                                @php
-                                    $pillClass = match($f->estatus) {
-                                        'pendiente' => 'pendiente',
-                                        'programada' => 'programada',
-                                        'pagada' => 'pagada',
-                                        'liquidada' => 'liquidada',
-                                        'cancelada' => 'cancelada',
-                                        default => 'pendiente',
-                                    };
-                                @endphp
-                                <span class="pill {{ $pillClass }}" style="margin-bottom:4px;">{{ ucfirst($f->estatus) }}</span>
-                                @forelse($f->avisos_pago as $a)
-                                    <span class="aviso">• {{ $a }}</span>
-                                @empty
-                                    <span class="pill ok">OK</span>
-                                @endforelse
-                            </td>
-                            <td style="font-size:11px;color:var(--gray-muted);white-space:nowrap">{{ $f->created_at?->format('h:i a') ?? '—' }}</td>
-                            <td>
-                                <div class="actions-cell">
-                                    <button type="button" class="btn-ver" onclick="toggleDocs({{ $f->id }})">
-                                        Docs
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td colspan="13" style="padding:0;border:none;">
-                                <div class="doc-panel" id="docs-{{ $f->id }}">
-                                    <h5>Documentos adjuntos — {{ $f->folio_display }}</h5>
-                                    <div class="doc-list">
-                                        @if($f->archivo_pdf)
-                                            <a class="doc-link" href="{{ asset('storage/'.$f->archivo_pdf) }}" target="_blank">PDF</a>
-                                        @else
-                                            <span class="doc-link disabled">PDF (no adjunto)</span>
-                                        @endif
-                                        @if($f->archivo_xml)
-                                            <a class="doc-link" href="{{ asset('storage/'.$f->archivo_xml) }}" target="_blank">XML</a>
-                                        @else
-                                            <span class="doc-link disabled">XML (no adjunto)</span>
-                                        @endif
-                                        @if($f->archivo_oc)
-                                            <a class="doc-link" href="{{ asset('storage/'.$f->archivo_oc) }}" target="_blank">Orden de compra</a>
-                                        @else
-                                            <span class="doc-link disabled">OC (no adjunta)</span>
-                                        @endif
-                                    </div>
-                                    @php
-                                        $anticiposDeFactura = \App\Models\AnticipoProveedor::where('factura_id', $f->id)->where('estatus', 'aplicado')->get();
-                                    @endphp
-                                    @if($anticiposDeFactura->count() > 0)
-                                        <div style="margin-top:12px;padding:10px 14px;background:#f3e8ff;border-radius:8px;border:1px solid #e9d5ff">
-                                            <div style="font-size:12px;font-weight:700;color:#5b21b6;margin-bottom:6px">Anticipos ligados:</div>
-                                            @foreach($anticiposDeFactura as $antF)
-                                                <div style="font-size:12px;color:#7c3aed;margin-bottom:3px">• {{ $antF->folio_general }} — ${{ number_format((float)$antF->total_banco, 2) }} — {{ $antF->fecha?->format('d/m/Y') }}</div>
-                                            @endforeach
-                                        </div>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
-            </div>
-        </form>
-    @endif
-</div>
 <script>
-function toggleDocs(id) {
-    var el = document.getElementById('docs-' + id);
-    if (el) el.classList.toggle('open');
-}
-
 var tieneAnticipos = {{ $anticiposActivos->count() > 0 ? 'true' : 'false' }};
 
 function filtrarAnticipos() {
@@ -550,13 +406,17 @@ function cerrarYPagar(btnContinuar) {
                 alert('Selecciona al menos una factura.');
                 return;
             }
-            // Llenar dropdowns del modal con solo las facturas seleccionadas
+            // Llenar dropdowns del modal con solo las facturas seleccionadas.
+            // POR QUÉ: la tabla ahora es la de Wiese; el folio va en la 2ª celda y el
+            // saldo pendiente en la celda con clase .monto-saldo. El value del checkbox
+            // es el folio (folios[]), que es lo que el modal de anticipos necesita.
             var opciones = '<option value="">Seleccionar factura...</option>';
             seleccionadas.forEach(function (b) {
                 var tr = b.closest('tr');
-                var folio = tr.querySelector('td:nth-child(2) strong').textContent.trim();
-                var total = tr.querySelector('.monto').textContent.trim();
-                opciones += '<option value="' + b.value + '">' + folio + ' — ' + total + '</option>';
+                var folio = tr.querySelector('td:nth-child(2)').textContent.trim();
+                var saldoEl = tr.querySelector('.monto-saldo');
+                var total = saldoEl ? saldoEl.textContent.trim() : '';
+                opciones += '<option value="' + b.value + '">' + folio + (total ? ' — ' + total : '') + '</option>';
             });
             document.querySelectorAll('.select-factura-modal').forEach(function (sel) {
                 sel.innerHTML = opciones;
