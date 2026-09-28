@@ -17,7 +17,9 @@ use Illuminate\Support\Facades\Http;
  */
 class VerEndpointsWiese extends Command
 {
-    protected $signature = 'wiese:ver-endpoints {--filtro= : Solo mostrar rutas que contengan este texto (ej. Documento)}';
+    protected $signature = 'wiese:ver-endpoints
+        {--filtro= : Solo mostrar rutas que contengan este texto (ej. Documento)}
+        {--detalle= : Mostrar los PARÁMETROS de una ruta exacta (ej. /api/DatoDocumentoProveedor/ListarDocumentos)}';
 
     protected $description = 'Lista los endpoints del Swagger de Wiese (para hallar uno masivo)';
 
@@ -53,6 +55,39 @@ class VerEndpointsWiese extends Command
                 $this->warn('  sin paths');
 
                 continue;
+            }
+
+            // Modo DETALLE: mostrar los parámetros de una ruta exacta.
+            $detalle = trim((string) $this->option('detalle'));
+            if ($detalle !== '') {
+                if (! isset($json['paths'][$detalle])) {
+                    $this->error("No se encontró la ruta exacta: {$detalle}");
+
+                    return self::FAILURE;
+                }
+                $this->info("=== PARÁMETROS DE {$detalle} ===");
+                foreach ($json['paths'][$detalle] as $verbo => $info) {
+                    $this->line(strtoupper($verbo).':');
+                    $params = $info['parameters'] ?? [];
+                    if ($params === []) {
+                        $this->line('  (sin parámetros de query declarados; quizá usa body)');
+                        // Si es POST, mostrar el schema del body.
+                        $body = $info['requestBody']['content']['application/json']['schema'] ?? null;
+                        if ($body) {
+                            $this->line('  BODY schema: '.json_encode($body, JSON_UNESCAPED_UNICODE));
+                        }
+                    }
+                    foreach ($params as $p) {
+                        $nombre = $p['name'] ?? '?';
+                        $en = $p['in'] ?? '?';
+                        $req = ! empty($p['required']) ? 'REQUERIDO' : 'opcional';
+                        $tipo = $p['schema']['type'] ?? ($p['type'] ?? '?');
+                        $fmt = $p['schema']['format'] ?? '';
+                        $this->line("  - {$nombre} ({$en}, {$tipo}{$fmt}) {$req}");
+                    }
+                }
+
+                return self::SUCCESS;
             }
 
             $this->info("=== ENDPOINTS DE WIESE ({$url}) ===");
