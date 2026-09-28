@@ -105,55 +105,48 @@
     <div class="pag-alert err anim">{{ session('error') }}</div>
 @endif
 
-<div class="inv-metrics anim" style="grid-template-columns:repeat(2,1fr)">
-    <a class="inv-metric {{ $expediente === 'sin_revisar' ? 'is-active' : '' }}" href="{{ route('admin.pagos', ['expediente' => 'sin_revisar']) }}">
-        <div class="accent" style="background:var(--red,#dc2626)"></div>
-        <div class="inv-metric-label">Sin revisar</div>
-        <div class="inv-metric-val">{{ $kpiSinRevisar }}</div>
-        <div class="inv-metric-sub">Nuevas facturas</div>
-    </a>
-    <a class="inv-metric is-active" href="{{ route('admin.pagos') }}">
-        <div class="accent" style="background:var(--purple,#6B3FA0)"></div>
-        <div class="inv-metric-label">Proveedores</div>
-        <div class="inv-metric-val">{{ $kpiTotales }}</div>
-        <div class="inv-metric-sub">Con facturas pendientes</div>
-    </a>
-</div>
-
 <div class="toolbar anim" style="animation-delay:.04s">
     <div class="filters-panel">
         <form method="GET" action="{{ route('admin.pagos') }}" class="filter-form">
-            <div class="filter-field search-field">
-                <label>Buscar</label>
-                <input type="text" name="q" value="{{ $q }}" placeholder="Nombre o código de proveedor…">
-            </div>
-            <div class="filter-field">
-                <label>Código</label>
-                <input type="text" name="codigo" value="{{ $codigo }}" placeholder="Código proveedor…">
+            <div class="filter-field search-field" style="flex:1;">
+                <label>Buscar proveedor</label>
+                <input type="text" name="q" value="{{ $q }}" placeholder="Escribe código, nombre o RFC del proveedor…" autofocus>
             </div>
             <div class="filter-actions">
-                <button type="submit" class="btn-primary">Filtrar</button>
-                @if($filtrosActivos)
+                <button type="submit" class="btn-primary">Buscar</button>
+                @if($filtrosBusqueda)
                     <a href="{{ route('admin.pagos') }}" class="btn-outline">Limpiar</a>
                 @endif
             </div>
         </form>
-        @if($filtrosActivos)
+        @if($filtrosBusqueda)
         <div class="active-filters">
-            <span>Filtros activos:</span>
-            @if($q !== '')<span class="active-tag">«{{ $q }}»</span>@endif
-            @if($codigo !== '')<span class="active-tag">Código {{ $codigo }}</span>@endif
+            <span>Buscando:</span>
+            <span class="active-tag">«{{ $q ?: $codigo }}»</span>
         </div>
         @endif
     </div>
 </div>
 
+@if(! $filtrosBusqueda)
+    {{-- Pantalla de bienvenida: aún no se ha buscado nada. --}}
+    <div class="adm-section anim" style="animation-delay:.08s">
+        <div class="empty-state" style="padding:48px 20px;text-align:center;">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.5" style="margin-bottom:12px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <h3 style="margin:0 0 6px;color:#374151;">Busca un proveedor para pagarle</h3>
+            <p style="color:#6b7280;max-width:460px;margin:0 auto;">
+                Escribe el <strong>código</strong>, <strong>nombre</strong> o <strong>RFC</strong> del proveedor en el buscador de arriba.
+                Al abrirlo verás sus facturas pendientes reales de Wiese, en tiempo real.
+            </p>
+        </div>
+    </div>
+@else
 <div class="adm-section anim" style="animation-delay:.08s">
     <div class="adm-section-head">
         <div>
-            <h4>Proveedores</h4>
+            <h4>Resultados</h4>
             <div class="adm-section-meta">
-                {{ number_format($total) }} proveedor{{ $total !== 1 ? 'es' : '' }} · pendientes arriba · burbuja roja = sin revisar
+                {{ number_format($total) }} proveedor{{ $total !== 1 ? 'es' : '' }} que coinciden con «{{ $q ?: $codigo }}»
                 @if($proveedoresPendientes->lastPage() > 1) · página {{ $proveedoresPendientes->currentPage() }} de {{ $proveedoresPendientes->lastPage() }} @endif
             </div>
         </div>
@@ -161,11 +154,7 @@
 
     @if($proveedoresPendientes->isEmpty())
         <div class="empty-state">
-            @if($filtrosBusqueda)
-                <p>No se encontró ningún proveedor para esa búsqueda.</p>
-            @else
-                <p>No hay proveedores con facturas pendientes. Busca por nombre o código para registrarle un pago a cualquier proveedor de Wiese.</p>
-            @endif
+            <p>No se encontró ningún proveedor con «{{ $q ?: $codigo }}». Revisa el código, nombre o RFC.</p>
         </div>
     @else
         <div class="tbl-wrap">
@@ -174,30 +163,36 @@
                     <tr>
                         <th>Código</th>
                         <th>Proveedor</th>
-                        <th style="text-align:center;">Facturas pendientes</th>
+                        <th style="text-align:center;">Moneda</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {{-- Tabla plana, sin agrupar por fecha: el orden viene del controlador
-                         (los que deben MÁS, arriba). Columnas alineadas con el thead (3). --}}
                     @foreach($proveedoresPendientes as $row)
-                        @php $sinLeer = ($row->notif_sin_leer ?? 0) > 0; @endphp
-                        <tr class="prov-row {{ $sinLeer ? 'row-nuevo' : '' }}" onclick="window.location='{{ route('admin.pagos.proveedor', $row->codigo) }}'" style="cursor:pointer;">
+                        @php $esUsd = ($row->moneda ?? 'MXN') === 'USD'; @endphp
+                        <tr class="prov-row" onclick="window.location='{{ route('admin.pagos.proveedor', $row->codigo) }}'"
+                            style="cursor:pointer;@if($esUsd)background:linear-gradient(90deg,#eff6ff 0%,#f8fbff 60%,#ffffff 100%);@endif">
                             <td>
-                                <a class="code-link" href="{{ route('admin.pagos.proveedor', $row->codigo) }}" onclick="event.stopPropagation()">{{ $row->codigo }}</a>
+                                <a class="code-link" href="{{ route('admin.pagos.proveedor', $row->codigo) }}" onclick="event.stopPropagation()" style="{{ $esUsd ? 'color:#1d4ed8;' : '' }}">{{ $row->codigo }}</a>
                             </td>
-                            <td style="font-weight:600;">@if($sinLeer)<span class="dot-azul" title="Facturas nuevas sin ver"></span>@endif{{ $row->nombre }}</td>
-                            <td style="text-align:center;">{{ $row->num_facturas }}</td>
+                            <td style="font-weight:600;">{{ $row->nombre }}</td>
+                            <td style="text-align:center;">
+                                @if($esUsd)
+                                    <span class="mon-badge mon-usd" style="background:#dbeafe;color:#1d4ed8;">USD</span>
+                                @else
+                                    <span class="mon-badge mon-mxn">MXN</span>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
             </table>
         </div>
 
-        {{-- Paginación: 50 por página. appends(request()->query()) conserva la búsqueda/filtros al cambiar de página. --}}
+        {{-- Paginación: 50 por página. appends conserva la búsqueda al cambiar de página. --}}
         @if($proveedoresPendientes->hasPages())
             <div class="pagination-wrap">{{ $proveedoresPendientes->appends(request()->query())->links() }}</div>
         @endif
     @endif
 </div>
+@endif
 @endsection

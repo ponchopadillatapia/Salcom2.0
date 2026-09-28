@@ -19,49 +19,70 @@ class AdminPagosController extends Controller
 
     public function index(Request $request)
     {
-        // POR QUÉ: por defecto la vista muestra SOLO proveedores con facturas pendientes
-        // (los que están en la base local con deuda). NO se listan los 5,685 de Wiese porque
-        // (a) forzaría "0" en casi todos y (b) consultarlos todos congela la página.
-        // El buscador SÍ busca en todo Wiese, para encontrar a cualquiera e importarlo al abrirlo.
+        // ENFOQUE BÚSQUEDA (Opción 3): NO se lista a los 5,686 ni se precarga nada.
+        // El usuario BUSCA un proveedor (código/nombre/RFC); se filtra sobre el directorio
+        // de Wiese (que ya viene en memoria de una sola llamada) y al abrir el proveedor
+        // se consultan sus facturas EN VIVO de Wiese. Así siempre está fresco y nunca se traba.
         $q = trim((string) $request->query('q', ''));
         $codigo = trim((string) $request->query('codigo', ''));
-        $expediente = trim((string) $request->query('expediente', '')); // '' | ok | pendiente | sin_revisar
+        $expediente = '';
 
         $hayBusqueda = $q !== '' || $codigo !== '';
 
-        // Sin búsqueda: solo los que tienen pendientes locales (rápido, sale de la base).
-        // Con búsqueda: TODA la lista de Wiese (para hallar e importar uno nuevo).
-        $todos = $hayBusqueda
-            ? $this->pagos->proveedoresParaFormatoPago()
-            : $this->pagos->proveedoresConPendientes();
+        // KPIs desactivados en este enfoque (no tiene sentido calcularlos sobre búsqueda).
+        $kpiSinRevisar = 0;
+        $kpiExpOk = 0;
+        $kpiExpPend = 0;
+        $kpiTotales = 0;
 
-        // KPIs: siempre sobre los que tienen facturas pendientes.
-        $conPendientes = $todos->filter(fn ($r) => ($r->num_facturas ?? 0) > 0);
-        $kpiSinRevisar = $conPendientes->filter(fn ($r) => ($r->notif_sin_leer ?? 0) > 0)->count();
-        $kpiExpOk = $conPendientes->filter(fn ($r) => ! empty($r->expediente['ok']))->count();
-        $kpiExpPend = $conPendientes->filter(fn ($r) => empty($r->expediente['ok']))->count();
-        $kpiTotales = $conPendientes->count();
+        $filtrada = collect();
+        if ($hayBusqueda) {
+            // Traer el directorio de Wiese (1 sola llamada) y filtrar por lo buscado.
+            // Se busca en CÓDIGO, NOMBRE y RFC. Se mapea a objetos simples con lo que la vista usa.
+            $needle = mb_strtolower($q !== '' ? $q : $codigo);
+            try {
+                $res = app(\App\Services\ProveedorApiService::class)->listarProveedoresWiese();
+            } catch (\Throwable $e) {
+                $res = ['success' => false];
+            }
+            if ($res['success'] ?? false) {
+                $filtrada = collect($res['data']['items'] ?? [])
+                    ->map(function ($p) {
+                        $cod = trim((string) ($p['codigo'] ?? $p['Codigo'] ?? ''));
+                        $nom = trim((string) ($p['nombre'] ?? $p['Nombre'] ?? ''));
+                        $rfc = trim((string) ($p['rfc'] ?? $p['Rfc'] ?? ''));
+                        $mon = (string) ($p['moneda'] ?? $p['Moneda'] ?? '');
+                        // Descartar basura ("(Ninguno)", vacíos).
+                        if ($cod === '' || $nom === '' || stripos($cod, 'ninguno') !== false) {
+                            return null;
+                        }
 
-        // Aplicar filtros de búsqueda sobre TODA la lista.
-        $filtrada = $todos;
-        if ($q !== '') {
-            $filtrada = $filtrada->filter(fn ($r) => str_contains(mb_strtolower($r->nombre), mb_strtolower($q))
-                || str_contains((string) $r->codigo, $q));
+                        return (object) [
+                            'codigo' => $cod,
+                            'nombre' => $nom,
+                            'rfc' => $rfc,
+                            'moneda' => $mon === '2' ? 'USD' : 'MXN',
+                            // La vista muestra estas; en búsqueda no sabemos el conteo real
+                            // (se ve en vivo al abrir el proveedor). Van en 0 aquí.
+                            'num_facturas' => 0,
+                            'monto_total' => 0.0,
+                            'notif_sin_leer' => 0,
+                            'expediente' => ['ok' => false, 'motivos' => []],
+                            'ultima_factura_at' => null,
+                        ];
+                    })
+                    ->filter()
+                    ->filter(function ($r) use ($needle) {
+                        return str_contains(mb_strtolower($r->nombre), $needle)
+                            || str_contains(mb_strtolower($r->codigo), $needle)
+                            || str_contains(mb_strtolower($r->rfc), $needle);
+                    })
+                    ->sortBy('nombre')
+                    ->values();
+            }
         }
-        if ($codigo !== '') {
-            $filtrada = $filtrada->filter(fn ($r) => str_contains((string) $r->codigo, $codigo));
-        }
-        if ($expediente === 'sin_revisar') {
-            $filtrada = $filtrada->filter(fn ($r) => ($r->notif_sin_leer ?? 0) > 0);
-        } elseif ($expediente === 'ok') {
-            $filtrada = $filtrada->filter(fn ($r) => ! empty($r->expediente['ok']));
-        } elseif ($expediente === 'pendiente') {
-            $filtrada = $filtrada->filter(fn ($r) => empty($r->expediente['ok']));
-        }
-        $filtrada = $filtrada->values();
 
-        // Paginar la colección de 50 en 50. Como es una Collection (no query), se usa
-        // LengthAwarePaginator manualmente: se corta la página actual con slice().
+        // Paginar los resultados de la búsqueda (50 por página).
         $porPagina = 50;
         $pagina = max(1, (int) $request->query('page', 1));
         $itemsPagina = $filtrada->slice(($pagina - 1) * $porPagina, $porPagina)->values();

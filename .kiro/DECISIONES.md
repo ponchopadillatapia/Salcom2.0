@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-09-26 — Formato para pago rediseñado a BÚSQUEDA (Opción 3, sin precarga)
+- **Qué:** Como Alan no puede hacer el endpoint masivo (está ocupado), Formato para pago YA NO lista miles ni precarga nada. Ahora es por BÚSQUEDA: el usuario escribe código/nombre/RFC, se filtra sobre el directorio de Wiese (1 sola llamada, en memoria) y al abrir el proveedor se ven sus facturas EN VIVO de Wiese. Sin desfase, sin trabar.
+- **Por qué:** resuelve la crítica de Said (la BD local se desactualiza). Al no copiar nada por adelantado y leer en vivo al abrir, siempre está fresco.
+- **UX:** sin búsqueda → pantalla de bienvenida ("Busca un proveedor para pagarle"). Con búsqueda → resultados con columna Moneda (USD con degradado azul). Se quitaron los KPIs (no aplican en modo búsqueda) y el segundo campo "código" (ahora un solo buscador que cubre código/nombre/RFC).
+- **Dónde:** `app/Http/Controllers/AdminPagosController.php::index()` (búsqueda sobre listarProveedoresWiese, filtra por codigo/nombre/rfc, pagina 50); `resources/views/admin/pagos/index.blade.php` (buscador único, bienvenida, tabla de resultados con moneda).
+- **Nota:** la precarga (`wiese:precargar-facturas`) y el import automático quedan como código pero ya NO son el camino principal. El flujo de pago sigue igual (al abrir proveedor se importan sus facturas a local SOLO para poder registrar el pago, pero se leen frescas de Wiese en cada apertura).
+- **Verificado:** `php -l` limpio, Blade compila.
+
+## 2026-09-26 — CONCLUSIÓN investigación: se NECESITA endpoint masivo de Alan (sin atajo)
+- **Contexto:** se investigó a fondo cómo mostrar "todos los proveedores que deben" en tiempo real. Conclusión: NO hay forma sin un endpoint masivo de Alan.
+- **Lo comprobado:** (1) NO hay endpoint masivo en el Swagger (revisados los 191 de /Documento; ListarDocumentos pide `id`, ListarMuchos pide array de ids, ListarAnticipoConSaldoPendiente rompe con error SQL). (2) Campo `activo` del listado NO sirve: los 5,686 vienen `activo=false`. (3) Moneda: MXN=4,802 · USD=883 (filtrar MXN baja poco). (4) Campos de factura (ListarDocumentosRFC): codigo, folio, serie, fechaFactura, fechaVence, total, saldo, saldoDlls, idMoneda, tipoCambio, ivaFacturaDLLS, importePago, pagar, referencia, idDocumento, vencido8Dias/15Dias/Mas15Dias/vencidoTotal. Ninguno permite saber "quién tiene facturas" sin preguntar proveedor por proveedor.
+- **Prueba del desfase (importante):** un RFC (GORJ560821SV8) que en la mañana tenía 1 factura de $28,228, horas después devolvió 0. CONFIRMA que Wiese cambia en tiempo real y que copiar a la BD local se desactualiza rápido (crítica válida de Said).
+- **DECISIÓN:** pedir a Alan un endpoint `ListarTodasConSaldoPendiente` (su mismo query de ListarDocumentosRFC pero SIN el WHERE de rfc, solo `WHERE cpendiente > 0`, con fechaInicial/fechaFinal). Devuelve todo en 1 llamada, en tiempo real. Es la única solución correcta.
+- **Campos útiles hallados para MEJORAR la vista de pago (a futuro):** vencido8Dias/15Dias/Mas15Dias/vencidoTotal (antigüedad de deuda para priorizar), saldoDlls/tipoCambio/ivaFacturaDLLS (manejo USD).
+- **Herramientas de diagnóstico creadas:** comandos `wiese:ver-endpoints`, `wiese:probar-listar-documentos`, `wiese:ver-campos-proveedor`, `wiese:contar-proveedores`, `wiese:ver-campos-factura` (para explorar la API).
+
 ## 2026-09-25 — acela y blanca: agregar acceso al catálogo de Productos (sin abrir otras altas)
 - **Qué:** Se creó una sección nueva `catalogo` (solo ver `admin/productos`, sin ninguna alta) y se asignó a acela.bolanos (→ alta_mpi + catalogo) y blanca.paganoni (→ alta_mto + catalogo).
 - **Por qué:** dirección pidió que además de su alta, ambas puedan ver el catálogo de Productos. NO se usó la sección `productos` porque esa incluye la alta de Compras (abriría una alta que no les toca). `catalogo` da SOLO el catálogo.
