@@ -34,13 +34,19 @@ class ProbarListarDocumentos extends Command
         $this->info('Token OK.');
 
         $docsUrl = rtrim((string) config('services.proveedor_api.docs_url', ''), '/');
-        $endpoint = '/DatoDocumentoProveedor/ListarDocumentos';
+        // Probamos ListarAnticipoConSaldoPendiente: NO pide id/rfc de un proveedor,
+        // así que es candidato a traer VARIOS/TODOS los documentos con saldo pendiente.
+        $endpoint = '/Documento/ListarAnticipoConSaldoPendiente';
 
-        // Distintas combinaciones de parámetros a probar (no sabemos cuáles pide).
+        // Rango de fechas seguro para SQL Server (no usar años extremos).
+        $fi = '2020-01-01T00:00:00';
+        $ff = '2026-12-31T23:59:59';
+
+        // Distintas combinaciones (el filtroDeDocumentos puede cambiar qué tipo trae).
         $combos = [
-            'sin params' => [],
-            'solo fechas' => ['fechaInicial' => '2020-01-01T00:00:00', 'fechaFinal' => '2035-12-31T23:59:59'],
-            'fechas min/may' => ['FechaInicial' => '2020-01-01T00:00:00', 'FechaFinal' => '2035-12-31T23:59:59'],
+            'solo fechas' => ['fechaInicio' => $fi, 'fechaFinal' => $ff],
+            'fechas + filtro vacio' => ['fechaInicio' => $fi, 'fechaFinal' => $ff, 'filtroDeDocumentos' => '', 'razonSocial' => ''],
+            'fechas + filtro TODOS' => ['fechaInicio' => $fi, 'fechaFinal' => $ff, 'filtroDeDocumentos' => 'TODOS', 'razonSocial' => ''],
         ];
 
         foreach ($combos as $nombre => $params) {
