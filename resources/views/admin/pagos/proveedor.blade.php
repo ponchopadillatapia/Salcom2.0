@@ -96,24 +96,8 @@
             <h4>Facturas pendientes en Wiese</h4>
             <div class="adm-section-meta">Datos reales del sistema contable · RFC {{ $rfc }} · solo saldo por pagar</div>
         </div>
-        @if(! $wieseError && $facturasWiese->isNotEmpty())
-        <div class="adm-section-toolbar">
-            {{-- Botón: importa estas facturas de Wiese a local para poder pagarlas
-                 (sin usar la terminal). Envía POST a importarFacturasWiese. --}}
-            <form method="POST" action="{{ route('admin.pagos.importar-facturas', $codigo) }}" style="margin:0;">
-                @csrf
-                <button type="submit"
-                    onclick="return confirm('¿Importar estas facturas de Wiese para poder pagarlas?')"
-                    style="display:inline-flex;align-items:center;gap:8px;background:#16a34a;color:#fff;border:none;
-                           padding:11px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;
-                           box-shadow:0 2px 6px rgba(22,163,74,.25);transition:background .15s"
-                    onmouseover="this.style.background='#15803d'" onmouseout="this.style.background='#16a34a'">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
-                    Re-sincronizar facturas
-                </button>
-            </form>
-        </div>
-        @endif
+        {{-- Las facturas de Wiese se importan solas al abrir el proveedor (automático),
+             por eso ya no hay botón manual de importar. --}}
     </div>
     @if($wieseError)
         <div class="pag-alert err">No se pudieron cargar las facturas de Wiese. {{ $wieseError }}</div>

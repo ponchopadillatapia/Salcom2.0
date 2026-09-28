@@ -19,17 +19,23 @@ class AdminPagosController extends Controller
 
     public function index(Request $request)
     {
-        // POR QUÉ: la vista lista TODOS los proveedores de Wiese (5,685), con los que tienen
-        // facturas pendientes arriba. Como son miles, se pagina de 50 en 50 para no reventar
-        // el navegador. El filtrado (búsqueda) y la paginación se hacen aquí, no en la vista.
+        // POR QUÉ: por defecto la vista muestra SOLO proveedores con facturas pendientes
+        // (los que están en la base local con deuda). NO se listan los 5,685 de Wiese porque
+        // (a) forzaría "0" en casi todos y (b) consultarlos todos congela la página.
+        // El buscador SÍ busca en todo Wiese, para encontrar a cualquiera e importarlo al abrirlo.
         $q = trim((string) $request->query('q', ''));
         $codigo = trim((string) $request->query('codigo', ''));
         $expediente = trim((string) $request->query('expediente', '')); // '' | ok | pendiente | sin_revisar
 
-        // Lista completa fusionada (Wiese + pendientes locales, pendientes arriba).
-        $todos = $this->pagos->proveedoresParaFormatoPago();
+        $hayBusqueda = $q !== '' || $codigo !== '';
 
-        // KPIs: se calculan solo sobre los que tienen facturas pendientes (no sobre los 5,685).
+        // Sin búsqueda: solo los que tienen pendientes locales (rápido, sale de la base).
+        // Con búsqueda: TODA la lista de Wiese (para hallar e importar uno nuevo).
+        $todos = $hayBusqueda
+            ? $this->pagos->proveedoresParaFormatoPago()
+            : $this->pagos->proveedoresConPendientes();
+
+        // KPIs: siempre sobre los que tienen facturas pendientes.
         $conPendientes = $todos->filter(fn ($r) => ($r->num_facturas ?? 0) > 0);
         $kpiSinRevisar = $conPendientes->filter(fn ($r) => ($r->notif_sin_leer ?? 0) > 0)->count();
         $kpiExpOk = $conPendientes->filter(fn ($r) => ! empty($r->expediente['ok']))->count();
@@ -100,13 +106,19 @@ class AdminPagosController extends Controller
         $expediente = $this->pagos->evaluarExpediente($proveedor);
 
         // IMPORTACIÓN AUTOMÁTICA: al abrir el proveedor, bajamos sus facturas pendientes
-        // de Wiese a local (sin necesidad de botón). Usa firstOrNew, así no duplica: si ya
-        // existen las actualiza. Si Wiese no responde, no rompe (sigue con lo que haya local).
-        // POR QUÉ: Said pidió que las facturas se carguen solas al entrar al proveedor.
-        try {
-            $this->importarFacturasWieseAlLocal($codigo);
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('[Pagos] Import automático Wiese falló: '.$e->getMessage());
+        // de Wiese a local (sin necesidad de botón). Usa firstOrNew, así no duplica.
+        // OPTIMIZACIÓN (caché): solo consultamos Wiese si NO lo hicimos en los últimos
+        // 5 minutos para este proveedor. Así abrir/recargar seguido no repite la llamada
+        // lenta a Wiese. El botón "Re-sincronizar" (o esperar 5 min) fuerza una nueva.
+        // Si Wiese no responde, no rompe (sigue con lo que haya en local).
+        $cacheKey = 'wiese_import_'.$codigo;
+        if (! \Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            try {
+                $this->importarFacturasWieseAlLocal($codigo);
+                \Illuminate\Support\Facades\Cache::put($cacheKey, true, now()->addMinutes(5));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning('[Pagos] Import automático Wiese falló: '.$e->getMessage());
+            }
         }
 
         // Al abrir el proveedor, se marcan como vistas las notifs de pago pendiente
