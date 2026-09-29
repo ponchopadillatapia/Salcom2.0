@@ -116,6 +116,17 @@ class AdminPanelController extends Controller
         $otifResumen = $this->calcularOtifResumen();
         $fiscalResumen = $this->calcularResumenFiscal();
 
+        $altasProductoMes = Producto::where('created_at', '>=', $inicioMes)->count();
+        $productosInactivos = Producto::where('activo', false)->count();
+
+        try {
+            $reembolsosTotal = Alerta::where('tipo', 'solicitud_reembolso')->count();
+            $reembolsosPendientes = Alerta::where('tipo', 'solicitud_reembolso')->where('estatus', 'pendiente')->count();
+        } catch (\Exception $e) {
+            $reembolsosTotal = 0;
+            $reembolsosPendientes = 0;
+        }
+
         $data = [
             'totalProveedores' => ProveedorUser::count(),
             'proveedoresActivos' => ProveedorUser::where('activo', true)->count(),
@@ -145,7 +156,6 @@ class AdminPanelController extends Controller
             'docsPendientes' => DocumentoProveedor::where('estatus', 'pendiente')->count(),
             'ultimosPedidos' => Pedido::with('proveedor')->orderBy('created_at', 'desc')->limit(3)->get(),
             'topProveedores' => ProveedorUser::where('score_total', '>', 0)->orderBy('score_total', 'desc')->limit(3)->get(),
-            'proveedoresActivosList' => ProveedorUser::where('activo', true)->orderBy('nombre')->get(),
             'pedidosPorMes' => $pedidosPorMes,
             'facturasPorEstatus' => $facturasPorEstatus,
             'facturasPagadasCount' => $facturasPagadasCount,
@@ -158,6 +168,10 @@ class AdminPanelController extends Controller
             'fiscalRojo' => $fiscalResumen['rojo'],
             'fiscalGris' => $fiscalResumen['gris'],
             'fiscalPctCumple' => $fiscalResumen['pctCumple'],
+            'altasProductoMes' => $altasProductoMes,
+            'productosInactivos' => $productosInactivos,
+            'reembolsosTotal' => $reembolsosTotal,
+            'reembolsosPendientes' => $reembolsosPendientes,
         ];
 
         return view('admin.dashboard', $data);

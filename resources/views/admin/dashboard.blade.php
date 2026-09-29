@@ -74,129 +74,24 @@
 @section('content')
 <div class="pp-wrap">
 
-    {{-- Faltantes de documentación fiscal (se usa en la tarjeta "Docs. fiscales").
-         POR QUÉ: se calcula ANTES del grid para poder meter esa tarjeta en el MISMO
-         grid que las demás y que todas queden en una sola cuadrícula pareja. --}}
-    @php
-        $tiposRequeridosDash = ['cif' => 'CIF', 'opinion' => 'Opinión SAT', 'caratula_banco' => 'Carátula'];
-        $proveedoresConFaltantes = ($proveedoresActivosList ?? collect())->filter(function ($prov) use ($tiposRequeridosDash) {
-            try {
-                $docsAprobados = $prov->documentos->where('estatus', 'aprobado')->pluck('tipo')->unique()->toArray();
-            } catch (\Exception $e) {
-                return true;
-            }
-
-            return count(array_intersect(array_keys($tiposRequeridosDash), $docsAprobados)) < count($tiposRequeridosDash);
-        });
-        $nFaltantes = $proveedoresConFaltantes->count();
-        $nombresFaltantes = $proveedoresConFaltantes->take(3)->map(fn ($p) => $p->nombre ?? $p->usuario)->values();
-    @endphp
-
     {{-- KPIs: todos en UN solo grid de 4 columnas, misma altura (188px) --}}
     <div class="pp-kpi-section">
-        <a href="{{ route('admin.negocio') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('admin.alta-producto') }}" style="text-decoration:none;color:inherit;">
         <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-            <h4>Negocio</h4>
+            <h4>Alta de Producto</h4>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Compras del mes</div>
+                <div class="pp-negocio-label">Altas del mes</div>
                 <div class="pp-negocio-value" style="color:var(--green);font-size:20px;">
-                    ${{ number_format($ventasMesActual, 0) }}
+                    {{ $altasProductoMes }}
                 </div>
             </div>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Facturas recibidas</div>
-                <div class="pp-negocio-value" style="font-size:20px;">
-                    {{ $facturasProvMesActual }}
-                </div>
-            </div>
-            <div class="pp-negocio-sub">Adeudo total proveedores: ${{ number_format($ventasTotales, 0) }}</div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
-        </div></a>
-
-        <a href="{{ route('admin.inventario') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-            <h4>Inventario</h4>
-            <div class="pp-negocio-row">
-                <div class="pp-negocio-label">SKUs activos</div>
+                <div class="pp-negocio-label">Catálogo activo</div>
                 <div class="pp-negocio-value" style="font-size:20px;">
                     {{ $totalProductos }}
-                    @if($skusVarPct != 0)<span class="pp-variation {{ $skusVarPct > 0 ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $skusVarPct > 0 ? '↑' : '↓' }} {{ $skusVarPct > 0 ? '+' : '' }}{{ $skusVarPct }}%</span>@endif
                 </div>
             </div>
-            <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Agotados</div>
-                <div class="pp-negocio-value" style="color:{{ $sinStock > 0 ? 'var(--red)' : 'var(--green)' }};font-size:20px;">
-                    {{ $sinStock }}
-                    @if($agotadosVarPct !== null)
-                        @php $agotadosMejora = $agotadosVarPct < 0; @endphp
-                        <span class="pp-variation {{ $agotadosMejora ? 'pp-variation-up' : 'pp-variation-down' }}" style="font-size:14px;">{{ $agotadosVarPct > 0 ? '↓' : ($agotadosVarPct < 0 ? '↑' : '') }} {{ $agotadosVarPct > 0 ? '+' : '' }}{{ $agotadosVarPct }}%</span>
-                    @endif
-                </div>
-            </div>
-            <div class="pp-negocio-sub">
-                <span style="color:var(--amber);">●</span> {{ $stockBajo }} bajo &nbsp;
-                <span style="color:var(--green);">●</span> {{ $stockOk }} OK
-            </div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
-        </div></a>
-
-        <a href="{{ route('admin.otif') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-            <h4>OTIF</h4>
-            <div class="pp-kpi-gauges">
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOT" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ number_format($otPercent, 1) }}%</div></div></div><div class="pp-otif-label">OT</div></div>
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeIF" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ number_format($ifPercent, 1) }}%</div></div></div><div class="pp-otif-label">IF</div></div>
-            </div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
-        </div></a>
-
-        <a href="{{ route('admin.opinion-positiva') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-            <h4>Opinión positiva</h4>
-            <div class="pp-kpi-gauges">
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOpOk" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $opinionPctActualizados }}%</div></div></div><div class="pp-otif-label">Actualizados</div></div>
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOpNo" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent" style="color:var(--amber)">{{ $opinionPctNoActualizados }}%</div></div></div><div class="pp-otif-label">No actualizados</div></div>
-            </div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
-        </div></a>
-
-        <a href="{{ route('admin.proveedores') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-            <h4>Proveedores</h4>
-            <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Activos</div>
-                <div class="pp-negocio-value" style="font-size:20px;color:var(--green);">{{ $proveedoresActivos }}</div>
-            </div>
-            <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Inactivos</div>
-                <div class="pp-negocio-value" style="font-size:20px;color:var(--red);">{{ $totalProveedores - $proveedoresActivos }}</div>
-            </div>
-            <div class="pp-negocio-sub">Total: {{ $totalProveedores }} · Score: {{ $scorePromedio }}%</div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
-        </div></a>
-
-        <a href="{{ route('admin.expediente-fiscal') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-            <h4>Docs. pendientes</h4>
-            <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Documentos por revisar</div>
-                <div class="pp-negocio-value" style="color:var(--amber);font-size:26px;">{{ $docsPendientes }}</div>
-            </div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
-        </div></a>
-
-        <a href="{{ route('admin.fiscal') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-            <h4>Fiscal</h4>
-            <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Cumplimiento SAT</div>
-                <div class="pp-negocio-value" style="font-size:20px;">{{ $fiscalPctCumple }}%</div>
-            </div>
-            <div class="pp-negocio-sub">
-                <span style="color:var(--green);">●</span> {{ $fiscalVerde }} al día &nbsp;
-                <span style="color:var(--amber);">●</span> {{ $fiscalAmarillo }} en revisión &nbsp;
-                <span style="color:var(--red);">●</span> {{ $fiscalRojo }} pendientes
-            </div>
+            <div class="pp-negocio-sub">Sube Excel para dar de alta productos</div>
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
@@ -218,28 +113,54 @@
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
-        <a href="{{ route('admin.expediente-fiscal') }}" style="text-decoration:none;color:inherit;">
+        <a href="{{ route('admin.productos') }}" style="text-decoration:none;color:inherit;">
+        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
+            <h4>Productos</h4>
+            <div class="pp-negocio-row">
+                <div class="pp-negocio-label">Activos</div>
+                <div class="pp-negocio-value" style="font-size:20px;color:var(--green);">{{ $totalProductos }}</div>
+            </div>
+            <div class="pp-negocio-row">
+                <div class="pp-negocio-label">Inactivos</div>
+                <div class="pp-negocio-value" style="font-size:20px;color:var(--red);">{{ $productosInactivos }}</div>
+            </div>
+            <div class="pp-negocio-sub">Total: {{ $totalProductos + $productosInactivos }}</div>
+            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
+        </div></a>
+
+        <a href="{{ route('admin.reembolsos') }}" style="text-decoration:none;color:inherit;">
             <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-                <h4>Docs. fiscales</h4>
+                <h4>Reembolsos</h4>
                 <div class="pp-negocio-row">
-                    <div class="pp-negocio-label">Proveedores incompletos</div>
-                    <div class="pp-negocio-value" style="color:{{ $nFaltantes > 0 ? 'var(--amber)' : 'var(--green)' }};font-size:26px;">{{ $nFaltantes }}</div>
+                    <div class="pp-negocio-label">Pendientes</div>
+                    <div class="pp-negocio-value" style="color:{{ $reembolsosPendientes > 0 ? 'var(--amber)' : 'var(--green)' }};font-size:26px;">{{ $reembolsosPendientes }}</div>
                 </div>
-                <div class="pp-negocio-sub" style="flex:1;overflow:hidden;">
-                    @if($nFaltantes === 0)
-                        Documentación completa ✓
-                    @else
-                        @foreach($nombresFaltantes as $nom)
-                            <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ $nom }}</div>
-                        @endforeach
-                        @if($nFaltantes > 3)
-                            <div>+{{ $nFaltantes - 3 }} más…</div>
-                        @endif
-                    @endif
+                <div class="pp-negocio-sub" style="flex:1;">
+                    {{ $reembolsosTotal }} {{ $reembolsosTotal === 1 ? 'solicitud registrada' : 'solicitudes registradas' }}
                 </div>
                 <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
             </div>
         </a>
+
+        <a href="{{ route('admin.otif') }}" style="text-decoration:none;color:inherit;">
+        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
+            <h4>OTIF</h4>
+            <div class="pp-kpi-gauges">
+                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOT" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ number_format($otPercent, 1) }}%</div></div></div><div class="pp-otif-label">OT</div></div>
+                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeIF" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ number_format($ifPercent, 1) }}%</div></div></div><div class="pp-otif-label">IF</div></div>
+            </div>
+            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
+        </div></a>
+
+        <a href="{{ route('admin.opinion-positiva') }}" style="text-decoration:none;color:inherit;">
+        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
+            <h4>Opinión positiva</h4>
+            <div class="pp-kpi-gauges">
+                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOpOk" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $opinionPctActualizados }}%</div></div></div><div class="pp-otif-label">Actualizados</div></div>
+                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOpNo" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent" style="color:var(--amber)">{{ $opinionPctNoActualizados }}%</div></div></div><div class="pp-otif-label">No actualizados</div></div>
+            </div>
+            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
+        </div></a>
     </div>
 
     {{-- Accesos directos --}}
@@ -257,11 +178,11 @@
             </div>
             <div><div class="pp-quick-title">Reportes</div><div class="pp-quick-sub">Análisis de proveedores</div></div>
         </a>
-        <a href="{{ route('admin.clientes') }}" class="pp-card pp-quick-card">
+        <a href="{{ route('admin.bitacora-gasolina') }}" class="pp-card pp-quick-card">
             <div class="pp-quick-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 22V6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16"/><path d="M3 22h12"/><path d="M15 10h2a2 2 0 0 1 2 2v2a2 2 0 0 0 2 2v4"/><path d="M7 8h4"/><path d="M7 12h4"/></svg>
             </div>
-            <div><div class="pp-quick-title">Clientes</div><div class="pp-quick-sub">Gestión de cuentas</div></div>
+            <div><div class="pp-quick-title">Bitácora Gasolina</div><div class="pp-quick-sub">Cargas y facturas</div></div>
         </a>
         <a href="{{ route('admin.alta-producto') }}" class="pp-card pp-quick-card">
             <div class="pp-quick-icon">
