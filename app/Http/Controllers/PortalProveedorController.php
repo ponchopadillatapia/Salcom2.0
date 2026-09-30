@@ -36,12 +36,58 @@ class PortalProveedorController extends Controller
 {
     public function mostrarPortal()
     {
-        return view('proveedores.portal');
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        [, $codigos] = $this->resolverCodigosFacturaProveedor($proveedor);
+
+        $facturas = Factura::query()->whereIn('codigo_proveedor', $codigos);
+        $facturasPagadas = (clone $facturas)->whereIn('estatus', ['pagada', 'programada'])->count();
+        $facturasPendientes = (clone $facturas)->where('estatus', 'pendiente')->count();
+        $facturasCanceladas = (clone $facturas)->whereIn('estatus', ['cancelada', 'rechazada'])->count();
+        $montoPorCobrar = (float) ((clone $facturas)->whereIn('estatus', ['pendiente', 'programada'])
+            ->selectRaw('SUM(total - monto_pagado) as pendiente')
+            ->value('pendiente') ?? 0);
+        $altasFacturaMes = (clone $facturas)->where('created_at', '>=', now()->startOfMonth())->count();
+        $facturasTotal = (clone $facturas)->count();
+
+        $proveedorId = (int) session('proveedor_id');
+        $nombreProveedor = $proveedor?->nombre ?: (string) session('proveedor_nombre', '');
+        $productos = Producto::query()->where(function ($q) use ($proveedorId, $nombreProveedor) {
+            $tieneFiltro = false;
+            if ($proveedorId > 0) {
+                $q->whereHas('preciosProveedor', fn ($pq) => $pq->where('proveedor_id', $proveedorId));
+                $tieneFiltro = true;
+            }
+            if ($nombreProveedor !== '') {
+                $metodo = $tieneFiltro ? 'orWhere' : 'where';
+                $q->{$metodo}(function ($q2) use ($nombreProveedor) {
+                    $q2->where('proveedor_tipo', 'proveedor')
+                        ->where('proveedor_nombre', $nombreProveedor);
+                });
+                $tieneFiltro = true;
+            }
+            if (! $tieneFiltro) {
+                $q->whereRaw('1 = 0');
+            }
+        });
+
+        return view('proveedores.portal', [
+            'facturasPagadas' => $facturasPagadas,
+            'facturasPendientes' => $facturasPendientes,
+            'facturasCanceladas' => $facturasCanceladas,
+            'montoPorCobrar' => $montoPorCobrar,
+            'altasFacturaMes' => $altasFacturaMes,
+            'facturasTotal' => $facturasTotal,
+            'productosActivos' => (clone $productos)->where('activo', true)->count(),
+            'productosInactivos' => (clone $productos)->where('activo', false)->count(),
+            'altasProductoMes' => (clone $productos)->where('created_at', '>=', now()->startOfMonth())->count(),
+            'otPercent' => $proveedor ? (float) $proveedor->score_puntualidad : 0,
+            'ifPercent' => $proveedor ? (float) $proveedor->score_entrega : 0,
+        ]);
     }
 
     public function mostrarDashboard()
     {
-        return view('proveedores.dashboard');
+        return $this->mostrarPortal();
     }
 
     public function mostrarOnboarding()

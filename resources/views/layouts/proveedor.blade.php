@@ -536,10 +536,6 @@
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
                 <span class="sb-text">Inicio</span>
             </a>
-            <a href="{{ $portalOk ? route('proveedores.dashboard') : $lockHref }}" class="sb-link {{ request()->routeIs('proveedores.dashboard') ? 'active' : '' }}" {!! $lockAttr !!}>
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></div>
-                <span class="sb-text">Dashboard</span>
-            </a>
 
             <div class="sb-hr"></div>
             <div class="sb-section">Productos</div>
