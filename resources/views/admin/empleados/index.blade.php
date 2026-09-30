@@ -46,8 +46,8 @@
             @csrf
             <div class="emp-row" style="grid-template-columns: 1fr 1.5fr 1fr 1.5fr;">
                 <div class="emp-group">
-                    <label for="numero_empleado">Número de empleado *</label>
-                    <input type="text" id="numero_empleado" name="numero_empleado" required placeholder="Ej: 31542" value="{{ old('numero_empleado') }}">
+                    <label for="numero_empleado">Número de empleado</label>
+                    <input type="text" id="numero_empleado" name="numero_empleado" placeholder="Opcional, ej: 31542" value="{{ old('numero_empleado') }}">
                 </div>
                 <div class="emp-group">
                     <label for="nombre">Nombre completo *</label>
@@ -109,6 +109,17 @@
                     <td>{{ $emp->titular_cuenta ?: '—' }}</td>
                     <td><span class="badge {{ $emp->activo ? 'b-activo' : 'b-inactivo' }}">{{ $emp->activo ? 'Activo' : 'Inactivo' }}</span></td>
                     <td style="display:flex;gap:12px;align-items:center;">
+                        {{-- POR QUÉ: el botón abre el modal de edición precargado con los datos de ESTE empleado (data-* attrs). --}}
+                        <button type="button" class="link-act" style="color:var(--purple);"
+                            onclick="editarEmpleado(this)"
+                            data-id="{{ $emp->id }}"
+                            data-numero="{{ $emp->numero_empleado }}"
+                            data-nombre="{{ $emp->nombre }}"
+                            data-departamento="{{ $emp->departamento }}"
+                            data-correo="{{ $emp->correo }}"
+                            data-cuenta="{{ $emp->numero_cuenta }}"
+                            data-titular="{{ $emp->titular_cuenta }}"
+                            data-gasolina="{{ $emp->requiere_gasolina ? 1 : 0 }}">Editar</button>
                         <form method="POST" action="{{ route('admin.empleados.toggle', $emp) }}" style="display:inline;">
                             @csrf
                             <button type="submit" class="link-act" style="color:{{ $emp->activo ? '#d97706' : '#059669' }};">{{ $emp->activo ? 'Desactivar' : 'Activar' }}</button>
@@ -129,4 +140,95 @@
         @endif
     </div>
 </div>
+
+{{-- Modal de edición: un solo formulario reutilizable; el JS lo rellena y ajusta el action por empleado. --}}
+<div id="modalEditar" class="emp-modal-overlay" style="display:none;">
+    <div class="emp-modal">
+        <div class="emp-modal-head">
+            <h3>Editar empleado</h3>
+            <button type="button" class="emp-modal-close" onclick="cerrarModal()">&times;</button>
+        </div>
+        {{-- El action se define en JS (route con el id). Laravel no soporta PUT en HTML, por eso @method('PUT'). --}}
+        <form id="formEditar" method="POST">
+            @csrf
+            @method('PUT')
+            <div class="emp-modal-grid">
+                <div class="emp-group">
+                    <label for="edit_numero">Número de empleado</label>
+                    <input type="text" id="edit_numero" name="numero_empleado" placeholder="Opcional, ej: 31542">
+                </div>
+                <div class="emp-group">
+                    <label for="edit_nombre">Nombre completo *</label>
+                    <input type="text" id="edit_nombre" name="nombre" required>
+                </div>
+                <div class="emp-group">
+                    <label for="edit_departamento">Departamento / Área / Ruta</label>
+                    <input type="text" id="edit_departamento" name="departamento">
+                </div>
+                <div class="emp-group">
+                    <label for="edit_correo">Correo</label>
+                    <input type="email" id="edit_correo" name="correo">
+                </div>
+                <div class="emp-group">
+                    <label for="edit_cuenta">Número de cuenta de la tarjeta</label>
+                    <input type="text" id="edit_cuenta" name="numero_cuenta">
+                </div>
+                <div class="emp-group">
+                    <label for="edit_titular">Titular de la tarjeta</label>
+                    <input type="text" id="edit_titular" name="titular_cuenta">
+                </div>
+            </div>
+            <div class="emp-group" style="flex-direction:row;align-items:center;gap:8px;margin-top:14px;">
+                <input type="checkbox" id="edit_gasolina" name="requiere_gasolina" value="1" style="width:16px;height:16px;accent-color:var(--purple);">
+                <label for="edit_gasolina" style="margin:0;cursor:pointer;">Este empleado es de ruta/gasolina (debe llenar bitácora antes de pedir reembolsos)</label>
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+                <button type="button" class="link-act" style="color:var(--gray-muted);padding:10px 18px;" onclick="cerrarModal()">Cancelar</button>
+                <button type="submit" class="btn-alta">Guardar cambios</button>
+            </div>
+        </form>
+    </div>
+</div>
 @endsection
+
+@push('styles')
+<style>
+    .emp-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+    .emp-modal { background: var(--white); border-radius: 14px; padding: 24px; width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,.25); }
+    .emp-modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .emp-modal-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--gray-text); }
+    .emp-modal-close { background: none; border: none; font-size: 26px; line-height: 1; color: var(--gray-muted); cursor: pointer; }
+    .emp-modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media(max-width:600px){ .emp-modal-grid { grid-template-columns: 1fr; } }
+</style>
+@endpush
+
+@push('scripts')
+<script>
+    // Ruta base para armar el action del formulario. Usamos un placeholder :id y lo reemplazamos por el id real.
+    const URL_ACTUALIZAR = "{{ url('admin/empleados') }}";
+
+    function editarEmpleado(btn) {
+        // POR QUÉ: leemos los datos del propio botón (data-*) en vez de pedirlos al server; ya están en la tabla.
+        const d = btn.dataset;
+        document.getElementById('formEditar').action = URL_ACTUALIZAR + '/' + d.id;
+        document.getElementById('edit_numero').value = d.numero || '';
+        document.getElementById('edit_nombre').value = d.nombre || '';
+        document.getElementById('edit_departamento').value = d.departamento || '';
+        document.getElementById('edit_correo').value = d.correo || '';
+        document.getElementById('edit_cuenta').value = d.cuenta || '';
+        document.getElementById('edit_titular').value = d.titular || '';
+        document.getElementById('edit_gasolina').checked = d.gasolina === '1';
+        document.getElementById('modalEditar').style.display = 'flex';
+    }
+
+    function cerrarModal() {
+        document.getElementById('modalEditar').style.display = 'none';
+    }
+
+    // Cerrar al hacer click fuera de la tarjeta del modal.
+    document.getElementById('modalEditar').addEventListener('click', function (e) {
+        if (e.target === this) cerrarModal();
+    });
+</script>
+@endpush

@@ -276,7 +276,9 @@ class PortalEmpleadoController extends Controller
     public function adminGuardar(Request $request)
     {
         $request->validate([
-            'numero_empleado' => 'required|string|max:50|unique:empleados,numero_empleado',
+            // POR QUÉ: dirección pidió poder registrar empleados sin número (se asigna después al editar).
+            // 'nullable' lo hace opcional; el unique sigue evitando duplicados cuando SÍ se captura.
+            'numero_empleado' => 'nullable|string|max:50|unique:empleados,numero_empleado',
             'nombre' => 'required|string|max:255',
             'departamento' => 'nullable|string|max:100',
             'correo' => 'nullable|email|max:255',
@@ -284,12 +286,13 @@ class PortalEmpleadoController extends Controller
             'titular_cuenta' => 'nullable|string|max:255',
         ], [
             'numero_empleado.unique' => 'Ese número de empleado ya existe.',
-            'numero_empleado.required' => 'El número de empleado es obligatorio.',
             'nombre.required' => 'El nombre es obligatorio.',
         ]);
 
         Empleado::create([
-            'numero_empleado' => trim($request->input('numero_empleado')),
+            // POR QUÉ: la columna es UNIQUE. MySQL permite varios NULL pero NO varios '' (string vacío).
+            // Por eso convertimos vacío -> null y así pueden convivir varios empleados sin número.
+            'numero_empleado' => $this->limpiarNumeroEmpleado($request->input('numero_empleado')),
             'nombre' => $request->input('nombre'),
             'departamento' => $request->input('departamento'),
             'correo' => $request->input('correo'),
@@ -313,16 +316,21 @@ class PortalEmpleadoController extends Controller
     public function adminActualizar(Request $request, Empleado $empleado)
     {
         $request->validate([
-            'numero_empleado' => 'required|string|max:50|unique:empleados,numero_empleado,' . $empleado->id,
+            // POR QUÉ: mismo criterio que el alta; el número es opcional al editar.
+            // El unique ignora al propio registro (,{id}) para que pueda guardarse sin marcar duplicado a sí mismo.
+            'numero_empleado' => 'nullable|string|max:50|unique:empleados,numero_empleado,' . $empleado->id,
             'nombre' => 'required|string|max:255',
             'departamento' => 'nullable|string|max:100',
             'correo' => 'nullable|email|max:255',
             'numero_cuenta' => 'nullable|string|max:30',
             'titular_cuenta' => 'nullable|string|max:255',
+        ], [
+            'numero_empleado.unique' => 'Ese número de empleado ya existe.',
+            'nombre.required' => 'El nombre es obligatorio.',
         ]);
 
         $empleado->update([
-            'numero_empleado' => trim($request->input('numero_empleado')),
+            'numero_empleado' => $this->limpiarNumeroEmpleado($request->input('numero_empleado')),
             'nombre' => $request->input('nombre'),
             'departamento' => $request->input('departamento'),
             'correo' => $request->input('correo'),
@@ -339,5 +347,18 @@ class PortalEmpleadoController extends Controller
         $empleado->delete();
 
         return redirect()->route('admin.empleados')->with('mensaje', 'Empleado eliminado.');
+    }
+
+    /**
+     * Normaliza el número de empleado para guardarlo.
+     * POR QUÉ: la columna es UNIQUE. Si guardáramos '' (cadena vacía) para dos empleados
+     * sin número, MySQL lo rechazaría por duplicado. NULL sí permite múltiples registros,
+     * así que convertimos cualquier valor vacío o solo espacios en NULL.
+     */
+    private function limpiarNumeroEmpleado(?string $valor): ?string
+    {
+        $valor = trim((string) $valor);
+
+        return $valor === '' ? null : $valor;
     }
 }

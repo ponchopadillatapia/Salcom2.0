@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-09-30 — Número de empleado opcional + edición de empleados
+- **Qué:** el "Número de empleado" en el alta ya NO es obligatorio (era `required`). Además se agregó un botón "Editar" en cada fila del listado que abre un modal para modificar todos los datos del empleado (número, nombre, departamento, correo, cuenta, titular, checkbox ruta/gasolina).
+- **Por qué:** dirección pidió poder registrar empleados sin número y asignárselo/corregirlo después. El backend de edición (`adminActualizar` + ruta PUT) ya existía, faltaba solo el frontend.
+- **Cómo se resolvió el UNIQUE:** la columna `numero_empleado` es UNIQUE; MySQL permite varios NULL pero NO varias cadenas vacías. Por eso se agregó el helper `limpiarNumeroEmpleado()` que convierte vacío → NULL, así conviven varios empleados sin número.
+- **Dónde:** `PortalEmpleadoController::adminGuardar/adminActualizar` + helper `limpiarNumeroEmpleado`; vista `resources/views/admin/empleados/index.blade.php` (input sin `required`, botón Editar con `data-*`, modal `#modalEditar` y JS en `@push('scripts')`).
+
 ## 2026-09-26 — Detalle de proveedor: la tabla de Wiese ES el formulario de pago
 - **Qué:** En `admin/pagos/proveedor.blade.php` la tabla "Facturas pendientes en Wiese" pasó de solo lectura a ser el formulario de pago. Ahora tiene checkbox por fila (`name="folios[]"` con el folio de Wiese como value), un "seleccionar todas" (`chkAll`), barra con contador (`selCount`) y botón "Pagar seleccionadas" (`btnConfirmar`, arranca disabled). Se eliminó por completo la tabla vieja de facturas LOCALES (la que usaba `$facturas`, `factura_ids[]`, columnas Flete/Régimen/Docs, etc.).
 - **Por qué:** el controlador `proveedor()` ya no pasa `$facturas`/`$idsFacturasNoVistas`/`$monto`; ahora `store()` recibe los `folios[]` seleccionados y materializa esas facturas en local solo. La vista debía dejar de depender de datos locales y pagar directo sobre lo que está EN VIVO en Wiese.
