@@ -10,11 +10,11 @@
     .emp-row { display: grid; grid-template-columns: 1fr 1.5fr 1fr 1.5fr auto; gap: 12px; align-items: end; }
     .emp-group { display: flex; flex-direction: column; gap: 6px; }
     .emp-group label { font-size: 12px; font-weight: 600; color: var(--gray-muted); }
-    .emp-group input {
+    .emp-group input, .emp-group select {
         border: 1.5px solid var(--border); border-radius: 8px; padding: 10px 14px;
         font-size: 13px; font-family: inherit; color: var(--gray-text); outline: none; background: var(--white); width: 100%; box-sizing: border-box;
     }
-    .emp-group input:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(107,63,160,.1); }
+    .emp-group input:focus, .emp-group select:focus { border-color: var(--purple); box-shadow: 0 0 0 3px rgba(107,63,160,.1); }
     .btn-alta { padding: 10px 20px; background: var(--purple); color: #fff; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit; white-space: nowrap; }
     .btn-alta:hover { background: var(--purple-dark); }
     .emp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -68,7 +68,7 @@
                     <label for="requiere_gasolina" style="margin:0;cursor:pointer;">Este empleado es de ruta/gasolina (debe llenar bitácora de gasolina antes de poder pedir reembolsos)</label>
                 </div>
             </div>
-            <div class="emp-row" style="grid-template-columns: 1fr 1.5fr auto; margin-top:14px;">
+            <div class="emp-row" style="grid-template-columns: 1fr 1.5fr 1fr auto; margin-top:14px;">
                 <div class="emp-group">
                     <label for="numero_cuenta">Número de cuenta de la tarjeta</label>
                     <input type="text" id="numero_cuenta" name="numero_cuenta" placeholder="Cuenta completa" value="{{ old('numero_cuenta') }}">
@@ -76,6 +76,14 @@
                 <div class="emp-group">
                     <label for="titular_cuenta">Titular de la tarjeta (a nombre de quién)</label>
                     <input type="text" id="titular_cuenta" name="titular_cuenta" placeholder="Nombre como aparece en la tarjeta" value="{{ old('titular_cuenta') }}">
+                </div>
+                <div class="emp-group">
+                    <label for="banco_tarjeta">Banco de la tarjeta</label>
+                    <select id="banco_tarjeta" name="banco_tarjeta">
+                        <option value="">— Sin especificar —</option>
+                        <option value="INNTEC" {{ old('banco_tarjeta') === 'INNTEC' ? 'selected' : '' }}>INNTEC</option>
+                        <option value="BBVA" {{ old('banco_tarjeta') === 'BBVA' ? 'selected' : '' }}>BBVA</option>
+                    </select>
                 </div>
                 <div class="emp-group">
                     <label>&nbsp;</label>
@@ -91,13 +99,19 @@
             <h3 style="margin:0;">Empleados registrados</h3>
             <form method="GET" action="{{ route('admin.empleados') }}" style="display:flex;gap:8px;">
                 <input type="text" name="busqueda" value="{{ request('busqueda') }}" placeholder="Buscar..." style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;width:180px;">
+                {{-- Filtro por banco de la tarjeta. onchange envía el form solo; conserva la búsqueda actual. --}}
+                <select name="banco" onchange="this.form.submit()" style="padding:7px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:12px;">
+                    <option value="">Todos los bancos</option>
+                    <option value="INNTEC" {{ request('banco') === 'INNTEC' ? 'selected' : '' }}>INNTEC</option>
+                    <option value="BBVA" {{ request('banco') === 'BBVA' ? 'selected' : '' }}>BBVA</option>
+                </select>
                 <button type="submit" style="padding:7px 14px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Buscar</button>
             </form>
         </div>
 
         @if($empleados->count())
         <table class="emp-table">
-            <thead><tr><th>Nº Empleado</th><th>Nombre</th><th>Departamento</th><th>Ruta/Gas</th><th>Nº Cuenta</th><th>Titular</th><th>Estatus</th><th>Acciones</th></tr></thead>
+            <thead><tr><th>Nº Empleado</th><th>Nombre</th><th>Departamento</th><th>Ruta/Gas</th><th>Nº Cuenta</th><th>Titular</th><th>Banco</th><th>Estatus</th><th>Acciones</th></tr></thead>
             <tbody>
                 @foreach($empleados as $emp)
                 <tr>
@@ -107,6 +121,7 @@
                     <td>@if($emp->requiere_gasolina)<span class="badge b-pendiente" style="background:#fef3c7;color:#92400e;">Sí</span>@else — @endif</td>
                     <td>{{ $emp->numero_cuenta ?: '—' }}</td>
                     <td>{{ $emp->titular_cuenta ?: '—' }}</td>
+                    <td>{{ $emp->banco_tarjeta ?: '—' }}</td>
                     <td><span class="badge {{ $emp->activo ? 'b-activo' : 'b-inactivo' }}">{{ $emp->activo ? 'Activo' : 'Inactivo' }}</span></td>
                     <td style="display:flex;gap:12px;align-items:center;">
                         {{-- POR QUÉ: el botón abre el modal de edición precargado con los datos de ESTE empleado (data-* attrs). --}}
@@ -119,6 +134,7 @@
                             data-correo="{{ $emp->correo }}"
                             data-cuenta="{{ $emp->numero_cuenta }}"
                             data-titular="{{ $emp->titular_cuenta }}"
+                            data-banco="{{ $emp->banco_tarjeta }}"
                             data-gasolina="{{ $emp->requiere_gasolina ? 1 : 0 }}">Editar</button>
                         <form method="POST" action="{{ route('admin.empleados.toggle', $emp) }}" style="display:inline;">
                             @csrf
@@ -177,6 +193,14 @@
                     <label for="edit_titular">Titular de la tarjeta</label>
                     <input type="text" id="edit_titular" name="titular_cuenta">
                 </div>
+                <div class="emp-group">
+                    <label for="edit_banco">Banco de la tarjeta</label>
+                    <select id="edit_banco" name="banco_tarjeta">
+                        <option value="">— Sin especificar —</option>
+                        <option value="INNTEC">INNTEC</option>
+                        <option value="BBVA">BBVA</option>
+                    </select>
+                </div>
             </div>
             <div class="emp-group" style="flex-direction:row;align-items:center;gap:8px;margin-top:14px;">
                 <input type="checkbox" id="edit_gasolina" name="requiere_gasolina" value="1" style="width:16px;height:16px;accent-color:var(--purple);">
@@ -218,6 +242,7 @@
         document.getElementById('edit_correo').value = d.correo || '';
         document.getElementById('edit_cuenta').value = d.cuenta || '';
         document.getElementById('edit_titular').value = d.titular || '';
+        document.getElementById('edit_banco').value = d.banco || '';
         document.getElementById('edit_gasolina').checked = d.gasolina === '1';
         document.getElementById('modalEditar').style.display = 'flex';
     }

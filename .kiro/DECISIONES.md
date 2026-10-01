@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-09-30 — Banco de la tarjeta (INNTEC/BBVA) en empleados + filtro
+- **Qué:** nuevo campo "Banco de la tarjeta" con opciones INNTEC / BBVA en el alta y edición de empleados, columna "Banco" en el listado, y un filtro por banco en el buscador.
+- **Por qué:** dirección maneja tarjetas de dos bancos (INNTEC y BBVA) y quiere poder separar/filtrar a los empleados según de dónde salga su tarjeta.
+- **Dónde:** migración `2026_09_30_add_banco_tarjeta_to_empleados_table.php` (columna `banco_tarjeta`), modelo `Empleado` (`$fillable`), `PortalEmpleadoController::adminIndex` (filtro `banco`), `adminGuardar/adminActualizar` (validación `in:INNTEC,BBVA` + guardado, vacío→null), vista `admin/empleados/index.blade.php` (select en alta, en modal de edición y en filtro).
+- **PENDIENTE:** correr `php artisan migrate` cuando MySQL esté prendido (al hacer el cambio la BD local estaba apagada, conexión rechazada en 127.0.0.1:3306).
+
 ## 2026-09-30 — Número de empleado opcional + edición de empleados
 - **Qué:** el "Número de empleado" en el alta ya NO es obligatorio (era `required`). Además se agregó un botón "Editar" en cada fila del listado que abre un modal para modificar todos los datos del empleado (número, nombre, departamento, correo, cuenta, titular, checkbox ruta/gasolina).
 - **Por qué:** dirección pidió poder registrar empleados sin número y asignárselo/corregirlo después. El backend de edición (`adminActualizar` + ruta PUT) ya existía, faltaba solo el frontend.

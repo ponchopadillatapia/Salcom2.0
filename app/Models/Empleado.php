@@ -10,7 +10,7 @@ class Empleado extends Model
 
     protected $fillable = [
         'numero_empleado', 'nombre', 'departamento', 'correo', 'activo',
-        'numero_cuenta', 'titular_cuenta', 'requiere_gasolina',
+        'numero_cuenta', 'titular_cuenta', 'banco_tarjeta', 'requiere_gasolina',
     ];
 
     protected $casts = [

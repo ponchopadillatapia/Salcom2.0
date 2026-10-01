@@ -268,6 +268,11 @@ class PortalEmpleadoController extends Controller
             });
         }
 
+        // POR QUÉ: dirección quiere ver por separado a quién le toca tarjeta INNTEC vs BBVA.
+        if ($request->filled('banco')) {
+            $query->where('banco_tarjeta', $request->input('banco'));
+        }
+
         $empleados = $query->paginate(30)->withQueryString();
 
         return view('admin.empleados.index', compact('empleados'));
@@ -284,6 +289,8 @@ class PortalEmpleadoController extends Controller
             'correo' => 'nullable|email|max:255',
             'numero_cuenta' => 'nullable|string|max:30',
             'titular_cuenta' => 'nullable|string|max:255',
+            // POR QUÉ: solo se aceptan los dos bancos que maneja la empresa; 'in' rechaza cualquier otro valor.
+            'banco_tarjeta' => 'nullable|in:INNTEC,BBVA',
         ], [
             'numero_empleado.unique' => 'Ese número de empleado ya existe.',
             'nombre.required' => 'El nombre es obligatorio.',
@@ -298,6 +305,7 @@ class PortalEmpleadoController extends Controller
             'correo' => $request->input('correo'),
             'numero_cuenta' => $request->input('numero_cuenta'),
             'titular_cuenta' => $request->input('titular_cuenta'),
+            'banco_tarjeta' => $request->input('banco_tarjeta') ?: null,
             'requiere_gasolina' => $request->boolean('requiere_gasolina'),
             'activo' => true,
         ]);
@@ -324,6 +332,7 @@ class PortalEmpleadoController extends Controller
             'correo' => 'nullable|email|max:255',
             'numero_cuenta' => 'nullable|string|max:30',
             'titular_cuenta' => 'nullable|string|max:255',
+            'banco_tarjeta' => 'nullable|in:INNTEC,BBVA',
         ], [
             'numero_empleado.unique' => 'Ese número de empleado ya existe.',
             'nombre.required' => 'El nombre es obligatorio.',
@@ -336,6 +345,7 @@ class PortalEmpleadoController extends Controller
             'correo' => $request->input('correo'),
             'numero_cuenta' => $request->input('numero_cuenta'),
             'titular_cuenta' => $request->input('titular_cuenta'),
+            'banco_tarjeta' => $request->input('banco_tarjeta') ?: null,
             'requiere_gasolina' => $request->boolean('requiere_gasolina'),
         ]);
 
