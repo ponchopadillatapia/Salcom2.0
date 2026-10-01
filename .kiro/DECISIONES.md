@@ -6,6 +6,11 @@
 
 ---
 
+## 2026-09-30 — Fix 500 al dar de alta empleado sin número (columna NOT NULL)
+- **Qué:** el alta de empleado sin número tronaba con error 500. Causa: la columna `numero_empleado` se creó NOT NULL en la migración original (`2026_09_03`), pero al hacer el número opcional guardamos NULL cuando viene vacío → "Column 'numero_empleado' cannot be null". Se agregó migración que vuelve la columna `nullable()`.
+- **Por qué:** NULL (no '') es lo correcto para que el índice UNIQUE permita varios empleados sin número; ya se verificó que se pueden crear varios sin chocar.
+- **Dónde:** migración `2026_09_30_make_numero_empleado_nullable.php` (`->nullable()->change()`, nativo en Laravel 12, sin doctrine/dbal).
+
 ## 2026-09-30 — Banco de la tarjeta (INNTEC/BBVA) en empleados + filtro
 - **Qué:** nuevo campo "Banco de la tarjeta" con opciones INNTEC / BBVA en el alta y edición de empleados, columna "Banco" en el listado, y un filtro por banco en el buscador.
 - **Por qué:** dirección maneja tarjetas de dos bancos (INNTEC y BBVA) y quiere poder separar/filtrar a los empleados según de dónde salga su tarjeta.
