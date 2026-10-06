@@ -353,6 +353,7 @@ Route::post('/admin/reembolsos-viaje/{reembolso}/rechazar', [ReembolsoViajeContr
 Route::post('/admin/reembolsos-viaje/{reembolso}/reembolsado', [ReembolsoViajeController::class, 'marcarReembolsado'])->name('admin.reembolsos-viaje.reembolsado')->middleware('auth.admin');
 
 // ── Portal de Empleados ──
+use App\Http\Controllers\AgenteAduanalController;
 use App\Http\Controllers\PortalEmpleadoController;
 
 Route::get('/login-empleado', [PortalEmpleadoController::class, 'mostrarLogin'])->name('empleados.login');
@@ -373,3 +374,22 @@ Route::post('/admin/empleados', [PortalEmpleadoController::class, 'adminGuardar'
 Route::put('/admin/empleados/{empleado}', [PortalEmpleadoController::class, 'adminActualizar'])->name('admin.empleados.actualizar')->middleware('auth.admin');
 Route::post('/admin/empleados/{empleado}/toggle', [PortalEmpleadoController::class, 'adminToggle'])->name('admin.empleados.toggle')->middleware('auth.admin');
 Route::delete('/admin/empleados/{empleado}', [PortalEmpleadoController::class, 'adminEliminar'])->name('admin.empleados.eliminar')->middleware('auth.admin');
+
+// ── Agentes aduanales (catálogo interno; sin trámite ante el SAT) ──
+Route::middleware('auth.admin')->group(function () {
+    Route::get('/admin/agentes-aduanales', [AgenteAduanalController::class, 'index'])->name('admin.agentes-aduanales');
+    Route::get('/admin/agentes-aduanales/crear', [AgenteAduanalController::class, 'crear'])->name('admin.agentes-aduanales.crear');
+    Route::post('/admin/agentes-aduanales', [AgenteAduanalController::class, 'guardar'])->name('admin.agentes-aduanales.guardar');
+    Route::get('/admin/agentes-aduanales/{agente}', [AgenteAduanalController::class, 'ver'])->name('admin.agentes-aduanales.ver');
+    Route::get('/admin/agentes-aduanales/{agente}/editar', [AgenteAduanalController::class, 'editar'])->name('admin.agentes-aduanales.editar');
+    Route::put('/admin/agentes-aduanales/{agente}', [AgenteAduanalController::class, 'actualizar'])->name('admin.agentes-aduanales.actualizar');
+    Route::post('/admin/agentes-aduanales/{agente}/desactivar', [AgenteAduanalController::class, 'desactivar'])->name('admin.agentes-aduanales.desactivar');
+    Route::post('/admin/agentes-aduanales/{agente}/reactivar', [AgenteAduanalController::class, 'reactivar'])->name('admin.agentes-aduanales.reactivar');
+    Route::post('/admin/agentes-aduanales/{agente}/documentos', [AgenteAduanalController::class, 'guardarDocumento'])->name('admin.agentes-aduanales.documentos.guardar');
+    Route::get('/admin/agentes-aduanales/{agente}/documentos/{documento}', [AgenteAduanalController::class, 'descargarDocumento'])->name('admin.agentes-aduanales.documentos.descargar');
+    Route::delete('/admin/agentes-aduanales/{agente}/documentos/{documento}', [AgenteAduanalController::class, 'eliminarDocumento'])->name('admin.agentes-aduanales.documentos.eliminar');
+    Route::post('/admin/agentes-aduanales/{agente}/encargos', [AgenteAduanalController::class, 'guardarEncargo'])->name('admin.agentes-aduanales.encargos.guardar');
+    Route::put('/admin/agentes-aduanales/{agente}/encargos/{encargo}', [AgenteAduanalController::class, 'actualizarEncargo'])->name('admin.agentes-aduanales.encargos.actualizar');
+    Route::get('/admin/agentes-aduanales/{agente}/encargos/{encargo}/acuse', [AgenteAduanalController::class, 'descargarAcuse'])->name('admin.agentes-aduanales.encargos.acuse');
+    Route::delete('/admin/agentes-aduanales/{agente}/encargos/{encargo}', [AgenteAduanalController::class, 'eliminarEncargo'])->name('admin.agentes-aduanales.encargos.eliminar');
+});

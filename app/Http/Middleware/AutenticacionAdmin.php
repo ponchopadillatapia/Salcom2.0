@@ -51,21 +51,24 @@ class AutenticacionAdmin
             $rutasPorSeccion = [
                 // 'productos' = catálogo + alta nacional/MPI + migración. NO incluye mto/pt
                 // (esas son áreas propias de Mantenimiento y Comercial PT).
-                'productos'   => ['admin/productos', 'admin/alta-producto', 'admin/migracion-masiva'],
+                'productos' => ['admin/productos', 'admin/alta-producto', 'admin/migracion-masiva'],
                 // Altas separadas por área: cada comprador solo entra a la suya.
                 // OJO: 'admin/alta-producto' es prefijo de 'admin/alta-producto-mto/pt',
                 // pero el bloqueo compara con base.'/', y '-mto'/'-pt' no empiezan con '/',
                 // así que NO se cruzan entre sí.
-                'alta_mpi'    => ['admin/alta-producto'],       // Compras Importación (misma pantalla de alta general)
-                'alta_pt'     => ['admin/alta-producto-pt'],    // Comercial PT
-                'alta_mto'    => ['admin/alta-producto-mto'],   // Mantenimiento
+                'alta_mpi' => ['admin/alta-producto'],       // Compras Importación (misma pantalla de alta general)
+                'alta_pt' => ['admin/alta-producto-pt'],    // Comercial PT
+                'alta_mto' => ['admin/alta-producto-mto'],   // Mantenimiento
                 // 'catalogo' = SOLO ver el catálogo de Productos, sin ninguna alta.
-                'catalogo'    => ['admin/productos'],
-                'anticipos'   => ['admin/anticipos'],
-                'pagos'       => ['admin/pagos', 'admin/pago-proveedores', 'admin/abono-proveedor', 'admin/historial-abonos', 'admin/expedientes-pago'],
+                'catalogo' => ['admin/productos'],
+                'anticipos' => ['admin/anticipos'],
+                'pagos' => ['admin/pagos', 'admin/pago-proveedores', 'admin/abono-proveedor', 'admin/historial-abonos', 'admin/expedientes-pago'],
                 'proveedores' => ['admin/proveedores', 'admin/catalogo-proveedores', 'admin/solicitudes-alta', 'admin/solicitudes-docs', 'admin/expediente-fiscal', 'admin/proveedor-facturas'],
                 // reembolsos: 3 módulos de reembolso a empleados + alta/gestión de empleados (Nayeli)
-                'reembolsos'  => ['admin/reembolsos', 'admin/reembolsos-viaje', 'admin/bitacora-gasolina', 'admin/empleados'],
+                'reembolsos' => ['admin/reembolsos', 'admin/reembolsos-viaje', 'admin/bitacora-gasolina', 'admin/empleados'],
+                // Catálogo interno de agentes aduanales. Dirección entra por esDireccion();
+                // un usuario restringido solo entra si su lista incluye esta sección.
+                'agentes_aduanales' => ['admin/agentes-aduanales'],
             ];
 
             // Rutas que cualquier usuario logueado puede tocar (perfil, salir)

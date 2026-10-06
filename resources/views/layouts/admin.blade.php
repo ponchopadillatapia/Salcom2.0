@@ -629,6 +629,16 @@
 
             @endif {{-- fin bloque Operación solo-Dirección --}}
 
+            @php $puedeAgentes = $adminUser ? $adminUser->puedeVer('agentes_aduanales') : false; @endphp
+            @if($puedeAgentes)
+            <div class="sb-hr"></div>
+            <div class="sb-section">Comercio exterior</div>
+            <a href="{{ route('admin.agentes-aduanales') }}" class="sb-link {{ request()->is('admin/agentes-aduanales*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></div>
+                <span class="sb-text">Agentes Aduanales</span>
+            </a>
+            @endif
+
             @php $puedeProveedores = $adminUser ? $adminUser->puedeVer('proveedores') : true; @endphp
             @if($puedeProveedores)
             <div class="sb-hr"></div>

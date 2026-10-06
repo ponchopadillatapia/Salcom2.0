@@ -56,6 +56,7 @@ class AdminUser extends Authenticatable
      *  - catalogo     → SOLO ver el catálogo de Productos (admin/productos), sin ninguna alta
      *  - proveedores  → módulo de Proveedores
      *  - reembolsos   → Reembolsos a empleados (+ viaje + gasolina) y Alta de Empleados
+     *  - agentes_aduanales → Catálogo interno de agentes aduanales y sus documentos
      *
      * POR QUÉ están separadas las altas: cada comprador gestiona SOLO su tipo de
      * producto y no debe colarse a las altas de otras áreas. Por eso alta_mpi,
@@ -63,20 +64,20 @@ class AdminUser extends Authenticatable
      */
     public const ACCESOS_RESTRINGIDOS = [
         // Compras Nacional (ME, MP): catálogo + todas las altas + anticipos
-        'brenda.pliego'    => ['productos', 'anticipos'],
+        'brenda.pliego' => ['productos', 'anticipos'],
         // Contabilidad: pagos y proveedores
-        'karen.bravo'      => ['pagos', 'proveedores'],
+        'karen.bravo' => ['pagos', 'proveedores'],
         // Comercial PT: solo alta de Producto Terminado
-        'cintia.barrera'   => ['alta_pt'],
+        'cintia.barrera' => ['alta_pt'],
         // Mantenimiento: su alta + ver el catálogo de Productos (sin otras altas)
-        'blanca.paganoni'  => ['alta_mto', 'catalogo'],
+        'blanca.paganoni' => ['alta_mto', 'catalogo'],
         // Compras Importación (MPI): su alta + ver el catálogo de Productos (sin otras altas)
-        'acela.bolanos'    => ['alta_mpi', 'catalogo'],
+        'acela.bolanos' => ['alta_mpi', 'catalogo'],
         // Compras Importación (MPI) + acceso al catálogo de Productos
         'cinthya.martinez' => ['alta_mpi', 'productos'],
         // POR QUÉ: Nayeli gestiona reembolsos y da de alta empleados. Aún no tiene
         // usuario en la BD; en cuanto se cree con usuario 'nayeli' quedará habilitado.
-        'nayeli'           => ['reembolsos'],
+        'nayeli' => ['reembolsos'],
     ];
 
     /** ¿Tiene acceso total al panel de Dirección? */
