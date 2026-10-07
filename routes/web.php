@@ -282,6 +282,7 @@ Route::get('/admin/wiese-banco', function () {
 })->middleware('auth.admin');
 Route::get('/admin/wiese-banco/{banco}', [AdminPanelController::class, 'wieseBanco'])->name('admin.wiese-banco')->middleware('auth.admin');
 Route::post('/admin/wiese-banco/{banco}/movimiento', [AdminPanelController::class, 'wieseBancoGuardar'])->name('admin.wiese-banco.guardar')->middleware('auth.admin');
+Route::delete('/admin/wiese-banco/{banco}/movimiento/{movimiento}', [AdminPanelController::class, 'wieseBancoBorrar'])->name('admin.wiese-banco.borrar')->middleware('auth.admin');
 Route::get('/admin/inventario', [AdminPanelController::class, 'inventario'])->name('admin.inventario')->middleware('auth.admin');
 
 // ── Áreas con control de rol ──

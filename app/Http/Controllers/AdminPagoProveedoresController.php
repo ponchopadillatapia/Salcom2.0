@@ -877,6 +877,17 @@ class AdminPagoProveedoresController extends Controller
             $f->save();
         }
 
+        // ── Reflejar en WieseBanco + Contpaqi (sin duplicar procesos, pedido de Sandra) ──
+        // POR QUÉ aquí: este es el momento del "saldar en 0". Por cada factura liquidada se crea
+        // un movimiento en WieseBanco (con su NUM consecutivo) y se registra el pago en Contpaqi.
+        // Envuelto en try/catch: si WieseBanco/Contpaqi fallara, NO debe tumbar el abono de Karen.
+        try {
+            app(\App\Services\WieseBancoContpaqiService::class)
+                ->reflejarFacturasLiquidadas($facturas, $data['codigo_proveedor']);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('[AbonoInterno] No se pudo reflejar en WieseBanco/Contpaqi: '.$e->getMessage());
+        }
+
         // Notificación para admin (campanita + badge en sidebar)
         try {
             $montoTotal = $facturas->sum('monto_pagado');

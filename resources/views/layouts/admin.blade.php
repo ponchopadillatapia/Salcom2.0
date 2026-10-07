@@ -619,9 +619,17 @@
                 </button>
                 <div class="sb-submenu-items">
                     @foreach((array) config('wiese_bancos', []) as $wbKey => $wbNombre)
-                    <a href="{{ route('admin.wiese-banco', ['banco' => $wbKey]) }}" class="sb-link sb-sublink {{ request()->is('admin/wiese-banco/'.$wbKey) ? 'active' : '' }}">
-                        <span class="sb-text">{{ $wbNombre }}</span>
-                    </a>
+                        @if($wbKey === 'bbva')
+                            {{-- Solo BBVA está habilitado por ahora; las demás cuentas aún no existen. --}}
+                            <a href="{{ route('admin.wiese-banco', ['banco' => $wbKey]) }}" class="sb-link sb-sublink {{ request()->is('admin/wiese-banco/'.$wbKey) ? 'active' : '' }}">
+                                <span class="sb-text">{{ $wbNombre }}</span>
+                            </a>
+                        @else
+                            {{-- Deshabilitado: se muestra en gris, sin enlace, con aviso de próximamente. --}}
+                            <span class="sb-link sb-sublink" style="opacity:.45; cursor:not-allowed;" title="Disponible próximamente">
+                                <span class="sb-text">{{ $wbNombre }} <small>(próximamente)</small></span>
+                            </span>
+                        @endif
                     @endforeach
                 </div>
             </div>

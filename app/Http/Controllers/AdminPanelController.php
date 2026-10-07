@@ -1698,11 +1698,17 @@ class AdminPanelController extends Controller
             abort(404);
         }
 
-        // Por ahora solo existe la cuenta BBVA 969 (clave 8969). Las demás cuentas
-        // se darán de alta después; mientras, buscamos la cuenta de ESTE banco por su
-        // nombre de banco. Si no hay cuenta aún, la vista se muestra sin movimientos.
+        // POR QUÉ: por ahora SOLO la cuenta BBVA está habilitada. Si alguien entra a la URL
+        // de otro banco a mano, lo mandamos a BBVA (las demás cuentas aún no existen).
+        if ($banco !== 'bbva') {
+            return redirect()->route('admin.wiese-banco', ['banco' => 'bbva']);
+        }
+
+        // Vincular la URL del banco con la cuenta por su CLAVE CORTA (estable), NO por el
+        // nombre (que es una etiqueta que puede cambiar). bbva -> clave 8969.
+        $claveCuenta = $this->claveCuentaWiese($banco);
         $cuenta = CuentaBancaria::where('activo', true)
-            ->whereRaw('LOWER(banco) = ?', [strtolower($bancos[$banco])])
+            ->where('clave_corta', $claveCuenta)
             ->first();
 
         // Movimientos ordenados por fecha y luego por id (orden de captura), como en Quicken.
@@ -1710,11 +1716,16 @@ class AdminPanelController extends Controller
             ? $cuenta->movimientos()->orderBy('fecha')->orderBy('id')->get()
             : collect();
 
+        // Siguiente folio (NUM) que tomará el próximo movimiento, para PRECARGARLO en la fila
+        // de captura (como la fecha). Es solo visual; el folio real lo asigna el servidor al guardar.
+        $siguienteNum = $cuenta ? ((int) $cuenta->consecutivo_actual + 1) : null;
+
         return view('admin.wiese-banco', [
             'bancoKey' => $banco,
             'bancoNombre' => $bancos[$banco],
             'cuenta' => $cuenta,
             'movimientos' => $movimientos,
+            'siguienteNum' => $siguienteNum,
         ]);
     }
 
@@ -1733,7 +1744,7 @@ class AdminPanelController extends Controller
         }
 
         $cuenta = CuentaBancaria::where('activo', true)
-            ->whereRaw('LOWER(banco) = ?', [strtolower($bancos[$banco])])
+            ->where('clave_corta', $this->claveCuentaWiese($banco))
             ->firstOrFail();
 
         $data = $request->validate([
@@ -1783,6 +1794,70 @@ class AdminPanelController extends Controller
             'num' => $movimiento->num,
             'balance' => number_format((float) $movimiento->balance, 2, '.', ''),
         ]);
+    }
+
+    /**
+     * Borra un movimiento del registro WieseBanco y RECALCULA los balances siguientes.
+     *
+     * POR QUÉ recalcular: el balance de cada fila depende de las anteriores. Si borras una
+     * de en medio, todas las que siguen quedan mal. Aquí rehacemos el saldo en cadena desde
+     * cero y actualizamos el saldo_actual de la cuenta. Todo en una transacción.
+     */
+    public function wieseBancoBorrar(Request $request, string $banco, MovimientoBancario $movimiento)
+    {
+        $bancos = config('wiese_bancos');
+        if (! is_array($bancos) || ! isset($bancos[$banco])) {
+            abort(404);
+        }
+
+        $cuenta = CuentaBancaria::where('activo', true)
+            ->where('clave_corta', $this->claveCuentaWiese($banco))
+            ->firstOrFail();
+
+        // Seguridad: el movimiento debe pertenecer a ESTA cuenta.
+        if ((int) $movimiento->cuenta_id !== (int) $cuenta->id) {
+            abort(403, 'El movimiento no pertenece a esta cuenta.');
+        }
+
+        $saldoFinal = DB::transaction(function () use ($cuenta, $movimiento) {
+            $movimiento->delete();
+
+            // Rehacer los balances en orden (fecha, luego id) desde 0.
+            $saldo = 0.0;
+            $restantes = $cuenta->movimientos()->orderBy('fecha')->orderBy('id')->lockForUpdate()->get();
+            foreach ($restantes as $m) {
+                $saldo = $saldo + (float) $m->deposit - (float) $m->payment;
+                // Solo tocar la columna balance si cambió, para no escribir de más.
+                if ((float) $m->balance !== $saldo) {
+                    $m->balance = $saldo;
+                    $m->save();
+                }
+            }
+
+            $cuenta->saldo_actual = $saldo;
+            $cuenta->save();
+
+            return $saldo;
+        });
+
+        return response()->json([
+            'ok' => true,
+            'ending_balance' => number_format($saldoFinal, 2, '.', ''),
+        ]);
+    }
+
+    /**
+     * Mapea la clave de banco de la URL a la clave_corta de la cuenta en la BD.
+     * POR QUÉ: vincular por clave estable y no por el nombre (que es una etiqueta editable).
+     * Por ahora solo BBVA (8969); las demás cuentas se agregarán aquí cuando existan.
+     */
+    private function claveCuentaWiese(string $banco): string
+    {
+        $mapa = [
+            'bbva' => '8969',
+        ];
+
+        return $mapa[$banco] ?? '';
     }
 
     // ── Inventario ──
