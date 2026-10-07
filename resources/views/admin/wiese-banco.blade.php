@@ -200,13 +200,31 @@
                     </th>
                     <th class="wb-col-memo">Memo</th>
                     <th class="wb-col-payment wb-right">Payment</th>
-                    <th class="wb-col-clr wb-center">Clr</th>
                     <th class="wb-col-deposit wb-right">Deposit</th>
                     <th class="wb-col-balance wb-right">Balance</th>
                 </tr>
             </thead>
             <tbody>
-                @for ($i = 0; $i < 20; $i++)
+                {{-- Movimientos YA guardados: se pintan como filas de solo lectura. --}}
+                @foreach ($movimientos as $mov)
+                <tr class="wb-row-guardada">
+                    <td class="wb-col-date">{{ \Illuminate\Support\Carbon::parse($mov->fecha)->format('d/m/Y') }}</td>
+                    <td class="wb-col-num">{{ $mov->num }}</td>
+                    <td class="wb-col-payee">
+                        <div class="wb-payee">
+                            <span class="wb-cell">{{ $mov->payee }}</span>
+                            <span class="wb-cell">{{ $mov->categoria }}</span>
+                        </div>
+                    </td>
+                    <td class="wb-col-memo">{{ $mov->memo }}</td>
+                    <td class="wb-col-payment wb-right">{{ (float) $mov->payment != 0 ? number_format($mov->payment, 2) : '' }}</td>
+                    <td class="wb-col-deposit wb-right">{{ (float) $mov->deposit != 0 ? number_format($mov->deposit, 2) : '' }}</td>
+                    <td class="wb-col-balance wb-right">{{ number_format($mov->balance, 2) }}</td>
+                </tr>
+                @endforeach
+
+                {{-- Filas vacías para capturar movimientos nuevos (estilo Quicken). --}}
+                @for ($i = 0; $i < 10; $i++)
                 @include('admin.partials.wiese-banco-row')
                 @endfor
             </tbody>
@@ -223,6 +241,10 @@
     if (!table || !tpl) return;
     var tbody = table.querySelector('tbody');
 
+    // URL y token para guardar. La ruta lleva el banco actual.
+    var URL_GUARDAR = "{{ route('admin.wiese-banco.guardar', ['banco' => $bancoKey]) }}";
+    var CSRF = "{{ csrf_token() }}";
+
     function cells() {
         return Array.prototype.slice.call(table.querySelectorAll('.wb-cell'));
     }
@@ -231,11 +253,99 @@
         tbody.appendChild(tpl.content.cloneNode(true));
     }
 
+    // Convierte "dd/mm/aaaa" a "aaaa-mm-dd" (lo que espera el servidor). Si ya viene ISO, la deja.
+    function fechaISO(txt) {
+        txt = (txt || '').trim();
+        var m = txt.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (m) {
+            return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+        }
+        return txt; // deja que el servidor valide si no coincide
+    }
+
+    // Lee los valores de una fila (tr) en un objeto.
+    function leerFila(tr) {
+        function val(col) {
+            var el = tr.querySelector('.wb-cell[data-col="' + col + '"]');
+            return el ? el.value.trim() : '';
+        }
+        return {
+            tr: tr,
+            date: val('date'),
+            payee: val('payee'),
+            category: val('category'),
+            memo: val('memo'),
+            payment: val('payment'),
+            deposit: val('deposit')
+        };
+    }
+
+    // Una fila está "lista para guardar" si tiene fecha Y (payment o deposit).
+    function listaParaGuardar(d) {
+        var tieneMonto = (parseFloat(d.payment) > 0) || (parseFloat(d.deposit) > 0);
+        return d.date !== '' && tieneMonto;
+    }
+
+    // Guarda la fila en el servidor y pinta num + balance. Marca la fila como guardada.
+    function guardarFila(tr) {
+        if (tr.dataset.guardada === '1' || tr.dataset.guardando === '1') return;
+        var d = leerFila(tr);
+        if (!listaParaGuardar(d)) return;
+
+        tr.dataset.guardando = '1';
+
+        fetch(URL_GUARDAR, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CSRF, 'Accept': 'application/json' },
+            body: JSON.stringify({
+                fecha: fechaISO(d.date),
+                payee: d.payee,
+                categoria: d.category,
+                memo: d.memo,
+                payment: d.payment || 0,
+                deposit: d.deposit || 0
+            })
+        })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+        .then(function (res) {
+            tr.dataset.guardando = '';
+            if (!res.ok || !res.j.ok) {
+                tr.style.outline = '2px solid #c0392b'; // rojo: algo falló
+                return;
+            }
+            // Pintar num y balance que devolvió el servidor.
+            var numEl = tr.querySelector('.wb-cell[data-col="num"]');
+            var balEl = tr.querySelector('.wb-cell[data-col="balance"]');
+            if (numEl) numEl.value = res.j.num;
+            if (balEl) balEl.value = res.j.balance;
+            // Bloquear la fila (ya quedó guardada) y agregar una vacía al final si hace falta.
+            tr.dataset.guardada = '1';
+            tr.querySelectorAll('.wb-cell').forEach(function (el) { el.readOnly = true; });
+            tr.style.background = '#f3fef3';
+            if (!tbody.querySelector('tr:not([data-guardada="1"]) .wb-cell[data-col="date"]')) {
+                addRow();
+            }
+        })
+        .catch(function () { tr.dataset.guardando = ''; tr.style.outline = '2px solid #c0392b'; });
+    }
+
     table.addEventListener('focusin', function (e) {
         var td = e.target.closest('td');
         if (!td) return;
         table.querySelectorAll('td.is-focus').forEach(function (el) { el.classList.remove('is-focus'); });
         td.classList.add('is-focus');
+    });
+
+    // Cuando el foco SALE de una fila, intentamos guardarla (si está completa).
+    table.addEventListener('focusout', function (e) {
+        var tr = e.target.closest('tr');
+        if (!tr) return;
+        // Esperar un instante: si el nuevo foco sigue en la misma fila, no guardamos aún.
+        setTimeout(function () {
+            var activo = document.activeElement;
+            if (activo && tr.contains(activo)) return;
+            guardarFila(tr);
+        }, 150);
     });
 
     table.addEventListener('keydown', function (e) {
@@ -266,6 +376,12 @@
         } else if (e.key === 'Tab' && e.shiftKey) {
             e.preventDefault();
             next = list[i - 1];
+        }
+
+        // Saltar celdas de solo lectura (num, balance).
+        while (next && (next.readOnly || next.getAttribute('tabindex') === '-1')) {
+            var j = list.indexOf(next);
+            next = (e.shiftKey && e.key === 'Tab') ? list[j - 1] : list[j + 1];
         }
 
         if (next) {

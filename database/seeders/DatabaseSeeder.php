@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -15,16 +14,12 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
-
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ]);
-
-        $this->call(ProveedorUserSeeder::class);
-        $this->call(ClienteUserSeeder::class);
-        $this->call(AdminUserSeeder::class);
-        $this->call(DatosPruebaSeeder::class);
+        // POR QUÉ solo este seeder: la base debe quedar LIMPIA para producción, con los
+        // usuarios reales de Wiese/Salcom y SIN datos de prueba (proveedores/clientes/facturas fake).
+        // Los seeders de prueba (ProveedorUserSeeder, ClienteUserSeeder, DatosPruebaSeeder, etc.)
+        // ya NO se corren aquí para no reinyectar basura al hacer `migrate:fresh --seed`.
+        // Si en algún momento quieres datos de prueba en local, corre ese seeder a mano:
+        //   php artisan db:seed --class=DatosPruebaSeeder
+        $this->call(UsuariosProduccionSeeder::class);
     }
 }

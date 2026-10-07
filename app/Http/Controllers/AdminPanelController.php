@@ -7,6 +7,8 @@ use App\Mail\SolicitudAltaAprobada;
 use App\Models\AlertaConfiguracion;
 use App\Models\Alerta;
 use App\Models\ClienteUser;
+use App\Models\CuentaBancaria;
+use App\Models\MovimientoBancario;
 use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
 use App\Models\Factura;
@@ -25,6 +27,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -1695,9 +1698,90 @@ class AdminPanelController extends Controller
             abort(404);
         }
 
+        // Por ahora solo existe la cuenta BBVA 969 (clave 8969). Las demás cuentas
+        // se darán de alta después; mientras, buscamos la cuenta de ESTE banco por su
+        // nombre de banco. Si no hay cuenta aún, la vista se muestra sin movimientos.
+        $cuenta = CuentaBancaria::where('activo', true)
+            ->whereRaw('LOWER(banco) = ?', [strtolower($bancos[$banco])])
+            ->first();
+
+        // Movimientos ordenados por fecha y luego por id (orden de captura), como en Quicken.
+        $movimientos = $cuenta
+            ? $cuenta->movimientos()->orderBy('fecha')->orderBy('id')->get()
+            : collect();
+
         return view('admin.wiese-banco', [
             'bancoKey' => $banco,
             'bancoNombre' => $bancos[$banco],
+            'cuenta' => $cuenta,
+            'movimientos' => $movimientos,
+        ]);
+    }
+
+    /**
+     * Guarda un movimiento nuevo del registro WieseBanco (llamado por AJAX desde la hoja).
+     *
+     * POR QUÉ aquí nace el folio: el NUM se genera con cuenta->siguienteFolio() (consecutivo
+     * por cuenta), igual que la columna NUM de Quicken. El balance se calcula en el servidor
+     * (saldo anterior + deposit - payment) para que no dependa de lo que escriba el usuario.
+     */
+    public function wieseBancoGuardar(Request $request, string $banco)
+    {
+        $bancos = config('wiese_bancos');
+        if (! is_array($bancos) || ! isset($bancos[$banco])) {
+            abort(404);
+        }
+
+        $cuenta = CuentaBancaria::where('activo', true)
+            ->whereRaw('LOWER(banco) = ?', [strtolower($bancos[$banco])])
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'fecha' => 'required|date',
+            'payee' => 'nullable|string|max:255',
+            'categoria' => 'nullable|string|max:255',
+            'memo' => 'nullable|string|max:255',
+            'payment' => 'nullable|numeric|min:0',
+            'deposit' => 'nullable|numeric|min:0',
+        ]);
+
+        $payment = (float) ($data['payment'] ?? 0);
+        $deposit = (float) ($data['deposit'] ?? 0);
+
+        // Generar folio + guardar movimiento + actualizar saldo, todo en una transacción
+        // para que el NUM, el balance y el saldo_actual de la cuenta queden consistentes.
+        $movimiento = DB::transaction(function () use ($cuenta, $data, $payment, $deposit) {
+            $num = $cuenta->siguienteFolio();
+
+            // Balance = saldo actual de la cuenta + lo que entra - lo que sale.
+            $saldoNuevo = (float) $cuenta->saldo_actual + $deposit - $payment;
+
+            $movimiento = MovimientoBancario::create([
+                'cuenta_id' => $cuenta->id,
+                'fecha' => $data['fecha'],
+                'num' => $num,
+                'payee' => $data['payee'] ?? null,
+                'categoria' => $data['categoria'] ?? null,
+                'memo' => $data['memo'] ?? null,
+                'payment' => $payment,
+                'deposit' => $deposit,
+                'balance' => $saldoNuevo,
+                'estatus' => 'borrador',
+            ]);
+
+            // Guardar el nuevo saldo en la cuenta para el siguiente movimiento.
+            $cuenta->saldo_actual = $saldoNuevo;
+            $cuenta->save();
+
+            return $movimiento;
+        });
+
+        // Devolvemos num y balance para que el JS los pinte en la fila (sin recargar).
+        return response()->json([
+            'ok' => true,
+            'id' => $movimiento->id,
+            'num' => $movimiento->num,
+            'balance' => number_format((float) $movimiento->balance, 2, '.', ''),
         ]);
     }
 
