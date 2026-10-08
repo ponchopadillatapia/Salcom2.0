@@ -147,18 +147,17 @@
                 </thead>
                 <tbody>
                     @foreach($registros as $r)
-                    @php $d = $r->datos ?? []; @endphp
                     <tr>
-                        <td>{{ $d['fecha'] ?? $r->created_at->format('d/m/Y') }}</td>
-                        <td style="font-weight:600;">{{ $d['numero_empleado'] ?? '—' }}</td>
-                        <td style="font-weight:600;">{{ $d['empleado'] ?? '—' }}</td>
-                        <td>{{ $d['cantidad_litros'] ?? '—' }}</td>
-                        <td>{{ !empty($d['rendimiento']) ? $d['rendimiento'] . ' km/l' : '—' }}</td>
-                        <td style="font-weight:600;">${{ $d['monto'] ?? '—' }}</td>
-                        <td>{{ $d['vehiculo'] ?? '—' }}</td>
-                        <td>{{ $d['kilometraje'] ?? '—' }}</td>
-                        <td>@if(!empty($d['factura']))<a href="{{ asset('storage/' . $d['factura']) }}" target="_blank" style="color:var(--purple);font-size:11px;">Ver</a>@else — @endif</td>
-                        <td style="font-size:11px;color:var(--gray-muted);">{{ $d['notas'] ?? '' }}</td>
+                        <td>{{ $r->fecha ? $r->fecha->format('d/m/Y') : $r->created_at->format('d/m/Y') }}</td>
+                        <td style="font-weight:600;">{{ $r->numero_empleado ?: '—' }}</td>
+                        <td style="font-weight:600;">{{ $r->empleado ?: '—' }}</td>
+                        <td>{{ $r->cantidad_litros ?: '—' }}</td>
+                        <td>{{ $r->rendimiento ? $r->rendimiento . ' km/l' : '—' }}</td>
+                        <td style="font-weight:600;">${{ number_format((float) $r->monto, 2) }}</td>
+                        <td>{{ $r->vehiculo ?: '—' }}</td>
+                        <td>{{ $r->kilometraje ?: '—' }}</td>
+                        <td>@if($r->factura)<a href="{{ asset('storage/' . $r->factura) }}" target="_blank" style="color:var(--purple);font-size:11px;">Ver</a>@else — @endif</td>
+                        <td style="font-size:11px;color:var(--gray-muted);">{{ $r->notas }}</td>
                     </tr>
                     @endforeach
                 </tbody>

@@ -53,6 +53,18 @@
 - **Dónde:** SDK en `C:\Users\IT\source\repos_git\SDKWieseNET481\...\SDKComercial\Entidades\DocumentoSdk.cs` (métodos `CrearDocumentoCargoAbono`, `SaldarDocumento`, `BuscarSiguienteSerieYFolio`); patrón de conexión visto en `SDKComercial\Pruebas\DocumentoPrueba.cs` (`CrearPedido2`). La API `APIPortalWeb` ya está en x86 y referencia al SDK; `PruebaController` ya probado.
 - **PENDIENTE (esperando respuestas de Alan para mañana):** (1) de dónde salen concepto+serie+folio de la factura de proveedor a saldar; (2) si el código de proveedor es el mismo de Wiese o uno propio de Contpaqi; (3) si se permite pago parcial y cómo se maneja la moneda (hoy todo asume pesos, moneda 1, tipo de cambio 1). Siguiente código a entregar: endpoint de pago en 2 etapas (Etapa 1: solo crear el documento de pago; Etapa 2: agregar el saldado).
 
+## 2026-09-30 — Bitácora de gasolina con tabla propia (antes vivía en alertas/JSON)
+- **Qué:** la bitácora de gasolina dejó de guardarse en la tabla genérica `alertas` (tipo `bitacora_gasolina`, todo en JSON `datos`) y ahora tiene su propia tabla `bitacoras_gasolina` con columnas reales (fecha, numero_empleado, empleado, cantidad_litros, rendimiento, monto, vehiculo, kilometraje, notas, factura, origen).
+- **Por qué:** con JSON los filtros/sumas se hacían recorriendo en PHP y no escalaba. Con columnas reales se usan WHERE/SUM de SQL. Dirección pidió que cada registro se guarde en su propia tabla.
+- **Dónde:**
+  - Migración `2026_09_30_create_bitacoras_gasolina_table.php`, modelo `App\Models\BitacoraGasolina`.
+  - Escritura: `AdminPanelController::bitacoraGasolinaGuardar` y `PortalEmpleadoController::guardarGasolina` (monto texto "$1,500" → decimal; campo `origen` admin/empleado).
+  - Lectura/filtros: `AdminPanelController::bitacoraGasolina` y `bitacoraGasolinaExcel` (filtro con LIKE SQL), `PortalEmpleadoController::portal`.
+  - Validación de reembolsos (que exige bitácora previa): 2 checks en `AdminPanelController::enviarReembolso` y 1 en `PortalEmpleadoController::guardarReembolso` + el `$tieneBitacoraGasolina` del listado de reembolsos, ahora consultan `BitacoraGasolina`.
+  - Vistas `admin/bitacora-gasolina.blade.php` y `empleados/portal.blade.php` leen columnas (`$r->campo`) en vez de `$r->datos['campo']`.
+- **Migración de datos:** comando `php artisan bitacora:migrar` copia lo viejo de `alertas` a la tabla nueva SIN borrar los originales (idempotente). En local había 0 registros viejos; si en PRODUCCIÓN hay registros, correr el comando allá tras desplegar.
+- **Verificado:** los 4 archivos PHP pasan `php -l`; prueba e2e de alta/lectura/SUM/filtro OK.
+
 ## 2026-09-30 — Fix 500 al dar de alta empleado sin número (columna NOT NULL)
 - **Qué:** el alta de empleado sin número tronaba con error 500. Causa: la columna `numero_empleado` se creó NOT NULL en la migración original (`2026_09_03`), pero al hacer el número opcional guardamos NULL cuando viene vacío → "Column 'numero_empleado' cannot be null". Se agregó migración que vuelve la columna `nullable()`.
 - **Por qué:** NULL (no '') es lo correcto para que el índice UNIQUE permita varios empleados sin número; ya se verificó que se pueden crear varios sin chocar.

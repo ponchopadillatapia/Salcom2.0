@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Alerta;
+use App\Models\BitacoraGasolina;
 use App\Models\Empleado;
 use App\Models\ReembolsoViaje;
 use Illuminate\Http\Request;
@@ -63,8 +64,8 @@ class PortalEmpleadoController extends Controller
         } catch (\Exception $e) {
         }
 
-        $gasolina = Alerta::where('tipo', 'bitacora_gasolina')->orderByDesc('created_at')->get()
-            ->filter(fn ($r) => ($r->datos['numero_empleado'] ?? null) == $numero)->values();
+        $gasolina = BitacoraGasolina::where('numero_empleado', $numero)
+            ->orderByDesc('fecha')->orderByDesc('id')->get();
 
         $empleado = Empleado::find(session('empleado_id'));
 
@@ -88,27 +89,19 @@ class PortalEmpleadoController extends Controller
             ? $request->file('factura_gasolina')->store('bitacora-gasolina', 'public')
             : null;
 
-        Alerta::create([
-            'tipo' => 'bitacora_gasolina',
-            'modulo' => 'gasolina',
-            'destinatario_tipo' => 'admin',
-            'destinatario_id' => 0,
-            'titulo' => 'Gasolina: $' . $request->input('monto') . ' — ' . session('empleado_nombre'),
-            'contenido' => ($request->input('vehiculo') ?? '') . ' | ' . now()->format('Y-m-d'),
-            'datos' => [
-                'fecha' => now()->format('Y-m-d'),
-                'numero_empleado' => session('empleado_numero'),
-                'empleado' => session('empleado_nombre'),
-                'cantidad_litros' => $request->input('cantidad_litros'),
-                'rendimiento' => $request->input('rendimiento'),
-                'monto' => $request->input('monto'),
-                'vehiculo' => $request->input('vehiculo'),
-                'kilometraje' => $request->input('kilometraje'),
-                'notas' => $request->input('notas'),
-                'factura' => $pathFactura,
-            ],
-            'estatus' => 'pendiente',
-            'nivel' => 'info',
+        BitacoraGasolina::create([
+            'fecha' => now()->format('Y-m-d'),
+            'numero_empleado' => session('empleado_numero'),
+            'empleado' => session('empleado_nombre'),
+            'cantidad_litros' => $request->input('cantidad_litros'),
+            'rendimiento' => $request->input('rendimiento'),
+            // El form manda el monto como texto; lo normalizamos a número para la columna decimal.
+            'monto' => (float) str_replace(['$', ','], '', (string) $request->input('monto')),
+            'vehiculo' => $request->input('vehiculo'),
+            'kilometraje' => $request->input('kilometraje'),
+            'notas' => $request->input('notas'),
+            'factura' => $pathFactura,
+            'origen' => 'empleado',
         ]);
 
         return redirect()->route('empleados.portal')->with('mensaje', 'Registro de gasolina guardado.');
@@ -121,8 +114,7 @@ class PortalEmpleadoController extends Controller
 
         // Si es de ruta/gasolina, debe tener bitácora primero
         if ($empleado && $empleado->requiere_gasolina) {
-            $suBitacora = Alerta::where('tipo', 'bitacora_gasolina')->get()
-                ->first(fn ($r) => ($r->datos['numero_empleado'] ?? null) == session('empleado_numero'));
+            $suBitacora = BitacoraGasolina::where('numero_empleado', session('empleado_numero'))->exists();
             if (! $suBitacora) {
                 return back()->withErrors(['general' => 'Debes registrar primero tu Bitácora de Gasolina antes de pedir un reembolso.'])->withInput();
             }
