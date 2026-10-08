@@ -121,17 +121,26 @@
                     </button>
                 </div>
             </div>
+            {{-- Buscador rápido: filtra las filas por folio/serie/fecha para encontrar una factura. --}}
+            <div style="margin:10px 0 14px;">
+                <input type="text" id="buscar-factura" placeholder="Buscar por folio, serie, fecha..."
+                       style="width:100%;max-width:380px;padding:10px 14px;border:1.5px solid #c4b0e0;border-radius:8px;font-size:13px;font-family:inherit;outline:none"
+                       oninput="filtrarFacturas(this.value)">
+                <span id="buscar-contador" style="margin-left:10px;font-size:12px;color:#6b7280;"></span>
+            </div>
             <div class="tbl-wrap" style="overflow-x:auto;">
                 <table class="admin-table">
                     <thead>
+                        {{-- Orden estándar (como Contpaqi): Fecha, Serie, Factura(folio), ...,
+                             Total, Moneda, Pendiente. "Vence" se conserva junto a la fecha. --}}
                         <tr>
                             <th style="width:36px;"><input type="checkbox" class="chk" id="chkAll" title="Seleccionar todas"></th>
-                            <th>Folio</th>
-                            <th>Serie</th>
                             <th>Fecha factura</th>
+                            <th>Serie</th>
+                            <th>Factura</th>
                             <th>Vence</th>
-                            <th>Moneda</th>
                             <th style="text-align:right">Total</th>
+                            <th>Moneda</th>
                             <th style="text-align:right">Saldo pendiente</th>
                         </tr>
                     </thead>
@@ -139,14 +148,15 @@
                         @foreach($facturasWiese as $fw)
                             {{-- POR QUÉ: las facturas en USD se resaltan con un degradado azul suave,
                                  igual que en otras vistas, para distinguirlas de un vistazo. --}}
+                            {{-- Celdas en el orden estándar: Fecha, Serie, Factura, Vence, Total, Moneda, Saldo. --}}
                             <tr @if(($fw['moneda'] ?? '') === 'USD') style="background:linear-gradient(90deg,#eff6ff 0%,#f8fbff 60%,#ffffff 100%);" @endif>
                                 <td><input type="checkbox" class="chk fact-chk" name="folios[]" value="{{ $fw['folio'] }}"></td>
-                                <td style="font-weight:600;">{{ $fw['folio'] ?? '—' }}</td>
-                                <td>{{ $fw['serie'] ?: '—' }}</td>
                                 <td>{{ $fw['fecha_factura'] ? \Illuminate\Support\Carbon::parse($fw['fecha_factura'])->format('d/m/Y') : '—' }}</td>
+                                <td>{{ $fw['serie'] ?: '—' }}</td>
+                                <td style="font-weight:600;">{{ $fw['folio'] ?? '—' }}</td>
                                 <td>{{ $fw['fecha_vence'] ? \Illuminate\Support\Carbon::parse($fw['fecha_vence'])->format('d/m/Y') : '—' }}</td>
-                                <td>{{ $fw['moneda'] }}</td>
                                 <td style="text-align:right">{{ '$'.number_format((float) $fw['total'], 2) }}</td>
+                                <td>{{ $fw['moneda'] }}</td>
                                 <td style="text-align:right;font-weight:700;color:#b45309" class="monto-saldo">{{ '$'.number_format((float) $fw['saldo'], 2) }}</td>
                             </tr>
                         @endforeach
@@ -576,5 +586,25 @@ function aplicarPreparadosEnBackend() {
 
     return cadena;
 }
+
+// Buscador rápido: filtra las filas de facturas por lo escrito (folio, serie, fecha...).
+window.filtrarFacturas = function (texto) {
+    texto = (texto || '').trim().toLowerCase();
+    var filas = Array.prototype.slice.call(document.querySelectorAll('.admin-table tbody tr'));
+    var contador = document.getElementById('buscar-contador');
+    var encontradas = 0;
+
+    filas.forEach(function (fila) {
+        // Ignorar filas que no sean de factura (sin checkbox).
+        if (!fila.querySelector('.fact-chk')) return;
+        var coincide = texto === '' || fila.textContent.toLowerCase().indexOf(texto) !== -1;
+        fila.style.display = coincide ? '' : 'none';
+        if (coincide) encontradas++;
+    });
+
+    if (contador) {
+        contador.textContent = texto === '' ? '' : (encontradas + ' coincidencia(s)');
+    }
+};
 </script>
 @endsection

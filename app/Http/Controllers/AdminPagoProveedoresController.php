@@ -666,7 +666,24 @@ class AdminPagoProveedoresController extends Controller
         // Proveedores REALES de Wiese (antes salían los locales de prueba).
         $proveedores = $this->proveedoresParaFlujoPago();
 
-        return view('admin.abono-proveedor.index', compact('proveedores', 'cuentaKey', 'cuentaConfig'));
+        // Folio precargado = siguiente consecutivo de la cuenta de WieseBanco.
+        // POR QUÉ: el Folio del abono debe ser EL MISMO número (NUM) que tomará el movimiento
+        // en WieseBanco (el Quicken), para que coincidan. Por ahora todo mapea a BBVA 8969.
+        $folioSugerido = $this->folioSugeridoWieseBanco();
+
+        return view('admin.abono-proveedor.index', compact('proveedores', 'cuentaKey', 'cuentaConfig', 'folioSugerido'));
+    }
+
+    /**
+     * Devuelve el siguiente folio (NUM) de la cuenta de WieseBanco, para precargar el campo
+     * "Folio" del abono y que coincida con el movimiento que se creará en el Quicken.
+     * Por ahora todas las cuentas del abono mapean a BBVA 8969 (la única de WieseBanco).
+     */
+    private function folioSugeridoWieseBanco(): int
+    {
+        $cuenta = \App\Models\CuentaBancaria::where('activo', true)->where('clave_corta', '8969')->first();
+
+        return $cuenta ? ((int) $cuenta->consecutivo_actual + 1) : 1;
     }
 
     public function abonoInternoFacturas(Request $request)
@@ -830,7 +847,9 @@ class AdminPagoProveedoresController extends Controller
         $data = $request->validate([
             'factura_ids' => 'required|array|min:1',
             'factura_ids.*' => 'integer',
-            'poliza' => 'required|string|max:60',
+            // POR QUÉ ya no es required: el folio real lo asigna Contpaqi al guardar (consecutivo
+            // en tiempo real). El campo del formulario trae "Se asigna al guardar", no un folio.
+            'poliza' => 'nullable|string|max:60',
             'fecha' => 'required|date|before:today',
             'serie' => 'nullable|string|max:20',
             'cuenta' => 'nullable|string|max:60',
@@ -845,6 +864,12 @@ class AdminPagoProveedoresController extends Controller
             'fecha.before' => 'La fecha debe ser un día anterior a hoy.',
             'referencia.required' => 'Escribe en Referencia las facturas o número de compra.',
         ]);
+
+        // El folio real lo pondrá Contpaqi; mientras, usamos un texto marcador para los avisos.
+        $data['poliza'] = trim((string) ($data['poliza'] ?? '')) ?: '(se asigna en Contpaqi)';
+        if ($data['poliza'] === 'Se asigna al guardar') {
+            $data['poliza'] = '(se asigna en Contpaqi)';
+        }
 
         // Validación de secuencia: solo facturas "pagada" pueden liquidarse aquí.
         if ($errorSecuencia = $this->validarSecuenciaFacturas($data['factura_ids'], 'pagada', 'el abono al proveedor')) {

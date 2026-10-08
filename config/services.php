@@ -66,8 +66,10 @@ return [
     ],
 
     // ── API C# (APIPortalWeb) que registra pagos en Contpaqi vía el SDK ──
+    // POR QUÉ 127.0.0.1 y no localhost: localhost puede resolver a IPv6 (::1) y fallar la
+    // conexión desde PHP; 127.0.0.1 (IPv4) es directo y siempre conecta.
     'contpaqi_api' => [
-        'url' => env('CONTPAQI_API_URL', 'https://localhost:7090'),
+        'url' => env('CONTPAQI_API_URL', 'https://127.0.0.1:7090'),
     ],
 
     'ia' => [

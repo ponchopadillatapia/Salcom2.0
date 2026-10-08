@@ -10,14 +10,15 @@
 <style>
     /* ===== Paleta Quicken (replicada de las capturas) ===== */
     :root {
-        --qk-azul-barra: #d7e3f4;      /* barra azul clara del título */
-        --qk-azul-borde: #a8bcd8;
-        --qk-fila-azul: #eaf1fb;       /* bandeado azul clarito */
+        /* Paleta LILA/MORADO (en vez de azul), para que combine con el resto del sistema. */
+        --qk-azul-barra: #ede6f7;      /* barra lila clara del título */
+        --qk-azul-borde: #c4b0e0;      /* borde lila */
+        --qk-fila-azul: #f4eefb;       /* bandeado lila clarito */
         --qk-fila-blanca: #ffffff;
-        --qk-activa: #c7ddf7;          /* fila que se está capturando */
-        --qk-texto: #1f2d3d;
-        --qk-gris-cat: #6b7a8d;        /* la Category va en gris */
-        --qk-encabezado: #c3d4ec;      /* fondo encabezados de columna */
+        --qk-activa: #e0cff5;          /* fila que se está capturando (lila) */
+        --qk-texto: #2d2440;
+        --qk-gris-cat: #7a6b8d;        /* la Category va en gris lila */
+        --qk-encabezado: #d8c9ef;      /* fondo encabezados de columna (lila) */
     }
 
     .qk-registro {
@@ -35,7 +36,7 @@
 
     /* Cabecera azul: nombre de la cuenta + pestañas Register/Overview */
     .qk-top {
-        background: linear-gradient(#eaf1fb, var(--qk-azul-barra));
+        background: linear-gradient(#f4eefb, var(--qk-azul-barra));
         border-bottom: 1px solid var(--qk-azul-borde);
         display: flex;
         align-items: flex-end;
@@ -45,7 +46,7 @@
     .qk-cuenta {
         font-weight: 700;
         font-size: 13px;
-        color: #15325c;
+        color: #4a2078;
         padding: 4px 10px 8px;
     }
     .qk-tabs { display: flex; gap: 2px; }
@@ -55,11 +56,11 @@
         border: 1px solid var(--qk-azul-borde);
         border-bottom: none;
         border-radius: 6px 6px 0 0;
-        background: #dce7f6;
-        color: #35506f;
+        background: #e0d3f2;
+        color: #5b3a86;
         cursor: default;
     }
-    .qk-tab.activa { background: #fff; font-weight: 700; color: #15325c; }
+    .qk-tab.activa { background: #fff; font-weight: 700; color: #4a2078; }
 
     /* Barra de acciones: Delete | Find | Transfer | ... */
     .qk-acciones {
@@ -73,7 +74,7 @@
     }
     .qk-accion {
         font-size: 12px;
-        color: #27496d;
+        color: #5b3a86;
         background: transparent;
         border: 1px solid transparent;
         border-radius: 4px;
@@ -106,7 +107,7 @@
         top: 0;
         z-index: 2;
         background: var(--qk-encabezado);
-        color: #1b3a5c;
+        color: #4a2078;
         font-size: 11px;
         font-weight: 700;
         text-align: left;
@@ -137,7 +138,7 @@
     .qk-cat-bottom { color: var(--qk-gris-cat); font-size: 11px; }
 
     /* Fila guardada SELECCIONADA (para borrar): resaltada en azul más fuerte. */
-    .qk-table tbody tr.guardada.seleccionada td { background: #9fc3f0 !important; }
+    .qk-table tbody tr.guardada.seleccionada td { background: #c9adec !important; }
     .qk-table tbody tr.guardada { cursor: pointer; }
 
     /* Fila de captura (inputs) */
@@ -155,7 +156,7 @@
         padding: 0 10px;
         box-sizing: border-box;
     }
-    .qk-cell:focus { background: #fff; box-shadow: inset 0 0 0 2px #3b7dd8; }
+    .qk-cell:focus { background: #fff; box-shadow: inset 0 0 0 2px #6B3FA0; }
     .qk-cell.r { text-align: right; }
     .qk-payee-wrap { display: flex; flex-direction: column; height: 42px; }
     .qk-payee-wrap .qk-cell { height: 21px; }
@@ -181,7 +182,7 @@
         border-top: 1px solid var(--qk-azul-borde);
         padding: 7px 16px;
         font-size: 12px;
-        color: #1b3a5c;
+        color: #4a2078;
     }
     .qk-pie strong { font-size: 13px; }
 </style>
@@ -199,8 +200,7 @@
         <span class="qk-cuenta">{{ $bancoNombre }}</span>
         <div class="qk-tabs">
             <span class="qk-tab activa">Register</span>
-            {{-- Overview aún no: dirección dijo que no sabe qué va ahí. Se deja desactivada. --}}
-            <span class="qk-tab" title="Disponible próximamente" style="opacity:.6;">Overview</span>
+            {{-- Overview se quitó: dirección no la usa / no está definida. --}}
         </div>
     </div>
 

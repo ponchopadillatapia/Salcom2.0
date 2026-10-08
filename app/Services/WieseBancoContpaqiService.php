@@ -60,83 +60,106 @@ class WieseBancoContpaqiService
                 continue;
             }
 
-            // 1) Crear el movimiento en WieseBanco con su NUM consecutivo + balance.
-            $movimiento = DB::transaction(function () use ($cuenta, $factura, $folioFactura, $monto, $nombreProveedor, $codigoProveedor) {
-                $num = $cuenta->siguienteFolio();
-                $saldoNuevo = (float) $cuenta->saldo_actual - $monto; // es un pago: resta
+            // La serie de la factura: se toma de la propia factura (validacion_detalle), que es
+            // donde quedó guardada al capturarla. POR QUÉ: evita consultar el SDK lento de Contpaqi
+            // (que se cuelga con miles de documentos). Si no hay serie, se intenta vacía.
+            $vd = is_array($factura->validacion_detalle) ? $factura->validacion_detalle : [];
+            $serieFactura = (string) ($vd['serie'] ?? $vd['cfdi']['serie'] ?? '');
 
-                $mov = MovimientoBancario::create([
+            // Registrar el pago en Contpaqi Y SALDAR la factura. Contpaqi genera el folio del pago.
+            $resultado = $this->registrarYSaldarEnContpaqi($codigoProveedor, $monto, $folioFactura, $serieFactura);
+
+            // ===== PRINCIPIO "TODO O NADA" (evita inconsistencia entre sistemas) =====
+            // Si Contpaqi FALLÓ, NO guardamos el movimiento en WieseBanco. Así nunca queda un
+            // pago en nuestra base que no exista en Contpaqi (eso descuadraría los saldos).
+            if ($resultado === null) {
+                $erroresContpaqi++;
+                continue; // no se guarda nada de esta factura
+            }
+
+            // Contpaqi respondió OK: guardamos el movimiento en WieseBanco. El NUM visible es el
+            // folio BONITO consecutivo de la cuenta (estilo Quicken, 80195...), que es el que ve
+            // Sandra. El folio BRUTO de Contpaqi (3850965172) y el idDocumento se guardan aparte
+            // como referencia para conciliar, SIN mostrarlos.
+            DB::transaction(function () use ($cuenta, $folioFactura, $monto, $nombreProveedor, $codigoProveedor, $resultado) {
+                $numBonito = $cuenta->siguienteFolio();   // consecutivo WieseBanco (80195, 80196...)
+                $saldoNuevo = (float) $cuenta->saldo_actual - $monto;
+
+                MovimientoBancario::create([
                     'cuenta_id' => $cuenta->id,
                     'fecha' => now()->toDateString(),
-                    'num' => $num,
+                    'num' => $numBonito,                     // folio BONITO visible (estilo Quicken)
                     'payee' => $nombreProveedor,
                     'categoria' => 'PROVEEDOR',
-                    'memo' => $folioFactura,          // el folio de la factura (como Quicken)
+                    'memo' => $folioFactura,
                     'payment' => $monto,
                     'deposit' => 0,
                     'balance' => $saldoNuevo,
                     'codigo_proveedor' => $codigoProveedor,
-                    'estatus' => 'pendiente_contpaqi', // aún no confirmado en Contpaqi
+                    'iddocumento_contpaqi' => $resultado['idDocumento'],
+                    'folio_contpaqi' => $resultado['folio'], // folio bruto de Contpaqi (referencia)
+                    'estatus' => 'enviado',
                 ]);
 
                 $cuenta->saldo_actual = $saldoNuevo;
                 $cuenta->save();
-
-                return $mov;
             });
             $creados++;
-
-            // 2) Registrar el pago en Contpaqi vía la API C#. Si falla, el movimiento queda pendiente.
-            $idDocumento = $this->registrarEnContpaqi($movimiento, $codigoProveedor);
-            if ($idDocumento !== null) {
-                $movimiento->iddocumento_contpaqi = $idDocumento;
-                $movimiento->estatus = 'enviado';
-                $movimiento->save();
-            } else {
-                $erroresContpaqi++;
-            }
         }
 
         return ['creados' => $creados, 'errores_contpaqi' => $erroresContpaqi];
     }
 
+    // Concepto de las FACTURAS DE COMPRA en Contpaqi (lo confirmó Alan). Las facturas que
+    // paga el proveedor están registradas con este concepto. Se usa para buscarlas y saldarlas.
+    private const CONCEPTO_COMPRA = '21';
+
     /**
-     * Llama a la API C# (APIPortalWeb) para crear el pago en Contpaqi.
-     * Devuelve el idDocumento, o null si falló (API apagada, error, etc.).
+     * Crea el pago en Contpaqi Y salda la factura de compra, en una sola llamada a la API C#.
      *
-     * POR QUÉ try/catch amplio: la API puede estar apagada o tardar; nunca debe
-     * tumbar el flujo de abono. Si falla, se registra en el log y se reintenta luego.
+     * POR QUÉ recibe la serie directo: buscarla en el SDK (FacturasProveedor) se CUELGA con
+     * proveedores que tienen miles de documentos (ORPACK: 2041). La serie ya viene en la factura
+     * (validacion_detalle, donde se guardó al capturarla desde Wiese). Si está vacía, se manda ""
+     * y Contpaqi la resuelve (algunos documentos no usan serie).
+     *
+     * @return array{folio: int|null, idDocumento: int|null}|null  null si falló.
      */
-    private function registrarEnContpaqi(MovimientoBancario $movimiento, string $codigoProveedor): ?int
+    private function registrarYSaldarEnContpaqi(string $codigoProveedor, float $importe, string $folioFactura, string $serieFactura = ''): ?array
     {
-        $base = rtrim((string) config('services.contpaqi_api.url', 'https://localhost:7090'), '/');
+        $base = rtrim((string) config('services.contpaqi_api.url', 'https://127.0.0.1:7090'), '/');
 
         try {
-            $respuesta = Http::timeout(30)
-                ->withoutVerifying() // la API corre en https local con certificado de desarrollo
-                ->asJson()
-                ->post($base.'/api/PagoProveedor/CrearPago', [
-                    // Por ahora CrearPago usa valores fijos del lado C# (ORPACK/concepto 28).
-                    // Cuando la API acepte parámetros, aquí mandaremos folioQuicken=$movimiento->num,
-                    // codigo_proveedor, importe, etc.
-                    'folioQuicken' => $movimiento->num,
-                    'codigoProveedor' => $codigoProveedor,
-                    'importe' => (float) $movimiento->payment,
-                ]);
+            $url = $base.'/api/PagoProveedor/CrearPagoYSaldar?'.http_build_query([
+                'codigoProveedor' => $codigoProveedor,
+                'importe' => $importe,
+                'conceptoFactura' => self::CONCEPTO_COMPRA,  // "21"
+                'serieFactura' => $serieFactura,
+                'folioFactura' => $folioFactura,
+            ]);
+
+            $respuesta = Http::timeout(60)
+                ->withoutVerifying()
+                ->post($url);
 
             if (! $respuesta->ok()) {
-                Log::warning('[WieseBanco→Contpaqi] Respuesta no OK', ['status' => $respuesta->status(), 'body' => $respuesta->body()]);
+                Log::warning('[WieseBanco→Contpaqi] CrearPagoYSaldar no OK', ['status' => $respuesta->status(), 'body' => $respuesta->body()]);
 
                 return null;
             }
 
             $json = $respuesta->json();
-            // La API devuelve idDocumento cuando crea bien.
-            $id = $json['idDocumento'] ?? null;
+            if (! ($json['ok'] ?? false) || ! isset($json['idDocumento'])) {
+                Log::warning('[WieseBanco→Contpaqi] CrearPagoYSaldar sin idDocumento', ['body' => $respuesta->body()]);
 
-            return $id !== null ? (int) $id : null;
+                return null;
+            }
+
+            return [
+                'folio' => isset($json['folio']) ? (int) $json['folio'] : null,
+                'idDocumento' => (int) $json['idDocumento'],
+            ];
         } catch (\Throwable $e) {
-            Log::warning('[WieseBanco→Contpaqi] No se pudo llamar a la API C#: '.$e->getMessage());
+            Log::warning('[WieseBanco→Contpaqi] Error al crear/saldar: '.$e->getMessage());
 
             return null;
         }

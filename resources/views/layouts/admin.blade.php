@@ -531,6 +531,10 @@
                     <a href="{{ route('admin.expedientes-pago') }}" class="sb-link sb-sublink {{ request()->is('admin/expedientes-pago*') ? 'active' : '' }}">
                         <span class="sb-text">Expedientes de pago</span>
                     </a>
+                    {{-- Nota de crédito: módulo nuevo (aún no desarrollado). Placeholder deshabilitado. --}}
+                    <span class="sb-link sb-sublink" style="opacity:.45; cursor:not-allowed;" title="En desarrollo">
+                        <span class="sb-text">Nota de crédito <small>(próximamente)</small></span>
+                    </span>
                     @endif
                     {{-- Anticipo: visible si puede ver Pagos o si tiene permiso de Anticipos (Brenda) --}}
                     @if($puedePagos || $puedeAnticipos)

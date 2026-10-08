@@ -29,6 +29,7 @@ class MovimientoBancario extends Model
         'deposit',
         'balance',
         'iddocumento_contpaqi',
+        'folio_contpaqi',
         'codigo_proveedor',
         'estatus',
     ];
@@ -40,6 +41,7 @@ class MovimientoBancario extends Model
         'deposit' => 'decimal:2',
         'balance' => 'decimal:2',
         'iddocumento_contpaqi' => 'integer',
+        'folio_contpaqi' => 'integer',
     ];
 
     /** @return BelongsTo<CuentaBancaria, $this> */

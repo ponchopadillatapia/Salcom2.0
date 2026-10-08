@@ -107,8 +107,10 @@
                 <input type="text" name="serie" value="{{ old('serie', $cuentaConfig['serie'] ?? '8969') }}" style="width:70px" placeholder="8969">
             </div>
             <div class="ab-field">
-                <label>Folio / Nº Póliza <span style="color:#dc2626;font-size:14px" id="poliza-dot">●</span></label>
-                <input type="text" name="poliza" id="ab-poliza" value="{{ old('poliza') }}" required placeholder="Obligatorio" style="width:140px;border:2px solid #dc2626;background:#fff;font-weight:700;font-size:14px" oninput="checkPoliza()">
+                <label>Folio</label>
+                {{-- El folio lo asigna Contpaqi al guardar (consecutivo real en tiempo real).
+                     Por eso el campo es informativo y de solo lectura, no se captura a mano. --}}
+                <input type="text" name="poliza" id="ab-poliza" value="Se asigna al guardar" readonly style="width:170px;background:#f3f4f6;color:#6b7280;font-weight:600;font-size:13px;border:1.5px solid #e5e7eb">
             </div>
             <div class="ab-field">
                 <label>Concepto</label>
@@ -408,38 +410,39 @@
 (function(){
     // Validación visual de póliza
     window.checkPoliza = function() {
+        // El Folio ahora es readonly ("Se asigna al guardar"); ya no es un campo a validar.
+        // Guardas de seguridad: si los elementos no existen, no hacemos nada (evita que truene
+        // y tumbe TODO el script, que es lo que rompía los Enter).
         var input = document.getElementById('ab-poliza');
         var dot = document.getElementById('poliza-dot');
-        if (input.value.trim() !== '') {
-            input.style.borderColor = 'var(--green, #16a34a)';
-            dot.style.display = 'none';
-        } else {
-            input.style.borderColor = '#dc2626';
-            dot.style.display = 'inline';
-        }
+        if (!input) return;
+        input.style.borderColor = '#e5e7eb';
+        if (dot) dot.style.display = 'none';
     };
 
     window.checkFecha = function() {
         var input = document.getElementById('ab-fecha');
         var dot = document.getElementById('fecha-dot');
+        if (!input) return;
         if (input.value) {
             input.style.borderColor = 'var(--green, #16a34a)';
-            dot.style.display = 'none';
+            if (dot) dot.style.display = 'none';
         } else {
             input.style.borderColor = '#dc2626';
-            dot.style.display = 'inline';
+            if (dot) dot.style.display = 'inline';
         }
     };
 
     window.checkProveedor = function() {
         var input = document.getElementById('ab-proveedor');
         var dot = document.getElementById('prov-dot');
+        if (!input) return;
         if (input.value) {
             input.style.borderColor = 'var(--green, #16a34a)';
-            dot.style.display = 'none';
+            if (dot) dot.style.display = 'none';
         } else {
             input.style.borderColor = '#dc2626';
-            dot.style.display = 'inline';
+            if (dot) dot.style.display = 'inline';
         }
     };
 
@@ -773,11 +776,12 @@ function seleccionarProv(tr) {
     // Highlight
     document.querySelectorAll('.prov-row').forEach(function(r) { r.style.background = ''; });
     tr.style.background = '#dbeafe';
-    // Asegurar que la pestaña Generales esté abierta y enfocar Cuenta
+    // Asegurar que la pestaña Generales esté abierta y enfocar TOTAL (no Cuenta, que es readonly).
+    // POR QUÉ Total: es el siguiente campo que de verdad se captura; ahí Enter abre el modal Saldar.
     switchTab('generales');
     setTimeout(function() {
-        var cuenta = document.getElementById('ab-cuenta');
-        if (cuenta) { cuenta.focus(); cuenta.select(); }
+        var totalInput = document.getElementById('ab-total-input');
+        if (totalInput) { totalInput.focus(); totalInput.select(); }
     }, 150);
 }
 // Hover rows (respeta la fila activa por teclado)
@@ -845,12 +849,15 @@ function fechaEsValida() {
                     return;
                 }
                 fecha.style.borderColor = 'var(--green, #16a34a)';
-                if (poliza) poliza.focus();
+                // POR QUÉ saltamos el Folio: ahora es readonly ("Se asigna al guardar"), el folio
+                // real lo pone Contpaqi. Entonces de Fecha pasamos DIRECTO a elegir Proveedor.
+                abrirModalProv();
             }
         });
     }
 
-    // Folio → Proveedor (abre modal), revalidando fecha
+    // Folio → Proveedor (abre modal). El folio ya no se captura (readonly), pero por si acaso
+    // alguien le da Enter estando ahí, igual abrimos el modal de proveedor.
     if (poliza) {
         poliza.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
@@ -859,10 +866,6 @@ function fechaEsValida() {
                     alert('Recordatorio: cambia la FECHA al día del pago (una fecha anterior a hoy).');
                     document.getElementById('ab-fecha').style.borderColor = '#dc2626';
                     document.getElementById('ab-fecha').focus();
-                    return;
-                }
-                if (poliza.value.trim() === '') {
-                    alert('Escribe el número de póliza primero.');
                     return;
                 }
                 abrirModalProv();

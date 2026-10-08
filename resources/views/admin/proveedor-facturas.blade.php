@@ -78,7 +78,7 @@
     <table class="tbl">
         <thead>
             <tr>
-                <th>Folio CFDI</th>
+                <th>Factura</th>
                 <th>Producto</th>
                 <th>Código producto</th>
                 <th>Total</th>
@@ -160,12 +160,20 @@
                 · mostrando los primeros {{ $ocLimit }} (acorta el rango de fechas para ver menos)
             @endif
         </div>
+        {{-- Buscador rápido: filtra las filas de la tabla OC por lo que se escriba (ej. 92744). --}}
+        @if($ocItems->count())
+        <div style="margin:8px 0 12px">
+            <input type="text" id="oc-buscar" placeholder="Buscar por folio, razón social, RFC..."
+                   style="width:100%;max-width:360px;padding:9px 14px;border:1.5px solid #d1d5db;border-radius:8px;font-size:13px;font-family:inherit;outline:none"
+                   oninput="filtrarOC(this.value)">
+        </div>
+        @endif
         @if($ocItems->count())
         <div style="overflow-x:auto;">
             <table class="tbl" id="oc-tabla">
                 <thead>
                     <tr>
-                        <th>Folio</th>
+                        <th>Folio OC (Wiese)</th>
                         <th>Fecha</th>
                         <th>Razón social</th>
                         <th>RFC</th>
@@ -302,6 +310,31 @@
 
             ocMostradas = OC_POR_PAGINA;
             pintarOc();
+
+            // Buscador rápido: filtra las filas por el texto escrito (folio, razón social, RFC...).
+            // Si el buscador está vacío, vuelve a la paginación normal (de 50 en 50).
+            window.filtrarOC = function(texto) {
+                texto = (texto || '').trim().toLowerCase();
+                var filas = filasOc();
+                var vermas = document.getElementById('oc-vermas');
+                var contador = document.getElementById('oc-contador');
+
+                if (texto === '') {
+                    // Sin búsqueda: restaurar paginación.
+                    pintarOc();
+                    return;
+                }
+
+                var encontradas = 0;
+                filas.forEach(function(fila) {
+                    var coincide = fila.textContent.toLowerCase().indexOf(texto) !== -1;
+                    fila.style.display = coincide ? '' : 'none';
+                    if (coincide) encontradas++;
+                });
+                // Al buscar, ocultamos el "Ver más" y mostramos cuántas coinciden.
+                if (vermas) vermas.style.display = 'none';
+                if (contador) contador.textContent = encontradas + ' coincidencia(s) para "' + texto + '"';
+            };
         </script>
         @else
             <div class="empty">Sin OC en ese rango de fechas</div>
