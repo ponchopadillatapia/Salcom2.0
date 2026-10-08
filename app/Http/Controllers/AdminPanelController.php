@@ -6,6 +6,7 @@ use App\Mail\OpinionPositivaAviso;
 use App\Mail\SolicitudAltaAprobada;
 use App\Models\AlertaConfiguracion;
 use App\Models\Alerta;
+use App\Models\BitacoraGasolina;
 use App\Models\ClienteUser;
 use App\Models\CuentaBancaria;
 use App\Models\MovimientoBancario;
@@ -3520,7 +3521,7 @@ class AdminPanelController extends Controller
         }
 
         try {
-            $tieneBitacoraGasolina = Alerta::where('tipo', 'bitacora_gasolina')->exists();
+            $tieneBitacoraGasolina = BitacoraGasolina::exists();
         } catch (\Exception $e) {
             $tieneBitacoraGasolina = false;
         }
@@ -3560,8 +3561,7 @@ class AdminPanelController extends Controller
         $numEmp = $request->input('numero_empleado');
         $empleado = \App\Models\Empleado::where('numero_empleado', $numEmp)->first();
         if ($empleado && $empleado->requiere_gasolina) {
-            $suBitacora = Alerta::where('tipo', 'bitacora_gasolina')->get()
-                ->first(fn ($r) => ($r->datos['numero_empleado'] ?? null) == $numEmp);
+            $suBitacora = BitacoraGasolina::where('numero_empleado', $numEmp)->exists();
             if (! $suBitacora) {
                 return back()->withErrors(['numero_empleado' => 'Este empleado es de ruta/gasolina. Debe llenar primero su Bitácora de Gasolina antes de pedir un reembolso.'])->withInput();
             }
@@ -3569,9 +3569,7 @@ class AdminPanelController extends Controller
 
         // Validar que gasolina tenga bitácora previa y dentro del plazo de 3 días
         if ($request->input('categoria') === 'gasolina') {
-            $ultimaBitacora = Alerta::where('tipo', 'bitacora_gasolina')
-                ->orderByDesc('created_at')
-                ->first();
+            $ultimaBitacora = BitacoraGasolina::orderByDesc('created_at')->first();
             if (! $ultimaBitacora) {
                 return back()->withErrors(['categoria' => 'Para reembolso de gasolina debes llenar primero la Bitácora de Gasolina.'])->withInput();
             }
@@ -3680,21 +3678,18 @@ class AdminPanelController extends Controller
         $registros = collect();
 
         try {
-            $all = Alerta::where('tipo', 'bitacora_gasolina')
-                ->orderByDesc('created_at')
-                ->limit(200)
-                ->get();
+            // POR QUÉ: ahora el filtro por empleado se hace con SQL (WHERE) en vez de recorrer en PHP.
+            $query = BitacoraGasolina::query()->orderByDesc('fecha')->orderByDesc('id');
 
             if ($request->filled('filtro_empleado')) {
-                $filtro = strtolower(trim($request->input('filtro_empleado')));
-                $registros = $all->filter(function ($r) use ($filtro) {
-                    $d = is_array($r->datos) ? $r->datos : [];
-                    return str_contains(strtolower((string) ($d['numero_empleado'] ?? '')), $filtro)
-                        || str_contains(strtolower((string) ($d['empleado'] ?? '')), $filtro);
-                })->values();
-            } else {
-                $registros = $all;
+                $filtro = trim($request->input('filtro_empleado'));
+                $query->where(function ($q) use ($filtro) {
+                    $q->where('numero_empleado', 'like', "%{$filtro}%")
+                      ->orWhere('empleado', 'like', "%{$filtro}%");
+                });
             }
+
+            $registros = $query->limit(200)->get();
         } catch (\Exception $e) {
             $registros = collect();
         }
@@ -3722,27 +3717,19 @@ class AdminPanelController extends Controller
             : null;
 
         try {
-            Alerta::create([
-                'tipo' => 'bitacora_gasolina',
-                'modulo' => 'gasolina',
-                'destinatario_tipo' => 'admin',
-                'destinatario_id' => 0,
-                'titulo' => 'Gasolina: $' . $request->input('monto') . ' — ' . $request->input('empleado'),
-                'contenido' => ($request->input('vehiculo') ?? '') . ' | ' . now()->format('Y-m-d'),
-                'datos' => [
-                    'fecha' => now()->format('Y-m-d'),
-                    'numero_empleado' => $request->input('numero_empleado'),
-                    'empleado' => $request->input('empleado'),
-                    'cantidad_litros' => $request->input('cantidad_litros'),
-                    'rendimiento' => $request->input('rendimiento'),
-                    'monto' => $request->input('monto'),
-                    'vehiculo' => $request->input('vehiculo'),
-                    'kilometraje' => $request->input('kilometraje'),
-                    'notas' => $request->input('notas'),
-                    'factura' => $pathFactura,
-                ],
-                'estatus' => 'pendiente',
-                'nivel' => 'info',
+            BitacoraGasolina::create([
+                'fecha' => $request->input('fecha') ?: now()->format('Y-m-d'),
+                'numero_empleado' => $request->input('numero_empleado'),
+                'empleado' => $request->input('empleado'),
+                'cantidad_litros' => $request->input('cantidad_litros'),
+                'rendimiento' => $request->input('rendimiento'),
+                // POR QUÉ: el form manda el monto como texto ("$1,500"); lo limpiamos a número para la columna decimal.
+                'monto' => (float) str_replace(['$', ','], '', (string) $request->input('monto')),
+                'vehiculo' => $request->input('vehiculo'),
+                'kilometraje' => $request->input('kilometraje'),
+                'notas' => $request->input('notas'),
+                'factura' => $pathFactura,
+                'origen' => 'admin',
             ]);
         } catch (\Exception $e) {
         }
@@ -3753,18 +3740,17 @@ class AdminPanelController extends Controller
 
     public function bitacoraGasolinaExcel(Request $request)
     {
-        $registros = Alerta::where('tipo', 'bitacora_gasolina')
-            ->orderByDesc('created_at')
-            ->get();
+        $query = BitacoraGasolina::query()->orderByDesc('fecha')->orderByDesc('id');
 
         if ($request->filled('filtro_empleado')) {
-            $filtro = strtolower(trim($request->input('filtro_empleado')));
-            $registros = $registros->filter(function ($r) use ($filtro) {
-                $d = is_array($r->datos) ? $r->datos : [];
-                return str_contains(strtolower((string) ($d['numero_empleado'] ?? '')), $filtro)
-                    || str_contains(strtolower((string) ($d['empleado'] ?? '')), $filtro);
-            })->values();
+            $filtro = trim($request->input('filtro_empleado'));
+            $query->where(function ($q) use ($filtro) {
+                $q->where('numero_empleado', 'like', "%{$filtro}%")
+                  ->orWhere('empleado', 'like', "%{$filtro}%");
+            });
         }
+
+        $registros = $query->get();
 
         $output = "\xEF\xBB\xBF";
         $output .= "BITACORA DE GASOLINA\r\n";
@@ -3773,18 +3759,17 @@ class AdminPanelController extends Controller
 
         $totalMonto = 0;
         foreach ($registros as $r) {
-            $d = $r->datos ?? [];
-            $monto = (float) str_replace(['$', ','], '', $d['monto'] ?? '0');
+            $monto = (float) $r->monto;
             $totalMonto += $monto;
             $output .= implode(',', [
-                $d['fecha'] ?? $r->created_at->format('Y-m-d'),
-                '"' . str_replace('"', '""', $d['numero_empleado'] ?? '') . '"',
-                '"' . str_replace('"', '""', $d['empleado'] ?? '') . '"',
-                $d['cantidad_litros'] ?? '',
+                $r->fecha ? $r->fecha->format('Y-m-d') : $r->created_at->format('Y-m-d'),
+                '"' . str_replace('"', '""', $r->numero_empleado ?? '') . '"',
+                '"' . str_replace('"', '""', $r->empleado ?? '') . '"',
+                $r->cantidad_litros ?? '',
                 number_format($monto, 2, '.', ''),
-                '"' . str_replace('"', '""', $d['vehiculo'] ?? '') . '"',
-                $d['kilometraje'] ?? '',
-                '"' . str_replace('"', '""', $d['notas'] ?? '') . '"',
+                '"' . str_replace('"', '""', $r->vehiculo ?? '') . '"',
+                $r->kilometraje ?? '',
+                '"' . str_replace('"', '""', $r->notas ?? '') . '"',
             ]) . "\r\n";
         }
         $output .= ",,,,,,,\r\n";

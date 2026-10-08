@@ -141,13 +141,12 @@
                 <thead><tr><th>Fecha</th><th>Litros</th><th>Monto</th><th>Vehículo</th><th>Km</th></tr></thead>
                 <tbody>
                     @foreach($gasolina as $g)
-                    @php $d = $g->datos ?? []; @endphp
                     <tr>
-                        <td>{{ $d['fecha'] ?? $g->created_at->format('d/m/Y') }}</td>
-                        <td>{{ $d['cantidad_litros'] ?? '—' }}</td>
-                        <td><strong>${{ $d['monto'] ?? '—' }}</strong></td>
-                        <td>{{ $d['vehiculo'] ?? '—' }}</td>
-                        <td>{{ $d['kilometraje'] ?? '—' }}</td>
+                        <td>{{ $g->fecha ? $g->fecha->format('d/m/Y') : $g->created_at->format('d/m/Y') }}</td>
+                        <td>{{ $g->cantidad_litros ?: '—' }}</td>
+                        <td><strong>${{ number_format((float) $g->monto, 2) }}</strong></td>
+                        <td>{{ $g->vehiculo ?: '—' }}</td>
+                        <td>{{ $g->kilometraje ?: '—' }}</td>
                     </tr>
                     @endforeach
                 </tbody>
