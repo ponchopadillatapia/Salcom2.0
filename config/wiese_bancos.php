@@ -1,7 +1,7 @@
 <?php
 
 return [
-    'bbva' => 'BBVA',
+    'bbva' => 'BBVA 8969 MXN (28)',
     'santander' => 'Santander',
     'banorte' => 'Banorte',
     'citibanamex' => 'Citibanamex',

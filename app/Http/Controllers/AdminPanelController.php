@@ -8,6 +8,8 @@ use App\Models\AlertaConfiguracion;
 use App\Models\Alerta;
 use App\Models\BitacoraGasolina;
 use App\Models\ClienteUser;
+use App\Models\CuentaBancaria;
+use App\Models\MovimientoBancario;
 use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
 use App\Models\Factura;
@@ -26,6 +28,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
@@ -1696,10 +1699,166 @@ class AdminPanelController extends Controller
             abort(404);
         }
 
+        // POR QUÉ: por ahora SOLO la cuenta BBVA está habilitada. Si alguien entra a la URL
+        // de otro banco a mano, lo mandamos a BBVA (las demás cuentas aún no existen).
+        if ($banco !== 'bbva') {
+            return redirect()->route('admin.wiese-banco', ['banco' => 'bbva']);
+        }
+
+        // Vincular la URL del banco con la cuenta por su CLAVE CORTA (estable), NO por el
+        // nombre (que es una etiqueta que puede cambiar). bbva -> clave 8969.
+        $claveCuenta = $this->claveCuentaWiese($banco);
+        $cuenta = CuentaBancaria::where('activo', true)
+            ->where('clave_corta', $claveCuenta)
+            ->first();
+
+        // Movimientos ordenados por fecha y luego por id (orden de captura), como en Quicken.
+        $movimientos = $cuenta
+            ? $cuenta->movimientos()->orderBy('fecha')->orderBy('id')->get()
+            : collect();
+
+        // Siguiente folio (NUM) que tomará el próximo movimiento, para PRECARGARLO en la fila
+        // de captura (como la fecha). Es solo visual; el folio real lo asigna el servidor al guardar.
+        $siguienteNum = $cuenta ? ((int) $cuenta->consecutivo_actual + 1) : null;
+
         return view('admin.wiese-banco', [
             'bancoKey' => $banco,
             'bancoNombre' => $bancos[$banco],
+            'cuenta' => $cuenta,
+            'movimientos' => $movimientos,
+            'siguienteNum' => $siguienteNum,
         ]);
+    }
+
+    /**
+     * Guarda un movimiento nuevo del registro WieseBanco (llamado por AJAX desde la hoja).
+     *
+     * POR QUÉ aquí nace el folio: el NUM se genera con cuenta->siguienteFolio() (consecutivo
+     * por cuenta), igual que la columna NUM de Quicken. El balance se calcula en el servidor
+     * (saldo anterior + deposit - payment) para que no dependa de lo que escriba el usuario.
+     */
+    public function wieseBancoGuardar(Request $request, string $banco)
+    {
+        $bancos = config('wiese_bancos');
+        if (! is_array($bancos) || ! isset($bancos[$banco])) {
+            abort(404);
+        }
+
+        $cuenta = CuentaBancaria::where('activo', true)
+            ->where('clave_corta', $this->claveCuentaWiese($banco))
+            ->firstOrFail();
+
+        $data = $request->validate([
+            'fecha' => 'required|date',
+            'payee' => 'nullable|string|max:255',
+            'categoria' => 'nullable|string|max:255',
+            'memo' => 'nullable|string|max:255',
+            'payment' => 'nullable|numeric|min:0',
+            'deposit' => 'nullable|numeric|min:0',
+        ]);
+
+        $payment = (float) ($data['payment'] ?? 0);
+        $deposit = (float) ($data['deposit'] ?? 0);
+
+        // Generar folio + guardar movimiento + actualizar saldo, todo en una transacción
+        // para que el NUM, el balance y el saldo_actual de la cuenta queden consistentes.
+        $movimiento = DB::transaction(function () use ($cuenta, $data, $payment, $deposit) {
+            $num = $cuenta->siguienteFolio();
+
+            // Balance = saldo actual de la cuenta + lo que entra - lo que sale.
+            $saldoNuevo = (float) $cuenta->saldo_actual + $deposit - $payment;
+
+            $movimiento = MovimientoBancario::create([
+                'cuenta_id' => $cuenta->id,
+                'fecha' => $data['fecha'],
+                'num' => $num,
+                'payee' => $data['payee'] ?? null,
+                'categoria' => $data['categoria'] ?? null,
+                'memo' => $data['memo'] ?? null,
+                'payment' => $payment,
+                'deposit' => $deposit,
+                'balance' => $saldoNuevo,
+                'estatus' => 'borrador',
+            ]);
+
+            // Guardar el nuevo saldo en la cuenta para el siguiente movimiento.
+            $cuenta->saldo_actual = $saldoNuevo;
+            $cuenta->save();
+
+            return $movimiento;
+        });
+
+        // Devolvemos num y balance para que el JS los pinte en la fila (sin recargar).
+        return response()->json([
+            'ok' => true,
+            'id' => $movimiento->id,
+            'num' => $movimiento->num,
+            'balance' => number_format((float) $movimiento->balance, 2, '.', ''),
+        ]);
+    }
+
+    /**
+     * Borra un movimiento del registro WieseBanco y RECALCULA los balances siguientes.
+     *
+     * POR QUÉ recalcular: el balance de cada fila depende de las anteriores. Si borras una
+     * de en medio, todas las que siguen quedan mal. Aquí rehacemos el saldo en cadena desde
+     * cero y actualizamos el saldo_actual de la cuenta. Todo en una transacción.
+     */
+    public function wieseBancoBorrar(Request $request, string $banco, MovimientoBancario $movimiento)
+    {
+        $bancos = config('wiese_bancos');
+        if (! is_array($bancos) || ! isset($bancos[$banco])) {
+            abort(404);
+        }
+
+        $cuenta = CuentaBancaria::where('activo', true)
+            ->where('clave_corta', $this->claveCuentaWiese($banco))
+            ->firstOrFail();
+
+        // Seguridad: el movimiento debe pertenecer a ESTA cuenta.
+        if ((int) $movimiento->cuenta_id !== (int) $cuenta->id) {
+            abort(403, 'El movimiento no pertenece a esta cuenta.');
+        }
+
+        $saldoFinal = DB::transaction(function () use ($cuenta, $movimiento) {
+            $movimiento->delete();
+
+            // Rehacer los balances en orden (fecha, luego id) desde 0.
+            $saldo = 0.0;
+            $restantes = $cuenta->movimientos()->orderBy('fecha')->orderBy('id')->lockForUpdate()->get();
+            foreach ($restantes as $m) {
+                $saldo = $saldo + (float) $m->deposit - (float) $m->payment;
+                // Solo tocar la columna balance si cambió, para no escribir de más.
+                if ((float) $m->balance !== $saldo) {
+                    $m->balance = $saldo;
+                    $m->save();
+                }
+            }
+
+            $cuenta->saldo_actual = $saldo;
+            $cuenta->save();
+
+            return $saldo;
+        });
+
+        return response()->json([
+            'ok' => true,
+            'ending_balance' => number_format($saldoFinal, 2, '.', ''),
+        ]);
+    }
+
+    /**
+     * Mapea la clave de banco de la URL a la clave_corta de la cuenta en la BD.
+     * POR QUÉ: vincular por clave estable y no por el nombre (que es una etiqueta editable).
+     * Por ahora solo BBVA (8969); las demás cuentas se agregarán aquí cuando existan.
+     */
+    private function claveCuentaWiese(string $banco): string
+    {
+        $mapa = [
+            'bbva' => '8969',
+        ];
+
+        return $mapa[$banco] ?? '';
     }
 
     // ── Inventario ──

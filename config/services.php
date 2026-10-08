@@ -65,6 +65,11 @@ return [
         'token' => env('SALCOM_API_TOKEN', ''),
     ],
 
+    // ── API C# (APIPortalWeb) que registra pagos en Contpaqi vía el SDK ──
+    'contpaqi_api' => [
+        'url' => env('CONTPAQI_API_URL', 'https://localhost:7090'),
+    ],
+
     'ia' => [
         'provider' => env('IA_PROVIDER', 'bedrock'),        // bedrock | anthropic
         'model' => env('IA_MODEL', 'anthropic.claude-sonnet-4-20250514-v1:0'),
