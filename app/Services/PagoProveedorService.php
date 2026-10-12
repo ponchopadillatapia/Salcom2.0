@@ -695,10 +695,14 @@ class PagoProveedorService
      */
     public function proveedoresConPendientes(): Collection
     {
+        // POR QUÉ 'programada' y no 'pendiente': el flujo es pendiente → programada → pagada → liquidada.
+        // "Pago a proveedor" (paso 2) recibe las facturas que YA pasaron por "Formato para pago"
+        // (paso 1), que las dejó en estatus 'programada'. Antes buscaba 'pendiente' (estatus viejo,
+        // de antes de las APIs) y por eso no aparecían las facturas ya programadas.
         /** @var Collection $resultado */
         $resultado = Factura::query()
             ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(total) as monto_total, max(created_at) as ultima_factura_at, min(fecha_vencimiento) as proximo_vencimiento')
-            ->where('estatus', 'pendiente')
+            ->where('estatus', 'programada')
             ->whereNotNull('codigo_proveedor')
             ->groupBy('codigo_proveedor')
             ->orderByDesc('ultima_factura_at')
