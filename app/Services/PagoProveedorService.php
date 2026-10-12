@@ -27,6 +27,32 @@ class PagoProveedorService
     /**
      * @return array{ok: bool, motivos: list<string>}
      */
+    /**
+     * Evalúa el expediente de un PAGO (decide solo vs multi-proveedor).
+     * En multi: junta los faltantes de TODOS los proveedores, prefijando el nombre de cada
+     * uno para saber a quién le falta qué. En normal: evalúa al proveedor del pago.
+     *
+     * @return array{ok: bool, motivos: list<string>}
+     */
+    public function evaluarExpedientePago(PagoProveedor $pago): array
+    {
+        if (! $pago->es_multi_proveedor) {
+            return $pago->proveedor
+                ? $this->evaluarExpediente($pago->proveedor)
+                : ['ok' => false, 'motivos' => ['Sin proveedor']];
+        }
+
+        $motivos = [];
+        foreach ($this->proveedoresDelPago($pago) as $prov) {
+            $res = $this->evaluarExpediente($prov);
+            foreach ($res['motivos'] as $m) {
+                $motivos[] = $prov->nombre.': '.$m;
+            }
+        }
+
+        return ['ok' => $motivos === [], 'motivos' => $motivos];
+    }
+
     public function evaluarExpediente(ProveedorUser $proveedor): array
     {
         // Excepción para pruebas: SAID001 siempre OK
@@ -127,6 +153,91 @@ class PagoProveedorService
     }
 
     /**
+     * Devuelve los ProveedorUser (locales, con documentos) involucrados en un pago.
+     * En un pago multi-proveedor son varios (uno por cada codigo_proveedor distinto de las
+     * líneas); en uno normal, es solo el proveedor del pago.
+     *
+     * @return list<ProveedorUser>
+     */
+    private function proveedoresDelPago(PagoProveedor $pago): array
+    {
+        $pago->loadMissing('lineas');
+        $codigos = $pago->lineas
+            ->map(fn ($l) => (string) ($l->codigo_proveedor ?: $pago->codigo_proveedor))
+            ->filter()
+            ->unique()
+            ->values();
+
+        // Mapa codigo -> nombre tomado de las líneas (por si el proveedor no está en local).
+        $nombres = $pago->lineas
+            ->mapWithKeys(fn ($l) => [(string) ($l->codigo_proveedor ?: $pago->codigo_proveedor) => (string) ($l->nombre_proveedor ?? '')]);
+
+        $provs = [];
+        foreach ($codigos as $codigo) {
+            $prov = ProveedorUser::porCualquierCodigo($codigo)->with('documentos')->first();
+            if (! $prov) {
+                // POR QUÉ: un proveedor del pago puede no existir en local (vino de Wiese y
+                // nunca se guardó). Para que SÍ aparezca en el expediente (Karen: todos los
+                // involucrados), armamos uno EN MEMORIA con su nombre y documentos vacíos
+                // (se verá como "falta", que es lo correcto: no tiene expediente local).
+                $prov = new ProveedorUser;
+                $prov->codigo = $codigo;
+                $prov->id_proveedor = $codigo;
+                $prov->nombre = $nombres[$codigo] ?? $codigo;
+                $prov->setRelation('documentos', collect());
+            }
+            $provs[] = $prov;
+        }
+
+        return $provs;
+    }
+
+    /**
+     * Documentos fiscales (opinión + constancia) de TODOS los proveedores de un pago múltiple.
+     * POR QUÉ: Karen pidió que el expediente de un pago que junta varios proveedores incluya
+     * los papeles fiscales de cada uno, etiquetados con el nombre del proveedor para no
+     * confundirlos. El "Formato de pago" (el PDF) es uno solo para todo el pago.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function documentosFiscalesMultiProveedor(PagoProveedor $pago): array
+    {
+        $items = [];
+
+        // Formato de pago: uno solo para todo el pago (el PDF gigante).
+        $items[] = [
+            'clave' => 'formato_pago',
+            'label' => 'Formato de pago (todos los proveedores)',
+            'ok' => true,
+            'origen' => 'lote',
+            'documento_id' => null,
+            'archivo' => null,
+            'nombre' => 'Formato_para_pago_lote_'.$pago->id.'.pdf',
+            'url' => route('admin.pagos.reporte-resumen', ['pago' => $pago, 'ver' => 1]),
+            'estatus' => 'generado',
+        ];
+
+        // Opinión + constancia de CADA proveedor involucrado, etiquetadas con su nombre.
+        foreach ($this->proveedoresDelPago($pago) as $prov) {
+            $opinion = $this->ultimoDocumentoAprobado($prov, ['opinion', 'opinion_cumplimiento']);
+            $constancia = $this->ultimoDocumentoAprobado($prov, ['cif', 'constancia_fiscal']);
+
+            $items[] = $this->slotDocumentoFiscal(
+                'opinion_'.$prov->id,
+                'Opinión positiva — '.$prov->nombre,
+                $opinion
+            );
+            $items[] = $this->slotDocumentoFiscal(
+                'constancia_'.$prov->id,
+                'Constancia de Situación Fiscal — '.$prov->nombre,
+                $constancia
+            );
+        }
+
+        return $items;
+    }
+
+    /**
      * Expediente de Pago completo: TODOS los documentos que respaldan el pago,
      * agrupados en secciones. Junta lo que ya existe en el sistema (facturas,
      * formato de pago, opinión, CIF, carátula bancaria) + los adjuntos manuales
@@ -158,14 +269,31 @@ class PagoProveedorService
             }
         }
 
-        // 2) Formato de pago + fiscales (opinión, CIF) — reusa lo existente.
-        $fiscales = $this->documentosFiscalesParaPago($pago);
+        // 2) Formato de pago + fiscales (opinión, CIF).
+        // POR QUÉ dos caminos: en un pago MULTI-proveedor, Karen pidió que el expediente
+        // lleve los fiscales de TODOS los proveedores involucrados, no solo el principal.
+        $fiscales = $pago->es_multi_proveedor
+            ? $this->documentosFiscalesMultiProveedor($pago)
+            : $this->documentosFiscalesParaPago($pago);
 
-        // 3) Carátula de banco del expediente fiscal del proveedor.
-        $caratula = $proveedor ? $this->ultimoDocumentoAprobado($proveedor, ['caratula_banco']) : null;
+        // 3) Carátula de banco. En multi: la de cada proveedor involucrado.
         $itemsBanco = [];
-        if ($caratula) {
-            $itemsBanco[] = $this->slotDocumentoFiscal('caratula_banco', 'Carátula de banco', $caratula);
+        if ($pago->es_multi_proveedor) {
+            foreach ($this->proveedoresDelPago($pago) as $prov) {
+                $caratula = $this->ultimoDocumentoAprobado($prov, ['caratula_banco']);
+                if ($caratula) {
+                    $itemsBanco[] = $this->slotDocumentoFiscal(
+                        'caratula_banco_'.$prov->id,
+                        'Carátula de banco — '.$prov->nombre,
+                        $caratula
+                    );
+                }
+            }
+        } else {
+            $caratula = $proveedor ? $this->ultimoDocumentoAprobado($proveedor, ['caratula_banco']) : null;
+            if ($caratula) {
+                $itemsBanco[] = $this->slotDocumentoFiscal('caratula_banco', 'Carátula de banco', $caratula);
+            }
         }
 
         // 4) Documentos adjuntos manuales (póliza de Contpaqi, hojas engrapadas, etc.).

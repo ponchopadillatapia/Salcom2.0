@@ -9,30 +9,54 @@
 
 @push('styles')
 <style>
-    .cart-wrap{max-width:1100px;margin:0 auto}
-    .cart-back{display:inline-flex;align-items:center;gap:6px;margin-bottom:16px;font-size:13px;font-weight:600;color:#6B3FA0;text-decoration:none}
-    .cart-alert{padding:12px 14px;border-radius:10px;margin-bottom:16px;font-size:13px}
-    .cart-alert.ok{background:#ecfdf5;color:#16a34a;border:1px solid #16a34a}
-    .cart-alert.err{background:#fef2f2;color:#dc2626;border:1px solid #dc2626}
-    .cart-prov{background:#fff;border:1px solid #e5e7eb;border-radius:12px;margin-bottom:18px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)}
-    .cart-prov-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 18px;background:#faf5ff;border-bottom:1px solid #f0e6ff}
-    .cart-prov-head h3{margin:0;font-size:15px;font-weight:700;color:#6B3FA0}
-    .cart-prov-head .meta{font-size:12px;color:#9ca3af;margin-top:2px}
+    /* POR QUÉ esta fuente: es el "system font stack" de Apple (San Francisco en iOS/Mac).
+       Usa la tipografía nativa del dispositivo, que es la que da el look limpio de iPhone.
+       Con -webkit-font-smoothing el texto se ve más fino, como en iOS. */
+    .cart-wrap{
+        max-width:1040px;margin:0 auto;
+        font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+        -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+        color:#1d1d1f; /* gris casi negro de Apple, no negro puro */
+    }
+    /* Botón de regreso: discreto, con la flecha pegada al texto (estilo iOS) */
+    .cart-back{display:inline-flex;align-items:center;gap:4px;margin-bottom:20px;font-size:15px;font-weight:500;color:#6B3FA0;text-decoration:none;letter-spacing:-.01em;transition:opacity .15s}
+    .cart-back:hover{opacity:.6}
+
+    .cart-alert{padding:13px 16px;border-radius:12px;margin-bottom:16px;font-size:14px;font-weight:500;letter-spacing:-.01em}
+    .cart-alert.ok{background:#eafbf0;color:#1a7f45;border:1px solid #c7efd5}
+    .cart-alert.err{background:#fdeded;color:#c0392b;border:1px solid #f7cfcf}
+
+    /* Tarjeta de proveedor: bordes muy redondeados y sombra suave, como las "cards" de iOS */
+    .cart-prov{background:#fff;border:1px solid #ececef;border-radius:18px;margin-bottom:16px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04)}
+    .cart-prov-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px;background:#faf7ff;border-bottom:1px solid #f1eafb}
+    .cart-prov-head h3{margin:0;font-size:17px;font-weight:600;color:#1d1d1f;letter-spacing:-.02em}
+    .cart-prov-head .meta{font-size:13px;color:#86868b;margin-top:3px;font-weight:400;letter-spacing:-.01em}
     .cart-prov-sub{text-align:right}
-    .cart-prov-sub .lbl{font-size:10px;font-weight:700;color:#a78bda;text-transform:uppercase;letter-spacing:.3px}
-    .cart-prov-sub .amt{font-size:18px;font-weight:800;color:#059669;font-variant-numeric:tabular-nums}
+    .cart-prov-sub .lbl{font-size:11px;font-weight:600;color:#a78bda;text-transform:uppercase;letter-spacing:.4px}
+    .cart-prov-sub .amt{font-size:19px;font-weight:600;color:#1a7f45;font-variant-numeric:tabular-nums;letter-spacing:-.02em;margin-top:1px}
+
     table.cart-tbl{width:100%;border-collapse:collapse}
-    table.cart-tbl th{font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;padding:10px 14px;text-align:left;border-bottom:1px solid #e5e7eb}
-    table.cart-tbl td{padding:10px 14px;font-size:13px;border-bottom:1px solid #f3f4f6}
-    .cart-grand{background:#fff;border:2px solid #6B3FA0;border-radius:12px;padding:18px 22px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-top:8px}
-    .cart-grand .lbl{font-size:14px;font-weight:700;color:#5b21b6}
-    .cart-grand .amt{font-size:24px;font-weight:800;color:#059669;font-variant-numeric:tabular-nums}
-    .cart-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
-    .btn-generar{padding:12px 22px;background:#059669;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer}
-    .btn-generar:hover{background:#22a34d}
-    .btn-vaciar{padding:12px 22px;background:#fff;color:#dc2626;border:1.5px solid #dc2626;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer}
-    .btn-quitar{padding:4px 10px;background:#fff;color:#dc2626;border:1px solid #fca5a5;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer}
-    .cart-empty{background:#fff;border:1px dashed #c4b5fd;border-radius:12px;padding:48px 20px;text-align:center;color:#9ca3af}
+    table.cart-tbl th{font-size:11px;font-weight:600;color:#86868b;text-transform:uppercase;letter-spacing:.3px;padding:11px 20px;text-align:left;border-bottom:1px solid #f0f0f2}
+    table.cart-tbl td{padding:13px 20px;font-size:14px;border-bottom:1px solid #f5f5f7;letter-spacing:-.01em;color:#1d1d1f}
+    table.cart-tbl tbody tr:last-child td{border-bottom:none}
+
+    /* Gran total: la "card" destacada, borde morado fino y mucho radio */
+    .cart-grand{background:#fff;border:1.5px solid #6B3FA0;border-radius:18px;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-top:4px;box-shadow:0 8px 24px rgba(107,63,160,.08)}
+    .cart-grand .lbl{font-size:15px;font-weight:600;color:#5b21b6;letter-spacing:-.01em}
+    .cart-grand .amt{font-size:26px;font-weight:700;color:#1a7f45;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
+
+    /* Botones estilo iOS: muy redondeados (pill), sin borde duro, con transición suave */
+    .cart-actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+    .btn-generar{padding:13px 26px;background:#059669;color:#fff;border:none;border-radius:980px;font-size:15px;font-weight:600;cursor:pointer;letter-spacing:-.01em;transition:transform .12s,background .15s;font-family:inherit}
+    .btn-generar:hover{background:#047a55}
+    .btn-generar:active{transform:scale(.97)}
+    .btn-vaciar{padding:13px 26px;background:#f5f5f7;color:#c0392b;border:none;border-radius:980px;font-size:15px;font-weight:500;cursor:pointer;letter-spacing:-.01em;transition:transform .12s,background .15s;font-family:inherit}
+    .btn-vaciar:hover{background:#ececef}
+    .btn-vaciar:active{transform:scale(.97)}
+    .btn-quitar{padding:5px 12px;background:#f5f5f7;color:#c0392b;border:none;border-radius:980px;font-size:12px;font-weight:500;cursor:pointer;transition:background .15s;font-family:inherit}
+    .btn-quitar:hover{background:#fdeded}
+
+    .cart-empty{background:#fff;border:1px solid #ececef;border-radius:18px;padding:56px 20px;text-align:center;color:#86868b;box-shadow:0 1px 2px rgba(0,0,0,.04)}
 </style>
 @endpush
 

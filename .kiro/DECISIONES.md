@@ -6,6 +6,112 @@
 
 ---
 
+## 2026-09-07 (13) — WieseBanco: el abono SIEMPRE refleja movimiento (ya no "todo o nada")
+
+- **CAMBIO:** `WieseBancoContpaqiService::reflejarFacturasLiquidadas()` ya NO descarta el
+  movimiento cuando Contpaqi falla. Ahora SIEMPRE crea el MovimientoBancario:
+  - Contpaqi OK  -> estatus 'enviado' + folio/idDocumento de Contpaqi.
+  - Contpaqi falla -> estatus 'pendiente_contpaqi' (sin folio Contpaqi) para conciliar después.
+- **POR QUÉ:** antes, en local (donde Contpaqi 127.0.0.1:7090 NO existe) el abono se guardaba
+  pero WieseBanco quedaba vacío, lo cual confundía (parecía bug). Y en producción, un fallo de
+  Contpaqi hacía perder el movimiento en silencio. Guardar como pendiente es más seguro y
+  permite demos locales (enseñar a Karen) sin depender de Contpaqi.
+- **DEMO:** se reflejó el abono existente de ORPACK ($201,738.07) → WieseBanco muestra
+  NUM 80195, payee ORPACK, payment 201738.07, estatus pendiente_contpaqi.
+- **PENDIENTE menor:** falta un proceso para reintentar/conciliar los 'pendiente_contpaqi'
+  cuando Contpaqi vuelva (en el servidor interno sí conecta, así que allá saldrán 'enviado').
+
+## 2026-09-07 (12) — Auditoría de rutas rotas en vistas (tras los merges)
+
+- Se revisaron TODAS las vistas buscando route('...') que no existan. Resultado:
+  - `admin.wiese-banco.guardar` / `.borrar` → ARREGLADAS (ver entrada anterior).
+  - `admin.alertas.config.guardar` (en admin/alertas/configuracion.blade.php) → la vista SÍ se
+    renderiza (AlertaController). Truena si se abre "configuración de alertas". PENDIENTE revisar
+    si esa pantalla se usa; si sí, falta la ruta POST de guardar config.
+  - `empresa.form` (en clientes/onboarding.blade.php, se renderiza en PortalClienteController) →
+    nombre viejo; revisar si el onboarding de cliente se usa.
+  - `login` y `register` (en welcome.blade.php) → vista por defecto de Laravel, casi seguro
+    MUERTA (ustedes tienen sus propios logins). Baja prioridad.
+- NOTA: estas 3 últimas NO son del módulo de pagos ni de los merges de hoy; son más viejas.
+  No se tocan hasta confirmar que las pantallas se usan (no meter mano a pantallas muertas).
+
+## 2026-09-07 (11) — FIX: WieseBanco tronaba (rutas guardar/borrar perdidas en merge)
+
+- **SÍNTOMA:** entrar a /admin/wiese-banco/bbva daba RouteNotFoundException:
+  "Route [admin.wiese-banco.guardar] not defined" (vista wiese-banco.blade.php línea 273).
+- **CAUSA:** las rutas `admin.wiese-banco.guardar` y `admin.wiese-banco.borrar` se perdieron
+  en un merge de git (al juntar con agentes aduanales). Los métodos del controlador
+  (`wieseBancoGuardar`, `wieseBancoBorrar`) SÍ existían; solo faltaban las rutas.
+- **FIX:** se re-agregaron en `routes/web.php` tras la ruta de ver:
+  - POST   /admin/wiese-banco/{banco}/guardar  → admin.wiese-banco.guardar
+  - DELETE /admin/wiese-banco/{banco}/movimiento/{movimiento} → admin.wiese-banco.borrar
+- **LECCIÓN:** tras un merge, revisar que no se hayan perdido rutas/código propio. Verificado
+  con route:list (3 rutas wiese-banco OK).
+
+## PENDIENTE FUTURO — Carga masiva de docs fiscales de proveedores activos (Chuy)
+
+- Chuy tiene una carpeta con MUCHOS PDFs (opinión positiva, etc.) de proveedores YA activos,
+  pero no están en el sistema. Por eso el expediente de pago los marca "FALTA".
+- CÓMO guarda el sistema estos docs: tabla `documentos_proveedor` (proveedor_id, tipo, archivo,
+  estatus, resultado_validacion) + el PDF físico en `storage/` (expediente_fiscal/{tipo} en
+  disco public, o cif/opiniones/caratula_banco en disco local).
+- SOLUCIÓN propuesta (cuando se retome): comando de carga masiva que lea la carpeta, identifique
+  el proveedor por RFC/código en el nombre del archivo, copie el PDF a storage y cree el registro
+  en documentos_proveedor con estatus aprobado.
+- FALTA definir con Chuy: cómo está organizada la carpeta, cómo se liga cada PDF a su proveedor
+  (RFC/código en el nombre?), qué tipos, cuántos, y dónde está la carpeta. (Chuy no sabía aún.)
+- PRIORIDAD: baja por ahora. Primero: que el módulo de pagos (formato/pago/abono) jale completo.
+
+## 2026-09-07 (10) — Expediente multi-proveedor: docs de TODOS los involucrados
+
+- **QUÉ:** Karen confirmó que el expediente de un pago múltiple debe llevar los documentos
+  fiscales de TODOS los proveedores involucrados (antes solo mostraba al principal).
+- **CÓMO:**
+  - `PagoProveedorService::proveedoresDelPago()` (nuevo): lista los proveedores de un pago
+    (por codigo_proveedor distinto de las líneas). Si un proveedor no existe en local, lo arma
+    EN MEMORIA con su nombre y docs vacíos (sale como "falta", correcto).
+  - `documentosFiscalesMultiProveedor()` (nuevo): Opinión + Constancia de CADA proveedor,
+    etiquetadas con su nombre; un solo "Formato de pago (todos los proveedores)".
+  - `documentosExpedientePago()`: usa el camino multi si es_multi_proveedor (fiscales +
+    carátula de banco por cada proveedor).
+  - `evaluarExpedientePago()` (nuevo): evalúa a TODOS; los motivos van prefijados con el nombre
+    del proveedor. `show()` ahora llama a este en vez de evaluarExpediente(principal).
+  - Títulos: show.blade.php y expediente.blade.php muestran "Varios proveedores (N)" si es multi.
+- **PROBADO:** pago ORPACK + SUMINISTROS → evaluación lista faltantes de AMBOS; expediente
+  muestra Opinión+Constancia de cada uno + 1 formato. Pago de prueba borrado.
+- **SIGUE PENDIENTE (RH):** organización por departamentos del archivero (carpetas depto → mes).
+
+## 2026-09-07 (9) — PENDIENTE con RH/Karen: expediente multi-proveedor
+
+- **PROBLEMA:** el expediente de un pago múltiple (`admin.pagos.show` → `admin.pagos.expediente`)
+  muestra solo al proveedor PRINCIPAL. Ej: "Expediente de Pago #10 · DE LA MORA ORTIZ · 3
+  facturas · $370,676.32" como si las 3 facturas fueran de él, cuando son de 3 proveedores.
+  Los documentos fiscales (Opinión SAT, Constancia) también salen de uno solo.
+- **CAUSA técnica:** `AdminPagosController::show()` hace `evaluarExpediente($pago->proveedor)`
+  y `documentosFiscalesParaPago()` usan el proveedor principal; no recorren las líneas.
+- **NO SE TOCA aún:** falta definir con RH/Karen las reglas de negocio (ver artifact
+  "Preguntas para RH/Karen — Expediente multi-proveedor"): ¿docs de todos los involucrados?
+  ¿título? ¿departamentos y cómo se asigna cada pago? ¿autorización una o por proveedor?
+- Cuando haya respuestas, se ajusta show() + expediente + evaluarExpediente para multi.
+
+## 2026-09-07 (8) — Pulido visual del carrito (estilo iOS) + navegación
+
+- **QUÉ:**
+  1. En la pantalla del carrito se ocultó el botón "Regresar al panel" (del layout) porque
+     confundía con el "← Buscar más proveedores" propio de esa vista.
+  2. "← Buscar más proveedores" queda como único botón de regreso, arriba.
+  3. Se rediseñó el CSS del carrito con estética iOS/Apple: system font stack (San Francisco),
+     antialiasing, bordes 18px, botones "pill" (980px radio), grises de Apple (#1d1d1f/#86868b),
+     sombras suaves.
+- **DÓNDE:**
+  - `resources/views/layouts/admin.blade.php`: se agregó `request()->is('admin/pagos/carrito')`
+    a la condición `@unless` que oculta "Regresar al panel".
+  - `resources/views/admin/pagos/carrito.blade.php`: bloque `<style>` reescrito.
+- **PENDIENTE (servidor interno):** `php artisan db:backup` falla ahí porque no encuentra
+  mysqldump (no hay XAMPP; base 'db6zwduj6dd2xt'). Hay que ubicar mysqldump.exe en ese server y,
+  idealmente, agregar su ruta a RespaldarBaseDatos::ubicarMysqldump(). Limpieza de pruebas del
+  server interno quedó en pausa hasta tener respaldo funcional.
+
 ## 2026-09-07 (7) — Formato de pago MULTI-PROVEEDOR (carrito + PDF gigante B1 + expediente único)
 
 - **QUÉ:** nuevo flujo para armar UN formato de pago que junta facturas de VARIOS proveedores

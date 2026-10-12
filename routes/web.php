@@ -287,6 +287,10 @@ Route::get('/admin/wiese-banco', function () {
     return redirect()->route('admin.wiese-banco', ['banco' => 'bbva']);
 })->middleware('auth.admin');
 Route::get('/admin/wiese-banco/{banco}', [AdminPanelController::class, 'wieseBanco'])->name('admin.wiese-banco')->middleware('auth.admin');
+// POR QUÉ: estas 2 rutas (guardar/borrar movimientos del "Quicken" WieseBanco) se perdieron
+// en un merge de git; sus métodos del controlador sí existían. Se re-agregan aquí.
+Route::post('/admin/wiese-banco/{banco}/guardar', [AdminPanelController::class, 'wieseBancoGuardar'])->name('admin.wiese-banco.guardar')->middleware('auth.admin');
+Route::delete('/admin/wiese-banco/{banco}/movimiento/{movimiento}', [AdminPanelController::class, 'wieseBancoBorrar'])->name('admin.wiese-banco.borrar')->middleware('auth.admin');
 Route::get('/admin/inventario', [AdminPanelController::class, 'inventario'])->name('admin.inventario')->middleware('auth.admin');
 
 // ── Áreas con control de rol ──

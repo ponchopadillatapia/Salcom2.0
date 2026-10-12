@@ -802,9 +802,10 @@ class AdminPagosController extends Controller
     public function show(PagoProveedor $pago)
     {
         $pago->load(['lineas.factura', 'proveedor.documentos']);
-        $expediente = $pago->proveedor
-            ? $this->pagos->evaluarExpediente($pago->proveedor)
-            : ['ok' => false, 'motivos' => ['Sin proveedor']];
+        // POR QUÉ: en un pago multi-proveedor el expediente debe evaluar a TODOS los
+        // proveedores involucrados (Karen), no solo al principal. evaluarExpedientePago
+        // decide solo/multi internamente.
+        $expediente = $this->pagos->evaluarExpedientePago($pago);
 
         $datosAuto = null;
         $errorDatosAuto = null;

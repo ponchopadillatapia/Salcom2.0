@@ -69,19 +69,20 @@ class WieseBancoContpaqiService
             // Registrar el pago en Contpaqi Y SALDAR la factura. Contpaqi genera el folio del pago.
             $resultado = $this->registrarYSaldarEnContpaqi($codigoProveedor, $monto, $folioFactura, $serieFactura);
 
-            // ===== PRINCIPIO "TODO O NADA" (evita inconsistencia entre sistemas) =====
-            // Si Contpaqi FALLÓ, NO guardamos el movimiento en WieseBanco. Así nunca queda un
-            // pago en nuestra base que no exista en Contpaqi (eso descuadraría los saldos).
-            if ($resultado === null) {
+            // POR QUÉ ya NO es "todo o nada": antes, si Contpaqi fallaba, NO se guardaba el
+            // movimiento en WieseBanco y el abono se veía "exitoso" pero la hoja quedaba vacía
+            // (confundía, sobre todo en demos locales donde Contpaqi no está disponible).
+            // Ahora SIEMPRE guardamos el movimiento en WieseBanco:
+            //  - Si Contpaqi respondió OK  -> estatus 'enviado' + folio/idDocumento de Contpaqi.
+            //  - Si Contpaqi falló         -> estatus 'pendiente_contpaqi' (sin folio Contpaqi),
+            //    para reintentarlo/concilarlo después. Así la hoja siempre refleja el abono y no
+            //    se pierde nada. (Más seguro que descartarlo en silencio.)
+            $okContpaqi = $resultado !== null;
+            if (! $okContpaqi) {
                 $erroresContpaqi++;
-                continue; // no se guarda nada de esta factura
             }
 
-            // Contpaqi respondió OK: guardamos el movimiento en WieseBanco. El NUM visible es el
-            // folio BONITO consecutivo de la cuenta (estilo Quicken, 80195...), que es el que ve
-            // Sandra. El folio BRUTO de Contpaqi (3850965172) y el idDocumento se guardan aparte
-            // como referencia para conciliar, SIN mostrarlos.
-            DB::transaction(function () use ($cuenta, $folioFactura, $monto, $nombreProveedor, $codigoProveedor, $resultado) {
+            DB::transaction(function () use ($cuenta, $folioFactura, $monto, $nombreProveedor, $codigoProveedor, $resultado, $okContpaqi) {
                 $numBonito = $cuenta->siguienteFolio();   // consecutivo WieseBanco (80195, 80196...)
                 $saldoNuevo = (float) $cuenta->saldo_actual - $monto;
 
@@ -96,9 +97,9 @@ class WieseBancoContpaqiService
                     'deposit' => 0,
                     'balance' => $saldoNuevo,
                     'codigo_proveedor' => $codigoProveedor,
-                    'iddocumento_contpaqi' => $resultado['idDocumento'],
-                    'folio_contpaqi' => $resultado['folio'], // folio bruto de Contpaqi (referencia)
-                    'estatus' => 'enviado',
+                    'iddocumento_contpaqi' => $okContpaqi ? $resultado['idDocumento'] : null,
+                    'folio_contpaqi' => $okContpaqi ? $resultado['folio'] : null, // bruto Contpaqi (ref)
+                    'estatus' => $okContpaqi ? 'enviado' : 'pendiente_contpaqi',
                 ]);
 
                 $cuenta->saldo_actual = $saldoNuevo;

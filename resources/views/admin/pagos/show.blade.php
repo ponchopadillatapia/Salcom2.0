@@ -3,7 +3,8 @@
 @section('hero')
 <div class="hero-band">
     <h1>Pago #{{ $pago->id }}</h1>
-    <p>{{ $pago->proveedor?->nombre ?? $pago->codigo_proveedor }} · {{ $pago->estatus }}</p>
+    @php $numProvShow = $pago->lineas->pluck('codigo_proveedor')->filter()->unique()->count(); @endphp
+    <p>{{ $pago->es_multi_proveedor ? ('Varios proveedores ('.$numProvShow.')') : ($pago->proveedor?->nombre ?? $pago->codigo_proveedor) }} · {{ $pago->estatus }}</p>
 </div>
 @endsection
 @push('styles')

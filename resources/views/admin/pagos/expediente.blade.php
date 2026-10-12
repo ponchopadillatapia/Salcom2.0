@@ -3,7 +3,10 @@
 @section('hero')
 <div class="hero-band">
     <h1>Expediente de Pago #{{ $pago->id }}</h1>
-    <p>{{ $pago->proveedor->nombre ?? $pago->codigo_proveedor }} · {{ $pago->num_facturas }} factura(s) · ${{ number_format((float) $pago->monto_total, 2) }}</p>
+    {{-- POR QUÉ: si el pago junta varios proveedores, no mostrar el nombre de uno solo
+         (confundía); se indica que es múltiple y cuántos proveedores incluye. --}}
+    @php $numProv = $pago->lineas->pluck('codigo_proveedor')->filter()->unique()->count(); @endphp
+    <p>{{ $pago->es_multi_proveedor ? ('Varios proveedores ('.$numProv.')') : ($pago->proveedor->nombre ?? $pago->codigo_proveedor) }} · {{ $pago->num_facturas }} factura(s) · ${{ number_format((float) $pago->monto_total, 2) }}</p>
 </div>
 @endsection
 
