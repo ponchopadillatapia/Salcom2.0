@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-09-07 — Limpieza de estatus viejos en filtro de facturas
+
+- **QUÉ:** Se quitaron `aprobada` y `validada` del filtro de facturas de proveedor.
+  Antes el filtro de "programada" también traía esos dos nombres viejos; ahora solo
+  busca `programada`.
+- **POR QUÉ:** Said confirmó que en producción NO hay facturas con esos estatus, así que
+  el respaldo de compatibilidad ya no hace falta y solo causaba confusión.
+- **DÓNDE:** `app/Http/Controllers/AdminPanelController.php`, método `queryFacturasFiltradas()`
+  (bloque `elseif ($estatus === 'programada')`, ~línea 1405).
+- **NO SE TOCÓ:** `aprobada` sigue viva en OcBorrador, SolicitudAlta, SolicitudModificacionDatos
+  y AltaFacturaValidationService — ahí es código vivo de OTRAS entidades, borrarla rompería
+  la IA de reorden, el alta de proveedores y las alertas. Son flujos distintos aunque usen
+  la misma palabra.
+
 ## 2026-10-07 — WieseBanco Pieza 4: reflejar abono en WieseBanco + Contpaqi (sin duplicar)
 - **Qué:** Sandra definió el flujo real: NO duplicar procesos. El saldado lo hace Karen en el módulo de Abono (saldar documento en 0, liga folio de factura); cuando eso pasa, debe aparecer solo en el "Quicken" (WieseBanco) y registrarse en Contpaqi. Se enganchó en `AdminPagoProveedoresController::abonoInternoConfirmar` (el punto donde las facturas pasan a estatus 'liquidada' = el "saldar en 0"). Por cada factura liquidada se crea UN movimiento en WieseBanco (decisión: un renglón por factura, fiel a Quicken; cada uno con su NUM consecutivo, payee=proveedor, memo=folio, payment=monto, categoria=PROVEEDOR) y se llama a la API C# para registrar el pago en Contpaqi, guardando el iddocumento_contpaqi.
 - **Decisiones de dirección:** TODO va a la cuenta BBVA 8969 por ahora (aunque el abono tenga 4 cuentas a elegir), porque es la única cuenta de WieseBanco que existe (igual que el Quicken real). Un movimiento por factura (recomendación del agente, aprobada).

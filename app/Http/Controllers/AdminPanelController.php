@@ -1402,7 +1402,11 @@ class AdminPanelController extends Controller
         if ($vencidas) {
             $query->where('estatus', 'pendiente')->where('fecha_vencimiento', '<', now());
         } elseif ($estatus === 'programada') {
-            $query->whereIn('estatus', ['programada', 'aprobada', 'validada']);
+            // POR QUÉ: antes se incluían 'aprobada' y 'validada' como respaldo de nombres
+            // viejos de 'programada'. Said confirmó (sep-2026) que en producción no existen
+            // facturas con esos estatus, así que se quitaron para evitar confusión. El estatus
+            // oficial y único de este paso del flujo es 'programada'.
+            $query->where('estatus', 'programada');
         } elseif ($estatus && array_key_exists($estatus, $estatusOpciones)) {
             $query->where('estatus', $estatus);
         }
