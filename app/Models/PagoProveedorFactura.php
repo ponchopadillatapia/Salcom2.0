@@ -16,6 +16,8 @@ class PagoProveedorFactura extends Model
     protected $fillable = [
         'pago_id',
         'factura_id',
+        'codigo_proveedor',
+        'nombre_proveedor',
         'folio_cfdi',
         'uuid_cfdi',
         'es_fletera',

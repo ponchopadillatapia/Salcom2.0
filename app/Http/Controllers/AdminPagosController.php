@@ -79,6 +79,37 @@ class AdminPagosController extends Controller
                     })
                     ->sortBy('nombre')
                     ->values();
+
+                // POR QUÉ: antes la búsqueda mostraba TODOS los proveedores que coincidían con
+                // el texto (ej. 4 "ORPACK/TRANSFORPAPER"), aunque solo 1 tuviera facturas por
+                // pagar. Said pidió mostrar solo los que SÍ tienen facturas pendientes.
+                // Para saberlo hay que preguntarle a Wiese las facturas de cada uno (por RFC) y
+                // quedarnos con los que tengan al menos una pendiente. De paso llenamos el
+                // conteo y el monto reales (antes iban en 0 porque no se consultaban aquí).
+                $api = app(\App\Services\ProveedorApiService::class);
+                $filtrada = $filtrada
+                    ->map(function ($r) use ($api) {
+                        if ($r->rfc === '') {
+                            return $r; // sin RFC no podemos consultar; se decide abajo
+                        }
+                        try {
+                            $resF = $api->listarFacturasProveedorPorRFC($r->rfc);
+                            if ($resF['success'] ?? false) {
+                                $pendientes = collect($resF['data']['items'] ?? [])
+                                    ->where('pendiente', true);
+                                $r->num_facturas = $pendientes->count();
+                                $r->monto_total = (float) $pendientes->sum('saldo');
+                            }
+                        } catch (\Throwable $e) {
+                            // Si Wiese falla para este proveedor, lo dejamos con conteo 0;
+                            // no tumbamos toda la búsqueda por un proveedor.
+                        }
+
+                        return $r;
+                    })
+                    // Quedarnos SOLO con los que tienen al menos una factura pendiente.
+                    ->filter(fn ($r) => $r->num_facturas > 0)
+                    ->values();
             }
         }
 
@@ -124,6 +155,15 @@ class AdminPagosController extends Controller
             abort(404, 'Proveedor no encontrado en el sistema local ni en Wiese.');
         }
 
+        // POR QUÉ: un proveedor que ya existía en local (de pruebas viejas) pudo haberse
+        // guardado SIN banco/cuenta/clabe. Como esos datos ahora los trae la API de Wiese,
+        // al abrir el proveedor los refrescamos desde Wiese si faltan, para que el Formato
+        // para pago los muestre. Solo toca si existe en local Y le falta el dato (no pisa
+        // datos buenos ni hace trabajo de más).
+        if ($proveedor->exists) {
+            $this->refrescarDatosBancariosDesdeWiese($proveedor, $codigo);
+        }
+
         $expediente = $this->pagos->evaluarExpediente($proveedor);
 
         // Al abrir el proveedor, se marcan como vistas las notifs de pago pendiente
@@ -145,13 +185,32 @@ class AdminPagosController extends Controller
         if (is_array($di)) {
             $rfc = trim((string) ($di['rfc'] ?? ''));
         }
+        // POR QUÉ: Wiese sigue reportando una factura como pendiente hasta que se salda ALLÁ
+        // (en el abono). Pero en cuanto se le genera un Formato para pago, queda ligada a un
+        // pago local. Sin este filtro, la misma factura seguía apareciendo y se podían generar
+        // N formatos de la misma (se veían 6 expedientes del mismo monto). Aquí juntamos los
+        // folios que YA están en un pago local NO cancelado de este proveedor, para ocultarlos
+        // de la lista de "pendientes".
+        $foliosEnProceso = \App\Models\PagoProveedorFactura::query()
+            ->whereHas('pago', function ($q) use ($codigo) {
+                $q->where('codigo_proveedor', $codigo)
+                    ->where('estatus', '!=', 'cancelado');
+            })
+            ->pluck('folio_cfdi')
+            ->map(fn ($f) => (string) $f)
+            ->filter()
+            ->unique()
+            ->all();
+
         if ($rfc !== '') {
             try {
                 $res = app(\App\Services\ProveedorApiService::class)->listarFacturasProveedorPorRFC($rfc);
                 if ($res['success'] ?? false) {
-                    // Solo pendientes (saldo > 0), más recientes arriba.
+                    // Solo pendientes (saldo > 0), más recientes arriba, y que NO tengan ya un
+                    // pago en proceso en local (evita duplicar formatos de la misma factura).
                     $facturasWiese = collect($res['data']['items'] ?? [])
                         ->where('pendiente', true)
+                        ->reject(fn ($f) => in_array((string) ($f['folio'] ?? ''), $foliosEnProceso, true))
                         ->sortByDesc('fecha_factura')
                         ->values();
                 } else {
@@ -287,6 +346,19 @@ class AdminPagosController extends Controller
         $monRaw = (string) ($d['moneda'] ?? $d['Moneda'] ?? $d['cidmoneda'] ?? $d['CIDMONEDA'] ?? '');
         $moneda = $monRaw === '2' ? 'DOLLAR' : 'MXN';
 
+        // POR QUÉ: el banco/cuenta/clabe del proveedor no está en columnas dedicadas de Wiese;
+        // Salcom los guarda en los campos comodín CTEXTOEXTRA1/2/3 de admClientes (Alan confirmó
+        // con ORPACK: 1=banco, 2=cuenta, 3=clabe). El endpoint C# los devuelve como banco/cuenta/
+        // clabe; aquí los recogemos para que viajen hasta el proveedor local y salgan en el PDF.
+        // POR QUÉ dos nombres: según el endpoint, Wiese nombra estos campos distinto.
+        // - ListarProveedorWeb (clase ProveedorWeb) los manda como banco/cuenta/clabe.
+        // - BuscarPorRFC / BuscarPorCodigo (clase ClienteProveedor) los manda como
+        //   textoExtra1/2/3 (son los mismos CTEXTOEXTRA1/2/3 de admClientes).
+        // Leemos ambos para que el dato aparezca sin importar por cuál puerta vino.
+        $banco = trim((string) ($d['banco'] ?? $d['Banco'] ?? $d['textoExtra1'] ?? $d['TextoExtra1'] ?? ''));
+        $cuenta = trim((string) ($d['cuenta'] ?? $d['Cuenta'] ?? $d['textoExtra2'] ?? $d['TextoExtra2'] ?? ''));
+        $clabe = trim((string) ($d['clabe'] ?? $d['Clabe'] ?? $d['textoExtra3'] ?? $d['TextoExtra3'] ?? ''));
+
         if ($nombre === '') {
             return null; // sin nombre no hay proveedor válido
         }
@@ -297,12 +369,57 @@ class AdminPagosController extends Controller
         $prov->id_proveedor = $codigo;
         $prov->nombre = $nombre;
         $prov->moneda = $moneda;
-        $prov->datos_identificacion = ['rfc' => $rfc];
+        $prov->datos_identificacion = [
+            'rfc' => $rfc,
+            'banco' => $banco,
+            'cuenta' => $cuenta,
+            'clabe' => $clabe,
+        ];
         // Relación documentos vacía en memoria: evita consultas y evaluarExpediente lo trata
         // como expediente incompleto (correcto: un proveedor de Wiese no tiene expediente local).
         $prov->setRelation('documentos', collect());
 
         return $prov;
+    }
+
+    /**
+     * Refresca banco/cuenta/clabe de un proveedor local YA EXISTENTE con los datos de Wiese.
+     *
+     * POR QUÉ: proveedores guardados en pruebas viejas pueden no tener estos datos (antes
+     * Wiese no los exponía). Ahora sí los trae; al abrir el proveedor los completamos para
+     * que el Formato para pago los muestre. Solo escribe si FALTA el dato en local y SÍ viene
+     * de Wiese (no pisa datos buenos; si Wiese está caído, no hace nada).
+     */
+    private function refrescarDatosBancariosDesdeWiese(ProveedorUser $proveedor, string $codigo): void
+    {
+        $di = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+
+        // Si ya tiene los tres, no hay nada que hacer.
+        $faltaAlguno = empty($di['banco']) || empty($di['cuenta']) || empty($di['clabe']);
+        if (! $faltaAlguno) {
+            return;
+        }
+
+        // Traer el proveedor fresco de Wiese (en memoria ya resuelve banco/cuenta/clabe).
+        $fresco = $this->proveedorWieseEnMemoria($codigo);
+        if (! $fresco) {
+            return; // Wiese caído o no encontrado: dejamos lo que haya, sin romper.
+        }
+        $diFresco = is_array($fresco->datos_identificacion) ? $fresco->datos_identificacion : [];
+
+        // Completar SOLO lo que falte, con lo que traiga Wiese (no vacíos).
+        $cambio = false;
+        foreach (['banco', 'cuenta', 'clabe'] as $campo) {
+            if (empty($di[$campo]) && ! empty($diFresco[$campo])) {
+                $di[$campo] = $diFresco[$campo];
+                $cambio = true;
+            }
+        }
+
+        if ($cambio) {
+            $proveedor->datos_identificacion = $di;
+            $proveedor->save();
+        }
     }
 
     /**
@@ -491,6 +608,195 @@ class AdminPagosController extends Controller
         return redirect()
             ->route('admin.pagos.show', $pago)
             ->with('mensaje', 'Pago creado en borrador. Revisa y confirma.');
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // CARRITO MULTI-PROVEEDOR
+    // POR QUÉ: en la vida real, un "Formato para pago" junta facturas de VARIOS
+    // proveedores en una sola lista (ORPACK, Álvaro, etc.) con un gran total. El carrito
+    // persiste la selección en sesión mientras el usuario navega de un proveedor a otro;
+    // al final genera UN pago que agrupa todo (ver carritoGenerar).
+    // ──────────────────────────────────────────────────────────────────────────
+
+    /** Clave de sesión del carrito. */
+    private const CARRITO_KEY = 'pagos_carrito';
+
+    /** Agrega las facturas seleccionadas de UN proveedor al carrito (en sesión). */
+    public function carritoAgregar(Request $request)
+    {
+        $data = $request->validate([
+            'codigo_proveedor' => 'required|string',
+            'folios' => 'required|array|min:1',
+            'folios.*' => 'string',
+        ]);
+
+        $codigo = $data['codigo_proveedor'];
+
+        // Resolver datos del proveedor (nombre, rfc) y las facturas frescas de Wiese,
+        // para guardar en el carrito el detalle (total/saldo/serie/fecha) y no re-consultar
+        // Wiese cada vez que se abre el carrito.
+        $proveedor = ProveedorUser::porCualquierCodigo($codigo)->first()
+            ?? $this->proveedorWieseEnMemoria($codigo);
+        if (! $proveedor) {
+            return back()->with('error', 'No se encontró el proveedor en Wiese.');
+        }
+        $di = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
+        $rfc = trim((string) ($di['rfc'] ?? ''));
+
+        // Traer facturas de Wiese para capturar los datos de las seleccionadas.
+        $facturasWiese = collect();
+        if ($rfc !== '') {
+            try {
+                $res = app(\App\Services\ProveedorApiService::class)->listarFacturasProveedorPorRFC($rfc);
+                if ($res['success'] ?? false) {
+                    $facturasWiese = collect($res['data']['items'] ?? [])->where('pendiente', true);
+                }
+            } catch (\Throwable $e) {
+                return back()->with('error', 'No se pudo conectar con Wiese (¿VPN activa?).');
+            }
+        }
+
+        $carrito = session(self::CARRITO_KEY, []);
+        $foliosSel = array_map('strval', $data['folios']);
+
+        // Inicializar la entrada del proveedor si no existe.
+        if (! isset($carrito[$codigo])) {
+            $carrito[$codigo] = [
+                'nombre' => $proveedor->nombre,
+                'rfc' => $rfc,
+                'banco' => (string) ($di['banco'] ?? ''),
+                'cuenta' => (string) ($di['cuenta'] ?? ''),
+                'clabe' => (string) ($di['clabe'] ?? ''),
+                'moneda' => $proveedor->moneda,
+                'folios' => [],
+            ];
+        }
+
+        $agregadas = 0;
+        foreach ($facturasWiese as $f) {
+            $folio = (string) ($f['folio'] ?? '');
+            if ($folio === '' || ! in_array($folio, $foliosSel, true)) {
+                continue;
+            }
+            // Guardar el detalle de la factura (idempotente: si ya estaba, se actualiza).
+            $carrito[$codigo]['folios'][$folio] = [
+                'folio' => $folio,
+                'serie' => (string) ($f['serie'] ?? ''),
+                'total' => (float) ($f['total'] ?? 0),
+                'saldo' => (float) ($f['saldo'] ?? 0),
+                'moneda' => (string) ($f['moneda'] ?? 'MXN'),
+                'fecha_factura' => $f['fecha_factura'] ?? null,
+                'fecha_vence' => $f['fecha_vence'] ?? null,
+                'id_documento' => $f['id_documento'] ?? null,
+            ];
+            $agregadas++;
+        }
+
+        session([self::CARRITO_KEY => $carrito]);
+
+        return redirect()
+            ->route('admin.pagos.carrito')
+            ->with('mensaje', "Se agregaron {$agregadas} factura(s) de {$proveedor->nombre} al carrito.");
+    }
+
+    /** Muestra el carrito: todo lo seleccionado, agrupado por proveedor, con gran total. */
+    public function carritoVer()
+    {
+        $carrito = session(self::CARRITO_KEY, []);
+
+        // Armar estructura para la vista + totales por moneda.
+        $grupos = [];
+        $granTotalMxn = 0.0;
+        $granTotalUsd = 0.0;
+        $totalFacturas = 0;
+        foreach ($carrito as $codigo => $info) {
+            $subtotal = 0.0;
+            foreach ($info['folios'] as $f) {
+                $subtotal += (float) $f['saldo'];
+                $totalFacturas++;
+                if (($f['moneda'] ?? 'MXN') === 'USD') {
+                    $granTotalUsd += (float) $f['saldo'];
+                } else {
+                    $granTotalMxn += (float) $f['saldo'];
+                }
+            }
+            $grupos[] = [
+                'codigo' => $codigo,
+                'nombre' => $info['nombre'],
+                'rfc' => $info['rfc'],
+                'banco' => $info['banco'] ?? '',
+                'subtotal' => $subtotal,
+                'folios' => array_values($info['folios']),
+            ];
+        }
+
+        return view('admin.pagos.carrito', compact('grupos', 'granTotalMxn', 'granTotalUsd', 'totalFacturas'));
+    }
+
+    /** Quita una factura (o un proveedor completo) del carrito. */
+    public function carritoQuitar(Request $request)
+    {
+        $data = $request->validate([
+            'codigo_proveedor' => 'required|string',
+            'folio' => 'nullable|string', // si viene vacío, se quita el proveedor completo
+        ]);
+
+        $carrito = session(self::CARRITO_KEY, []);
+        $codigo = $data['codigo_proveedor'];
+
+        if (isset($carrito[$codigo])) {
+            if (! empty($data['folio'])) {
+                unset($carrito[$codigo]['folios'][$data['folio']]);
+                // Si el proveedor se quedó sin facturas, quitarlo entero.
+                if (empty($carrito[$codigo]['folios'])) {
+                    unset($carrito[$codigo]);
+                }
+            } else {
+                unset($carrito[$codigo]);
+            }
+        }
+
+        session([self::CARRITO_KEY => $carrito]);
+
+        return back()->with('mensaje', 'Factura quitada del carrito.');
+    }
+
+    /** Vacía el carrito completo. */
+    public function carritoVaciar()
+    {
+        session()->forget(self::CARRITO_KEY);
+
+        return redirect()->route('admin.pagos.carrito')->with('mensaje', 'Carrito vaciado.');
+    }
+
+    /**
+     * Genera UN pago que agrupa TODAS las facturas del carrito (de varios proveedores).
+     * Materializa en local las facturas de cada proveedor, crea un PagoProveedor marcado
+     * como multi-proveedor, y cada línea guarda su propio codigo/nombre de proveedor.
+     */
+    public function carritoGenerar(Request $request)
+    {
+        $carrito = session(self::CARRITO_KEY, []);
+        if (empty($carrito)) {
+            return redirect()->route('admin.pagos.carrito')->with('error', 'El carrito está vacío.');
+        }
+
+        try {
+            $pago = $this->pagos->crearPagoMultiProveedor($carrito, function (string $codigo, array $folios) {
+                // Reutiliza la materialización existente (por proveedor), que ya trae datos
+                // frescos de Wiese y crea los registros locales de factura.
+                return $this->materializarFacturasSeleccionadas($codigo, $folios);
+            }, session('admin_id'));
+        } catch (InvalidArgumentException $e) {
+            return redirect()->route('admin.pagos.carrito')->with('error', $e->getMessage());
+        }
+
+        // Carrito cumplido: se vacía.
+        session()->forget(self::CARRITO_KEY);
+
+        return redirect()
+            ->route('admin.pagos.show', $pago)
+            ->with('mensaje', 'Formato de pago multi-proveedor creado en borrador. Revisa y confirma.');
     }
 
     public function show(PagoProveedor $pago)
@@ -694,7 +1000,11 @@ class AdminPagosController extends Controller
         // Agrupar por proveedor. Cada carpeta = un proveedor con sus totales.
         // Ordenados por el expediente MÁS RECIENTE arriba (como van llegando).
         // Punto azul: el proveedor tiene expedientes que aún NO se han abierto (estilo WhatsApp).
-        $proveedores = $pagos->groupBy(fn ($p) => $p->proveedor->nombre ?? $p->codigo_proveedor ?? 'Sin proveedor')
+        // POR QUÉ el caso multi: un pago que agrupa varios proveedores (carrito) NO debe caer
+        // bajo un solo proveedor (confundiría); se junta en una carpeta aparte "Pagos múltiples".
+        $proveedores = $pagos->groupBy(fn ($p) => $p->es_multi_proveedor
+                ? 'Pagos múltiples (varios proveedores)'
+                : ($p->proveedor->nombre ?? $p->codigo_proveedor ?? 'Sin proveedor'))
             ->map(function ($exps, $nombre) {
                 $primero = $exps->first();
                 $noVistos = $exps->filter(function ($e) {
@@ -707,6 +1017,7 @@ class AdminPagosController extends Controller
                     'nombre' => $nombre,
                     'codigo' => $primero->codigo_proveedor,
                     'proveedor_id' => $primero->proveedor_id,
+                    'es_multi' => (bool) $primero->es_multi_proveedor,
                     'total' => $exps->count(),
                     'pendientes' => $exps->where('estatus_autorizacion', 'pendiente')->count(),
                     'no_vistos' => $noVistos,
@@ -726,12 +1037,23 @@ class AdminPagosController extends Controller
     public function expedientesProveedor(Request $request, ProveedorUser $proveedor)
     {
         $estatus = $request->input('estatus', ''); // '' | pendiente | autorizado | rechazado
+        // POR QUÉ: la carpeta "Pagos múltiples" del archivero enlaza aquí con ?multi=1.
+        // En ese modo mostramos TODOS los pagos multi-proveedor (no filtramos por proveedor,
+        // porque agrupan a varios). En modo normal, mostramos los de ESTE proveedor pero
+        // EXCLUYENDO los multi (para que no se mezclen con sus pagos individuales).
+        $soloMulti = $request->boolean('multi');
 
         $query = PagoProveedor::with('proveedor')
             ->where('estatus', 'confirmado')
-            ->where('proveedor_id', $proveedor->id)
             ->orderByDesc('confirmado_at')
             ->orderByDesc('id');
+
+        if ($soloMulti) {
+            $query->where('es_multi_proveedor', true);
+        } else {
+            $query->where('proveedor_id', $proveedor->id)
+                ->where('es_multi_proveedor', false);
+        }
 
         if (in_array($estatus, ['pendiente', 'autorizado', 'rechazado'], true)) {
             $query->where('estatus_autorizacion', $estatus);

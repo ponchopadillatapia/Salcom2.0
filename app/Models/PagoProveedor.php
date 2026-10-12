@@ -18,6 +18,7 @@ class PagoProveedor extends Model
     protected $fillable = [
         'proveedor_id',
         'codigo_proveedor',
+        'es_multi_proveedor',
         'tipo',
         'estatus',
         'fecha_pago',
@@ -44,6 +45,7 @@ class PagoProveedor extends Model
 
     protected $casts = [
         'fecha_pago' => 'date',
+        'es_multi_proveedor' => 'boolean',
         'confirmado_at' => 'datetime',
         'autorizado_at' => 'datetime',
         'comprobantes' => 'array',

@@ -232,6 +232,12 @@ Route::post('/admin/pagos/alertas/{alerta}/leer', [AdminPagosController::class, 
 Route::get('/admin/pagos/proveedor/{codigo}', [AdminPagosController::class, 'proveedor'])->name('admin.pagos.proveedor')->middleware('auth.admin');
 Route::get('/admin/pagos/proveedor/{codigo}/estado-cuenta', [AdminPagosController::class, 'estadoCuenta'])->name('admin.pagos.estado-cuenta')->middleware('auth.admin');
 Route::post('/admin/pagos', [AdminPagosController::class, 'store'])->name('admin.pagos.store')->middleware('auth.admin');
+// Carrito multi-proveedor: juntar facturas de varios proveedores y generar UN formato gigante.
+Route::post('/admin/pagos/carrito/agregar', [AdminPagosController::class, 'carritoAgregar'])->name('admin.pagos.carrito.agregar')->middleware('auth.admin');
+Route::get('/admin/pagos/carrito', [AdminPagosController::class, 'carritoVer'])->name('admin.pagos.carrito')->middleware('auth.admin');
+Route::post('/admin/pagos/carrito/quitar', [AdminPagosController::class, 'carritoQuitar'])->name('admin.pagos.carrito.quitar')->middleware('auth.admin');
+Route::post('/admin/pagos/carrito/vaciar', [AdminPagosController::class, 'carritoVaciar'])->name('admin.pagos.carrito.vaciar')->middleware('auth.admin');
+Route::post('/admin/pagos/carrito/generar', [AdminPagosController::class, 'carritoGenerar'])->name('admin.pagos.carrito.generar')->middleware('auth.admin');
 Route::get('/admin/pagos/{pago}', [AdminPagosController::class, 'show'])->name('admin.pagos.show')->middleware('auth.admin');
 Route::post('/admin/pagos/{pago}/confirmar', [AdminPagosController::class, 'confirmar'])->name('admin.pagos.confirmar')->middleware('auth.admin');
 Route::post('/admin/pagos/{pago}/cancelar', [AdminPagosController::class, 'cancelar'])->name('admin.pagos.cancelar')->middleware('auth.admin');

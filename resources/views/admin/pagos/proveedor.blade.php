@@ -107,18 +107,30 @@
             $totalWieseMxn = $facturasWiese->where('moneda', 'MXN')->sum('saldo');
             $totalWieseUsd = $facturasWiese->where('moneda', 'USD')->sum('saldo');
         @endphp
-        <form method="POST" action="{{ route('admin.pagos.store') }}" id="formPagarLote">
+        {{-- POR QUÉ: el controlador identifica al proveedor por su código, no por RFC.
+             Un solo form con DOS botones:
+             - "Agregar al carrito": manda a admin.pagos.carrito.agregar (para juntar varios
+               proveedores y luego generar un formato gigante).
+             - "Pagar solo este": el flujo clásico de un proveedor (admin.pagos.store). --}}
+        <form method="POST" id="formPagarLote">
             @csrf
-            {{-- POR QUÉ: el controlador identifica al proveedor por su código, no por RFC. --}}
             <input type="hidden" name="codigo_proveedor" value="{{ $codigo }}">
             <div class="bulk-bar">
                 <div class="sel-meta"><span id="selCount">0</span> seleccionada(s)</div>
                 <div class="bulk-actions">
-                    {{-- Arranca deshabilitado: se habilita cuando hay ≥1 factura marcada. --}}
-                    <button type="submit" name="confirmar" value="1" class="btn-pagar" id="btnConfirmar" disabled
-                        onclick="return confirm('¿Pagar y confirmar las facturas seleccionadas? Se usarán los datos del XML.');">
-                        Pagar seleccionadas
+                    {{-- Botón principal: agregar al carrito multi-proveedor. --}}
+                    <button type="submit" class="btn-pagar" id="btnCarrito" disabled
+                        formaction="{{ route('admin.pagos.carrito.agregar') }}">
+                        + Agregar al carrito
                     </button>
+                    {{-- Botón secundario: pagar solo a este proveedor (flujo clásico). --}}
+                    <button type="submit" name="confirmar" value="1" class="btn-outline-pag" id="btnConfirmar" disabled
+                        formaction="{{ route('admin.pagos.store') }}"
+                        onclick="return confirm('¿Pagar solo a este proveedor con las facturas seleccionadas?');">
+                        Pagar solo este
+                    </button>
+                    {{-- Acceso directo a ver el carrito. --}}
+                    <a href="{{ route('admin.pagos.carrito') }}" class="btn-docs">Ver carrito</a>
                 </div>
             </div>
             {{-- Buscador rápido: filtra las filas por folio/serie/fecha para encontrar una factura. --}}
@@ -386,11 +398,13 @@ function cerrarYPagar(btnContinuar) {
     var boxes = function () { return Array.prototype.slice.call(document.querySelectorAll('.fact-chk')); };
     var countEl = document.getElementById('selCount');
     var btnC = document.getElementById('btnConfirmar');
+    var btnCar = document.getElementById('btnCarrito'); // botón "Agregar al carrito"
 
     function sync() {
         var checked = boxes().filter(function (b) { return b.checked; });
         if (countEl) countEl.textContent = checked.length;
         if (btnC) btnC.disabled = checked.length === 0;
+        if (btnCar) btnCar.disabled = checked.length === 0; // mismo criterio que el otro botón
         if (all) {
             var total = boxes().length;
             all.checked = total > 0 && checked.length === total;

@@ -6,6 +6,161 @@
 
 ---
 
+## 2026-09-07 (7) — Formato de pago MULTI-PROVEEDOR (carrito + PDF gigante B1 + expediente único)
+
+- **QUÉ:** nuevo flujo para armar UN formato de pago que junta facturas de VARIOS proveedores
+  (como en la vida real: ORPACK + Álvaro + otros en una lista grandota con gran total).
+- **DECISIONES (Said):** B1 = una fila de banco POR proveedor en "Datos del pago" + detalle de
+  todas las facturas + gran total. Expediente = UNO solo que agrupa todos (Opción 2).
+- **CÓMO FUNCIONA:**
+  1. En la pantalla de un proveedor: botón "+ Agregar al carrito" (además del "Pagar solo este").
+  2. El carrito vive en session('pagos_carrito'): [codigo => nombre/rfc/banco/folios...].
+  3. Pantalla "Ver carrito" (`admin.pagos.carrito`): lista agrupada por proveedor, subtotales,
+     gran total MXN/USD, quitar factura, vaciar, "Generar formato de pago".
+  4. Generar crea UN PagoProveedor con es_multi_proveedor=true; cada línea guarda su propio
+     codigo_proveedor + nombre_proveedor. El PDF pinta 1 fila de banco por proveedor + gran total.
+- **CAMBIOS:**
+  - Migración `2026_10_12_140000_add_proveedor_a_pago_lineas`: +codigo_proveedor, +nombre_proveedor
+    en pago_proveedor_facturas; +es_multi_proveedor en pagos_proveedor.
+  - Modelos PagoProveedor y PagoProveedorFactura: fillable/casts actualizados.
+  - `routes/web.php`: rutas admin.pagos.carrito.(agregar|ver|quitar|vaciar|generar).
+  - `AdminPagosController`: métodos carrito* + ajuste de expedientes() (carpeta "Pagos múltiples")
+    y expedientesProveedor(?multi=1).
+  - `PagoProveedorService`: crearPagoMultiProveedor() + datosReporteResumen (esMulti +
+    proveedoresPago via filasProveedoresMulti) .
+  - Vistas: proveedor.blade.php (botones carrito), carrito.blade.php (nueva), reporte-resumen-pdf
+    (filas B1 + columna Proveedor en detalle), expedientes.blade.php (link ?multi=1).
+- **PROBADO:** pago multi con ORPACK (2 fact, BANORTE) + SUMINISTROS (2 fact, sin banco en
+  Contpaqi); 1 pago, 4 facturas, gran total $305,028.05; PDF generado OK (142 KB). Pago de
+  prueba borrado después. El flujo mono-proveedor ("Pagar solo este") sigue intacto.
+- **NO ROTO:** los pagos normales (un proveedor) funcionan igual; es_multi_proveedor=false.
+- **PENDIENTE menor:** evaluarExpediente() del pago multi evalúa solo al proveedor principal
+  (los papeles fiscales son por proveedor). Para el expediente único es aceptable; revisar con
+  Karen si se requiere validar los docs de TODOS los proveedores del pago.
+
+## 2026-09-07 (6) — Limpieza de pruebas + reordenar menú de Pagos
+
+- **LIMPIEZA:** se borraron los 7 pagos de prueba (16 líneas + 11 facturas materializadas de
+  Wiese) que generaban los 6 expedientes duplicados. Respaldo previo en
+  `storage/backups/salcom20_20261012_132139.sql`. Pagos restantes: 0.
+- **MENÚ (sidebar `resources/views/layouts/admin.blade.php`):**
+  - Dentro de "Pagos", nuevo orden: Formato para pago → Pago a proveedor → Abono al proveedor
+    → Anticipo → Nota de crédito.
+  - "Nota de crédito": se quitó el texto "(próximamente)" (sigue deshabilitada visualmente).
+  - "Expediente de pago": se SACÓ de "Pagos" y se puso abajo, junto a WieseBanco (sección
+    Operación).
+- **PERMISO CONFIRMADO:** "Expediente de pago" lo ve SOLO Dirección (Said lo confirmó). Queda
+  bien bajo `@if($adminEsDireccion)` en Operación, no hay que cambiarlo.
+- **COLOR:** el morado del dibujo de Said era solo para señalar dónde mover las cosas, no un
+  color nuevo. El sidebar ya usa morado (#6B3FA0). Nada que cambiar.
+
+## 2026-09-07 (5) — Evitar formatos de pago DUPLICADOS de la misma factura
+
+- **SÍNTOMA:** una factura (ej. 93335) seguía apareciendo como "pendiente" aunque ya se le
+  habían generado 6 formatos de pago; se podían hacer N formatos y salían 6 expedientes del
+  mismo monto ($201,738.07).
+- **CAUSA:** la lista de "Facturas pendientes en Wiese" se lee EN VIVO de Wiese, que las sigue
+  reportando pendientes hasta que se saldan ALLÁ (en el abono). No se descartaban las que ya
+  tenían un pago/formato en proceso en local.
+- **ARREGLO:** antes de mostrar, se juntan los `folio_cfdi` que ya están en un
+  `pago_proveedor_facturas` cuyo pago NO está cancelado (de ese proveedor) y se ocultan de la
+  lista con `->reject(...)`.
+- **DÓNDE:** `app/Http/Controllers/AdminPagosController.php`, método `proveedor()`.
+- **PRUEBA:** ORPACK tenía 309 pendientes en Wiese; tras el filtro quedan 299 (se ocultan las
+  10 que ya tienen pago: 93335, 93268, 93269, 93270, 93336-93341). La 93335 ya no reaparece.
+- **NOTA:** si se CANCELA el pago, la factura vuelve a aparecer (el filtro excluye estatus
+  'cancelado'). Correcto.
+
+## 2026-09-07 (4) — Banco salía vacío en el PDF: proveedor local viejo sin refrescar
+
+- **SÍNTOMA:** el Formato para pago mostraba Banco/Cuenta/CLABE en "—" aunque la API ya traía
+  los datos. El RFC sí salía (proveedor correcto M213015002).
+- **CAUSA:** ORPACK ya existía en la base LOCAL (proveedores_users id=5) guardado en pruebas
+  viejas SIN banco/cuenta/clabe. El PDF lee del proveedor local, no de la API fresca. El código
+  que copia el banco solo corría al CREAR el proveedor desde Wiese; como ORPACK ya existía, se
+  quedó con los datos vacíos.
+- **ARREGLO (fondo):** `AdminPagosController::proveedor()` ahora llama a
+  `refrescarDatosBancariosDesdeWiese()` al abrir un proveedor local existente: si le falta
+  banco/cuenta/clabe, los trae de Wiese (por código) y los guarda. Solo completa lo que falte,
+  no pisa datos buenos, y si Wiese está caído no hace nada.
+- **ARREGLO (inmediato):** se refrescó a mano el ORPACK local id=5 → ya tiene
+  BANORTE / 0064701-0849 / 0723200-06470108493.
+- **DÓNDE:** `app/Http/Controllers/AdminPagosController.php` (método `proveedor()` + nuevo
+  método privado `refrescarDatosBancariosDesdeWiese()`).
+- **PUERTO API:** Alan movió la API; el flujo volvió a funcionar en 7183 cuando lo relevantó.
+
+## 2026-09-07 (3) — Búsqueda de "Formato para pago" solo muestra proveedores CON facturas
+
+- **QUÉ:** En la búsqueda de proveedor del Formato para pago, ahora solo aparecen los que
+  tienen facturas PENDIENTES. Antes salían todos los que coincidían con el texto (ej. buscar
+  "ORPA" traía 4, pero 2 TRANSFORPAPER no tenían nada que pagar).
+- **POR QUÉ:** Said pidió que la lista no muestre proveedores sin facturas por pagar.
+- **CÓMO:** tras filtrar por texto, se consulta a Wiese las facturas de cada proveedor (por RFC,
+  reutilizando `listarFacturasProveedorPorRFC`) y se descartan los que tienen 0 pendientes.
+  De paso se llena `num_facturas` y `monto_total` reales (antes iban en 0).
+- **DÓNDE:** `app/Http/Controllers/AdminPagosController.php`, método `index()`.
+- **NOTA RENDIMIENTO:** hace 1 consulta a Wiese por proveedor que coincidió. Como las búsquedas
+  por nombre devuelven pocos (2-5), es aceptable. Si una búsqueda muy amplia trae muchos, podría
+  tardar; se puede optimizar después (cache o límite) si molesta.
+- **PRUEBA:** buscar "ORPA" → antes 4, ahora 2 (los dos ORPACK con 309 pendientes); los 2
+  TRANSFORPAPER (0 pendientes) se ocultan. Correcto.
+
+## 2026-09-07 (2) — Investigación C#: BuscarPorRFC/BuscarPorCodigo + ORPACK duplicado
+
+- **QUÉ SE INVESTIGÓ:** qué clase/consulta usan los endpoints del flujo de pago en la API C#
+  (repo `C:\Users\IT\source\repos_git\APIWIESE`).
+- **HALLAZGO 1 — dos clases distintas:**
+  - `ListarProveedorWeb` → clase `ProveedorWeb` (`ConProveedorWeb.cs`). Es la que Said editó
+    para agregar CTEXTOEXTRA1/2/3. (Pendiente: Alan recompila.)
+  - `BuscarPorRFC` y `BuscarPorCodigo` → clase `ClienteProveedor` (`ConClienteProveedor.cs`),
+    OTRA consulta. **Esta YA traía CTEXTOEXTRA1/2/3 en el SELECT y YA los expone como
+    textoExtra1/2/3.** NO necesita cambios en C#.
+- **HALLAZGO 2 — nombres distintos según endpoint:** ProveedorWeb manda banco/cuenta/clabe;
+  ClienteProveedor manda textoExtra1/2/3. El PHP ahora lee AMBOS (en
+  `AdminPagosController::proveedorWieseEnMemoria` y `AdminPagoProveedoresController::proveedoresParaFlujoPago`).
+- **HALLAZGO 3 — PROBLEMA DE DATOS (la causa de que salga vacío):** en Contpaqi hay DOS
+  registros de ORPACK con el MISMO RFC (OME0207015E8): uno con CTEXTOEXTRA lleno (BANORTE /
+  0064701-0849 / 0723200-06470108493) y otro vacío. `QBuscarPorRFC` hace
+  `WHERE CRFC=@rfc` + `reader.Read()` (primera fila) y trae el VACÍO.
+- **DECISIÓN PENDIENTE (con Alan):** lo correcto es limpiar/corregir el ORPACK duplicado vacío
+  en Contpaqi (que quede uno solo). Alternativas de parche: filtrar por CESTATUS=1 en la
+  consulta, o preferir el registro con CTEXTOEXTRA no vacío, o buscar por código en vez de RFC.
+
+## 2026-09-07 — Banco/Cuenta/CLABE del proveedor en el Formato para pago
+
+- **QUÉ:** Se conectó el circuito para que el "Formato para pago" muestre banco/cuenta/clabe
+  del proveedor (antes salían con "—").
+- **DÓNDE VIVE EL DATO (confirmado con Alan + consulta SQL):** NO hay columnas dedicadas en
+  Wiese. Salcom los guarda en los campos comodín de `adSalcom18.dbo.admClientes`:
+  `CTEXTOEXTRA1` = banco, `CTEXTOEXTRA2` = cuenta, `CTEXTOEXTRA3` = clabe.
+  Ejemplo real ORPACK: BANORTE / 0064701-0849 / 0723200-06470108493.
+- **CAMBIOS PHP (hechos):**
+  - `AdminPagoProveedoresController::proveedoresParaFlujoPago()` — ahora mete banco/cuenta/clabe
+    en `datos_identificacion` de cada proveedor de Wiese.
+  - `AdminPagosController::proveedorWieseEnMemoria()` — recoge banco/cuenta/clabe de la respuesta
+    de la API y los pone en `datos_identificacion`; de ahí se copian solos al proveedor local
+    (`asegurarProveedorLocalDesdeWiese` ya guardaba el `datos_identificacion` completo) y llegan
+    al PDF (el blade ya los mostraba).
+- **CAMBIOS C# (pendientes de que Alan pegue + recompile):** agregar `CTEXTOEXTRA1/2/3` al SELECT
+  y propiedades Banco/Cuenta/Clabe en `ProveedorWeb.cs`. OJO: hay que hacerlo en LAS DOS consultas
+  que usa el flujo: `ListarProveedorWeb` (ConProveedorWeb.cs) y `BuscarPorCodigo`/`BuscarPorRFC`.
+- **OJO datos duplicados:** en admClientes hay DOS registros de ORPACK (mismo RFC): uno con los
+  CTEXTOEXTRA vacíos y otro lleno. Revisar con Alan cuál es el "bueno" para no traer el vacío.
+
+## 2026-09-07 — Folio del Formato para pago ahora es fijo FCONA-0040
+
+- **QUÉ:** El "Formato para pago" (PDF) ahora muestra SIEMPRE el folio fijo `FCONA-0040`.
+  Antes se calculaba con el id del pago (`FCONA-` + id → salía FCONA-0004, etc.).
+- **POR QUÉ:** Contabilidad lo pidió como número fijo de contabilidad, no consecutivo.
+- **DÓNDE:** `resources/views/admin/pagos/reporte-resumen-pdf.blade.php` — variable `$folioDoc`
+  y el `<title>` del documento.
+- **PENDIENTE RELACIONADO (datos bancarios del proveedor en el formato):** se investigó y
+  NI la API de Wiese NI la base local tienen banco/cuenta/clabe del proveedor (ORPACK vacío
+  en `datos_identificacion`, `solicitudes_alta` sin datos, Wiese no los devuelve). La tabla
+  `cuentas_bancarias` solo tiene la cuenta de SALCOM (BBVA 8969, origen del pago), no la del
+  proveedor. Falta definir con contabilidad si esas columnas del formato son del PROVEEDOR
+  (hay que capturarlas a mano) o de SALCOM (se jalan de `cuentas_bancarias`).
+
 ## 2026-09-07 — Limpieza de estatus viejos en filtro de facturas
 
 - **QUÉ:** Se quitaron `aprobada` y `validada` del filtro de facturas de proveedor.

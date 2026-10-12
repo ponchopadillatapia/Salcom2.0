@@ -527,21 +527,10 @@
                             ->groupBy('poliza_key')
                             ->pluck('total', 'poliza_key');
                     @endphp
-                    @if($puedePagos)
-                    <a href="{{ route('admin.expedientes-pago') }}" class="sb-link sb-sublink {{ request()->is('admin/expedientes-pago*') ? 'active' : '' }}">
-                        <span class="sb-text">Expedientes de pago</span>
-                    </a>
-                    {{-- Nota de crédito: módulo nuevo (aún no desarrollado). Placeholder deshabilitado. --}}
-                    <span class="sb-link sb-sublink" style="opacity:.45; cursor:not-allowed;" title="En desarrollo">
-                        <span class="sb-text">Nota de crédito <small>(próximamente)</small></span>
-                    </span>
-                    @endif
-                    {{-- Anticipo: visible si puede ver Pagos o si tiene permiso de Anticipos (Brenda) --}}
-                    @if($puedePagos || $puedeAnticipos)
-                    <a href="{{ route('admin.anticipos') }}" class="sb-link sb-sublink {{ request()->is('admin/anticipos*') ? 'active' : '' }}">
-                        <span class="sb-text">Anticipo</span>
-                    </a>
-                    @endif
+                    {{-- POR QUÉ este orden: dirección pidió que el flujo de pago siga el orden
+                         real de trabajo: Formato → Pago → Abono → Anticipo. Expedientes de pago
+                         se movió abajo, junto a WieseBanco (son consulta/operación, no el flujo).
+                         Nota de crédito queda al final (ya sin "próximamente"). --}}
                     @if($puedePagos)
                     <a href="{{ route('admin.pagos') }}" class="sb-link sb-sublink {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
                         <span class="sb-text">Formato para pago</span>
@@ -570,6 +559,18 @@
                             </a>
                         </div>
                     </div>
+                    @endif
+                    {{-- Anticipo: visible si puede ver Pagos o si tiene permiso de Anticipos (Brenda) --}}
+                    @if($puedePagos || $puedeAnticipos)
+                    <a href="{{ route('admin.anticipos') }}" class="sb-link sb-sublink {{ request()->is('admin/anticipos*') ? 'active' : '' }}">
+                        <span class="sb-text">Anticipo</span>
+                    </a>
+                    @endif
+                    @if($puedePagos)
+                    {{-- Nota de crédito: módulo nuevo (aún no desarrollado). Placeholder deshabilitado. --}}
+                    <span class="sb-link sb-sublink" style="opacity:.45; cursor:not-allowed;" title="En desarrollo">
+                        <span class="sb-text">Nota de crédito</span>
+                    </span>
                     @endif
                 </div>
             </div>
@@ -612,6 +613,14 @@
             <a href="{{ route('admin.otif') }}" class="sb-link {{ request()->is('admin/otif*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
                 <span class="sb-text">OTIF</span>
+            </a>
+            @endif
+            {{-- Expediente de pago: movido aquí (junto a WieseBanco) a petición de dirección.
+                 Es consulta/operación, no parte del flujo de captura de pago. --}}
+            @if($puedePagos)
+            <a href="{{ route('admin.expedientes-pago') }}" class="sb-link {{ request()->is('admin/expedientes-pago*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/><path d="M9 4v16"/></svg></div>
+                <span class="sb-text">Expediente de pago</span>
             </a>
             @endif
             @if(Route::has('admin.wiese-banco'))

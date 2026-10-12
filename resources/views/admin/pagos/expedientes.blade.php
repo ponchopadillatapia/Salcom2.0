@@ -45,7 +45,11 @@
 
 <div class="prov-grid">
     @forelse($proveedores as $prov)
-        <a href="{{ route('admin.expedientes-pago.proveedor', $prov->proveedor_id) }}" class="prov-card {{ ($prov->no_vistos ?? 0) > 0 ? 'nuevo' : '' }}">
+        {{-- Si la carpeta es de "Pagos múltiples", enlaza con ?multi=1 para listar todos
+             los pagos multi-proveedor juntos (no por un proveedor). --}}
+        <a href="{{ ($prov->es_multi ?? false)
+                ? route('admin.expedientes-pago.proveedor', ['proveedor' => $prov->proveedor_id, 'multi' => 1])
+                : route('admin.expedientes-pago.proveedor', $prov->proveedor_id) }}" class="prov-card {{ ($prov->no_vistos ?? 0) > 0 ? 'nuevo' : '' }}">
             <div class="prov-top">
                 <svg class="prov-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                 @if($prov->pendientes > 0)

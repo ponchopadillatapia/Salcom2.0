@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>FORMATO PARA PAGO · {{ 'FCONA-'.str_pad((string) $pago->id, 4, '0', STR_PAD_LEFT) }}</title>
+    <title>FORMATO PARA PAGO · FCONA-0040</title>
     <style>
         @page { margin: 28px 32px; }
         body { font-family: Arial, sans-serif; font-size: 11px; color: #111; margin: 20px; }
@@ -26,7 +26,10 @@
     $fechaDoc = $pago->fecha_pago?->format('d/m/Y')
         ?? $pago->confirmado_at?->format('d/m/Y')
         ?? now()->format('d/m/Y');
-    $folioDoc = 'FCONA-'.str_pad((string) $pago->id, 4, '0', STR_PAD_LEFT);
+    // POR QUÉ: contabilidad pidió que el formato para pago lleve SIEMPRE el folio fijo
+    // FCONA-0040 (número de contabilidad fijo, no consecutivo por pago). Antes se
+    // calculaba con el id del pago (FCONA-0004, etc.), lo cual era incorrecto.
+    $folioDoc = 'FCONA-0040';
 @endphp
 
     <table style="border:none;margin-bottom:10px">
@@ -51,27 +54,44 @@
                 <th>Cuenta</th>
                 <th>CLABE</th>
                 <th>SWIFT</th>
-                <th>Importe</th>
                 <th>RFC</th>
-                <th>IVA</th>
                 <th>Proveedor</th>
                 <th>Folio General</th>
                 <th>Total del Banco</th>
             </tr>
         </thead>
         <tbody>
-            <tr>
-                <td>{{ $banco !== '' ? $banco : '—' }}</td>
-                <td>{{ $cuenta !== '' ? $cuenta : '—' }}</td>
-                <td>{{ $clabe !== '' ? $clabe : '—' }}</td>
-                <td>{{ $swift !== '' ? $swift : '—' }}</td>
-                <td class="monto">${{ number_format($importe, 2) }}</td>
-                <td>{{ $rfc !== '' ? $rfc : '—' }}</td>
-                <td class="monto">${{ number_format($iva, 2) }}</td>
-                <td>{{ $nombreProveedor }}<br><span style="font-size:9px;color:#666">{{ $pago->codigo_proveedor }}</span></td>
-                <td style="font-weight:bold">{{ $foliosGenerales !== '' ? $foliosGenerales : '—' }}</td>
-                <td class="monto" style="font-size:13px;color:#059669">${{ number_format($totalBanco, 2) }}</td>
-            </tr>
+            @if(($esMulti ?? false) && !empty($proveedoresPago))
+                {{-- B1: una fila por proveedor (cada uno con su banco), gran total al final. --}}
+                @foreach($proveedoresPago as $pp)
+                <tr>
+                    <td>{{ $pp['banco'] !== '' ? $pp['banco'] : '—' }}</td>
+                    <td>{{ $pp['cuenta'] !== '' ? $pp['cuenta'] : '—' }}</td>
+                    <td>{{ $pp['clabe'] !== '' ? $pp['clabe'] : '—' }}</td>
+                    <td>{{ $pp['swift'] !== '' ? $pp['swift'] : '—' }}</td>
+                    <td>{{ $pp['rfc'] !== '' ? $pp['rfc'] : '—' }}</td>
+                    <td>{{ $pp['nombre'] }}<br><span style="font-size:9px;color:#666">{{ $pp['codigo'] }}</span></td>
+                    <td style="font-weight:bold">{{ $pp['folios'] !== '' ? $pp['folios'] : '—' }}</td>
+                    <td class="monto" style="color:#059669">${{ number_format($pp['subtotal'], 2) }}</td>
+                </tr>
+                @endforeach
+                <tr class="total-row">
+                    <td colspan="7" style="text-align:right;font-weight:bold">GRAN TOTAL</td>
+                    <td class="monto" style="font-size:13px;color:#059669">${{ number_format($totalBanco, 2) }}</td>
+                </tr>
+            @else
+                {{-- Pago normal: un solo proveedor. --}}
+                <tr>
+                    <td>{{ $banco !== '' ? $banco : '—' }}</td>
+                    <td>{{ $cuenta !== '' ? $cuenta : '—' }}</td>
+                    <td>{{ $clabe !== '' ? $clabe : '—' }}</td>
+                    <td>{{ $swift !== '' ? $swift : '—' }}</td>
+                    <td>{{ $rfc !== '' ? $rfc : '—' }}</td>
+                    <td>{{ $nombreProveedor }}<br><span style="font-size:9px;color:#666">{{ $pago->codigo_proveedor }}</span></td>
+                    <td style="font-weight:bold">{{ $foliosGenerales !== '' ? $foliosGenerales : '—' }}</td>
+                    <td class="monto" style="font-size:13px;color:#059669">${{ number_format($totalBanco, 2) }}</td>
+                </tr>
+            @endif
         </tbody>
     </table>
 
@@ -92,6 +112,7 @@
         <thead>
             <tr>
                 <th>#</th>
+                @if($esMulti ?? false)<th>Proveedor</th>@endif
                 <th>Folio CFDI</th>
                 <th>Subtotal</th>
                 <th>IVA</th>
@@ -102,9 +123,17 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($pago->lineas as $i => $linea)
+            {{-- En multi-proveedor las líneas se ordenan por proveedor para que el detalle
+                 quede agrupado visualmente (todas las de ORPACK juntas, luego Álvaro, etc.). --}}
+            @php
+                $lineasOrden = ($esMulti ?? false)
+                    ? $pago->lineas->sortBy('nombre_proveedor')->values()
+                    : $pago->lineas;
+            @endphp
+            @foreach($lineasOrden as $i => $linea)
             <tr>
                 <td>{{ $i + 1 }}</td>
+                @if($esMulti ?? false)<td style="font-size:10px">{{ $linea->nombre_proveedor ?: $linea->codigo_proveedor ?: '—' }}</td>@endif
                 <td>{{ $linea->folio_cfdi ?: '—' }}</td>
                 <td class="monto">${{ number_format((float)$linea->monto, 2) }}</td>
                 <td class="monto">${{ number_format((float)$linea->monto_iva, 2) }}</td>

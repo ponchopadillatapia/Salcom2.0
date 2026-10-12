@@ -360,6 +360,119 @@ class PagoProveedorService
     /**
      * @param  list<int>  $facturaIds
      */
+    /**
+     * Crea UN pago que agrupa facturas de VARIOS proveedores (carrito multi-proveedor).
+     *
+     * POR QUÉ: en la vida real el "Formato para pago" junta facturas de distintos proveedores
+     * en una sola lista con un gran total. Aquí se crea un solo PagoProveedor marcado como
+     * multi-proveedor; cada línea (pago_proveedor_facturas) guarda su propio proveedor
+     * (codigo + nombre) para que el PDF agrupe por proveedor y el gran total sea la suma.
+     *
+     * @param  array<string, array{nombre:string, rfc:string, folios: array<string, array>}>  $carrito
+     *         estructura de sesión: [codigo_proveedor => ['nombre','rfc','folios'=>[...]]]
+     * @param  callable(string, list<string>): list<int>  $materializar
+     *         función que recibe (codigo, folios) y devuelve los IDs locales de factura.
+     */
+    public function crearPagoMultiProveedor(array $carrito, callable $materializar, ?int $adminId): PagoProveedor
+    {
+        if ($carrito === []) {
+            throw new InvalidArgumentException('El carrito está vacío.');
+        }
+
+        // 1) Materializar las facturas de cada proveedor y juntar sus IDs locales,
+        //    recordando a qué proveedor pertenece cada factura.
+        $facturaIdsPorProveedor = []; // [codigo => [ids...]]
+        $nombrePorCodigo = [];
+        foreach ($carrito as $codigo => $info) {
+            $folios = array_keys($info['folios'] ?? []);
+            if ($folios === []) {
+                continue;
+            }
+            $ids = $materializar((string) $codigo, array_map('strval', $folios));
+            if ($ids !== []) {
+                $facturaIdsPorProveedor[(string) $codigo] = $ids;
+                $nombrePorCodigo[(string) $codigo] = (string) ($info['nombre'] ?? $codigo);
+            }
+        }
+
+        if ($facturaIdsPorProveedor === []) {
+            throw new InvalidArgumentException('No se pudieron preparar las facturas del carrito (¿Wiese respondió?).');
+        }
+
+        // El "proveedor principal" del pago es el primero (solo para la cabecera/relación;
+        // el detalle real va por línea). es_multi_proveedor = true.
+        $codigoPrincipal = array_key_first($facturaIdsPorProveedor);
+        $proveedorPrincipal = ProveedorUser::porCualquierCodigo($codigoPrincipal)->first();
+
+        return DB::transaction(function () use ($facturaIdsPorProveedor, $nombrePorCodigo, $proveedorPrincipal, $codigoPrincipal, $adminId) {
+            $pago = PagoProveedor::create([
+                'proveedor_id' => $proveedorPrincipal?->id,
+                'codigo_proveedor' => $codigoPrincipal,
+                'es_multi_proveedor' => true,
+                'tipo' => 'facturas',
+                'estatus' => 'borrador',
+                'creado_por' => $adminId,
+            ]);
+
+            $sumSub = $sumIva = $sumRetIva = $sumRetIsr = $sumTotal = $sumNeto = 0;
+            $numFacturas = 0;
+
+            foreach ($facturaIdsPorProveedor as $codigo => $ids) {
+                $facturas = Factura::query()
+                    ->whereIn('id', $ids)
+                    ->where('codigo_proveedor', $codigo)
+                    ->get();
+
+                foreach ($facturas as $f) {
+                    $neto = $this->netoFactura($f);
+                    $retIva = (float) ($f->retencion_iva ?? 0);
+                    $retIsr = (float) ($f->retencion_isr ?? 0);
+                    $monto = (float) $f->monto;
+                    $iva = (float) $f->monto_iva;
+                    $total = (float) $f->total;
+
+                    PagoProveedorFactura::create([
+                        'pago_id' => $pago->id,
+                        'factura_id' => $f->id,
+                        'codigo_proveedor' => $codigo,
+                        'nombre_proveedor' => $nombrePorCodigo[$codigo] ?? $codigo,
+                        'folio_cfdi' => $f->folio_cfdi,
+                        'uuid_cfdi' => $f->uuid_cfdi,
+                        'es_fletera' => (bool) $f->es_fletera,
+                        'regimen_fiscal' => $f->regimen_fiscal,
+                        'monto' => $monto,
+                        'monto_iva' => $iva,
+                        'retencion_iva' => $retIva,
+                        'retencion_isr' => $retIsr,
+                        'total' => $total,
+                        'neto' => $neto,
+                        'avisos' => $this->avisosFactura($f),
+                    ]);
+
+                    $sumSub += $monto;
+                    $sumIva += $iva;
+                    $sumRetIva += $retIva;
+                    $sumRetIsr += $retIsr;
+                    $sumTotal += $total;
+                    $sumNeto += $neto;
+                    $numFacturas++;
+                }
+            }
+
+            $pago->update([
+                'num_facturas' => $numFacturas,
+                'monto_subtotal' => round($sumSub, 2),
+                'monto_iva' => round($sumIva, 2),
+                'monto_retencion_iva' => round($sumRetIva, 2),
+                'monto_retencion_isr' => round($sumRetIsr, 2),
+                'monto_total' => round($sumTotal, 2),
+                'monto_neto' => round($sumNeto, 2),
+            ]);
+
+            return $pago->fresh(['lineas', 'proveedor']);
+        });
+    }
+
     public function crearLote(
         ProveedorUser $proveedor,
         array $facturaIds,
@@ -906,8 +1019,19 @@ class PagoProveedorService
             $importe = (float) $pago->monto_total;
         }
 
+        // POR QUÉ: si el pago agrupa VARIOS proveedores (carrito), el PDF B1 lleva una fila
+        // de banco por proveedor en "Datos del pago". Aquí armamos ese arreglo agrupando las
+        // líneas por proveedor y resolviendo el banco/cuenta/clabe/rfc de cada uno. Para pagos
+        // normales (un proveedor) esto queda vacío y el PDF usa los campos sueltos de siempre.
+        $proveedoresPago = [];
+        if ($pago->es_multi_proveedor) {
+            $proveedoresPago = $this->filasProveedoresMulti($pago);
+        }
+
         return [
             'pago' => $pago,
+            'esMulti' => (bool) $pago->es_multi_proveedor,
+            'proveedoresPago' => $proveedoresPago, // filas B1 (solo multi-proveedor)
             'banco' => trim((string) ($db['banco'] ?? '')),
             'cuenta' => preg_replace('/\D/', '', (string) ($db['cuenta'] ?? '')) ?: '',
             'clabe' => preg_replace('/\D/', '', (string) ($db['clabe'] ?? '')) ?: '',
@@ -920,6 +1044,49 @@ class PagoProveedorService
             'totalBanco' => $importe,
             'totalPagar' => $importe,
         ];
+    }
+
+    /**
+     * Arma las filas "Datos del pago" para un formato multi-proveedor (B1): una por proveedor,
+     * con su banco/cuenta/clabe/rfc y el subtotal de sus facturas en este pago.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function filasProveedoresMulti(PagoProveedor $pago): array
+    {
+        // Agrupar las líneas del pago por código de proveedor.
+        $porProveedor = $pago->lineas->groupBy(fn ($l) => (string) ($l->codigo_proveedor ?? $pago->codigo_proveedor));
+
+        // Cache de datos bancarios por código (una consulta local por proveedor distinto).
+        $filas = [];
+        foreach ($porProveedor as $codigo => $lineas) {
+            $prov = ProveedorUser::porCualquierCodigo((string) $codigo)->first();
+            $db = is_array($prov?->datos_identificacion) ? $prov->datos_identificacion : [];
+            $nombre = (string) ($lineas->first()->nombre_proveedor ?: ($prov?->nombre ?? $codigo));
+
+            $subtotal = (float) $lineas->sum('neto');
+            if ($subtotal <= 0) {
+                $subtotal = (float) $lineas->sum('total');
+            }
+
+            $foliosProv = $lineas->map(fn ($l) => (string) $l->folio_cfdi)
+                ->filter(fn ($v) => $v !== '' && ! $this->pareceUuid($v))
+                ->unique()->values()->all();
+
+            $filas[] = [
+                'codigo' => (string) $codigo,
+                'nombre' => $nombre,
+                'banco' => trim((string) ($db['banco'] ?? '')),
+                'cuenta' => preg_replace('/\D/', '', (string) ($db['cuenta'] ?? '')) ?: '',
+                'clabe' => preg_replace('/\D/', '', (string) ($db['clabe'] ?? '')) ?: '',
+                'swift' => trim((string) ($db['swift'] ?? $db['Swift'] ?? '')),
+                'rfc' => strtoupper(trim((string) ($db['rfc'] ?? $db['RFC'] ?? ''))),
+                'folios' => implode(', ', $foliosProv),
+                'subtotal' => $subtotal,
+            ];
+        }
+
+        return $filas;
     }
 
     /**

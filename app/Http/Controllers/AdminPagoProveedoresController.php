@@ -42,7 +42,20 @@ class AdminPagoProveedoresController extends Controller
                             'id_proveedor' => $codigo,
                             'nombre' => (string) ($p['nombre'] ?? $p['Nombre'] ?? ''),
                             'moneda' => $moneda,
-                            'datos_identificacion' => ['rfc' => (string) ($p['rfc'] ?? $p['Rfc'] ?? '')],
+                            // POR QUÉ: el banco/cuenta/clabe del proveedor no existe en columnas
+                            // dedicadas de Wiese; Salcom los guarda en los campos comodín
+                            // CTEXTOEXTRA1/2/3 de admClientes (Alan lo confirmó). El endpoint C#
+                            // los devuelve como banco/cuenta/clabe y aquí los metemos en
+                            // datos_identificacion, que es de donde el Formato para pago los lee.
+                            // POR QUÉ dos nombres: ListarProveedorWeb los manda como
+                            // banco/cuenta/clabe, pero BuscarPorRFC/BuscarPorCodigo (clase
+                            // ClienteProveedor) los manda como textoExtra1/2/3. Leemos ambos.
+                            'datos_identificacion' => [
+                                'rfc' => (string) ($p['rfc'] ?? $p['Rfc'] ?? ''),
+                                'banco' => (string) ($p['banco'] ?? $p['Banco'] ?? $p['textoExtra1'] ?? $p['TextoExtra1'] ?? ''),
+                                'cuenta' => (string) ($p['cuenta'] ?? $p['Cuenta'] ?? $p['textoExtra2'] ?? $p['TextoExtra2'] ?? ''),
+                                'clabe' => (string) ($p['clabe'] ?? $p['Clabe'] ?? $p['textoExtra3'] ?? $p['TextoExtra3'] ?? ''),
+                            ],
                         ];
                     })
                     // Descartar registros basura: código/nombre vacíos, "0", o el literal "(Ninguno)"
