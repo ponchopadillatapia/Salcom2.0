@@ -19,7 +19,10 @@ class SalcomApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        config(['services.salcom_api.token' => $this->token]);
+        config([
+            'services.salcom_api.token' => $this->token,
+            'services.salcom_api.allowed_ips' => ['127.0.0.1', '::1'],
+        ]);
     }
 
     private function authHeaders(): array

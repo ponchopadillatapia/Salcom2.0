@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\ProveedorApiException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -42,8 +43,7 @@ class ClienteApiService
         $endpoint = '/Login/Login';
 
         try {
-            $response = Http::connectTimeout($this->connectTimeout)
-                ->timeout($this->timeout)
+            $response = $this->http()
                 ->post($this->baseUrl.$endpoint, [
                     'codigo' => $codigo,
                     'pwd' => $pwd,
@@ -101,6 +101,19 @@ class ClienteApiService
 
     // ── Métodos privados ──
 
+    private function http(?int $timeout = null): PendingRequest
+    {
+        $request = Http::connectTimeout($this->connectTimeout)
+            ->timeout($timeout ?? $this->timeout);
+
+        $token = (string) config('services.cliente_api.gateway_token', '');
+        if ($token !== '') {
+            $request = $request->withHeaders(['X-Salcom-Gateway' => $token]);
+        }
+
+        return $request;
+    }
+
     /**
      * GET con retry y backoff exponencial.
      */
@@ -115,8 +128,7 @@ class ClienteApiService
 
         for ($intento = 1; $intento <= $this->maxRetries; $intento++) {
             try {
-                $response = Http::connectTimeout($this->connectTimeout)
-                    ->timeout($this->timeout)
+                $response = $this->http()
                     ->withHeaders(['Authorization' => 'Bearer '.$token])
                     ->get($this->baseUrl.$endpoint, $params);
 

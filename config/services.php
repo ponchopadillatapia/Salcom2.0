@@ -51,6 +51,8 @@ return [
         // Usuario de servicio (ej. web) para llamadas server-to-server
         'service_user' => env('PROVEEDOR_API_SERVICE_USER', ''),
         'service_password' => env('PROVEEDOR_API_SERVICE_PASSWORD', ''),
+        // Token de la puerta que reenvía al puerto 7183. Vacío = llamada directa (oficina/VPN).
+        'gateway_token' => env('WIESE_GATEWAY_TOKEN', ''),
     ],
 
     'cliente_api' => [
@@ -59,6 +61,7 @@ return [
         'timeout' => (int) env('CLIENTE_API_TIMEOUT', 15),
         'max_retries' => (int) env('CLIENTE_API_MAX_RETRIES', 3),
         'login_mode' => env('CLIENTE_LOGIN_MODE', 'fallback'),
+        'gateway_token' => env('WIESE_GATEWAY_TOKEN', ''),
     ],
 
     'salcom_api' => [
