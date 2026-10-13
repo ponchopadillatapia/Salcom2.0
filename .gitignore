@@ -24,3 +24,6 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Puerta (gateway) hacia Wiese: el config.php lleva el token real, NUNCA se sube.
+/wiese-gateway/config.php

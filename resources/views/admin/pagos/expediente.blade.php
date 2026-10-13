@@ -119,9 +119,14 @@
 @endphp
 
 <div class="exp-wrap">
-    <a href="{{ route('admin.pagos.show', $pago) }}" class="exp-back">
+    {{-- POR QUÉ al archivero y no al pago: quien revisa/autoriza (Alexa) no debe ir al Formato
+         para pago; al terminar un expediente vuelve al archivero a seguir con los demás.
+         Si el pago tiene departamento, vuelve a ESA carpeta; si no, al archivero general. --}}
+    <a href="{{ $pago->departamento
+            ? route('admin.expedientes-pago.departamento', ['departamento' => $pago->departamento])
+            : route('admin.expedientes-pago') }}" class="exp-back">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Volver al pago
+        Volver a expedientes
     </a>
 
     @if(session('mensaje'))<div style="background:#ecfdf5;border:1px solid #a7f3d0;color:#065f46;padding:10px 14px;border-radius:8px;margin-bottom:14px;">{{ session('mensaje') }}</div>@endif
@@ -244,12 +249,13 @@
 
         @if($pago->estaAutorizado())
             <p class="bank-text">
-                Descarga el layout con todas las operaciones de este pago (una fila por factura:
-                cuenta de cargo, CLABE del proveedor, importe, RFC). Ábrelo y súbelo a NetCash.
+                Descarga el Excel "Pagos Mixtos" ya lleno con las operaciones de este pago (una fila
+                por factura: cuenta de cargo, CLABE del proveedor, importe, RFC). Ábrelo, revísalo y
+                con el botón <strong>"Generar archivo"</strong> del propio Excel creas el .txt para subir a NetCash.
             </p>
             <a href="{{ route('admin.pagos.layout-banco', $pago) }}" class="bank-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                Exportar layout banco
+                Descargar Excel para el banco
             </a>
             <div class="bank-tips">
                 <strong>Al subir a NetCash, recuerda:</strong>

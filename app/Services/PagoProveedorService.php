@@ -1156,10 +1156,26 @@ class PagoProveedorService
             $proveedoresPago = $this->filasProveedoresMulti($pago);
         }
 
+        // POR QUÉ: Alexa (contabilidad) necesita saber "hasta cuándo puede pagar" antes de
+        // autorizar. Esa es la fecha de vencimiento (emisión + días de crédito) que ya trae
+        // cada factura. De todas las facturas del pago tomamos la MÁS PRÓXIMA (la que vence
+        // primero manda), y esa se muestra arriba en grande como fecha límite del pago.
+        $fechaLimite = null;
+        foreach ($pago->lineas as $linea) {
+            $vence = $linea->factura?->fecha_vencimiento;
+            if ($vence === null) {
+                continue;
+            }
+            if ($fechaLimite === null || $vence->lt($fechaLimite)) {
+                $fechaLimite = $vence;
+            }
+        }
+
         return [
             'pago' => $pago,
             'esMulti' => (bool) $pago->es_multi_proveedor,
             'proveedoresPago' => $proveedoresPago, // filas B1 (solo multi-proveedor)
+            'fechaLimite' => $fechaLimite, // vencimiento más próximo de las facturas (puede ser null)
             'banco' => trim((string) ($db['banco'] ?? '')),
             'cuenta' => preg_replace('/\D/', '', (string) ($db['cuenta'] ?? '')) ?: '',
             'clabe' => preg_replace('/\D/', '', (string) ($db['clabe'] ?? '')) ?: '',

@@ -1,7 +1,7 @@
 @php
     if (session('admin_id')) {
         $portalNombre = 'Panel Administrativo';
-        $portalUrl = '/admin/ia';
+        $portalUrl = '/admin/dashboard';
     } elseif (session('cliente_id')) {
         $portalNombre = 'Portal de Clientes';
         $portalUrl = '/portal-cliente';

@@ -1,9 +1,9 @@
 @extends('layouts.admin')
-@section('title', 'Pagos al proveedor')
+@section('title', 'Formato para pago')
 @section('hero')
 <div class="hero-band">
-    <h1>Pagos al proveedor</h1>
-    <p>Proveedores con facturas pendientes de pago</p>
+    <h1>Formato para pago</h1>
+    <p>Genera formatos de pago y consulta los ya creados</p>
 </div>
 @endsection
 @push('styles')
@@ -195,4 +195,79 @@
     @endif
 </div>
 @endif
+
+{{-- ── Formatos para pago YA creados ──
+     POR QUÉ: dirección pidió ver los formatos generados, del más nuevo arriba, con su estatus.
+     Se agrupan por fecha de creación con el separador date-row (estilo estándar de nuestras
+     tablas). Se muestra siempre (haya o no búsqueda arriba). --}}
+<div class="adm-section anim" style="animation-delay:.12s;margin-top:24px;">
+    <div class="adm-section-head">
+        <div>
+            <h4>Formatos para pago creados</h4>
+            <div class="adm-section-meta">Del más reciente al más antiguo · {{ $formatosCreados->count() }} formato(s)</div>
+        </div>
+    </div>
+
+    @if($formatosCreados->isEmpty())
+        <div class="empty-state"><p>Aún no se ha creado ningún formato para pago.</p></div>
+    @else
+        <div class="tbl-wrap">
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>Formato</th>
+                        <th>Proveedor(es)</th>
+                        <th style="text-align:center;">Facturas</th>
+                        <th style="text-align:right;">Total</th>
+                        <th style="text-align:center;">Estatus</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php $fechaSep = null; @endphp
+                    @foreach($formatosCreados as $fmt)
+                        @php
+                            $fGrupo = optional($fmt->created_at)->format('Y-m-d');
+                            $fLabel = $fmt->created_at
+                                ? $fmt->created_at->locale('es')->isoFormat('DD [de] MMMM YYYY')
+                                : 'Sin fecha';
+                            // Estatus a mostrar: borrador / confirmado + estado de autorización.
+                            $estPago = $fmt->estatus; // borrador | confirmado | cancelado
+                            $estAut = $fmt->estatus_autorizacion ?? 'pendiente';
+                            if ($estPago === 'borrador') { $badgeTxt = 'Borrador'; $badgeBg = '#f3f4f6'; $badgeFg = '#6b7280'; }
+                            elseif ($estPago === 'cancelado') { $badgeTxt = 'Cancelado'; $badgeBg = '#fef2f2'; $badgeFg = '#b91c1c'; }
+                            elseif ($estAut === 'autorizado') { $badgeTxt = 'Autorizado'; $badgeBg = '#dcfce7'; $badgeFg = '#15803d'; }
+                            elseif ($estAut === 'rechazado') { $badgeTxt = 'Rechazado'; $badgeBg = '#fef2f2'; $badgeFg = '#b91c1c'; }
+                            else { $badgeTxt = 'Pend. autorizar'; $badgeBg = '#fef3c7'; $badgeFg = '#b45309'; }
+                            $numProv = $fmt->es_multi_proveedor
+                                ? ($fmt->lineas->pluck('codigo_proveedor')->filter()->unique()->count() ?: 1)
+                                : 1;
+                        @endphp
+                        @if($fGrupo !== $fechaSep)
+                            @php $fechaSep = $fGrupo; @endphp
+                            <tr class="date-row"><td colspan="5">{{ $fLabel }}</td></tr>
+                        @endif
+                        <tr>
+                            {{-- POR QUÉ fijo FCONA-0040 (y no el id del pago): contabilidad usa
+                                 un folio fijo para el formato, igual que en el PDF reporte-resumen.
+                                 Antes salía FCONA-0022 (el id interno del lote), lo cual confundía. --}}
+                            <td style="font-weight:600;">FCONA-0040</td>
+                            <td>
+                                @if($fmt->es_multi_proveedor)
+                                    Varios proveedores ({{ $numProv }})
+                                @else
+                                    {{ $fmt->proveedor->nombre ?? $fmt->codigo_proveedor }}
+                                @endif
+                            </td>
+                            <td style="text-align:center;">{{ $fmt->num_facturas }}</td>
+                            <td style="text-align:right;font-weight:700;">${{ number_format((float) $fmt->monto_total, 2) }}</td>
+                            <td style="text-align:center;">
+                                <span style="font-size:11px;font-weight:700;padding:4px 12px;border-radius:999px;background:{{ $badgeBg }};color:{{ $badgeFg }};white-space:nowrap;">{{ $badgeTxt }}</span>
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+</div>
 @endsection

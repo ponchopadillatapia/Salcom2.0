@@ -480,7 +480,13 @@ class AdminPanelController extends Controller
                 $itemsWiese = $itemsWiese->filter(function ($p) use ($needle) {
                     $nombre = mb_strtolower((string) ($p['nombre'] ?? $p['Nombre'] ?? ''));
                     $rfc = mb_strtolower((string) ($p['rfc'] ?? $p['Rfc'] ?? ''));
-                    return str_contains($nombre, $needle) || str_contains($rfc, $needle);
+                    // POR QUÉ se agregó el código: el placeholder de la caja promete "ID proveedor"
+                    // (el código, ej. M214884091), pero antes el filtro solo miraba nombre y RFC, así
+                    // que buscar por código no devolvía nada aunque el proveedor sí existiera en Wiese.
+                    $codigo = mb_strtolower((string) ($p['codigo'] ?? $p['Codigo'] ?? ''));
+                    return str_contains($nombre, $needle)
+                        || str_contains($rfc, $needle)
+                        || str_contains($codigo, $needle);
                 })->values();
             }
 

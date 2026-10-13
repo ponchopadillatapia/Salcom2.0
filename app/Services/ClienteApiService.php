@@ -18,12 +18,25 @@ class ClienteApiService
 
     private int $maxRetries;
 
+    /** Token de la puerta (gateway) hacia Wiese. Si está lleno, se manda X-Salcom-Gateway. */
+    private string $gatewayToken;
+
     public function __construct()
     {
         $this->baseUrl = config('services.cliente_api.url', '');
         $this->connectTimeout = config('services.cliente_api.connect_timeout', 5);
         $this->timeout = config('services.cliente_api.timeout', 15);
         $this->maxRetries = config('services.cliente_api.max_retries', 3);
+        // Mismo token del gateway de proveedor (ambos pasan por la misma puerta hacia Wiese).
+        $this->gatewayToken = (string) config('services.proveedor_api.gateway_token', '');
+    }
+
+    /** Header para pasar por la puerta (gateway) en SiteGround. Vacío = llamada directa (oficina). */
+    private function headersGateway(): array
+    {
+        return $this->gatewayToken !== ''
+            ? ['X-Salcom-Gateway' => $this->gatewayToken]
+            : [];
     }
 
     // ── Métodos públicos ──
@@ -44,6 +57,7 @@ class ClienteApiService
         try {
             $response = Http::connectTimeout($this->connectTimeout)
                 ->timeout($this->timeout)
+                ->withHeaders($this->headersGateway())
                 ->post($this->baseUrl.$endpoint, [
                     'codigo' => $codigo,
                     'pwd' => $pwd,
@@ -117,7 +131,7 @@ class ClienteApiService
             try {
                 $response = Http::connectTimeout($this->connectTimeout)
                     ->timeout($this->timeout)
-                    ->withHeaders(['Authorization' => 'Bearer '.$token])
+                    ->withHeaders(array_merge(['Authorization' => 'Bearer '.$token], $this->headersGateway()))
                     ->get($this->baseUrl.$endpoint, $params);
 
                 // Si no es error de servidor retryable, procesar de inmediato

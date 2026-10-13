@@ -153,11 +153,9 @@ Route::post('/cliente/ia/documentacion', [IaDashboardController::class, 'cliente
 Route::post('/cliente/ia/pronostico', [IaDashboardController::class, 'clientePronostico'])->name('clientes.ia.pronostico')->middleware('auth.cliente');
 Route::post('/cliente/ia/inventario', [IaDashboardController::class, 'clienteInventario'])->name('clientes.ia.inventario')->middleware('auth.cliente');
 
-// ── Módulo de IA (Admin — dashboard con formularios) ──
-Route::get('/admin/ia', [IaDashboardController::class, 'adminIa'])->name('admin.ia')->middleware('auth.admin');
-Route::post('/admin/ia/pronostico', [IaDashboardController::class, 'adminPronostico'])->name('admin.ia.pronostico')->middleware('auth.admin');
-Route::post('/admin/ia/inventario', [IaDashboardController::class, 'adminInventario'])->name('admin.ia.inventario')->middleware('auth.admin');
-Route::post('/admin/ia/proveedor', [IaDashboardController::class, 'adminProveedor'])->name('admin.ia.proveedor')->middleware('auth.admin');
+// ── Módulo de IA (Admin) — RETIRADO: módulo viejo que ya no se usa (Said, sep-2026).
+//    Se quitaron las rutas /admin/ia. El controlador IaDashboardController sigue para los
+//    portales de proveedor/cliente. Las páginas de error ahora mandan a /admin/dashboard. --
 
 // ── Contactos del proveedor ──
 Route::get('/proveedor/alertas/recientes', [PortalProveedorController::class, 'alertasRecientesJson'])->name('proveedores.alertas.recientes')->middleware('auth.proveedor');

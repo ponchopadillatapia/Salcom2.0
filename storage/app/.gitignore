@@ -2,3 +2,7 @@
 !private/
 !public/
 !.gitignore
+# POR QUÉ: la plantilla del Excel del banco (Pagos Mixtos) debe viajar al servidor con el
+# código; si no, el botón "Descargar Excel para el banco" truena en producción.
+!plantillas/
+!plantillas/**

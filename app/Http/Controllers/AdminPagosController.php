@@ -126,6 +126,15 @@ class AdminPagosController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
+        // POR QUÉ: en "Formato para pago" se listan los formatos YA creados, del más nuevo al
+        // más viejo, para consultarlos y ver su estatus. Se agrupan por fecha (separador date-row)
+        // en la vista. Se traen los últimos 100 para no cargar de más.
+        $formatosCreados = PagoProveedor::with('proveedor')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->limit(100)
+            ->get();
+
         return view('admin.pagos.index', compact(
             'proveedoresPendientes',
             'kpiSinRevisar',
@@ -134,7 +143,8 @@ class AdminPagosController extends Controller
             'kpiTotales',
             'q',
             'codigo',
-            'expediente'
+            'expediente',
+            'formatosCreados'
         ));
     }
 
@@ -942,29 +952,28 @@ class AdminPagosController extends Controller
     }
 
     /**
-     * Exporta el LAYOUT para subir el pago a BBVA NetCash.
-     * POR QUÉ: Alexa (tesorería) llenaba a mano el Excel "Pagos Mixtos"; aquí lo generamos
-     * con los datos que ya tiene el sistema (proveedor, CLABE, importe, RFC) en el mismo
-     * formato del banco. Formato CSV (Excel lo abre directo) con los 11 campos del layout.
+     * Exporta el LAYOUT para el banco como el EXCEL macro "Pagos Mixtos" (.xlsm), pre-llenado
+     * con las facturas de este formato de pago.
+     *
+     * POR QUÉ Excel y no .txt directo (petición de Said/Alexa): Alexa descarga este Excel, lo
+     * REVISA, y con el botón "Generar archivo" (macro VBA de la plantilla) produce ella misma el
+     * .txt que sube a BBVA NetCash. Así conserva su paso de revisión/confirmación. El Excel sale
+     * con el mismo formato (encabezados azules, columnas) y las macros intactas porque se parte
+     * de la plantilla y solo se escriben valores. (El método generarTxt() sigue existiendo por si
+     * se quiere el .txt directo en el futuro.)
      */
     public function exportarLayoutBanco(PagoProveedor $pago)
     {
         $svc = app(\App\Services\LayoutBancarioService::class);
-        $data = $svc->construir($pago);
+        $ruta = $svc->generarXlsm($pago);
 
-        $filename = 'Layout_banco_pago'.$pago->id.'_'.now()->format('Y-m-d').'.csv';
+        // Nombre amigable con el proveedor/lote y fecha. Extensión .xlsm (lleva macros).
+        $filename = 'Pagos_Mixtos_lote'.$pago->id.'_'.now()->format('Y-m-d').'.xlsm';
 
-        // BOM UTF-8 para que Excel respete acentos (aunque el layout va sin acentos, por si acaso).
-        $out = "\xEF\xBB\xBF";
-        // Encabezados del layout (orden exacto que espera NetCash).
-        $out .= implode(',', \App\Services\LayoutBancarioService::ENCABEZADOS)."\r\n";
-        foreach ($data['filas'] as $fila) {
-            $out .= implode(',', $fila)."\r\n";
-        }
-
-        return response($out)
-            ->header('Content-Type', 'text/csv; charset=UTF-8')
-            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+        // deleteFileAfterSend: el .xlsm es temporal; se borra solo cuando termina la descarga.
+        return response()->download($ruta, $filename, [
+            'Content-Type' => 'application/vnd.ms-excel.sheet.macroEnabled.12',
+        ])->deleteFileAfterSend(true);
     }
 
     /** Estado de cuenta histórico del proveedor (CSV). */

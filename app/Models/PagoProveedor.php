@@ -16,18 +16,21 @@ class PagoProveedor extends Model
     protected $table = 'pagos_proveedor';
 
     /**
-     * Departamentos del archivero de expedientes (PROVISIONAL hasta que RH pase los oficiales).
+     * Departamentos del archivero de expedientes (OFICIALES — los pasó RH el 2026-09-09).
      * POR QUÉ aquí: para tener UNA sola fuente de la lista (el selector del carrito y el
      * agrupado del expediente la leen de aquí). Cambiar la lista = cambiar solo esta línea.
+     * POR QUÉ 'otros' al final: cajón de seguridad para pagos viejos cuyo departamento ya no
+     * exista en la lista; así el agrupado del expediente no truena.
      */
     public const DEPARTAMENTOS = [
-        'otros' => 'Otros',
-        'mantenimiento' => 'Mantenimiento',
         'compras' => 'Compras',
+        'fletes_acatlan' => 'Fletes - Acatlán',
         'imex' => 'Imex',
-        'produccion' => 'Producción',
-        'auditoria' => 'Auditoría',
-        'acatlan' => 'Acatlán',
+        'mantenimiento' => 'Mantenimiento',
+        'framfoods_a' => 'Framfoods A',
+        'framfoods_b' => 'Framfoods B',
+        'seguridad' => 'Seguridad',
+        'otros' => 'Otros',
     ];
 
     protected $fillable = [

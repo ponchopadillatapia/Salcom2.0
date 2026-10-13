@@ -6,6 +6,233 @@
 
 ---
 
+## PENDIENTE (validar con Alexa) — Fusionar "Pago a proveedor" dentro del Expediente
+
+- **CONTEXTO:** Said notó que el módulo "Pago a proveedor" se siente redundante. El flujo real
+  es: Formato → Expediente (autoriza + baja Excel + paga en banco) → ??? → Abono (liquida).
+  El paso que marca la factura 'pagada' hoy vive en "Pago a proveedor", un módulo aparte.
+- **IDEA APROBADA por Said (falta validar con Alexa el martes AM):** mover el paso 'pagada' AL
+  EXPEDIENTE. Cuando Alexa regrese del banco con los comprobantes (CEP, un PDF por pago), los
+  sube EN EL EXPEDIENTE y ESO marca las facturas como 'pagada'. Así "pagada" = "el banco ya
+  mandó el dinero y aquí está la prueba", no solo "autorizado". Y el módulo "Pago a proveedor"
+  se retira del flujo (una sola pantalla: el expediente).
+- **POR QUÉ no se hizo ya:** toca el corazón del flujo; Said lo valida con Alexa/Karen (es su
+  proceso diario) antes de tocar código.
+- **PLAN cuando se apruebe:**
+  1. En el expediente, agregar paso "Confirmar pago (subir comprobante del banco / CEP)".
+  2. Al subir el CEP → las facturas del pago pasan de 'programada' a 'pagada' + se guarda el PDF
+     como prueba. (Hoy `adjuntarDocumento()` SOLO guarda el archivo, NO cambia estatus: ESE es el
+     eslabón que falta de conectar.)
+  3. Retirar/ocultar el módulo "Pago a proveedor" del menú (OCULTAR, no borrar, por si acaso).
+- **DECISIONES ABIERTAS para Alexa:**
+  a) ¿'pagada' se dispara al subir el CEP, o con un botón "Confirmar pago" aparte? (reco: botón
+     que haga las dos cosas, para no marcar pagada sin prueba).
+  b) ¿El módulo viejo se oculta un tiempo o se quita de una? (reco: ocultar).
+- **DÓNDE tocaría:** `AdminPagosController::adjuntarDocumento()` (conectar estatus),
+  `expediente.blade.php` (sección confirmar pago), `layouts/admin.blade.php` (ocultar módulo),
+  validación `ORDEN_FLUJO` en `AdminPagoProveedoresController` (que programada→pagada siga bien).
+- **OJO (riesgo de negocio):** autorizar ≠ pagar. NO marcar 'pagada' al autorizar; solo cuando
+  hay comprobante del banco. Si el banco rechaza una transferencia, la factura NO debe quedar
+  como pagada.
+
+---
+
+## 2026-09-09 — Layout del banco: ahora descarga el EXCEL macro (no el .txt)
+
+- **QUÉ:** el botón del expediente que antes bajaba `pagosmix.txt` ahora descarga una COPIA del
+  Excel "Pagos Mixtos" (.xlsm) PRE-LLENADO con las facturas del formato de pago. Alexa lo abre,
+  revisa, y con el botón "Generar archivo" (macro VBA del propio Excel) crea ella el .txt para
+  BBVA NetCash.
+- **POR QUÉ (petición Said/Alexa):** Alexa quiere conservar su paso de revisión/confirmación en
+  el Excel antes de generar el .txt. El .txt directo le quitaba ese control.
+- **CÓMO conserva formato y macros:** se parte de la plantilla real (copiada al proyecto) y SOLO
+  se escriben valores en las celdas; nunca se tocan estilos ni el VBA. Probado: el .xlsm generado
+  conserva macros (hasMacros()=true), ambas hojas (pagosmix/consideraciones) y el formato azul.
+  CLABE/RFC/referencia se escriben como TEXTO explícito para que Excel no los vuelva notación
+  científica ni les quite ceros.
+- **DÓNDE:**
+  - Plantilla: `storage/app/plantillas/pagos-mixtos.xlsm` (copiada de
+    `C:\Users\IT\Documents\Pagos Mixtos  FLETES SALCOM.xlsm` — OJO: dos espacios en el nombre).
+  - `app/Services/LayoutBancarioService.php` → nuevo método `generarXlsm()` (const PLANTILLA_XLSM,
+    XLSM_FILA_INICIO=3). `generarTxt()` se CONSERVA por si se quiere el .txt directo a futuro.
+  - `AdminPagosController::exportarLayoutBanco()` → ahora `response()->download($xlsm)...
+    ->deleteFileAfterSend(true)`.
+  - `resources/views/admin/pagos/expediente.blade.php` → botón "Descargar Excel para el banco" +
+    texto que explica el paso de "Generar archivo".
+  - `storage/app/.gitignore` → excepción `!plantillas/` para que la plantilla VIAJE al servidor
+    (si no, el botón tronaría en producción).
+- **DEPLOY:** al subir a git, la plantilla ya se incluye (verificado con git check-ignore).
+
+---
+
+## 2026-09-09 — Proveedores: la búsqueda ahora incluye el CÓDIGO
+
+- **SÍNTOMA:** en la pantalla Proveedores, buscar por código (ej. M214884091 - BEBIDAS
+  PURIFICADAS) no devolvía nada, aunque el proveedor SÍ existe en Wiese.
+- **CAUSA:** el filtro de búsqueda en `AdminPanelController::proveedores()` solo comparaba
+  NOMBRE y RFC, pero el placeholder de la caja promete "ID proveedor" (el código). Faltaba
+  incluir el código en la comparación.
+- **ARREGLO:** se agregó `$codigo` al filtro (lee 'codigo'/'Codigo'); ahora busca por nombre,
+  RFC o código. Verificado contra la API: por nombre/RFC siempre funcionó; solo faltaba código.
+- **DÓNDE:** `app/Http/Controllers/AdminPanelController.php`, dentro de `proveedores()`, el
+  `->filter()` del bloque `if ($busquedaWiese !== '')`.
+- **NOTA (no bug):** si al buscar por NOMBRE no sale, revisar que el chip de moneda esté en
+  "Todos" y no en "Dólar/Extranjeros": esos chips filtran por moneda y pueden esconder al
+  proveedor (BEBIDAS es MXN, moneda="1"). Con "Todos" aparece.
+- **CONFIRMADO:** BEBIDAS PURIFICADAS NO tiene facturas pendientes (la API devuelve 0); por eso
+  no sale en "Formato para pago" (ese módulo solo lista proveedores con pendientes). Eso es
+  correcto, no es bug.
+
+---
+
+## 2026-09-09 — WieseBanco: dejar SOLO BBVA en el menú (bug "no aparece el abono")
+
+- **SÍNTOMA:** Karen hacía el abono (saldar en 0), entraba a WieseBanco y la hoja salía vacía,
+  aunque el movimiento SÍ se guardaba en la base (verificado: ORPACK folio 80195 en cuenta
+  clave_corta 8969, estatus pendiente_contpaqi porque Contpaqi no está en local).
+- **CAUSA RAÍZ:** el submenú WieseBanco listaba 7 bancos (bbva, santander, banorte, citibanamex,
+  hsbc, scotiabank, banco-base) desde `config/wiese_bancos.php`, pero SOLO BBVA tiene cuenta real.
+  `AdminPanelController::claveCuentaWiese()` solo mapea 'bbva'=>'8969'; los otros 6 devuelven ''.
+  Si Karen entraba a un banco que no era BBVA, no veía el movimiento (todo vive en 8969). Confuso.
+- **DECISIÓN (Opción A, elegida por Said):** dejar en el menú SOLO BBVA. Mostrar solo lo que
+  funciona. Cuando existan las otras cuentas se agregan.
+- **DÓNDE:** `config/wiese_bancos.php` → ahora solo `'bbva' => 'BBVA 8969 MXN'`. Se corrió
+  `php artisan config:clear` (el config estaba cacheado). El sidebar
+  (`layouts/admin.blade.php`) ya itera este config, no hubo que tocarlo.
+- **PENDIENTE/duda:** el nombre de la cuenta en la BD es "BBVA 969 SALCOM PESOS" (dice 969, no
+  8969). Es solo el título grande dentro de la pantalla. NO se cambió sin permiso de Said; queda
+  a su decisión corregirlo a "BBVA 8969 MXN".
+- **NOTA:** el movimiento SÍ se refleja al liquidar; en local queda 'pendiente_contpaqi' (normal,
+  Contpaqi vive en el server interno). En el server interno saldrá 'enviado'.
+
+---
+
+## 2026-09-09 — Formato para pago: vencimiento + "Referencia / Folio" (petición Alexa)
+
+- **QUÉ:** en el PDF "Formato para pago" (el que Alexa descarga del expediente para autorizar)
+  se agregó: (1) arriba, en rojo, "Pagar antes del: DD/MM/AAAA" = vencimiento más próximo de las
+  facturas; (2) columna "Vence" por factura en el detalle; (3) se renombró la columna
+  "Folio General" → "Referencia / Folio".
+- **POR QUÉ:** Alexa mandó por correo lo que necesita ANTES de autorizar un pago: qué se compró,
+  hasta cuándo puede pagar (vencimiento), y el recuadro banco/cuenta/clave/referencia/total. El
+  recuadro y el total ya salían; faltaba el vencimiento y aclarar que "Folio General" ES la
+  referencia que ella pide.
+- **DECISIÓN:** NO se creó campo/migración de "referencia": la columna "Folio General" ya era esa
+  referencia, solo se renombró. La fecha es la de VENCIMIENTO (emisión + días de crédito), que ya
+  vive en `facturas.fecha_vencimiento`; NO la de emisión.
+- **DÓNDE:**
+  - `app/Services/PagoProveedorService.php` → `datosReporteResumen()`: calcula `fechaLimite`
+    (vencimiento más próximo recorriendo `lineas.factura.fecha_vencimiento`).
+  - `resources/views/admin/pagos/reporte-resumen-pdf.blade.php`: bloque "Pagar antes del" en el
+    header, columna "Vence" en el detalle, encabezado "Referencia / Folio".
+- **PENDIENTE/duda:** la "explicación de qué se compró" usa el campo Concepto/Notas; hoy NO es
+  obligatorio. Si Alexa lo quiere forzado, hacerlo obligatorio en el formulario (otro paso).
+
+---
+
+## 2026-09-09 — Departamentos oficiales del archivero (RH)
+
+- **QUÉ:** RH pasó los departamentos reales; se reemplazó la lista provisional por los oficiales
+  en `PagoProveedor::DEPARTAMENTOS`.
+- **POR QUÉ:** la lista provisional (otros/mantenimiento/compras/imex/produccion/auditoria/acatlan)
+  era un placeholder; ya hay los que de verdad usan conta.
+- **LISTA FINAL:** compras, fletes_acatlan (Fletes - Acatlán), imex, mantenimiento,
+  framfoods_a (Framfoods A), framfoods_b (Framfoods B), seguridad, y 'otros' al final como
+  cajón de seguridad para pagos viejos.
+- **DÓNDE:** `app/Models/PagoProveedor.php`, const `DEPARTAMENTOS`. El selector del carrito y el
+  agrupado del expediente la leen de ahí, no hay que tocar nada más.
+- **DUDA ABIERTA:** "Framfoods A y B" se tomó como DOS departamentos separados. Si es uno solo,
+  juntar en `framfoods` => 'Framfoods A y B'.
+
+---
+
+## 2026-09-09 — Puerta (gateway) para que SiteGround use la API de Wiese
+
+- **PROBLEMA:** SiteGround (35.215.67.229) no alcanza la IP interna de Wiese (172.16.1.250:7183)
+  y esa API no tiene seguridad propia (no se puede exponer a internet).
+- **SOLUCIÓN:** carpeta `wiese-gateway/` NUEVA (no existía; la pedía el plan de Chuy pero no
+  estaba). Es una puerta PHP que se instala en un server de la OFICINA (que sí ve el 7183),
+  se publica por HTTPS, y reenvía al 7183 solo si: IP = SiteGround, header X-Salcom-Gateway con
+  token correcto, y la ruta está en lista blanca.
+- **ARCHIVOS CREADOS:**
+  - `wiese-gateway/public/index.php` — la puerta (valida IP+token+ruta, reenvía con cURL,
+    propaga Authorization Bearer de Wiese).
+  - `wiese-gateway/config.example.php` — plantilla (upstream, token, allowed_ips, allowed_paths
+    con los 7 endpoints reales). Chuy la copia a config.php (fuera de public/, con el token real).
+  - `wiese-gateway/README.md` — instrucciones de instalación (Parte 1 oficina / 2 SiteGround /
+    3 desarrollo).
+  - `.gitignore`: se ignora `/wiese-gateway/config.php` (lleva el token, nunca se sube).
+- **CÓDIGO SALCOM:** `config/services.php` nuevo `proveedor_api.gateway_token` (env
+  WIESE_GATEWAY_TOKEN). `ProveedorApiService` y `ClienteApiService` ahora mandan el header
+  `X-Salcom-Gateway` en TODAS las llamadas SI el token está lleno (SiteGround); si vacío
+  (oficina), llaman directo al 7183 sin header.
+- **PROBADO en local:** con token vacío, la API sigue directa (ORPACK carga). No rompe nada.
+- **PENDIENTE (Chuy/infra):** instalar wiese-gateway en el server de oficina, publicar HTTPS,
+  firewall (443 solo desde SiteGround, 7183 no a internet), y en SiteGround llenar las URLs +
+  WIESE_GATEWAY_TOKEN + `php artisan config:cache`.
+
+## 2026-09-09 — Formato para pago: título + tabla de formatos creados
+
+- **QUÉ:** 1) el título de la pantalla admin.pagos (index.blade.php) cambió de "Pagos al
+  proveedor" a "Formato para pago". 2) Se agregó abajo una tabla con los formatos de pago YA
+  creados, del más nuevo al más viejo, con separador de fecha date-row (estándar) agrupando por
+  created_at, y columna de estatus (Borrador/Pend. autorizar/Autorizado/Rechazado/Cancelado).
+- **DÓNDE:** `AdminPagosController::index()` (nueva consulta $formatosCreados, últimos 100
+  PagoProveedor ordenados por created_at desc) + `resources/views/admin/pagos/index.blade.php`
+  (tabla al final). Folio mostrado: FCONA-#### con el id del pago.
+
+## 2026-09-09 — Layout banco = .txt de ANCHO FIJO (idéntico al de la macro del banco)
+
+- **CONTEXTO:** el Excel "Pagos Mixtos" tiene una macro (botón "Generar archivo") que produce
+  `pagosmix.txt`, que es LO QUE REALMENTE SE SUBE a BBVA NetCash. No es CSV ni Excel: es ancho
+  fijo (cada campo en posición exacta).
+- **ESTRUCTURA (línea interbancaria PSC, 165 chars), descifrada del pagosmix.txt real:**
+  PSC + CLABE(18, ceros der) + ctaCargo(18, ceros izq) + divisa(3) + importe(16, ceros izq .00)
+  + motivo(30 esp der) + tipoCuenta(2) + bancoReceptor(3 = primeros díg CLABE) + titular(30 esp
+  der) + referencia(7 ceros izq) + disponibilidad(1=H) + "0" + RFC(18 esp) + iva(15=000000000000.00).
+- **FIX:** `LayoutBancarioService::generarTxt()` genera ese ancho fijo exacto.
+  `AdminPagosController::exportarLayoutBanco()` ahora descarga `pagosmix.txt` (text/plain), ya NO
+  el Excel/CSV. Se quitó la generación con PhpSpreadsheet.
+- **PROBADO:** la línea generada mide 165 chars, idéntica en estructura a la del banco (CLABE
+  completa, sin notación científica). Pago de prueba borrado.
+
+## 2026-09-09 — Expediente: "Volver" va al archivero, no al pago
+
+- **QUÉ:** el botón del expediente que decía "Volver al pago" (iba a admin.pagos.show) ahora
+  dice "Volver a expedientes" y lleva al ARCHIVERO: a la carpeta del departamento del pago
+  (admin.expedientes-pago.departamento) si tiene depto, o al archivero general.
+- **POR QUÉ:** quien revisa/autoriza (Alexa) no debe ir al Formato para pago; al terminar un
+  expediente debe volver a su lista para seguir con los pendientes.
+- **DÓNDE:** `resources/views/admin/pagos/expediente.blade.php`.
+- **NOTA (CEP):** "Comprobante del banco (CEP)" = Comprobante Electrónico de Pago que da el
+  BANCO tras la transferencia (el PDF de Banxico). Alexa lo SUBE ahí como evidencia de que el
+  pago se realizó, para que el expediente quede auditable. No lo genera el sistema.
+
+## 2026-09-09 — Retirado módulo de IA del admin (/admin/ia)
+
+- **QUÉ:** se quitaron las rutas `/admin/ia` (dashboard IA + 3 POST pronostico/inventario/
+  proveedor). Módulo viejo que Said ya no usa.
+- **MISTERIO RESUELTO:** al recargar/tras un error te mandaba a /admin/ia porque las páginas de
+  error (errors/404.blade.php y 500.blade.php) tenían el botón "volver al panel" del admin
+  apuntando a `/admin/ia`. Se cambió a `/admin/dashboard`.
+- **NO SE BORRÓ:** el IaDashboardController ni las rutas de IA de proveedor/cliente (siguen por
+  si esos portales las usan). La vista ia-dashboard.blade.php quedó huérfana (ya no hay ruta que
+  la abra) pero no estorba.
+- **DÓNDE:** `routes/web.php`, `resources/views/errors/404.blade.php`, `errors/500.blade.php`.
+
+## 2026-09-09 — Layout banco ahora es EXCEL (.xlsx) real, no CSV
+
+- **PROBLEMA:** el CSV convertía la CLABE de 18 díg a notación científica (1.23E+16),
+  corrompiéndola → el banco la rechazaría.
+- **FIX:** `exportarLayoutBanco()` ahora genera un .xlsx real con PhpSpreadsheet, replicando el
+  Excel original de Alexa ("Pagos Mixtos"): fila 1 encabezados de grupo (F1/J1), fila 2 nombres
+  de columna EXACTOS, datos desde fila 3. La CLABE (B), tipo cuenta (G) y referencia (H) se
+  escriben como TEXTO explícito (setCellValueExplicit TYPE_STRING) → NO se convierten a número.
+  Importe (D) e IVA (K) como número con formato #,##0.00.
+- **PROBADO:** CLABE queda como texto de 18 caracteres (072320006470108493), importe correcto.
+- **DÓNDE:** `AdminPagosController::exportarLayoutBanco()`. (El servicio LayoutBancarioService
+  sigue armando las filas; solo cambió cómo se escriben al archivo.)
+
 ## 2026-09-09 — Layout banco: solo tras autorizar + rediseño iOS
 
 - **QUÉ 1:** el bloque "Pago al banco" (layout + comprobante CEP) ahora SOLO aparece si el pago

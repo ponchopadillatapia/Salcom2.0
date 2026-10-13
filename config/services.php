@@ -44,6 +44,9 @@ return [
         'url' => env('PROVEEDOR_API_URL', ''),
         // Docs/OC (Swagger Wiese). Si vacío, usa la misma URL de proveedor.
         'docs_url' => env('PROVEEDOR_API_DOCS_URL', env('PROVEEDOR_API_URL', '')),
+        // Token de la PUERTA (gateway) hacia Wiese. Solo se usa en SiteGround: si está lleno,
+        // cada llamada a Wiese manda el header X-Salcom-Gateway. Vacío = llamada directa (oficina).
+        'gateway_token' => env('WIESE_GATEWAY_TOKEN', ''),
         'connect_timeout' => (int) env('PROVEEDOR_API_CONNECT_TIMEOUT', 5),
         'timeout' => (int) env('PROVEEDOR_API_TIMEOUT', 15),
         'max_retries' => (int) env('PROVEEDOR_API_MAX_RETRIES', 3),

@@ -20,6 +20,9 @@ class ProveedorApiService
 
     private int $maxRetries;
 
+    /** Token de la puerta (gateway). Si está lleno, se manda el header X-Salcom-Gateway. */
+    private string $gatewayToken;
+
     public function __construct()
     {
         $this->baseUrl = rtrim((string) config('services.proveedor_api.url', ''), '/');
@@ -28,6 +31,20 @@ class ProveedorApiService
         $this->connectTimeout = config('services.proveedor_api.connect_timeout', 5);
         $this->timeout = config('services.proveedor_api.timeout', 15);
         $this->maxRetries = config('services.proveedor_api.max_retries', 3);
+        $this->gatewayToken = (string) config('services.proveedor_api.gateway_token', '');
+    }
+
+    /**
+     * Headers extra para hablar con Wiese A TRAVÉS de la puerta (gateway).
+     * POR QUÉ: en SiteGround las llamadas pasan por la puerta, que exige el header
+     * X-Salcom-Gateway con el token. En la oficina el token está vacío y se habla directo
+     * al 7183, sin header. Devuelve [] si no hay token (desarrollo local/oficina).
+     */
+    private function headersGateway(): array
+    {
+        return $this->gatewayToken !== ''
+            ? ['X-Salcom-Gateway' => $this->gatewayToken]
+            : [];
     }
 
     // ── Métodos públicos ──
@@ -47,6 +64,7 @@ class ProveedorApiService
         try {
             $response = Http::connectTimeout($this->connectTimeout)
                 ->timeout($this->timeout)
+                ->withHeaders($this->headersGateway())
                 ->post($this->baseUrl.$endpoint, [
                     'codigo' => $codigo,
                     'pwd' => $pwd,
@@ -127,6 +145,7 @@ class ProveedorApiService
         try {
             $response = Http::connectTimeout($this->connectTimeout)
                 ->timeout($this->timeout)
+                ->withHeaders($this->headersGateway())
                 ->acceptJson()
                 ->asJson()
                 ->post($this->docsUrl.$endpoint, [
@@ -224,6 +243,7 @@ class ProveedorApiService
             foreach ($conceptosOC as $idConcepto) {
                 $response = Http::connectTimeout($this->connectTimeout)
                     ->timeout(max($this->timeout, 60))
+                    ->withHeaders($this->headersGateway())
                     ->withToken($token)
                     ->acceptJson()
                     ->get($this->docsUrl.$endpoint, [
@@ -322,6 +342,7 @@ class ProveedorApiService
         try {
             $response = Http::connectTimeout($this->connectTimeout)
                 ->timeout(max($this->timeout, 60))
+                ->withHeaders($this->headersGateway())
                 ->withToken($token)
                 ->acceptJson()
                 ->get($this->docsUrl.$endpoint, [
@@ -418,6 +439,7 @@ class ProveedorApiService
         try {
             $response = Http::connectTimeout($this->connectTimeout)
                 ->timeout(max($this->timeout, 30))
+                ->withHeaders($this->headersGateway())
                 ->withToken($token)
                 ->acceptJson()
                 ->get($this->docsUrl.$endpoint, $params);
@@ -486,6 +508,7 @@ class ProveedorApiService
         try {
             $response = Http::connectTimeout($this->connectTimeout)
                 ->timeout(max($this->timeout, 60)) // puede traer muchos registros
+                ->withHeaders($this->headersGateway())
                 ->withToken($token)
                 ->acceptJson()
                 ->get($this->docsUrl.$endpoint);
@@ -593,7 +616,7 @@ class ProveedorApiService
             try {
                 $response = Http::connectTimeout($this->connectTimeout)
                     ->timeout($this->timeout)
-                    ->withHeaders(['Authorization' => 'Bearer '.$token])
+                    ->withHeaders(array_merge(['Authorization' => 'Bearer '.$token], $this->headersGateway()))
                     ->get($this->baseUrl.$endpoint, $params);
 
                 // Si no es error de servidor retryable, procesar de inmediato

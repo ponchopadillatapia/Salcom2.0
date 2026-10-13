@@ -42,6 +42,12 @@
                 <div style="font-size:9px;color:#666">Formato</div>
                 <div style="font-size:18px;font-weight:bold;color:#6B3FA0">{{ $folioDoc }}</div>
                 <div style="font-size:10px;margin-top:4px">Fecha: {{ $fechaDoc }}</div>
+                {{-- POR QUÉ: contabilidad necesita ver de un vistazo hasta cuándo puede pagar
+                     (vencimiento más próximo de las facturas) antes de autorizar. --}}
+                @if(!empty($fechaLimite))
+                <div style="margin-top:6px;font-size:9px;color:#991b1b">Pagar antes del</div>
+                <div style="font-size:15px;font-weight:bold;color:#dc2626">{{ $fechaLimite->format('d/m/Y') }}</div>
+                @endif
             </td>
         </tr>
     </table>
@@ -56,7 +62,7 @@
                 <th>SWIFT</th>
                 <th>RFC</th>
                 <th>Proveedor</th>
-                <th>Folio General</th>
+                <th>Referencia / Folio</th>
                 <th>Total del Banco</th>
             </tr>
         </thead>
@@ -114,6 +120,7 @@
                 <th>#</th>
                 @if($esMulti ?? false)<th>Proveedor</th>@endif
                 <th>Folio CFDI</th>
+                <th>Vence</th>
                 <th>Subtotal</th>
                 <th>IVA</th>
                 <th>Ret. IVA</th>
@@ -135,6 +142,8 @@
                 <td>{{ $i + 1 }}</td>
                 @if($esMulti ?? false)<td style="font-size:10px">{{ $linea->nombre_proveedor ?: $linea->codigo_proveedor ?: '—' }}</td>@endif
                 <td>{{ $linea->folio_cfdi ?: '—' }}</td>
+                {{-- Vencimiento de la factura (emisión + días de crédito): hasta cuándo se puede pagar. --}}
+                <td>{{ $linea->factura?->fecha_vencimiento?->format('d/m/Y') ?? '—' }}</td>
                 <td class="monto">${{ number_format((float)$linea->monto, 2) }}</td>
                 <td class="monto">${{ number_format((float)$linea->monto_iva, 2) }}</td>
                 <td class="monto">${{ number_format((float)$linea->retencion_iva, 2) }}</td>
