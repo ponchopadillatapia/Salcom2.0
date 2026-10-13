@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Alerta;
 use App\Models\BitacoraGasolina;
 use App\Models\Empleado;
+use App\Models\Reembolso;
 use App\Models\ReembolsoViaje;
 use Illuminate\Http\Request;
 
@@ -55,8 +56,8 @@ class PortalEmpleadoController extends Controller
     {
         $numero = session('empleado_numero');
 
-        $reembolsos = Alerta::where('tipo', 'solicitud_reembolso')->orderByDesc('created_at')->get()
-            ->filter(fn ($r) => ($r->datos['numero_empleado'] ?? null) == $numero)->values();
+        $reembolsos = Reembolso::where('numero_empleado', $numero)
+            ->orderByDesc('created_at')->get();
 
         $viajes = collect();
         try {
@@ -135,29 +136,23 @@ class PortalEmpleadoController extends Controller
             ? $request->file('archivo_materialidad')->store('reembolsos/materialidad', 'public')
             : null;
 
-        Alerta::create([
-            'tipo' => 'solicitud_reembolso',
-            'modulo' => 'reembolsos',
-            'destinatario_tipo' => 'admin',
-            'destinatario_id' => 0,
-            'titulo' => 'Reembolso: $' . $request->input('monto') . ' — ' . session('empleado_nombre'),
-            'contenido' => $request->input('concepto'),
-            'datos' => [
-                'categoria' => $request->input('categoria'),
-                'razon_social' => $request->input('razon_social'),
-                'metodo_pago_empresa' => $request->input('metodo_pago_empresa'),
-                'monto' => $request->input('monto'),
-                'concepto' => $request->input('concepto'),
-                'solicitante' => session('empleado_nombre'),
-                'numero_empleado' => session('empleado_numero'),
-                'numero_cuenta' => $empleado->numero_cuenta ?? null,
-                'titular_cuenta' => $empleado->titular_cuenta ?? null,
-                'fecha_factura' => now()->format('Y-m-d'),
-                'archivo_factura' => $pathFactura,
-                'archivo_materialidad' => $pathMaterialidad,
-            ],
+        Reembolso::create([
+            'categoria' => $request->input('categoria'),
+            'razon_social' => $request->input('razon_social'),
+            'metodo_pago_empresa' => $request->input('metodo_pago_empresa'),
+            // El form manda el monto como texto; lo normalizamos a número para la columna decimal.
+            'monto' => (float) str_replace(['$', ','], '', (string) $request->input('monto')),
+            'concepto' => $request->input('concepto'),
+            // Solicitante y número vienen de la sesión del empleado logueado; cuenta/titular de su alta.
+            'solicitante' => session('empleado_nombre'),
+            'numero_empleado' => session('empleado_numero'),
+            'numero_cuenta' => $empleado->numero_cuenta ?? null,
+            'titular_cuenta' => $empleado->titular_cuenta ?? null,
+            'fecha_factura' => now()->format('Y-m-d'),
+            'archivo_factura' => $pathFactura,
+            'archivo_materialidad' => $pathMaterialidad,
             'estatus' => 'pendiente',
-            'nivel' => 'info',
+            'origen' => 'empleado',
         ]);
 
         return redirect()->route('empleados.portal')->with('mensaje', 'Reembolso enviado correctamente.');

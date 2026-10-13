@@ -351,18 +351,17 @@
                 </thead>
                 <tbody>
                     @foreach($reembolsos as $r)
-                    @php $d = $r->datos ?? []; @endphp
                     <tr style="border-bottom:1px solid var(--border-light);">
                         <td style="padding:10px 12px;">{{ $r->created_at->format('d/m/Y') }}</td>
-                        <td style="padding:10px 12px;">{{ $d['numero_empleado'] ?? '—' }}</td>
-                        <td style="padding:10px 12px;font-weight:600;">{{ $d['solicitante'] ?? '—' }}</td>
-                        <td style="padding:10px 12px;">{{ $d['concepto'] ?? $r->contenido ?? '—' }}</td>
-                        <td style="padding:10px 12px;font-weight:600;">${{ $d['monto'] ?? '—' }}</td>
-                        <td style="padding:10px 12px;">{{ $d['numero_cuenta'] ?? '—' }}</td>
-                        <td style="padding:10px 12px;">{{ $d['titular_cuenta'] ?? '—' }}</td>
-                        <td style="padding:10px 12px;">{{ strtoupper($d['metodo_pago_empresa'] ?? '—') }}</td>
+                        <td style="padding:10px 12px;">{{ $r->numero_empleado ?: '—' }}</td>
+                        <td style="padding:10px 12px;font-weight:600;">{{ $r->solicitante ?: '—' }}</td>
+                        <td style="padding:10px 12px;">{{ $r->concepto ?: '—' }}</td>
+                        <td style="padding:10px 12px;font-weight:600;">${{ number_format((float) $r->monto, 2) }}</td>
+                        <td style="padding:10px 12px;">{{ $r->numero_cuenta ?: '—' }}</td>
+                        <td style="padding:10px 12px;">{{ $r->titular_cuenta ?: '—' }}</td>
+                        <td style="padding:10px 12px;">{{ strtoupper($r->metodo_pago_empresa ?: '—') }}</td>
                         <td style="padding:10px 12px;text-align:center;">
-                            @if(!empty($d['autorizado_sandra']))
+                            @if($r->autorizado)
                                 <span style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#dcfce7;color:#166534;">Autorizado</span>
                             @else
                                 <form method="POST" action="{{ route('admin.reembolsos.autorizar', $r->id) }}" style="display:inline;">

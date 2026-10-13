@@ -342,7 +342,7 @@ Route::post('/pedido/tracking', [PedidoController::class, 'tracking'])->name('pe
 Route::get('/admin/reembolsos', [AdminPanelController::class, 'reembolsos'])->name('admin.reembolsos')->middleware('auth.admin');
 Route::post('/admin/reembolsos/enviar', [AdminPanelController::class, 'enviarReembolso'])->name('admin.reembolsos.enviar')->middleware('auth.admin');
 Route::get('/admin/reembolsos/excel', [AdminPanelController::class, 'reembolsosExcel'])->name('admin.reembolsos.excel')->middleware('auth.admin');
-Route::post('/admin/reembolsos/{alerta}/autorizar', [AdminPanelController::class, 'autorizarReembolso'])->name('admin.reembolsos.autorizar')->middleware('auth.admin');
+Route::post('/admin/reembolsos/{reembolso}/autorizar', [AdminPanelController::class, 'autorizarReembolso'])->name('admin.reembolsos.autorizar')->middleware('auth.admin');
 
 // ── Bitácora de Gasolina ──
 Route::get('/admin/bitacora-gasolina', [AdminPanelController::class, 'bitacoraGasolina'])->name('admin.bitacora-gasolina')->middleware('auth.admin');

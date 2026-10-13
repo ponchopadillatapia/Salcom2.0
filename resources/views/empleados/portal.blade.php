@@ -89,13 +89,12 @@
                 <thead><tr><th>Fecha</th><th>Concepto</th><th>Monto</th><th>Institución</th><th>Autorización</th></tr></thead>
                 <tbody>
                     @foreach($reembolsos as $r)
-                    @php $d = $r->datos ?? []; @endphp
                     <tr>
                         <td>{{ $r->created_at->format('d/m/Y') }}</td>
-                        <td>{{ $d['concepto'] ?? '—' }}</td>
-                        <td><strong>${{ $d['monto'] ?? '—' }}</strong></td>
-                        <td>{{ strtoupper($d['metodo_pago_empresa'] ?? '—') }}</td>
-                        <td>@if(!empty($d['autorizado_sandra']))<span class="badge b-aprobado">Autorizado</span>@else<span class="badge b-pendiente">Pendiente</span>@endif</td>
+                        <td>{{ $r->concepto ?: '—' }}</td>
+                        <td><strong>${{ number_format((float) $r->monto, 2) }}</strong></td>
+                        <td>{{ strtoupper($r->metodo_pago_empresa ?: '—') }}</td>
+                        <td>@if($r->autorizado)<span class="badge b-aprobado">Autorizado</span>@else<span class="badge b-pendiente">Pendiente</span>@endif</td>
                     </tr>
                     @endforeach
                 </tbody>

@@ -18,6 +18,7 @@ use App\Models\OcBorrador;
 use App\Models\Pedido;
 use App\Models\Producto;
 use App\Models\ProveedorUser;
+use App\Models\Reembolso;
 use App\Models\SolicitudAlta;
 use App\Models\SolicitudModificacionDatos;
 use App\Services\AlertEngineService;
@@ -124,8 +125,8 @@ class AdminPanelController extends Controller
         $productosInactivos = Producto::where('activo', false)->count();
 
         try {
-            $reembolsosTotal = Alerta::where('tipo', 'solicitud_reembolso')->count();
-            $reembolsosPendientes = Alerta::where('tipo', 'solicitud_reembolso')->where('estatus', 'pendiente')->count();
+            $reembolsosTotal = Reembolso::count();
+            $reembolsosPendientes = Reembolso::where('estatus', 'pendiente')->count();
         } catch (\Exception $e) {
             $reembolsosTotal = 0;
             $reembolsosPendientes = 0;
@@ -3522,8 +3523,7 @@ class AdminPanelController extends Controller
     public function reembolsos()
     {
         try {
-            $reembolsos = Alerta::where('tipo', 'solicitud_reembolso')
-                ->orderByDesc('created_at')
+            $reembolsos = Reembolso::orderByDesc('created_at')
                 ->limit(50)
                 ->get();
         } catch (\Exception $e) {
@@ -3604,34 +3604,28 @@ class AdminPanelController extends Controller
             : null;
 
         try {
-            Alerta::create([
-                'tipo' => 'solicitud_reembolso',
-                'modulo' => 'reembolsos',
-                'destinatario_tipo' => 'admin',
-                'destinatario_id' => 0,
-                'titulo' => 'Reembolso: $' . $request->input('monto') . ' — ' . $request->input('solicitante'),
-                'contenido' => $request->input('concepto') . ' (' . $request->input('categoria') . ')',
-                'datos' => [
-                    'categoria' => $request->input('categoria'),
-                    'razon_social' => $request->input('razon_social'),
-                    'metodo_pago_empresa' => $request->input('metodo_pago_empresa'),
-                    'uso_cfdi' => $request->input('uso_cfdi'),
-                    'forma_pago' => $request->input('forma_pago'),
-                    'metodo_pago' => $request->input('metodo_pago'),
-                    'monto' => $request->input('monto'),
-                    'concepto' => $request->input('concepto'),
-                    'solicitante' => $request->input('solicitante'),
-                    'numero_empleado' => $request->input('numero_empleado'),
-                    'numero_cuenta' => $request->input('numero_cuenta'),
-                    'titular_cuenta' => $request->input('titular_cuenta'),
-                    'fecha_factura' => now()->format('Y-m-d'),
-                    'archivo_factura' => $pathFactura,
-                    'archivo_xml' => $pathXml,
-                    'archivo_materialidad' => $pathMaterialidad,
-                    'notas' => $request->input('notas'),
-                ],
+            Reembolso::create([
+                'categoria' => $request->input('categoria'),
+                'razon_social' => $request->input('razon_social'),
+                'metodo_pago_empresa' => $request->input('metodo_pago_empresa'),
+                'uso_cfdi' => $request->input('uso_cfdi'),
+                'forma_pago' => $request->input('forma_pago'),
+                'metodo_pago' => $request->input('metodo_pago'),
+                // POR QUÉ: el form manda el monto como texto ("$1,500"); lo limpiamos a número para la columna decimal.
+                'monto' => (float) str_replace(['$', ','], '', (string) $request->input('monto')),
+                'concepto' => $request->input('concepto'),
+                'solicitante' => $request->input('solicitante'),
+                'numero_empleado' => $request->input('numero_empleado'),
+                'numero_cuenta' => $request->input('numero_cuenta'),
+                'titular_cuenta' => $request->input('titular_cuenta'),
+                // Se mantiene el comportamiento previo: la fecha de factura es la de hoy.
+                'fecha_factura' => now()->format('Y-m-d'),
+                'archivo_factura' => $pathFactura,
+                'archivo_xml' => $pathXml,
+                'archivo_materialidad' => $pathMaterialidad,
+                'notas' => $request->input('notas'),
                 'estatus' => 'pendiente',
-                'nivel' => 'info',
+                'origen' => 'admin',
             ]);
         } catch (\Exception $e) {
         }
@@ -3642,26 +3636,23 @@ class AdminPanelController extends Controller
 
     public function reembolsosExcel()
     {
-        $reembolsos = Alerta::where('tipo', 'solicitud_reembolso')
-            ->orderByDesc('created_at')
-            ->get();
+        $reembolsos = Reembolso::orderByDesc('created_at')->get();
 
         $output = "\xEF\xBB\xBF";
         $output .= "Fecha,Numero Empleado,Solicitante,Concepto,Monto,Numero de Cuenta,Titular de la Tarjeta,Institucion (BBVA/Inntec),Categoria,Autorizado Sandra\r\n";
 
         foreach ($reembolsos as $r) {
-            $d = $r->datos ?? [];
             $output .= implode(',', [
                 $r->created_at?->format('d/m/Y') ?? '',
-                '"' . str_replace('"', '""', $d['numero_empleado'] ?? '') . '"',
-                '"' . str_replace('"', '""', $d['solicitante'] ?? '') . '"',
-                '"' . str_replace('"', '""', $d['concepto'] ?? '') . '"',
-                '"' . ($d['monto'] ?? '0') . '"',
-                '"' . ($d['numero_cuenta'] ?? '') . '"',
-                '"' . str_replace('"', '""', $d['titular_cuenta'] ?? '') . '"',
-                strtoupper($d['metodo_pago_empresa'] ?? ''),
-                $d['categoria'] ?? '',
-                !empty($d['autorizado_sandra']) ? 'SI' : 'NO',
+                '"' . str_replace('"', '""', $r->numero_empleado ?? '') . '"',
+                '"' . str_replace('"', '""', $r->solicitante ?? '') . '"',
+                '"' . str_replace('"', '""', $r->concepto ?? '') . '"',
+                '"' . number_format((float) $r->monto, 2, '.', '') . '"',
+                '"' . ($r->numero_cuenta ?? '') . '"',
+                '"' . str_replace('"', '""', $r->titular_cuenta ?? '') . '"',
+                strtoupper($r->metodo_pago_empresa ?? ''),
+                $r->categoria ?? '',
+                $r->autorizado ? 'SI' : 'NO',
             ]) . "\r\n";
         }
 
@@ -3672,12 +3663,13 @@ class AdminPanelController extends Controller
             ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
     }
 
-    public function autorizarReembolso(Alerta $alerta)
+    public function autorizarReembolso(Reembolso $reembolso)
     {
-        $datos = $alerta->datos ?? [];
-        $datos['autorizado_sandra'] = true;
-        $datos['autorizado_sandra_fecha'] = now()->format('Y-m-d H:i');
-        $alerta->update(['datos' => $datos]);
+        // POR QUÉ: la autorización de Sandra Gutiérrez antes vivía dentro del JSON; ahora son columnas reales.
+        $reembolso->update([
+            'autorizado' => true,
+            'autorizado_fecha' => now(),
+        ]);
 
         return redirect()->route('admin.reembolsos')
             ->with('mensaje', 'Reembolso autorizado por Sandra Gutiérrez.');

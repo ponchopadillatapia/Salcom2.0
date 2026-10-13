@@ -877,6 +877,19 @@
 - **Dónde:** SDK en `C:\Users\IT\source\repos_git\SDKWieseNET481\...\SDKComercial\Entidades\DocumentoSdk.cs` (métodos `CrearDocumentoCargoAbono`, `SaldarDocumento`, `BuscarSiguienteSerieYFolio`); patrón de conexión visto en `SDKComercial\Pruebas\DocumentoPrueba.cs` (`CrearPedido2`). La API `APIPortalWeb` ya está en x86 y referencia al SDK; `PruebaController` ya probado.
 - **PENDIENTE (esperando respuestas de Alan para mañana):** (1) de dónde salen concepto+serie+folio de la factura de proveedor a saldar; (2) si el código de proveedor es el mismo de Wiese o uno propio de Contpaqi; (3) si se permite pago parcial y cómo se maneja la moneda (hoy todo asume pesos, moneda 1, tipo de cambio 1). Siguiente código a entregar: endpoint de pago en 2 etapas (Etapa 1: solo crear el documento de pago; Etapa 2: agregar el saldado).
 
+## 2026-09-30 — Reembolsos con tabla propia (antes vivían en alertas/JSON)
+- **Qué:** los reembolsos de empleados dejaron de guardarse en la tabla genérica `alertas` (tipo `solicitud_reembolso`, todo en JSON `datos`) y ahora tienen su propia tabla `reembolsos` con columnas reales. La autorización de Sandra, que vivía dentro del JSON (`autorizado_sandra`), ahora son columnas `autorizado` (bool) + `autorizado_fecha`. El `estatus` también es columna real (lo usa el conteo de pendientes del dashboard).
+- **Por qué:** mismo motivo que gasolina: con JSON los filtros/conteos se hacían en PHP; con columnas se usan WHERE/COUNT/SUM de SQL. Dirección pidió tabla propia por módulo.
+- **Dónde:**
+  - Migración `2026_09_30_create_reembolsos_table.php`, modelo `App\Models\Reembolso`.
+  - Escritura: `AdminPanelController::enviarReembolso` (guarda todos los campos fiscales) y `PortalEmpleadoController::guardarReembolso` (subconjunto; solicitante/numero de la sesión). Monto texto "$1,250" → decimal, campo `origen` admin/empleado.
+  - Lectura: `AdminPanelController::panel` (2 conteos), `reembolsos` (listado), `reembolsosExcel` (export CSV), `PortalEmpleadoController::portal` (filtro por `numero_empleado` ahora con SQL, antes era ->filter en PHP).
+  - Update: `autorizarReembolso` ahora recibe `Reembolso $reembolso` (model binding) y setea `autorizado`/`autorizado_fecha`; ruta cambiada de `{alerta}` a `{reembolso}`.
+  - Vistas `admin/reembolsos.blade.php` y `empleados/portal.blade.php` leen columnas (`$r->campo`) en vez de `$r->datos['campo']`.
+- **Migración de datos:** comando `php artisan reembolsos:migrar` (idempotente, NO borra originales). En local había 0; si en PRODUCCIÓN hay reembolsos, correr tras desplegar.
+- **OJO fecha_factura:** se mantiene el comportamiento previo (siempre guarda la fecha de hoy, ignora el input del form). Si dirección quiere la fecha real de la factura, es un cambio aparte.
+- **Verificado:** 4 archivos PHP pasan `php -l`, vistas compilan, rutas registradas, prueba e2e (alta/conteo/autorizar/filtro) OK.
+
 ## 2026-09-30 — Exportar Excel en listado de Empleados
 - **Qué:** botón "Exportar Excel" en el listado de empleados (admin). Genera un CSV (abre en Excel) respetando los filtros activos de búsqueda y banco, con columnas: Nº empleado, nombre, departamento, ruta/gasolina, nº cuenta, titular, banco, estatus.
 - **Por qué:** dirección pidió poder descargar la lista. Mismo patrón que el export de la bitácora de gasolina (CSV con BOM UTF-8 para acentos).
