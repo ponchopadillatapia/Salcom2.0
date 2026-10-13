@@ -877,6 +877,12 @@
 - **Dónde:** SDK en `C:\Users\IT\source\repos_git\SDKWieseNET481\...\SDKComercial\Entidades\DocumentoSdk.cs` (métodos `CrearDocumentoCargoAbono`, `SaldarDocumento`, `BuscarSiguienteSerieYFolio`); patrón de conexión visto en `SDKComercial\Pruebas\DocumentoPrueba.cs` (`CrearPedido2`). La API `APIPortalWeb` ya está en x86 y referencia al SDK; `PruebaController` ya probado.
 - **PENDIENTE (esperando respuestas de Alan para mañana):** (1) de dónde salen concepto+serie+folio de la factura de proveedor a saldar; (2) si el código de proveedor es el mismo de Wiese o uno propio de Contpaqi; (3) si se permite pago parcial y cómo se maneja la moneda (hoy todo asume pesos, moneda 1, tipo de cambio 1). Siguiente código a entregar: endpoint de pago en 2 etapas (Etapa 1: solo crear el documento de pago; Etapa 2: agregar el saldado).
 
+## 2026-09-30 — Exportar Excel en listado de Empleados
+- **Qué:** botón "Exportar Excel" en el listado de empleados (admin). Genera un CSV (abre en Excel) respetando los filtros activos de búsqueda y banco, con columnas: Nº empleado, nombre, departamento, ruta/gasolina, nº cuenta, titular, banco, estatus.
+- **Por qué:** dirección pidió poder descargar la lista. Mismo patrón que el export de la bitácora de gasolina (CSV con BOM UTF-8 para acentos).
+- **Dónde:** `PortalEmpleadoController::adminExcel` + helper `filtrarEmpleados()` (reutilizado por `adminIndex` y el export para que ambos devuelvan lo mismo), ruta `admin.empleados.excel` en `routes/web.php` (GET, declarada antes de las rutas con `{empleado}`), botón en `admin/empleados/index.blade.php`.
+- **Verificado:** `php -l` OK, ruta registrada, prueba e2e del CSV con acentos OK.
+
 ## 2026-09-30 — Bitácora de gasolina con tabla propia (antes vivía en alertas/JSON)
 - **Qué:** la bitácora de gasolina dejó de guardarse en la tabla genérica `alertas` (tipo `bitacora_gasolina`, todo en JSON `datos`) y ahora tiene su propia tabla `bitacoras_gasolina` con columnas reales (fecha, numero_empleado, empleado, cantidad_litros, rendimiento, monto, vehiculo, kilometraje, notas, factura, origen).
 - **Por qué:** con JSON los filtros/sumas se hacían recorriendo en PHP y no escalaba. Con columnas reales se usan WHERE/SUM de SQL. Dirección pidió que cada registro se guarde en su propia tabla.

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\ProveedorApiException;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -18,25 +19,12 @@ class ClienteApiService
 
     private int $maxRetries;
 
-    /** Token de la puerta (gateway) hacia Wiese. Si está lleno, se manda X-Salcom-Gateway. */
-    private string $gatewayToken;
-
     public function __construct()
     {
         $this->baseUrl = config('services.cliente_api.url', '');
         $this->connectTimeout = config('services.cliente_api.connect_timeout', 5);
         $this->timeout = config('services.cliente_api.timeout', 15);
         $this->maxRetries = config('services.cliente_api.max_retries', 3);
-        // Mismo token del gateway de proveedor (ambos pasan por la misma puerta hacia Wiese).
-        $this->gatewayToken = (string) config('services.proveedor_api.gateway_token', '');
-    }
-
-    /** Header para pasar por la puerta (gateway) en SiteGround. Vacío = llamada directa (oficina). */
-    private function headersGateway(): array
-    {
-        return $this->gatewayToken !== ''
-            ? ['X-Salcom-Gateway' => $this->gatewayToken]
-            : [];
     }
 
     // ── Métodos públicos ──
@@ -55,9 +43,7 @@ class ClienteApiService
         $endpoint = '/Login/Login';
 
         try {
-            $response = Http::connectTimeout($this->connectTimeout)
-                ->timeout($this->timeout)
-                ->withHeaders($this->headersGateway())
+            $response = $this->http()
                 ->post($this->baseUrl.$endpoint, [
                     'codigo' => $codigo,
                     'pwd' => $pwd,
@@ -115,6 +101,19 @@ class ClienteApiService
 
     // ── Métodos privados ──
 
+    private function http(?int $timeout = null): PendingRequest
+    {
+        $request = Http::connectTimeout($this->connectTimeout)
+            ->timeout($timeout ?? $this->timeout);
+
+        $token = (string) config('services.cliente_api.gateway_token', '');
+        if ($token !== '') {
+            $request = $request->withHeaders(['X-Salcom-Gateway' => $token]);
+        }
+
+        return $request;
+    }
+
     /**
      * GET con retry y backoff exponencial.
      */
@@ -129,9 +128,8 @@ class ClienteApiService
 
         for ($intento = 1; $intento <= $this->maxRetries; $intento++) {
             try {
-                $response = Http::connectTimeout($this->connectTimeout)
-                    ->timeout($this->timeout)
-                    ->withHeaders(array_merge(['Authorization' => 'Bearer '.$token], $this->headersGateway()))
+                $response = $this->http()
+                    ->withHeaders(['Authorization' => 'Bearer '.$token])
                     ->get($this->baseUrl.$endpoint, $params);
 
                 // Si no es error de servidor retryable, procesar de inmediato

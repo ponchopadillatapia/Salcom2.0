@@ -49,6 +49,25 @@ class ProveedorApiServiceTest extends TestCase
     // Task 4.4: loginApi unit tests
     // ═══════════════════════════════════════════
 
+    public function test_login_envia_token_de_la_puerta_cuando_esta_configurado(): void
+    {
+        config(['services.proveedor_api.gateway_token' => 'token-puerta']);
+        $service = new ProveedorApiService;
+
+        Http::fake([
+            $this->baseUrl.'/Login/Login' => Http::response([
+                'usuario' => 'PROV001',
+                'tokencreado' => 'jwt-token-123',
+            ], 200),
+        ]);
+
+        $service->loginApi('PROV001', 'secret');
+
+        Http::assertSent(function ($request) {
+            return $request->hasHeader('X-Salcom-Gateway', 'token-puerta');
+        });
+    }
+
     public function test_login_api_success(): void
     {
         Http::fake([

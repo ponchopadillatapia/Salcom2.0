@@ -3,6 +3,7 @@
 .env
 .env.backup
 .env.production
+/wiese-gateway/config.php
 .phpactor.json
 .phpunit.result.cache
 /.fleet

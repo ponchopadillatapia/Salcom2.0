@@ -382,6 +382,7 @@ Route::get('/admin/empleados/buscar/{numero}', [PortalEmpleadoController::class,
 
 // ── Admin: Gestión de Empleados ──
 Route::get('/admin/empleados', [PortalEmpleadoController::class, 'adminIndex'])->name('admin.empleados')->middleware('auth.admin');
+Route::get('/admin/empleados/excel', [PortalEmpleadoController::class, 'adminExcel'])->name('admin.empleados.excel')->middleware('auth.admin');
 Route::post('/admin/empleados', [PortalEmpleadoController::class, 'adminGuardar'])->name('admin.empleados.guardar')->middleware('auth.admin');
 Route::put('/admin/empleados/{empleado}', [PortalEmpleadoController::class, 'adminActualizar'])->name('admin.empleados.actualizar')->middleware('auth.admin');
 Route::post('/admin/empleados/{empleado}/toggle', [PortalEmpleadoController::class, 'adminToggle'])->name('admin.empleados.toggle')->middleware('auth.admin');

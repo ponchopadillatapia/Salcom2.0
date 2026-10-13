@@ -106,6 +106,8 @@
                     <option value="BBVA" {{ request('banco') === 'BBVA' ? 'selected' : '' }}>BBVA</option>
                 </select>
                 <button type="submit" style="padding:7px 14px;background:var(--purple);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Buscar</button>
+                {{-- Exporta respetando los filtros actuales (búsqueda + banco) para bajar lo mismo que se ve. --}}
+                <a href="{{ route('admin.empleados.excel', ['busqueda' => request('busqueda'), 'banco' => request('banco')]) }}" style="padding:7px 14px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;font-size:12px;font-weight:600;color:#166534;text-decoration:none;white-space:nowrap;">Exportar Excel</a>
             </form>
         </div>
 
