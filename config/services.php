@@ -63,6 +63,11 @@ return [
 
     'salcom_api' => [
         'token' => env('SALCOM_API_TOKEN', ''),
+        // Solo estas IPs pueden consultar /api/salcom. Por defecto, el servidor de SiteGround.
+        'allowed_ips' => array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('SALCOM_API_ALLOWED_IPS', '35.215.67.229'))
+        ))),
     ],
 
     // ── API C# (APIPortalWeb) que registra pagos en Contpaqi vía el SDK ──
