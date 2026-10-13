@@ -249,6 +249,19 @@ class PortalEmpleadoController extends Controller
 
     public function adminIndex(Request $request)
     {
+        // POR QUÉ: la construcción de filtros se comparte con el export a Excel para que ambos
+        // devuelvan exactamente lo mismo que el usuario está viendo (misma búsqueda y banco).
+        $empleados = $this->filtrarEmpleados($request)->paginate(30)->withQueryString();
+
+        return view('admin.empleados.index', compact('empleados'));
+    }
+
+    /**
+     * Arma la consulta de empleados aplicando los filtros de búsqueda y banco.
+     * Reutilizado por el listado (adminIndex) y por el export a Excel (adminExcel).
+     */
+    private function filtrarEmpleados(Request $request)
+    {
         $query = Empleado::query()->orderBy('nombre');
 
         if ($request->filled('busqueda')) {
@@ -265,9 +278,38 @@ class PortalEmpleadoController extends Controller
             $query->where('banco_tarjeta', $request->input('banco'));
         }
 
-        $empleados = $query->paginate(30)->withQueryString();
+        return $query;
+    }
 
-        return view('admin.empleados.index', compact('empleados'));
+    public function adminExcel(Request $request)
+    {
+        // Respeta los filtros activos: exporta lo mismo que se ve en pantalla.
+        $empleados = $this->filtrarEmpleados($request)->get();
+
+        // BOM UTF-8 para que Excel reconozca los acentos correctamente.
+        $output = "\xEF\xBB\xBF";
+        $output .= "EMPLEADOS REGISTRADOS\r\n";
+        $output .= "Generado: " . now()->format('d/m/Y H:i') . "\r\n\r\n";
+        $output .= "Numero Empleado,Nombre,Departamento,Ruta/Gasolina,Numero Cuenta,Titular,Banco,Estatus\r\n";
+
+        foreach ($empleados as $e) {
+            $output .= implode(',', [
+                '"' . str_replace('"', '""', $e->numero_empleado ?? '') . '"',
+                '"' . str_replace('"', '""', $e->nombre ?? '') . '"',
+                '"' . str_replace('"', '""', $e->departamento ?? '') . '"',
+                $e->requiere_gasolina ? 'Si' : 'No',
+                '"' . str_replace('"', '""', $e->numero_cuenta ?? '') . '"',
+                '"' . str_replace('"', '""', $e->titular_cuenta ?? '') . '"',
+                '"' . str_replace('"', '""', $e->banco_tarjeta ?? '') . '"',
+                $e->activo ? 'Activo' : 'Inactivo',
+            ]) . "\r\n";
+        }
+
+        $filename = 'Empleados_' . now()->format('Y-m-d') . '.csv';
+
+        return response($output)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
     }
 
     public function adminGuardar(Request $request)
