@@ -66,7 +66,7 @@ class AutenticacionAdmin
                 'proveedores' => ['admin/proveedores', 'admin/catalogo-proveedores', 'admin/solicitudes-alta', 'admin/solicitudes-docs', 'admin/expediente-fiscal', 'admin/proveedor-facturas'],
                 // reembolsos: 3 módulos de reembolso a empleados + alta/gestión de empleados (Nayeli)
                 'reembolsos' => ['admin/reembolsos', 'admin/reembolsos-viaje', 'admin/bitacora-gasolina', 'admin/empleados'],
-                // Catálogo interno de agentes aduanales. Dirección entra por esDireccion();
+                // Facturas, anticipos y pagos de agentes aduanales. Dirección entra por esDireccion();
                 // un usuario restringido solo entra si su lista incluye esta sección.
                 'agentes_aduanales' => ['admin/agentes-aduanales'],
             ];

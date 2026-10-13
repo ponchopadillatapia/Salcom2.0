@@ -49,6 +49,15 @@ class SalcomApiTest extends TestCase
         $response->assertStatus(200);
     }
 
+    public function test_api_rechaza_ip_distinta_de_siteground(): void
+    {
+        $response = $this->withServerVariables(['REMOTE_ADDR' => '203.0.113.5'])
+            ->getJson('/api/salcom/resumen', $this->authHeaders());
+
+        $response->assertStatus(403)
+            ->assertJsonPath('error', 'No autorizado');
+    }
+
     // ── Resumen ──
 
     public function test_resumen_devuelve_estructura(): void
