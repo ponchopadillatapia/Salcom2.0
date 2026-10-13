@@ -6,6 +6,145 @@
 
 ---
 
+## 2026-09-09 — Layout banco: solo tras autorizar + rediseño iOS
+
+- **QUÉ 1:** el bloque "Pago al banco" (layout + comprobante CEP) ahora SOLO aparece si el pago
+  está AUTORIZADO (`$pago->estaAutorizado()`). Si no, muestra un recuadro con candado: "El
+  layout se genera cuando se autorice el pago". POR QUÉ: no debe bajarse el layout para pagar
+  algo que Dirección aún no autorizó.
+- **QUÉ 2:** rediseño estilo iOS/Apple del bloque (clases .bank-*): system font, tarjeta
+  redondeada 18px, icono en cuadro morado, botones "pill", tips en caja amarilla suave, input
+  de archivo estilizado.
+- **DÓNDE:** `resources/views/admin/pagos/expediente.blade.php` (bloque Pago al banco + CSS).
+
+## 2026-09-09 — FIX: expediente por departamento tronaba (Undefined property $id)
+
+- **SÍNTOMA:** entrar a /admin/expedientes-pago/departamento/{x} daba
+  "Undefined property: stdClass::$id" en expedientes-proveedor.blade.php:59.
+- **CAUSA:** esa vista (nivel 2) la comparten el flujo por proveedor y el nuevo por depto. Los
+  botones de filtro de estatus usaban `$proveedor->id`, pero en modo departamento el $proveedor
+  es un stdClass simulado (solo ->nombre), sin ->id.
+- **FIX:** la vista ahora usa `$urlFiltro` (URL base de filtro ya armada que manda cada
+  controlador). `expedientesProveedor()` y `expedientesDepartamento()` pasan su propia $urlFiltro.
+- **DÓNDE:** `AdminPagosController` (ambos métodos) + `expedientes-proveedor.blade.php`.
+
+## 2026-09-09 — Blindar expediente por permiso (en vez de borrar la ruta)
+
+- **CONTEXTO:** Said pidió "quitar la ruta del expediente por las moscas". NO se borró porque
+  la ruta `admin.pagos.expediente` la usa el flujo correcto (archivero → departamento →
+  expediente, en expedientes-proveedor.blade.php). Borrarla rompería el acceso de Alexa.
+- **QUÉ SE HIZO:** candado de permiso en `AdminPagosController::expediente()`: si el admin no
+  tiene permiso 'pagos', aborta 403. Así la URL directa queda bloqueada para quien no autoriza,
+  pero Alexa/Dirección (con permiso) entra normal. Combinado con que ya se quitó el botón desde
+  la pantalla del pago.
+
+## 2026-09-09 — Quitar acceso al expediente desde la pantalla del pago
+
+- **QUÉ:** se eliminó el botón "Expediente de pago" de la pantalla del pago (show.blade.php).
+- **POR QUÉ:** quien arma el Formato para pago no debe entrar al expediente (eso es para quien
+  autoriza: Alexa/Dirección). Desde la pantalla del pago ahora solo se ve "Ver reporte resumen"
+  (el PDF del formato). El expediente se abre únicamente desde el menú "Expediente de pago".
+- **DÓNDE:** `resources/views/admin/pagos/show.blade.php` (se quitó el `<a>` a
+  admin.pagos.expediente; se conservó "Ver reporte resumen").
+
+## 2026-09-09 — Expediente agrupado por DEPARTAMENTO (opción A: selector)
+
+- **QUÉ:** el archivero de Expedientes de Pago ahora se organiza en carpetas por DEPARTAMENTO.
+  Al generar el pago (carrito) se elige el departamento con un selector.
+- **DEPARTAMENTOS (provisionales, hasta que RH pase los reales):** otros, mantenimiento, compras,
+  imex, produccion, auditoria, acatlan. Definidos en `PagoProveedor::DEPARTAMENTOS` (una sola
+  fuente; el selector y el agrupado la leen de ahí).
+- **CAMBIOS:**
+  - Migración `2026_10_14_120000_add_departamento_a_pagos_proveedor` (columna `departamento`
+    nullable). Fillable del modelo actualizado.
+  - `carrito.blade.php`: selector "Departamento" (required) en el form de "Generar formato".
+  - `AdminPagosController::carritoGenerar()`: valida e guarda el departamento en el pago.
+  - `expedientes()` (nivel 1): agrupa por departamento (antes por proveedor); pagos sin depto →
+    "Sin departamento". La tabla ahora tiene columna Departamento (se quitó Código).
+  - `expedientesDepartamento()` (nuevo, nivel 2) + ruta `admin.expedientes-pago.departamento`:
+    muestra los expedientes de un departamento agrupados por mes (reutiliza la vista
+    expedientes-proveedor con un objeto proveedor simulado que solo lleva ->nombre).
+- **PROBADO:** 2 pagos (compras, mantenimiento) → archivero los agrupa en sus carpetas con
+  totales correctos. Pagos de prueba borrados.
+- **OJO:** los pagos de UN SOLO proveedor (flujo "Pagar solo este" / store) todavía NO piden
+  departamento (solo el carrito). Si se usan, caerán en "Sin departamento". Pendiente: agregar
+  el selector también a ese flujo si se decide usarlo.
+
+## 2026-09-09 — Reacomodo del menú lateral (admin.blade.php)
+
+- **NUEVO ORDEN DE SECCIONES:**
+  - INICIO → Inicio
+  - PRODUCTOS → Alta de Producto, Productos
+  - FORMATO PARA PAGO (sección NUEVA propia) → Formato para pago (antes estaba dentro de "Pagos")
+  - CONTABILIDAD (antes se llamaba "Pagos") → Abono al proveedor, Anticipo, Nota de crédito
+  - REEMBOLSOS A EMPLEADOS (igual) → Reembolsos, Reembolsos Viaje, Bitácora Gasolina
+  - PAGOS (antes "Operación") → "Pagos" (antes "Pago a proveedor"), Expediente de pago,
+    WieseBanco, Agentes Aduanales (se le quitó su subtítulo "Comercio exterior" para que caiga
+    aquí).
+  - PROVEEDORES (igual, NO se renombró ni fusionó — Said decidió dejarlo tal cual tras evaluar
+    que fusionar Proveedores con Formato para pago trabaría/arriesgaba).
+- **RENOMBRES:** "Pago a proveedor" → "Pagos"; sección "Pagos" → "Contabilidad"; sección
+  "Operación" → "Pagos"; "Comercio exterior" (subtítulo) se quitó.
+- **DÓNDE:** `resources/views/layouts/admin.blade.php`. Se conservaron todos los permisos
+  (`$puedePagos`, `$puedeAnticipos`, `$puedeAgentes`, `$adminEsDireccion`). Compila OK.
+- PENDIENTE (Said lo explicará): qué hacer con Proveedores vs Formato para pago (se evaluó
+  fusionar; se descartó por riesgo. Alternativa segura: renombrar + enlace, sin fusionar).
+
+## 2026-09-09 — Módulo layout bancario (BBVA NetCash) en el expediente
+
+- **QUÉ:** el expediente de pago ahora deja a Alexa exportar el LAYOUT para subir el pago a
+  BBVA NetCash, ver un resumen antes de autorizar, y subir el comprobante real del banco.
+- **1) Layout banco:** `app/Services/LayoutBancarioService.php` genera las 11 columnas del
+  layout (A=cuenta cargo 132458969 Salcom, B=CLABE proveedor de Contpaqi limpia a 18 díg,
+  C=divisa, D=importe, E=motivo, F=titular, G=40 CLABE, H=referencia, I=disponibilidad H,
+  J=RFC, K=IVA). MAYÚSCULAS sin acentos, máx 400 ops, avisa si falta CLABE. Una fila por
+  factura. Método `exportarLayoutBanco()` en AdminPagosController (CSV) + ruta
+  `admin.pagos.layout-banco`. Botón "Exportar layout banco" en el expediente + recordatorios
+  NetCash (lote mixto, cuentas dadas de alta, máx 400).
+- **2) Resumen para autorizar:** `expediente()` pasa resumenExpediente (concepto=notas del pago,
+  vence=fecha_vencimiento más próxima, num_proveedores, num_facturas). Recuadro arriba del
+  expediente con qué se paga / proveedores / facturas / se puede pagar hasta / total.
+- **3) Comprobante del banco (CEP):** NO se genera (lo emite el BANCO tras las transferencias).
+  Se agregó en el expediente una sección para que Alexa SUBA el PDF de CEP que descarga de BBVA
+  (reutiliza adjuntarDocumento con tipo "Comprobante del banco (CEP)"). ACLARACIÓN: el PDF de
+  12 hojas se descarga del banco DESPUÉS de pagar, no lo genera el sistema.
+- **NO SE SUSTITUYÓ NADA:** se aclaró con Said que los PDFs que genera el sistema (comprobante
+  de autorización sellado + Formato de pago) SÍ tienen valor (evidencia); se conservan. Lo que
+  faltaba era AGREGAR el comprobante real del banco, no sustituir.
+- **PROBADO e2e:** layout de pago multi (cuenta cargo + CLABE 18díg + aviso sin CLABE), y
+  expediente completo (4 grupos + resumen concepto/vence/total). Pagos de prueba borrados.
+
+## 2026-09-09 — Layout del banco (BBVA NetCash) para pagos — flujo de Alexa
+
+- **CONTEXTO:** Alexa (hace los pagos y autoriza expedientes) usa un Excel macro
+  "Pagos Mixtos FLETES SALCOM.xlsm" (en C:\Users\IT\Documents) como LAYOUT para subir pagos
+  masivos a BBVA NetCash. Ese Excel genera un .txt que importa al banco.
+- **FLUJO REAL:** 1) Formato para pago → 2) Expediente de pago (Alexa autoriza) → 3) Hace el
+  pago (sube el .txt a BBVA) → 4) descarga comprobantes (CEP Banxico, el PDF FLETES) → 5) Abono.
+- **LAYOUT (pestaña 'pagosmix'), columnas:** A=cuenta cargo (132458969=BBVA Salcom),
+  B=cuenta abono (CLABE proveedor), C=divisa (MXP/USD/EUR), D=importe, E=motivo,
+  F=titular beneficiario, G=tipo cuenta (40=CLABE), H=referencia num, I=disponibilidad (H/M),
+  J=RFC, K=IVA.
+- **REGLAS banco (pestaña 'consideraciones'):** MAYÚSCULAS, sin caracteres especiales, máx 400
+  operaciones, cuentas dadas de alta previamente en el banco, marcar 'lote mixto' al importar.
+- **OPORTUNIDAD:** el sistema YA tiene proveedor/CLABE/importe/RFC/referencia. Se puede generar
+  ese layout .txt/Excel automático desde el Formato para pago (sobre todo el multi-proveedor),
+  ahorrándole a Alexa el llenado manual.
+- **ALEXA pide (correo) antes de autorizar:** explicación de qué se compró, fecha de vencimiento/
+  hasta cuándo pagar, y recuadro con BANCO/CUENTA/CLAVE/REFERENCIA-FOLIO/TOTAL.
+- **PENDIENTE confirmar con Said:** ¿la CLABE de Contpaqi (CTEXTOEXTRA3) sirve para el layout?
+  ¿Empezar por el botón "Exportar layout banco" o por el expediente/autorización?
+
+## 2026-09-09 (martes) — Expedientes de Pago: grid de folders → tabla horizontal
+
+- **QUÉ:** la pantalla "Expedientes de Pago" (nivel 1, archivero por proveedor) pasó de mostrar
+  tarjetas/folders en cuadrícula a una TABLA horizontal (columnas: Proveedor, Código,
+  Expedientes, Pendientes, Monto total, Ver).
+- **POR QUÉ:** dirección pidió verlo como lista/tabla, más fácil de escanear.
+- **DÓNDE:** `resources/views/admin/pagos/expedientes.blade.php`.
+- Se conservó toda la lógica: click en la fila lleva al detalle, punto azul "nuevo", badge de
+  pendientes, y la carpeta "Pagos múltiples" sigue enlazando con ?multi=1.
+
 ## 2026-09-07 (13) — WieseBanco: el abono SIEMPRE refleja movimiento (ya no "todo o nada")
 
 - **CAMBIO:** `WieseBancoContpaqiService::reflejarFacturasLiquidadas()` ya NO descarta el

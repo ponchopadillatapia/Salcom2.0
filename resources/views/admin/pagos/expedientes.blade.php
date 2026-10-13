@@ -43,34 +43,74 @@
     <span class="arch-count">{{ $proveedores->count() }} proveedor(es) · {{ $total }} expediente(s)</span>
 </div>
 
-<div class="prov-grid">
-    @forelse($proveedores as $prov)
-        {{-- Si la carpeta es de "Pagos múltiples", enlaza con ?multi=1 para listar todos
-             los pagos multi-proveedor juntos (no por un proveedor). --}}
-        <a href="{{ ($prov->es_multi ?? false)
-                ? route('admin.expedientes-pago.proveedor', ['proveedor' => $prov->proveedor_id, 'multi' => 1])
-                : route('admin.expedientes-pago.proveedor', $prov->proveedor_id) }}" class="prov-card {{ ($prov->no_vistos ?? 0) > 0 ? 'nuevo' : '' }}">
-            <div class="prov-top">
-                <svg class="prov-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-                @if($prov->pendientes > 0)
-                    <span class="prov-pend">{{ $prov->pendientes }} pendiente(s)</span>
-                @endif
-            </div>
-            <p class="prov-nombre">@if(($prov->no_vistos ?? 0) > 0)<span class="prov-dot" title="Expedientes nuevos sin ver"></span>@endif{{ $prov->nombre }}</p>
-            <div class="prov-meta">
-                {{ $prov->codigo ?? '—' }}<br>
-                {{ $prov->total }} expediente(s)
-            </div>
-            <div class="prov-monto">${{ number_format((float) $prov->monto_total, 2) }}</div>
-        </a>
-    @empty
-        <div class="arch-empty" style="grid-column:1/-1">
-            @if($busqueda !== '')
-                No se encontraron proveedores con "{{ $busqueda }}".
-            @else
-                Aún no hay expedientes de pago. Se crean cuando confirmas un pago a proveedor.
-            @endif
-        </div>
-    @endforelse
+{{-- POR QUÉ tabla en vez de tarjetas: dirección pidió verlo como lista horizontal (tipo
+     tabla), más fácil de escanear que la cuadrícula de folders. Se conserva toda la lógica
+     (enlace multi-proveedor, punto azul de "nuevo", pendientes). --}}
+<div class="exp-tabla-wrap">
+    <table class="exp-tabla">
+        <thead>
+            <tr>
+                <th>Departamento</th>
+                <th style="text-align:center">Expedientes</th>
+                <th style="text-align:center">Pendientes</th>
+                <th style="text-align:right">Monto total</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @forelse($proveedores as $prov)
+                @php
+                    $destino = route('admin.expedientes-pago.departamento', ['departamento' => $prov->departamento]);
+                @endphp
+                <tr class="exp-row {{ ($prov->no_vistos ?? 0) > 0 ? 'nuevo' : '' }}" onclick="window.location='{{ $destino }}'">
+                    <td class="exp-nombre">
+                        @if(($prov->no_vistos ?? 0) > 0)<span class="prov-dot" title="Expedientes nuevos sin ver"></span>@endif
+                        <svg class="exp-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                        {{ $prov->nombre }}
+                    </td>
+                    <td style="text-align:center">{{ $prov->total }}</td>
+                    <td style="text-align:center">
+                        @if($prov->pendientes > 0)
+                            <span class="prov-pend">{{ $prov->pendientes }}</span>
+                        @else
+                            <span style="color:#9ca3af">—</span>
+                        @endif
+                    </td>
+                    <td style="text-align:right;font-weight:700;color:#6B3FA0">${{ number_format((float) $prov->monto_total, 2) }}</td>
+                    <td style="text-align:right"><a href="{{ $destino }}" class="exp-ver">Ver →</a></td>
+                </tr>
+            @empty
+                <tr>
+                    <td colspan="5" class="arch-empty">
+                        @if($busqueda !== '')
+                            No se encontraron expedientes con "{{ $busqueda }}".
+                        @else
+                            Aún no hay expedientes de pago. Se crean cuando confirmas un pago.
+                        @endif
+                    </td>
+                </tr>
+            @endforelse
+        </tbody>
+    </table>
 </div>
 @endsection
+
+@push('styles')
+<style>
+    .exp-tabla-wrap{background:var(--white);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow-sm)}
+    .exp-tabla{width:100%;border-collapse:collapse}
+    .exp-tabla th{font-size:11px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.4px;padding:12px 18px;text-align:left;border-bottom:1px solid var(--border);background:var(--gray-soft)}
+    .exp-tabla td{padding:14px 18px;font-size:13px;border-bottom:1px solid var(--border-light);vertical-align:middle}
+    .exp-row{cursor:pointer;transition:background .12s}
+    .exp-row:hover td{background:var(--purple-subtle)}
+    .exp-row.nuevo td{background:#f5f9ff}
+    .exp-nombre{font-weight:700;color:var(--gray-text);display:flex;align-items:center;gap:8px}
+    .exp-ico{width:20px;height:20px;color:var(--purple);flex-shrink:0}
+    .exp-ver{color:var(--purple);text-decoration:none;font-weight:600;font-size:12px}
+    .exp-ver:hover{text-decoration:underline}
+    .prov-pend{font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;background:#fffbeb;color:#d97706}
+    .prov-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#2563eb;flex-shrink:0;animation:provBlink 1.3s ease-in-out infinite}
+    @keyframes provBlink{0%,100%{opacity:1}50%{opacity:.35}}
+    .arch-empty{text-align:center;padding:40px 20px;color:var(--gray-muted)}
+</style>
+@endpush

@@ -15,10 +15,26 @@ class PagoProveedor extends Model
 {
     protected $table = 'pagos_proveedor';
 
+    /**
+     * Departamentos del archivero de expedientes (PROVISIONAL hasta que RH pase los oficiales).
+     * POR QUÉ aquí: para tener UNA sola fuente de la lista (el selector del carrito y el
+     * agrupado del expediente la leen de aquí). Cambiar la lista = cambiar solo esta línea.
+     */
+    public const DEPARTAMENTOS = [
+        'otros' => 'Otros',
+        'mantenimiento' => 'Mantenimiento',
+        'compras' => 'Compras',
+        'imex' => 'Imex',
+        'produccion' => 'Producción',
+        'auditoria' => 'Auditoría',
+        'acatlan' => 'Acatlán',
+    ];
+
     protected $fillable = [
         'proveedor_id',
         'codigo_proveedor',
         'es_multi_proveedor',
+        'departamento',
         'tipo',
         'estatus',
         'fecha_pago',

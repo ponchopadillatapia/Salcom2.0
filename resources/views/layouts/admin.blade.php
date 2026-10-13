@@ -511,33 +511,27 @@
                 $puedePagos = $adminUser ? $adminUser->puedeVer('pagos') : true;
                 $puedeAnticipos = $adminUser ? $adminUser->puedeVer('anticipos') : true;
             @endphp
+            {{-- ── FORMATO PARA PAGO: sección propia (sacada de "Pagos" a petición de dirección) ── --}}
+            @if($puedePagos)
+            <div class="sb-section">Formato para pago</div>
+            <a href="{{ route('admin.pagos') }}" class="sb-link {{ (request()->is('admin/pagos') || request()->is('admin/pagos/*')) && !request()->is('admin/pagos/*/expediente*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg></div>
+                <span class="sb-text">Formato para pago</span>
+            </a>
+            <div class="sb-hr"></div>
+            @endif
+
+            {{-- ── CONTABILIDAD (antes "Pagos"): abono, anticipo, nota de crédito ── --}}
             @if($puedePagos || $puedeAnticipos)
-            <div class="sb-section">Pagos</div>
+            <div class="sb-section">Contabilidad</div>
             <div class="sb-submenu">
-                <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/pagos*') || request()->is('admin/pago-proveedores*') || request()->is('admin/expedientes-pago*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
+                <button type="button" class="sb-link sb-submenu-toggle {{ request()->is('admin/abono-proveedor*') || request()->is('admin/historial-abonos*') || request()->is('admin/anticipos*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
                     <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-                    <span class="sb-text">Pagos</span>
+                    <span class="sb-text">Contabilidad</span>
                     <svg class="sb-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div class="sb-submenu-items">
-                    @php
-                        $badgePorCuenta = \App\Models\AbonoProveedor::query()
-                            ->whereIn('estatus', ['guardado', 'pagado'])
-                            ->selectRaw('poliza_key, count(*) as total')
-                            ->groupBy('poliza_key')
-                            ->pluck('total', 'poliza_key');
-                    @endphp
-                    {{-- POR QUÉ este orden: dirección pidió que el flujo de pago siga el orden
-                         real de trabajo: Formato → Pago → Abono → Anticipo. Expedientes de pago
-                         se movió abajo, junto a WieseBanco (son consulta/operación, no el flujo).
-                         Nota de crédito queda al final (ya sin "próximamente"). --}}
                     @if($puedePagos)
-                    <a href="{{ route('admin.pagos') }}" class="sb-link sb-sublink {{ request()->is('admin/pagos') || request()->is('admin/pagos/*') ? 'active' : '' }}">
-                        <span class="sb-text">Formato para pago</span>
-                    </a>
-                    <a href="{{ route('admin.pago-proveedores') }}" class="sb-link sb-sublink {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
-                        <span class="sb-text">Pago a proveedor</span>
-                    </a>
                     {{-- Submenú Abono al proveedor --}}
                     <div class="sb-submenu-nested {{ request()->is('admin/abono-proveedor*') || request()->is('admin/historial-abonos*') ? 'open' : '' }}">
                         <button type="button" class="sb-link sb-sublink sb-nested-toggle {{ request()->is('admin/abono-proveedor*') || request()->is('admin/historial-abonos*') ? 'active' : '' }}" onclick="this.parentElement.classList.toggle('open')">
@@ -606,7 +600,9 @@
             {{-- Operación: solo Dirección. --}}
             @if($adminEsDireccion ?? true)
             <div class="sb-hr"></div>
-            <div class="sb-section">Operación</div>
+            {{-- Sección PAGOS (antes "Operación"): el pago en sí + expediente + wiesebanco +
+                 agentes. Aquí "Pagos" es lo que antes era "Pago a proveedor". --}}
+            <div class="sb-section">Pagos</div>
             {{-- OC (Pedidos) oculto del menú a petición del usuario: mostraba datos de prueba/fake. --}}
             {{-- OTIF oculto: módulo EN CONSTRUCCIÓN (bloqueado también en el middleware). --}}
             @if(false)
@@ -615,9 +611,14 @@
                 <span class="sb-text">OTIF</span>
             </a>
             @endif
+            {{-- Pagos (antes "Pago a proveedor"): el registro del pago/abono a Contpaqi. --}}
+            @if($puedePagos)
+            <a href="{{ route('admin.pago-proveedores') }}" class="sb-link {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
+                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+                <span class="sb-text">Pagos</span>
+            </a>
             {{-- Expediente de pago: movido aquí (junto a WieseBanco) a petición de dirección.
                  Es consulta/operación, no parte del flujo de captura de pago. --}}
-            @if($puedePagos)
             <a href="{{ route('admin.expedientes-pago') }}" class="sb-link {{ request()->is('admin/expedientes-pago*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/><path d="M9 4v16"/></svg></div>
                 <span class="sb-text">Expediente de pago</span>

@@ -243,9 +243,13 @@ Route::post('/admin/pagos/{pago}/confirmar', [AdminPagosController::class, 'conf
 Route::post('/admin/pagos/{pago}/cancelar', [AdminPagosController::class, 'cancelar'])->name('admin.pagos.cancelar')->middleware('auth.admin');
 Route::get('/admin/pagos/{pago}/excel', [AdminPagosController::class, 'excel'])->name('admin.pagos.excel')->middleware('auth.admin');
 Route::get('/admin/pagos/{pago}/reporte-resumen', [AdminPagosController::class, 'reporteResumen'])->name('admin.pagos.reporte-resumen')->middleware('auth.admin');
+// Layout para subir el pago a BBVA NetCash (lo exporta Alexa desde el expediente).
+Route::get('/admin/pagos/{pago}/layout-banco', [AdminPagosController::class, 'exportarLayoutBanco'])->name('admin.pagos.layout-banco')->middleware('auth.admin');
 // Expediente de Pago
 Route::get('/admin/expedientes-pago', [AdminPagosController::class, 'expedientes'])->name('admin.expedientes-pago')->middleware('auth.admin');
 Route::get('/admin/expedientes-pago/proveedor/{proveedor}', [AdminPagosController::class, 'expedientesProveedor'])->name('admin.expedientes-pago.proveedor')->middleware('auth.admin');
+// Archivero por departamento (nivel 2): expedientes de un departamento, agrupados por mes.
+Route::get('/admin/expedientes-pago/departamento/{departamento}', [AdminPagosController::class, 'expedientesDepartamento'])->name('admin.expedientes-pago.departamento')->middleware('auth.admin');
 Route::get('/admin/pagos/{pago}/expediente', [AdminPagosController::class, 'expediente'])->name('admin.pagos.expediente')->middleware('auth.admin');
 Route::post('/admin/pagos/{pago}/expediente/adjuntar', [AdminPagosController::class, 'adjuntarDocumento'])->name('admin.pagos.expediente.adjuntar')->middleware('auth.admin');
 Route::delete('/admin/pagos/{pago}/expediente/adjunto/{indice}', [AdminPagosController::class, 'eliminarAdjunto'])->name('admin.pagos.expediente.adjunto.eliminar')->middleware('auth.admin');

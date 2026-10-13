@@ -129,8 +129,20 @@
         </div>
 
         <div class="cart-actions">
-            <form method="POST" action="{{ route('admin.pagos.carrito.generar') }}">
+            <form method="POST" action="{{ route('admin.pagos.carrito.generar') }}" style="display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;">
                 @csrf
+                {{-- Selector de departamento: define en qué carpeta del archivero queda este pago.
+                     Lista provisional (PagoProveedor::DEPARTAMENTOS) hasta que RH pase los reales. --}}
+                <div style="display:flex;flex-direction:column;gap:4px;">
+                    <label style="font-size:12px;font-weight:600;color:#6B3FA0;">Departamento</label>
+                    <select name="departamento" required
+                        style="font-size:14px;padding:11px 14px;border:1.5px solid #c4b5fd;border-radius:10px;background:#fff;color:#1d1d1f;font-family:inherit;min-width:200px;">
+                        <option value="">Selecciona…</option>
+                        @foreach(\App\Models\PagoProveedor::DEPARTAMENTOS as $clave => $nombre)
+                            <option value="{{ $clave }}">{{ $nombre }}</option>
+                        @endforeach
+                    </select>
+                </div>
                 <button type="submit" class="btn-generar"
                     onclick="return confirm('¿Generar el formato de pago con todas las facturas del carrito?');">
                     Generar formato de pago

@@ -781,6 +781,11 @@ class AdminPagosController extends Controller
             return redirect()->route('admin.pagos.carrito')->with('error', 'El carrito está vacío.');
         }
 
+        // Departamento: define en qué carpeta del archivero (expedientes) queda este pago.
+        $data = $request->validate([
+            'departamento' => 'required|string|in:'.implode(',', array_keys(PagoProveedor::DEPARTAMENTOS)),
+        ]);
+
         try {
             $pago = $this->pagos->crearPagoMultiProveedor($carrito, function (string $codigo, array $folios) {
                 // Reutiliza la materialización existente (por proveedor), que ya trae datos
@@ -790,6 +795,9 @@ class AdminPagosController extends Controller
         } catch (InvalidArgumentException $e) {
             return redirect()->route('admin.pagos.carrito')->with('error', $e->getMessage());
         }
+
+        // Guardar el departamento elegido en el pago (para agrupar el expediente).
+        $pago->update(['departamento' => $data['departamento']]);
 
         // Carrito cumplido: se vacía.
         session()->forget(self::CARRITO_KEY);
@@ -933,6 +941,32 @@ class AdminPagosController extends Controller
         return $pdf->download($filename);
     }
 
+    /**
+     * Exporta el LAYOUT para subir el pago a BBVA NetCash.
+     * POR QUÉ: Alexa (tesorería) llenaba a mano el Excel "Pagos Mixtos"; aquí lo generamos
+     * con los datos que ya tiene el sistema (proveedor, CLABE, importe, RFC) en el mismo
+     * formato del banco. Formato CSV (Excel lo abre directo) con los 11 campos del layout.
+     */
+    public function exportarLayoutBanco(PagoProveedor $pago)
+    {
+        $svc = app(\App\Services\LayoutBancarioService::class);
+        $data = $svc->construir($pago);
+
+        $filename = 'Layout_banco_pago'.$pago->id.'_'.now()->format('Y-m-d').'.csv';
+
+        // BOM UTF-8 para que Excel respete acentos (aunque el layout va sin acentos, por si acaso).
+        $out = "\xEF\xBB\xBF";
+        // Encabezados del layout (orden exacto que espera NetCash).
+        $out .= implode(',', \App\Services\LayoutBancarioService::ENCABEZADOS)."\r\n";
+        foreach ($data['filas'] as $fila) {
+            $out .= implode(',', $fila)."\r\n";
+        }
+
+        return response($out)
+            ->header('Content-Type', 'text/csv; charset=UTF-8')
+            ->header('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
     /** Estado de cuenta histórico del proveedor (CSV). */
     public function estadoCuenta(string $codigo)
     {
@@ -998,16 +1032,13 @@ class AdminPagosController extends Controller
 
         $pagos = $query->get();
 
-        // Agrupar por proveedor. Cada carpeta = un proveedor con sus totales.
-        // Ordenados por el expediente MÁS RECIENTE arriba (como van llegando).
-        // Punto azul: el proveedor tiene expedientes que aún NO se han abierto (estilo WhatsApp).
-        // POR QUÉ el caso multi: un pago que agrupa varios proveedores (carrito) NO debe caer
-        // bajo un solo proveedor (confundiría); se junta en una carpeta aparte "Pagos múltiples".
-        $proveedores = $pagos->groupBy(fn ($p) => $p->es_multi_proveedor
-                ? 'Pagos múltiples (varios proveedores)'
-                : ($p->proveedor->nombre ?? $p->codigo_proveedor ?? 'Sin proveedor'))
-            ->map(function ($exps, $nombre) {
-                $primero = $exps->first();
+        // POR QUÉ por DEPARTAMENTO: dirección pidió que el archivero se organice en carpetas de
+        // departamento (otros, mantenimiento, compras, imex, produccion, auditoria, acatlan).
+        // Cada carpeta junta los expedientes de ese depto. Los pagos sin departamento (viejos)
+        // caen en "Sin departamento". Al abrir una carpeta se ven los expedientes (por mes).
+        $labels = \App\Models\PagoProveedor::DEPARTAMENTOS;
+        $proveedores = $pagos->groupBy(fn ($p) => $p->departamento ?: 'sin_depto')
+            ->map(function ($exps, $deptoKey) use ($labels) {
                 $noVistos = $exps->filter(function ($e) {
                     $dc = is_array($e->datos_confirmacion) ? $e->datos_confirmacion : [];
 
@@ -1015,10 +1046,8 @@ class AdminPagosController extends Controller
                 })->count();
 
                 return (object) [
-                    'nombre' => $nombre,
-                    'codigo' => $primero->codigo_proveedor,
-                    'proveedor_id' => $primero->proveedor_id,
-                    'es_multi' => (bool) $primero->es_multi_proveedor,
+                    'nombre' => $labels[$deptoKey] ?? 'Sin departamento',
+                    'departamento' => $deptoKey,
                     'total' => $exps->count(),
                     'pendientes' => $exps->where('estatus_autorizacion', 'pendiente')->count(),
                     'no_vistos' => $noVistos,
@@ -1095,16 +1124,110 @@ class AdminPagosController extends Controller
         $mesActual = now()->format('Y-m');
         $total = $pagos->count();
 
-        return view('admin.pagos.expedientes-proveedor', compact('proveedor', 'grupos', 'estatus', 'total', 'mesActual', 'idsNoVistos'));
+        // URL base para los filtros de estatus (esta vista también la usa el flujo por depto).
+        $urlFiltro = $soloMulti
+            ? route('admin.expedientes-pago.proveedor', ['proveedor' => $proveedor->id, 'multi' => 1])
+            : route('admin.expedientes-pago.proveedor', $proveedor->id);
+
+        return view('admin.pagos.expedientes-proveedor', compact('proveedor', 'grupos', 'estatus', 'total', 'mesActual', 'idsNoVistos', 'urlFiltro'));
+    }
+
+    /**
+     * NIVEL 2 (por DEPARTAMENTO) — expedientes de un departamento, agrupados por mes.
+     * POR QUÉ: el archivero ahora agrupa por departamento; al abrir una carpeta se ven sus
+     * expedientes. Reutiliza la vista de nivel 2 (expedientes-proveedor) pasándole un objeto
+     * "proveedor" simulado con el nombre del departamento (la vista solo usa ->nombre).
+     */
+    public function expedientesDepartamento(Request $request, string $departamento)
+    {
+        $estatus = $request->input('estatus', '');
+        $labels = PagoProveedor::DEPARTAMENTOS;
+
+        // 'sin_depto' representa los pagos viejos sin departamento (columna null).
+        $query = PagoProveedor::with('proveedor')
+            ->where('estatus', 'confirmado')
+            ->when(
+                $departamento === 'sin_depto',
+                fn ($q) => $q->whereNull('departamento'),
+                fn ($q) => $q->where('departamento', $departamento)
+            )
+            ->orderByDesc('confirmado_at')
+            ->orderByDesc('id');
+
+        if (in_array($estatus, ['pendiente', 'autorizado', 'rechazado'], true)) {
+            $query->where('estatus_autorizacion', $estatus);
+        }
+
+        $pagos = $query->get();
+
+        $idsNoVistos = $pagos->filter(function ($p) {
+            $dc = is_array($p->datos_confirmacion) ? $p->datos_confirmacion : [];
+
+            return empty($dc['visto_archivero']);
+        })->pluck('id')->all();
+
+        try {
+            foreach ($pagos as $p) {
+                $dc = is_array($p->datos_confirmacion) ? $p->datos_confirmacion : [];
+                if (empty($dc['visto_archivero'])) {
+                    $dc['visto_archivero'] = true;
+                    $p->datos_confirmacion = $dc;
+                    $p->saveQuietly();
+                }
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('No se pudo marcar expedientes como vistos: '.$e->getMessage());
+        }
+
+        $grupos = $pagos->groupBy(function ($p) {
+            $fecha = $p->confirmado_at ?? $p->created_at;
+
+            return $fecha ? $fecha->format('Y-m') : 'sin-fecha';
+        });
+
+        // Objeto "proveedor" simulado: la vista nivel-2 solo usa ->nombre para el título.
+        $proveedor = (object) ['nombre' => $labels[$departamento] ?? 'Sin departamento'];
+        $mesActual = now()->format('Y-m');
+        $total = $pagos->count();
+
+        // URL base de filtros apuntando a ESTE departamento (no a un proveedor).
+        $urlFiltro = route('admin.expedientes-pago.departamento', ['departamento' => $departamento]);
+
+        return view('admin.pagos.expedientes-proveedor', compact('proveedor', 'grupos', 'estatus', 'total', 'mesActual', 'idsNoVistos', 'urlFiltro'));
     }
 
     /** Pantalla del expediente: todos los documentos del pago juntos + autorización. */
     public function expediente(PagoProveedor $pago)
     {
+        // POR QUÉ este candado: el expediente es para quien AUTORIZA (Alexa/Dirección), no para
+        // quien solo arma el Formato para pago. Se quitó el botón desde la pantalla del pago,
+        // pero además bloqueamos la URL directa: si el admin no tiene permiso 'pagos', 403.
+        $adminId = session('admin_id');
+        $admin = $adminId ? \App\Models\AdminUser::find($adminId) : null;
+        if ($admin && ! $admin->puedeVer('pagos')) {
+            abort(403, 'No tienes permiso para ver expedientes de pago.');
+        }
+
         $pago->load(['lineas.factura', 'proveedor']);
         $grupos = $this->pagos->documentosExpedientePago($pago);
 
-        return view('admin.pagos.expediente', compact('pago', 'grupos'));
+        // POR QUÉ: Alexa (correo) pide ver ANTES de autorizar: qué se compró, hasta cuándo se
+        // puede pagar (fecha de vencimiento), y los datos del pago. Armamos ese resumen aquí.
+        $vencimientos = $pago->lineas
+            ->map(fn ($l) => $l->factura?->fecha_vencimiento)
+            ->filter()
+            ->sort()
+            ->values();
+        $resumenExpediente = [
+            // "Qué se compró": el concepto/notas del pago; si no hay, aviso de capturarlo.
+            'concepto' => trim((string) ($pago->notas ?? '')) ?: null,
+            // Fecha límite de pago = el vencimiento MÁS PRÓXIMO de las facturas del lote.
+            'vence' => $vencimientos->first(),
+            'num_proveedores' => $pago->lineas->pluck('codigo_proveedor')->filter()->unique()->count(),
+            'num_facturas' => (int) $pago->num_facturas,
+        ];
+
+        return view('admin.pagos.expediente', compact('pago', 'grupos', 'resumenExpediente'));
     }
 
     /** Adjuntar un documento manual al expediente (póliza de Contpaqi, hojas engrapadas, etc.). */

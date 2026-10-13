@@ -155,8 +155,11 @@
             <button type="submit" class="btn btn-danger">Cancelar borrador</button>
         </form>
     @else
+        {{-- POR QUÉ sin botón al expediente: quien arma el Formato para pago NO debe entrar al
+             expediente (eso es para quien autoriza: Alexa/Dirección). Desde aquí solo ve el
+             reporte resumen (PDF del formato). El expediente se abre desde el menú "Expediente
+             de pago" por quien tiene ese rol. --}}
         <a class="btn btn-primary" href="{{ route('admin.pagos.reporte-resumen', ['pago' => $pago, 'ver' => 1]) }}" target="_blank" rel="noopener">Ver reporte resumen</a>
-        <a class="btn btn-outline" href="{{ route('admin.pagos.expediente', $pago) }}">Expediente de pago</a>
     @endif
 </div>
 

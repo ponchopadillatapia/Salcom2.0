@@ -55,8 +55,11 @@
 </a>
 
 <div class="arch-filtros">
+    {{-- POR QUÉ $urlFiltro: esta vista la usan DOS flujos (por proveedor y por departamento).
+         Cada controlador manda la URL base de filtro ya armada, para no depender de
+         $proveedor->id (que no existe cuando se entra por departamento). --}}
     @foreach($filtros as $val => $label)
-        <a href="{{ route('admin.expedientes-pago.proveedor', array_filter(['proveedor' => $proveedor->id, 'estatus' => $val])) }}"
+        <a href="{{ $urlFiltro.($val !== '' ? (str_contains($urlFiltro, '?') ? '&' : '?').'estatus='.$val : '') }}"
            class="arch-fbtn {{ $estatus === $val ? 'active' : '' }}">{{ $label }}</a>
     @endforeach
 </div>

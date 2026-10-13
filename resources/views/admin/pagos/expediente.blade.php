@@ -65,6 +65,40 @@
     .btn-green{background:var(--green);color:#fff}
     .btn-red{background:var(--red);color:#fff}
 
+    /* Pago al banco (estilo iOS/Apple) */
+    .bank-card{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;background:#fff;border:1px solid #ececef;border-radius:18px;padding:22px;margin-bottom:16px;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.04)}
+    .bank-card-head{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+    .bank-ico{width:40px;height:40px;border-radius:12px;background:#faf5ff;color:#6B3FA0;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+    .bank-title{margin:0;font-size:17px;font-weight:600;color:#1d1d1f;letter-spacing:-.02em}
+    .bank-sub{margin:1px 0 0;font-size:13px;color:#86868b;font-weight:400}
+    .bank-text{font-size:13px;color:#515154;line-height:1.5;letter-spacing:-.01em;margin:0 0 14px}
+    .bank-btn{display:inline-flex;align-items:center;gap:7px;padding:11px 20px;background:#6B3FA0;color:#fff;border:none;border-radius:980px;font-size:14px;font-weight:600;text-decoration:none;letter-spacing:-.01em;transition:transform .12s,background .15s}
+    .bank-btn:hover{background:#5a3488;color:#fff}
+    .bank-btn:active{transform:scale(.97)}
+    .bank-tips{margin-top:16px;background:#fffdf5;border:1px solid #f3e6b8;border-radius:12px;padding:14px 16px;font-size:12.5px;color:#8a6d0f;line-height:1.6}
+    .bank-tips ul{margin:6px 0 0;padding-left:18px}
+    .bank-tips li{margin-bottom:3px}
+    .bank-cep{margin-top:18px;padding-top:18px;border-top:1px solid #f0f0f2}
+    .bank-cep-title{font-size:15px;font-weight:600;color:#1d1d1f;letter-spacing:-.01em;margin-bottom:4px}
+    .bank-cep-file{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#6B3FA0;text-decoration:none;background:#faf5ff;border:1px solid #e9d5ff;border-radius:10px;padding:8px 14px;margin:0 6px 8px 0}
+    .bank-cep-empty{font-size:13px;color:#b45309;margin:0 0 10px}
+    .bank-cep-form{margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .bank-file-input{font-size:13px;color:#515154}
+    .bank-file-input::file-selector-button{font-family:inherit;font-size:13px;font-weight:500;color:#6B3FA0;background:#faf5ff;border:1px solid #e9d5ff;border-radius:980px;padding:7px 16px;margin-right:10px;cursor:pointer}
+    .bank-btn-sm{padding:9px 18px;background:#6B3FA0;color:#fff;border:none;border-radius:980px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s}
+    .bank-btn-sm:hover{background:#5a3488}
+    .bank-locked{display:flex;gap:12px;align-items:flex-start;background:#f5f5f7;border:1px solid #e5e5ea;border-radius:12px;padding:16px 18px;color:#6e6e73}
+    .bank-locked svg{color:#86868b;flex-shrink:0;margin-top:2px}
+    .bank-locked strong{display:block;font-size:14px;color:#1d1d1f;font-weight:600;letter-spacing:-.01em}
+    .bank-locked span{display:block;font-size:12.5px;color:#86868b;margin-top:3px;line-height:1.5}
+
+    /* Resumen para autorizar */
+    .exp-resumen{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-sm);margin-bottom:16px}
+    .exp-res-item{display:flex;flex-direction:column;gap:3px}
+    .exp-res-lbl{font-size:10px;font-weight:700;color:var(--gray-muted);text-transform:uppercase;letter-spacing:.4px}
+    .exp-res-val{font-size:14px;color:var(--gray-text);font-weight:600}
+    .exp-res-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:16px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border-light)}
+
     /* Autorización */
     .exp-auth{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:var(--shadow-sm);margin-top:8px}
     .exp-auth h3{font-size:14px;font-weight:700;color:var(--gray-text);margin:0 0 12px}
@@ -98,6 +132,42 @@
             Fecha de pago: {{ $pago->fecha_pago?->format('d/m/Y') ?? '—' }}
         </div>
         <span class="exp-estado {{ $estAut }}"><span class="dot"></span>{{ $estLabel }}</span>
+    </div>
+
+    {{-- ── Resumen para autorizar (lo que Alexa pide antes de dar OK) ──
+         Qué se va a pagar, a cuántos proveedores, hasta cuándo (vencimiento) y el total.
+         El detalle bancario (banco/cuenta/clave) va en el PDF del Formato para pago. --}}
+    <div class="exp-resumen">
+        <div class="exp-res-item">
+            <span class="exp-res-lbl">Qué se paga</span>
+            <span class="exp-res-val">
+                @if($resumenExpediente['concepto'])
+                    {{ $resumenExpediente['concepto'] }}
+                @else
+                    <span style="color:#b45309">Sin concepto capturado — pídelo a quien solicita el pago</span>
+                @endif
+            </span>
+        </div>
+        <div class="exp-res-grid">
+            <div class="exp-res-item">
+                <span class="exp-res-lbl">Proveedores</span>
+                <span class="exp-res-val">{{ $resumenExpediente['num_proveedores'] }}</span>
+            </div>
+            <div class="exp-res-item">
+                <span class="exp-res-lbl">Facturas</span>
+                <span class="exp-res-val">{{ $resumenExpediente['num_facturas'] }}</span>
+            </div>
+            <div class="exp-res-item">
+                <span class="exp-res-lbl">Se puede pagar hasta (vence)</span>
+                <span class="exp-res-val {{ $resumenExpediente['vence'] ? '' : '' }}">
+                    {{ $resumenExpediente['vence'] ? \Illuminate\Support\Carbon::parse($resumenExpediente['vence'])->format('d/m/Y') : '—' }}
+                </span>
+            </div>
+            <div class="exp-res-item">
+                <span class="exp-res-lbl">Total a pagar</span>
+                <span class="exp-res-val" style="color:#059669;font-weight:800;">${{ number_format((float) $pago->monto_total, 2) }}</span>
+            </div>
+        </div>
     </div>
 
     {{-- ── Documentos del expediente (tarjetas tipo carpeta) ── --}}
@@ -158,6 +228,76 @@
     @endforeach
 
     {{-- ── Autorización (firma de Sandra / Karen) ── --}}
+    {{-- ── Pago al banco (BBVA NetCash) ── estilo iOS.
+         POR QUÉ solo si está AUTORIZADO: el layout no debe poder bajarse para pagar algo que
+         Dirección aún no autorizó. Antes de autorizar se muestra un candado/aviso. --}}
+    <div class="bank-card">
+        <div class="bank-card-head">
+            <div class="bank-ico">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 20 7 4 7"/><line x1="6" y1="11" x2="6" y2="18"/><line x1="10" y1="11" x2="10" y2="18"/><line x1="14" y1="11" x2="14" y2="18"/><line x1="18" y1="11" x2="18" y2="18"/><line x1="3" y1="22" x2="21" y2="22"/></svg>
+            </div>
+            <div>
+                <h3 class="bank-title">Pago al banco</h3>
+                <p class="bank-sub">BBVA NetCash</p>
+            </div>
+        </div>
+
+        @if($pago->estaAutorizado())
+            <p class="bank-text">
+                Descarga el layout con todas las operaciones de este pago (una fila por factura:
+                cuenta de cargo, CLABE del proveedor, importe, RFC). Ábrelo y súbelo a NetCash.
+            </p>
+            <a href="{{ route('admin.pagos.layout-banco', $pago) }}" class="bank-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar layout banco
+            </a>
+            <div class="bank-tips">
+                <strong>Al subir a NetCash, recuerda:</strong>
+                <ul>
+                    <li>Marca la opción <strong>lote mixto</strong> y <strong>comprobante fiscal</strong> (aunque no incluya esos rubros).</li>
+                    <li>Las cuentas CLABE deben estar dadas de alta antes en "mantenimiento de beneficiarios".</li>
+                    <li>Máximo 400 operaciones por archivo.</li>
+                </ul>
+            </div>
+
+            {{-- Comprobante del banco (CEP): lo sube Alexa tras hacer las transferencias. --}}
+            @php
+                $comprobantesBanco = collect($pago->documentos_adjuntos ?? [])
+                    ->filter(fn ($a) => is_array($a) && str_contains(strtolower((string)($a['tipo'] ?? '')), 'comprobante del banco'));
+            @endphp
+            <div class="bank-cep">
+                <div class="bank-cep-title">Comprobante del banco (CEP)</div>
+                <p class="bank-text">
+                    Después de hacer las transferencias en NetCash, descarga del banco el PDF de
+                    comprobantes (CEP) y súbelo aquí como evidencia del pago.
+                </p>
+                @forelse($comprobantesBanco as $cb)
+                    <a href="{{ \Illuminate\Support\Facades\Storage::disk('public')->exists($cb['archivo']) ? asset('storage/'.$cb['archivo']) : '#' }}"
+                       target="_blank" rel="noopener" class="bank-cep-file">
+                        {!! $fileIcon !!} {{ $cb['nombre'] ?? 'Comprobante del banco' }}
+                    </a>
+                @empty
+                    <p class="bank-cep-empty">Aún no se ha subido el comprobante del banco.</p>
+                @endforelse
+                <form method="POST" action="{{ route('admin.pagos.expediente.adjuntar', $pago) }}" enctype="multipart/form-data" class="bank-cep-form">
+                    @csrf
+                    <input type="hidden" name="tipo" value="Comprobante del banco (CEP)">
+                    <input type="file" name="archivo" accept=".pdf,.jpg,.jpeg,.png" required class="bank-file-input">
+                    <button type="submit" class="bank-btn-sm">Subir comprobante</button>
+                </form>
+            </div>
+        @else
+            {{-- Aún no autorizado: no se puede generar el layout. --}}
+            <div class="bank-locked">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <div>
+                    <strong>El layout se genera cuando se autorice el pago.</strong>
+                    <span>Primero revisa el expediente y autoriza abajo. Después podrás descargar el layout para subirlo al banco.</span>
+                </div>
+            </div>
+        @endif
+    </div>
+
     <div class="exp-auth">
         <h3>Autorización</h3>
         @if($pago->estaAutorizado())
