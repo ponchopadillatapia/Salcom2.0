@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * Guarda documentos de agentes en el disco privado.
+ * Guarda el archivo de la factura del agente en el disco privado.
  * Rechaza e.firma, certificados y llaves. El nombre en disco es un UUID.
  */
 class AgenteAduanalArchivoService

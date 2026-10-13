@@ -56,7 +56,7 @@ class AdminUser extends Authenticatable
      *  - catalogo     → SOLO ver el catálogo de Productos (admin/productos), sin ninguna alta
      *  - proveedores  → módulo de Proveedores
      *  - reembolsos   → Reembolsos a empleados (+ viaje + gasolina) y Alta de Empleados
-     *  - agentes_aduanales → Catálogo interno de agentes aduanales y sus documentos
+     *  - agentes_aduanales → Facturas, anticipos y pagos de agentes aduanales
      *
      * POR QUÉ están separadas las altas: cada comprador gestiona SOLO su tipo de
      * producto y no debe colarse a las altas de otras áreas. Por eso alta_mpi,

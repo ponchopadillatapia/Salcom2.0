@@ -4,11 +4,9 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
-/**
- * Estructura lista para ligar después un pedimento a un agente.
- * No hay módulo de pedimentos en el sistema: pedidos es otra cosa (ventas).
- */
 class OperacionComercioExterior extends Model
 {
     protected $table = 'operaciones_comercio_exterior';
@@ -20,7 +18,6 @@ class OperacionComercioExterior extends Model
 
     protected $fillable = [
         'agente_aduanal_id',
-        'aduana_id',
         'numero_patente',
         'numero_pedimento',
         'fecha',
@@ -39,13 +36,18 @@ class OperacionComercioExterior extends Model
         return $this->belongsTo(AgenteAduanal::class, 'agente_aduanal_id');
     }
 
-    public function aduana(): BelongsTo
+    public function factura(): HasOne
     {
-        return $this->belongsTo(Aduana::class, 'aduana_id');
+        return $this->hasOne(FacturaAgenteAduanal::class, 'operacion_id');
+    }
+
+    public function anticipos(): HasMany
+    {
+        return $this->hasMany(AnticipoAgenteAduanal::class, 'operacion_id')->latest('fecha');
     }
 
     public function tipoLabel(): string
     {
-        return self::TIPOS[$this->tipo_operacion] ?? $this->tipo_operacion;
+        return self::TIPOS[$this->tipo_operacion] ?? ($this->tipo_operacion ?: '—');
     }
 }

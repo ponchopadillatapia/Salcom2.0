@@ -3,11 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\AdminUser;
-use App\Models\Aduana;
 use App\Models\AgenteAduanal;
-use App\Models\DocumentoAgenteAduanal;
-use App\Models\EncargoConferido;
+use App\Models\AnticipoAgenteAduanal;
+use App\Models\FacturaAgenteAduanal;
 use App\Models\OperacionComercioExterior;
+use App\Models\PagoAgenteAduanal;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -36,34 +36,36 @@ class AgentesAduanalesTest extends TestCase
         ];
     }
 
-    private function aduana(string $clave): Aduana
+    private function agente(array $extra = []): AgenteAduanal
     {
-        return Aduana::where('clave', $clave)->firstOrFail();
+        return AgenteAduanal::create(array_merge([
+            'nombre' => 'Mario Alfonso Sánchez',
+            'rfc' => 'MASG030919844',
+            'numero_patente' => '2223',
+            'tipo_operacion' => 'importacion',
+            'activo' => true,
+        ], $extra));
     }
 
-    private function datos(array $extra = []): array
+    private function datosFactura(AgenteAduanal $agente, array $extra = []): array
     {
         return array_merge([
-            'nombre' => 'Juan Pérez López',
-            'rfc' => 'PELJ800101AB1',
-            'numero_patente' => '1642',
-            'agencia' => 'Agencia del Pacífico',
-            'tipo_operacion' => 'ambas',
-            'contacto_nombre' => 'Laura Méndez',
-            'contacto_correo' => 'laura@ejemplo.com',
-            'contacto_telefono' => '3141234567',
-            'contacto_celular' => '3147654321',
-            'activo' => '1',
-            'estado_verificacion' => 'no_verificado',
-            'fecha_ultima_verificacion' => '2026-09-30',
-            'fuente_verificacion' => 'sat',
-            'aduanas' => [$this->aduana('16')->id, $this->aduana('43')->id],
+            'agente_aduanal_id' => $agente->id,
+            'tipo_operacion' => 'importacion',
+            'fecha' => '2026-10-08',
+            'serie' => 'A',
+            'folio' => '1914',
+            'moneda' => 'MXN',
+            'importe' => '20000.00',
+            'saldo_pendiente' => '15000.00',
+            'honorarios' => '8000.00',
+            'impuestos' => '1280.00',
+            'retenciones' => '800.00',
+            'estado_cancelacion' => 'vigente',
+            'estado_pago' => 'pendiente',
+            'sentido' => '',
+            'archivo' => UploadedFile::fake()->createWithContent('factura.pdf', "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"),
         ], $extra);
-    }
-
-    private function pdf(string $nombre = 'patente.pdf'): UploadedFile
-    {
-        return UploadedFile::fake()->createWithContent($nombre, "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF");
     }
 
     public function test_invitado_no_entra_al_modulo(): void
@@ -97,277 +99,318 @@ class AgentesAduanalesTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_listado_muestra_catalogo_y_aviso(): void
+    public function test_listado_consulta_facturas_y_no_el_catalogo_de_agentes(): void
     {
-        $this->withSession($this->sesion())
+        $agente = $this->agente();
+        $sesion = $this->sesion();
+        $this->withSession($sesion)
+            ->post(route('admin.agentes-aduanales.guardar'), $this->datosFactura($agente))
+            ->assertRedirect();
+
+        $this->withSession($sesion)
             ->get('/admin/agentes-aduanales')
             ->assertOk()
-            ->assertSee('Agentes Aduanales')
-            ->assertSee('Manzanillo')
-            ->assertSee('no comprueba que esté vigente')
-            ->assertDontSee('Consultar en el SAT');
+            ->assertSee('Facturas de agentes aduanales')
+            ->assertSee('Serie y folio')
+            ->assertSee('Saldo pendiente')
+            ->assertSee('A-1914')
+            ->assertSee('Mario Alfonso Sánchez')
+            ->assertDontSee('Crear agente')
+            ->assertDontSee('Desactivar');
     }
 
-    public function test_formularios_de_alta_y_edicion_cargan(): void
+    public function test_el_total_positivo_no_define_quien_paga(): void
+    {
+        $agente = $this->agente();
+        $sesion = $this->sesion();
+
+        $this->withSession($sesion)
+            ->post(route('admin.agentes-aduanales.guardar'), $this->datosFactura($agente))
+            ->assertRedirect();
+
+        $factura = FacturaAgenteAduanal::first();
+        $this->assertNotNull($factura);
+        $this->assertSame('20000.00', $factura->importe);
+        $this->assertSame('8000.00', $factura->honorarios);
+        $this->assertSame('1280.00', $factura->impuestos);
+        $this->assertNull($factura->retenciones);
+        $this->assertSame('15000.00', $factura->saldo_pendiente);
+        $this->assertNull($factura->sentido);
+        $this->assertNull($factura->observaciones);
+        $this->assertNotSame(
+            number_format((float) $factura->honorarios + (float) $factura->impuestos - (float) $factura->retenciones, 2, '.', ''),
+            $factura->importe
+        );
+
+        $this->withSession($sesion)
+            ->post(route('admin.agentes-aduanales.guardar'), $this->datosFactura($agente, [
+                'folio' => '2000',
+                'importe' => '500.00',
+                'sentido' => 'agente_paga_salcom',
+                'observaciones' => 'no se guarda',
+                'honorarios' => '',
+                'impuestos' => '',
+                'retenciones' => '',
+                'saldo_pendiente' => '',
+            ]))
+            ->assertRedirect();
+
+        $segunda = FacturaAgenteAduanal::where('folio', '2000')->first();
+        $this->assertNull($segunda->sentido);
+        $this->assertNull($segunda->observaciones);
+        $this->assertNull($segunda->honorarios);
+        $this->assertNull($segunda->retenciones);
+    }
+
+    public function test_filtros_de_agente_fecha_moneda_y_estado(): void
+    {
+        $agente = $this->agente();
+        $otro = $this->agente([
+            'nombre' => 'Alejandro Martínez',
+            'rfc' => 'MARA030609844',
+            'numero_patente' => '8969',
+            'tipo_operacion' => 'exportacion',
+        ]);
+        $sesion = $this->sesion();
+
+        $this->withSession($sesion)->post(route('admin.agentes-aduanales.guardar'), $this->datosFactura($agente));
+        $this->withSession($sesion)->post(route('admin.agentes-aduanales.guardar'), $this->datosFactura($otro, [
+            'folio' => '77',
+            'serie' => 'B',
+            'moneda' => 'USD',
+            'fecha' => '2026-09-01',
+            'tipo_operacion' => 'exportacion',
+            'estado_pago' => 'pagado',
+        ]));
+
+        $this->withSession($sesion)
+            ->get('/admin/agentes-aduanales?agente_id='.$otro->id.'&moneda=USD&estado=pagado&desde=2026-09-01&hasta=2026-09-30')
+            ->assertOk()
+            ->assertSee('B-77')
+            ->assertDontSee('A-1914');
+    }
+
+    public function test_anticipo_se_liga_a_la_operacion_antes_de_la_factura_y_del_pago(): void
+    {
+        $agente = $this->agente();
+        $sesion = $this->sesion();
+
+        $this->withSession($sesion)
+            ->post(route('admin.agentes-aduanales.anticipos.guardar'), [
+                'agente_aduanal_id' => $agente->id,
+                'tipo_operacion' => 'exportacion',
+                'fecha_anticipo' => '2026-10-01',
+                'importe_anticipo' => '4000',
+                'moneda_anticipo' => 'MXN',
+                'referencia_anticipo' => 'ANT-1',
+            ])
+            ->assertRedirect(route('admin.agentes-aduanales'));
+
+        $anticipo = AnticipoAgenteAduanal::first();
+        $this->assertNotNull($anticipo);
+        $this->assertNull($anticipo->factura_id);
+        $this->assertNotNull($anticipo->operacion_id);
+        $this->assertSame(0, PagoAgenteAduanal::count());
+
+        $this->withSession($sesion)
+            ->post(route('admin.agentes-aduanales.guardar'), $this->datosFactura($agente, [
+                'operacion_id' => $anticipo->operacion_id,
+                'tipo_operacion' => '',
+                'folio' => '300',
+            ]))
+            ->assertRedirect();
+
+        $anticipo->refresh();
+        $factura = FacturaAgenteAduanal::where('folio', '300')->first();
+        $this->assertSame($factura->id, $anticipo->factura_id);
+        $this->assertSame($anticipo->operacion_id, $factura->operacion_id);
+        $this->assertSame(0, PagoAgenteAduanal::count());
+    }
+
+    public function test_el_pago_exige_direccion_y_no_cambia_saldo_ni_sentido(): void
+    {
+        $agente = $this->agente();
+        $sesion = $this->sesion();
+        $this->withSession($sesion)->post(route('admin.agentes-aduanales.guardar'), $this->datosFactura($agente));
+        $factura = FacturaAgenteAduanal::first();
+
+        $this->withSession($sesion)
+            ->post(route('admin.agentes-aduanales.anticipos.ligar', $factura), [
+                'fecha_anticipo' => '2026-10-02',
+                'importe_anticipo' => '1000',
+                'moneda_anticipo' => 'MXN',
+            ])
+            ->assertRedirect(route('admin.agentes-aduanales.ver', $factura));
+
+        $anticipo = AnticipoAgenteAduanal::first();
+
+        $this->withSession($sesion)
+            ->post(route('admin.agentes-aduanales.pagos.guardar', $factura), [
+                'fecha_pago' => '2026-10-09',
+                'importe_pago' => '5000',
+                'moneda_pago' => 'MXN',
+                'anticipo_id' => $anticipo->id,
+            ])
+            ->assertSessionHasErrors('direccion');
+
+        $this->assertSame(0, PagoAgenteAduanal::count());
+
+        $this->withSession($sesion)
+            ->post(route('admin.agentes-aduanales.pagos.guardar', $factura), [
+                'fecha_pago' => '2026-10-09',
+                'importe_pago' => '5000',
+                'moneda_pago' => 'MXN',
+                'direccion' => 'salcom_paga_agente',
+                'anticipo_id' => $anticipo->id,
+            ])
+            ->assertRedirect(route('admin.agentes-aduanales.ver', $factura));
+
+        $factura->refresh();
+        $this->assertSame('15000.00', $factura->saldo_pendiente);
+        $this->assertNull($factura->sentido);
+        $this->assertSame('pendiente', $factura->estado_pago);
+        $this->assertSame('salcom_paga_agente', $factura->pagos()->first()->direccion);
+        $this->assertSame($anticipo->id, $factura->pagos()->first()->anticipo_id);
+    }
+
+    public function test_el_pago_rechaza_un_anticipo_de_otra_factura(): void
+    {
+        $agente = $this->agente();
+        $sesion = $this->sesion();
+        $this->withSession($sesion)->post(route('admin.agentes-aduanales.guardar'), $this->datosFactura($agente));
+        $this->withSession($sesion)->post(route('admin.agentes-aduanales.guardar'), $this->datosFactura($agente, ['folio' => '2']));
+
+        $primera = FacturaAgenteAduanal::where('folio', '1914')->first();
+        $segunda = FacturaAgenteAduanal::where('folio', '2')->first();
+
+        $this->withSession($sesion)->post(route('admin.agentes-aduanales.anticipos.ligar', $segunda), [
+            'fecha_anticipo' => '2026-10-02',
+            'importe_anticipo' => '100',
+            'moneda_anticipo' => 'MXN',
+        ]);
+        $anticipoAjeno = AnticipoAgenteAduanal::first();
+
+        $this->withSession($sesion)
+            ->post(route('admin.agentes-aduanales.pagos.guardar', $primera), [
+                'fecha_pago' => '2026-10-09',
+                'importe_pago' => '100',
+                'moneda_pago' => 'MXN',
+                'direccion' => 'agente_paga_salcom',
+                'anticipo_id' => $anticipoAjeno->id,
+            ])
+            ->assertSessionHasErrors('anticipo_id');
+
+        $this->assertSame(0, PagoAgenteAduanal::count());
+    }
+
+    public function test_las_rutas_de_alta_y_baja_de_agentes_ya_no_existen(): void
     {
         $sesion = $this->sesion();
+
+        $this->withSession($sesion)->get('/admin/agentes-aduanales/crear')->assertNotFound();
+        $this->withSession($sesion)->post('/admin/agentes-aduanales', [
+            'nombre' => 'Alguien',
+            'rfc' => 'XAXX010101000',
+            'numero_patente' => '1642',
+        ])->assertStatus(405);
+    }
+
+    public function test_se_puede_descargar_el_archivo_de_la_factura(): void
+    {
+        Storage::fake('local');
+        $agente = $this->agente();
+        $sesion = $this->sesion();
+
+        $this->withSession($sesion)
+            ->post(route('admin.agentes-aduanales.guardar'), array_merge($this->datosFactura($agente), [
+                'archivo' => UploadedFile::fake()->createWithContent('factura.pdf', "%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF"),
+            ]))
+            ->assertRedirect();
+
+        $factura = FacturaAgenteAduanal::first();
+        $this->assertNotNull($factura->ruta);
+        $this->assertSame(1, OperacionComercioExterior::count());
+
+        $this->withSession($sesion)
+            ->get(route('admin.agentes-aduanales.archivo', $factura))
+            ->assertOk();
+    }
+
+    public function test_el_pdf_llena_la_factura_y_no_decide_quien_paga(): void
+    {
+        $agente = $this->agente([
+            'nombre' => 'Alejandro Martinez Ramos',
+            'rfc' => 'MARA030609844',
+            'numero_patente' => '8969',
+        ]);
+        $sesion = $this->sesion();
+        $contenido = "%PDF-1.4\n".$this->xmlFacturaAgente();
 
         $this->withSession($sesion)
             ->get(route('admin.agentes-aduanales.crear'))
             ->assertOk()
-            ->assertSee('Crear agente')
-            ->assertSee('Número de patente aduanal')
-            ->assertSee('No se consulta el padrón al guardarlo')
-            ->assertSee('Manzanillo');
-
-        $this->withSession($sesion)->post('/admin/agentes-aduanales', $this->datos());
-        $agente = AgenteAduanal::first();
+            ->assertSee('PDF de la factura')
+            ->assertSee('id="aa-datos" hidden', false)
+            ->assertSee('Para completar')
+            ->assertSee('leer-pdf', false);
 
         $this->withSession($sesion)
-            ->get(route('admin.agentes-aduanales.editar', $agente))
+            ->post(route('admin.agentes-aduanales.facturas.leer'), [
+                'archivo' => UploadedFile::fake()->createWithContent('agente.pdf', $contenido),
+            ])
             ->assertOk()
-            ->assertSee('Editar agente aduanal')
-            ->assertSee('value="1642"', false)
-            ->assertSee('Juan Pérez López');
-    }
-
-    public function test_patente_es_obligatoria_y_no_marca_verificado(): void
-    {
-        $sesion = $this->sesion();
-
-        $this->withSession($sesion)
-            ->post('/admin/agentes-aduanales', $this->datos(['numero_patente' => '']))
-            ->assertSessionHasErrors('numero_patente');
+            ->assertJsonPath('datos.folio', '1914')
+            ->assertJsonPath('datos.serie', 'A')
+            ->assertJsonPath('datos.importe', '8480.00')
+            ->assertJsonPath('datos.honorarios', '8000.00')
+            ->assertJsonPath('datos.impuestos', '1280.00')
+            ->assertJsonPath('datos.agente_aduanal_id', $agente->id)
+            ->assertJsonPath('datos.nombre_agente', 'Alejandro Martinez Ramos')
+            ->assertJsonMissingPath('datos.sentido')
+            ->assertJsonMissingPath('datos.saldo_pendiente');
 
         $this->withSession($sesion)
-            ->post('/admin/agentes-aduanales', $this->datos(['numero_patente' => '16']))
-            ->assertSessionHasErrors('numero_patente');
-
-        $this->withSession($sesion)
-            ->post('/admin/agentes-aduanales', $this->datos())
-            ->assertRedirect();
-
-        $agente = AgenteAduanal::where('numero_patente', '1642')->first();
-        $this->assertNotNull($agente);
-        $this->assertSame('no_verificado', $agente->estado_verificacion);
-        $this->assertNull($agente->fecha_ultima_verificacion);
-        $this->assertNull($agente->fuente_verificacion);
-        $this->assertTrue($agente->activo);
-        $this->assertCount(2, $agente->aduanas);
-        $this->assertEqualsCanonicalizing(['16', '43'], $agente->aduanas->pluck('clave')->all());
-
-        $this->withSession($sesion)
-            ->get(route('admin.agentes-aduanales.ver', $agente))
-            ->assertOk()
-            ->assertSee('No verificado')
-            ->assertSee('16 — Manzanillo, Colima')
-            ->assertSee('43 — Veracruz, Veracruz');
-    }
-
-    public function test_verificado_exige_fecha_y_fuente_sin_consultar_al_sat(): void
-    {
-        $sesion = $this->sesion();
-
-        $this->withSession($sesion)
-            ->post('/admin/agentes-aduanales', $this->datos([
-                'estado_verificacion' => 'verificado',
-                'fecha_ultima_verificacion' => null,
-                'fuente_verificacion' => null,
-            ]))
-            ->assertSessionHasErrors(['fecha_ultima_verificacion', 'fuente_verificacion']);
-
-        $this->withSession($sesion)
-            ->post('/admin/agentes-aduanales', $this->datos([
-                'estado_verificacion' => 'verificado',
-                'fecha_ultima_verificacion' => '2026-09-30',
-                'fuente_verificacion' => 'sat',
-            ]))
-            ->assertRedirect()
-            ->assertSessionHas('mensaje');
-
-        $agente = AgenteAduanal::first();
-        $this->assertSame('verificado', $agente->estado_verificacion);
-        $this->assertSame('sat', $agente->fuente_verificacion);
-        $this->assertSame('2026-09-30', $agente->fecha_ultima_verificacion->toDateString());
-
-        $this->withSession($sesion)
-            ->get(route('admin.agentes-aduanales.ver', $agente))
-            ->assertSee('Verificado')
-            ->assertSee('30/09/2026')
-            ->assertSee('SAT — Padrón de Agentes y Apoderados Aduanales')
-            ->assertSee('no la consultó');
-    }
-
-    public function test_desactivar_y_reactivar_no_cambia_la_verificacion(): void
-    {
-        $sesion = $this->sesion();
-        $this->withSession($sesion)->post('/admin/agentes-aduanales', $this->datos([
-            'estado_verificacion' => 'verificado',
-            'fecha_ultima_verificacion' => '2026-09-30',
-            'fuente_verificacion' => 'anam',
-        ]));
-        $agente = AgenteAduanal::first();
-
-        $this->withSession($sesion)
-            ->post(route('admin.agentes-aduanales.desactivar', $agente))
-            ->assertRedirect();
-
-        $agente->refresh();
-        $this->assertFalse($agente->activo);
-        $this->assertSame('verificado', $agente->estado_verificacion);
-
-        $this->withSession($sesion)
-            ->post(route('admin.agentes-aduanales.reactivar', $agente))
-            ->assertSessionHas('mensaje');
-
-        $agente->refresh();
-        $this->assertTrue($agente->activo);
-        $this->assertSame('verificado', $agente->estado_verificacion);
-    }
-
-    public function test_documento_privado_rechaza_llaves_y_efirma(): void
-    {
-        Storage::fake('local');
-        Storage::fake('public');
-        $sesion = $this->sesion();
-        $this->withSession($sesion)->post('/admin/agentes-aduanales', $this->datos());
-        $agente = AgenteAduanal::first();
-
-        $this->withSession($sesion)
-            ->post(route('admin.agentes-aduanales.documentos.guardar', $agente), [
-                'tipo' => 'patente',
-                'archivo' => UploadedFile::fake()->create('llave.key', 20, 'text/plain'),
-            ])
-            ->assertSessionHasErrors('archivo');
-
-        $this->withSession($sesion)
-            ->post(route('admin.agentes-aduanales.documentos.guardar', $agente), [
-                'tipo' => 'patente',
-                'archivo' => UploadedFile::fake()->create('certificado.cer', 20, 'application/octet-stream'),
-            ])
-            ->assertSessionHasErrors('archivo');
-
-        $this->withSession($sesion)
-            ->post(route('admin.agentes-aduanales.documentos.guardar', $agente), [
-                'tipo' => 'patente',
-                'archivo' => $this->pdf('mi_efirma.pdf'),
-            ])
-            ->assertSessionHasErrors('archivo');
-
-        $this->assertSame(0, DocumentoAgenteAduanal::count());
-
-        $this->withSession($sesion)
-            ->post(route('admin.agentes-aduanales.documentos.guardar', $agente), [
-                'tipo' => 'patente',
-                'archivo' => $this->pdf('patente-1642.pdf'),
-                'fecha_vencimiento' => '2027-01-15',
-                'observaciones_documento' => 'Copia de la patente',
+            ->post(route('admin.agentes-aduanales.guardar'), [
+                'archivo' => UploadedFile::fake()->createWithContent('agente.pdf', $contenido),
             ])
             ->assertRedirect();
 
-        $documento = DocumentoAgenteAduanal::first();
-        $this->assertNotNull($documento);
-        $this->assertStringStartsWith('agentes-aduanales/'.$agente->id.'/documentos/', $documento->ruta);
-        $this->assertStringEndsWith('.pdf', $documento->ruta);
-        Storage::disk('local')->assertExists($documento->ruta);
-        $this->assertSame([], Storage::disk('public')->allFiles());
-
-        $this->withSession(['admin_id' => null])
-            ->get(route('admin.agentes-aduanales.documentos.descargar', [$agente, $documento]))
-            ->assertRedirect('/login-admin');
-
-        $this->withSession($sesion)
-            ->get(route('admin.agentes-aduanales.documentos.descargar', [$agente, $documento]))
-            ->assertOk()
-            ->assertDownload('patente-1642.pdf');
-
-        $otro = AgenteAduanal::create([
-            'nombre' => 'Ana Ruiz',
-            'rfc' => 'RUAA850202XY3',
-            'numero_patente' => '2201',
-            'tipo_operacion' => 'importacion',
-            'activo' => true,
-            'estado_verificacion' => 'no_verificado',
-        ]);
-
-        $this->withSession($sesion)
-            ->get(route('admin.agentes-aduanales.documentos.descargar', [$otro, $documento]))
-            ->assertNotFound();
+        $factura = FacturaAgenteAduanal::where('folio', '1914')->first();
+        $this->assertNotNull($factura);
+        $this->assertSame('8480.00', $factura->importe);
+        $this->assertSame('8000.00', $factura->honorarios);
+        $this->assertSame('1280.00', $factura->impuestos);
+        $this->assertNull($factura->retenciones);
+        $this->assertNull($factura->observaciones);
+        $this->assertNull($factura->saldo_pendiente);
+        $this->assertNull($factura->sentido);
+        $this->assertSame('pendiente', $factura->estado_pago);
+        $this->assertSame($agente->id, $factura->agente_aduanal_id);
+        $this->assertSame('importacion', $factura->operacion->tipo_operacion);
+        $this->assertSame(0, PagoAgenteAduanal::count());
     }
 
-    public function test_encargo_es_interno_y_puede_mostrarse_vencido(): void
+    private function xmlFacturaAgente(): string
     {
-        $sesion = $this->sesion();
-        $this->withSession($sesion)->post('/admin/agentes-aduanales', $this->datos());
-        $agente = AgenteAduanal::first();
-
-        $this->withSession($sesion)
-            ->post(route('admin.agentes-aduanales.encargos.guardar', $agente), [
-                'fecha_inicio' => now()->subDays(20)->toDateString(),
-                'fecha_termino' => now()->subDay()->toDateString(),
-                'estado' => 'aceptado',
-                'numero_acuse' => 'ACUSE-INTERNO-01',
-                'observaciones' => 'Capturado del acuse que entregó el agente',
-            ])
-            ->assertRedirect()
-            ->assertSessionHas('mensaje');
-
-        $encargo = EncargoConferido::first();
-        $this->assertSame('1642', $encargo->numero_patente);
-        $this->assertSame('aceptado', $encargo->estado);
-        $this->assertSame('vencido', $encargo->estadoEfectivo());
-
-        $this->withSession($sesion)
-            ->get(route('admin.agentes-aduanales.ver', $agente))
-            ->assertSee('No se envió ningún trámite al SAT')
-            ->assertSee('Salcom no envía este trámite al SAT')
-            ->assertSee('se muestra como Vencido')
-            ->assertSee('ACUSE-INTERNO-01');
-    }
-
-    public function test_la_relacion_de_operaciones_queda_visible_sin_modulo_de_pedimentos(): void
-    {
-        $sesion = $this->sesion();
-        $this->withSession($sesion)->post('/admin/agentes-aduanales', $this->datos());
-        $agente = AgenteAduanal::first();
-        $aduana = $this->aduana('16');
-
-        OperacionComercioExterior::create([
-            'agente_aduanal_id' => $agente->id,
-            'aduana_id' => $aduana->id,
-            'numero_patente' => '1642',
-            'numero_pedimento' => '261634566000123',
-            'fecha' => '2026-09-30',
-            'contraparte' => 'Proveedor Demo',
-            'mercancia' => 'Resina',
-            'tipo_operacion' => 'importacion',
-        ]);
-
-        $this->withSession($sesion)
-            ->get(route('admin.agentes-aduanales.ver', $agente))
-            ->assertOk()
-            ->assertSee('Aún no existe un módulo de pedimentos')
-            ->assertSee('261634566000123')
-            ->assertSee('Resina')
-            ->assertDontSee('Registrar pedimento');
-    }
-
-    public function test_buscador_filtra_por_patente(): void
-    {
-        $sesion = $this->sesion();
-        $this->withSession($sesion)->post('/admin/agentes-aduanales', $this->datos());
-        $this->withSession($sesion)->post('/admin/agentes-aduanales', $this->datos([
-            'nombre' => 'María Soto',
-            'rfc' => 'SOTM900101CD2',
-            'numero_patente' => '3088',
-            'tipo_operacion' => 'exportacion',
-            'aduanas' => [$this->aduana('40')->id],
-        ]));
-
-        $this->withSession($sesion)
-            ->get('/admin/agentes-aduanales?q=3088')
-            ->assertOk()
-            ->assertSee('María Soto')
-            ->assertDontSee('Juan Pérez López');
+        return <<<'XML'
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital" Version="4.0" Serie="A" Folio="1914" Fecha="2026-10-08T10:00:00" SubTotal="8000.00" Total="8480.00" Moneda="MXN" TipoDeComprobante="I">
+  <cfdi:Emisor Rfc="MARA030609844" Nombre="ALEJANDRO MARTINEZ RAMOS" RegimenFiscal="612"/>
+  <cfdi:Receptor Rfc="ISA951017A10" Nombre="INDUSTRIAS SALCOM" UsoCFDI="G03"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="80151600" Cantidad="1" ClaveUnidad="E48" Descripcion="Honorarios por importación" ValorUnitario="8000.00" Importe="8000.00"/>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="1280.00" TotalImpuestosRetenidos="800.00">
+    <cfdi:Traslados>
+      <cfdi:Traslado Base="8000.00" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="1280.00"/>
+    </cfdi:Traslados>
+    <cfdi:Retenciones>
+      <cfdi:Retencion Impuesto="002" Importe="800.00"/>
+    </cfdi:Retenciones>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital UUID="12345678-1234-1234-1234-123456789012"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>
+XML;
     }
 }

@@ -3,350 +3,484 @@
 namespace App\Http\Controllers;
 
 use App\Models\AdminUser;
-use App\Models\Aduana;
 use App\Models\AgenteAduanal;
-use App\Models\DocumentoAgenteAduanal;
-use App\Models\EncargoConferido;
+use App\Models\AnticipoAgenteAduanal;
+use App\Models\FacturaAgenteAduanal;
+use App\Models\OperacionComercioExterior;
+use App\Models\PagoAgenteAduanal;
 use App\Services\AgenteAduanalArchivoService;
 use App\Services\AuditService;
+use App\Services\FacturaAgentePdfExtractor;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class AgenteAduanalController extends Controller
 {
-    public function __construct(private AgenteAduanalArchivoService $archivos) {}
+    public function __construct(
+        private AgenteAduanalArchivoService $archivos,
+        private FacturaAgentePdfExtractor $lectorPdf,
+    ) {}
 
     public function index(Request $request)
     {
         $this->asegurarAcceso();
 
-        $query = AgenteAduanal::query()->with('aduanas');
+        $query = FacturaAgenteAduanal::query()->with(['agente', 'operacion']);
 
         if ($request->filled('q')) {
             $busqueda = trim((string) $request->input('q'));
             $query->where(function ($q) use ($busqueda) {
-                $q->where('nombre', 'like', "%{$busqueda}%")
-                    ->orWhere('rfc', 'like', "%{$busqueda}%")
-                    ->orWhere('numero_patente', 'like', "%{$busqueda}%")
-                    ->orWhere('agencia', 'like', "%{$busqueda}%")
-                    ->orWhere('contacto_nombre', 'like', "%{$busqueda}%")
-                    ->orWhereHas('aduanas', function ($aduanas) use ($busqueda) {
-                        $aduanas->where('nombre', 'like', "%{$busqueda}%")
-                            ->orWhere('clave', 'like', "%{$busqueda}%");
+                $q->where('folio', 'like', "%{$busqueda}%")
+                    ->orWhere('serie', 'like', "%{$busqueda}%")
+                    ->orWhereHas('agente', function ($agente) use ($busqueda) {
+                        $agente->where('nombre', 'like', "%{$busqueda}%")
+                            ->orWhere('agencia', 'like', "%{$busqueda}%")
+                            ->orWhere('rfc', 'like', "%{$busqueda}%");
                     });
             });
         }
 
-        if ($request->input('estado') === 'activo') {
-            $query->where('activo', true);
-        } elseif ($request->input('estado') === 'inactivo') {
-            $query->where('activo', false);
+        if ($request->filled('agente_id')) {
+            $query->where('agente_aduanal_id', (int) $request->input('agente_id'));
         }
 
-        if ($request->filled('verificacion') && array_key_exists($request->input('verificacion'), AgenteAduanal::VERIFICACIONES)) {
-            $query->where('estado_verificacion', $request->input('verificacion'));
+        if ($request->filled('moneda') && array_key_exists($request->input('moneda'), FacturaAgenteAduanal::MONEDAS)) {
+            $query->where('moneda', $request->input('moneda'));
         }
 
-        $tipo = (string) $request->input('tipo');
-        if ($tipo === 'importacion') {
-            $query->whereIn('tipo_operacion', ['importacion', 'ambas']);
-        } elseif ($tipo === 'exportacion') {
-            $query->whereIn('tipo_operacion', ['exportacion', 'ambas']);
-        } elseif ($tipo === 'ambas') {
-            $query->where('tipo_operacion', 'ambas');
+        if ($request->filled('estado') && array_key_exists($request->input('estado'), FacturaAgenteAduanal::ESTADOS_PAGO)) {
+            $query->where('estado_pago', $request->input('estado'));
         }
 
-        if ($request->filled('aduana_id')) {
-            $aduanaId = (int) $request->input('aduana_id');
-            $query->whereHas('aduanas', fn ($q) => $q->where('aduanas.id', $aduanaId));
+        if ($request->filled('cancelacion') && array_key_exists($request->input('cancelacion'), FacturaAgenteAduanal::ESTADOS_CANCELACION)) {
+            $query->where('estado_cancelacion', $request->input('cancelacion'));
         }
 
-        $agentes = $query->orderBy('nombre')->paginate(20)->withQueryString();
-        $aduanas = Aduana::query()->where('activo', true)->orderBy('clave')->get();
+        if ($request->filled('tipo') && array_key_exists($request->input('tipo'), OperacionComercioExterior::TIPOS)) {
+            $tipo = $request->input('tipo');
+            $query->whereHas('operacion', fn ($operacion) => $operacion->where('tipo_operacion', $tipo));
+        }
+
+        if ($request->filled('desde')) {
+            $query->whereDate('fecha', '>=', $request->input('desde'));
+        }
+
+        if ($request->filled('hasta')) {
+            $query->whereDate('fecha', '<=', $request->input('hasta'));
+        }
+
+        $facturas = $query->orderByDesc('fecha')->orderByDesc('id')->paginate(20)->withQueryString();
+        $agentes = AgenteAduanal::query()->orderBy('nombre')->get(['id', 'nombre', 'agencia', 'numero_patente']);
+        $anticiposSinFactura = AnticipoAgenteAduanal::query()
+            ->whereNull('factura_id')
+            ->with(['agente', 'operacion'])
+            ->orderByDesc('fecha')
+            ->limit(20)
+            ->get();
+
         $kpis = [
-            'total' => AgenteAduanal::count(),
-            'activos' => AgenteAduanal::where('activo', true)->count(),
-            'sin_verificar' => AgenteAduanal::where('estado_verificacion', 'no_verificado')->count(),
+            'facturas' => FacturaAgenteAduanal::count(),
+            'pendientes' => FacturaAgenteAduanal::where('estado_pago', 'pendiente')->count(),
+            'canceladas' => FacturaAgenteAduanal::where('estado_cancelacion', 'cancelada')->count(),
         ];
 
-        return view('admin.agentes-aduanales.index', compact('agentes', 'aduanas', 'kpis'));
+        return view('admin.agentes-aduanales.index', compact('facturas', 'agentes', 'anticiposSinFactura', 'kpis'));
     }
 
-    public function crear()
+    public function crear(Request $request)
     {
         $this->asegurarAcceso();
 
+        $operacionSeleccionada = null;
+        if ($request->filled('operacion_id')) {
+            $operacionSeleccionada = OperacionComercioExterior::query()
+                ->whereDoesntHave('factura')
+                ->find($request->integer('operacion_id'));
+        }
+
         return view('admin.agentes-aduanales.form', [
-            'agente' => null,
-            'aduanas' => Aduana::query()->where('activo', true)->orderBy('clave')->get(),
+            'factura' => null,
+            'agentes' => AgenteAduanal::query()->orderBy('nombre')->get(),
+            'operaciones' => $this->operacionesSinFactura(),
+            'operacionSeleccionada' => $operacionSeleccionada,
+        ]);
+    }
+
+    public function leerPdf(Request $request)
+    {
+        $this->asegurarAcceso();
+        $request->validate([
+            'archivo' => ['required', 'file', 'max:'.AgenteAduanalArchivoService::MAX_KB, $this->reglaArchivo()],
+        ], [
+            'archivo.required' => 'Sube el PDF de la factura.',
+            'archivo.max' => 'El archivo supera el límite de 10 MB.',
+        ]);
+
+        $archivo = $request->file('archivo');
+        if (strtolower((string) $archivo?->getClientOriginalExtension()) !== 'pdf') {
+            throw ValidationException::withMessages([
+                'archivo' => 'Para leer los datos, sube el PDF que mandó el agente.',
+            ]);
+        }
+
+        $lectura = $this->lecturaDePdf($archivo);
+
+        return response()->json([
+            'datos' => [
+                'serie' => $lectura['serie'],
+                'folio' => $lectura['folio'],
+                'fecha' => $lectura['fecha'],
+                'moneda' => $lectura['moneda'],
+                'importe' => $lectura['importe'],
+                'honorarios' => $lectura['honorarios'],
+                'impuestos' => $lectura['impuestos'],
+                'tipo_operacion' => $lectura['tipo_operacion'],
+                'estado_cancelacion' => $lectura['estado_cancelacion'],
+                'agente_aduanal_id' => $lectura['agente_id'],
+                'nombre_agente' => $lectura['nombre_agente'] ?? null,
+                'rfc_agente' => $lectura['rfc_emisor'] ?? null,
+            ],
+            'avisos' => $lectura['avisos'],
         ]);
     }
 
     public function guardar(Request $request)
     {
         $this->asegurarAcceso();
-        $datos = $this->validarAgente($request);
-        $aduanaIds = $datos['aduanas'];
-        unset($datos['aduanas']);
-
-        $agente = DB::transaction(function () use ($datos, $aduanaIds) {
-            $agente = AgenteAduanal::create($datos);
-            $agente->aduanas()->sync($aduanaIds);
-
-            return $agente;
-        });
-
-        AuditService::registrar(
-            'crear',
-            'agentes_aduanales',
-            'Registró al agente aduanal '.$agente->nombre.' (patente '.$agente->numero_patente.').',
-            null,
-            $this->resumenAuditoria($agente),
-        );
-
-        $mensaje = $agente->estado_verificacion === 'no_verificado'
-            ? 'Agente registrado. La patente quedó como no verificada hasta que alguien consulte la fuente y lo capture aquí.'
-            : 'Agente registrado. La verificación quedó capturada con la fuente indicada; este sistema no la consultó.';
-
-        return redirect()->route('admin.agentes-aduanales.ver', $agente)->with('mensaje', $mensaje);
-    }
-
-    public function ver(AgenteAduanal $agente)
-    {
-        $this->asegurarAcceso();
-        $agente->load(['aduanas', 'documentos', 'encargos', 'operaciones.aduana']);
-
-        return view('admin.agentes-aduanales.ver', compact('agente'));
-    }
-
-    public function editar(AgenteAduanal $agente)
-    {
-        $this->asegurarAcceso();
-        $agente->load('aduanas');
-
-        return view('admin.agentes-aduanales.form', [
-            'agente' => $agente,
-            'aduanas' => Aduana::query()->where('activo', true)->orderBy('clave')->get(),
-        ]);
-    }
-
-    public function actualizar(Request $request, AgenteAduanal $agente)
-    {
-        $this->asegurarAcceso();
-        $antes = $this->resumenAuditoria($agente);
-        $datos = $this->validarAgente($request, $agente);
-        $aduanaIds = $datos['aduanas'];
-        unset($datos['aduanas']);
-
-        DB::transaction(function () use ($agente, $datos, $aduanaIds) {
-            $agente->update($datos);
-            $agente->aduanas()->sync($aduanaIds);
-        });
-
-        AuditService::registrar(
-            'editar',
-            'agentes_aduanales',
-            'Actualizó al agente aduanal '.$agente->nombre.' (patente '.$agente->numero_patente.').',
-            $antes,
-            $this->resumenAuditoria($agente->fresh('aduanas')),
-        );
-
-        return redirect()->route('admin.agentes-aduanales.ver', $agente)
-            ->with('mensaje', 'Datos del agente actualizados.');
-    }
-
-    public function desactivar(AgenteAduanal $agente)
-    {
-        $this->asegurarAcceso();
-        $agente->update(['activo' => false]);
-
-        AuditService::registrar('desactivar', 'agentes_aduanales', 'Desactivó al agente '.$agente->nombre.'.');
-
-        return redirect()->route('admin.agentes-aduanales.ver', $agente)
-            ->with('mensaje', 'El agente quedó inactivo. Sus documentos y encargos se conservan. La verificación no cambió.');
-    }
-
-    public function reactivar(AgenteAduanal $agente)
-    {
-        $this->asegurarAcceso();
-        $agente->update(['activo' => true]);
-
-        AuditService::registrar('reactivar', 'agentes_aduanales', 'Reactivó al agente '.$agente->nombre.'.');
-
-        return redirect()->route('admin.agentes-aduanales.ver', $agente)
-            ->with('mensaje', 'El agente quedó activo de nuevo. Eso no cambia su estado de verificación.');
-    }
-
-    public function guardarDocumento(Request $request, AgenteAduanal $agente)
-    {
-        $admin = $this->asegurarAcceso();
-        $datos = $request->validate([
-            'tipo' => ['required', Rule::in(array_keys(DocumentoAgenteAduanal::TIPOS))],
-            'archivo' => ['required', 'file', 'max:'.AgenteAduanalArchivoService::MAX_KB, $this->reglaArchivo()],
-            'fecha_vencimiento' => ['nullable', 'date'],
-            'observaciones_documento' => ['nullable', 'string', 'max:2000'],
-        ], [
-            'tipo.required' => 'Selecciona el tipo de documento.',
-            'archivo.required' => 'Selecciona un archivo PDF, JPG o PNG.',
-            'archivo.max' => 'El archivo supera el límite de 10 MB.',
-        ]);
-
-        $guardado = $this->archivos->guardar(
-            $request->file('archivo'),
-            'agentes-aduanales/'.$agente->id.'/documentos'
-        );
-
-        $documento = $agente->documentos()->create([
-            'tipo' => $datos['tipo'],
-            'nombre_archivo' => $guardado['nombre_archivo'],
-            'ruta' => $guardado['ruta'],
-            'fecha_carga' => now()->toDateString(),
-            'fecha_vencimiento' => $datos['fecha_vencimiento'] ?? null,
-            'observaciones' => $datos['observaciones_documento'] ?? null,
-            'subido_por' => $admin->id,
-        ]);
-
-        AuditService::registrar(
-            'crear',
-            'agentes_aduanales',
-            'Cargó un documento ('.$documento->tipoLabel().') del agente '.$agente->nombre.'.',
-            null,
-            ['tipo' => $documento->tipo, 'nombre_archivo' => $documento->nombre_archivo]
-        );
-
-        return redirect(route('admin.agentes-aduanales.ver', $agente).'#documentos')
-            ->with('mensaje', 'Documento cargado.');
-    }
-
-    public function descargarDocumento(AgenteAduanal $agente, DocumentoAgenteAduanal $documento)
-    {
-        $this->asegurarAcceso();
-        abort_unless($documento->agente_aduanal_id === $agente->id, 404);
-
-        return $this->descargarPrivado($documento->ruta, $documento->nombre_archivo);
-    }
-
-    public function eliminarDocumento(AgenteAduanal $agente, DocumentoAgenteAduanal $documento)
-    {
-        $this->asegurarAcceso();
-        abort_unless($documento->agente_aduanal_id === $agente->id, 404);
-
-        $this->archivos->eliminar($documento->ruta);
-        $nombre = $documento->nombre_archivo;
-        $documento->delete();
-
-        AuditService::registrar(
-            'eliminar',
-            'agentes_aduanales',
-            'Eliminó el documento '.$nombre.' del agente '.$agente->nombre.'.'
-        );
-
-        return redirect(route('admin.agentes-aduanales.ver', $agente).'#documentos')
-            ->with('mensaje', 'Documento eliminado.');
-    }
-
-    public function guardarEncargo(Request $request, AgenteAduanal $agente)
-    {
-        $this->asegurarAcceso();
-        $datos = $this->validarEncargo($request);
+        $datos = $this->validarFactura($request, true);
+        $agente = AgenteAduanal::findOrFail($datos['agente_aduanal_id']);
+        $operacion = $this->resolverOperacion($datos, $agente);
 
         $guardado = null;
-        if ($request->hasFile('archivo_acuse')) {
+        if ($request->hasFile('archivo')) {
             $guardado = $this->archivos->guardar(
-                $request->file('archivo_acuse'),
-                'agentes-aduanales/'.$agente->id.'/acuses'
+                $request->file('archivo'),
+                'agentes-aduanales/'.$agente->id.'/facturas'
             );
         }
 
-        $encargo = $agente->encargos()->create([
-            'numero_patente' => $agente->numero_patente,
-            'fecha_inicio' => $datos['fecha_inicio'],
-            'fecha_termino' => $datos['fecha_termino'] ?? null,
-            'estado' => $datos['estado'],
-            'numero_acuse' => $datos['numero_acuse'] ?? null,
-            'nombre_acuse' => $guardado['nombre_archivo'] ?? null,
-            'ruta_acuse' => $guardado['ruta'] ?? null,
-            'observaciones' => $datos['observaciones'] ?? null,
+        try {
+            $factura = DB::transaction(function () use ($datos, $agente, $operacion, $guardado) {
+                $factura = FacturaAgenteAduanal::create([
+                    'operacion_id' => $operacion->id,
+                    'agente_aduanal_id' => $agente->id,
+                    'folio' => $datos['folio'],
+                    'serie' => $datos['serie'],
+                    'fecha' => $datos['fecha'],
+                    'moneda' => $datos['moneda'],
+                    'importe' => $datos['importe'],
+                    'saldo_pendiente' => $datos['saldo_pendiente'],
+                    'honorarios' => $datos['honorarios'],
+                    'impuestos' => $datos['impuestos'],
+                    'retenciones' => null,
+                    'estado_cancelacion' => $datos['estado_cancelacion'],
+                    'estado_pago' => $datos['estado_pago'],
+                    'sentido' => null,
+                    'nombre_archivo' => $guardado['nombre_archivo'] ?? null,
+                    'ruta' => $guardado['ruta'] ?? null,
+                    'observaciones' => null,
+                ]);
+
+                AnticipoAgenteAduanal::query()
+                    ->where('operacion_id', $operacion->id)
+                    ->whereNull('factura_id')
+                    ->update(['factura_id' => $factura->id]);
+
+                return $factura;
+            });
+        } catch (\Throwable $e) {
+            if ($guardado) {
+                $this->archivos->eliminar($guardado['ruta']);
+            }
+            throw $e;
+        }
+
+        AuditService::registrar(
+            'crear',
+            'agentes_aduanales',
+            'Registró la factura '.$factura->serieFolio().' del agente '.$agente->nombre.'.',
+            null,
+            [
+                'folio' => $factura->folio,
+                'serie' => $factura->serie,
+                'importe' => (string) $factura->importe,
+                'serie' => $factura->serie,
+                'folio' => $factura->folio,
+            ]
+        );
+
+        return redirect()->route('admin.agentes-aduanales.ver', $factura)
+            ->with('mensaje', 'Factura registrada. Los importes quedaron como vienen en el PDF o como los capturaste.');
+    }
+
+    public function ver(FacturaAgenteAduanal $factura)
+    {
+        $this->asegurarAcceso();
+        $factura->load(['agente', 'operacion', 'pagos.anticipo']);
+        $anticipos = $this->anticiposDeFactura($factura);
+
+        return view('admin.agentes-aduanales.ver', compact('factura', 'anticipos'));
+    }
+
+    public function editar(FacturaAgenteAduanal $factura)
+    {
+        $this->asegurarAcceso();
+        $factura->load('operacion');
+
+        return view('admin.agentes-aduanales.form', [
+            'factura' => $factura,
+            'agentes' => AgenteAduanal::query()->orderBy('nombre')->get(),
+            'operaciones' => collect(),
+            'operacionSeleccionada' => null,
+        ]);
+    }
+
+    public function actualizar(Request $request, FacturaAgenteAduanal $factura)
+    {
+        $this->asegurarAcceso();
+        $antes = [
+            'importe' => (string) $factura->importe,
+            'saldo_pendiente' => $factura->saldo_pendiente !== null ? (string) $factura->saldo_pendiente : null,
+            'sentido' => $factura->sentido,
+            'estado_pago' => $factura->estado_pago,
+        ];
+        $datos = $this->validarFactura($request, false);
+        $agente = AgenteAduanal::findOrFail($datos['agente_aduanal_id']);
+        $rutaAnterior = $factura->ruta;
+
+        $guardado = null;
+        if ($request->hasFile('archivo')) {
+            $guardado = $this->archivos->guardar(
+                $request->file('archivo'),
+                'agentes-aduanales/'.$agente->id.'/facturas'
+            );
+        }
+
+        try {
+            DB::transaction(function () use ($factura, $datos, $agente, $guardado) {
+                $cambios = [
+                    'agente_aduanal_id' => $agente->id,
+                    'folio' => $datos['folio'],
+                    'serie' => $datos['serie'],
+                    'fecha' => $datos['fecha'],
+                    'moneda' => $datos['moneda'],
+                    'importe' => $datos['importe'],
+                    'saldo_pendiente' => $datos['saldo_pendiente'],
+                    'honorarios' => $datos['honorarios'],
+                    'impuestos' => $datos['impuestos'],
+                    'retenciones' => null,
+                    'estado_cancelacion' => $datos['estado_cancelacion'],
+                    'estado_pago' => $datos['estado_pago'],
+                    'sentido' => null,
+                    'observaciones' => null,
+                ];
+                if ($guardado) {
+                    $cambios['nombre_archivo'] = $guardado['nombre_archivo'];
+                    $cambios['ruta'] = $guardado['ruta'];
+                }
+                $factura->update($cambios);
+
+                if ($factura->operacion) {
+                    $factura->operacion->update([
+                        'agente_aduanal_id' => $agente->id,
+                        'numero_patente' => $agente->numero_patente,
+                        'tipo_operacion' => $datos['tipo_operacion'],
+                        'fecha' => $datos['fecha'],
+                    ]);
+                }
+            });
+        } catch (\Throwable $e) {
+            if ($guardado) {
+                $this->archivos->eliminar($guardado['ruta']);
+            }
+            throw $e;
+        }
+
+        if ($guardado && $rutaAnterior && $rutaAnterior !== $guardado['ruta']) {
+            $this->archivos->eliminar($rutaAnterior);
+        }
+
+        AuditService::registrar(
+            'editar',
+            'agentes_aduanales',
+            'Actualizó la factura '.$factura->serieFolio().'.',
+            $antes,
+            [
+                'importe' => (string) $factura->importe,
+                'saldo_pendiente' => $factura->saldo_pendiente !== null ? (string) $factura->saldo_pendiente : null,
+                'sentido' => $factura->sentido,
+                'estado_pago' => $factura->estado_pago,
+            ]
+        );
+
+        return redirect()->route('admin.agentes-aduanales.ver', $factura)
+            ->with('mensaje', 'Factura actualizada.');
+    }
+
+    public function descargarArchivo(FacturaAgenteAduanal $factura)
+    {
+        $this->asegurarAcceso();
+        abort_unless($this->archivos->rutaSegura($factura->ruta), 404);
+        abort_unless(Storage::disk(AgenteAduanalArchivoService::DISCO)->exists($factura->ruta), 404);
+
+        $nombre = str_replace(['"', "\r", "\n", '\\', '/'], '', (string) $factura->nombre_archivo);
+
+        return Storage::disk(AgenteAduanalArchivoService::DISCO)->download(
+            $factura->ruta,
+            $nombre !== '' ? $nombre : 'factura'
+        );
+    }
+
+    public function crearAnticipo()
+    {
+        $this->asegurarAcceso();
+
+        return view('admin.agentes-aduanales.anticipo', [
+            'agentes' => AgenteAduanal::query()->orderBy('nombre')->get(),
+            'operaciones' => OperacionComercioExterior::query()->with(['agente', 'factura'])->orderByDesc('fecha')->limit(100)->get(),
+        ]);
+    }
+
+    public function guardarAnticipo(Request $request)
+    {
+        $this->asegurarAcceso();
+        $datos = $this->validarAnticipo($request);
+        $agente = AgenteAduanal::findOrFail($datos['agente_aduanal_id']);
+
+        $anticipo = DB::transaction(function () use ($datos, $agente) {
+            if (! empty($datos['operacion_id'])) {
+                $operacion = OperacionComercioExterior::findOrFail($datos['operacion_id']);
+                if ((int) $operacion->agente_aduanal_id !== (int) $agente->id) {
+                    throw ValidationException::withMessages([
+                        'operacion_id' => 'Esa operación no corresponde al agente seleccionado.',
+                    ]);
+                }
+            } else {
+                $operacion = OperacionComercioExterior::create([
+                    'agente_aduanal_id' => $agente->id,
+                    'numero_patente' => $agente->numero_patente,
+                    'fecha' => $datos['fecha'],
+                    'tipo_operacion' => $datos['tipo_operacion'],
+                ]);
+            }
+
+            $facturaId = $operacion->factura?->id;
+
+            return AnticipoAgenteAduanal::create([
+                'agente_aduanal_id' => $agente->id,
+                'factura_id' => $facturaId,
+                'operacion_id' => $operacion->id,
+                'fecha' => $datos['fecha'],
+                'importe' => $datos['importe'],
+                'moneda' => $datos['moneda'],
+                'referencia' => $datos['referencia'],
+                'observaciones' => $datos['observaciones'],
+            ]);
+        });
+
+        AuditService::registrar(
+            'crear',
+            'agentes_aduanales',
+            'Ligó un anticipo de '.$agente->nombre.' antes del pago.',
+            null,
+            ['anticipo_id' => $anticipo->id, 'operacion_id' => $anticipo->operacion_id, 'factura_id' => $anticipo->factura_id]
+        );
+
+        if ($anticipo->factura_id) {
+            return redirect()->route('admin.agentes-aduanales.ver', $anticipo->factura_id)
+                ->with('mensaje', 'Anticipo ligado a la factura. Todavía no se registró el pago.');
+        }
+
+        return redirect()->route('admin.agentes-aduanales')
+            ->with('mensaje', 'Anticipo ligado a la operación. Cuando registres la factura, quedará asociado.');
+    }
+
+    public function ligarAnticipo(Request $request, FacturaAgenteAduanal $factura)
+    {
+        $this->asegurarAcceso();
+        $datos = $this->validarAnticipo($request, false);
+
+        $anticipo = $factura->anticipos()->create([
+            'agente_aduanal_id' => $factura->agente_aduanal_id,
+            'operacion_id' => $factura->operacion_id,
+            'fecha' => $datos['fecha'],
+            'importe' => $datos['importe'],
+            'moneda' => $datos['moneda'],
+            'referencia' => $datos['referencia'],
+            'observaciones' => $datos['observaciones'],
         ]);
 
         AuditService::registrar(
             'crear',
             'agentes_aduanales',
-            'Registró un encargo conferido interno del agente '.$agente->nombre.' (patente '.$encargo->numero_patente.').',
+            'Ligó un anticipo a la factura '.$factura->serieFolio().'.',
             null,
-            ['estado' => $encargo->estado, 'numero_acuse' => $encargo->numero_acuse]
+            ['anticipo_id' => $anticipo->id, 'factura_id' => $factura->id]
         );
 
-        return redirect(route('admin.agentes-aduanales.ver', $agente).'#encargos')
-            ->with('mensaje', 'Encargo registrado en Salcom. No se envió ningún trámite al SAT.');
+        return redirect()->route('admin.agentes-aduanales.ver', $factura)
+            ->with('mensaje', 'Anticipo ligado a la factura. El pago se registra aparte.');
     }
 
-    public function actualizarEncargo(Request $request, AgenteAduanal $agente, EncargoConferido $encargo)
+    public function guardarPago(Request $request, FacturaAgenteAduanal $factura)
     {
         $this->asegurarAcceso();
-        abort_unless($encargo->agente_aduanal_id === $agente->id, 404);
+        $datos = $request->validate([
+            'fecha_pago' => ['required', 'date'],
+            'importe_pago' => ['required', 'numeric', 'gt:0', 'max:999999999999.99'],
+            'moneda_pago' => ['required', Rule::in(array_keys(FacturaAgenteAduanal::MONEDAS))],
+            'direccion' => ['required', Rule::in(array_keys(PagoAgenteAduanal::DIRECCIONES))],
+            'anticipo_id' => ['nullable', 'integer'],
+            'referencia_pago' => ['nullable', 'string', 'max:80'],
+            'observaciones_pago' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'fecha_pago.required' => 'La fecha del pago es obligatoria.',
+            'importe_pago.required' => 'El importe del pago es obligatorio.',
+            'importe_pago.gt' => 'El importe del pago debe ser mayor a cero.',
+            'moneda_pago.required' => 'Selecciona la moneda del pago.',
+            'direccion.required' => 'Indica si Salcom paga al agente o el agente paga a Salcom.',
+        ]);
 
-        $datos = $this->validarEncargo($request);
-        $cambios = [
-            'fecha_inicio' => $datos['fecha_inicio'],
-            'fecha_termino' => $datos['fecha_termino'] ?? null,
-            'estado' => $datos['estado'],
-            'numero_acuse' => $datos['numero_acuse'] ?? null,
-            'observaciones' => $datos['observaciones'] ?? null,
-        ];
-
-        if ($request->hasFile('archivo_acuse')) {
-            $guardado = $this->archivos->guardar(
-                $request->file('archivo_acuse'),
-                'agentes-aduanales/'.$agente->id.'/acuses'
+        $anticipoId = $datos['anticipo_id'] ?? null;
+        if ($anticipoId) {
+            $anticipo = AnticipoAgenteAduanal::find($anticipoId);
+            $ligado = $anticipo && (
+                (int) $anticipo->factura_id === (int) $factura->id
+                || ($factura->operacion_id && (int) $anticipo->operacion_id === (int) $factura->operacion_id)
             );
-            $this->archivos->eliminar($encargo->ruta_acuse);
-            $cambios['nombre_acuse'] = $guardado['nombre_archivo'];
-            $cambios['ruta_acuse'] = $guardado['ruta'];
+            if (! $ligado) {
+                throw ValidationException::withMessages([
+                    'anticipo_id' => 'Ese anticipo no está ligado a esta factura ni a su operación.',
+                ]);
+            }
         }
 
-        $encargo->update($cambios);
+        $pago = $factura->pagos()->create([
+            'anticipo_id' => $anticipoId ?: null,
+            'agente_aduanal_id' => $factura->agente_aduanal_id,
+            'fecha' => $datos['fecha_pago'],
+            'importe' => $this->decimal($datos['importe_pago']),
+            'moneda' => $datos['moneda_pago'],
+            'direccion' => $datos['direccion'],
+            'referencia' => $this->vacio($datos['referencia_pago'] ?? null),
+            'observaciones' => $this->vacio($datos['observaciones_pago'] ?? null),
+        ]);
 
         AuditService::registrar(
-            'editar',
+            'crear',
             'agentes_aduanales',
-            'Actualizó un encargo conferido interno del agente '.$agente->nombre.'.',
+            'Registró un pago de la factura '.$factura->serieFolio().': '.$pago->direccionLabel().'.',
             null,
-            ['estado' => $encargo->estado, 'numero_acuse' => $encargo->numero_acuse]
+            ['pago_id' => $pago->id, 'direccion' => $pago->direccion, 'importe' => (string) $pago->importe]
         );
 
-        return redirect(route('admin.agentes-aduanales.ver', $agente).'#encargos')
-            ->with('mensaje', 'Encargo actualizado en el registro interno.');
-    }
-
-    public function descargarAcuse(AgenteAduanal $agente, EncargoConferido $encargo)
-    {
-        $this->asegurarAcceso();
-        abort_unless($encargo->agente_aduanal_id === $agente->id, 404);
-        abort_unless(is_string($encargo->ruta_acuse) && $encargo->ruta_acuse !== '', 404);
-
-        return $this->descargarPrivado($encargo->ruta_acuse, $encargo->nombre_acuse ?: 'acuse.pdf');
-    }
-
-    public function eliminarEncargo(AgenteAduanal $agente, EncargoConferido $encargo)
-    {
-        $this->asegurarAcceso();
-        abort_unless($encargo->agente_aduanal_id === $agente->id, 404);
-
-        $this->archivos->eliminar($encargo->ruta_acuse);
-        $encargo->delete();
-
-        AuditService::registrar(
-            'eliminar',
-            'agentes_aduanales',
-            'Eliminó un encargo conferido interno del agente '.$agente->nombre.'.'
-        );
-
-        return redirect(route('admin.agentes-aduanales.ver', $agente).'#encargos')
-            ->with('mensaje', 'Encargo eliminado del registro interno.');
+        return redirect()->route('admin.agentes-aduanales.ver', $factura)
+            ->with('mensaje', 'Pago registrado con la dirección que elegiste. El saldo y el estado de la factura no se recalcularon.');
     }
 
     private function asegurarAcceso(): AdminUser
@@ -360,99 +494,254 @@ class AgenteAduanalController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function validarAgente(Request $request, ?AgenteAduanal $agente = null): array
+    private function validarFactura(Request $request, bool $creando): array
     {
+        if ($request->hasFile('archivo') && strtolower((string) $request->file('archivo')->getClientOriginalExtension()) === 'pdf') {
+            $this->completarDesdePdf($request);
+        }
+
         $request->merge([
-            'nombre' => trim((string) $request->input('nombre')),
-            'rfc' => strtoupper(trim((string) $request->input('rfc'))),
-            'numero_patente' => trim((string) $request->input('numero_patente')),
-            'agencia' => trim((string) $request->input('agencia')),
+            'serie' => $this->vacio($request->input('serie')),
+            'folio' => trim((string) $request->input('folio')),
+            'honorarios' => $this->vacio($request->input('honorarios')),
+            'impuestos' => $this->vacio($request->input('impuestos')),
+            'saldo_pendiente' => $this->vacio($request->input('saldo_pendiente')),
+            'operacion_id' => $this->vacio($request->input('operacion_id')),
         ]);
 
-        if ($request->input('estado_verificacion') === 'no_verificado') {
-            $request->merge([
-                'fecha_ultima_verificacion' => null,
-                'fuente_verificacion' => null,
-                'fuente_detalle' => null,
+        $reglas = [
+            'agente_aduanal_id' => ['required', 'integer', 'exists:agentes_aduanales,id'],
+            'fecha' => ['required', 'date'],
+            'serie' => ['nullable', 'string', 'max:25'],
+            'folio' => ['required', 'string', 'max:40'],
+            'moneda' => ['required', Rule::in(array_keys(FacturaAgenteAduanal::MONEDAS))],
+            'importe' => ['required', 'numeric', 'min:0', 'max:999999999999.99'],
+            'saldo_pendiente' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
+            'honorarios' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
+            'impuestos' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
+            'estado_cancelacion' => ['required', Rule::in(array_keys(FacturaAgenteAduanal::ESTADOS_CANCELACION))],
+            'estado_pago' => ['required', Rule::in(array_keys(FacturaAgenteAduanal::ESTADOS_PAGO))],
+            'archivo' => [$creando ? 'required' : 'nullable', 'file', 'max:'.AgenteAduanalArchivoService::MAX_KB, $this->reglaArchivo()],
+            'tipo_operacion' => ['nullable', 'required_without:operacion_id', Rule::in(array_keys(OperacionComercioExterior::TIPOS))],
+        ];
+
+        if ($creando) {
+            $reglas['operacion_id'] = ['nullable', 'integer', 'exists:operaciones_comercio_exterior,id'];
+        } else {
+            $reglas['tipo_operacion'] = ['required', Rule::in(array_keys(OperacionComercioExterior::TIPOS))];
+        }
+
+        $datos = $request->validate($reglas, [
+            'agente_aduanal_id.required' => 'Selecciona el agente aduanal.',
+            'fecha.required' => 'La fecha de la factura es obligatoria.',
+            'folio.required' => 'El folio es obligatorio.',
+            'moneda.required' => 'Selecciona la moneda.',
+            'importe.required' => 'El total de la factura es obligatorio.',
+            'importe.min' => 'El total no puede ser negativo.',
+            'saldo_pendiente.min' => 'El saldo pendiente no puede ser negativo.',
+            'tipo_operacion.required_without' => 'Indica si la operación es de importación o de exportación.',
+            'tipo_operacion.required' => 'Indica si la operación es de importación o de exportación.',
+            'estado_cancelacion.required' => 'Indica el estado de cancelación.',
+            'estado_pago.required' => 'Indica el estado del pago.',
+            'archivo.required' => 'Sube el PDF de la factura que mandó el agente.',
+            'archivo.max' => 'El archivo supera el límite de 10 MB.',
+        ]);
+
+        if ($creando && strtolower((string) $request->file('archivo')?->getClientOriginalExtension()) !== 'pdf') {
+            throw ValidationException::withMessages([
+                'archivo' => 'La factura se registra con el PDF que mandó el agente.',
             ]);
         }
 
-        $datos = $request->validate([
-            'nombre' => ['required', 'string', 'max:180'],
-            'rfc' => [
-                'required',
-                'string',
-                'regex:/^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/u',
-                Rule::unique('agentes_aduanales', 'rfc')->ignore($agente?->id),
-            ],
-            'numero_patente' => [
-                'required',
-                'digits:4',
-                Rule::unique('agentes_aduanales', 'numero_patente')->ignore($agente?->id),
-            ],
-            'agencia' => ['nullable', 'string', 'max:180'],
-            'tipo_operacion' => ['required', Rule::in(array_keys(AgenteAduanal::TIPOS_OPERACION))],
-            'contacto_nombre' => ['nullable', 'string', 'max:180'],
-            'contacto_correo' => ['nullable', 'email', 'max:180'],
-            'contacto_telefono' => ['nullable', 'string', 'max:20'],
-            'contacto_celular' => ['nullable', 'string', 'max:20'],
-            'activo' => ['required', 'boolean'],
-            'estado_verificacion' => ['required', Rule::in(array_keys(AgenteAduanal::VERIFICACIONES))],
-            'fecha_ultima_verificacion' => ['nullable', 'date', 'before_or_equal:today', 'required_unless:estado_verificacion,no_verificado'],
-            'fuente_verificacion' => ['nullable', Rule::in(array_keys(AgenteAduanal::FUENTES)), 'required_unless:estado_verificacion,no_verificado'],
-            'fuente_detalle' => ['nullable', 'string', 'max:120', 'required_if:fuente_verificacion,otra'],
-            'observaciones' => ['nullable', 'string', 'max:2000'],
-            'aduanas' => ['nullable', 'array'],
-            'aduanas.*' => ['integer', 'exists:aduanas,id'],
-        ], [
-            'nombre.required' => 'El nombre del agente es obligatorio.',
-            'rfc.required' => 'El RFC es obligatorio.',
-            'rfc.regex' => 'El RFC debe ser de persona física (13 caracteres).',
-            'rfc.unique' => 'Ese RFC ya está registrado.',
-            'numero_patente.required' => 'El número de patente es obligatorio.',
-            'numero_patente.digits' => 'La patente aduanal debe tener 4 dígitos.',
-            'numero_patente.unique' => 'Esa patente ya está registrada.',
-            'tipo_operacion.required' => 'Selecciona el tipo de operación.',
-            'fecha_ultima_verificacion.required_unless' => 'Indica la fecha en que se consultó la fuente.',
-            'fecha_ultima_verificacion.before_or_equal' => 'La fecha de verificación no puede ser futura.',
-            'fuente_verificacion.required_unless' => 'Indica la fuente que se consultó.',
-            'fuente_detalle.required_if' => 'Describe la fuente de verificación.',
-            'contacto_correo.email' => 'El correo del contacto no es válido.',
-        ]);
-
-        if ($datos['estado_verificacion'] === 'no_verificado') {
-            $datos['fecha_ultima_verificacion'] = null;
-            $datos['fuente_verificacion'] = null;
-            $datos['fuente_detalle'] = null;
-        } elseif (($datos['fuente_verificacion'] ?? null) !== 'otra') {
-            $datos['fuente_detalle'] = null;
+        $datos['importe'] = $this->decimal($datos['importe']);
+        foreach (['saldo_pendiente', 'honorarios', 'impuestos'] as $campo) {
+            $datos[$campo] = $this->decimalONull($datos[$campo] ?? null);
         }
-
-        $datos['agencia'] = $datos['agencia'] !== '' ? $datos['agencia'] : null;
-        $datos['aduanas'] = array_values(array_unique(array_map('intval', $datos['aduanas'] ?? [])));
-        $datos['activo'] = (bool) $datos['activo'];
+        $datos['serie'] = $datos['serie'] ?? null;
 
         return $datos;
+    }
+
+    private function completarDesdePdf(Request $request): void
+    {
+        $archivo = $request->file('archivo');
+        if (! $archivo instanceof UploadedFile) {
+            return;
+        }
+
+        $lectura = $this->lecturaDePdf($archivo);
+        $merge = [];
+        foreach (['serie', 'folio', 'fecha', 'moneda', 'importe', 'honorarios', 'impuestos', 'tipo_operacion', 'estado_cancelacion'] as $campo) {
+            if ($this->vacio($request->input($campo)) === null && ! empty($lectura[$campo])) {
+                $merge[$campo] = $lectura[$campo];
+            }
+        }
+        if ($lectura['agente_id'] && $this->vacio($request->input('agente_aduanal_id')) === null) {
+            $merge['agente_aduanal_id'] = $lectura['agente_id'];
+        }
+        if ($lectura['leido']) {
+            if ($this->vacio($request->input('estado_pago')) === null && empty($merge['estado_pago'] ?? null)) {
+                $merge['estado_pago'] = 'pendiente';
+            }
+            if ($this->vacio($request->input('estado_cancelacion')) === null && empty($lectura['estado_cancelacion'])) {
+                $merge['estado_cancelacion'] = 'vigente';
+            }
+        }
+        if ($merge !== []) {
+            $request->merge($merge);
+        }
+        if ($lectura['avisos'] !== []) {
+            session()->flash('pdf_avisos', $lectura['avisos']);
+        }
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function validarEncargo(Request $request): array
+    private function lecturaDePdf(UploadedFile $archivo): array
     {
-        return $request->validate([
-            'fecha_inicio' => ['required', 'date'],
-            'fecha_termino' => ['nullable', 'date', 'after_or_equal:fecha_inicio'],
-            'estado' => ['required', Rule::in(array_keys(EncargoConferido::ESTADOS))],
-            'numero_acuse' => ['nullable', 'string', 'max:80'],
-            'archivo_acuse' => ['nullable', 'file', 'max:'.AgenteAduanalArchivoService::MAX_KB, $this->reglaArchivo()],
-            'observaciones' => ['nullable', 'string', 'max:2000'],
-        ], [
-            'fecha_inicio.required' => 'La fecha de inicio del encargo es obligatoria.',
-            'fecha_termino.after_or_equal' => 'La fecha de término no puede ser anterior al inicio.',
-            'estado.required' => 'Selecciona el estado del encargo.',
-            'archivo_acuse.max' => 'El acuse supera el límite de 10 MB.',
+        $leido = $this->lectorPdf->leerArchivo($archivo);
+        $agente = $this->agentePorRfc($leido['rfc_emisor'] ?? null) ?? $this->agentePorNombre($leido['nombre_emisor'] ?? null);
+        $leido['agente_id'] = $agente?->id;
+        $leido['nombre_agente'] = $agente?->nombreVisible() ?: ($leido['nombre_emisor'] ?? null);
+        if (! $agente && ! empty($leido['rfc_emisor'])) {
+            $leido['avisos'][] = 'El RFC '.$leido['rfc_emisor'].' no está en los agentes registrados aquí. Selecciona el agente de la lista.';
+        }
+
+        return $leido;
+    }
+
+    private function agentePorRfc(?string $rfc): ?AgenteAduanal
+    {
+        $rfc = strtoupper(trim((string) $rfc));
+        if ($rfc === '') {
+            return null;
+        }
+
+        $agentes = AgenteAduanal::query()
+            ->whereRaw('UPPER(rfc) = ?', [$rfc])
+            ->get();
+
+        return $agentes->count() === 1 ? $agentes->first() : null;
+    }
+
+    private function agentePorNombre(?string $nombre): ?AgenteAduanal
+    {
+        $nombre = mb_strtoupper(trim((string) $nombre), 'UTF-8');
+        if (mb_strlen($nombre) < 8) {
+            return null;
+        }
+
+        $agentes = AgenteAduanal::query()->get()->filter(function (AgenteAduanal $agente) use ($nombre) {
+            $propio = mb_strtoupper(trim((string) $agente->nombre), 'UTF-8');
+            $agencia = mb_strtoupper(trim((string) $agente->agencia), 'UTF-8');
+
+            return ($propio !== '' && (str_contains($nombre, $propio) || str_contains($propio, $nombre)))
+                || ($agencia !== '' && (str_contains($nombre, $agencia) || str_contains($agencia, $nombre)));
+        })->values();
+
+        return $agentes->count() === 1 ? $agentes->first() : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $datos
+     */
+    private function resolverOperacion(array $datos, AgenteAduanal $agente): OperacionComercioExterior
+    {
+        if (! empty($datos['operacion_id'])) {
+            $operacion = OperacionComercioExterior::findOrFail($datos['operacion_id']);
+            if ((int) $operacion->agente_aduanal_id !== (int) $agente->id) {
+                throw ValidationException::withMessages([
+                    'operacion_id' => 'Esa operación no corresponde al agente seleccionado.',
+                ]);
+            }
+            if ($operacion->factura) {
+                throw ValidationException::withMessages([
+                    'operacion_id' => 'Esa operación ya tiene una factura.',
+                ]);
+            }
+
+            return $operacion;
+        }
+
+        return OperacionComercioExterior::create([
+            'agente_aduanal_id' => $agente->id,
+            'numero_patente' => $agente->numero_patente,
+            'fecha' => $datos['fecha'],
+            'tipo_operacion' => $datos['tipo_operacion'],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validarAnticipo(Request $request, bool $conOperacion = true): array
+    {
+        $reglas = [
+            'fecha_anticipo' => ['required', 'date'],
+            'importe_anticipo' => ['required', 'numeric', 'gt:0', 'max:999999999999.99'],
+            'moneda_anticipo' => ['required', Rule::in(array_keys(FacturaAgenteAduanal::MONEDAS))],
+            'referencia_anticipo' => ['nullable', 'string', 'max:80'],
+            'observaciones_anticipo' => ['nullable', 'string', 'max:2000'],
+        ];
+
+        if ($conOperacion) {
+            $request->merge([
+                'operacion_id' => $this->vacio($request->input('operacion_id')),
+            ]);
+            $reglas['agente_aduanal_id'] = ['required', 'integer', 'exists:agentes_aduanales,id'];
+            $reglas['operacion_id'] = ['nullable', 'integer', 'exists:operaciones_comercio_exterior,id'];
+            $reglas['tipo_operacion'] = ['nullable', 'required_without:operacion_id', Rule::in(array_keys(OperacionComercioExterior::TIPOS))];
+        }
+
+        $datos = $request->validate($reglas, [
+            'agente_aduanal_id.required' => 'Selecciona el agente aduanal.',
+            'fecha_anticipo.required' => 'La fecha del anticipo es obligatoria.',
+            'importe_anticipo.required' => 'El importe del anticipo es obligatorio.',
+            'importe_anticipo.gt' => 'El anticipo debe ser mayor a cero.',
+            'moneda_anticipo.required' => 'Selecciona la moneda del anticipo.',
+            'tipo_operacion.required_without' => 'Indica si la operación es de importación o de exportación.',
+        ]);
+
+        return [
+            'agente_aduanal_id' => $datos['agente_aduanal_id'] ?? null,
+            'operacion_id' => $datos['operacion_id'] ?? null,
+            'tipo_operacion' => $datos['tipo_operacion'] ?? null,
+            'fecha' => $datos['fecha_anticipo'],
+            'importe' => $this->decimal($datos['importe_anticipo']),
+            'moneda' => $datos['moneda_anticipo'],
+            'referencia' => $this->vacio($datos['referencia_anticipo'] ?? null),
+            'observaciones' => $this->vacio($datos['observaciones_anticipo'] ?? null),
+        ];
+    }
+
+    /**
+     * @return Collection<int, AnticipoAgenteAduanal>
+     */
+    private function anticiposDeFactura(FacturaAgenteAduanal $factura)
+    {
+        return AnticipoAgenteAduanal::query()
+            ->where(function ($q) use ($factura) {
+                $q->where('factura_id', $factura->id);
+                if ($factura->operacion_id) {
+                    $q->orWhere('operacion_id', $factura->operacion_id);
+                }
+            })
+            ->orderByDesc('fecha')
+            ->get();
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Collection<int, OperacionComercioExterior>
+     */
+    private function operacionesSinFactura()
+    {
+        return OperacionComercioExterior::query()
+            ->whereDoesntHave('factura')
+            ->with('agente')
+            ->withCount('anticipos')
+            ->orderByDesc('fecha')
+            ->get();
     }
 
     private function reglaArchivo(): \Closure
@@ -469,37 +758,28 @@ class AgenteAduanalController extends Controller
         };
     }
 
-    private function descargarPrivado(string $ruta, string $nombre)
+    private function vacio(mixed $valor): ?string
     {
-        abort_unless($this->archivos->rutaSegura($ruta), 404);
-        abort_unless(Storage::disk(AgenteAduanalArchivoService::DISCO)->exists($ruta), 404);
-
-        $nombre = str_replace(['"', "\r", "\n", '\\', '/'], '', $nombre);
-        if ($nombre === '') {
-            $nombre = 'documento';
+        if ($valor === null) {
+            return null;
         }
 
-        return Storage::disk(AgenteAduanalArchivoService::DISCO)->download($ruta, $nombre);
+        $texto = trim((string) $valor);
+
+        return $texto === '' ? null : $texto;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function resumenAuditoria(AgenteAduanal $agente): array
+    private function decimal(mixed $valor): string
     {
-        return [
-            'nombre' => $agente->nombre,
-            'rfc' => $agente->rfc,
-            'numero_patente' => $agente->numero_patente,
-            'agencia' => $agente->agencia,
-            'tipo_operacion' => $agente->tipo_operacion,
-            'activo' => $agente->activo,
-            'estado_verificacion' => $agente->estado_verificacion,
-            'fecha_ultima_verificacion' => $agente->fecha_ultima_verificacion?->toDateString(),
-            'fuente_verificacion' => $agente->fuente_verificacion,
-            'aduanas' => $agente->relationLoaded('aduanas')
-                ? $agente->aduanas->pluck('clave')->all()
-                : $agente->aduanas()->pluck('clave')->all(),
-        ];
+        return number_format((float) $valor, 2, '.', '');
+    }
+
+    private function decimalONull(mixed $valor): ?string
+    {
+        if ($valor === null || $valor === '') {
+            return null;
+        }
+
+        return $this->decimal($valor);
     }
 }
