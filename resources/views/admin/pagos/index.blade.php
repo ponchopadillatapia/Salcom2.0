@@ -79,6 +79,16 @@
         .filter-field{min-width:100%}
         .filter-form{flex-direction:column;align-items:stretch}
     }
+
+    /* Pestañas: dos vistas (lista de proveedores / formatos creados) sin recargar. */
+    .fp-tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:2px solid var(--border-light,var(--border))}
+    .fp-tab{appearance:none;background:none;border:none;cursor:pointer;font-family:inherit;
+        font-size:14px;font-weight:600;color:var(--gray-muted);padding:10px 18px;border-radius:8px 8px 0 0;
+        border-bottom:3px solid transparent;margin-bottom:-2px;transition:color .15s,border-color .15s}
+    .fp-tab:hover{color:var(--purple)}
+    .fp-tab.is-active{color:var(--purple);border-bottom-color:var(--purple);background:var(--purple-subtle)}
+    .fp-panel{display:none}
+    .fp-panel.is-active{display:block}
 </style>
 @endpush
 @section('content')
@@ -105,6 +115,16 @@
     <div class="pag-alert err anim">{{ session('error') }}</div>
 @endif
 
+{{-- Dos pestañas: (1) buscar/listar proveedores con facturas pendientes; (2) formatos ya creados.
+     Es solo visual: ambas secciones ya existían; aquí se separan en pestañas sin recargar. --}}
+<div class="fp-tabs anim">
+    <button type="button" class="fp-tab is-active" data-fp-tab="lista">Formato para pago</button>
+    <button type="button" class="fp-tab" data-fp-tab="creados">Formatos para pago creados</button>
+</div>
+
+{{-- ── PANEL 1: proveedores con facturas pendientes (buscador + tabla) ── --}}
+<div class="fp-panel is-active" id="fp-panel-lista">
+
 <div class="toolbar anim" style="animation-delay:.04s">
     <div class="filters-panel">
         <form method="GET" action="{{ route('admin.pagos') }}" class="filter-form">
@@ -129,17 +149,112 @@
 </div>
 
 @if(! $filtrosBusqueda)
-    {{-- Pantalla de bienvenida: aún no se ha buscado nada. --}}
+    {{-- ── TABLA GLOBAL estilo reporte Wiese: proveedores por consecutivo con sus facturas ──
+         POR QUÉ: Brenda pidió ver de entrada la lista de proveedores (ordenados por código) con
+         sus facturas pendientes, marcando en ROJO las vencidas. Los datos vienen en vivo del
+         endpoint de Wiese (facturas pendientes de todos). Si no hay datos aún (Alan no liberó el
+         RFC vacío, o Wiese no respondió), se muestra un aviso y el buscador de arriba sigue útil. --}}
+    @if($tablaProveedores->isEmpty())
+        <div class="adm-section anim" style="animation-delay:.08s">
+            <div class="empty-state" style="padding:40px 20px;text-align:center;">
+                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.5" style="margin-bottom:12px;"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                <h3 style="margin:0 0 6px;color:#374151;">Aún no hay facturas pendientes para mostrar</h3>
+                <p style="color:#6b7280;max-width:520px;margin:0 auto;">
+                    @if($tablaError)
+                        No se pudo traer la lista completa en este momento. Mientras tanto, usa el buscador de arriba
+                        para abrir un proveedor específico y ver sus facturas.
+                    @else
+                        No hay facturas pendientes, o la lista global aún no está disponible. Usa el buscador de arriba
+                        para abrir un proveedor específico.
+                    @endif
+                </p>
+            </div>
+        </div>
+    @else
     <div class="adm-section anim" style="animation-delay:.08s">
-        <div class="empty-state" style="padding:48px 20px;text-align:center;">
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="1.5" style="margin-bottom:12px;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <h3 style="margin:0 0 6px;color:#374151;">Busca un proveedor para pagarle</h3>
-            <p style="color:#6b7280;max-width:460px;margin:0 auto;">
-                Escribe el <strong>código</strong>, <strong>nombre</strong> o <strong>RFC</strong> del proveedor en el buscador de arriba.
-                Al abrirlo verás sus facturas pendientes reales de Wiese, en tiempo real.
-            </p>
+        <div class="adm-section-head">
+            <div>
+                <h4>Proveedores con facturas pendientes</h4>
+                <div class="adm-section-meta">Orden alfabético · las facturas <span style="color:#dc2626;font-weight:700;">vencidas salen en rojo</span></div>
+            </div>
+        </div>
+        {{-- Scroll horizontal ARRIBA (barra espejo): una barrita que, al moverla, mueve la tabla
+             de abajo. Útil porque la tabla es ancha y así no hay que bajar hasta el final para
+             deslizar. El JS al final sincroniza ambas barras. --}}
+        <div id="wie-scroll-top" style="overflow-x:auto;overflow-y:hidden;">
+            <div id="wie-scroll-top-inner" style="height:1px;"></div>
+        </div>
+        {{-- min-width fuerza que las columnas no se apachurren: si no caben, el contenedor
+             (overflow-x:auto) muestra scroll horizontal como en Excel/Wiese. --}}
+        <div class="tbl-wrap" id="wie-scroll-bottom">
+            <table class="admin-table" id="wie-tabla" style="min-width:1150px;">
+                <thead>
+                    <tr>
+                        <th>Serie</th>
+                        <th>Folio</th>
+                        <th>Fecha factura</th>
+                        <th>Vence</th>
+                        <th style="text-align:right;">Total</th>
+                        <th style="text-align:right;">Saldo pendiente</th>
+                        <th>Referencia</th>
+                        <th style="text-align:right;">Total dólares</th>
+                        <th style="text-align:right;">Importe pago</th>
+                        <th style="text-align:right;">IVA dólares</th>
+                        <th style="text-align:center;">Moneda</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach($tablaProveedores as $codigoProv => $facturas)
+                        @php
+                            $primera = $facturas->first();
+                            $nombreProv = $primera['nombre'] ?? $codigoProv;
+                        @endphp
+                        {{-- Separador de proveedor: usa la clase date-row (estándar morado de la
+                             página) para que se vea igual que el separador de fecha de otras tablas.
+                             Clickeable para ir al detalle del proveedor y pagarle. --}}
+                        <tr class="date-row" style="cursor:pointer;"
+                            onclick="window.location='{{ route('admin.pagos.proveedor', $codigoProv) }}'">
+                            <td colspan="11">
+                                <a class="code-link" href="{{ route('admin.pagos.proveedor', $codigoProv) }}" onclick="event.stopPropagation()">{{ $codigoProv }}</a>
+                                — {{ $nombreProv }}
+                                <span style="font-weight:500;opacity:.75;">· {{ $facturas->count() }} factura(s)</span>
+                            </td>
+                        </tr>
+                        {{-- Una fila por factura del proveedor. --}}
+                        @foreach($facturas as $f)
+                            @php
+                                // Vencida: la fecha de vencimiento ya pasó. (No usamos vencido8/15 del
+                                // endpoint: Wiese los manda en 0, por eso se quitaron de la tabla.)
+                                $vence = ! empty($f['fecha_vence']) ? \Illuminate\Support\Carbon::parse($f['fecha_vence']) : null;
+                                $vencida = $vence && $vence->isPast();
+                                $esUsd = ($f['moneda'] ?? 'MXN') === 'USD';
+                            @endphp
+                            <tr>
+                                <td>{{ $f['serie'] ?? '' }}</td>
+                                <td style="font-weight:600;">{{ $f['folio'] ?? '—' }}</td>
+                                <td>{{ ! empty($f['fecha_factura']) ? \Illuminate\Support\Carbon::parse($f['fecha_factura'])->format('d/m/Y') : '—' }}</td>
+                                {{-- SOLO esta columna va en rojo cuando la factura está vencida. --}}
+                                <td style="white-space:nowrap;{{ $vencida ? 'color:#dc2626;font-weight:700;' : '' }}">
+                                    {{ $vence ? $vence->format('d/m/Y') : '—' }}
+                                    @if($vencida)<span style="font-size:10px;font-weight:700;"> · VENCIDA</span>@endif
+                                </td>
+                                <td style="text-align:right;white-space:nowrap;">${{ number_format((float) ($f['total'] ?? 0), 2) }}</td>
+                                <td style="text-align:right;font-weight:700;white-space:nowrap;">${{ number_format((float) ($f['saldo'] ?? 0), 2) }}</td>
+                                <td style="color:#6b7280;">{{ $f['referencia'] ?? '' }}</td>
+                                <td style="text-align:right;white-space:nowrap;">${{ number_format((float) ($f['saldo_dlls'] ?? 0), 2) }}</td>
+                                <td style="text-align:right;white-space:nowrap;">${{ number_format((float) ($f['importe_pago'] ?? 0), 2) }}</td>
+                                <td style="text-align:right;white-space:nowrap;">${{ number_format((float) ($f['iva_dlls'] ?? 0), 2) }}</td>
+                                <td style="text-align:center;">
+                                    @if($esUsd)<span class="mon-badge mon-usd" style="background:#dbeafe;color:#1d4ed8;">USD</span>@else<span class="mon-badge mon-mxn">MXN</span>@endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    @endforeach
+                </tbody>
+            </table>
         </div>
     </div>
+    @endif
 @else
 <div class="adm-section anim" style="animation-delay:.08s">
     <div class="adm-section-head">
@@ -196,11 +311,14 @@
 </div>
 @endif
 
-{{-- ── Formatos para pago YA creados ──
+</div>{{-- /fp-panel-lista --}}
+
+{{-- ── PANEL 2: Formatos para pago YA creados ──
      POR QUÉ: dirección pidió ver los formatos generados, del más nuevo arriba, con su estatus.
      Se agrupan por fecha de creación con el separador date-row (estilo estándar de nuestras
-     tablas). Se muestra siempre (haya o no búsqueda arriba). --}}
-<div class="adm-section anim" style="animation-delay:.12s;margin-top:24px;">
+     tablas). Vive en su propia pestaña. --}}
+<div class="fp-panel" id="fp-panel-creados">
+<div class="adm-section anim" style="animation-delay:.12s;">
     <div class="adm-section-head">
         <div>
             <h4>Formatos para pago creados</h4>
@@ -216,6 +334,7 @@
                 <thead>
                     <tr>
                         <th>Formato</th>
+                        <th>Departamento</th>
                         <th>Proveedor(es)</th>
                         <th style="text-align:center;">Facturas</th>
                         <th style="text-align:right;">Total</th>
@@ -244,13 +363,21 @@
                         @endphp
                         @if($fGrupo !== $fechaSep)
                             @php $fechaSep = $fGrupo; @endphp
-                            <tr class="date-row"><td colspan="5">{{ $fLabel }}</td></tr>
+                            <tr class="date-row"><td colspan="6">{{ $fLabel }}</td></tr>
                         @endif
                         <tr>
-                            {{-- POR QUÉ fijo FCONA-0040 (y no el id del pago): contabilidad usa
-                                 un folio fijo para el formato, igual que en el PDF reporte-resumen.
-                                 Antes salía FCONA-0022 (el id interno del lote), lo cual confundía. --}}
-                            <td style="font-weight:600;">FCONA-0040</td>
+                            {{-- Folio: FCONA-0040 es el folio contable fijo (lo pide conta), pero
+                                 TODOS salían igual y no se distinguían. Se le agrega el nº de lote
+                                 (#id, único por formato) + la hora, para reconocer cuál es cuál. --}}
+                            <td style="font-weight:600;white-space:nowrap;">
+                                FCONA-0040
+                                <div style="font-size:11px;font-weight:500;color:#6b7280;">
+                                    Lote #{{ $fmt->id }}@if($fmt->created_at) · {{ $fmt->created_at->format('H:i') }}@endif
+                                </div>
+                            </td>
+                            {{-- Departamento: etiqueta legible desde la constante DEPARTAMENTOS;
+                                 si el pago no tiene departamento (viejos), muestra "—". --}}
+                            <td>{{ \App\Models\PagoProveedor::DEPARTAMENTOS[$fmt->departamento] ?? ($fmt->departamento ?: '—') }}</td>
                             <td>
                                 @if($fmt->es_multi_proveedor)
                                     Varios proveedores ({{ $numProv }})
@@ -270,4 +397,52 @@
         </div>
     @endif
 </div>
+</div>{{-- /fp-panel-creados --}}
+
+{{-- Cambio de pestañas (sin recargar): muestra/oculta los dos paneles. --}}
+<script>
+(function () {
+    var tabs = document.querySelectorAll('.fp-tab');
+    var paneles = { lista: document.getElementById('fp-panel-lista'), creados: document.getElementById('fp-panel-creados') };
+    tabs.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            tabs.forEach(function (b) { b.classList.remove('is-active'); });
+            btn.classList.add('is-active');
+            var destino = btn.getAttribute('data-fp-tab');
+            Object.keys(paneles).forEach(function (k) {
+                if (paneles[k]) paneles[k].classList.toggle('is-active', k === destino);
+            });
+        });
+    });
+})();
+</script>
+
+{{-- Sincroniza la barra de scroll de ARRIBA con la tabla (ancha) de abajo: mover una mueve la otra.
+     POR QUÉ: la tabla de proveedores es más ancha que la pantalla; con la barra arriba no hay que
+     bajar hasta el final para deslizar a los lados. --}}
+<script>
+(function () {
+    var top = document.getElementById('wie-scroll-top');
+    var topInner = document.getElementById('wie-scroll-top-inner');
+    var bottom = document.getElementById('wie-scroll-bottom');
+    var tabla = document.getElementById('wie-tabla');
+    if (!top || !topInner || !bottom || !tabla) return;
+
+    // La barra de arriba necesita un "contenido" tan ancho como la tabla para que aparezca scroll.
+    function ajustar() { topInner.style.width = tabla.scrollWidth + 'px'; }
+    ajustar();
+    window.addEventListener('resize', ajustar);
+
+    // Al mover una barra, se mueve la otra (evita bucle con una bandera simple).
+    var sincronizando = false;
+    top.addEventListener('scroll', function () {
+        if (sincronizando) return; sincronizando = true;
+        bottom.scrollLeft = top.scrollLeft; sincronizando = false;
+    });
+    bottom.addEventListener('scroll', function () {
+        if (sincronizando) return; sincronizando = true;
+        top.scrollLeft = bottom.scrollLeft; sincronizando = false;
+    });
+})();
+</script>
 @endsection

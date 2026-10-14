@@ -380,6 +380,119 @@ class ProveedorApiService
     }
 
     /**
+     * GET /DatoDocumentoProveedor/ListarDocumentosRFC CON RFC VACÍO = TODOS los proveedores.
+     *
+     * POR QUÉ: para la tabla global de "Formato para pago" (estilo reporte Wiese) necesitamos las
+     * facturas pendientes de TODOS los proveedores de un jalón. Alan ajustó el MISMO endpoint para
+     * que, si el RFC va vacío, no filtre por proveedor y devuelva todas. Es UNA sola llamada (no
+     * 5,690) y Wiese sigue siendo la única fuente (no se precarga ni duplica nada en la BD local).
+     *
+     * Mapea los campos EXTRA que ya devuelve el endpoint (confirmados en Swagger): vencido8Dias,
+     * vencido15Dias, vencidoMas15Dias, vencidoTotal, saldoDlls, importePago, pagar, ivaFacturaDLLS.
+     * Así la tabla sale igual que el reporte de Wiese sin recalcular nada del lado de Salcom.
+     *
+     * @return array{success: bool, data?: array{items: list<array>, total: int}, message: string, error_type: ?string}
+     */
+    public function listarFacturasPendientesTodos(
+        string $fechaInicial = '2020-01-01',
+        string $fechaFinal = '2035-12-31',
+        ?string $token = null,
+        string $codigoFiltro = '' // si se da, devuelve SOLO las facturas de ese código de proveedor
+    ): array {
+        $configError = $this->validarDocsConfiguracion();
+        if ($configError) {
+            return $configError;
+        }
+
+        if ($token === null || $token === '') {
+            $login = $this->loginServicio();
+            if (! ($login['success'] ?? false)) {
+                return $login;
+            }
+            $token = (string) ($login['data']['tokenCreado'] ?? '');
+        }
+
+        // POR QUÉ este endpoint y no ListarDocumentosRFC: Alan creó/renombró el que trae TODOS
+        // los proveedores a `ListarDocumentos` (sin parámetro RFC); solo recibe el rango de fechas.
+        $endpoint = '/DatoDocumentoProveedor/ListarDocumentos';
+
+        try {
+            // Timeout alto (180s): trae facturas de TODOS los proveedores, puede tardar.
+            $response = $this->http(180)
+                ->withToken($token)
+                ->acceptJson()
+                ->get($this->docsUrl.$endpoint, [
+                    'fechaInicial' => $fechaInicial,
+                    'fechaFinal' => $fechaFinal,
+                ]);
+
+            if (! $response->successful()) {
+                return $this->procesarRespuesta($response, $endpoint);
+            }
+
+            $body = $response->json();
+            $lote = is_array($body) ? (array_is_list($body) ? $body : [$body]) : [];
+
+            $codigoFiltro = trim($codigoFiltro);
+            $items = [];
+            foreach ($lote as $f) {
+                $saldo = (float) ($f['saldo'] ?? 0);
+                if ($saldo <= 0) {
+                    continue; // solo pendientes (saldo > 0)
+                }
+                // Si se pidió un proveedor específico, saltar los demás (filtro por código).
+                if ($codigoFiltro !== '' && (string) ($f['codigo'] ?? '') !== $codigoFiltro) {
+                    continue;
+                }
+                $items[] = [
+                    'codigo' => (string) ($f['codigo'] ?? ''),
+                    'nombre' => (string) ($f['nombre'] ?? ''),
+                    'serie' => (string) ($f['serie'] ?? ''),
+                    'folio' => $f['folio'] ?? null,
+                    'fecha_factura' => $f['fechaFactura'] ?? null,
+                    'fecha_vence' => $f['fechaVence'] ?? null,
+                    'total' => (float) ($f['total'] ?? 0),
+                    'saldo' => $saldo,
+                    'moneda' => ((string) ($f['idMoneda'] ?? '1')) === '2' ? 'USD' : 'MXN',
+                    'tipo_cambio' => (float) ($f['tipoCambio'] ?? 1),
+                    'referencia' => (string) ($f['referencia'] ?? ''),
+                    // Columnas calculadas que YA trae el endpoint (iguales al reporte de Wiese).
+                    'vencido_8' => (float) ($f['vencido8Dias'] ?? 0),
+                    'vencido_15' => (float) ($f['vencido15Dias'] ?? 0),
+                    'vencido_mas15' => (float) ($f['vencidoMas15Dias'] ?? 0),
+                    'vencido_total' => (float) ($f['vencidoTotal'] ?? 0),
+                    'saldo_dlls' => (float) ($f['saldoDlls'] ?? 0),
+                    'importe_pago' => (float) ($f['importePago'] ?? 0),
+                    'iva_dlls' => (float) ($f['ivaFacturaDLLS'] ?? 0),
+                    'id_documento' => $f['idDocumento'] ?? null,
+                    // Bandera de negocio: ya filtramos saldo>0 arriba, así que siempre es true.
+                    // Se incluye porque las vistas del detalle filtran por 'pendiente'.
+                    'pendiente' => true,
+                ];
+            }
+
+            return $this->buildSuccessResponse([
+                'items' => $items,
+                'total' => count($items),
+            ]);
+        } catch (ConnectionException $e) {
+            Log::error('ProveedorAPI: conexión fallida (facturas pendientes de todos)', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse('No se pudo conectar con Wiese (¿VPN activa?).', ProveedorApiException::API_CAIDA);
+        } catch (\Exception $e) {
+            Log::error('ProveedorAPI: error facturas pendientes de todos', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse('Ocurrió un error al consultar facturas en Wiese.', ProveedorApiException::ERROR_DESCONOCIDO);
+        }
+    }
+
+    /**
      * Consulta REAL a Wiese: busca un proveedor por su CÓDIGO o por su RFC.
      * Usa el host de docs (172.16.1.250) que es donde vive ClienteProveedor.
      * Confirmado funcionando con ORPACK (BuscarPorCodigo / BuscarPorRFC).

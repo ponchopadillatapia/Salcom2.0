@@ -86,24 +86,28 @@ class AdminPagosController extends Controller
                 // Para saberlo hay que preguntarle a Wiese las facturas de cada uno (por RFC) y
                 // quedarnos con los que tengan al menos una pendiente. De paso llenamos el
                 // conteo y el monto reales (antes iban en 0 porque no se consultaban aquí).
+                // POR QUÉ por CÓDIGO y no por RFC: antes se consultaban las facturas de cada
+                // proveedor por RFC y se descartaban los de 0. Pero proveedores con RFC vacío
+                // (ej. SHEN FA 21306085) salían en la tabla global (que busca por código) y NO
+                // en la lupa (que buscaba por RFC): incoherente. Ahora traemos TODAS las facturas
+                // pendientes UNA sola vez (endpoint global) y las agrupamos por código; el conteo
+                // y el monto salen de ahí. Así la lupa y la tabla muestran lo mismo.
                 $api = app(\App\Services\ProveedorApiService::class);
+                $porCodigo = collect();
+                try {
+                    $resTodas = $api->listarFacturasPendientesTodos();
+                    if ($resTodas['success'] ?? false) {
+                        $porCodigo = collect($resTodas['data']['items'] ?? [])->groupBy('codigo');
+                    }
+                } catch (\Throwable $e) {
+                    // Si Wiese falla, dejamos conteos en 0 (no tumbamos la búsqueda).
+                }
+
                 $filtrada = $filtrada
-                    ->map(function ($r) use ($api) {
-                        if ($r->rfc === '') {
-                            return $r; // sin RFC no podemos consultar; se decide abajo
-                        }
-                        try {
-                            $resF = $api->listarFacturasProveedorPorRFC($r->rfc);
-                            if ($resF['success'] ?? false) {
-                                $pendientes = collect($resF['data']['items'] ?? [])
-                                    ->where('pendiente', true);
-                                $r->num_facturas = $pendientes->count();
-                                $r->monto_total = (float) $pendientes->sum('saldo');
-                            }
-                        } catch (\Throwable $e) {
-                            // Si Wiese falla para este proveedor, lo dejamos con conteo 0;
-                            // no tumbamos toda la búsqueda por un proveedor.
-                        }
+                    ->map(function ($r) use ($porCodigo) {
+                        $facturas = $porCodigo->get($r->codigo, collect());
+                        $r->num_facturas = $facturas->count();
+                        $r->monto_total = (float) $facturas->sum('saldo');
 
                         return $r;
                     })
@@ -135,6 +139,30 @@ class AdminPagosController extends Controller
             ->limit(100)
             ->get();
 
+        // ── TABLA GLOBAL estilo reporte Wiese (facturas pendientes de TODOS los proveedores) ──
+        // POR QUÉ en vivo y NO precargado: Said no quiere duplicar datos en la BD local (riesgo de
+        // desincronía con Wiese). Alan ajustó el endpoint ListarDocumentosRFC para que, con RFC
+        // VACÍO, devuelva las facturas pendientes de TODOS los proveedores en UNA sola llamada.
+        // Así Wiese sigue siendo la única fuente de verdad y no se cuelga (una llamada, no 5,690).
+        // Si el endpoint aún no acepta RFC vacío (Alan no lo ha liberado), la tabla sale vacía con
+        // aviso y la página NO se rompe (el buscador por proveedor sigue funcionando igual).
+        $tablaProveedores = collect();
+        $tablaError = null;
+        try {
+            $resTabla = app(\App\Services\ProveedorApiService::class)->listarFacturasPendientesTodos();
+            if ($resTabla['success'] ?? false) {
+                // Agrupar las facturas por proveedor (código) y ordenar los bloques por NOMBRE
+                // del proveedor (orden alfabético), como pidió Brenda.
+                $tablaProveedores = collect($resTabla['data']['items'] ?? [])
+                    ->groupBy('codigo')
+                    ->sortBy(fn ($facturas) => mb_strtoupper((string) ($facturas->first()['nombre'] ?? '')));
+            } else {
+                $tablaError = $resTabla['message'] ?? 'No se pudo traer la lista de facturas pendientes.';
+            }
+        } catch (\Throwable $e) {
+            $tablaError = 'Wiese no respondió al traer la lista global: '.$e->getMessage();
+        }
+
         return view('admin.pagos.index', compact(
             'proveedoresPendientes',
             'kpiSinRevisar',
@@ -144,7 +172,9 @@ class AdminPagosController extends Controller
             'q',
             'codigo',
             'expediente',
-            'formatosCreados'
+            'formatosCreados',
+            'tablaProveedores',
+            'tablaError'
         ));
     }
 
@@ -212,23 +242,28 @@ class AdminPagosController extends Controller
             ->unique()
             ->all();
 
-        if ($rfc !== '') {
-            try {
-                $res = app(\App\Services\ProveedorApiService::class)->listarFacturasProveedorPorRFC($rfc);
-                if ($res['success'] ?? false) {
-                    // Solo pendientes (saldo > 0), más recientes arriba, y que NO tengan ya un
-                    // pago en proceso en local (evita duplicar formatos de la misma factura).
-                    $facturasWiese = collect($res['data']['items'] ?? [])
-                        ->where('pendiente', true)
-                        ->reject(fn ($f) => in_array((string) ($f['folio'] ?? ''), $foliosEnProceso, true))
-                        ->sortByDesc('fecha_factura')
-                        ->values();
-                } else {
-                    $wieseError = $res['message'] ?? 'No se pudieron cargar las facturas de Wiese.';
-                }
-            } catch (\Throwable $e) {
-                $wieseError = 'No se pudo conectar con Wiese (¿VPN activa?).';
+        // POR QUÉ por CÓDIGO y no por RFC: la tabla global de "Formato para pago" trae las facturas
+        // del endpoint ListarDocumentos (todos los proveedores) y las agrupa por CÓDIGO. Si aquí
+        // buscáramos por RFC, proveedores como SHEN FA (RFC vacío o que el endpoint por RFC no
+        // encuentra) saldrían con "0 facturas" aunque en la tabla sí aparezcan. Usar el MISMO
+        // endpoint filtrando por código garantiza que lo que se ve en la tabla se puede seleccionar.
+        try {
+            $res = app(\App\Services\ProveedorApiService::class)
+                ->listarFacturasPendientesTodos('2020-01-01', '2035-12-31', null, $codigo);
+            if ($res['success'] ?? false) {
+                // Más recientes arriba, y ocultar las que YA están en un pago local no cancelado
+                // (evita duplicar formatos de la misma factura).
+                // Orden: por fecha de VENCIMIENTO ascendente = las que vencen primero (las más
+                // viejas/urgentes) arriba. Las sin fecha de vencimiento van al final.
+                $facturasWiese = collect($res['data']['items'] ?? [])
+                    ->reject(fn ($f) => in_array((string) ($f['folio'] ?? ''), $foliosEnProceso, true))
+                    ->sortBy(fn ($f) => $f['fecha_vence'] ?? '9999-12-31')
+                    ->values();
+            } else {
+                $wieseError = $res['message'] ?? 'No se pudieron cargar las facturas de Wiese.';
             }
+        } catch (\Throwable $e) {
+            $wieseError = 'No se pudo conectar con Wiese (¿VPN activa?).';
         }
 
         return view('admin.pagos.proveedor', compact('proveedor', 'codigo', 'expediente', 'facturasWiese', 'wieseError', 'rfc'));
@@ -253,15 +288,15 @@ class AdminPagosController extends Controller
         if (! $proveedor) {
             return [];
         }
-        $di = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
-        $rfc = trim((string) ($di['rfc'] ?? ''));
-        if ($rfc === '') {
-            return [];
-        }
 
-        // Traer facturas de Wiese EN VIVO (frescas al momento de pagar).
+        // Traer facturas de Wiese EN VIVO (frescas al momento de pagar), POR CÓDIGO.
+        // POR QUÉ por código y NO por RFC: igual que el detalle del proveedor, buscar por RFC
+        // fallaba para proveedores con RFC vacío (SHEN FA, etc.) y el carrito quedaba vacío
+        // aunque la factura sí existiera. Usamos el mismo endpoint ListarDocumentos filtrando
+        // por código, para que lo que se ve en la tabla se pueda agregar al carrito.
         try {
-            $res = app(\App\Services\ProveedorApiService::class)->listarFacturasProveedorPorRFC($rfc);
+            $res = app(\App\Services\ProveedorApiService::class)
+                ->listarFacturasPendientesTodos('2020-01-01', '2035-12-31', null, $codigo);
         } catch (\Throwable $e) {
             return [];
         }
@@ -269,10 +304,9 @@ class AdminPagosController extends Controller
             return [];
         }
 
-        // Solo las seleccionadas (por folio) y pendientes.
+        // Solo las seleccionadas (por folio). Ya vienen pendientes (saldo > 0) del endpoint.
         $foliosSel = array_map('strval', $folios);
         $seleccionadas = collect($res['data']['items'] ?? [])
-            ->where('pendiente', true)
             ->filter(fn ($f) => in_array((string) ($f['folio'] ?? ''), $foliosSel, true));
 
         if ($seleccionadas->isEmpty()) {

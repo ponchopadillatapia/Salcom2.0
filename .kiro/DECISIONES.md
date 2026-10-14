@@ -6,6 +6,71 @@
 
 ---
 
+## 2026-09-09 — Formato para pago: tabla global de proveedores (estilo reporte Wiese)
+
+- **QUÉ:** "Formato para pago" ya NO arranca vacío pidiendo buscar. Ahora muestra de entrada la
+  lista de proveedores con sus facturas pendientes, ordenados por código (consecutivo), con las
+  facturas VENCIDAS marcadas en rojo. El buscador de arriba sigue para abrir uno específico.
+- **POR QUÉ así (petición Brenda):** quería ver la tabla tipo su reporte de Wiese sin tener que
+  buscar uno por uno; y pagar un proveedor específico (ej. ORPACK) buscándolo.
+- **DE DÓNDE salen los datos (importante):** EN VIVO del endpoint de Wiese
+  `/DatoDocumentoProveedor/ListarDocumentosRFC` con **RFC VACÍO = todos** (ajuste que hizo Alan).
+  NO se precarga ni duplica nada en la BD local (Said no quería desincronía). Una sola llamada,
+  Wiese es la única fuente de verdad.
+- **CAMPOS:** el endpoint ya devuelve calculadas las columnas del reporte (vencido8Dias,
+  vencido15Dias, vencidoMas15Dias, vencidoTotal, saldoDlls, importePago, ivaFacturaDLLS), así que
+  no se recalcula nada del lado de Salcom.
+- **DÓNDE:**
+  - `ProveedorApiService::listarFacturasPendientesTodos()` (NUEVO): llama el endpoint con rfc=''.
+  - `AdminPagosController::index()`: arma `$tablaProveedores` (facturas agrupadas por proveedor,
+    ordenadas por código) + `$tablaError`. A prueba de fallos: si Alan aún no libera el RFC vacío
+    o Wiese no responde, la tabla sale vacía con aviso y la página NO se rompe.
+  - `resources/views/admin/pagos/index.blade.php`: tabla con fila-cabecera por proveedor + una
+    fila por factura; vencidas en rojo (#fef2f2 fondo, saldo/fecha en rojo).
+- **YA QUEDÓ (2026-09-09):** Alan liberó el endpoint. CAMBIÓ DE NOMBRE a
+  `/DatoDocumentoProveedor/ListarDocumentos` (sin RFC; solo fechaInicial/fechaFinal) en el 7183.
+  Probado desde el método real: devuelve **1,936 facturas de 175 proveedores distintos**. ✓
+- **AJUSTES que hubo que hacer del lado Salcom:** (1) cambiar el endpoint a `ListarDocumentos`,
+  (2) quitar el parámetro `rfc`, (3) subir el timeout a 180s (trae ~2,000 facturas y tardaba),
+  (4) fechas en formato corto (2020-01-01). Todo en `listarFacturasPendientesTodos()`.
+- **OJO validar:** el campo `vencidoTotal` venía 0 aunque hay facturas con fecha de vencimiento
+  pasada (2020, 2022). Por eso la tabla marca "vencida" por DOS vías: `vencido_total > 0` O que la
+  fecha de vencimiento ya pasó. Así las viejas SÍ salen en rojo. Confirmar con Brenda que el rojo
+  salga donde ella espera.
+- **AL VALIDAR cuando Alan termine (checklist):**
+  1. Entrar a Formato para pago → la tabla debe llenarse sola.
+  2. Si sale VACÍA: revisar que el parámetro sea `rfc` (minúsculas) vs `RFC`; es lo más probable.
+     Se ajusta en `listarFacturasPendientesTodos()` (ProveedorApiService).
+  3. Comparar números LADO A LADO con el reporte de Wiese de Brenda.
+  4. Verificar "Total dólares" (hoy lee `saldoDlls`) e "Importe pago" (`importePago`, venía 0):
+     confirmar con Brenda si esos valores son los correctos o leen otro campo.
+- **COLUMNAS (ajuste Brenda):** se QUITARON las 3 de "Vencido 8/15/+15 días" (Wiese las manda en 0).
+  Quedan 11: Serie, Folio, Fecha factura, Vence, Total, Saldo pendiente, Referencia, Total dólares,
+  Importe pago, IVA dólares, Moneda. Separador por proveedor usa clase `date-row` (morado estándar).
+  El ROJO va SOLO en la columna "Vence" (antes era toda la fila). Scroll horizontal ESPEJO arriba
+  (barra sincronizada con JS); solo aparece si la tabla no cabe en pantalla.
+- **BUG 2 CORREGIDO (no se podían SELECCIONAR las facturas / no salía la tabla con checkboxes):**
+  `proveedor.blade.php` envolvía TODA la sección de facturas en `@if($rfc !== '')`. Para SHEN FA
+  (RFC vacío) el resumen decía "1 factura" pero la tabla con checkboxes NO se pintaba, así que no
+  se podía seleccionar ni mandar al carrito. FIX: se quitó ese `@if($rfc)` (y su @endif); la tabla
+  se muestra siempre que haya facturas, sin importar el RFC (ya se traen por código).
+- **BUG 3 CORREGIDO (carrito por RFC):** `materializarFacturasSeleccionadas()` también buscaba por
+  RFC; se cambió a `listarFacturasPendientesTodos(..., $codigo)`. Así "agregar al carrito" y "pagar
+  solo este" funcionan para proveedores con RFC vacío.
+- **PESTAÑAS (petición Brenda, visual):** la pantalla ahora tiene 2 pestañas sin recargar:
+  "Formato para pago" (buscador + tabla de proveedores) y "Formatos para pago creados" (tabla
+  FCONA). Solo CSS/JS en index.blade.php; no toca lógica ni API.
+
+- **BUG CORREGIDO (detalle del proveedor daba "0 facturas"):** la tabla global trae por CÓDIGO
+  (endpoint ListarDocumentos), pero el detalle (AdminPagosController::proveedor) buscaba por RFC
+  (ListarDocumentosRFC). Proveedores como SHEN FA (RFC vacío/no encontrado por ese método) salían
+  con 0 aunque en la tabla sí tenían factura. FIX: el detalle ahora usa
+  `listarFacturasPendientesTodos(..., $codigo)` (mismo endpoint, filtrado por código). Nuevo
+  parámetro `$codigoFiltro` en el método del servicio. Verificado: SHEN FA (21306085) devuelve su
+  1 factura; ORPACK 321. La vista proveedor.blade.php ya NO depende de $rfc para contar.
+
+---
+
 ## PENDIENTE (validar con Alexa) — Fusionar "Pago a proveedor" dentro del Expediente
 
 - **CONTEXTO:** Said notó que el módulo "Pago a proveedor" se siente redundante. El flujo real
@@ -34,6 +99,19 @@
 - **OJO (riesgo de negocio):** autorizar ≠ pagar. NO marcar 'pagada' al autorizar; solo cuando
   hay comprobante del banco. Si el banco rechaza una transferencia, la factura NO debe quedar
   como pagada.
+
+---
+
+## 2026-09-09 — Excel del banco: ajustes de columnas (petición Brenda)
+
+- **B CUENTA DE ABONO (CLABE):** se deja como TEXTO (18 dígitos exactos, con el 0 inicial, ej.
+  072320006470108493) y se ENSANCHA la columna B a 22 para que no se vea "####". POR QUÉ texto y
+  no número: como número Excel pierde el 0 de la izquierda (quedaba 17 díg) y el banco la
+  rechazaría. El "####" no era error del dato, solo ancho de columna. (Decisión A de Said.)
+- **E MOTIVO DE PAGO:** siempre "SALCOM" (fijo), ya no el nombre del proveedor.
+- **H REFERENCIA NUMÉRICA:** los ÚLTIMOS 7 dígitos de la referencia/folio (`substr($dig, -7)`).
+- **DÓNDE:** `LayoutBancarioService::generarXlsm()`. Probado: CLABE 18 díg, motivo SALCOM, ref 7
+  díg, macros conservadas.
 
 ---
 

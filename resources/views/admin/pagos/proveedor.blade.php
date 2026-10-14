@@ -88,12 +88,14 @@
      POR QUÉ: ahora se paga directo sobre las facturas EN VIVO de Wiese (no locales).
      Al enviar los folios[] seleccionados, el controlador store() materializa esas
      facturas en local automáticamente. Ya no existe la tabla de facturas locales. --}}
-@if($rfc !== '')
+{{-- POR QUÉ ya NO se condiciona a $rfc: las facturas se traen por CÓDIGO (endpoint global),
+     así que proveedores con RFC vacío (SHEN FA, etc.) también deben mostrar su tabla con
+     checkboxes. Antes, @if($rfc !== '') ocultaba toda la tabla y solo se veía el resumen. --}}
 <div class="adm-section anim" style="margin-bottom:20px;">
     <div class="adm-section-head">
         <div>
             <h4>Facturas pendientes en Wiese</h4>
-            <div class="adm-section-meta">Datos reales del sistema contable · RFC {{ $rfc }} · solo saldo por pagar</div>
+            <div class="adm-section-meta">Datos reales del sistema contable{{ $rfc !== '' ? ' · RFC '.$rfc : '' }} · solo saldo por pagar</div>
         </div>
         {{-- Las facturas de Wiese se importan solas al abrir el proveedor (automático),
              por eso ya no hay botón manual de importar. --}}
@@ -158,6 +160,11 @@
                     </thead>
                     <tbody>
                         @foreach($facturasWiese as $fw)
+                            @php
+                                // Vencida: la fecha de vencimiento ya pasó. Se usa para pintar "Vence" en rojo.
+                                $venceFw = ! empty($fw['fecha_vence']) ? \Illuminate\Support\Carbon::parse($fw['fecha_vence']) : null;
+                                $vencidaFw = $venceFw && $venceFw->isPast();
+                            @endphp
                             {{-- POR QUÉ: las facturas en USD se resaltan con un degradado azul suave,
                                  igual que en otras vistas, para distinguirlas de un vistazo. --}}
                             {{-- Celdas en el orden estándar: Fecha, Serie, Factura, Vence, Total, Moneda, Saldo. --}}
@@ -166,17 +173,22 @@
                                 <td>{{ $fw['fecha_factura'] ? \Illuminate\Support\Carbon::parse($fw['fecha_factura'])->format('d/m/Y') : '—' }}</td>
                                 <td>{{ $fw['serie'] ?: '—' }}</td>
                                 <td style="font-weight:600;">{{ $fw['folio'] ?? '—' }}</td>
-                                <td>{{ $fw['fecha_vence'] ? \Illuminate\Support\Carbon::parse($fw['fecha_vence'])->format('d/m/Y') : '—' }}</td>
+                                {{-- Fecha de vencimiento: en ROJO si ya venció, con etiqueta "VENCIDA". --}}
+                                <td style="white-space:nowrap;{{ $vencidaFw ? 'color:#dc2626;font-weight:700;' : '' }}">
+                                    {{ $venceFw ? $venceFw->format('d/m/Y') : '—' }}
+                                    @if($vencidaFw)<span style="font-size:10px;font-weight:700;"> · VENCIDA</span>@endif
+                                </td>
                                 <td style="text-align:right">{{ '$'.number_format((float) $fw['total'], 2) }}</td>
                                 <td>{{ $fw['moneda'] }}</td>
-                                <td style="text-align:right;font-weight:700;color:#b45309" class="monto-saldo">{{ '$'.number_format((float) $fw['saldo'], 2) }}</td>
+                                {{-- Saldo pendiente en VERDE (petición Brenda). --}}
+                                <td style="text-align:right;font-weight:700;color:#059669" class="monto-saldo">{{ '$'.number_format((float) $fw['saldo'], 2) }}</td>
                             </tr>
                         @endforeach
                     </tbody>
                     <tfoot>
                         <tr>
                             <td colspan="7" style="text-align:right;font-weight:700;">Saldo pendiente total</td>
-                            <td style="text-align:right;font-weight:800;color:#b45309;">
+                            <td style="text-align:right;font-weight:800;color:#059669;">
                                 @if($totalWieseMxn > 0)
                                     <div>{{ '$'.number_format($totalWieseMxn, 2) }} MXN</div>
                                 @endif
@@ -191,7 +203,6 @@
         </form>
     @endif
 </div>
-@endif
 
 @if(session('error'))
     <div class="pag-alert err anim">{{ session('error') }}</div>
@@ -288,8 +299,10 @@
 @php
     // Resumen calculado desde las facturas EN VIVO de Wiese (ya no hay $facturas locales).
     // POR QUÉ: el monto pendiente es la suma de los saldos por pagar reales del contable.
-    $countWiese = $rfc !== '' && !$wieseError ? $facturasWiese->count() : 0;
-    $montoWiese = $rfc !== '' && !$wieseError ? $facturasWiese->sum('saldo') : 0;
+    // POR QUÉ ya no depende de $rfc: las facturas ahora se traen por CÓDIGO (endpoint global),
+    // no por RFC. Antes, si el RFC venía vacío, el conteo quedaba en 0 aunque sí hubiera facturas.
+    $countWiese = ! $wieseError ? $facturasWiese->count() : 0;
+    $montoWiese = ! $wieseError ? $facturasWiese->sum('saldo') : 0;
 @endphp
 <div class="adm-summary anim">
     <div class="adm-summary-main">

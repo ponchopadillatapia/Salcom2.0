@@ -206,20 +206,31 @@ class LayoutBancarioService
         foreach ($data['filas'] as $f) {
             // [cuentaCargo, clabe, divisa, importe, motivo, titular, tipoCta, ref, disp, rfc, iva]
             $hoja->setCellValue([1, $fila], $f[0]);                 // A cuenta de cargo
-            // CLABE y RFC como TEXTO explícito: evita que Excel los convierta a notación
-            // científica (1.23E+16) o les quite ceros a la izquierda.
-            $hoja->setCellValueExplicit([2, $fila], $f[1], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING); // B CLABE
+            // B — CUENTA DE ABONO (CLABE): como TEXTO, para conservar los 18 dígitos EXACTOS,
+            // incluido el 0 inicial (ej. 072320006470108493). POR QUÉ texto y no número: un número
+            // perdería el 0 de la izquierda (quedaría en 17 dígitos) y el banco la rechazaría.
+            // El "####" que se veía NO era un error del dato, solo que la columna era angosta;
+            // más abajo ensanchamos la columna B para que se vea completa.
+            $hoja->setCellValueExplicit([2, $fila], $this->soloDigitos((string) $f[1]), \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
             $hoja->setCellValue([3, $fila], $f[2]);                 // C divisa
             $hoja->setCellValue([4, $fila], (float) $f[3]);         // D importe (número para que la macro sume)
-            $hoja->setCellValue([5, $fila], $f[4]);                 // E motivo
+            // E — MOTIVO DE PAGO: SIEMPRE "SALCOM" (petición Brenda), no el nombre del proveedor.
+            $hoja->setCellValue([5, $fila], 'SALCOM');
             $hoja->setCellValue([6, $fila], $f[5]);                 // F titular
             $hoja->setCellValue([7, $fila], $f[6]);                 // G tipo de cuenta
-            $hoja->setCellValueExplicit([8, $fila], $f[7], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING); // H referencia
+            // H — REFERENCIA NUMÉRICA: los ÚLTIMOS 7 dígitos de la referencia (petición Brenda).
+            $refDigitos = $this->soloDigitos((string) $f[7]);
+            $ref7 = $refDigitos !== '' ? substr($refDigitos, -7) : '';
+            $hoja->setCellValueExplicit([8, $fila], $ref7, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
             $hoja->setCellValue([9, $fila], $f[8]);                 // I disponibilidad
             $hoja->setCellValueExplicit([10, $fila], $f[9], \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING); // J RFC
             $hoja->setCellValue([11, $fila], (float) $f[10]);       // K IVA
             $fila++;
         }
+
+        // Ensanchar la columna B (CUENTA DE ABONO/CLABE) para que los 18 dígitos quepan y no se
+        // vea "####". 22 de ancho alcanza para los 18 dígitos con holgura.
+        $hoja->getColumnDimension('B')->setWidth(22);
 
         // Guardar como .xlsm CONSERVANDO las macros. setIncludeCharts no es necesario, pero el
         // writer de Xlsx mantiene el VBA que venía en la plantilla automáticamente.
