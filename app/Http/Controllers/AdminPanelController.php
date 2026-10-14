@@ -2648,13 +2648,27 @@ class AdminPanelController extends Controller
             // La tabla no existe aún en este servidor
         }
 
+        // Proveedores EXTRANJEROS pendientes (flujo C-TPAT, sin requisitos fiscales MX).
+        // Van en una sección aparte porque sus gates de aprobación son distintos.
+        $extranjeros = collect();
+        try {
+            $extranjeros = ProveedorUser::with(['perfilExtranjero', 'documentos'])
+                ->where('es_extranjero', true)
+                ->where('activo', false)
+                ->orderByDesc('updated_at')
+                ->get();
+        } catch (\Exception $e) {
+            // La columna es_extranjero aún no existe en este servidor
+        }
+
         return response()
             ->view('admin.solicitudes-alta', compact(
                 'pendientes',
                 'filtro',
                 'conteoConDatos',
                 'conteoSinDatos',
-                'solicitudes'
+                'solicitudes',
+                'extranjeros'
             ))
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache');
@@ -2844,6 +2858,109 @@ class AdminPanelController extends Controller
             ->header('Pragma', 'no-cache');
 
         return $redirect;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Aprobación de proveedores EXTRANJEROS (importación / C-TPAT)
+    // POR QUÉ: no aplican los gates mexicanos (RFC, Opinión SAT, CLABE, Wiese, 2 contactos);
+    // su requisito es: perfil + cuestionario de seguridad completos y los 4 documentos subidos.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Pantalla de revisión del proveedor extranjero: perfil + cuestionario + documentos. */
+    public function verProveedorExtranjero(ProveedorUser $proveedor)
+    {
+        if (! $proveedor->esExtranjero()) {
+            return redirect()->route('admin.solicitudes-alta')
+                ->with('error', 'Ese proveedor no es extranjero.');
+        }
+
+        $proveedor->load(['documentos']);
+        $perfil = $proveedor->perfilExtranjero()->first();
+        $docsRequeridos = $proveedor->documentosExtranjeroRequeridos();
+
+        return view('admin.proveedor-extranjero-ver', compact('proveedor', 'perfil', 'docsRequeridos'));
+    }
+
+    public function aprobarProveedorExtranjero(Request $request)
+    {
+        $request->validate(['proveedor_id' => 'required|integer']);
+        $prov = ProveedorUser::with(['perfilExtranjero', 'documentos'])->findOrFail($request->proveedor_id);
+
+        if (! $prov->esExtranjero()) {
+            return $this->respuestaSolicitudAlta($request, 'Ese proveedor no es extranjero.', false);
+        }
+        if ($prov->activo) {
+            return $this->respuestaSolicitudAlta($request, 'Este proveedor ya está activo.', false);
+        }
+
+        // Gate: los 4 documentos requeridos deben estar subidos (al menos presentes, no rechazados).
+        $perfil = $prov->perfilExtranjero;
+        if (! $perfil || ! $perfil->profile_completed || ! $perfil->security_completed) {
+            return $this->respuestaSolicitudAlta($request, 'No se puede aprobar: el proveedor aún no completa el perfil y/o el cuestionario de seguridad.', false);
+        }
+        foreach (array_keys($prov->documentosExtranjeroRequeridos()) as $tipo) {
+            $doc = $prov->documentos->firstWhere('tipo', $tipo);
+            if (! $doc || $doc->estatus === 'rechazado') {
+                return $this->respuestaSolicitudAlta($request, 'No se puede aprobar: faltan documentos requeridos o alguno fue rechazado.', false);
+            }
+        }
+
+        $prov->update(['activo' => true]);
+        if (Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
+            $prov->update(['solicitud_alta_estatus' => 'aprobada']);
+        }
+
+        // Notificar al proveedor (en inglés).
+        try {
+            app(AlertEngineService::class)->alertar([
+                'tipo' => 'solicitud_aprobada',
+                'modulo' => 'onboarding',
+                'destinatario_tipo' => 'proveedor',
+                'destinatario_id' => $prov->id,
+                'titulo' => 'Your account has been approved',
+                'contenido' => 'Hello '.($prov->nombre ?? '').'. Your onboarding was approved. You can now sign in and access the Supplier Portal.',
+                'nivel' => 'info',
+            ], 'portal');
+        } catch (\Exception $e) {
+            Log::warning('No se pudo notificar aprobación de proveedor extranjero', ['proveedor_id' => $prov->id, 'error' => $e->getMessage()]);
+        }
+
+        return $this->respuestaSolicitudAlta($request, "Proveedor extranjero {$prov->nombre} aprobado y activado.");
+    }
+
+    public function rechazarProveedorExtranjero(Request $request)
+    {
+        $request->validate(['proveedor_id' => 'required|integer']);
+        $prov = ProveedorUser::findOrFail($request->proveedor_id);
+
+        if (! $prov->esExtranjero()) {
+            return $this->respuestaSolicitudAlta($request, 'Ese proveedor no es extranjero.', false);
+        }
+        if ($prov->activo) {
+            return $this->respuestaSolicitudAlta($request, 'Este proveedor ya está activo; no se puede rechazar como solicitud pendiente.', false);
+        }
+
+        $updateProv = ['activo' => false];
+        if (Schema::hasColumn('proveedores_users', 'solicitud_alta_estatus')) {
+            $updateProv['solicitud_alta_estatus'] = 'rechazada';
+        }
+        $prov->update($updateProv);
+
+        try {
+            app(AlertEngineService::class)->alertar([
+                'tipo' => 'solicitud_rechazada',
+                'modulo' => 'onboarding',
+                'destinatario_tipo' => 'proveedor',
+                'destinatario_id' => $prov->id,
+                'titulo' => 'Your onboarding needs changes',
+                'contenido' => 'Hello '.($prov->nombre ?? '').'. Your onboarding was returned. Please review your profile, questionnaire and documents and submit again.',
+                'nivel' => 'warning',
+            ], 'portal');
+        } catch (\Exception $e) {
+            Log::warning('No se pudo notificar rechazo de proveedor extranjero', ['proveedor_id' => $prov->id, 'error' => $e->getMessage()]);
+        }
+
+        return $this->respuestaSolicitudAlta($request, "Solicitud del proveedor extranjero {$prov->nombre} rechazada. La cuenta sigue registrada e inactiva.");
     }
 
     /** Solo documentos ya validados correctamente (aprobados) + datos del formulario. */

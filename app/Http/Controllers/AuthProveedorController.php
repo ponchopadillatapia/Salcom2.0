@@ -6,6 +6,7 @@ use App\Exceptions\ProveedorApiException;
 use App\Http\Requests\LoginProveedorRequest;
 use App\Mail\BienvenidaProveedor;
 use App\Models\AdminUser;
+use App\Models\ForeignSupplierProfile;
 use App\Models\ProveedorUser;
 use App\Services\AlertEngineService;
 use App\Services\ProveedorApiService;
@@ -118,6 +119,12 @@ class AuthProveedorController extends Controller
 
     public function guardar(Request $request)
     {
+        // POR QUÉ: el proveedor extranjero (importación) usa el MISMO registro pero sin lo fiscal
+        // mexicano (RFC, REPSE). Si marcó "Foreign supplier", se desvía a su propio flujo en inglés.
+        if ($request->input('es_extranjero') === '1' || $request->boolean('es_extranjero')) {
+            return $this->guardarExtranjero($request);
+        }
+
         try {
             $esMoral = $request->input('tipo_persona') === 'Persona Moral';
 
@@ -270,6 +277,120 @@ class AuthProveedorController extends Controller
             Log::error('Error registro proveedor: '.$e->getMessage().' | '.$e->getFile().':'.$e->getLine());
 
             return back()->withErrors(['general' => 'Error al registrar. Intenta de nuevo. ('.class_basename($e).')'])->withInput();
+        }
+    }
+
+    /**
+     * Registro de proveedor EXTRANJERO (importación). Flujo en inglés, SIN RFC/REPSE/Opinión SAT.
+     * Pide los datos básicos del Business Profile (C-TPAT); el resto (cuestionarios + documentos)
+     * se completa después en el onboarding en inglés.
+     */
+    private function guardarExtranjero(Request $request)
+    {
+        try {
+            $request->validate([
+                'company_name' => 'required|string|max:255',
+                'tax_id_number' => 'required|string|max:100',
+                'telefono' => 'required|string|max:40',
+                'correo' => 'required|email',
+                'password' => 'required|min:8|confirmed',
+            ], [
+                'company_name.required' => 'Company name is required.',
+                'tax_id_number.required' => 'Tax ID number is required.',
+                'telefono.required' => 'Telephone number is required.',
+                'correo.required' => 'Email is required.',
+                'correo.email' => 'The email is not valid.',
+                'password.required' => 'Password is required.',
+                'password.min' => 'Password must be at least 8 characters.',
+                'password.confirmed' => 'Passwords do not match.',
+            ]);
+
+            $correo = strtolower(trim((string) $request->correo));
+
+            // Verificar que el correo no exista ya (como usuario o correo).
+            $existe = DB::table('proveedores_users')
+                ->where('correo', $correo)
+                ->orWhere('usuario', $correo)
+                ->exists();
+            if ($existe) {
+                return back()->withErrors(['correo' => 'This email is already registered.'])->withInput();
+            }
+
+            $recaptchaSecret = config('services.recaptcha.secret_key');
+            if ($recaptchaSecret) {
+                $recaptcha = Http::asForm()->post('https://www.google.com/recaptcha/api/siteverify', [
+                    'secret' => $recaptchaSecret, 'response' => $request->input('g-recaptcha-response'), 'remoteip' => $request->ip(),
+                ])->json();
+                if (! ($recaptcha['success'] ?? false)) {
+                    return back()->withErrors(['g-recaptcha-response' => 'Invalid captcha'])->withInput();
+                }
+            }
+
+            $nombre = trim((string) $request->company_name);
+            $baseUsuario = $this->slugUsuarioRazonSocial($nombre);
+            if ($baseUsuario === '') {
+                $baseUsuario = 'foreign';
+            }
+            $usuario = $this->generarUsuarioUnico($baseUsuario, $correo);
+
+            // El extranjero es "Persona Moral" por defecto (empresa). Nace inactivo como todos.
+            $insert = [
+                'usuario' => $usuario,
+                'password' => bcrypt($request->password),
+                'nombre' => $nombre,
+                'tipo_persona' => 'Persona Moral',
+                'telefono' => $request->telefono,
+                'correo' => $correo,
+                'activo' => false,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+            if (Schema::hasColumn('proveedores_users', 'es_extranjero')) {
+                $insert['es_extranjero'] = true;
+            }
+            if (Schema::hasColumn('proveedores_users', 'moneda')) {
+                // Importación suele pagarse en dólares; útil para el flujo bancario posterior.
+                $insert['moneda'] = ProveedorUser::MONEDA_DOLLAR;
+            }
+            if (Schema::hasColumn('proveedores_users', 'datos_identificacion')) {
+                $insert['datos_identificacion'] = json_encode([
+                    'es_extranjero' => true,
+                    'company_name' => $nombre,
+                    'tax_id_number' => trim((string) $request->tax_id_number),
+                    'tipo_persona' => 'Persona Moral',
+                ], JSON_UNESCAPED_UNICODE);
+            }
+            if (Schema::hasColumn('proveedores_users', 'correo_verified_at')) {
+                $insert['correo_verified_at'] = null;
+            }
+
+            $proveedorId = DB::table('proveedores_users')->insertGetId($insert);
+
+            // Pre-crear su perfil extranjero con los datos ya capturados.
+            try {
+                ForeignSupplierProfile::create([
+                    'proveedor_id' => $proveedorId,
+                    'company_name' => $nombre,
+                    'tax_id_number' => trim((string) $request->tax_id_number),
+                    'telephone_number' => $request->telefono,
+                ]);
+            } catch (\Exception $e) {
+                Log::warning('No se pudo pre-crear ForeignSupplierProfile', ['error' => $e->getMessage()]);
+            }
+
+            $this->enviarBienvenidaRegistro((int) $proveedorId, $nombre, $correo, $usuario);
+
+            return redirect('/login-proveedor')->with(
+                'mensaje',
+                'Registration successful. Please check your email and confirm your account before signing in.'
+            );
+
+        } catch (ValidationException $e) {
+            throw $e;
+        } catch (\Exception $e) {
+            Log::error('Error registro proveedor extranjero: '.$e->getMessage().' | '.$e->getFile().':'.$e->getLine());
+
+            return back()->withErrors(['general' => 'Registration error. Please try again. ('.class_basename($e).')'])->withInput();
         }
     }
 
@@ -503,6 +624,13 @@ class AuthProveedorController extends Controller
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
         if ($proveedor && ! $proveedor->activo) {
+            // POR QUÉ: el extranjero tiene su propio onboarding en inglés (perfil + cuestionario C-TPAT + docs),
+            // separado del onboarding mexicano (RFC/Wiese/CLABE) que no le aplica.
+            if ($proveedor->esExtranjero()) {
+                return redirect()->route('proveedores.foreign-onboarding')
+                    ->with('mensaje', 'Welcome '.$nombre.'. Please complete your onboarding so our team can activate your account.');
+            }
+
             return redirect()->route('proveedores.onboarding')
                 ->with('mensaje', 'Bienvenido '.$nombre.'. Completa tu onboarding para que Dirección active tu cuenta.');
         }

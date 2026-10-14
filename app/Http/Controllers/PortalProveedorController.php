@@ -8,6 +8,7 @@ use App\Models\AnticipoProveedor;
 use App\Models\ContactoProveedor;
 use App\Models\DocumentoProveedor;
 use App\Models\Encuesta;
+use App\Models\ForeignSupplierProfile;
 use App\Models\Factura;
 use App\Models\PagoProveedor;
 use App\Models\Producto;
@@ -2501,6 +2502,152 @@ class PortalProveedorController extends Controller
             'aprobado' => false,
             'mensaje' => 'El documento fue rechazado. Errores: '.implode(' ', $errores).' Corrige y vuelve a subir.',
         ]);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ONBOARDING PROVEEDOR EXTRANJERO (importación / C-TPAT) — todo en inglés
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Pantalla de onboarding en inglés con 2 pasos: Business Profile y Security Questionnaire. */
+    public function mostrarForeignOnboarding()
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor) {
+            return redirect('/login-proveedor')->with('error', 'Session expired. Please sign in again.');
+        }
+        // Un proveedor nacional no debe entrar aquí.
+        if (! $proveedor->esExtranjero()) {
+            return redirect()->route('proveedores.onboarding');
+        }
+
+        $proveedor->load('documentos');
+        // Perfil (uno por proveedor); si no existe aún lo creamos vacío para no romper la vista.
+        $perfil = ForeignSupplierProfile::firstOrCreate(['proveedor_id' => $proveedor->id]);
+
+        // Estado de los 4 documentos requeridos (tipo => doc o null).
+        $docsRequeridos = $proveedor->documentosExtranjeroRequeridos();
+        $docsEstado = [];
+        foreach ($docsRequeridos as $tipo => $label) {
+            $docsEstado[$tipo] = $proveedor->documentos->firstWhere('tipo', $tipo);
+        }
+
+        return view('proveedores.foreign-onboarding', compact('proveedor', 'perfil', 'docsRequeridos', 'docsEstado'));
+    }
+
+    /** Paso 1: guarda el Business Profile (PDF 1). */
+    public function guardarPerfilExtranjero(Request $request)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor || ! $proveedor->esExtranjero()) {
+            return redirect('/login-proveedor')->with('error', 'Session expired. Please sign in again.');
+        }
+
+        $data = $request->validate([
+            'company_name' => 'required|string|max:255',
+            'tax_id_number' => 'required|string|max:100',
+            'complete_address' => 'required|string|max:255',
+            'zip_code' => 'nullable|string|max:20',
+            'year_established' => 'nullable|string|max:10',
+            'type_of_business' => 'nullable|string|max:255',
+            'business_address' => 'nullable|string|max:255',
+            'telephone_number' => 'nullable|string|max:40',
+            'number_of_employees' => 'nullable|string|max:20',
+            'president_owner_ceo' => 'nullable|string|max:255',
+            'website' => 'nullable|string|max:255',
+            'ctpat_certified' => 'nullable|boolean',
+            'svi_number' => 'nullable|string|max:60',
+            'plan_to_sign_up' => 'nullable|string|max:10',
+            'professional_associations' => 'nullable|string|max:255',
+            'owns_warehouse' => 'nullable|boolean',
+            'owns_trailers' => 'nullable|boolean',
+            'trailers_count' => 'nullable|integer|min:0',
+            'owns_tractors' => 'nullable|boolean',
+            'tractors_count' => 'nullable|integer|min:0',
+            'reference1_name' => 'nullable|string|max:255',
+            'reference1_phone' => 'nullable|string|max:40',
+            'reference2_name' => 'nullable|string|max:255',
+            'reference2_phone' => 'nullable|string|max:40',
+        ]);
+        $data['profile_completed'] = true;
+
+        ForeignSupplierProfile::updateOrCreate(['proveedor_id' => $proveedor->id], $data);
+
+        return redirect()->route('proveedores.foreign-onboarding', ['step' => 2])
+            ->with('mensaje', 'Business profile saved. Please continue with the security questionnaire.');
+    }
+
+    /** Paso 2: guarda el Security Confidential Questionnaire (PDF 2). */
+    public function guardarSeguridadExtranjero(Request $request)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor || ! $proveedor->esExtranjero()) {
+            return redirect('/login-proveedor')->with('error', 'Session expired. Please sign in again.');
+        }
+
+        // Todas las preguntas Yes/No del cuestionario de seguridad.
+        $siNo = [
+            'sec_ctpat_certified', 'mutual_recognition_member', 'physical_security', 'fencing',
+            'gates_gatehouses', 'parking_restrictions', 'locking_devices', 'lighting',
+            'alarm_video', 'it_security', 'access_controls', 'visitor_photo_id',
+            'challenge_unauthorized', 'container_security', 'container_inspection', 'container_seals',
+            'seal_discrepancy_procedure', 'seal_control', 'container_storage', 'procedural_security',
+            'documentation_processing', 'personnel_security', 'education_training', 'threat_awareness',
+            'documentation_processing2', 'manifest_procedures',
+        ];
+
+        $payload = [
+            'sec_svi_number' => $request->input('sec_svi_number'),
+            'mutual_recognition_which' => $request->input('mutual_recognition_which'),
+            'signed_print_name' => $request->input('signed_print_name'),
+            'signed_title' => $request->input('signed_title'),
+            'signed_company_name' => $request->input('signed_company_name'),
+            'signed_date' => $request->input('signed_date'),
+            'security_completed' => true,
+        ];
+        // POR QUÉ: un checkbox/radio no marcado no llega en el request; lo normalizamos a bool explícito.
+        foreach ($siNo as $campo) {
+            $payload[$campo] = $request->has($campo) ? $request->boolean($campo) : null;
+        }
+
+        ForeignSupplierProfile::updateOrCreate(['proveedor_id' => $proveedor->id], $payload);
+
+        return redirect()->route('proveedores.foreign-onboarding', ['step' => 3])
+            ->with('mensaje', 'Security questionnaire saved. Please upload the required documents.');
+    }
+
+    /** Sube uno de los 4 documentos requeridos del proveedor extranjero. */
+    public function subirDocumentoExtranjero(Request $request)
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor || ! $proveedor->esExtranjero()) {
+            return redirect('/login-proveedor')->with('error', 'Session expired. Please sign in again.');
+        }
+
+        $tiposValidos = array_keys($proveedor->documentosExtranjeroRequeridos());
+        $request->validate([
+            'tipo_documento' => 'required|in:'.implode(',', $tiposValidos),
+            'archivo' => 'required|file|mimes:pdf,jpg,jpeg,png|max:10240',
+        ], [
+            'archivo.required' => 'Please select a file to upload.',
+            'archivo.mimes' => 'The file must be a PDF, JPG or PNG.',
+            'archivo.max' => 'The file must not exceed 10 MB.',
+        ]);
+
+        $tipo = $request->input('tipo_documento');
+        $ruta = $request->file('archivo')->store("foreign_supplier/{$tipo}", 'public');
+
+        DocumentoProveedor::updateOrCreate(
+            ['proveedor_id' => $proveedor->id, 'tipo' => $tipo],
+            [
+                'archivo' => $ruta,
+                'estatus' => 'pendiente', // la revisa el equipo (no hay validación fiscal automática para extranjeros)
+                'notas_revision' => null,
+                'revisado_at' => null,
+            ]
+        );
+
+        return redirect()->route('proveedores.foreign-onboarding', ['step' => 3])
+            ->with('mensaje', 'Document uploaded successfully. Our team will review it.');
     }
 
     private function normalizarTipoPersona(?string $tipo): string
