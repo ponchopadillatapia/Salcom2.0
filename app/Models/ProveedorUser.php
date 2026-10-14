@@ -26,7 +26,7 @@ class ProveedorUser extends Authenticatable
     protected $fillable = [
         'usuario', 'password', 'id_proveedor', 'codigo_compras', 'codigo', 'nombre',
         'moneda',
-        'tipo_persona', 'rfc', 'telefono', 'correo', 'correo_verified_at', 'foto', 'activo',
+        'tipo_persona', 'es_extranjero', 'rfc', 'telefono', 'correo', 'correo_verified_at', 'foto', 'activo',
         'solicitud_alta_estatus', 'solicitud_alta_intentos',
         'datos_identificacion',
         'score_entrega', 'score_puntualidad', 'score_total',
@@ -37,6 +37,7 @@ class ProveedorUser extends Authenticatable
 
     protected $casts = [
         'activo' => 'boolean',
+        'es_extranjero' => 'boolean',
         'correo_verified_at' => 'datetime',
         'datos_identificacion' => 'array',
         'solicitud_alta_intentos' => 'integer',
@@ -348,9 +349,45 @@ class ProveedorUser extends Authenticatable
         return implode(' · ', $partes);
     }
 
+    /** ¿El proveedor es extranjero (importación / flujo C-TPAT en inglés)? */
+    public function esExtranjero(): bool
+    {
+        if (! empty($this->es_extranjero)) {
+            return true;
+        }
+        $di = is_array($this->datos_identificacion) ? $this->datos_identificacion : [];
+
+        return ! empty($di['es_extranjero']);
+    }
+
+    /** Perfil + cuestionario de seguridad C-TPAT (solo proveedores extranjeros). */
+    public function perfilExtranjero(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(ForeignSupplierProfile::class, 'proveedor_id');
+    }
+
+    /**
+     * Documentos obligatorios para un proveedor EXTRANJERO (en inglés).
+     * POR QUÉ: no tiene RFC/Opinión SAT/INE/CLABE; en su lugar sube estos 4 (C-TPAT).
+     */
+    public function documentosExtranjeroRequeridos(): array
+    {
+        return [
+            'address_proof' => 'Document that verifies the address',
+            'tax_id_proof' => 'Document that verifies TAX ID Number',
+            'contact_info' => 'Contact Information',
+            'bank_letter' => 'Formal letter with bank information (hot stamp, signed by CEO)',
+        ];
+    }
+
     /** Tipos de documentos fiscales requeridos según tipo de persona. */
     public function documentosRequeridos(): array
     {
+        // Proveedor extranjero: paquete C-TPAT en inglés, sin lo fiscal mexicano.
+        if ($this->esExtranjero()) {
+            return $this->documentosExtranjeroRequeridos();
+        }
+
         $esMoral = str_contains(strtolower((string) $this->tipo_persona), 'moral');
 
         if ($esMoral) {

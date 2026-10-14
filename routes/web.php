@@ -29,6 +29,11 @@ Route::get('/proveedor/facturas', [PortalProveedorController::class, 'mostrarFac
 Route::get('/proveedor/facturas/kpis-json', [PortalProveedorController::class, 'facturasKpisJson'])->name('proveedores.facturas.kpis')->middleware('auth.proveedor');
 Route::get('/proveedor/facturas/excel', [PortalProveedorController::class, 'facturasExcel'])->name('proveedores.facturas.excel')->middleware('auth.proveedor');
 Route::get('/onboarding', [PortalProveedorController::class, 'mostrarOnboarding'])->name('proveedores.onboarding')->middleware('auth.proveedor');
+// ── Onboarding proveedor EXTRANJERO (importación / C-TPAT, en inglés) ──
+Route::get('/foreign-onboarding', [PortalProveedorController::class, 'mostrarForeignOnboarding'])->name('proveedores.foreign-onboarding')->middleware('auth.proveedor');
+Route::post('/foreign-onboarding/profile', [PortalProveedorController::class, 'guardarPerfilExtranjero'])->name('proveedores.foreign-onboarding.profile')->middleware('auth.proveedor');
+Route::post('/foreign-onboarding/security', [PortalProveedorController::class, 'guardarSeguridadExtranjero'])->name('proveedores.foreign-onboarding.security')->middleware('auth.proveedor');
+Route::post('/foreign-onboarding/document', [PortalProveedorController::class, 'subirDocumentoExtranjero'])->name('proveedores.foreign-onboarding.document')->middleware('auth.proveedor');
 Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->name('proveedores.business')->middleware('auth.proveedor');
 Route::get('/payment-history', [PortalProveedorController::class, 'mostrarPaymentHistory'])->name('proveedores.payment-history')->middleware('auth.proveedor');
 Route::get('/perfil', [PortalProveedorController::class, 'mostrarPerfil'])->name('proveedores.perfil')->middleware('auth.proveedor');
@@ -182,6 +187,10 @@ Route::get('/admin/solicitudes-alta/{proveedor}/ver', [AdminPanelController::cla
 Route::post('/admin/solicitudes-alta/aprobar', [AdminPanelController::class, 'aprobarSolicitudAlta'])->name('admin.solicitudes-alta.aprobar')->middleware('auth.admin');
 Route::post('/admin/solicitudes-alta/rechazar', [AdminPanelController::class, 'rechazarSolicitudAlta'])->name('admin.solicitudes-alta.rechazar')->middleware('auth.admin');
 Route::post('/admin/solicitudes-alta/documentos/{documento}/revisar', [AdminPanelController::class, 'marcarDocumentoSolicitudRevisado'])->name('admin.solicitudes-alta.documento.revisar')->middleware('auth.admin');
+// ── Solicitudes de alta: proveedores EXTRANJEROS (importación / C-TPAT) ──
+Route::get('/admin/solicitudes-alta/extranjero/{proveedor}/ver', [AdminPanelController::class, 'verProveedorExtranjero'])->name('admin.solicitudes-alta.extranjero.ver')->middleware('auth.admin');
+Route::post('/admin/solicitudes-alta/extranjero/aprobar', [AdminPanelController::class, 'aprobarProveedorExtranjero'])->name('admin.solicitudes-alta.extranjero.aprobar')->middleware('auth.admin');
+Route::post('/admin/solicitudes-alta/extranjero/rechazar', [AdminPanelController::class, 'rechazarProveedorExtranjero'])->name('admin.solicitudes-alta.extranjero.rechazar')->middleware('auth.admin');
 Route::get('/admin/solicitudes-docs', [AdminPanelController::class, 'solicitudesActualizacionDocs'])->name('admin.solicitudes-docs')->middleware('auth.admin');
 Route::post('/admin/solicitudes-docs/marcar', [AdminPanelController::class, 'marcarSolicitudActualizacionDocs'])->name('admin.solicitudes-docs.marcar')->middleware('auth.admin');
 Route::get('/admin/proveedores/{codigo}/facturas', [AdminPanelController::class, 'proveedorFacturas'])->name('admin.proveedor-facturas')->middleware('auth.admin');

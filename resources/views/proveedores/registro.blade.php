@@ -92,6 +92,20 @@
         <form method="POST" action="{{ route('proveedores.registro.guardar') }}" id="form-registro">
             @csrf
 
+            {{-- Selector de tipo de proveedor: nacional (flujo fiscal MX) vs extranjero (importación, C-TPAT en inglés). --}}
+            <input type="hidden" name="es_extranjero" id="reg_es_extranjero" value="{{ old('es_extranjero', '0') }}">
+            <div class="form-section-title">Supplier type / Tipo de proveedor</div>
+            <div class="form-row" style="margin-bottom:6px;">
+                <div class="ios-field" style="grid-column:1 / -1;">
+                    <select id="reg_origen" onchange="setOrigen(this.value)">
+                        <option value="nacional" {{ old('es_extranjero','0')==='1' ? '' : 'selected' }}>National supplier (México) · Proveedor nacional</option>
+                        <option value="extranjero" {{ old('es_extranjero','0')==='1' ? 'selected' : '' }}>Foreign supplier (import) · Proveedor extranjero</option>
+                    </select>
+                </div>
+            </div>
+
+            {{-- ──────────── BLOQUE NACIONAL (español, fiscal MX) ──────────── --}}
+            <div id="bloque-nacional">
             <div class="form-section-title">Identificación</div>
             <div class="form-row">
                 <div class="ios-field">
@@ -157,28 +171,47 @@
                     <span class="hint" id="reg_usuario_hint">Se genera automáticamente (ej. juan.garcia). También podrás entrar con tu correo.</span>
                 </div>
             </div>
+            </div>{{-- /#bloque-nacional --}}
 
-            <div class="form-section-title">Contacto y acceso</div>
+            {{-- ──────────── BLOQUE EXTRANJERO (English, import / C-TPAT) ──────────── --}}
+            <div id="bloque-extranjero" style="{{ old('es_extranjero','0')==='1' ? '' : 'display:none' }}">
+                <div class="form-section-title">Company information</div>
+                <div class="form-row">
+                    <div class="ios-field">
+                        <label>Company name <span class="req">*</span></label>
+                        <input type="text" name="company_name" id="reg_company_name" placeholder="Company legal name" value="{{ old('company_name') }}" maxlength="255">
+                        @error('company_name')<span class="error-msg">{{ $message }}</span>@enderror
+                    </div>
+                    <div class="ios-field">
+                        <label>Tax ID number <span class="req">*</span></label>
+                        <input type="text" name="tax_id_number" id="reg_tax_id" placeholder="Tax ID / EIN" value="{{ old('tax_id_number') }}" maxlength="100">
+                        @error('tax_id_number')<span class="error-msg">{{ $message }}</span>@enderror
+                    </div>
+                </div>
+                <span class="hint">You will complete the full Business Profile and the C-TPAT security questionnaire after signing in. The required documents (address proof, tax ID proof, contact information and the bank letter) are uploaded there as well.</span>
+            </div>
+
+            <div class="form-section-title" id="sec-contacto">Contacto y acceso</div>
             <div class="form-row">
                 <div class="ios-field">
-                    <label>Teléfono <span class="req">*</span></label>
-                    <input type="tel" name="telefono" id="reg_telefono" placeholder="10 dígitos" value="{{ old('telefono') }}" required maxlength="10" inputmode="numeric" pattern="[0-9]{10}">
+                    <label id="lbl_telefono">Teléfono <span class="req">*</span></label>
+                    <input type="tel" name="telefono" id="reg_telefono" placeholder="10 dígitos" value="{{ old('telefono') }}" required maxlength="40" inputmode="tel">
                     @error('telefono')<span class="error-msg">{{ $message }}</span>@enderror
                 </div>
                 <div class="ios-field">
-                    <label>Correo electrónico <span class="req">*</span></label>
+                    <label id="lbl_correo">Correo electrónico <span class="req">*</span></label>
                     <input type="email" name="correo" id="reg_correo" placeholder="tu@correo.com" value="{{ old('correo') }}" required>
                     @error('correo')<span class="error-msg">{{ $message }}</span>@enderror
                 </div>
             </div>
             <div class="form-row">
                 <div class="ios-field">
-                    <label>Contraseña <span class="req">*</span></label>
+                    <label id="lbl_password">Contraseña <span class="req">*</span></label>
                     <input type="password" name="password" placeholder="Mínimo 8 caracteres" required>
                     @error('password')<span class="error-msg">{{ $message }}</span>@enderror
                 </div>
                 <div class="ios-field">
-                    <label>Confirmar contraseña <span class="req">*</span></label>
+                    <label id="lbl_password_conf">Confirmar contraseña <span class="req">*</span></label>
                     <input type="password" name="password_confirmation" placeholder="Repite tu contraseña" required>
                 </div>
             </div>
@@ -202,6 +235,9 @@
     var tel = document.getElementById('reg_telefono');
     if (tel) {
         tel.addEventListener('input', function () {
+            // Para nacional: solo 10 dígitos. Para extranjero: permitir + y formato internacional.
+            var flag = document.getElementById('reg_es_extranjero');
+            if (flag && flag.value === '1') { return; }
             this.value = this.value.replace(/\D/g, '').slice(0, 10);
         });
     }
@@ -329,6 +365,57 @@
     [nombres, apPaterno, apMaterno, razon].forEach(stripEmoji);
     if (tipo) tipo.addEventListener('change', toggleTipo);
     toggleTipo();
+
+    // ── Toggle Nacional / Extranjero ──
+    // POR QUÉ: ambos usan el mismo form; según el tipo se muestra/exige un set de campos u otro
+    // y se traducen las etiquetas de las secciones compartidas (contacto/acceso).
+    window.setOrigen = function (valor) {
+        var esExtranjero = valor === 'extranjero';
+        var bloqueNac = document.getElementById('bloque-nacional');
+        var bloqueExt = document.getElementById('bloque-extranjero');
+        var flag = document.getElementById('reg_es_extranjero');
+        var companyName = document.getElementById('reg_company_name');
+        var taxId = document.getElementById('reg_tax_id');
+
+        if (flag) flag.value = esExtranjero ? '1' : '0';
+        if (bloqueNac) bloqueNac.style.display = esExtranjero ? 'none' : '';
+        if (bloqueExt) bloqueExt.style.display = esExtranjero ? '' : 'none';
+
+        // Campos nacionales: solo requeridos/activos si NO es extranjero.
+        if (tipo) tipo.required = !esExtranjero;
+        if (rfc) rfc.required = !esExtranjero;
+        var repse = document.getElementById('reg_es_repse');
+        if (repse) repse.required = !esExtranjero;
+        if (!esExtranjero) { toggleTipo(); }
+        else {
+            // Al pasar a extranjero, quitar required de los campos MX de persona.
+            if (nombres) nombres.required = false;
+            if (apPaterno) apPaterno.required = false;
+            if (razon) razon.required = false;
+        }
+
+        // Campos extranjeros: requeridos solo si ES extranjero.
+        if (companyName) companyName.required = esExtranjero;
+        if (taxId) taxId.required = esExtranjero;
+
+        // Traducir etiquetas compartidas (contacto / acceso) y encabezado.
+        var secContacto = document.getElementById('sec-contacto');
+        if (secContacto) secContacto.textContent = esExtranjero ? 'Contact & access' : 'Contacto y acceso';
+        var labTelefono = document.querySelector('label[for]'); // no-op guard
+        var lblTel = document.getElementById('lbl_telefono');
+        var lblCorreo = document.getElementById('lbl_correo');
+        var lblPass = document.getElementById('lbl_password');
+        var lblPassConf = document.getElementById('lbl_password_conf');
+        if (lblTel) lblTel.innerHTML = (esExtranjero ? 'Telephone' : 'Teléfono') + ' <span class="req">*</span>';
+        if (lblCorreo) lblCorreo.innerHTML = (esExtranjero ? 'Email' : 'Correo electrónico') + ' <span class="req">*</span>';
+        if (lblPass) lblPass.innerHTML = (esExtranjero ? 'Password' : 'Contraseña') + ' <span class="req">*</span>';
+        if (lblPassConf) lblPassConf.innerHTML = (esExtranjero ? 'Confirm password' : 'Confirmar contraseña') + ' <span class="req">*</span>';
+        var btn = document.querySelector('#form-registro .ios-btn-primary');
+        if (btn) btn.textContent = esExtranjero ? 'Create my account' : 'Crear mi cuenta';
+    };
+
+    // Estado inicial (respeta old() tras un error de validación).
+    setOrigen(document.getElementById('reg_origen') ? document.getElementById('reg_origen').value : 'nacional');
 })();
 </script>
 </body>

@@ -123,6 +123,65 @@
         </div>
     @endforelse
     </div>
+
+    {{-- ───────────── Proveedores EXTRANJEROS (importación / C-TPAT) ───────────── --}}
+    @if(($extranjeros ?? collect())->count())
+    <div style="margin-top:28px;">
+        <h2 style="font-size:16px;font-weight:700;color:var(--gray-text);margin-bottom:4px;">Proveedores extranjeros (importación)</h2>
+        <p style="font-size:12px;color:var(--gray-muted);margin-bottom:14px;">Flujo C-TPAT en inglés. No aplican requisitos fiscales mexicanos (RFC, Opinión SAT, CLABE).</p>
+
+        @foreach($extranjeros as $prov)
+            @php
+                $perfil = $prov->perfilExtranjero;
+                $perfilOk = $perfil && $perfil->profile_completed;
+                $segOk = $perfil && $perfil->security_completed;
+                $reqDocs = $prov->documentosExtranjeroRequeridos();
+                $docsSubidos = 0;
+                foreach (array_keys($reqDocs) as $t) {
+                    $d = $prov->documentos->firstWhere('tipo', $t);
+                    if ($d && $d->estatus !== 'rechazado') { $docsSubidos++; }
+                }
+                $docsOk = $docsSubidos === count($reqDocs);
+                $listo = $perfilOk && $segOk && $docsOk;
+            @endphp
+            <div class="sol-card pendiente" style="border-left-color:#2563eb;">
+                <div class="sol-head">
+                    <div>
+                        <div class="sol-nombre">{{ $prov->nombre ?? $prov->usuario }}</div>
+                        <div class="sol-meta">Foreign supplier · Registrado: {{ $prov->created_at?->format('d/m/Y H:i') ?? '—' }}</div>
+                    </div>
+                    <span class="sol-badge {{ $listo ? 'con-datos' : 'pendiente' }}">{{ $listo ? 'Listo' : 'En proceso' }}</span>
+                </div>
+
+                <div class="sol-datos">
+                    <div><span class="sol-dato-label">Correo:</span> <span class="sol-dato-value">{{ $prov->correo ?? '—' }}</span></div>
+                    <div><span class="sol-dato-label">Teléfono:</span> <span class="sol-dato-value">{{ $prov->telefono ?? '—' }}</span></div>
+                    <div><span class="sol-dato-label">Business Profile:</span> <span class="sol-dato-value">{{ $perfilOk ? '✓ Completo' : '✕ Pendiente' }}</span></div>
+                    <div><span class="sol-dato-label">Security Questionnaire:</span> <span class="sol-dato-value">{{ $segOk ? '✓ Completo' : '✕ Pendiente' }}</span></div>
+                    <div><span class="sol-dato-label">Documentos:</span> <span class="sol-dato-value">{{ $docsSubidos }}/{{ count($reqDocs) }} subidos{{ $docsOk ? ' ✓' : '' }}</span></div>
+                    <div><span class="sol-dato-label">Tax ID:</span> <span class="sol-dato-value">{{ $perfil->tax_id_number ?? '—' }}</span></div>
+                </div>
+
+                <div class="sol-actions">
+                    <form method="POST" action="{{ route('admin.solicitudes-alta.extranjero.aprobar') }}" class="sol-action-form" data-confirm="¿Aprobar y activar al proveedor extranjero {{ addslashes($prov->nombre ?? $prov->usuario) }}?">
+                        @csrf
+                        <input type="hidden" name="proveedor_id" value="{{ $prov->id }}">
+                        <button type="submit" class="btn-aprobar" {{ $listo ? '' : 'disabled title=Faltan-pasos-por-completar' }}>✓ Aprobar</button>
+                    </form>
+                    <form method="POST" action="{{ route('admin.solicitudes-alta.extranjero.rechazar') }}" class="sol-action-form" data-confirm="¿Rechazar al proveedor extranjero {{ addslashes($prov->nombre ?? $prov->usuario) }}? La cuenta sigue registrada e inactiva.">
+                        @csrf
+                        <input type="hidden" name="proveedor_id" value="{{ $prov->id }}">
+                        <button type="submit" class="btn-rechazar">✕ Rechazar</button>
+                    </form>
+                    <a href="{{ route('admin.solicitudes-alta.extranjero.ver', $prov->id) }}" class="btn-revisar">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        Ver
+                    </a>
+                </div>
+            </div>
+        @endforeach
+    </div>
+    @endif
 </div>
 @endsection
 @push('scripts')

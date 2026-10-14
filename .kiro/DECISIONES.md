@@ -877,6 +877,31 @@
 - **Dónde:** SDK en `C:\Users\IT\source\repos_git\SDKWieseNET481\...\SDKComercial\Entidades\DocumentoSdk.cs` (métodos `CrearDocumentoCargoAbono`, `SaldarDocumento`, `BuscarSiguienteSerieYFolio`); patrón de conexión visto en `SDKComercial\Pruebas\DocumentoPrueba.cs` (`CrearPedido2`). La API `APIPortalWeb` ya está en x86 y referencia al SDK; `PruebaController` ya probado.
 - **PENDIENTE (esperando respuestas de Alan para mañana):** (1) de dónde salen concepto+serie+folio de la factura de proveedor a saldar; (2) si el código de proveedor es el mismo de Wiese o uno propio de Contpaqi; (3) si se permite pago parcial y cómo se maneja la moneda (hoy todo asume pesos, moneda 1, tipo de cambio 1). Siguiente código a entregar: endpoint de pago en 2 etapas (Etapa 1: solo crear el documento de pago; Etapa 2: agregar el saldado).
 
+## 2026-09-30 — Proveedor EXTRANJERO (importación / C-TPAT) — Parte 1: base + registro
+- **Qué (dirección):** nuevo flujo para proveedores de importación. Se auto-registran con el MISMO login de los nacionales pero modificado: eligen "Foreign supplier" y el formulario cambia a inglés, pidiendo Company name + Tax ID (sin RFC/REPSE/Opinión SAT). Todo lo del extranjero va en inglés.
+- **Por qué:** un proveedor extranjero no tiene RFC ni documentos fiscales mexicanos; usa el paquete C-TPAT (dos cuestionarios + 4 documentos).
+- **Decisiones:** (1) selector National/Foreign al inicio del registro; (2) discriminador = columna booleana `es_extranjero` en `proveedores_users`; (3) flujo en dos pasos (registro corto → onboarding en inglés con cuestionarios + docs); (4) entrega partida: Parte 1 = base+registro, Parte 2 = onboarding en inglés, Parte 3 = panel admin de aprobación.
+- **Hecho en Parte 1:**
+  - Migración `2026_09_30_add_es_extranjero_to_proveedores_users.php` (columna `es_extranjero`).
+  - Migración `2026_09_30_create_foreign_supplier_profiles_table.php` + modelo `ForeignSupplierProfile`: una tabla con el Business Profile (PDF 1) y el Security Questionnaire C-TPAT (PDF 2, ~24 Yes/No + Section III firma), columnas reales.
+  - `ProveedorUser`: `es_extranjero` en fillable/casts, helper `esExtranjero()`, relación `perfilExtranjero()`, y `documentosRequeridos()` ramifica: si extranjero devuelve los 4 docs en inglés (`address_proof`, `tax_id_proof`, `contact_info`, `bank_letter`).
+  - `AuthProveedorController::guardar` desvía a `guardarExtranjero()` cuando `es_extranjero=1`: valida company/tax_id/tel/correo/password (sin RFC), crea proveedor inactivo con `es_extranjero=true`, `moneda=DOLLAR`, pre-crea su `ForeignSupplierProfile`, textos en inglés.
+  - Vista `proveedores/registro.blade.php`: selector National/Foreign + bloque de empresa en inglés + JS `setOrigen()` que togglea bloques, required y traduce labels compartidos.
+- **Hecho en Parte 2 (onboarding en inglés, 1 pantalla / 3 pasos):**
+  - Vista `proveedores/foreign-onboarding.blade.php`: una sola pantalla con pasos navegables — Step 1 Business Profile (PDF 1), Step 2 Security Questionnaire C-TPAT (Section I + 24 Yes/No con radios + Section III firma), Step 3 subida de los 4 documentos. Todo en inglés, JS `foGo(step)` para alternar pasos y `?step=` en la URL.
+  - `PortalProveedorController`: `mostrarForeignOnboarding` (firstOrCreate del perfil + estado de docs), `guardarPerfilExtranjero` (step 1), `guardarSeguridadExtranjero` (step 2; checkbox/radio no marcado → null explícito), `subirDocumentoExtranjero` (los 4 docs a `foreign_supplier/{tipo}`, estatus pendiente, mensajes en inglés).
+  - Rutas `proveedores.foreign-onboarding(.profile/.security/.document)` en routes/web.php.
+  - `AuthProveedorController::redirectTrasLoginProveedor`: si el proveedor es extranjero e inactivo → lo manda a `foreign-onboarding` (en inglés); si es nacional, al onboarding mexicano de siempre.
+- **Hecho en Parte 3 (panel admin de aprobación, en español para Dirección):**
+  - `AdminPanelController::solicitudesAlta` ahora también carga `$extranjeros` (proveedores `es_extranjero` + inactivos) y los pasa a la vista.
+  - Métodos nuevos: `verProveedorExtranjero` (pantalla de detalle), `aprobarProveedorExtranjero` (gate propio: perfil + cuestionario completos y los 4 docs subidos/no-rechazados; NO exige RFC/Wiese/CLABE/2 contactos), `rechazarProveedorExtranjero`. Notificaciones al proveedor en inglés.
+  - Vista `admin/solicitudes-alta.blade.php`: sección nueva "Proveedores extranjeros (importación)" con tarjetas (borde azul) + aprobar/rechazar/ver; el botón Aprobar se deshabilita si no está "Listo".
+  - Vista `admin/proveedor-extranjero-ver.blade.php`: detalle completo (Business Profile + las 24 Yes/No del cuestionario con badges + firma + los 4 documentos con enlace) y botones aprobar/rechazar. Closure `$peYn` (no función global) para los Yes/No/—.
+  - Rutas `admin.solicitudes-alta.extranjero.ver/.aprobar/.rechazar`.
+- **FLUJO COMPLETO (3 partes) terminado:** registro en inglés → onboarding en inglés (perfil + C-TPAT + 4 docs) → Dirección revisa y activa → el extranjero entra al panel de proveedores.
+- **Verificado:** migraciones corridas, `php -l` OK, vistas compilan, rutas registradas; pruebas e2e: Parte 1 (registro), Parte 2 (profile+security con Yes/No/null + firma + 4 docs), Parte 3 (gate rechaza incompletos, aprueba y activa a completos).
+- **PENDIENTE deploy:** correr `php artisan migrate` en producción tras subir (crea `foreign_supplier_profiles` y la columna `es_extranjero`).
+
 ## 2026-09-30 — Reembolsos con tabla propia (antes vivían en alertas/JSON)
 - **Qué:** los reembolsos de empleados dejaron de guardarse en la tabla genérica `alertas` (tipo `solicitud_reembolso`, todo en JSON `datos`) y ahora tienen su propia tabla `reembolsos` con columnas reales. La autorización de Sandra, que vivía dentro del JSON (`autorizado_sandra`), ahora son columnas `autorizado` (bool) + `autorizado_fecha`. El `estatus` también es columna real (lo usa el conteo de pendientes del dashboard).
 - **Por qué:** mismo motivo que gasolina: con JSON los filtros/conteos se hacían en PHP; con columnas se usan WHERE/COUNT/SUM de SQL. Dirección pidió tabla propia por módulo.
