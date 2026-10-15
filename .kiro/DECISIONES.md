@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-09-07 — Lupa y lista de proveedores vía puente 5009 (producción)
+
+- **QUÉ:** La lupa (buscar proveedor por código/RFC) y la pantalla de Proveedores no cargaban en
+  SiteGround porque pegaban al 250 directo. Ahora, igual que la tabla, cuando `PAGOS_API_URL`
+  (5009) está lleno usan el puente 5009 sin exigir docsUrl ni login al 250.
+- **POR QUÉ:** mismo problema raíz que la tabla: en SiteGround docsUrl va vacío, así que
+  validarDocsConfiguracion/loginServicio abortaban antes de llegar al 5009.
+- **DÓNDE:** `app/Services/ProveedorApiService.php` → `listarProveedoresWiese()` (ruta
+  `/PagoProveedor/ListarProveedores`) y `buscarProveedorWiese()` (rutas
+  `/PagoProveedor/BuscarPorCodigo` y `/PagoProveedor/BuscarPorRFC`). `buscarProveedorPorRFC()`
+  se arregla solo porque reutiliza `buscarProveedorWiese()`.
+- **C# (5009):** se agregaron en `PagoProveedorController` los endpoints `ListarProveedores`,
+  `BuscarPorCodigo`, `BuscarPorRFC` (patrón idéntico a `ListarDocumentos`: login al 250 +
+  reenvío). NOTA: Genaro cambió la IP pública del 5009 a 189.254.241.195 (antes .194).
+
 ## 2026-09-07 — Fix: Formato para pago salía vacío en SiteGround (producción)
 
 - **QUÉ:** En SiteGround la tabla global de "Formato para pago" nunca cargaba (decía

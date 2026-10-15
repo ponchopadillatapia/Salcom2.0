@@ -531,28 +531,44 @@ class ProveedorApiService
             return $this->buildErrorResponse('Escribe un código o RFC.', 'validation');
         }
 
-        $configError = $this->validarDocsConfiguracion();
-        if ($configError) {
-            return $configError;
-        }
-
-        // Login de servicio para obtener el token de Wiese.
-        $login = $this->loginServicio();
-        if (! ($login['success'] ?? false)) {
-            return $login;
-        }
-        $token = (string) ($login['data']['tokenCreado'] ?? '');
-
-        $endpoint = $porRfc
-            ? '/ClienteProveedor/BuscarPorRFC'
-            : '/ClienteProveedor/BuscarPorCodigo';
         $params = $porRfc ? ['rfc' => strtoupper($valor)] : ['codigo' => $valor];
 
+        // DOS caminos (igual que el resto): 5009 en producción, 250 directo en oficina.
+        $pagosUrl = rtrim((string) config('services.proveedor_api.pagos_url', ''), '/');
+
+        if ($pagosUrl !== '') {
+            // Producción: el puente 5009 autentica solo; sin docsUrl ni login al 250.
+            $base = $pagosUrl;
+            $endpoint = $porRfc
+                ? '/PagoProveedor/BuscarPorRFC'
+                : '/PagoProveedor/BuscarPorCodigo';
+            $token = '';
+        } else {
+            // Oficina/local: 250 directo, requiere docsUrl + login.
+            $configError = $this->validarDocsConfiguracion();
+            if ($configError) {
+                return $configError;
+            }
+
+            // Login de servicio para obtener el token de Wiese.
+            $login = $this->loginServicio();
+            if (! ($login['success'] ?? false)) {
+                return $login;
+            }
+            $token = (string) ($login['data']['tokenCreado'] ?? '');
+
+            $base = $this->docsUrl;
+            $endpoint = $porRfc
+                ? '/ClienteProveedor/BuscarPorRFC'
+                : '/ClienteProveedor/BuscarPorCodigo';
+        }
+
         try {
-            $response = $this->http(max($this->timeout, 30))
-                ->withToken($token)
-                ->acceptJson()
-                ->get($this->docsUrl.$endpoint, $params);
+            $peticion = $this->http(max($this->timeout, 30))->acceptJson();
+            if ($token !== '') {
+                $peticion = $peticion->withToken($token);
+            }
+            $response = $peticion->get($base.$endpoint, $params);
 
             if (! $response->successful()) {
                 return $this->procesarRespuesta($response, $endpoint);
@@ -597,29 +613,44 @@ class ProveedorApiService
      */
     public function listarProveedoresWiese(?string $token = null): array
     {
-        // Si no nos pasan token, hacemos login de servicio para obtenerlo.
-        if ($token === null || $token === '') {
-            $login = $this->loginServicio();
-            if (! ($login['success'] ?? false)) {
-                return $login;
+        // DOS caminos (igual que listarFacturasPendientesTodos):
+        //  - PRODUCCIÓN (SiteGround): 5009 (PAGOS_API_URL), ruta /PagoProveedor/ListarProveedores.
+        //    El 5009 hace su propio login al 250, así que NO exigimos docsUrl ni token.
+        //  - OFICINA/LOCAL (PAGOS_API_URL vacío): 250 directo (docsUrl), ruta ClienteProveedor.
+        $pagosUrl = rtrim((string) config('services.proveedor_api.pagos_url', ''), '/');
+
+        if ($pagosUrl !== '') {
+            $base = $pagosUrl;
+            $endpoint = '/PagoProveedor/ListarProveedores'; // puente en el 5009
+            $token = $token ?? '';
+        } else {
+            // Si no nos pasan token, hacemos login de servicio para obtenerlo.
+            if ($token === null || $token === '') {
+                $login = $this->loginServicio();
+                if (! ($login['success'] ?? false)) {
+                    return $login;
+                }
+                $token = (string) ($login['data']['tokenCreado'] ?? '');
             }
-            $token = (string) ($login['data']['tokenCreado'] ?? '');
-        }
 
-        $configError = $this->validarDocsConfiguracion();
-        if ($configError) {
-            return $configError;
-        }
+            $configError = $this->validarDocsConfiguracion();
+            if ($configError) {
+                return $configError;
+            }
 
-        // Ruta confirmada con Alan: movió el endpoint a ClienteProveedor para que
-        // apareciera en Swagger (antes no salía con su propia etiqueta).
-        $endpoint = '/ClienteProveedor/ListarProveedorWeb';
+            $base = $this->docsUrl;
+            // Ruta confirmada con Alan: movió el endpoint a ClienteProveedor para que
+            // apareciera en Swagger (antes no salía con su propia etiqueta).
+            $endpoint = '/ClienteProveedor/ListarProveedorWeb';
+        }
 
         try {
-            $response = $this->http(max($this->timeout, 60))
-                ->withToken($token)
-                ->acceptJson()
-                ->get($this->docsUrl.$endpoint);
+            $peticion = $this->http(max($this->timeout, 60))->acceptJson();
+            // POR QUÉ: en el camino 5009 el token va vacío (el puente autentica solo).
+            if ($token !== '') {
+                $peticion = $peticion->withToken($token);
+            }
+            $response = $peticion->get($base.$endpoint);
 
             if (! $response->successful()) {
                 return $this->procesarRespuesta($response, $endpoint);
