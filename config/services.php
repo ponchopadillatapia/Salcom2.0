@@ -47,9 +47,6 @@ return [
         // API pública (APIPortalWeb 5009) que hace de puente hacia Wiese para ListarDocumentos.
         // Si vacía, el método cae al docs_url (250 directo). En producción va con la IP pública.
         'pagos_url' => env('PAGOS_API_URL', ''),
-        // Token de la PUERTA (gateway) hacia Wiese. Solo se usa en SiteGround: si está lleno,
-        // cada llamada a Wiese manda el header X-Salcom-Gateway. Vacío = llamada directa (oficina).
-        'gateway_token' => env('WIESE_GATEWAY_TOKEN', ''),
         'connect_timeout' => (int) env('PROVEEDOR_API_CONNECT_TIMEOUT', 5),
         'timeout' => (int) env('PROVEEDOR_API_TIMEOUT', 15),
         'max_retries' => (int) env('PROVEEDOR_API_MAX_RETRIES', 3),
