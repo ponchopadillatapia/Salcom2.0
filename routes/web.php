@@ -241,6 +241,8 @@ Route::get('/admin/pagos/proveedor/{codigo}/estado-cuenta', [AdminPagosControlle
 Route::post('/admin/pagos', [AdminPagosController::class, 'store'])->name('admin.pagos.store')->middleware('auth.admin');
 // Carrito multi-proveedor: juntar facturas de varios proveedores y generar UN formato gigante.
 Route::post('/admin/pagos/carrito/agregar', [AdminPagosController::class, 'carritoAgregar'])->name('admin.pagos.carrito.agregar')->middleware('auth.admin');
+// Agregar al carrito facturas de VARIOS proveedores de un jalón (desde la tabla global).
+Route::post('/admin/pagos/carrito/agregar-multi', [AdminPagosController::class, 'carritoAgregarMulti'])->name('admin.pagos.carrito.agregar-multi')->middleware('auth.admin');
 Route::get('/admin/pagos/carrito', [AdminPagosController::class, 'carritoVer'])->name('admin.pagos.carrito')->middleware('auth.admin');
 Route::post('/admin/pagos/carrito/quitar', [AdminPagosController::class, 'carritoQuitar'])->name('admin.pagos.carrito.quitar')->middleware('auth.admin');
 Route::post('/admin/pagos/carrito/vaciar', [AdminPagosController::class, 'carritoVaciar'])->name('admin.pagos.carrito.vaciar')->middleware('auth.admin');

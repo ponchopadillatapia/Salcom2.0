@@ -6,37 +6,25 @@
 
 ---
 
-## 2026-09-07 — Formato para pago: seleccionar facturas y agregar al carrito desde la tabla global
+## 2026-09-07 — Formato para pago: un solo botón verde para varios proveedores
 
-- **QUÉ:** En la tabla global de "Formato para pago" cada factura ahora tiene checkbox y cada
-  proveedor tiene su botón "+ Agregar al carrito" en su fila separadora. Así se marcan facturas
-  y se mandan al carrito SIN entrar al detalle del proveedor. Hay un "seleccionar todas" por
-  proveedor y un contador en el botón.
-- **POR QUÉ (petición dirección):** era tedioso entrar proveedor por proveedor solo para
-  seleccionar; ahora se hace directo desde la lista.
-- **CÓMO:** cada proveedor tiene su propio `<form>` fuera de la tabla, ligado a los checkboxes
-  por el atributo HTML `form="fp-form-<codigo>"` (no se puede envolver varias <tr> en un form
-  dentro de <tbody>). Reutiliza el endpoint existente `carritoAgregar` (un proveedor por submit),
-  sin tocar el backend. La fila separadora ya NO es clickeable completa (estorbaba a los checks);
-  se entra al detalle por el link del código.
-- **DÓNDE:** `resources/views/admin/pagos/index.blade.php` (columna checkbox, forms por
-  proveedor, botón por proveedor, y script de conteo/seleccionar-todas al final).
-
-## 2026-09-07 — Formato para pago: seleccionar facturas y agregar al carrito desde la tabla global
-
-- **QUÉ:** En la tabla global de "Formato para pago" cada factura ahora tiene checkbox y cada
-  proveedor tiene su botón "+ Agregar al carrito" en su fila separadora. Así se marcan facturas
-  y se mandan al carrito SIN entrar al detalle del proveedor. Hay un "seleccionar todas" por
-  proveedor y un contador en el botón.
-- **POR QUÉ (petición dirección):** era tedioso entrar proveedor por proveedor solo para
-  seleccionar; ahora se hace directo desde la lista.
-- **CÓMO:** cada proveedor tiene su propio `<form>` fuera de la tabla, ligado a los checkboxes
-  por el atributo HTML `form="fp-form-<codigo>"` (no se puede envolver varias <tr> en un form
-  dentro de <tbody>). Reutiliza el endpoint existente `carritoAgregar` (un proveedor por submit),
-  sin tocar el backend. La fila separadora ya NO es clickeable completa (estorbaba a los checks);
-  se entra al detalle por el link del código.
-- **DÓNDE:** `resources/views/admin/pagos/index.blade.php` (columna checkbox, forms por
-  proveedor, botón por proveedor, y script de conteo/seleccionar-todas al final).
+- **QUÉ:** En la tabla global de "Formato para pago" cada factura tiene checkbox. Se marcan
+  facturas de VARIOS proveedores a la vez y UN solo botón verde "+ Agregar al carrito" (barra
+  flotante abajo) las manda todas juntas. Muestra cuántas facturas y de cuántos proveedores
+  llevas. Reemplaza el botón gris por-proveedor anterior.
+- **POR QUÉ (petición dirección):** el botón gris por proveedor se veía feo y obligaba a agregar
+  proveedor por proveedor; se quería uno verde que junte todo sin entrar al detalle.
+- **CÓMO (backend):** nuevo endpoint `carritoAgregarMulti` (ruta `admin.pagos.carrito.agregar-multi`)
+  que recibe `seleccion[codigo][]=folio` (folios agrupados por proveedor). La lógica de agregar
+  UN proveedor se extrajo al método privado `agregarProveedorAlCarrito()` que reutilizan tanto
+  `carritoAgregar` (uno) como `carritoAgregarMulti` (varios), sin duplicar código.
+- **CÓMO (vista):** los checkboxes se asocian a un form global `#fp-form-multi` por el atributo
+  `form=`; el name `seleccion[CODIGO][]` agrupa por proveedor. Barra flotante (sticky bottom) con
+  el botón verde `.fp-btn-carrito-global`; JS cuenta facturas y proveedores distintos y muestra/
+  oculta la barra. "Seleccionar todas" por proveedor sigue en cada separador.
+- **DÓNDE:** `app/Http/Controllers/AdminPagosController.php` (carritoAgregarMulti +
+  agregarProveedorAlCarrito), `routes/web.php` (ruta nueva),
+  `resources/views/admin/pagos/index.blade.php` (checkboxes seleccion[], form global, barra verde, JS).
 
 ## 2026-09-07 — Fix: carrito de pago salía en 0 facturas en SiteGround
 

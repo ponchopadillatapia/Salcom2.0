@@ -11,6 +11,10 @@
     @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
     .anim{animation:fadeUp .4s cubic-bezier(.4,0,.2,1) both}
 
+    /* Botón verde global para agregar al carrito facturas de varios proveedores a la vez. */
+    .fp-btn-carrito-global{padding:10px 22px;background:var(--green,#2ecc71);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:background .15s}
+    .fp-btn-carrito-global:hover{background:#22a34d}
+
     .inv-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
     .inv-metric{background:var(--white);border:1px solid var(--border-light, var(--border));border-radius:14px;padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block}
     .inv-metric:hover{border-color:var(--purple-mid,#c4b5e0);box-shadow:var(--shadow-sm)}
@@ -209,39 +213,16 @@
                         @php
                             $primera = $facturas->first();
                             $nombreProv = $primera['nombre'] ?? $codigoProv;
-                            // ID de form único por proveedor. Se usa para asociar los checkboxes
-                            // (que viven en el <tbody>) con un <form> fuera de la tabla, vía el
-                            // atributo HTML form="...". POR QUÉ así: no se puede envolver varias
-                            // <tr> en un <form> dentro de <tbody> (HTML inválido); el atributo
-                            // form= permite ligarlos sin romper la estructura de la tabla.
-                            $formId = 'fp-form-'.\Illuminate\Support\Str::slug($codigoProv, '_');
                         @endphp
-                        {{-- Un <form> por proveedor, FUERA de la tabla pero asociado por id.
-                             Manda SOLO los folios de ESTE proveedor a carritoAgregar (que acepta
-                             un proveedor por submit). Así se puede agregar al carrito directo
-                             desde la tabla global, sin entrar al detalle del proveedor. --}}
-                        <form method="POST" action="{{ route('admin.pagos.carrito.agregar') }}" id="{{ $formId }}">
-                            @csrf
-                            <input type="hidden" name="codigo_proveedor" value="{{ $codigoProv }}">
-                        </form>
-                        {{-- Separador de proveedor: usa la clase date-row (estándar morado de la
-                             página). Ahora NO es clickeable completo (para no estorbar a los
-                             checkboxes); se entra al detalle por el link del código. Trae el botón
-                             "Agregar al carrito" que envía el form de este proveedor. --}}
+                        {{-- Separador de proveedor. Trae un "seleccionar todas" de ESTE proveedor.
+                             Ya NO hay botón por proveedor: se marca de varios proveedores a la vez
+                             y se envían todos juntos con el botón verde global de abajo. --}}
                         <tr class="date-row">
                             <td colspan="12">
-                                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-                                    <div>
-                                        <input type="checkbox" class="fp-chk-all" data-form="{{ $formId }}" title="Seleccionar todas de este proveedor" style="margin-right:6px;vertical-align:middle;">
-                                        <a class="code-link" href="{{ route('admin.pagos.proveedor', $codigoProv) }}">{{ $codigoProv }}</a>
-                                        — {{ $nombreProv }}
-                                        <span style="font-weight:500;opacity:.75;">· {{ $facturas->count() }} factura(s)</span>
-                                    </div>
-                                    <button type="submit" form="{{ $formId }}" class="btn-pagar fp-btn-carrito" data-form="{{ $formId }}" disabled
-                                        style="padding:6px 14px;font-size:13px;">
-                                        + Agregar al carrito (<span class="fp-count" data-form="{{ $formId }}">0</span>)
-                                    </button>
-                                </div>
+                                <input type="checkbox" class="fp-chk-all" data-prov="{{ $codigoProv }}" title="Seleccionar todas de este proveedor" style="margin-right:6px;vertical-align:middle;">
+                                <a class="code-link" href="{{ route('admin.pagos.proveedor', $codigoProv) }}">{{ $codigoProv }}</a>
+                                — {{ $nombreProv }}
+                                <span style="font-weight:500;opacity:.75;">· {{ $facturas->count() }} factura(s)</span>
                             </td>
                         </tr>
                         {{-- Una fila por factura del proveedor. --}}
@@ -254,10 +235,11 @@
                                 $esUsd = ($f['moneda'] ?? 'MXN') === 'USD';
                             @endphp
                             <tr>
-                                {{-- Checkbox asociado al form de ESTE proveedor (atributo form=).
-                                     value = folio, name = folios[] (igual que el detalle). --}}
+                                {{-- Checkbox de factura. name = seleccion[CODIGO][] para que el
+                                     backend reciba un arreglo de folios AGRUPADO por proveedor.
+                                     Pertenece al form global #fp-form-multi (atributo form=). --}}
                                 <td style="text-align:center;">
-                                    <input type="checkbox" class="fp-chk" form="{{ $formId }}" data-form="{{ $formId }}" name="folios[]" value="{{ $f['folio'] ?? '' }}">
+                                    <input type="checkbox" class="fp-chk" form="fp-form-multi" data-prov="{{ $codigoProv }}" name="seleccion[{{ $codigoProv }}][]" value="{{ $f['folio'] ?? '' }}">
                                 </td>
                                 <td>{{ $f['serie'] ?? '' }}</td>
                                 <td style="font-weight:600;">{{ $f['folio'] ?? '—' }}</td>
@@ -281,6 +263,26 @@
                     @endforeach
                 </tbody>
             </table>
+        </div>
+
+        {{-- Form global: recoge TODOS los checkboxes marcados (de cualquier proveedor) por el
+             atributo form=. El name seleccion[CODIGO][] agrupa los folios por proveedor, que es
+             justo lo que espera carritoAgregarMulti. --}}
+        <form method="POST" action="{{ route('admin.pagos.carrito.agregar-multi') }}" id="fp-form-multi">
+            @csrf
+        </form>
+
+        {{-- Barra flotante con el botón VERDE global. Aparece solo cuando hay algo marcado.
+             POR QUÉ flotante: la tabla es larga; así el botón siempre está a la vista. --}}
+        <div id="fp-barra-carrito" style="display:none;position:sticky;bottom:0;z-index:5;margin-top:12px;
+             padding:12px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;
+             box-shadow:0 -4px 14px rgba(0,0,0,.08);display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="font-weight:600;color:#374151;">
+                <span id="fp-sel-fact">0</span> factura(s) de <span id="fp-sel-prov">0</span> proveedor(es) seleccionadas
+            </div>
+            <button type="submit" form="fp-form-multi" class="fp-btn-carrito-global">
+                + Agregar al carrito
+            </button>
         </div>
     </div>
     @endif
@@ -475,44 +477,64 @@
 })();
 </script>
 
-{{-- Selección de facturas por proveedor en la tabla global.
-     POR QUÉ: dirección pidió poder marcar facturas y mandarlas al carrito SIN entrar al
-     detalle del proveedor. Cada proveedor tiene su propio form (ligado por el atributo form=);
-     aquí solo contamos cuántas marcó y habilitamos/deshabilitamos su botón "Agregar al carrito". --}}
+{{-- Selección de facturas en la tabla global (varios proveedores a la vez).
+     POR QUÉ: dirección pidió marcar facturas de distintos proveedores y mandarlas TODAS con un
+     solo botón verde, sin entrar al detalle. Aquí contamos lo marcado (facturas y proveedores
+     distintos) y mostramos/ocultamos la barra flotante del botón global. --}}
 <script>
 (function () {
-    // Agrupa los controles por el id de su form (data-form), que es único por proveedor.
-    function refrescar(formId) {
-        var checks = document.querySelectorAll('.fp-chk[data-form="' + formId + '"]');
-        var marcadas = 0;
-        checks.forEach(function (c) { if (c.checked) marcadas++; });
+    var barra   = document.getElementById('fp-barra-carrito');
+    var spanF   = document.getElementById('fp-sel-fact');
+    var spanP   = document.getElementById('fp-sel-prov');
+    if (!barra) return;
 
-        // Actualiza el contador y habilita el botón solo si hay al menos una marcada.
-        var cont = document.querySelector('.fp-count[data-form="' + formId + '"]');
-        if (cont) cont.textContent = marcadas;
-        var btn = document.querySelector('.fp-btn-carrito[data-form="' + formId + '"]');
-        if (btn) btn.disabled = (marcadas === 0);
+    function refrescar() {
+        var checks = document.querySelectorAll('.fp-chk');
+        var facturas = 0;
+        var provsSet = {}; // códigos de proveedor distintos con al menos una marcada
 
-        // Sincroniza el "seleccionar todas" (marcado solo si todas lo están).
-        var all = document.querySelector('.fp-chk-all[data-form="' + formId + '"]');
-        if (all) all.checked = (checks.length > 0 && marcadas === checks.length);
+        checks.forEach(function (c) {
+            if (c.checked) {
+                facturas++;
+                provsSet[c.getAttribute('data-prov')] = true;
+            }
+        });
+        var proveedores = Object.keys(provsSet).length;
+
+        // Contadores en la barra.
+        if (spanF) spanF.textContent = facturas;
+        if (spanP) spanP.textContent = proveedores;
+
+        // La barra aparece solo si hay algo marcado.
+        barra.style.display = (facturas > 0) ? 'flex' : 'none';
+
+        // Sincronizar cada "seleccionar todas" por proveedor (marcado si todas las suyas lo están).
+        document.querySelectorAll('.fp-chk-all').forEach(function (all) {
+            var prov = all.getAttribute('data-prov');
+            var delProv = document.querySelectorAll('.fp-chk[data-prov="' + CSS.escape(prov) + '"]');
+            var marcadas = 0;
+            delProv.forEach(function (c) { if (c.checked) marcadas++; });
+            all.checked = (delProv.length > 0 && marcadas === delProv.length);
+        });
     }
 
-    // Click en un checkbox de factura → recontar su proveedor.
+    // Click en una factura → recontar global.
     document.querySelectorAll('.fp-chk').forEach(function (c) {
-        c.addEventListener('change', function () { refrescar(c.getAttribute('data-form')); });
+        c.addEventListener('change', refrescar);
     });
 
-    // "Seleccionar todas" de un proveedor → marca/desmarca todas las suyas.
+    // "Seleccionar todas" de un proveedor → marca/desmarca las suyas.
     document.querySelectorAll('.fp-chk-all').forEach(function (all) {
         all.addEventListener('change', function () {
-            var formId = all.getAttribute('data-form');
-            document.querySelectorAll('.fp-chk[data-form="' + formId + '"]').forEach(function (c) {
+            var prov = all.getAttribute('data-prov');
+            document.querySelectorAll('.fp-chk[data-prov="' + CSS.escape(prov) + '"]').forEach(function (c) {
                 c.checked = all.checked;
             });
-            refrescar(formId);
+            refrescar();
         });
     });
+
+    refrescar();
 })();
 </script>
 @endsection

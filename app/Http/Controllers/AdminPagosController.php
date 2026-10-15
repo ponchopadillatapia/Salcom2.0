@@ -674,25 +674,85 @@ class AdminPagosController extends Controller
             'folios.*' => 'string',
         ]);
 
-        $codigo = $data['codigo_proveedor'];
+        $carrito = session(self::CARRITO_KEY, []);
+        $resultado = $this->agregarProveedorAlCarrito($carrito, $data['codigo_proveedor'], $data['folios']);
 
-        // Resolver datos del proveedor (nombre, rfc) y las facturas frescas de Wiese,
-        // para guardar en el carrito el detalle (total/saldo/serie/fecha) y no re-consultar
-        // Wiese cada vez que se abre el carrito.
+        // Si falló (proveedor no encontrado o Wiese caído), devolver el error.
+        if (isset($resultado['error'])) {
+            return back()->with('error', $resultado['error']);
+        }
+
+        session([self::CARRITO_KEY => $resultado['carrito']]);
+
+        return redirect()
+            ->route('admin.pagos.carrito')
+            ->with('mensaje', "Se agregaron {$resultado['agregadas']} factura(s) de {$resultado['nombre']} al carrito.");
+    }
+
+    /**
+     * Agrega al carrito facturas de VARIOS proveedores en un solo envío.
+     *
+     * POR QUÉ: desde la tabla global de "Formato para pago" se pueden marcar facturas de
+     * distintos proveedores a la vez; dirección pidió un solo botón que agregue todo junto
+     * en vez de un botón por proveedor. La vista manda `seleccion[codigo][] = folio`.
+     */
+    public function carritoAgregarMulti(Request $request)
+    {
+        $data = $request->validate([
+            'seleccion' => 'required|array|min:1',
+            'seleccion.*' => 'array|min:1',       // cada proveedor → lista de folios
+            'seleccion.*.*' => 'string',
+        ]);
+
+        $carrito = session(self::CARRITO_KEY, []);
+        $totalAgregadas = 0;
+        $proveedoresOk = 0;
+        $errores = [];
+
+        foreach ($data['seleccion'] as $codigo => $folios) {
+            if (! is_array($folios) || $folios === []) {
+                continue;
+            }
+            $resultado = $this->agregarProveedorAlCarrito($carrito, (string) $codigo, $folios);
+            if (isset($resultado['error'])) {
+                $errores[] = $resultado['error'];
+                continue;
+            }
+            $carrito = $resultado['carrito']; // acumula entre proveedores
+            $totalAgregadas += $resultado['agregadas'];
+            $proveedoresOk++;
+        }
+
+        session([self::CARRITO_KEY => $carrito]);
+
+        // Si NADA se pudo agregar, avisar con el primer error (p. ej. Wiese caído).
+        if ($totalAgregadas === 0) {
+            return redirect()->route('admin.pagos.carrito')
+                ->with('error', $errores[0] ?? 'No se agregó ninguna factura al carrito.');
+        }
+
+        return redirect()->route('admin.pagos.carrito')
+            ->with('mensaje', "Se agregaron {$totalAgregadas} factura(s) de {$proveedoresOk} proveedor(es) al carrito.");
+    }
+
+    /**
+     * Lógica compartida: mete al $carrito (por referencia-copia) las facturas seleccionadas
+     * de UN proveedor y devuelve el carrito actualizado + cuántas agregó.
+     *
+     * @return array{carrito: array, agregadas: int, nombre: string}|array{error: string}
+     */
+    private function agregarProveedorAlCarrito(array $carrito, string $codigo, array $folios): array
+    {
+        // Resolver datos del proveedor (nombre, rfc) para guardar el detalle en el carrito.
         $proveedor = ProveedorUser::porCualquierCodigo($codigo)->first()
             ?? $this->proveedorWieseEnMemoria($codigo);
         if (! $proveedor) {
-            return back()->with('error', 'No se encontró el proveedor en Wiese.');
+            return ['error' => "No se encontró el proveedor {$codigo} en Wiese."];
         }
         $di = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
         $rfc = trim((string) ($di['rfc'] ?? ''));
 
-        // Traer facturas de Wiese para capturar los datos de las seleccionadas.
-        // POR QUÉ por CÓDIGO y no por RFC: listarFacturasProveedorPorRFC pega al 250 directo
-        // (docsUrl), que SiteGround no alcanza, así que el carrito quedaba en 0 facturas en
-        // producción. Además fallaba con proveedores de RFC vacío. Usamos el MISMO método que
-        // la tabla y la materialización (listarFacturasPendientesTodos filtrado por código),
-        // que ya pasa por el puente 5009 en producción.
+        // Traer facturas frescas de Wiese POR CÓDIGO (vía puente 5009 en producción).
         $facturasWiese = collect();
         try {
             $res = app(\App\Services\ProveedorApiService::class)
@@ -701,11 +761,10 @@ class AdminPagosController extends Controller
                 $facturasWiese = collect($res['data']['items'] ?? [])->where('pendiente', true);
             }
         } catch (\Throwable $e) {
-            return back()->with('error', 'No se pudo conectar con Wiese (¿VPN activa?).');
+            return ['error' => 'No se pudo conectar con Wiese (¿VPN activa?).'];
         }
 
-        $carrito = session(self::CARRITO_KEY, []);
-        $foliosSel = array_map('strval', $data['folios']);
+        $foliosSel = array_map('strval', $folios);
 
         // Inicializar la entrada del proveedor si no existe.
         if (! isset($carrito[$codigo])) {
@@ -740,11 +799,7 @@ class AdminPagosController extends Controller
             $agregadas++;
         }
 
-        session([self::CARRITO_KEY => $carrito]);
-
-        return redirect()
-            ->route('admin.pagos.carrito')
-            ->with('mensaje', "Se agregaron {$agregadas} factura(s) de {$proveedor->nombre} al carrito.");
+        return ['carrito' => $carrito, 'agregadas' => $agregadas, 'nombre' => (string) $proveedor->nombre];
     }
 
     /** Muestra el carrito: todo lo seleccionado, agrupado por proveedor, con gran total. */
