@@ -688,16 +688,20 @@ class AdminPagosController extends Controller
         $rfc = trim((string) ($di['rfc'] ?? ''));
 
         // Traer facturas de Wiese para capturar los datos de las seleccionadas.
+        // POR QUÉ por CÓDIGO y no por RFC: listarFacturasProveedorPorRFC pega al 250 directo
+        // (docsUrl), que SiteGround no alcanza, así que el carrito quedaba en 0 facturas en
+        // producción. Además fallaba con proveedores de RFC vacío. Usamos el MISMO método que
+        // la tabla y la materialización (listarFacturasPendientesTodos filtrado por código),
+        // que ya pasa por el puente 5009 en producción.
         $facturasWiese = collect();
-        if ($rfc !== '') {
-            try {
-                $res = app(\App\Services\ProveedorApiService::class)->listarFacturasProveedorPorRFC($rfc);
-                if ($res['success'] ?? false) {
-                    $facturasWiese = collect($res['data']['items'] ?? [])->where('pendiente', true);
-                }
-            } catch (\Throwable $e) {
-                return back()->with('error', 'No se pudo conectar con Wiese (¿VPN activa?).');
+        try {
+            $res = app(\App\Services\ProveedorApiService::class)
+                ->listarFacturasPendientesTodos('2020-01-01', '2035-12-31', null, $codigo);
+            if ($res['success'] ?? false) {
+                $facturasWiese = collect($res['data']['items'] ?? [])->where('pendiente', true);
             }
+        } catch (\Throwable $e) {
+            return back()->with('error', 'No se pudo conectar con Wiese (¿VPN activa?).');
         }
 
         $carrito = session(self::CARRITO_KEY, []);

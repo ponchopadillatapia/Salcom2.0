@@ -187,9 +187,10 @@
         {{-- min-width fuerza que las columnas no se apachurren: si no caben, el contenedor
              (overflow-x:auto) muestra scroll horizontal como en Excel/Wiese. --}}
         <div class="tbl-wrap" id="wie-scroll-bottom">
-            <table class="admin-table" id="wie-tabla" style="min-width:1150px;">
+            <table class="admin-table" id="wie-tabla" style="min-width:1200px;">
                 <thead>
                     <tr>
+                        <th style="width:34px;text-align:center;">✓</th>
                         <th>Serie</th>
                         <th>Folio</th>
                         <th>Fecha factura</th>
@@ -208,16 +209,39 @@
                         @php
                             $primera = $facturas->first();
                             $nombreProv = $primera['nombre'] ?? $codigoProv;
+                            // ID de form único por proveedor. Se usa para asociar los checkboxes
+                            // (que viven en el <tbody>) con un <form> fuera de la tabla, vía el
+                            // atributo HTML form="...". POR QUÉ así: no se puede envolver varias
+                            // <tr> en un <form> dentro de <tbody> (HTML inválido); el atributo
+                            // form= permite ligarlos sin romper la estructura de la tabla.
+                            $formId = 'fp-form-'.\Illuminate\Support\Str::slug($codigoProv, '_');
                         @endphp
+                        {{-- Un <form> por proveedor, FUERA de la tabla pero asociado por id.
+                             Manda SOLO los folios de ESTE proveedor a carritoAgregar (que acepta
+                             un proveedor por submit). Así se puede agregar al carrito directo
+                             desde la tabla global, sin entrar al detalle del proveedor. --}}
+                        <form method="POST" action="{{ route('admin.pagos.carrito.agregar') }}" id="{{ $formId }}">
+                            @csrf
+                            <input type="hidden" name="codigo_proveedor" value="{{ $codigoProv }}">
+                        </form>
                         {{-- Separador de proveedor: usa la clase date-row (estándar morado de la
-                             página) para que se vea igual que el separador de fecha de otras tablas.
-                             Clickeable para ir al detalle del proveedor y pagarle. --}}
-                        <tr class="date-row" style="cursor:pointer;"
-                            onclick="window.location='{{ route('admin.pagos.proveedor', $codigoProv) }}'">
-                            <td colspan="11">
-                                <a class="code-link" href="{{ route('admin.pagos.proveedor', $codigoProv) }}" onclick="event.stopPropagation()">{{ $codigoProv }}</a>
-                                — {{ $nombreProv }}
-                                <span style="font-weight:500;opacity:.75;">· {{ $facturas->count() }} factura(s)</span>
+                             página). Ahora NO es clickeable completo (para no estorbar a los
+                             checkboxes); se entra al detalle por el link del código. Trae el botón
+                             "Agregar al carrito" que envía el form de este proveedor. --}}
+                        <tr class="date-row">
+                            <td colspan="12">
+                                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                                    <div>
+                                        <input type="checkbox" class="fp-chk-all" data-form="{{ $formId }}" title="Seleccionar todas de este proveedor" style="margin-right:6px;vertical-align:middle;">
+                                        <a class="code-link" href="{{ route('admin.pagos.proveedor', $codigoProv) }}">{{ $codigoProv }}</a>
+                                        — {{ $nombreProv }}
+                                        <span style="font-weight:500;opacity:.75;">· {{ $facturas->count() }} factura(s)</span>
+                                    </div>
+                                    <button type="submit" form="{{ $formId }}" class="btn-pagar fp-btn-carrito" data-form="{{ $formId }}" disabled
+                                        style="padding:6px 14px;font-size:13px;">
+                                        + Agregar al carrito (<span class="fp-count" data-form="{{ $formId }}">0</span>)
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                         {{-- Una fila por factura del proveedor. --}}
@@ -230,6 +254,11 @@
                                 $esUsd = ($f['moneda'] ?? 'MXN') === 'USD';
                             @endphp
                             <tr>
+                                {{-- Checkbox asociado al form de ESTE proveedor (atributo form=).
+                                     value = folio, name = folios[] (igual que el detalle). --}}
+                                <td style="text-align:center;">
+                                    <input type="checkbox" class="fp-chk" form="{{ $formId }}" data-form="{{ $formId }}" name="folios[]" value="{{ $f['folio'] ?? '' }}">
+                                </td>
                                 <td>{{ $f['serie'] ?? '' }}</td>
                                 <td style="font-weight:600;">{{ $f['folio'] ?? '—' }}</td>
                                 <td>{{ ! empty($f['fecha_factura']) ? \Illuminate\Support\Carbon::parse($f['fecha_factura'])->format('d/m/Y') : '—' }}</td>
@@ -442,6 +471,47 @@
     bottom.addEventListener('scroll', function () {
         if (sincronizando) return; sincronizando = true;
         top.scrollLeft = bottom.scrollLeft; sincronizando = false;
+    });
+})();
+</script>
+
+{{-- Selección de facturas por proveedor en la tabla global.
+     POR QUÉ: dirección pidió poder marcar facturas y mandarlas al carrito SIN entrar al
+     detalle del proveedor. Cada proveedor tiene su propio form (ligado por el atributo form=);
+     aquí solo contamos cuántas marcó y habilitamos/deshabilitamos su botón "Agregar al carrito". --}}
+<script>
+(function () {
+    // Agrupa los controles por el id de su form (data-form), que es único por proveedor.
+    function refrescar(formId) {
+        var checks = document.querySelectorAll('.fp-chk[data-form="' + formId + '"]');
+        var marcadas = 0;
+        checks.forEach(function (c) { if (c.checked) marcadas++; });
+
+        // Actualiza el contador y habilita el botón solo si hay al menos una marcada.
+        var cont = document.querySelector('.fp-count[data-form="' + formId + '"]');
+        if (cont) cont.textContent = marcadas;
+        var btn = document.querySelector('.fp-btn-carrito[data-form="' + formId + '"]');
+        if (btn) btn.disabled = (marcadas === 0);
+
+        // Sincroniza el "seleccionar todas" (marcado solo si todas lo están).
+        var all = document.querySelector('.fp-chk-all[data-form="' + formId + '"]');
+        if (all) all.checked = (checks.length > 0 && marcadas === checks.length);
+    }
+
+    // Click en un checkbox de factura → recontar su proveedor.
+    document.querySelectorAll('.fp-chk').forEach(function (c) {
+        c.addEventListener('change', function () { refrescar(c.getAttribute('data-form')); });
+    });
+
+    // "Seleccionar todas" de un proveedor → marca/desmarca todas las suyas.
+    document.querySelectorAll('.fp-chk-all').forEach(function (all) {
+        all.addEventListener('change', function () {
+            var formId = all.getAttribute('data-form');
+            document.querySelectorAll('.fp-chk[data-form="' + formId + '"]').forEach(function (c) {
+                c.checked = all.checked;
+            });
+            refrescar(formId);
+        });
     });
 })();
 </script>

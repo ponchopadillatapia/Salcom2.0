@@ -6,6 +6,19 @@
 
 ---
 
+## 2026-09-07 — Fix: carrito de pago salía en 0 facturas en SiteGround
+
+- **QUÉ:** Al agregar un proveedor al carrito en producción, salía con $0.00 y 0 facturas, y
+  al "Generar formato de pago" daba "No se pudieron preparar las facturas (¿Wiese respondió?)".
+  Luego el reporte del pago daba error 500.
+- **POR QUÉ:** `carritoAgregar` traía las facturas con `listarFacturasProveedorPorRFC()`, que
+  pega al 250 directo (docsUrl vacío en SiteGround) → 0 facturas. Además se saltaba a los
+  proveedores con RFC vacío. Se cambió a `listarFacturasPendientesTodos(..., $codigo)` (filtra
+  por código y pasa por el puente 5009), igual que la tabla y la materialización.
+- **DÓNDE:** `app/Http/Controllers/AdminPagosController.php` → `carritoAgregar()`.
+- **PENDIENTE:** el pago #28 quedó guardado sin facturas (basura de la prueba fallida); su
+  reporte da 500. Hay que cancelarlo/limpiarlo en la BD (no se tocó producción sin permiso).
+
 ## 2026-09-07 — Blanca Paganoni: acceso a Formato para pago
 
 - **QUÉ:** Se le dio a `blanca.paganoni` la sección `pagos` (antes solo tenía `alta_mto` y
