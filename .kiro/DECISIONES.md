@@ -6,6 +6,38 @@
 
 ---
 
+## 2026-09-07 — Formato para pago: seleccionar facturas y agregar al carrito desde la tabla global
+
+- **QUÉ:** En la tabla global de "Formato para pago" cada factura ahora tiene checkbox y cada
+  proveedor tiene su botón "+ Agregar al carrito" en su fila separadora. Así se marcan facturas
+  y se mandan al carrito SIN entrar al detalle del proveedor. Hay un "seleccionar todas" por
+  proveedor y un contador en el botón.
+- **POR QUÉ (petición dirección):** era tedioso entrar proveedor por proveedor solo para
+  seleccionar; ahora se hace directo desde la lista.
+- **CÓMO:** cada proveedor tiene su propio `<form>` fuera de la tabla, ligado a los checkboxes
+  por el atributo HTML `form="fp-form-<codigo>"` (no se puede envolver varias <tr> en un form
+  dentro de <tbody>). Reutiliza el endpoint existente `carritoAgregar` (un proveedor por submit),
+  sin tocar el backend. La fila separadora ya NO es clickeable completa (estorbaba a los checks);
+  se entra al detalle por el link del código.
+- **DÓNDE:** `resources/views/admin/pagos/index.blade.php` (columna checkbox, forms por
+  proveedor, botón por proveedor, y script de conteo/seleccionar-todas al final).
+
+## 2026-09-07 — Formato para pago: seleccionar facturas y agregar al carrito desde la tabla global
+
+- **QUÉ:** En la tabla global de "Formato para pago" cada factura ahora tiene checkbox y cada
+  proveedor tiene su botón "+ Agregar al carrito" en su fila separadora. Así se marcan facturas
+  y se mandan al carrito SIN entrar al detalle del proveedor. Hay un "seleccionar todas" por
+  proveedor y un contador en el botón.
+- **POR QUÉ (petición dirección):** era tedioso entrar proveedor por proveedor solo para
+  seleccionar; ahora se hace directo desde la lista.
+- **CÓMO:** cada proveedor tiene su propio `<form>` fuera de la tabla, ligado a los checkboxes
+  por el atributo HTML `form="fp-form-<codigo>"` (no se puede envolver varias <tr> en un form
+  dentro de <tbody>). Reutiliza el endpoint existente `carritoAgregar` (un proveedor por submit),
+  sin tocar el backend. La fila separadora ya NO es clickeable completa (estorbaba a los checks);
+  se entra al detalle por el link del código.
+- **DÓNDE:** `resources/views/admin/pagos/index.blade.php` (columna checkbox, forms por
+  proveedor, botón por proveedor, y script de conteo/seleccionar-todas al final).
+
 ## 2026-09-07 — Fix: carrito de pago salía en 0 facturas en SiteGround
 
 - **QUÉ:** Al agregar un proveedor al carrito en producción, salía con $0.00 y 0 facturas, y
