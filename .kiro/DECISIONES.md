@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-09-07 — Fix: Formato para pago salía vacío en SiteGround (producción)
+
+- **QUÉ:** En SiteGround la tabla global de "Formato para pago" nunca cargaba (decía
+  "Aún no hay facturas pendientes"), aunque el servidor SÍ alcanzaba la API 5009 (probado con
+  curl y file_get_contents). Se reordenó la lógica para que, cuando `PAGOS_API_URL` (el 5009)
+  esté configurado, el método NO exija `PROVEEDOR_API_DOCS_URL` ni haga login al 250.
+- **POR QUÉ:** `listarFacturasPendientesTodos()` llamaba `validarDocsConfiguracion()` y
+  `loginServicio()` como PRIMERA cosa. En SiteGround `docsUrl` va vacío (no alcanza el 250),
+  así que el método moría en esa validación y nunca llegaba a usar el 5009. El 5009 ya hace
+  su propio login interno, por eso en ese camino no se necesita docsUrl ni token del 250.
+- **DÓNDE:** `app/Services/ProveedorApiService.php` → `listarFacturasPendientesTodos()`.
+  Se movió el cálculo de `$pagosUrl` arriba y se metieron las validaciones de docs/login
+  SOLO dentro de la rama del 250 directo (oficina/local). Token vacío ya no manda header Bearer.
+
 ## 2026-09-09 — Formato para pago: tabla global de proveedores (estilo reporte Wiese)
 
 - **QUÉ:** "Formato para pago" ya NO arranca vacío pidiendo buscar. Ahora muestra de entrada la

@@ -399,42 +399,55 @@ class ProveedorApiService
         ?string $token = null,
         string $codigoFiltro = '' // si se da, devuelve SOLO las facturas de ese código de proveedor
     ): array {
-        $configError = $this->validarDocsConfiguracion();
-        if ($configError) {
-            return $configError;
-        }
-
-        if ($token === null || $token === '') {
-            $login = $this->loginServicio();
-            if (! ($login['success'] ?? false)) {
-                return $login;
-            }
-            $token = (string) ($login['data']['tokenCreado'] ?? '');
-        }
-
         // DOS caminos según dónde corra la app:
         //  - PRODUCCIÓN (SiteGround): usa la API pública 5009 (PAGOS_API_URL), que hace de puente
         //    y reenvía al 250 interno. El endpoint ahí vive en el controlador PagoProveedor.
         //  - OFICINA/LOCAL (PAGOS_API_URL vacío): va directo al 250 (docs_url), controlador
         //    DatoDocumentoProveedor, como siempre.
+        // POR QUÉ se decide ESTO ARRIBA: en SiteGround docsUrl va vacío (no alcanza el 250).
+        // Si validáramos docsUrl o hiciéramos loginServicio() ANTES, el método moriría aquí
+        // y la tabla saldría vacía aunque el 5009 funcione. El 5009 hace su propio login interno,
+        // así que por ese camino NO exigimos docsUrl ni token del 250.
         $pagosUrl = rtrim((string) config('services.proveedor_api.pagos_url', ''), '/');
+
         if ($pagosUrl !== '') {
+            // Camino 5009 (producción): sin docsUrl, sin loginServicio. El puente ya autentica.
             $base = $pagosUrl;
             $endpoint = '/PagoProveedor/ListarDocumentos';     // ruta en la API 5009
+            $token = $token ?? '';
         } else {
+            // Camino 250 directo (oficina/local): sí requiere docsUrl y login al 250.
+            $configError = $this->validarDocsConfiguracion();
+            if ($configError) {
+                return $configError;
+            }
+
+            if ($token === null || $token === '') {
+                $login = $this->loginServicio();
+                if (! ($login['success'] ?? false)) {
+                    return $login;
+                }
+                $token = (string) ($login['data']['tokenCreado'] ?? '');
+            }
+
             $base = $this->docsUrl;
             $endpoint = '/DatoDocumentoProveedor/ListarDocumentos'; // ruta en el 250 directo
         }
 
         try {
             // Timeout alto (180s): trae facturas de TODOS los proveedores, puede tardar.
-            $response = $this->http(180)
-                ->withToken($token)
-                ->acceptJson()
-                ->get($base.$endpoint, [
-                    'fechaInicial' => $fechaInicial,
-                    'fechaFinal' => $fechaFinal,
-                ]);
+            $peticion = $this->http(180)->acceptJson();
+
+            // POR QUÉ: en el camino 5009 el token va vacío (el puente autentica solo),
+            // así evitamos mandar un header "Authorization: Bearer " vacío sin sentido.
+            if ($token !== '') {
+                $peticion = $peticion->withToken($token);
+            }
+
+            $response = $peticion->get($base.$endpoint, [
+                'fechaInicial' => $fechaInicial,
+                'fechaFinal' => $fechaFinal,
+            ]);
 
             if (! $response->successful()) {
                 return $this->procesarRespuesta($response, $endpoint);
