@@ -111,9 +111,11 @@ class AgentesAduanalesTest extends TestCase
             ->get('/admin/agentes-aduanales')
             ->assertOk()
             ->assertSee('Facturas de agentes aduanales')
-            ->assertSee('Serie y folio')
+            ->assertSee('>Serie<', false)
+            ->assertSee('>Folio<', false)
+            ->assertDontSee('Serie y folio')
             ->assertSee('Saldo pendiente')
-            ->assertSee('A-1914')
+            ->assertSee('1914')
             ->assertSee('Mario Alfonso Sánchez')
             ->assertDontSee('Crear agente')
             ->assertDontSee('Desactivar');
@@ -186,8 +188,8 @@ class AgentesAduanalesTest extends TestCase
         $this->withSession($sesion)
             ->get('/admin/agentes-aduanales?agente_id='.$otro->id.'&moneda=USD&estado=pagado&desde=2026-09-01&hasta=2026-09-30')
             ->assertOk()
-            ->assertSee('B-77')
-            ->assertDontSee('A-1914');
+            ->assertSee('77')
+            ->assertDontSee('1914');
     }
 
     public function test_anticipo_se_liga_a_la_operacion_antes_de_la_factura_y_del_pago(): void

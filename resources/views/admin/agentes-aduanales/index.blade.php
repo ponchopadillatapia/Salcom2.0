@@ -81,7 +81,8 @@
         <thead>
             <tr>
                 <th>Fecha</th>
-                <th>Serie y folio</th>
+                <th>Serie</th>
+                <th>Folio</th>
                 <th>Agente aduanal</th>
                 <th>Operación</th>
                 <th class="aa-num">Total</th>
@@ -97,7 +98,8 @@
             @foreach($facturas as $factura)
             <tr>
                 <td>{{ $factura->fecha?->format('d/m/Y') ?: '—' }}</td>
-                <td><strong>{{ $factura->serieFolio() }}</strong></td>
+                <td>{{ $factura->serie ?: '—' }}</td>
+                <td><strong>{{ $factura->folio ?: '—' }}</strong></td>
                 <td>{{ $factura->agente?->nombreVisible() ?: '—' }}</td>
                 <td>{{ $factura->operacion?->tipoLabel() ?: '—' }}</td>
                 <td class="aa-num">{{ $factura->textoMonto('importe') }}</td>
