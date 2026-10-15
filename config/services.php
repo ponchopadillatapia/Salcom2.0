@@ -44,6 +44,9 @@ return [
         'url' => env('PROVEEDOR_API_URL', ''),
         // Docs/OC (Swagger Wiese). Si vacío, usa la misma URL de proveedor.
         'docs_url' => env('PROVEEDOR_API_DOCS_URL', env('PROVEEDOR_API_URL', '')),
+        // API pública (APIPortalWeb 5009) que hace de puente hacia Wiese para ListarDocumentos.
+        // Si vacía, el método cae al docs_url (250 directo). En producción va con la IP pública.
+        'pagos_url' => env('PAGOS_API_URL', ''),
         // Token de la PUERTA (gateway) hacia Wiese. Solo se usa en SiteGround: si está lleno,
         // cada llamada a Wiese manda el header X-Salcom-Gateway. Vacío = llamada directa (oficina).
         'gateway_token' => env('WIESE_GATEWAY_TOKEN', ''),

@@ -102,6 +102,27 @@
 
 ---
 
+## 2026-09-09 — Pagos vía API pública 5009 (puente a Wiese, para SiteGround)
+
+- **QUÉ:** la tabla de "Formato para pago" ahora puede consultar las facturas a través de la API
+  pública APIPortalWeb (`http://189.254.241.194:5009/api`), que hace de PUENTE y reenvía al 250
+  interno (172.16.1.250:7183). Así SiteGround (que no alcanza el 250) sí obtiene las facturas.
+- **POR QUÉ:** el 250 es interno y no se expone a internet. Alan/Said agregaron en APIPortalWeb
+  (controlador PagoProveedor) un endpoint `ListarDocumentos` que por dentro llama al 250.
+- **CÓMO (lado Laravel):** NUEVA env `PAGOS_API_URL` (config `proveedor_api.pagos_url`). Si está
+  llena, `listarFacturasPendientesTodos()` usa esa URL + ruta `/PagoProveedor/ListarDocumentos`.
+  Si está vacía, cae al 250 directo (`docs_url` + `/DatoDocumentoProveedor/ListarDocumentos`),
+  que sirve en la oficina/VPN. NO se tocó `PROVEEDOR_API_DOCS_URL` (los demás endpoints —login,
+  facturas por RFC, OC— siguen yendo al 250; el 5009 solo tiene ListarDocumentos).
+- **DÓNDE:** `.env` (PAGOS_API_URL), `config/services.php` (pagos_url),
+  `ProveedorApiService::listarFacturasPendientesTodos()` (elige base+ruta según pagos_url).
+- **PROBADO:** con PAGOS_API_URL llena, Laravel trae 1,994 facturas / 186 proveedores vía 5009 en
+  ~2s. Flujo completo: Laravel → 5009 (pública) → 250 (interna) → Wiese. ✓
+- **OJO seguridad (pendiente):** el 5009 se expone a internet; conviene protegerlo (token/IP) para
+  que no cualquiera lo llame. Said tiene el código del token pendiente de pedir.
+
+---
+
 ## 2026-09-09 — Excel del banco: ajustes de columnas (petición Brenda)
 
 - **B CUENTA DE ABONO (CLABE):** se deja como TEXTO (18 dígitos exactos, con el 0 inicial, ej.

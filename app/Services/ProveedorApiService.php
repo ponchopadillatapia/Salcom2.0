@@ -412,16 +412,26 @@ class ProveedorApiService
             $token = (string) ($login['data']['tokenCreado'] ?? '');
         }
 
-        // POR QUÉ este endpoint y no ListarDocumentosRFC: Alan creó/renombró el que trae TODOS
-        // los proveedores a `ListarDocumentos` (sin parámetro RFC); solo recibe el rango de fechas.
-        $endpoint = '/DatoDocumentoProveedor/ListarDocumentos';
+        // DOS caminos según dónde corra la app:
+        //  - PRODUCCIÓN (SiteGround): usa la API pública 5009 (PAGOS_API_URL), que hace de puente
+        //    y reenvía al 250 interno. El endpoint ahí vive en el controlador PagoProveedor.
+        //  - OFICINA/LOCAL (PAGOS_API_URL vacío): va directo al 250 (docs_url), controlador
+        //    DatoDocumentoProveedor, como siempre.
+        $pagosUrl = rtrim((string) config('services.proveedor_api.pagos_url', ''), '/');
+        if ($pagosUrl !== '') {
+            $base = $pagosUrl;
+            $endpoint = '/PagoProveedor/ListarDocumentos';     // ruta en la API 5009
+        } else {
+            $base = $this->docsUrl;
+            $endpoint = '/DatoDocumentoProveedor/ListarDocumentos'; // ruta en el 250 directo
+        }
 
         try {
             // Timeout alto (180s): trae facturas de TODOS los proveedores, puede tardar.
             $response = $this->http(180)
                 ->withToken($token)
                 ->acceptJson()
-                ->get($this->docsUrl.$endpoint, [
+                ->get($base.$endpoint, [
                     'fechaInicial' => $fechaInicial,
                     'fechaFinal' => $fechaFinal,
                 ]);
