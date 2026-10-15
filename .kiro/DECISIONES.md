@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-09-07 — Formato para pago: barra del botón verde movida ARRIBA
+
+- **QUÉ:** La barra flotante con el botón verde "+ Agregar al carrito" pasó de estar abajo
+  (sticky bottom) a estar ARRIBA de la tabla (sticky top).
+- **POR QUÉ:** estando abajo había que bajar toda la tabla (es larga) para ver el botón.
+- **DÓNDE:** `resources/views/admin/pagos/index.blade.php` → div `#fp-barra-carrito` movido antes
+  de la tabla; `bottom:0`→`top:0` y sombra `0 -4px`→`0 4px`.
+
 ## 2026-09-07 — Formato para pago: un solo botón verde para varios proveedores
 
 - **QUÉ:** En la tabla global de "Formato para pago" cada factura tiene checkbox. Se marcan

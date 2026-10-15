@@ -182,6 +182,20 @@
                 <div class="adm-section-meta">Orden alfabético · las facturas <span style="color:#dc2626;font-weight:700;">vencidas salen en rojo</span></div>
             </div>
         </div>
+        {{-- Barra flotante con el botón VERDE global. Aparece solo cuando hay algo marcado.
+             POR QUÉ ARRIBA (sticky top): la tabla es larga; antes estaba abajo y había que bajar
+             todo para verla. Pegada arriba, el botón siempre está a la vista al marcar facturas. --}}
+        <div id="fp-barra-carrito" style="position:sticky;top:0;z-index:6;margin-bottom:12px;
+             padding:12px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;
+             box-shadow:0 4px 14px rgba(0,0,0,.08);display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+            <div style="font-weight:600;color:#374151;">
+                <span id="fp-sel-fact">0</span> factura(s) de <span id="fp-sel-prov">0</span> proveedor(es) seleccionadas
+            </div>
+            <button type="submit" form="fp-form-multi" class="fp-btn-carrito-global">
+                + Agregar al carrito
+            </button>
+        </div>
+
         {{-- Scroll horizontal ARRIBA (barra espejo): una barrita que, al moverla, mueve la tabla
              de abajo. Útil porque la tabla es ancha y así no hay que bajar hasta el final para
              deslizar. El JS al final sincroniza ambas barras. --}}
@@ -271,19 +285,6 @@
         <form method="POST" action="{{ route('admin.pagos.carrito.agregar-multi') }}" id="fp-form-multi">
             @csrf
         </form>
-
-        {{-- Barra flotante con el botón VERDE global. Aparece solo cuando hay algo marcado.
-             POR QUÉ flotante: la tabla es larga; así el botón siempre está a la vista. --}}
-        <div id="fp-barra-carrito" style="display:none;position:sticky;bottom:0;z-index:5;margin-top:12px;
-             padding:12px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;
-             box-shadow:0 -4px 14px rgba(0,0,0,.08);display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-            <div style="font-weight:600;color:#374151;">
-                <span id="fp-sel-fact">0</span> factura(s) de <span id="fp-sel-prov">0</span> proveedor(es) seleccionadas
-            </div>
-            <button type="submit" form="fp-form-multi" class="fp-btn-carrito-global">
-                + Agregar al carrito
-            </button>
-        </div>
     </div>
     @endif
 @else
