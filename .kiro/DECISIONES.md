@@ -6,6 +6,16 @@
 
 ---
 
+## 2026-09-07 — Blanca Paganoni: acceso a Formato para pago
+
+- **QUÉ:** Se le dio a `blanca.paganoni` la sección `pagos` (antes solo tenía `alta_mto` y
+  `catalogo`). Con eso ya entra a Formato para pago y al resto del módulo de pagos.
+- **POR QUÉ:** dirección pidió que Blanca pueda acceder a Formato para pago.
+- **OJO:** la sección `pagos` abre TODO el módulo (pago-proveedores, abono, historial,
+  expedientes), no solo Formato para pago. Si se quiere acceso más fino, habría que crear
+  una sección nueva.
+- **DÓNDE:** `app/Models/AdminUser.php` → const `ACCESOS_RESTRINGIDOS`, línea de blanca.paganoni.
+
 ## 2026-09-07 — Lupa y lista de proveedores vía puente 5009 (producción)
 
 - **QUÉ:** La lupa (buscar proveedor por código/RFC) y la pantalla de Proveedores no cargaban en

@@ -70,7 +70,9 @@ class AdminUser extends Authenticatable
         // Comercial PT: solo alta de Producto Terminado
         'cintia.barrera' => ['alta_pt'],
         // Mantenimiento: su alta + ver el catálogo de Productos (sin otras altas)
-        'blanca.paganoni' => ['alta_mto', 'catalogo'],
+        // POR QUÉ 'pagos': dirección pidió que Blanca pueda entrar a Formato para pago;
+        // la sección 'pagos' abre todo el módulo de pagos (pago-proveedores, abono, historial).
+        'blanca.paganoni' => ['alta_mto', 'catalogo', 'pagos'],
         // Compras Importación (MPI): su alta + ver el catálogo de Productos (sin otras altas)
         'acela.bolanos' => ['alta_mpi', 'catalogo'],
         // Compras Importación (MPI) + acceso al catálogo de Productos
