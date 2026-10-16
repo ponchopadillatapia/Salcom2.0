@@ -6,6 +6,75 @@
 
 ---
 
+## 2026-10-16 — Migración del API 5009 (APIPortalWeb) de la laptop al servidor 251
+
+- **QUÉ:** El gateway 5009 (proyecto C# APIPortalWeb, puente SiteGround→5009→250 Wiese) dejó de
+  vivir en la laptop de Said y ahora corre en el servidor fijo 172.16.1.251, como SERVICIO de
+  Windows (arranque automático, sin ventana abierta).
+- **POR QUÉ:** si la laptop se apagaba, se caía producción (la tabla/lupa/proveedores de Formato
+  para pago dependen del 5009). En un server fijo ya no depende de la laptop.
+- **CÓMO (hecho hoy, pasos reproducibles):**
+  1. Instalado .NET 8 en el 251. La app es x86 (por Contpaqi), así que se necesitaron los runtimes
+     x86: `aspnetcore-runtime`, `dotnet-runtime` (base) y `windowsdesktop-runtime` (usa WinForms).
+     Links directos: builds.dotnet.microsoft.com/dotnet/{Runtime|WindowsDesktop|aspnetcore}/8.0.32/...
+     OJO: el ASP.NET runtime NO trae el base ni el desktop; faltaban esos dos y por eso no arrancaba
+     (errores "hostfxr.dll not found" y "Microsoft.WindowsDesktop.App no frameworks were found").
+  2. `dotnet publish -c Release -r win-x86 --self-contained false -o C:\APIPortalWeb_publish` (EN LA
+     LAPTOP; el server NO compila, solo corre). Trae Configuracion.dll + SDKWieseNET48* por los
+     ProjectReference.
+  3. Copiada la carpeta publish a `C:\APIPortalWeb` del 251 (por Escritorio Remoto / copiar-pegar).
+  4. Firewall del 251: regla inbound TCP 5009 ("API 5009").
+  5. Servicio con NSSM (C:\nssm): install APIPortalWeb → `C:\APIPortalWeb\APIPortalWeb.exe`,
+     AppDirectory=C:\APIPortalWeb, AppEnvironmentExtra=`ASPNETCORE_ENVIRONMENT=Development`
+     (Development para dejar Swagger visible), Start=SERVICE_AUTO_START. `Start-Service APIPortalWeb`.
+  6. Verificado en el 251: `http://localhost:5009/swagger` y `.../ListarDocumentos` devuelven JSON OK.
+- **PENDIENTE:**
+  - Alan: instalar Contpaqi en el 251 (ruta esperada por el código `C:\Compac\Empresas\adSalcom18`)
+    para los endpoints que usan el SDK (CrearPago, FacturasProveedor, CrearPagoYSaldar). Los que solo
+    reenvían al 250 (ListarDocumentos/ListarProveedores/BuscarPorCodigo/RFC) ya funcionan sin Contpaqi.
+  - Genaro: cambiar el NAT de la IP pública 189.254.241.195:5009 para que apunte al 251 (hoy va a la
+    laptop 172.16.1.158). Hasta que lo haga, SiteGround sigue pegándole a la laptop.
+  - Verificar desde SSH de SiteGround con curl al 5009 una vez movido el NAT; luego ya se puede apagar
+    la laptop. Nota: el `.env` de SiteGround no cambia (la IP pública es la misma, solo cambia a qué
+    máquina interna la manda el NAT).
+
+---
+
+## PENDIENTE — Flujo de correos automáticos del pago (petición de Alexa)
+
+Alexa (quien autoriza pagos) pidió que CADA movimiento del flujo mande correo AUTOMÁTICO (por
+Outlook). Hoy el sistema solo manda UN correo automático: al CONFIRMAR el formato, va al proveedor
+(`PagoProveedorService::notificarPagoConfirmadoAlProveedor`). Falta construir el resto. Flujo pedido:
+
+1. Un depa genera Formato para pago → se genera PDF → correo AUTOMÁTICO a Alexa (según el depa).
+2. Formato se va al Expediente.
+3. En el expediente Alexa RECHAZA (❓ falta definir qué pasa) o AUTORIZA.
+4. Si autoriza → se genera PDF de "autorizado" + se habilita descargar layout → correo a Karen (ya autoricé).
+5. Karen (ya autorizado) descarga el layout del expediente.
+6. Karen sale del sistema → sube layout a BBVA (fuera de Salcom) → paga.
+7. Karen avisa a Alexa que pagó → Alexa firma (en banco) → Alexa avisa a Karen que firmó.
+8. Karen descarga los PDFs del banco → los sube al expediente en Salcom Link.
+9. Al subir los PDFs → facturas se marcan PAGADAS → correo a los departamentos dueños ("ya se pagó").
+10. Los departamentos revisan en Salcom Link.
+11. Karen salda los pagos en 0 (ya quedó en Wiese/Contpaqi).
+
+DUDAS por resolver antes de implementar:
+- RECHAZO: ¿correo a quien generó el formato + motivo? ¿la factura regresa a "pendiente" o se queda?
+- Correo paso 1: ¿siempre a Alexa o cada depa tiene correo distinto? Falta el/los correos reales
+  y el mapeo departamento→correo (depas: compras, fletes_acatlan, imex, mantenimiento, framfoods_a,
+  framfoods_b, seguridad, otros).
+- Disparador de "pagadas": ¿subir el PDF del banco (CEP) en el expediente marca pagadas + avisa a
+  los depas, o eso lo sigue haciendo Karen en "Pago a proveedor" como hoy?
+- Avisos Alexa↔Karen (pagó / firmó): ¿automáticos por el sistema con botones, o lo hacen por fuera?
+- Correo: hoy SALE por Gmail SMTP (padillsaid39@gmail.com). ¿Cambiar a cuenta Outlook de Salcom
+  (correo + contraseña de aplicación) o dejar el Gmail actual aunque los destinatarios usen Outlook?
+
+Dónde tocaría: `AdminPagosController` (expediente/autorizar/rechazar/subir PDF),
+`PagoProveedorService`, nuevas clases en `app/Mail/`, `config/mail.php`/.env, y un mapeo
+departamento→correo (quizá en `PagoProveedor::DEPARTAMENTOS` o config nuevo).
+
+---
+
 ## 2026-09-07 — Formato para pago: barra del botón verde movida ARRIBA
 
 - **QUÉ:** La barra flotante con el botón verde "+ Agregar al carrito" pasó de estar abajo
