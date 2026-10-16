@@ -15,6 +15,19 @@
     .fp-btn-carrito-global{padding:10px 22px;background:var(--green,#2ecc71);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;transition:background .15s}
     .fp-btn-carrito-global:hover{background:#22a34d}
 
+    /* Barra flotante: position fixed respecto a la ventana, así baja con el scroll
+       aunque el padre de la tabla tenga overflow:hidden (eso rompe sticky). */
+    #fp-barra-carrito{
+        position:fixed;right:28px;bottom:28px;z-index:90;margin:0;
+        max-width:min(520px,calc(100vw - 48px));
+        padding:12px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:14px;
+        box-shadow:0 10px 28px rgba(0,0,0,.16);
+        display:none;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    }
+    @media(max-width:768px){
+        #fp-barra-carrito{right:16px;left:16px;bottom:16px;max-width:none}
+    }
+
     .inv-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px}
     .inv-metric{background:var(--white);border:1px solid var(--border-light, var(--border));border-radius:14px;padding:20px;position:relative;overflow:hidden;cursor:pointer;transition:box-shadow .15s,border-color .15s;text-decoration:none;color:inherit;display:block}
     .inv-metric:hover{border-color:var(--purple-mid,#c4b5e0);box-shadow:var(--shadow-sm)}
@@ -182,20 +195,6 @@
                 <div class="adm-section-meta">Orden alfabético · las facturas <span style="color:#dc2626;font-weight:700;">vencidas salen en rojo</span></div>
             </div>
         </div>
-        {{-- Barra flotante con el botón VERDE global. Aparece solo cuando hay algo marcado.
-             POR QUÉ ARRIBA (sticky top): la tabla es larga; antes estaba abajo y había que bajar
-             todo para verla. Pegada arriba, el botón siempre está a la vista al marcar facturas. --}}
-        <div id="fp-barra-carrito" style="position:sticky;top:0;z-index:6;margin-bottom:12px;
-             padding:12px 16px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;
-             box-shadow:0 4px 14px rgba(0,0,0,.08);display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-            <div style="font-weight:600;color:#374151;">
-                <span id="fp-sel-fact">0</span> factura(s) de <span id="fp-sel-prov">0</span> proveedor(es) seleccionadas
-            </div>
-            <button type="submit" form="fp-form-multi" class="fp-btn-carrito-global">
-                + Agregar al carrito
-            </button>
-        </div>
-
         {{-- Scroll horizontal ARRIBA (barra espejo): una barrita que, al moverla, mueve la tabla
              de abajo. Útil porque la tabla es ancha y así no hay que bajar hasta el final para
              deslizar. El JS al final sincroniza ambas barras. --}}
@@ -285,6 +284,17 @@
         <form method="POST" action="{{ route('admin.pagos.carrito.agregar-multi') }}" id="fp-form-multi">
             @csrf
         </form>
+    </div>
+
+    {{-- Barra con el botón verde. Vive FUERA de .adm-section (overflow:hidden + animación)
+         para que position:fixed sea respecto a la ventana y baje con el scroll. --}}
+    <div id="fp-barra-carrito">
+        <div style="font-weight:600;color:#374151;">
+            <span id="fp-sel-fact">0</span> factura(s) de <span id="fp-sel-prov">0</span> proveedor(es) seleccionadas
+        </div>
+        <button type="submit" form="fp-form-multi" class="fp-btn-carrito-global">
+            + Agregar al carrito
+        </button>
     </div>
     @endif
 @else
