@@ -611,14 +611,11 @@
                 <span class="sb-text">OTIF</span>
             </a>
             @endif
-            {{-- Pagos (antes "Pago a proveedor"): el registro del pago/abono a Contpaqi. --}}
+            {{-- "Pagos" (antes "Pago a proveedor") ELIMINADO del menú: el flujo nuevo marca las
+                 facturas como pagadas cuando se sube el comprobante del banco (CEP) en el
+                 Expediente de pago. Ese módulo ya no se usa. --}}
             @if($puedePagos)
-            <a href="{{ route('admin.pago-proveedores') }}" class="sb-link {{ request()->is('admin/pago-proveedores*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
-                <span class="sb-text">Pagos</span>
-            </a>
-            {{-- Expediente de pago: movido aquí (junto a WieseBanco) a petición de dirección.
-                 Es consulta/operación, no parte del flujo de captura de pago. --}}
+            {{-- Expediente de pago: aquí se sube el CEP que marca pagadas las facturas. --}}
             <a href="{{ route('admin.expedientes-pago') }}" class="sb-link {{ request()->is('admin/expedientes-pago*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M4 9h16"/><path d="M9 4v16"/></svg></div>
                 <span class="sb-text">Expediente de pago</span>

@@ -3568,10 +3568,57 @@ class AdminPanelController extends Controller
         ));
     }
 
+    /**
+     * Sirve al ADMIN un archivo privado del flujo (reembolsos, facturas, etc.) por URL FIRMADA.
+     *
+     * POR QUÉ firmada + lista blanca de carpetas: la ruta del archivo viaja como parámetro; la
+     * firma garantiza que solo valgan las URLs que generó el sistema, y la lista blanca evita que
+     * se pida un archivo arbitrario del disco (ej. el .env). Doble candado.
+     *
+     * Para generar la URL en una vista:
+     *   URL::signedRoute('admin.archivo-privado', ['ruta' => $rutaRelativa])
+     */
+    public function archivoPrivado(Request $request)
+    {
+        if (! $request->hasValidSignature()) {
+            abort(403, 'Enlace no válido.');
+        }
+        $ruta = ltrim((string) $request->query('ruta', ''), '/');
+
+        // Lista blanca: solo carpetas de documentos del sistema (nunca .env, config, etc.).
+        $carpetas = [
+            'reembolsos/', 'reembolsos-viaje', 'bitacora-gasolina',
+            'facturas-proveedor/', 'expediente_fiscal/', 'foreign_supplier/',
+            'pagos_comprobantes/', 'pagos_formatos/', 'anticipos',
+        ];
+        $permitido = false;
+        foreach ($carpetas as $c) {
+            if (str_starts_with($ruta, $c)) {
+                $permitido = true;
+                break;
+            }
+        }
+        if ($ruta === '' || str_contains($ruta, '..') || ! $permitido) {
+            abort(404, 'Archivo no disponible.');
+        }
+
+        foreach (['local', 'public'] as $disco) {
+            if (\Illuminate\Support\Facades\Storage::disk($disco)->exists($ruta)) {
+                return \Illuminate\Support\Facades\Storage::disk($disco)->response($ruta);
+            }
+        }
+
+        abort(404, 'El archivo no se encontró.');
+    }
+
     public function descargarDocumentoFiscal(DocumentoProveedor $documento)
     {
         $archivo = ltrim((string) $documento->archivo, '/');
+        // POR QUÉ este orden: ahora los docs fiscales se guardan en PRIVADO (app/private).
+        // Se busca ahí primero; 'app/public' y 'app/' quedan como respaldo para archivos viejos
+        // subidos antes de la migración a privado.
         $candidates = [
+            storage_path('app/private/'.$archivo),
             storage_path('app/public/'.$archivo),
             storage_path('app/'.$archivo),
         ];
@@ -3712,12 +3759,13 @@ class AdminPanelController extends Controller
             return back()->withErrors(['archivo_materialidad' => 'La materialidad (correo o foto) es obligatoria. Sin materialidad el reembolso se rechaza.'])->withInput();
         }
 
-        $pathFactura = $request->file('archivo_factura')->store('reembolsos/facturas', 'public');
+        // Disco PRIVADO (local): facturas y materialidad de reembolsos llevan datos fiscales/personales.
+        $pathFactura = $request->file('archivo_factura')->store('reembolsos/facturas', 'local');
         $pathXml = $request->hasFile('archivo_xml')
-            ? $request->file('archivo_xml')->store('reembolsos/xml', 'public')
+            ? $request->file('archivo_xml')->store('reembolsos/xml', 'local')
             : null;
         $pathMaterialidad = $request->hasFile('archivo_materialidad')
-            ? $request->file('archivo_materialidad')->store('reembolsos/materialidad', 'public')
+            ? $request->file('archivo_materialidad')->store('reembolsos/materialidad', 'local')
             : null;
 
         try {
@@ -3832,7 +3880,7 @@ class AdminPanelController extends Controller
         ]);
 
         $pathFactura = $request->hasFile('factura_gasolina')
-            ? $request->file('factura_gasolina')->store('bitacora-gasolina', 'public')
+            ? $request->file('factura_gasolina')->store('bitacora-gasolina', 'local')
             : null;
 
         try {

@@ -308,9 +308,7 @@ class PagoProveedorService
                 'ok' => true,
                 'origen' => 'adjunto',
                 'archivo' => $adj['archivo'],
-                'url' => \Illuminate\Support\Facades\Storage::disk('public')->exists($adj['archivo'])
-                    ? asset('storage/'.$adj['archivo'])
-                    : null,
+                'url' => $this->urlExpedienteArchivo($adj['archivo']),
                 'indice' => $i,
             ];
         }
@@ -327,15 +325,6 @@ class PagoProveedorService
     private function slotArchivo(string $label, ?string $archivo): array
     {
         $archivo = ltrim((string) $archivo, '/');
-        $url = null;
-        if ($archivo !== '') {
-            foreach (['public', 'local'] as $disk) {
-                if (\Illuminate\Support\Facades\Storage::disk($disk)->exists($archivo)) {
-                    $url = $disk === 'public' ? asset('storage/'.$archivo) : null;
-                    break;
-                }
-            }
-        }
 
         return [
             'clave' => 'archivo',
@@ -343,8 +332,41 @@ class PagoProveedorService
             'ok' => $archivo !== '',
             'origen' => 'factura',
             'archivo' => $archivo,
-            'url' => $url,
+            'url' => $this->urlExpedienteArchivo($archivo),
         ];
+    }
+
+    /**
+     * URL PROTEGIDA (firmada) para servir un archivo del expediente/factura desde disco privado.
+     * Devuelve null si el archivo no existe o la ruta no es de una carpeta permitida.
+     * POR QUÉ firmada: la ruta del archivo viaja como parámetro; la firma evita que alguien
+     * pida un archivo arbitrario del disco. Solo valen las URLs que generó el sistema.
+     */
+    private function urlExpedienteArchivo(?string $archivo): ?string
+    {
+        $archivo = ltrim((string) $archivo, '/');
+        if ($archivo === '' || str_contains($archivo, '..')) {
+            return null;
+        }
+        // Solo carpetas de documentos del flujo de pago.
+        $permitido = str_starts_with($archivo, 'pagos_comprobantes/')
+            || str_starts_with($archivo, 'facturas-proveedor/')
+            || str_starts_with($archivo, 'expediente_fiscal/');
+        if (! $permitido) {
+            return null;
+        }
+        $existe = false;
+        foreach (['local', 'public'] as $disk) {
+            if (\Illuminate\Support\Facades\Storage::disk($disk)->exists($archivo)) {
+                $existe = true;
+                break;
+            }
+        }
+        if (! $existe) {
+            return null;
+        }
+
+        return \Illuminate\Support\Facades\URL::signedRoute('admin.pagos.expediente-archivo', ['ruta' => $archivo]);
     }
 
     /**
@@ -1299,10 +1321,7 @@ class PagoProveedorService
             return null;
         }
 
-        if (Storage::disk('public')->exists($archivo)) {
-            return asset('storage/'.$archivo);
-        }
-
+        // Siempre por la ruta PROTEGIDA del admin (ya no link directo público).
         return route('admin.expediente-fiscal.descargar', $doc);
     }
 
@@ -1318,8 +1337,9 @@ class PagoProveedorService
             $ext = 'pdf';
         }
 
+        // Disco PRIVADO: documentos fiscales copiados al expediente de pago.
         $dest = 'pagos_comprobantes/'.$pago->id.'/'.$clave.'.'.$ext;
-        Storage::disk('public')->put($dest, $contenido);
+        Storage::disk('local')->put($dest, $contenido);
 
         return $dest;
     }
@@ -1362,8 +1382,9 @@ class PagoProveedorService
             $data = $this->datosReporteResumen($pago);
             $pdf = Pdf::loadView('admin.pagos.reporte-resumen-pdf', $data)
                 ->setPaper('letter', 'landscape');
+            // Disco PRIVADO: el formato de pago generado lleva montos y proveedores.
             $dest = 'pagos_comprobantes/'.$pago->id.'/formato_pago.pdf';
-            Storage::disk('public')->put($dest, $pdf->output());
+            Storage::disk('local')->put($dest, $pdf->output());
 
             return $dest;
         } catch (\Throwable $e) {

@@ -154,13 +154,13 @@
         @endphp
         <div style="margin-top:16px;display:flex;gap:14px;flex-wrap:wrap;">
             @if(!empty($archivos['factura_pdf']))
-            <a href="{{ asset('storage/' . $archivos['factura_pdf']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">Factura PDF</a>
+            <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('admin.archivo-privado', ['ruta' => $archivos['factura_pdf']]) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">Factura PDF</a>
             @endif
             @if(!empty($archivos['factura_xml']))
-            <a href="{{ asset('storage/' . $archivos['factura_xml']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">Factura XML</a>
+            <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('admin.archivo-privado', ['ruta' => $archivos['factura_xml']]) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">Factura XML</a>
             @endif
             @if(!empty($archivos['comprobantes']))
-            <a href="{{ asset('storage/' . $archivos['comprobantes']) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">Comprobantes</a>
+            <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('admin.archivo-privado', ['ruta' => $archivos['comprobantes']]) }}" target="_blank" style="color:var(--purple);font-size:13px;font-weight:600;text-decoration:none;">Comprobantes</a>
             @endif
         </div>
         @endif

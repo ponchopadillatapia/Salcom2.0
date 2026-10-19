@@ -289,9 +289,9 @@
                     data-saldo="{{ number_format($saldoProv, 2) }}"
                     data-estatus="{{ $estatusOpciones[$f->estatus] ?? ucfirst($f->estatus) }}"
                     data-estatus-slug="{{ $f->estatus }}"
-                    data-pdf="{{ $f->archivo_pdf ? asset('storage/'.$f->archivo_pdf) : '' }}"
-                    data-xml="{{ $f->archivo_xml ? asset('storage/'.$f->archivo_xml) : '' }}"
-                    data-oc="{{ $f->archivo_oc ? asset('storage/'.$f->archivo_oc) : '' }}"
+                    data-pdf="{{ $f->archivo_pdf ? \Illuminate\Support\Facades\URL::signedRoute('admin.archivo-privado', ['ruta' => $f->archivo_pdf]) : '' }}"
+                    data-xml="{{ $f->archivo_xml ? \Illuminate\Support\Facades\URL::signedRoute('admin.archivo-privado', ['ruta' => $f->archivo_xml]) : '' }}"
+                    data-oc="{{ $f->archivo_oc ? \Illuminate\Support\Facades\URL::signedRoute('admin.archivo-privado', ['ruta' => $f->archivo_oc]) : '' }}"
                     data-producto="{{ $det['producto'] ?? '' }}"
                     data-advertencias="{{ e(json_encode($det['advertencias'] ?? [], JSON_UNESCAPED_UNICODE)) }}"
                 >

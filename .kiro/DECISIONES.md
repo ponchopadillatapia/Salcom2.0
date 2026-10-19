@@ -40,7 +40,161 @@
 
 ---
 
-## PENDIENTE — Flujo de correos automáticos del pago (petición de Alexa)
+## PENDIENTE (ESCALABILIDAD) — Mover almacenamiento de archivos a S3 (nube)
+
+- **PREGUNTA DE SAID (muy buena):** ¿es rentable guardar archivos en carpeta vs BD? ¿se llenará
+  el servidor en 7 años con 6,000 proveedores subiendo facturas?
+- **RESPUESTA/DECISIÓN:**
+  1) NUNCA meter archivos (PDF/XML) en la base de datos — infla la BD, la vuelve lenta y cara,
+     complica respaldos. La BD guarda SOLO la ruta (como ya se hace). Es la práctica correcta.
+  2) Estimación: ~250 KB/factura. 6,000 prov × 10 facturas/mes ≈ 15 GB/mes ≈ 180 GB/año ≈
+     ~1.25 TB en 7 años. ESO NO CABE en hosting compartido de SiteGround (10-40 GB). La
+     preocupación de Said es legítima a largo plazo.
+  3) SOLUCIÓN correcta: almacenamiento de objetos en la nube = Amazon S3. Escala infinito,
+     ~$0.023 USD/GB/mes (1.25 TB ≈ ~$30/mes al final, menos los primeros años). El servidor y los
+     respaldos quedan ligeros.
+  4) VENTAJA: el proyecto YA tiene el disco `s3` preconfigurado en config/filesystems.php. Migrar
+     es cambiar el disco por defecto (FILESYSTEM_DISK=s3) + poner credenciales AWS en .env. El
+     código ->store(...) sigue igual.
+- **PLAN:** hacerlo JUNTO con el arreglo de seguridad público/privado (tocan los mismos lugares):
+  un solo proyecto "archivos a S3 + privados con ruta protegida". No urge hoy (volumen bajo), pero
+  planear antes de que crezca.
+- **ESTADO:** pendiente; prioridad a definir.
+
+---
+
+## 2026-10-16 — HECHO: Documentos sensibles movidos a disco PRIVADO + comando limpiar basura
+
+- **QUÉ:** Se resolvió el pendiente de seguridad. Todos los documentos sensibles ahora se guardan
+  en disco `local` (storage/app/private, NO accesible por link directo) y se sirven por rutas
+  protegidas. Antes estaban en `public` (cualquiera con el link los abría sin login).
+- **PIEZAS (10 lugares de guardado migrados public→local):**
+  1. Facturas del proveedor (PDF/XML/OC): PortalProveedorController@registrarFacturaDesdePendiente.
+     Rutas protegidas: proveedores.facturas.archivo (valida que la factura sea del proveedor en
+     sesión) y admin.pagos.factura-archivo (auth.admin). Vista proveedores/facturas usa esas rutas.
+  2. Docs fiscales (expediente_fiscal): PortalProveedorController, EmpresaApiController (2),
+     SolicitudModificacionDatosService (cif+acta). Se ven por admin.expediente-fiscal.descargar
+     (ya existía; se ajustó para buscar en app/private primero). 
+  3. Proveedor extranjero (foreign_supplier): nuevo descargarDocumento + ruta
+     proveedores.documento.archivo (valida pertenencia). Vista admin usa expediente-fiscal.descargar.
+  4. Expediente de pago (pagos_comprobantes: adjuntos, autorización, comprobantes, formato):
+     ruta FIRMADA admin.pagos.expediente-archivo + helper urlExpedienteArchivo() en PagoProveedorService.
+  5. Formato de pago del abono (pagos_formatos): AdminPagoProveedoresController.
+  6. Anticipos (anticipos/pdf, /xml): AdminPagoProveedoresController; anticiposFormatoAdjunto sirve de local.
+  7. Reembolsos y gasolina: AdminPanelController, PortalEmpleadoController, ReembolsoViajeController.
+     Ruta GENÉRICA FIRMADA admin.archivo-privado (lista blanca de carpetas). Vistas reembolsos-viaje/ver
+     y admin/facturas usan signedRoute.
+- **PATRÓN usado:** disco 'local' + ruta protegida. Dos tipos de protección:
+  (a) rutas con {id} que validan pertenencia/sesión (facturas, documento);
+  (b) rutas FIRMADAS (signedRoute + hasValidSignature) con lista blanca de carpetas, para cuando la
+  ruta del archivo viaja como parámetro (expediente, archivo-privado). La firma evita pedir archivos
+  arbitrarios del disco.
+- **COMPATIBILIDAD:** todas las rutas buscan en 'local' y, si no, en 'public' (archivos viejos
+  subidos antes de la migración siguen viéndose). Como producción casi no tiene archivos aún (697 MB),
+  el impacto de archivos viejos es mínimo.
+- **NO migrado (sigue público, está bien):** fotos de perfil/producto, Excels de proceso.
+- **COMANDO limpiar:basura** (app/Console/Commands/LimpiarBasuraProduccion.php): borra scripts de
+  prueba sueltos de la raíz y storage/app. Pide confirmación (--force para saltarla). NO toca
+  carpetas del sistema. Correr en producción tras desplegar: `php artisan limpiar:basura`.
+- **VERIFICADO:** php -l de los 10 archivos OK, 5 rutas registradas, comando registrado, view:cache OK.
+- **PENDIENTE a futuro:** mover estos mismos a S3 cuando haya cuenta AWS (seguridad ya resuelta;
+  falta escalabilidad). Opcional: migrar los archivos viejos de public→local y quitar el respaldo 'public'.
+
+---
+
+## 2026-09-07 (histórico) — Documentos sensibles estaban en disco PÚBLICO (ya resuelto arriba)
+
+- **PROBLEMA:** casi todos los archivos subidos se guardan en el disco `public`
+  (storage/app/public), que es accesible por LINK DIRECTO sin login. O sea, cualquiera con la
+  URL puede abrir facturas de proveedores, constancias fiscales, comprobantes de pago, etc.
+- **DETECTADO POR:** Said (buena observación) — "no todos los docs deberían ser sensibles/privados".
+- **CLASIFICACIÓN:**
+  - 🔴 SENSIBLE (debe ir a disco `private` + ruta protegida con login/permiso):
+    facturas de proveedores (PDF/XML), constancias fiscales, actas, comprobantes del banco (CEP),
+    formatos de pago, autorizaciones, documentos de reembolsos de empleados.
+  - 🟢 Puede seguir público: fotos de productos, fotos de perfil, logos/imágenes decorativas.
+- **SOLUCIÓN:** mover los sensibles a disco `private` (storage/app/private) y servirlos por una
+  ruta protegida que verifique sesión + permiso antes de entregar el archivo (como YA se hace con
+  las solicitudes de modificación CIF/acta en SolicitudModificacionDatosService). Hacerlo por
+  tipos, empezando por facturas (lo más sensible). NO es trivial: hay que migrar archivos
+  existentes de public→private y crear las rutas protegidas + actualizar las vistas que los
+  muestran (hoy usan asset('storage/...')).
+- **ESTADO:** pendiente; hacerlo como su propio proyecto, bien probado. Prioridad a definir con Said.
+
+---
+
+## 2026-10-16 — ELIMINADO el módulo "Pago a proveedor" (lo sustituye el CEP del banco)
+
+- **QUÉ:** Se quitó "Pago a proveedor" del sistema. Ya NO se usa porque el flujo nuevo marca las
+  facturas como 'pagada' cuando Karen/Alexa suben el comprobante del banco (CEP) en el Expediente
+  de pago (AdminPagosController@adjuntarDocumento → marcarPagadasDesdeComprobanteBanco).
+- **POR QUÉ se pudo quitar sin romper nada (verificado con investigación):**
+  - El "Historial de abonos" NO lee de AbonoProveedor (lee de facturas liquidadas + anticipos).
+  - El "Abono al proveedor"/saldar en 0 solo necesita que la factura esté 'pagada' (ya no importa
+    quién la puso ahí); el CEP la pone. El reflejo a Contpaqi/WieseBanco sigue igual.
+  - Los KPIs de esa pantalla solo vivían en esa pantalla.
+- **QUÉ SE TOCÓ:**
+  1. routes/web.php: eliminadas las 8 rutas admin.pago-proveedores.*
+  2. layouts/admin.blade.php: quitado el enlace "Pagos" del menú (se conserva "Expediente de pago").
+  3. AutenticacionAdmin.php: quitado 'admin/pago-proveedores' del permiso 'pagos' (se conservan
+     abono-proveedor, historial-abonos, expedientes-pago).
+  4. AdminPagosController@alertasJson: la alerta 'pago_realizado' ya no apunta a la ruta borrada
+     (ahora a admin.pagos).
+  5. Mensajes del saldar en 0 (validarSecuenciaFacturas / abonoInternoConfirmar): ya no dicen
+     "registrar en Pago a proveedor", ahora dicen "sube el comprobante del banco (CEP)".
+  6. Borradas las 4 vistas resources/views/admin/pago-proveedores/ (index, form, show, comprobante-pdf).
+- **LIMPIEZA HECHA:** se borraron los 8 métodos muertos (index/nuevo/create/facturasJson/store/
+  show/comprobantePago/cancelar) del AdminPagoProveedoresController — 577 líneas eliminadas.
+  Se CONSERVARON los helpers compartidos que usan Anticipos/Abono interno (polizaOrFail,
+  extraerTextoPdfNormalizado, normalizarIdentificador, extraerUuidDePdf/Xml, siguienteFolio,
+  proveedoresParaFlujoPago, folioSugeridoWieseBanco, validarSecuenciaFacturas, departamentoDelAdmin)
+  y los módulos vivos (abonoInterno*, historialAbonos, anticipos*). Verificado: php -l OK,
+  rutas vivas resuelven, view:cache OK, sin referencias activas a pago-proveedores (solo un comentario).
+  OJO: al editar con PowerShell cuidar el BOM (Set-Content UTF8 mete BOM y rompe el <?php;
+  se corrigió escribiendo con UTF8 sin BOM).
+- **CONSERVADO:** el modelo AbonoProveedor y su tabla abonos_proveedor (histórico). Si algún día se
+  quieren borrar del todo, es una migración aparte (irreversible).
+- **OJO al desplegar:** correr php artisan route:clear + view:clear en SiteGround (se quitaron rutas
+  y vistas). Verificado en local: route:list ya no muestra pago-proveedores, php -l OK, view:cache OK.
+
+## 2026-10-16 — HECHO: Flujo de correos automáticos del pago (petición de Alexa)
+
+- **QUÉ:** Se implementaron los 4 correos automáticos del flujo de pago + el disparador de
+  "marcar pagadas". Todo con destinatarios configurables en config/correos_pago.php.
+- **LOS 4 CORREOS:**
+  1. Formato CONFIRMADO → correo al autorizador (Alexa). Disparado en AdminPagosController@confirmar
+     y en store() con confirmar=1. (Se eligió confirmar, no borrador, porque el expediente solo
+     muestra pagos confirmados.)
+  2. AUTORIZADO → correo al pagador (Karen) para que descargue layout y pague. En autorizarExpediente.
+  3. RECHAZADO → correo al departamento con el motivo + las facturas 'programada' del lote VUELVEN a
+     'pendiente' (acordado con Alexa). En rechazarExpediente.
+  4. Comprobante del banco (CEP) subido en el expediente → marca las facturas 'programada' como
+     'pagada' (monto_pagado=total) y avisa por correo a cada departamento dueño. En adjuntarDocumento
+     (se detecta por el tipo que contenga 'banco' o 'cep'). El PDF del CEP se guarda en disco PRIVADO
+     (ya quedó así en la migración de seguridad).
+- **ARQUITECTURA:**
+  - config/correos_pago.php: mapeo de correos (autorizador, pagador, departamentos). Editable sin
+    tocar código; cada valor se puede sobreescribir por .env (CORREO_AUTORIZADOR, CORREO_PAGADOR,
+    CORREO_DEPTO_*). Correo vacío = no se manda (solo se loguea).
+  - app/Mail/NotificacionFlujoPago.php: una sola clase Mail parametrizable (asunto, título, líneas,
+    botón) para los 4 avisos. Vista: resources/views/emails/flujo-pago.blade.php.
+  - app/Services/CorreosFlujoPagoService.php: centraliza los 4 envíos. Todos en try/catch (si el
+    correo falla NO tumba la operación; solo loguea).
+- **CORREOS CONOCIDOS (config actual):** Alexa alexa.salzar@wiese.com (CONFIRMAR si es .com o
+  .com.mx — Said escribió ambos), Karen karen.bravo@wiese.com, Mantenimiento blanca.paganoni@wiese.com.
+  Resto de departamentos: vacíos, llenar cuando se tengan.
+- **PENDIENTE para que los correos SALGAN de verdad:** cuenta de correo oficial (Genaro la crea
+  mañana). Hoy saldrían por el Gmail de pruebas del .env. Cuando esté la cuenta, solo cambiar el
+  bloque MAIL_* del .env. NO toca código.
+- **FUERA DEL SISTEMA (acordado):** los avisos Karen↔Alexa de "ya pagué"/"ya firmé" NO los maneja
+  el sistema; eso lo hacen ellas por fuera. El sistema solo retoma cuando Karen sube el CEP (correo 4).
+- **VERIFICADO:** php -l OK, config carga OK (tinker), vistas compilan OK.
+- **FALTA PROBAR en local:** generar→confirmar (correo 1), autorizar (correo 2), rechazar (correo 3
+  + facturas a pendiente), subir CEP (correo 4 + pagadas). Con MAIL_MAILER=log se ven en laravel.log.
+
+---
+
+## (resuelto arriba) Flujo de correos automáticos del pago (petición de Alexa)
 
 Alexa (quien autoriza pagos) pidió que CADA movimiento del flujo mande correo AUTOMÁTICO (por
 Outlook). Hoy el sistema solo manda UN correo automático: al CONFIRMAR el formato, va al proveedor

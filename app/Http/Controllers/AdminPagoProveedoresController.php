@@ -17,8 +17,8 @@ class AdminPagoProveedoresController extends Controller
      * Devuelve los proveedores REALES de Wiese en el MISMO formato que esperan las vistas
      * del flujo de pago (objetos con ->codigo, ->nombre, ->moneda, y ->datos_identificacion['rfc']).
      *
-     * POR QUÉ: el flujo (formato/pago/abono) mostraba proveedores LOCALES (de prueba). Los reales
-     * viven en Wiese; este helper los trae vía ProveedorApiService y los adapta a objetos con las
+     * POR QUÃ‰: el flujo (formato/pago/abono) mostraba proveedores LOCALES (de prueba). Los reales
+     * viven en Wiese; este helper los trae vÃ­a ProveedorApiService y los adapta a objetos con las
      * mismas propiedades que usaban las vistas, para no tener que reescribir las plantillas.
      * Si Wiese no responde (VPN/servidor), cae de vuelta a los proveedores locales (no rompe).
      *
@@ -35,19 +35,19 @@ class AdminPagoProveedoresController extends Controller
                         $monRaw = (string) ($p['moneda'] ?? $p['Moneda'] ?? '');
                         // Wiese: "1"=MXN, "2"=USD. El modelo local usa 'MXN'/'DOLLAR'.
                         $moneda = $monRaw === '2' ? 'DOLLAR' : 'MXN';
-                        // Objeto anónimo con las MISMAS propiedades que la vista espera de ProveedorUser.
+                        // Objeto anÃ³nimo con las MISMAS propiedades que la vista espera de ProveedorUser.
                         return (object) [
-                            'id' => null, // Wiese no tiene id local; el flujo se enlaza por código.
+                            'id' => null, // Wiese no tiene id local; el flujo se enlaza por cÃ³digo.
                             'codigo' => $codigo,
                             'id_proveedor' => $codigo,
                             'nombre' => (string) ($p['nombre'] ?? $p['Nombre'] ?? ''),
                             'moneda' => $moneda,
-                            // POR QUÉ: el banco/cuenta/clabe del proveedor no existe en columnas
-                            // dedicadas de Wiese; Salcom los guarda en los campos comodín
-                            // CTEXTOEXTRA1/2/3 de admClientes (Alan lo confirmó). El endpoint C#
-                            // los devuelve como banco/cuenta/clabe y aquí los metemos en
+                            // POR QUÃ‰: el banco/cuenta/clabe del proveedor no existe en columnas
+                            // dedicadas de Wiese; Salcom los guarda en los campos comodÃ­n
+                            // CTEXTOEXTRA1/2/3 de admClientes (Alan lo confirmÃ³). El endpoint C#
+                            // los devuelve como banco/cuenta/clabe y aquÃ­ los metemos en
                             // datos_identificacion, que es de donde el Formato para pago los lee.
-                            // POR QUÉ dos nombres: ListarProveedorWeb los manda como
+                            // POR QUÃ‰ dos nombres: ListarProveedorWeb los manda como
                             // banco/cuenta/clabe, pero BuscarPorRFC/BuscarPorCodigo (clase
                             // ClienteProveedor) los manda como textoExtra1/2/3. Leemos ambos.
                             'datos_identificacion' => [
@@ -58,15 +58,15 @@ class AdminPagoProveedoresController extends Controller
                             ],
                         ];
                     })
-                    // Descartar registros basura: código/nombre vacíos, "0", o el literal "(Ninguno)"
-                    // (Wiese devuelve un registro genérico con código y nombre = "(Ninguno)").
+                    // Descartar registros basura: cÃ³digo/nombre vacÃ­os, "0", o el literal "(Ninguno)"
+                    // (Wiese devuelve un registro genÃ©rico con cÃ³digo y nombre = "(Ninguno)").
                     ->filter(function ($p) {
                         $cod = trim($p->codigo);
                         $nom = trim($p->nombre);
                         if ($cod === '' || $cod === '0' || $nom === '') {
                             return false;
                         }
-                        // Descartar el registro genérico "(Ninguno)" venga en código o nombre.
+                        // Descartar el registro genÃ©rico "(Ninguno)" venga en cÃ³digo o nombre.
                         return stripos($cod, 'ninguno') === false
                             && stripos($nom, 'ninguno') === false;
                     })
@@ -84,591 +84,14 @@ class AdminPagoProveedoresController extends Controller
             ->get();
     }
 
-    public function index(Request $request)
-    {
-        $q = trim((string) $request->query('q', ''));
-        $poliza = trim((string) $request->query('poliza', '')); // texto libre
-        $agente = trim((string) $request->query('agente', '')); // dropdown Contpaqi key
-        $estatus = trim((string) $request->query('estatus', '')); // cancelado|borrador|guardado|''
-        $tiposAgente = config('polizas_pago');
-
-        $base = AbonoProveedor::query();
-        $kpiCancelados = (clone $base)->where('estatus', 'cancelado')->count();
-        $kpiPagados = (clone $base)->whereIn('estatus', ['guardado', 'borrador', 'pagado'])->count();
-        $kpiTotales = (clone $base)->count();
-        $kpiFacturasPendientes = \App\Models\Factura::whereIn('estatus', ['pendiente', 'programada'])->count();
-        $kpiMontoPendiente = \App\Models\Factura::whereIn('estatus', ['pendiente', 'programada'])
-            ->selectRaw('SUM(total - monto_pagado) as total')->value('total') ?? 0;
-
-        // KPIs de estatus de abono → proveedores agrupados por fecha (mismo estilo que vista principal)
-        if ($estatus !== '' && in_array($estatus, ['cancelado', 'pagado', 'borrador', 'guardado'], true)) {
-            $estatusFiltro = $estatus === 'pagado' ? ['guardado', 'borrador', 'pagado'] : [$estatus];
-
-            // Si piden ver abonos de un proveedor específico, mostrar tabla de abonos
-            if ($request->query('ver_abonos') && $q !== '') {
-                $abonos = AbonoProveedor::query()
-                    ->with('documentos')
-                    ->whereIn('estatus', $estatusFiltro)
-                    ->where(function ($w) use ($q) {
-                        $w->where('codigo_proveedor', 'like', "%{$q}%")
-                            ->orWhere('nombre_proveedor', 'like', "%{$q}%");
-                    })
-                    ->when($agente !== '' && isset($tiposAgente[$agente]), fn ($qb) => $qb->where('poliza_key', $agente))
-                    ->orderByDesc('fecha')
-                    ->orderByDesc('id')
-                    ->paginate(50)
-                    ->withQueryString();
-
-                return view('admin.pago-proveedores.index', compact(
-                    'abonos',
-                    'q',
-                    'poliza',
-                    'agente',
-                    'tiposAgente',
-                    'estatus',
-                    'kpiCancelados',
-                    'kpiPagados',
-                    'kpiTotales',
-                    'kpiFacturasPendientes',
-                    'kpiMontoPendiente'
-                ) + ['proveedoresPendientes' => collect(), 'modo' => 'abonos']);
-            }
-
-            // Obtener proveedores que tienen abonos con ese estatus
-            $abonosQuery = AbonoProveedor::query()
-                ->whereIn('estatus', $estatusFiltro)
-                ->when($agente !== '' && isset($tiposAgente[$agente]), fn ($qb) => $qb->where('poliza_key', $agente));
-
-            $proveedoresFiltrados = $abonosQuery
-                ->selectRaw('codigo_proveedor, count(*) as num_facturas, sum(monto_pago) as monto_total, max(created_at) as ultima_factura_at')
-                ->whereNotNull('codigo_proveedor')
-                ->groupBy('codigo_proveedor')
-                ->orderByDesc('ultima_factura_at')
-                ->get()
-                ->map(function ($row) use ($estatusFiltro) {
-                    $prov = ProveedorUser::where('codigo', $row->codigo_proveedor)->first();
-                    $notifSinLeer = \App\Models\Alerta::query()
-                        ->where('destinatario_tipo', 'admin')
-                        ->where('tipo', 'factura_pago_pendiente')
-                        ->where('datos->codigo_proveedor', $row->codigo_proveedor)
-                        ->whereNotIn('estatus', ['leida', 'accionada'])
-                        ->count();
-                    $ultimaAt = $row->ultima_factura_at ? \Carbon\Carbon::parse($row->ultima_factura_at) : null;
-                    return (object) [
-                        'codigo' => $row->codigo_proveedor,
-                        'proveedor' => $prov,
-                        'nombre' => $prov?->nombre ?? $row->codigo_proveedor,
-                        'num_facturas' => (int) $row->num_facturas,
-                        'monto_total' => (float) $row->monto_total,
-                        'ultima_factura_at' => $ultimaAt,
-                        'proximo_vencimiento' => null,
-                        'expediente' => ['ok' => true, 'motivos' => []],
-                        'notif_sin_leer' => $notifSinLeer,
-                    ];
-                });
-
-            return view('admin.pago-proveedores.index', compact(
-                'q',
-                'poliza',
-                'agente',
-                'tiposAgente',
-                'estatus',
-                'kpiCancelados',
-                'kpiPagados',
-                'kpiTotales',
-                'kpiFacturasPendientes',
-                'kpiMontoPendiente'
-            ) + ['proveedoresPendientes' => $proveedoresFiltrados, 'abonos' => null, 'modo' => 'proveedores']);
-        }
-
-        // Vista principal: proveedores pendientes (como Pagos al proveedor)
-        $proveedoresPendientes = app(PagoProveedorService::class)->proveedoresConPendientes();
-
-        if ($poliza !== '') {
-            $codigosConPoliza = AbonoProveedor::query()
-                ->where('agente', 'like', "%{$poliza}%")
-                ->pluck('codigo_proveedor')
-                ->unique()
-                ->filter()
-                ->all();
-            $proveedoresPendientes = $proveedoresPendientes
-                ->filter(fn ($r) => in_array($r->codigo, $codigosConPoliza, true))
-                ->values();
-        }
-
-        if ($agente !== '' && isset($tiposAgente[$agente])) {
-            $meta = $tiposAgente[$agente];
-            $monedaWant = strtoupper((string) ($meta['moneda'] ?? 'MXN'));
-            $codigosAgente = AbonoProveedor::query()
-                ->where('poliza_key', $agente)
-                ->pluck('codigo_proveedor')
-                ->unique()
-                ->filter()
-                ->all();
-
-            $proveedoresPendientes = $proveedoresPendientes->filter(function ($r) use ($monedaWant, $codigosAgente) {
-                if (in_array($r->codigo, $codigosAgente, true)) {
-                    return true;
-                }
-                $mon = $r->proveedor?->monedaNormalizada() ?? 'MXN';
-                if ($monedaWant === 'USD') {
-                    return $mon === 'DOLLAR';
-                }
-
-                return $mon === 'MXN';
-            })->values();
-        }
-
-        return view('admin.pago-proveedores.index', compact(
-            'proveedoresPendientes',
-            'q',
-            'poliza',
-            'agente',
-            'tiposAgente',
-            'estatus',
-            'kpiCancelados',
-            'kpiPagados',
-            'kpiTotales',
-            'kpiFacturasPendientes',
-            'kpiMontoPendiente'
-        ) + ['abonos' => null, 'modo' => 'proveedores']);
-    }
-
-    /** Ya no hay pantalla de 4 tarjetas: el agente se elige en el dropdown del listado. */
-    public function nuevo(Request $request)
-    {
-        return redirect()->route('admin.pago-proveedores');
-    }
-
-    /** Formulario Abono Prov Contpaqi (agente = {poliza} en la URL). */
-    public function create(Request $request, string $poliza)
-    {
-        try {
-            $meta = $this->polizaOrFail($poliza);
-        } catch (InvalidArgumentException $e) {
-            return redirect()->route('admin.pago-proveedores')->with('error', $e->getMessage());
-        }
-
-        $codigoPref = trim((string) $request->query('codigo', ''));
-        // Proveedores REALES de Wiese (antes salían los locales de prueba).
-        $proveedores = $this->proveedoresParaFlujoPago();
-
-        $folioSiguiente = $this->siguienteFolio($meta['serie'], $meta['key']);
-
-        $proveedorIdPref = null;
-        if ($codigoPref !== '') {
-            $match = $proveedores->first(function ($p) use ($codigoPref) {
-                return ($p->id_proveedor ?: $p->codigo) === $codigoPref;
-            });
-            $proveedorIdPref = $match?->id;
-        }
-
-        return view('admin.pago-proveedores.form', [
-            'poliza' => $meta,
-            'proveedores' => $proveedores,
-            'folioSiguiente' => $folioSiguiente,
-            'abono' => null,
-            'facturasPendientes' => collect(),
-            'modo' => 'create',
-            'proveedorIdPref' => $proveedorIdPref,
-            'codigoPref' => $codigoPref,
-        ]);
-    }
-
-    public function facturasJson(Request $request)
-    {
-        $codigo = trim((string) $request->query('codigo', ''));
-        $proveedorId = (int) $request->query('proveedor_id', 0);
-
-        if ($proveedorId > 0) {
-            $prov = ProveedorUser::query()->find($proveedorId);
-            if ($prov) {
-                $codigo = $prov->id_proveedor ?: $prov->codigo;
-            }
-        }
-
-        if ($codigo === '') {
-            return response()->json(['items' => []]);
-        }
-
-        $items = Factura::query()
-            ->where('codigo_proveedor', $codigo)
-            ->where('estatus', 'programada')
-            ->orderByDesc('created_at')
-            ->limit(100)
-            ->get()
-            ->map(function (Factura $f) {
-                $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
-                $moneda = strtoupper((string) ($vd['moneda'] ?? $vd['cfdi']['moneda'] ?? 'MXN'));
-                $serie = (string) ($vd['serie'] ?? $vd['cfdi']['serie'] ?? '');
-                $folio = (string) ($f->folio_cfdi ?: ($vd['folio'] ?? $f->id));
-                $saldo = round((float) $f->total - (float) $f->monto_pagado, 2);
-                $restantes = $f->diasRestantes();
-                $diasLabel = $restantes === null
-                    ? '—'
-                    : ($restantes > 0 ? $restantes.' días' : ($restantes === 0 ? 'Vence hoy' : 'Vencida ('.abs($restantes).')'));
-
-                return [
-                    'id' => $f->id,
-                    'fecha' => optional($f->created_at)->format('Y-m-d'),
-                    'fecha_fmt' => optional($f->created_at)->format('d/m/Y'),
-                    'hora' => optional($f->created_at)->format('h:i a'),
-                    'serie' => $serie !== '' ? $serie : 'FAC',
-                    'folio' => $folio,
-                    'concepto' => 'Compra',
-                    'referencia' => $f->uuid_cfdi,
-                    'total' => $saldo,
-                    'total_factura' => (float) $f->total,
-                    'monto_pagado' => (float) $f->monto_pagado,
-                    'moneda' => $moneda,
-                    'sistema_origen' => 'SALCOM',
-                    'fecha_vencimiento_fmt' => optional($f->fecha_vencimiento)->format('d/m/Y'),
-                    'dias_restantes' => $restantes,
-                    'dias_plazo' => $f->dias_plazo,
-                    'dias_label' => $diasLabel,
-                ];
-            })
-            ->filter(fn ($item) => $item['total'] > 0)
-            ->values();
-
-        return response()->json(['items' => $items]);
-    }
-
-    public function store(Request $request)
-    {
-        // Mensaje único de rechazo (sin explicar el motivo, a petición del usuario).
-        $MSG_RECHAZO = 'No se pudo registrar el pago. Verifica el formato para pago e inténtalo de nuevo.';
-
-        // Redirige SIEMPRE a la pantalla del formulario con el mensaje rojo garantizado.
-        // Se usa una ruta explícita (no back()) para que el flash nunca se pierda.
-        $rechazar = function (string $motivo = 'sin_detalle') use ($request, $MSG_RECHAZO) {
-            $key = (string) $request->input('poliza_key', '');
-            $meta = config('polizas_pago.'.$key);
-            // El código viene directo en la request (identificador real, funciona con Wiese).
-            $codigo = trim((string) $request->input('codigo_proveedor', ''));
-            if ($codigo === '' && ($provId = (int) $request->input('proveedor_id', 0))) {
-                $prov = ProveedorUser::query()->find($provId);
-                $codigo = $prov ? ($prov->id_proveedor ?: $prov->codigo) : '';
-            }
-            // Se pasa el error TAMBIÉN por query string (pago_error=1) para que el aviso
-            // rojo aparezca aunque el flash de sesión se pierda por cualquier motivo.
-            $destino = is_array($meta)
-                ? redirect()->route('admin.pago-proveedores.create', array_filter(['poliza' => $key, 'codigo' => $codigo, 'pago_error' => 1]))
-                : redirect()->route('admin.pago-proveedores', ['pago_error' => 1]);
-
-            return $destino->withInput()->with('error', $MSG_RECHAZO);
-        };
-
-        // Validación de campos: si falla, mostrar el mismo mensaje rojo simple.
-        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
-            'poliza_key' => 'required|string',
-            'fecha' => 'required|date',
-            // Antes se exigía proveedor_id local (bloqueaba proveedores de Wiese).
-            // Ahora el identificador real es codigo_proveedor; proveedor_id queda opcional.
-            'codigo_proveedor' => 'required|string|max:30',
-            'proveedor_id' => 'nullable|integer',
-            'agente' => 'nullable|string|max:120',
-            'poliza' => 'nullable|string|max:120',
-            'tipo_cambio' => 'nullable|numeric|min:0',
-            'cuenta_bancaria' => 'nullable|string|max:120',
-            'notas' => 'nullable|string|max:2000',
-            'factura_ids' => 'required|array|min:1',
-            'factura_ids.*' => 'integer',
-            'importes' => 'nullable|array',
-            'importes.*' => 'nullable|numeric|min:0',
-            'accion' => 'nullable|in:borrador,guardar',
-            'formato_pago' => 'required|file|mimes:pdf|max:10240',
-        ]);
-
-        if ($validator->fails()) {
-            return $rechazar();
-        }
-
-        $data = $validator->validated();
-
-        try {
-            $meta = $this->polizaOrFail($data['poliza_key']);
-        } catch (InvalidArgumentException $e) {
-            return $rechazar();
-        }
-
-        // El código es el identificador real (funciona con proveedores de Wiese).
-        $codigo = trim((string) $data['codigo_proveedor']);
-        // El proveedor local es OPCIONAL: puede no existir si viene de Wiese. Se busca por código.
-        $proveedor = ProveedorUser::query()->porCualquierCodigo($codigo)->first();
-
-        // Validación de secuencia: solo facturas "programada" pueden pagarse aquí.
-        if ($errorSecuencia = $this->validarSecuenciaFacturas($data['factura_ids'], 'programada', 'el pago a proveedor')) {
-            return $rechazar();
-        }
-
-        $facturas = Factura::query()
-            ->whereIn('id', $data['factura_ids'])
-            ->where('codigo_proveedor', $codigo)
-            ->where('estatus', 'programada')
-            ->get();
-
-        if ($facturas->isEmpty()) {
-            return $rechazar();
-        }
-
-        // OPCIÓN B (control de dos manos): solo se puede pagar si el EXPEDIENTE de estas
-        // facturas ya fue AUTORIZADO (Sandra/Karen). Si el expediente sigue pendiente de
-        // autorizar, no se permite el pago.
-        $sinAutorizar = [];
-        foreach ($facturas as $fac) {
-            $linea = \App\Models\PagoProveedorFactura::where('factura_id', $fac->id)
-                ->whereHas('pago', fn ($q) => $q->where('estatus', 'confirmado'))
-                ->latest('id')
-                ->first();
-            $expediente = $linea?->pago;
-            if (! $expediente || ($expediente->estatus_autorizacion ?? 'pendiente') !== 'autorizado') {
-                $sinAutorizar[] = $fac->folio_cfdi ?: ('#'.$fac->id);
-            }
-        }
-        if (! empty($sinAutorizar)) {
-            return $rechazar();
-        }
-
-        // Validar que el CONTENIDO del formato de pago corresponda a ESTE proveedor
-        // Y a TODAS las facturas que se están pagando. No basta con que mencione el
-        // código del proveedor: cada factura seleccionada debe aparecer en el formato
-        // (por su folio CFDI o su UUID). Así se evita adjuntar el formato de otro lote.
-        if ($request->hasFile('formato_pago')) {
-            $textoFormato = $this->extraerTextoPdfNormalizado($request->file('formato_pago'));
-            if ($textoFormato === null) {
-                return $rechazar();
-            }
-
-            // 1) El formato debe mencionar al proveedor.
-            $codigoNorm = $this->normalizarIdentificador($codigo);
-            $mencionaProveedor = $codigoNorm !== '' && str_contains($textoFormato, $codigoNorm);
-            if (! $mencionaProveedor) {
-                return $rechazar();
-            }
-
-            // 2) TODAS las facturas seleccionadas deben aparecer en el formato (folio o UUID).
-            $facturasFaltantes = [];
-            foreach ($facturas as $fac) {
-                $folioNorm = $this->normalizarIdentificador($fac->folio_cfdi);
-                $uuidNorm = $this->normalizarIdentificador($fac->uuid_cfdi);
-                $enFormato = ($folioNorm !== '' && str_contains($textoFormato, $folioNorm))
-                    || ($uuidNorm !== '' && str_contains($textoFormato, $uuidNorm));
-                if (! $enFormato) {
-                    $facturasFaltantes[] = $fac->folio_cfdi ?: ('#'.$fac->id);
-                }
-            }
-
-            if (! empty($facturasFaltantes)) {
-                return $rechazar();
-            }
-        }
-
-        $estatus = 'pagado';
-        $tc = $data['tipo_cambio'] ?? $meta['tipo_cambio_default'] ?? 1;
-        if ($tc === null || $tc === '') {
-            $tc = 1;
-        }
-
-        try {
-            $abono = DB::transaction(function () use ($data, $meta, $proveedor, $codigo, $facturas, $estatus, $tc) {
-                $folio = $this->siguienteFolio($meta['serie'], $meta['key']);
-                $lineas = [];
-                $total = 0.0;
-
-                foreach ($facturas as $f) {
-                    $importe = isset($data['importes'][$f->id])
-                        ? (float) $data['importes'][$f->id]
-                        : (float) $f->total;
-                    $total += $importe;
-                    $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
-                    $lineas[] = [
-                        'factura_id' => $f->id,
-                        'fecha_doc' => optional($f->created_at)->toDateString(),
-                        'serie_doc' => (string) ($vd['serie'] ?? $vd['cfdi']['serie'] ?? 'FAC'),
-                        'folio_doc' => (string) ($f->folio_cfdi ?: $f->id),
-                        'concepto_doc' => 'Compra',
-                        'referencia' => $f->uuid_cfdi,
-                        'importe_pago' => round($importe, 2),
-                        'sistema_origen' => 'SALCOM',
-                        'detalle' => [
-                            'total_factura' => (float) $f->total,
-                            'moneda' => $vd['moneda'] ?? $vd['cfdi']['moneda'] ?? $meta['moneda'],
-                        ],
-                    ];
-                }
-
-                $abono = AbonoProveedor::create([
-                    'poliza_key' => $meta['key'],
-                    'serie' => $meta['serie'],
-                    'folio' => $folio,
-                    'concepto' => $meta['concepto'],
-                    'agente' => trim((string) ($data['poliza'] ?? $data['agente'] ?? '')) ?: null,
-                    'fecha' => $data['fecha'],
-                    // Proveedor local puede ser null (viene de Wiese). Se guarda el código igual.
-                    'proveedor_id' => $proveedor?->id,
-                    'codigo_proveedor' => $codigo,
-                    'nombre_proveedor' => $proveedor?->nombre ?: trim((string) $request->input('nombre_proveedor', '')) ?: $codigo,
-                    'moneda' => $meta['moneda'],
-                    'tipo_cambio' => $tc,
-                    'cuenta_bancaria' => $data['cuenta_bancaria'] ?? null,
-                    'estatus' => $estatus,
-                    'monto_pago' => round($total, 2),
-                    'notas' => $data['notas'] ?? null,
-                    'creado_por' => auth()->id(),
-                ]);
-
-                foreach ($lineas as $linea) {
-                    $abono->documentos()->create($linea);
-                }
-
-                // Descontar pagos de las facturas
-                foreach ($facturas as $f) {
-                    $importe = isset($data['importes'][$f->id])
-                        ? (float) $data['importes'][$f->id]
-                        : (float) $f->total;
-
-                    $nuevoPagado = round((float) $f->monto_pagado + $importe, 2);
-                    $f->monto_pagado = $nuevoPagado;
-
-                    // Si ya se cubrió el total, marcar como pagada
-                    if ($nuevoPagado >= (float) $f->total) {
-                        $f->estatus = 'pagada';
-                    }
-
-                    $f->save();
-                }
-
-                return $abono;
-            });
-        } catch (\Throwable $e) {
-            report($e);
-
-            return $rechazar();
-        }
-
-        // Guardar el formato de pago adjunto
-        if ($request->hasFile('formato_pago')) {
-            $formatoPath = $request->file('formato_pago')->store('pagos_formatos/' . $abono->id, 'public');
-            $abono->update(['cuenta_bancaria' => ($abono->cuenta_bancaria ? $abono->cuenta_bancaria . ' | ' : '') . 'formato:' . $formatoPath]);
-        }
-
-        // Crear alerta para el proveedor (notificación en tiempo real).
-        // Solo si el proveedor existe LOCALMENTE (los de Wiese no tienen cuenta en el portal aún).
-        if ($proveedor) {
-            try {
-                $montoFmt = number_format((float) $abono->monto_pago, 2);
-                \App\Models\Alerta::create([
-                    'tipo' => 'pago_confirmado',
-                    'modulo' => 'abonos',
-                    'destinatario_tipo' => 'proveedor',
-                    'destinatario_id' => $proveedor->id,
-                    'titulo' => 'Pago recibido',
-                    'contenido' => "Salcom registró un pago por \${$montoFmt} " . $meta['moneda'] . " a tus facturas.",
-                    'nivel' => 'info',
-                    'estatus' => 'nueva',
-                    'datos' => [
-                        'abono_id' => $abono->id,
-                        'monto' => (float) $abono->monto_pago,
-                        'moneda' => $meta['moneda'],
-                        'num_facturas' => $facturas->count(),
-                    ],
-                ]);
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning('[Abono] No se pudo crear alerta proveedor: ' . $e->getMessage());
-            }
-        }
-
-        // Crear alerta para admin (campanita + badge)
-        try {
-            $montoFmt = number_format((float) $abono->monto_pago, 2);
-            \App\Models\Alerta::create([
-                'tipo' => 'pago_realizado',
-                'modulo' => 'pago_proveedor',
-                'destinatario_tipo' => 'admin',
-                'destinatario_id' => session('admin_id'),
-                'titulo' => 'Pago realizado',
-                'contenido' => "Pago por \${$montoFmt} {$meta['moneda']} a {$abono->nombre_proveedor} ({$abono->codigo_proveedor}). {$facturas->count()} factura(s).",
-                'nivel' => 'info',
-                'estatus' => 'nueva',
-                'datos' => [
-                    'abono_id' => $abono->id,
-                    'codigo_proveedor' => $abono->codigo_proveedor,
-                    'monto' => (float) $abono->monto_pago,
-                    'moneda' => $meta['moneda'],
-                    'cuenta' => $meta['titulo'],
-                ],
-            ]);
-        } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning('[Abono] No se pudo crear alerta admin: ' . $e->getMessage());
-        }
-
-        return redirect()
-            ->route('admin.pago-proveedores.show', $abono)
-            ->with('ok', 'Pago registrado (' . $abono->etiquetaFolio() . '). Las facturas fueron actualizadas.');
-    }
-
-    public function show(AbonoProveedor $abono)
-    {
-        $abono->load(['documentos.factura', 'proveedor']);
-        $poliza = $abono->poliza() ?? ['titulo' => $abono->poliza_key, 'concepto' => $abono->concepto];
-
-        return view('admin.pago-proveedores.show', compact('abono', 'poliza'));
-    }
-
-    /**
-     * Comprobante de pago en PDF (nuevo, sello PAGADO). Se puede ver (?ver=1) o descargar.
-     */
-    public function comprobantePago(Request $request, AbonoProveedor $abono)
-    {
-        $abono->load(['documentos', 'proveedor']);
-
-        // La cuenta bancaria guarda datos y a veces "| formato:ruta.pdf": mostrar solo la parte legible.
-        $cuentaBancaria = trim(explode('formato:', (string) $abono->cuenta_bancaria)[0], " |");
-
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.pago-proveedores.comprobante-pdf', [
-            'abono' => $abono,
-            'cuentaBancaria' => $cuentaBancaria,
-        ])->setPaper('letter', 'portrait');
-
-        $nombre = 'Comprobante_Pago_'.$abono->etiquetaFolio().'_'.$abono->codigo_proveedor.'.pdf';
-
-        if ($request->boolean('ver')) {
-            return $pdf->stream($nombre);
-        }
-
-        return $pdf->download($nombre);
-    }
-
-    public function cancelar(AbonoProveedor $abono)
-    {
-        if ($abono->estatus === 'cancelado') {
-            return back()->with('error', 'Ya está cancelado.');
-        }
-
-        // Revertir los pagos de las facturas
-        $abono->load('documentos');
-        foreach ($abono->documentos as $doc) {
-            $factura = Factura::find($doc->factura_id);
-            if ($factura) {
-                $nuevoMontoPagado = max(0, round((float) $factura->monto_pagado - (float) $doc->importe_pago, 2));
-                $factura->monto_pagado = $nuevoMontoPagado;
-                // Si estaba pagada y ahora tiene saldo, volver a pendiente
-                if ($factura->estatus === 'pagada' && $nuevoMontoPagado < (float) $factura->total) {
-                    $factura->estatus = 'pendiente';
-                }
-                $factura->save();
-            }
-        }
-
-        $abono->update(['estatus' => 'cancelado']);
-
-        return back()->with('ok', 'Abono cancelado y pagos revertidos.');
-    }
-
-    // ═══════════════════════════════════════════
-    // ABONO AL PROVEEDOR (Paso 3 — registro interno)
-    // ═══════════════════════════════════════════
+    // "PAGO A PROVEEDOR" ELIMINADO (2026-10-16): los métodos index/nuevo/create/
+    // facturasJson/store/show/comprobantePago/cancelar se quitaron. El flujo nuevo marca
+    // las facturas como pagadas al subir el comprobante del banco (CEP) en el expediente.
+    // Se conservan: abonoInterno*, historialAbonos y anticipos* (abajo).
+
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    // ABONO AL PROVEEDOR (Paso 3 â€” registro interno)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     /** Listado de facturas pagadas para confirmar abono interno. */
     public function abonoInterno(Request $request)
@@ -676,11 +99,11 @@ class AdminPagoProveedoresController extends Controller
         $cuentaKey = trim((string) $request->input('cuenta', ''));
         $cuentaConfig = config("polizas_pago.{$cuentaKey}");
 
-        // Proveedores REALES de Wiese (antes salían los locales de prueba).
+        // Proveedores REALES de Wiese (antes salÃ­an los locales de prueba).
         $proveedores = $this->proveedoresParaFlujoPago();
 
         // Folio precargado = siguiente consecutivo de la cuenta de WieseBanco.
-        // POR QUÉ: el Folio del abono debe ser EL MISMO número (NUM) que tomará el movimiento
+        // POR QUÃ‰: el Folio del abono debe ser EL MISMO nÃºmero (NUM) que tomarÃ¡ el movimiento
         // en WieseBanco (el Quicken), para que coincidan. Por ahora todo mapea a BBVA 8969.
         $folioSugerido = $this->folioSugeridoWieseBanco();
 
@@ -689,8 +112,8 @@ class AdminPagoProveedoresController extends Controller
 
     /**
      * Devuelve el siguiente folio (NUM) de la cuenta de WieseBanco, para precargar el campo
-     * "Folio" del abono y que coincida con el movimiento que se creará en el Quicken.
-     * Por ahora todas las cuentas del abono mapean a BBVA 8969 (la única de WieseBanco).
+     * "Folio" del abono y que coincida con el movimiento que se crearÃ¡ en el Quicken.
+     * Por ahora todas las cuentas del abono mapean a BBVA 8969 (la Ãºnica de WieseBanco).
      */
     private function folioSugeridoWieseBanco(): int
     {
@@ -729,7 +152,7 @@ class AdminPagoProveedoresController extends Controller
         $desde = $request->input('desde');
         $hasta = $request->input('hasta');
 
-        // Cuentas (las 4 pólizas). Cuenta activa = la seleccionada o la primera.
+        // Cuentas (las 4 pÃ³lizas). Cuenta activa = la seleccionada o la primera.
         $cuentas = config('polizas_pago');
         $cuentaKey = trim((string) $request->input('cuenta', ''));
         if (! isset($cuentas[$cuentaKey])) {
@@ -737,10 +160,10 @@ class AdminPagoProveedoresController extends Controller
         }
         $cuentaConfig = $cuentas[$cuentaKey];
 
-        // Nombres de proveedores para resolver razón social
+        // Nombres de proveedores para resolver razÃ³n social
         $provNombres = ProveedorUser::pluck('nombre', 'codigo');
 
-        // ── Fuente 1: Anticipos registrados desde Abono al proveedor (cuentas USD) ──
+        // â”€â”€ Fuente 1: Anticipos registrados desde Abono al proveedor (cuentas USD) â”€â”€
         $anticipos = \App\Models\AnticipoProveedor::query()
             ->whereNotNull('datos')
             ->orderByDesc('created_at')
@@ -770,7 +193,7 @@ class AdminPagoProveedoresController extends Controller
                 ];
             });
 
-        // ── Fuente 2: Abonos internos estampados en facturas (cuentas por título) ──
+        // â”€â”€ Fuente 2: Abonos internos estampados en facturas (cuentas por tÃ­tulo) â”€â”€
         $tituloCuenta = $cuentaConfig['titulo'] ?? '';
         $facturasAbono = Factura::query()
             ->where('estatus', 'liquidada')
@@ -802,7 +225,7 @@ class AdminPagoProveedoresController extends Controller
                 ];
             });
 
-        // ── Combinar y resolver razón social + aplicar filtros de texto/fecha ──
+        // â”€â”€ Combinar y resolver razÃ³n social + aplicar filtros de texto/fecha â”€â”€
         $baseRegistros = $anticipos->concat($facturasAbono)
             ->map(function ($r) use ($provNombres) {
                 if (empty($r['razon'])) {
@@ -828,12 +251,12 @@ class AdminPagoProveedoresController extends Controller
             })
             ->values();
 
-        // ── KPIs (contadores) ──
+        // â”€â”€ KPIs (contadores) â”€â”€
         $kpiTodos = $baseRegistros->count();
         $kpiCancelados = $baseRegistros->where('cancelado', 1)->count();
         $kpiPendiente = $baseRegistros->filter(fn ($r) => (float) $r['pendiente'] > 0)->count();
 
-        // ── Filtro por tipo de documento (tab) ──
+        // â”€â”€ Filtro por tipo de documento (tab) â”€â”€
         $doc = trim((string) $request->input('doc', 'todos'));
         $registros = $baseRegistros;
         if ($doc === 'cancelados') {
@@ -854,13 +277,13 @@ class AdminPagoProveedoresController extends Controller
         ));
     }
 
-    /** Confirmar abono interno con número de póliza. */
+    /** Confirmar abono interno con nÃºmero de pÃ³liza. */
     public function abonoInternoConfirmar(Request $request)
     {
         $data = $request->validate([
             'factura_ids' => 'required|array|min:1',
             'factura_ids.*' => 'integer',
-            // POR QUÉ ya no es required: el folio real lo asigna Contpaqi al guardar (consecutivo
+            // POR QUÃ‰ ya no es required: el folio real lo asigna Contpaqi al guardar (consecutivo
             // en tiempo real). El campo del formulario trae "Se asigna al guardar", no un folio.
             'poliza' => 'nullable|string|max:60',
             'fecha' => 'required|date|before:today',
@@ -874,19 +297,19 @@ class AdminPagoProveedoresController extends Controller
             'referencia' => 'required|string|max:120',
             'observaciones' => 'nullable|string|max:1000',
         ], [
-            'fecha.before' => 'La fecha debe ser un día anterior a hoy.',
-            'referencia.required' => 'Escribe en Referencia las facturas o número de compra.',
+            'fecha.before' => 'La fecha debe ser un dÃ­a anterior a hoy.',
+            'referencia.required' => 'Escribe en Referencia las facturas o nÃºmero de compra.',
         ]);
 
-        // El folio real lo pondrá Contpaqi; mientras, usamos un texto marcador para los avisos.
+        // El folio real lo pondrÃ¡ Contpaqi; mientras, usamos un texto marcador para los avisos.
         $data['poliza'] = trim((string) ($data['poliza'] ?? '')) ?: '(se asigna en Contpaqi)';
         if ($data['poliza'] === 'Se asigna al guardar') {
             $data['poliza'] = '(se asigna en Contpaqi)';
         }
 
-        // Validación de secuencia: solo facturas "pagada" pueden liquidarse aquí.
+        // ValidaciÃ³n de secuencia: solo facturas "pagada" pueden liquidarse aquÃ­.
         if ($errorSecuencia = $this->validarSecuenciaFacturas($data['factura_ids'], 'pagada', 'el abono al proveedor')) {
-            return back()->with('error', $errorSecuencia.' El pago debe registrarse antes en "Pago a proveedor".');
+            return back()->with('error', $errorSecuencia.' La factura se marca como pagada al subir el comprobante del banco (CEP) en el expediente de pago.');
         }
 
         $facturas = Factura::whereIn('id', $data['factura_ids'])->where('estatus', 'pagada')->get();
@@ -915,8 +338,8 @@ class AdminPagoProveedoresController extends Controller
             $f->save();
         }
 
-        // ── Reflejar en WieseBanco + Contpaqi (sin duplicar procesos, pedido de Sandra) ──
-        // POR QUÉ aquí: este es el momento del "saldar en 0". Por cada factura liquidada se crea
+        // â”€â”€ Reflejar en WieseBanco + Contpaqi (sin duplicar procesos, pedido de Sandra) â”€â”€
+        // POR QUÃ‰ aquÃ­: este es el momento del "saldar en 0". Por cada factura liquidada se crea
         // un movimiento en WieseBanco (con su NUM consecutivo) y se registra el pago en Contpaqi.
         // Envuelto en try/catch: si WieseBanco/Contpaqi fallara, NO debe tumbar el abono de Karen.
         try {
@@ -926,7 +349,7 @@ class AdminPagoProveedoresController extends Controller
             \Illuminate\Support\Facades\Log::warning('[AbonoInterno] No se pudo reflejar en WieseBanco/Contpaqi: '.$e->getMessage());
         }
 
-        // Notificación para admin (campanita + badge en sidebar)
+        // NotificaciÃ³n para admin (campanita + badge en sidebar)
         try {
             $montoTotal = $facturas->sum('monto_pagado');
             $montoFmt = number_format((float) $montoTotal, 2);
@@ -936,7 +359,7 @@ class AdminPagoProveedoresController extends Controller
                 'destinatario_tipo' => 'admin',
                 'destinatario_id' => session('admin_id'),
                 'titulo' => 'Abono registrado',
-                'contenido' => "Póliza {$data['poliza']} — {$facturas->count()} factura(s) liquidadas por \${$montoFmt}. Proveedor: {$data['codigo_proveedor']}.",
+                'contenido' => "PÃ³liza {$data['poliza']} â€” {$facturas->count()} factura(s) liquidadas por \${$montoFmt}. Proveedor: {$data['codigo_proveedor']}.",
                 'nivel' => 'info',
                 'estatus' => 'nueva',
                 'datos' => [
@@ -951,7 +374,7 @@ class AdminPagoProveedoresController extends Controller
             \Illuminate\Support\Facades\Log::warning('[AbonoInterno] No se pudo crear alerta admin: ' . $e->getMessage());
         }
 
-        // Notificación para proveedor: facturas liquidadas
+        // NotificaciÃ³n para proveedor: facturas liquidadas
         try {
             $proveedor = \App\Models\ProveedorUser::where('codigo', $data['codigo_proveedor'])->first();
             if ($proveedor) {
@@ -978,12 +401,12 @@ class AdminPagoProveedoresController extends Controller
         }
 
         return redirect()->route('admin.historial-abonos', ['cuenta' => $data['cuenta_key'] ?? ''])
-            ->with('ok', 'Abono registrado. Póliza: ' . $data['poliza'] . ' — ' . $facturas->count() . ' factura(s) liquidadas.');
+            ->with('ok', 'Abono registrado. PÃ³liza: ' . $data['poliza'] . ' â€” ' . $facturas->count() . ' factura(s) liquidadas.');
     }
 
     /**
      * Guardar el abono como ANTICIPO cuando no hay OC/factura en el sistema.
-     * Se dispara desde el botón "Guardar" en la pestaña Información Adicional.
+     * Se dispara desde el botÃ³n "Guardar" en la pestaÃ±a InformaciÃ³n Adicional.
      */
     public function abonoInternoAnticipo(Request $request)
     {
@@ -1004,7 +427,7 @@ class AdminPagoProveedoresController extends Controller
             'referencia' => 'required|string|max:120',
             'observaciones' => 'nullable|string|max:1000',
         ], [
-            'fecha.before' => 'La fecha debe ser un día anterior a hoy.',
+            'fecha.before' => 'La fecha debe ser un dÃ­a anterior a hoy.',
         ]);
 
         // Anticipo permitido en cualquier cuenta: cuando las facturas mostradas no corresponden al pago
@@ -1019,7 +442,7 @@ class AdminPagoProveedoresController extends Controller
         $di = is_array($proveedor->datos_identificacion) ? $proveedor->datos_identificacion : [];
 
         $anticipo = \App\Models\AnticipoProveedor::create([
-            'folio' => $data['poliza'], // el folio/nº póliza que capturó
+            'folio' => $data['poliza'], // el folio/nÂº pÃ³liza que capturÃ³
             'proveedor_id' => $proveedor->id,
             'codigo_proveedor' => $proveedor->id_proveedor ?: $proveedor->codigo,
             'nombre_proveedor' => $proveedor->nombre,
@@ -1030,7 +453,7 @@ class AdminPagoProveedoresController extends Controller
             'importe' => $total,
             'iva' => 0,
             'total_banco' => $total,
-            'folio_general' => $data['referencia'], // número de orden
+            'folio_general' => $data['referencia'], // nÃºmero de orden
             'departamento' => 'Compras',
             'fecha' => $data['fecha'],
             'concepto' => $cuentaConcepto,
@@ -1074,12 +497,12 @@ class AdminPagoProveedoresController extends Controller
         }
 
         return redirect()->route('admin.historial-abonos', ['cuenta' => $data['cuenta_key'] ?? ''])
-            ->with('ok', 'Pago registrado como anticipo. Referencia/Orden: ' . $data['referencia'] . ' — $' . number_format($total, 2) . '.');
+            ->with('ok', 'Pago registrado como anticipo. Referencia/Orden: ' . $data['referencia'] . ' â€” $' . number_format($total, 2) . '.');
     }
 
-    // ═══════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // ANTICIPOS
-    // ═══════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     public function anticiposIndex(Request $request)
     {
@@ -1089,12 +512,12 @@ class AdminPagoProveedoresController extends Controller
             ->get();
 
         // Departamentos que hacen anticipos (para los filtros/tabs).
-        $departamentos = ['Compras Nacional', 'Logística', 'Mantenimiento'];
+        $departamentos = ['Compras Nacional', 'LogÃ­stica', 'Mantenimiento'];
 
         $depto = trim((string) $request->query('departamento', ''));
         $buscar = trim((string) $request->query('q', ''));
 
-        // Acceso por departamento: si el admin es de un área, solo ve la suya.
+        // Acceso por departamento: si el admin es de un Ã¡rea, solo ve la suya.
         $deptoAdmin = $this->departamentoDelAdmin();
         $accesoRestringido = $deptoAdmin !== null;
         if ($accesoRestringido) {
@@ -1117,7 +540,7 @@ class AdminPagoProveedoresController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        // KPIs por departamento (conteo y monto total) — respetan la búsqueda pero no el filtro de depto.
+        // KPIs por departamento (conteo y monto total) â€” respetan la bÃºsqueda pero no el filtro de depto.
         $baseKpi = \App\Models\AnticipoProveedor::query()
             ->when($buscar !== '', function ($qb) use ($buscar) {
                 $qb->where(function ($w) use ($buscar) {
@@ -1146,7 +569,7 @@ class AdminPagoProveedoresController extends Controller
     }
 
     /**
-     * Exporta los anticipos a CSV, respetando el filtro de departamento y búsqueda.
+     * Exporta los anticipos a CSV, respetando el filtro de departamento y bÃºsqueda.
      */
     public function anticiposExcel(Request $request)
     {
@@ -1173,10 +596,10 @@ class AdminPagoProveedoresController extends Controller
 
         $lines = [];
         $lines[] = ['INDUSTRIAS SALCOM S.A. DE C.V.'];
-        $lines[] = ['Reporte de Anticipos'.($depto !== '' ? ' — '.$depto : '')];
+        $lines[] = ['Reporte de Anticipos'.($depto !== '' ? ' â€” '.$depto : '')];
         $lines[] = ['Generado', now()->format('d/m/Y H:i')];
         $lines[] = [];
-        $lines[] = ['Fecha', 'Folio general', 'Departamento', 'Proveedor', 'Código', 'RFC', 'Banco', 'Importe', 'IVA', 'Total', 'Estatus', 'UUID CFDI', 'Concepto'];
+        $lines[] = ['Fecha', 'Folio general', 'Departamento', 'Proveedor', 'CÃ³digo', 'RFC', 'Banco', 'Importe', 'IVA', 'Total', 'Estatus', 'UUID CFDI', 'Concepto'];
 
         $totalGeneral = 0.0;
         foreach ($anticipos as $a) {
@@ -1235,7 +658,7 @@ class AdminPagoProveedoresController extends Controller
         // Mapa rol -> departamento de anticipos.
         $mapa = [
             'compras_nacional' => 'Compras Nacional',
-            'logistica' => 'Logística',
+            'logistica' => 'LogÃ­stica',
             'mantenimiento' => 'Mantenimiento',
         ];
 
@@ -1244,7 +667,7 @@ class AdminPagoProveedoresController extends Controller
 
     public function anticiposStore(Request $request)
     {
-        // Limpiar comas de los campos numéricos antes de validar
+        // Limpiar comas de los campos numÃ©ricos antes de validar
         $request->merge([
             'importe' => str_replace(',', '', (string) $request->input('importe', '')),
             'iva' => str_replace([',', '$'], '', (string) $request->input('iva', '0')),
@@ -1288,11 +711,12 @@ class AdminPagoProveedoresController extends Controller
             if ($esPdf) {
                 // Leer texto del PDF y extraer el UUID (formato "UUID:...").
                 $uuidDelArchivo = $this->extraerUuidDePdf($archivo);
-                $xmlPath = $archivo->store('anticipos/pdf', 'public');
+                // Disco PRIVADO (local): anticipos llevan datos fiscales.
+                $xmlPath = $archivo->store('anticipos/pdf', 'local');
             } else {
                 $xmlContent = file_get_contents($archivo->getRealPath());
                 $uuidDelArchivo = $this->extraerUuidDeXml((string) $xmlContent);
-                $xmlPath = $archivo->store('anticipos/xml', 'public');
+                $xmlPath = $archivo->store('anticipos/xml', 'local');
             }
 
             if ($uuidDelArchivo) {
@@ -1341,7 +765,7 @@ class AdminPagoProveedoresController extends Controller
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('admin.anticipos.formato-pdf', $data)
             ->setPaper('letter', 'landscape');
 
-        // El nombre incluye el folio_general (identificador único del anticipo) y su id,
+        // El nombre incluye el folio_general (identificador Ãºnico del anticipo) y su id,
         // para poder validar al adjuntarlo que el formato corresponde al anticipo correcto.
         $folioGeneralSlug = \Illuminate\Support\Str::slug($anticipo->folio_general ?: 'anticipo', '-');
 
@@ -1349,21 +773,29 @@ class AdminPagoProveedoresController extends Controller
     }
 
     /**
-     * Sirve el PDF del formato de anticipo adjuntado (el que se subió al aplicar).
-     * Se entrega vía Laravel para no depender del acceso directo a /storage.
+     * Sirve el PDF del formato de anticipo adjuntado (el que se subiÃ³ al aplicar).
+     * Se entrega vÃ­a Laravel para no depender del acceso directo a /storage.
      */
     public function anticiposFormatoAdjunto(\App\Models\AnticipoProveedor $anticipo)
     {
         $ruta = $anticipo->datos['formato_pdf'] ?? null;
 
-        if (! $ruta || ! \Illuminate\Support\Facades\Storage::disk('public')->exists($ruta)) {
+        // Disco PRIVADO primero; 'public' como respaldo para anticipos viejos pre-migraciÃ³n.
+        $disco = null;
+        foreach (['local', 'public'] as $d) {
+            if ($ruta && \Illuminate\Support\Facades\Storage::disk($d)->exists($ruta)) {
+                $disco = $d;
+                break;
+            }
+        }
+        if (! $disco) {
             abort(404, 'No hay formato de anticipo adjuntado.');
         }
 
         $nombre = 'Formato_Anticipo_'.$anticipo->id.'_'.($anticipo->folio_general ?: 'anticipo').'.pdf';
 
         return response()->file(
-            \Illuminate\Support\Facades\Storage::disk('public')->path($ruta),
+            \Illuminate\Support\Facades\Storage::disk($disco)->path($ruta),
             ['Content-Disposition' => 'inline; filename="'.$nombre.'"']
         );
     }
@@ -1379,7 +811,7 @@ class AdminPagoProveedoresController extends Controller
 
         // No se puede reaplicar un anticipo ya aplicado o cancelado.
         if (in_array($anticipo->estatus, ['aplicado', 'cancelado'], true)) {
-            $msg = 'Este anticipo ya está '.$anticipo->estatus.'. No se puede aplicar de nuevo.';
+            $msg = 'Este anticipo ya estÃ¡ '.$anticipo->estatus.'. No se puede aplicar de nuevo.';
             return $wantsJson
                 ? response()->json(['ok' => false, 'mensaje' => $msg], 422)
                 : back()->withErrors($msg);
@@ -1387,10 +819,10 @@ class AdminPagoProveedoresController extends Controller
 
         // Validar que el CONTENIDO del PDF corresponda a ESTE anticipo.
         // Leemos el texto del PDF y exigimos que contenga el folio_general del anticipo
-        // (identificador visible en el formato). Respaldo: el código del proveedor.
+        // (identificador visible en el formato). Respaldo: el cÃ³digo del proveedor.
         $textoPdf = $this->extraerTextoPdfNormalizado($request->file('formato_pdf'));
         if ($textoPdf === null) {
-            $msg = 'No se pudo leer el contenido del PDF. Asegúrate de adjuntar el formato de anticipo generado por el sistema (no una imagen escaneada).';
+            $msg = 'No se pudo leer el contenido del PDF. AsegÃºrate de adjuntar el formato de anticipo generado por el sistema (no una imagen escaneada).';
             return $wantsJson
                 ? response()->json(['ok' => false, 'mensaje' => $msg], 422)
                 : back()->withErrors($msg);
@@ -1425,7 +857,8 @@ class AdminPagoProveedoresController extends Controller
         // Almacenar el archivo PDF
         $filePath = null;
         if ($request->hasFile('formato_pdf')) {
-            $filePath = $request->file('formato_pdf')->store('anticipos', 'public');
+            // Disco PRIVADO (local): formato de anticipo sensible.
+            $filePath = $request->file('formato_pdf')->store('anticipos', 'local');
         }
 
         // Aplicar: descontar del saldo real de la factura (como un pago parcial).
@@ -1486,7 +919,7 @@ class AdminPagoProveedoresController extends Controller
         $wantsJson = $request->ajax() || $request->wantsJson();
 
         if ($anticipo->estatus === 'cancelado') {
-            $msg = 'El anticipo ya está cancelado.';
+            $msg = 'El anticipo ya estÃ¡ cancelado.';
             return $wantsJson ? response()->json(['ok' => false, 'mensaje' => $msg], 422) : back()->with('error', $msg);
         }
 
@@ -1530,7 +963,7 @@ class AdminPagoProveedoresController extends Controller
     {
         $meta = config('polizas_pago.'.$key);
         if (! is_array($meta)) {
-            throw new InvalidArgumentException('Póliza no válida.');
+            throw new InvalidArgumentException('PÃ³liza no vÃ¡lida.');
         }
 
         return $meta;
@@ -1538,7 +971,7 @@ class AdminPagoProveedoresController extends Controller
 
     /**
      * Lee el texto de un PDF (subido) y lo devuelve normalizado:
-     * mayúsculas y solo alfanumérico (sin espacios/guiones/acentos), para
+     * mayÃºsculas y solo alfanumÃ©rico (sin espacios/guiones/acentos), para
      * comparar identificadores de forma robusta. Devuelve null si no se pudo leer.
      */
     private function extraerTextoPdfNormalizado(\Illuminate\Http\UploadedFile $archivo): ?string
@@ -1555,14 +988,14 @@ class AdminPagoProveedoresController extends Controller
             return null;
         }
 
-        // Normalizar: quitar acentos, pasar a mayúsculas, dejar solo A-Z0-9.
+        // Normalizar: quitar acentos, pasar a mayÃºsculas, dejar solo A-Z0-9.
         $texto = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $texto) ?: $texto;
         $texto = strtoupper($texto);
 
         return preg_replace('/[^A-Z0-9]/', '', $texto);
     }
 
-    /** Normaliza un identificador a solo A-Z0-9 mayúsculas para comparar. */
+    /** Normaliza un identificador a solo A-Z0-9 mayÃºsculas para comparar. */
     private function normalizarIdentificador(?string $valor): string
     {
         $valor = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', (string) $valor) ?: (string) $valor;
@@ -1571,7 +1004,7 @@ class AdminPagoProveedoresController extends Controller
 
     /**
      * Extrae el UUID (Folio Fiscal) del texto de un PDF de CFDI.
-     * Busca el patrón UUID de 36 caracteres. Devuelve mayúsculas o null.
+     * Busca el patrÃ³n UUID de 36 caracteres. Devuelve mayÃºsculas o null.
      */
     private function extraerUuidDePdf(\Illuminate\Http\UploadedFile $archivo): ?string
     {
@@ -1593,7 +1026,7 @@ class AdminPagoProveedoresController extends Controller
 
     /**
      * Extrae el UUID del TimbreFiscalDigital de un XML CFDI.
-     * Devuelve el UUID en mayúsculas o null si no se encuentra.
+     * Devuelve el UUID en mayÃºsculas o null si no se encuentra.
      */
     private function extraerUuidDeXml(string $xmlContent): ?string
     {
@@ -1630,17 +1063,17 @@ class AdminPagoProveedoresController extends Controller
 
     /**
      * Orden del flujo de pago. Cada estatus solo puede avanzar al siguiente.
-     * pendiente → programada → pagada → liquidada
+     * pendiente â†’ programada â†’ pagada â†’ liquidada
      */
     private const ORDEN_FLUJO = ['pendiente', 'programada', 'pagada', 'liquidada'];
 
     /**
-     * Valida que todas las facturas solicitadas estén en el estatus esperado
-     * para este paso del flujo. Si alguna está en otro estatus, devuelve un
-     * mensaje que explica qué paso falta, en lugar de descartarla en silencio.
+     * Valida que todas las facturas solicitadas estÃ©n en el estatus esperado
+     * para este paso del flujo. Si alguna estÃ¡ en otro estatus, devuelve un
+     * mensaje que explica quÃ© paso falta, en lugar de descartarla en silencio.
      *
      * @param  array<int>  $facturaIds
-     * @return string|null  Mensaje de error, o null si la secuencia es válida.
+     * @return string|null  Mensaje de error, o null si la secuencia es vÃ¡lida.
      */
     private function validarSecuenciaFacturas(array $facturaIds, string $estatusRequerido, string $nombrePaso): ?string
     {
@@ -1661,7 +1094,7 @@ class AdminPagoProveedoresController extends Controller
         $etiquetas = [
             'pendiente' => 'Pendiente',
             'programada' => 'Programada (Formato para pago)',
-            'pagada' => 'Pagada (Pago a proveedor)',
+            'pagada' => 'Pagada (comprobante del banco subido)',
             'liquidada' => 'Liquidada (Abono al proveedor)',
         ];
 
@@ -1671,12 +1104,12 @@ class AdminPagoProveedoresController extends Controller
             $estatusActual = $etiquetas[$f->estatus] ?? ucfirst($f->estatus);
 
             if ($posActual === false) {
-                return "{$folio} tiene un estatus no válido ({$f->estatus}).";
+                return "{$folio} tiene un estatus no vÃ¡lido ({$f->estatus}).";
             }
             if ($posActual < $posRequerida) {
-                return "{$folio} aún está en \"{$estatusActual}\"; falta completar el paso anterior antes de continuar.";
+                return "{$folio} aÃºn estÃ¡ en \"{$estatusActual}\"; falta completar el paso anterior antes de continuar.";
             }
-            return "{$folio} ya pasó este paso (está en \"{$estatusActual}\"). No se puede repetir.";
+            return "{$folio} ya pasÃ³ este paso (estÃ¡ en \"{$estatusActual}\"). No se puede repetir.";
         })->values()->all();
 
         return 'No se puede continuar, hay facturas fuera de secuencia: '.implode(' ', $detalles);

@@ -103,19 +103,20 @@ class ReembolsoViajeController extends Controller
 
         $totalBase = round($totalLocal * $tipoCambio, 2);
 
+        // Disco PRIVADO (local): comprobantes y facturas de viaje llevan datos fiscales/personales.
         $pathArchivo = null;
         if ($request->hasFile('archivo_comprobantes')) {
-            $pathArchivo = $request->file('archivo_comprobantes')->store('reembolsos-viaje', 'public');
+            $pathArchivo = $request->file('archivo_comprobantes')->store('reembolsos-viaje', 'local');
         }
 
         $pathFacturaPdf = null;
         if ($request->hasFile('factura_pdf')) {
-            $pathFacturaPdf = $request->file('factura_pdf')->store('reembolsos-viaje/facturas', 'public');
+            $pathFacturaPdf = $request->file('factura_pdf')->store('reembolsos-viaje/facturas', 'local');
         }
 
         $pathFacturaXml = null;
         if ($request->hasFile('factura_xml')) {
-            $pathFacturaXml = $request->file('factura_xml')->store('reembolsos-viaje/xml', 'public');
+            $pathFacturaXml = $request->file('factura_xml')->store('reembolsos-viaje/xml', 'local');
         }
 
         $reembolso = ReembolsoViaje::create([

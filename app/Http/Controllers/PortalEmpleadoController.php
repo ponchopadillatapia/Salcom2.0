@@ -87,7 +87,7 @@ class PortalEmpleadoController extends Controller
         ]);
 
         $pathFactura = $request->hasFile('factura_gasolina')
-            ? $request->file('factura_gasolina')->store('bitacora-gasolina', 'public')
+            ? $request->file('factura_gasolina')->store('bitacora-gasolina', 'local')
             : null;
 
         BitacoraGasolina::create([
@@ -131,9 +131,10 @@ class PortalEmpleadoController extends Controller
             'archivo_materialidad' => 'nullable|file|mimes:pdf,jpg,jpeg,png|max:10240',
         ]);
 
-        $pathFactura = $request->file('archivo_factura')->store('reembolsos/facturas', 'public');
+        // Disco PRIVADO (local): factura y materialidad del reembolso.
+        $pathFactura = $request->file('archivo_factura')->store('reembolsos/facturas', 'local');
         $pathMaterialidad = $request->hasFile('archivo_materialidad')
-            ? $request->file('archivo_materialidad')->store('reembolsos/materialidad', 'public')
+            ? $request->file('archivo_materialidad')->store('reembolsos/materialidad', 'local')
             : null;
 
         Reembolso::create([

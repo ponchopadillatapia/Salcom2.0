@@ -521,7 +521,8 @@ class AdminPagosController extends Controller
                 $codigo = $a->datos['codigo_proveedor'] ?? null;
                 $url = match ($a->tipo) {
                     'pago_programado' => route('admin.pagos'),
-                    'pago_realizado' => route('admin.pago-proveedores'),
+                    // "Pago a proveedor" se eliminó; estas alertas viejas ahora llevan al expediente/pagos.
+                    'pago_realizado' => route('admin.pagos'),
                     'abono_interno_registrado' => route('admin.historial-abonos'),
                     default => $codigo ? route('admin.pagos.proveedor', $codigo) : route('admin.pagos'),
                 };
@@ -638,6 +639,9 @@ class AdminPagosController extends Controller
                     []
                 );
                 $pago = $pago->fresh();
+
+                // CORREO 1: formato confirmado → avisar al autorizador (Alexa).
+                app(\App\Services\CorreosFlujoPagoService::class)->formatoGenerado($pago);
 
                 return redirect()
                     ->route('admin.pagos.show', ['pago' => $pago, 'descargar_reporte' => 1])
@@ -944,10 +948,13 @@ class AdminPagosController extends Controller
                 continue;
             }
             $folio = $this->pagos->folioFacturaDisplay($f);
-            $pdfUrl = $f->archivo_pdf && \Illuminate\Support\Facades\Storage::disk('public')->exists($f->archivo_pdf)
-                ? asset('storage/'.$f->archivo_pdf) : null;
-            $xmlUrl = $f->archivo_xml && \Illuminate\Support\Facades\Storage::disk('public')->exists($f->archivo_xml)
-                ? asset('storage/'.$f->archivo_xml) : null;
+            // POR QUÉ ruta protegida: las facturas ahora viven en disco privado (no público).
+            // Se sirven por admin.pagos.factura-archivo, que pasa por el middleware auth.admin.
+            // Se busca en 'local' y, por compatibilidad, en 'public' (archivos viejos pre-migración).
+            $existePdf = $f->archivo_pdf && (\Illuminate\Support\Facades\Storage::disk('local')->exists($f->archivo_pdf) || \Illuminate\Support\Facades\Storage::disk('public')->exists($f->archivo_pdf));
+            $existeXml = $f->archivo_xml && (\Illuminate\Support\Facades\Storage::disk('local')->exists($f->archivo_xml) || \Illuminate\Support\Facades\Storage::disk('public')->exists($f->archivo_xml));
+            $pdfUrl = $existePdf ? route('admin.pagos.factura-archivo', ['factura' => $f->id, 'tipo' => 'pdf']) : null;
+            $xmlUrl = $existeXml ? route('admin.pagos.factura-archivo', ['factura' => $f->id, 'tipo' => 'xml']) : null;
             $facturasLote[] = [
                 'folio' => $folio,
                 'total' => (float) $f->total,
@@ -966,6 +973,70 @@ class AdminPagosController extends Controller
             'docsFiscales',
             'facturasLote'
         ));
+    }
+
+    /**
+     * Sirve el PDF/XML de una factura al ADMIN desde el disco privado (ruta protegida).
+     *
+     * POR QUÉ: las facturas se movieron a disco privado (datos fiscales). El admin ya está
+     * protegido por el middleware auth.admin; aquí solo elegimos el archivo y lo entregamos.
+     *
+     * @param  string  $tipo  'pdf' | 'xml' | 'oc'
+     */
+    public function facturaArchivo(Factura $factura, string $tipo)
+    {
+        $ruta = match ($tipo) {
+            'pdf' => $factura->archivo_pdf,
+            'xml' => $factura->archivo_xml,
+            'oc' => $factura->archivo_oc,
+            default => null,
+        };
+        $ruta = ltrim((string) $ruta, '/');
+        if ($ruta === '') {
+            abort(404, 'Archivo no disponible.');
+        }
+
+        // Privado primero; 'public' como respaldo para archivos viejos pre-migración.
+        foreach (['local', 'public'] as $disco) {
+            if (\Illuminate\Support\Facades\Storage::disk($disco)->exists($ruta)) {
+                return \Illuminate\Support\Facades\Storage::disk($disco)->response($ruta);
+            }
+        }
+
+        abort(404, 'El archivo no se encontró.');
+    }
+
+    /**
+     * Sirve un archivo del EXPEDIENTE de pago (comprobante, adjunto, formato, autorización) al
+     * admin, desde disco privado. La ruta del archivo viaja firmada para que no se pueda pedir
+     * cualquier archivo arbitrario del disco.
+     *
+     * POR QUÉ firmada: el expediente guarda las rutas dentro de JSON (documentos_adjuntos), no hay
+     * un id por archivo. Firmamos la URL (signedRoute) para que solo valgan las que generó el sistema.
+     */
+    public function expedienteArchivo(Request $request)
+    {
+        // La URL debe venir firmada por el propio sistema (evita que pidan rutas arbitrarias).
+        if (! $request->hasValidSignature()) {
+            abort(403, 'Enlace no válido.');
+        }
+
+        $ruta = ltrim((string) $request->query('ruta', ''), '/');
+        // Candado: solo archivos dentro de las carpetas del flujo de pago.
+        $permitido = str_starts_with($ruta, 'pagos_comprobantes/')
+            || str_starts_with($ruta, 'facturas-proveedor/')
+            || str_starts_with($ruta, 'expediente_fiscal/');
+        if ($ruta === '' || str_contains($ruta, '..') || ! $permitido) {
+            abort(404, 'Archivo no disponible.');
+        }
+
+        foreach (['local', 'public'] as $disco) {
+            if (\Illuminate\Support\Facades\Storage::disk($disco)->exists($ruta)) {
+                return \Illuminate\Support\Facades\Storage::disk($disco)->response($ruta);
+            }
+        }
+
+        abort(404, 'El archivo no se encontró.');
     }
 
     public function confirmar(Request $request, PagoProveedor $pago)
@@ -987,6 +1058,9 @@ class AdminPagosController extends Controller
         } catch (InvalidArgumentException $e) {
             return back()->withInput()->with('error', $e->getMessage());
         }
+
+        // CORREO 1: formato confirmado → avisar al autorizador (Alexa) que hay algo por autorizar.
+        app(\App\Services\CorreosFlujoPagoService::class)->formatoGenerado($pago->fresh());
 
         return redirect()
             ->route('admin.pagos.show', ['pago' => $pago, 'descargar_reporte' => 1])
@@ -1340,7 +1414,8 @@ class AdminPagosController extends Controller
             'archivo' => 'required|file|mimes:pdf,jpg,jpeg,png,xml|max:20480',
         ]);
 
-        $ruta = $request->file('archivo')->store('pagos_comprobantes/'.$pago->id.'/adjuntos', 'public');
+        // Disco PRIVADO: adjuntos del expediente (comprobante del banco/CEP, póliza) son sensibles.
+        $ruta = $request->file('archivo')->store('pagos_comprobantes/'.$pago->id.'/adjuntos', 'local');
 
         $adjuntos = $pago->documentos_adjuntos ?? [];
         $adjuntos[] = [
@@ -1354,7 +1429,61 @@ class AdminPagosController extends Controller
 
         AuditService::registrar('adjuntar', 'pagos', "Adjuntó {$data['tipo']} al expediente de pago #{$pago->id}");
 
+        // POR QUÉ: cuando lo que se sube es el COMPROBANTE DEL BANCO (CEP), ese es el disparador
+        // (acordado con Alexa) de que el pago YA se hizo: se marcan las facturas del lote como
+        // 'pagada' y se avisa por correo a cada departamento dueño de esas facturas.
+        if (str_contains(mb_strtolower($data['tipo']), 'banco') || str_contains(mb_strtolower($data['tipo']), 'cep')) {
+            $mensajeExtra = $this->marcarPagadasDesdeComprobanteBanco($pago);
+
+            return back()->with('mensaje', 'Comprobante del banco adjuntado. '.$mensajeExtra);
+        }
+
         return back()->with('mensaje', 'Documento adjuntado al expediente.');
+    }
+
+    /**
+     * Marca como 'pagada' las facturas del lote (las que estaban 'programada') y avisa por correo
+     * a cada departamento dueño. Se dispara al subir el comprobante del banco (CEP) en el expediente.
+     *
+     * POR QUÉ solo las 'programada': no tocar facturas que ya avanzaron (pagada/liquidada) por otra
+     * vía, ni las rechazadas. Suma el total pagado por departamento para el correo.
+     */
+    private function marcarPagadasDesdeComprobanteBanco(PagoProveedor $pago): string
+    {
+        $pago->loadMissing('lineas.factura');
+        $porDepto = []; // [depto => ['num'=>, 'monto'=>]]
+        $marcadas = 0;
+
+        foreach ($pago->lineas as $linea) {
+            $factura = $linea->factura;
+            if (! $factura || $factura->estatus !== 'programada') {
+                continue;
+            }
+            // Marcar pagada: cubre el total (el pago real ya se hizo en el banco).
+            $factura->update([
+                'estatus' => 'pagada',
+                'monto_pagado' => (float) $factura->total,
+            ]);
+
+            // Agrupar por departamento para el correo. La factura hereda el depto del pago
+            // (el lote tiene un departamento; en multi-proveedor todas comparten el del formato).
+            $depto = $pago->departamento ?: 'otros';
+            if (! isset($porDepto[$depto])) {
+                $porDepto[$depto] = ['num' => 0, 'monto' => 0.0];
+            }
+            $porDepto[$depto]['num']++;
+            $porDepto[$depto]['monto'] += (float) $factura->total;
+            $marcadas++;
+        }
+
+        if ($marcadas === 0) {
+            return 'No había facturas por marcar como pagadas.';
+        }
+
+        // CORREO 4: avisar a los departamentos dueños de las facturas pagadas.
+        app(\App\Services\CorreosFlujoPagoService::class)->facturasPagadas($pago->fresh(), $porDepto);
+
+        return "{$marcadas} factura(s) marcadas como pagadas y se notificó a los departamentos.";
     }
 
     /** Eliminar un adjunto manual del expediente. */
@@ -1414,8 +1543,9 @@ class AdminPagosController extends Controller
                 'hash' => $hash,
             ])->setPaper('letter');
 
+            // Disco PRIVADO: el PDF de autorización sellado es sensible (montos, proveedor, hash).
             $rutaPdf = 'pagos_comprobantes/'.$pago->id.'/adjuntos/autorizacion_'.$folioAut.'.pdf';
-            Storage::disk('public')->put($rutaPdf, $pdf->output());
+            Storage::disk('local')->put($rutaPdf, $pdf->output());
 
             $adjuntos = $pago->documentos_adjuntos ?? [];
             $adjuntos[] = [
@@ -1447,6 +1577,9 @@ class AdminPagosController extends Controller
             ['pago_id' => $pago->id, 'monto' => (float) $pago->monto_total, 'hash' => $hash]
         );
 
+        // CORREO 2: autorizado → avisar al pagador (Karen) que ya puede descargar el layout y pagar.
+        app(\App\Services\CorreosFlujoPagoService::class)->formatoAutorizado($pago->fresh());
+
         return back()->with('mensaje', 'Expediente autorizado. Se generó el comprobante de autorización sellado.');
     }
 
@@ -1454,23 +1587,39 @@ class AdminPagosController extends Controller
     public function rechazarExpediente(Request $request, PagoProveedor $pago)
     {
         $request->validate(['notas' => 'nullable|string|max:1000']);
+        $motivo = $request->input('notas');
 
         $pago->update([
             'estatus_autorizacion' => 'rechazado',
             'autorizado_por' => session('admin_id'),
             'autorizado_por_nombre' => session('admin_nombre'),
             'autorizado_at' => now(),
-            'notas_autorizacion' => $request->input('notas'),
+            'notas_autorizacion' => $motivo,
         ]);
+
+        // POR QUÉ regresar a 'pendiente' (decisión con Alexa): al rechazar, las facturas del lote
+        // deben quedar LIBRES para que el depa las vuelva a trabajar en un formato nuevo. Si se
+        // quedaran 'programada', quedarían atoradas (ni pagables ni re-seleccionables). Solo se
+        // tocan las que siguen 'programada' (no las que ya avanzaron a pagada/liquidada por otra vía).
+        $pago->loadMissing('lineas.factura');
+        foreach ($pago->lineas as $linea) {
+            $factura = $linea->factura;
+            if ($factura && $factura->estatus === 'programada') {
+                $factura->update(['estatus' => 'pendiente']);
+            }
+        }
 
         AuditService::registrar(
             'rechazar',
             'pagos',
             (session('admin_nombre') ?? 'Admin').' rechazó el expediente de pago #'.$pago->id,
             null,
-            ['pago_id' => $pago->id, 'motivo' => $request->input('notas')]
+            ['pago_id' => $pago->id, 'motivo' => $motivo]
         );
 
-        return back()->with('mensaje', 'Expediente rechazado.');
+        // CORREO 3: rechazado → avisar al departamento que generó el formato, con el motivo.
+        app(\App\Services\CorreosFlujoPagoService::class)->formatoRechazado($pago->fresh(), $motivo);
+
+        return back()->with('mensaje', 'Expediente rechazado. Las facturas volvieron a pendientes.');
     }
 }

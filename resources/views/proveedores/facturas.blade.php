@@ -214,8 +214,8 @@
                             data-moneda="{{ $moneda }}"
                             data-estatus="{{ $f->estatus }}"
                             data-notas="{{ $f->notas ?? '' }}"
-                            data-pdf="{{ $f->archivo_pdf ? asset('storage/'.$f->archivo_pdf) : '' }}"
-                            data-xml="{{ $f->archivo_xml ? asset('storage/'.$f->archivo_xml) : '' }}">
+                            data-pdf="{{ $f->archivo_pdf ? route('proveedores.facturas.archivo', ['factura' => $f->id, 'tipo' => 'pdf']) : '' }}"
+                            data-xml="{{ $f->archivo_xml ? route('proveedores.facturas.archivo', ['factura' => $f->id, 'tipo' => 'xml']) : '' }}">
                             <td>
                                 <span class="link">{{ $f->folio_cfdi ?: '—' }}</span>
                                 @if($f->uuid_cfdi)

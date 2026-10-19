@@ -245,8 +245,9 @@ class SolicitudModificacionDatosService
 
         // Sustituir constancia en expediente con la validada
         if ($solicitud->archivo_cif && Storage::disk('local')->exists($solicitud->archivo_cif)) {
+            // Se queda en disco PRIVADO (local): doc fiscal sensible, se sirve por ruta protegida.
             $dest = 'expediente_fiscal/'.$proveedor->id.'/constancia_fiscal_'.Str::random(8).'.pdf';
-            Storage::disk('public')->put($dest, Storage::disk('local')->get($solicitud->archivo_cif));
+            Storage::disk('local')->put($dest, Storage::disk('local')->get($solicitud->archivo_cif));
             DocumentoProveedor::updateOrCreate(
                 ['proveedor_id' => $proveedor->id, 'tipo' => 'constancia_fiscal'],
                 [
@@ -260,8 +261,9 @@ class SolicitudModificacionDatosService
         }
 
         if ($solicitud->archivo_acta && Storage::disk('local')->exists($solicitud->archivo_acta)) {
+            // Se queda en disco PRIVADO (local): doc fiscal sensible, se sirve por ruta protegida.
             $dest = 'expediente_fiscal/'.$proveedor->id.'/acta_constitutiva_'.Str::random(8).'.pdf';
-            Storage::disk('public')->put($dest, Storage::disk('local')->get($solicitud->archivo_acta));
+            Storage::disk('local')->put($dest, Storage::disk('local')->get($solicitud->archivo_acta));
             DocumentoProveedor::updateOrCreate(
                 ['proveedor_id' => $proveedor->id, 'tipo' => 'acta_constitutiva'],
                 [

@@ -28,12 +28,16 @@ Route::get('/dashboard-proveedor', [PortalProveedorController::class, 'mostrarDa
 Route::get('/proveedor/facturas', [PortalProveedorController::class, 'mostrarFacturas'])->name('proveedores.facturas')->middleware('auth.proveedor');
 Route::get('/proveedor/facturas/kpis-json', [PortalProveedorController::class, 'facturasKpisJson'])->name('proveedores.facturas.kpis')->middleware('auth.proveedor');
 Route::get('/proveedor/facturas/excel', [PortalProveedorController::class, 'facturasExcel'])->name('proveedores.facturas.excel')->middleware('auth.proveedor');
+// Descarga PROTEGIDA de la factura (PDF/XML/OC): verifica que la factura sea del proveedor en sesión.
+Route::get('/proveedor/facturas/{factura}/archivo/{tipo}', [PortalProveedorController::class, 'descargarFactura'])->name('proveedores.facturas.archivo')->middleware('auth.proveedor')->whereIn('tipo', ['pdf', 'xml', 'oc']);
 Route::get('/onboarding', [PortalProveedorController::class, 'mostrarOnboarding'])->name('proveedores.onboarding')->middleware('auth.proveedor');
 // ── Onboarding proveedor EXTRANJERO (importación / C-TPAT, en inglés) ──
 Route::get('/foreign-onboarding', [PortalProveedorController::class, 'mostrarForeignOnboarding'])->name('proveedores.foreign-onboarding')->middleware('auth.proveedor');
 Route::post('/foreign-onboarding/profile', [PortalProveedorController::class, 'guardarPerfilExtranjero'])->name('proveedores.foreign-onboarding.profile')->middleware('auth.proveedor');
 Route::post('/foreign-onboarding/security', [PortalProveedorController::class, 'guardarSeguridadExtranjero'])->name('proveedores.foreign-onboarding.security')->middleware('auth.proveedor');
 Route::post('/foreign-onboarding/document', [PortalProveedorController::class, 'subirDocumentoExtranjero'])->name('proveedores.foreign-onboarding.document')->middleware('auth.proveedor');
+// Descarga PROTEGIDA de un documento del proveedor (extranjero/fiscal): valida que sea suyo.
+Route::get('/proveedor/documento/{documento}/archivo', [PortalProveedorController::class, 'descargarDocumento'])->name('proveedores.documento.archivo')->middleware('auth.proveedor');
 Route::get('/business', [PortalProveedorController::class, 'mostrarBusiness'])->name('proveedores.business')->middleware('auth.proveedor');
 Route::get('/payment-history', [PortalProveedorController::class, 'mostrarPaymentHistory'])->name('proveedores.payment-history')->middleware('auth.proveedor');
 Route::get('/perfil', [PortalProveedorController::class, 'mostrarPerfil'])->name('proveedores.perfil')->middleware('auth.proveedor');
@@ -247,6 +251,10 @@ Route::get('/admin/pagos/carrito', [AdminPagosController::class, 'carritoVer'])-
 Route::post('/admin/pagos/carrito/quitar', [AdminPagosController::class, 'carritoQuitar'])->name('admin.pagos.carrito.quitar')->middleware('auth.admin');
 Route::post('/admin/pagos/carrito/vaciar', [AdminPagosController::class, 'carritoVaciar'])->name('admin.pagos.carrito.vaciar')->middleware('auth.admin');
 Route::post('/admin/pagos/carrito/generar', [AdminPagosController::class, 'carritoGenerar'])->name('admin.pagos.carrito.generar')->middleware('auth.admin');
+// Descarga PROTEGIDA de la factura (PDF/XML/OC) para el admin, desde disco privado.
+Route::get('/admin/pagos/factura/{factura}/archivo/{tipo}', [AdminPagosController::class, 'facturaArchivo'])->name('admin.pagos.factura-archivo')->middleware('auth.admin')->whereIn('tipo', ['pdf', 'xml', 'oc']);
+// Archivo del expediente de pago (comprobante/adjunto/formato/autorización), por URL firmada.
+Route::get('/admin/pagos/expediente-archivo', [AdminPagosController::class, 'expedienteArchivo'])->name('admin.pagos.expediente-archivo')->middleware('auth.admin');
 Route::get('/admin/pagos/{pago}', [AdminPagosController::class, 'show'])->name('admin.pagos.show')->middleware('auth.admin');
 Route::post('/admin/pagos/{pago}/confirmar', [AdminPagosController::class, 'confirmar'])->name('admin.pagos.confirmar')->middleware('auth.admin');
 Route::post('/admin/pagos/{pago}/cancelar', [AdminPagosController::class, 'cancelar'])->name('admin.pagos.cancelar')->middleware('auth.admin');
@@ -267,14 +275,11 @@ Route::post('/admin/pagos/{pago}/expediente/rechazar', [AdminPagosController::cl
 
 use App\Http\Controllers\AdminPagoProveedoresController;
 
-Route::get('/admin/pago-proveedores', [AdminPagoProveedoresController::class, 'index'])->name('admin.pago-proveedores')->middleware('auth.admin');
-Route::get('/admin/pago-proveedores/nuevo', [AdminPagoProveedoresController::class, 'nuevo'])->name('admin.pago-proveedores.nuevo')->middleware('auth.admin');
-Route::get('/admin/pago-proveedores/nuevo/{poliza}', [AdminPagoProveedoresController::class, 'create'])->name('admin.pago-proveedores.create')->middleware('auth.admin');
-Route::get('/admin/pago-proveedores/facturas-json', [AdminPagoProveedoresController::class, 'facturasJson'])->name('admin.pago-proveedores.facturas-json')->middleware('auth.admin');
-Route::post('/admin/pago-proveedores', [AdminPagoProveedoresController::class, 'store'])->name('admin.pago-proveedores.store')->middleware('auth.admin');
-Route::get('/admin/pago-proveedores/{abono}/comprobante', [AdminPagoProveedoresController::class, 'comprobantePago'])->name('admin.pago-proveedores.comprobante')->middleware('auth.admin');
-Route::get('/admin/pago-proveedores/{abono}', [AdminPagoProveedoresController::class, 'show'])->name('admin.pago-proveedores.show')->middleware('auth.admin');
-Route::post('/admin/pago-proveedores/{abono}/cancelar', [AdminPagoProveedoresController::class, 'cancelar'])->name('admin.pago-proveedores.cancelar')->middleware('auth.admin');
+// ── "Pago a proveedor" ELIMINADO (2026-10-16) ──
+// El flujo nuevo marca las facturas como pagadas cuando se sube el comprobante del banco (CEP)
+// en el Expediente de pago (AdminPagosController@adjuntarDocumento). Por eso se quitaron las
+// rutas admin.pago-proveedores.* (index/nuevo/create/facturas-json/store/comprobante/show/cancelar).
+// Se conservan "Abono al proveedor" (saldar en 0), "Historial de abonos" y "Anticipos".
 
 Route::get('/admin/abono-proveedor', [AdminPagoProveedoresController::class, 'abonoInterno'])->name('admin.abono-proveedor')->middleware('auth.admin');
 Route::get('/admin/abono-proveedor/facturas-json', [AdminPagoProveedoresController::class, 'abonoInternoFacturas'])->name('admin.abono-proveedor.facturas-json')->middleware('auth.admin');
@@ -289,6 +294,8 @@ Route::post('/admin/anticipos/{anticipo}/cancelar', [AdminPagoProveedoresControl
 Route::get('/admin/anticipos/{anticipo}/formato', [AdminPagoProveedoresController::class, 'anticiposFormato'])->name('admin.anticipos.formato')->middleware('auth.admin');
 Route::get('/admin/anticipos/{anticipo}/formato-adjunto', [AdminPagoProveedoresController::class, 'anticiposFormatoAdjunto'])->name('admin.anticipos.formato-adjunto')->middleware('auth.admin');
 
+// Archivo privado genérico del admin (reembolsos, facturas, etc.), por URL FIRMADA + lista blanca.
+Route::get('/admin/archivo-privado', [AdminPanelController::class, 'archivoPrivado'])->name('admin.archivo-privado')->middleware('auth.admin');
 Route::get('/admin/documentos', [AdminPanelController::class, 'documentos'])->name('admin.documentos')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal', [AdminPanelController::class, 'expedienteFiscal'])->name('admin.expediente-fiscal')->middleware('auth.admin');
 Route::get('/admin/expediente-fiscal/proveedor/{proveedor}', [AdminPanelController::class, 'expedienteFiscalVer'])->name('admin.expediente-fiscal.ver')->middleware('auth.admin');

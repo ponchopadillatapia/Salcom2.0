@@ -699,7 +699,8 @@ class EmpresaApiController extends Controller
                         $tiposGuardar = ['cif', 'opinion', 'acta', 'rep_legal', 'contribuyente', 'poder', 'caratula_banco', 'formato_identificacion'];
                         foreach ($tiposGuardar as $tipo) {
                             if ($request->hasFile($tipo.'_pdf')) {
-                                $rutaPublica = $request->file($tipo.'_pdf')->store("expediente_fiscal/{$tipo}", 'public');
+                                // Disco PRIVADO (local): docs fiscales sensibles, se sirven por ruta protegida.
+                                $rutaPublica = $request->file($tipo.'_pdf')->store("expediente_fiscal/{$tipo}", 'local');
                                 if ($rutaPublica) {
                                     $res = $resultadosPorTipo[$tipo] ?? null;
                                     // Si el documento se validó pero requiere revisión manual
@@ -727,7 +728,8 @@ class EmpresaApiController extends Controller
                         // son válidos (forman parte del semáforo), pero se conserva el detalle.
                         foreach ($tiposRepse as $tipoRepse) {
                             if ($request->hasFile($tipoRepse.'_pdf')) {
-                                $rutaRepse = $request->file($tipoRepse.'_pdf')->store("expediente_fiscal/{$tipoRepse}", 'public');
+                                // Disco PRIVADO (local): docs REPSE sensibles, se sirven por ruta protegida.
+                                $rutaRepse = $request->file($tipoRepse.'_pdf')->store("expediente_fiscal/{$tipoRepse}", 'local');
                                 if ($rutaRepse) {
                                     $resRepse = $repseResultados[$tipoRepse] ?? null;
                                     $repseValido = is_array($resRepse) ? ! empty($resRepse['valida']) : false;

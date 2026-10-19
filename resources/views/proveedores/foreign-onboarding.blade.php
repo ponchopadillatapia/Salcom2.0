@@ -249,7 +249,7 @@
                 <div class="fo-doc">
                     <div class="fo-doc-info">{{ $label }}
                         @if($doc)
-                            <small>Uploaded · <a href="{{ asset('storage/'.$doc->archivo) }}" target="_blank" style="color:#c4b5fd;">view file</a></small>
+                            <small>Uploaded · <a href="{{ route('proveedores.documento.archivo', $doc) }}" target="_blank" style="color:#c4b5fd;">view file</a></small>
                         @else
                             <small>Not uploaded yet</small>
                         @endif

@@ -62,7 +62,7 @@ class AutenticacionAdmin
                 // 'catalogo' = SOLO ver el catálogo de Productos, sin ninguna alta.
                 'catalogo' => ['admin/productos'],
                 'anticipos' => ['admin/anticipos'],
-                'pagos' => ['admin/pagos', 'admin/pago-proveedores', 'admin/abono-proveedor', 'admin/historial-abonos', 'admin/expedientes-pago'],
+                'pagos' => ['admin/pagos', 'admin/abono-proveedor', 'admin/historial-abonos', 'admin/expedientes-pago'],
                 'proveedores' => ['admin/proveedores', 'admin/catalogo-proveedores', 'admin/solicitudes-alta', 'admin/solicitudes-docs', 'admin/expediente-fiscal', 'admin/proveedor-facturas'],
                 // reembolsos: 3 módulos de reembolso a empleados + alta/gestión de empleados (Nayeli)
                 'reembolsos' => ['admin/reembolsos', 'admin/reembolsos-viaje', 'admin/bitacora-gasolina', 'admin/empleados'],

@@ -117,7 +117,7 @@
             @endphp
             <div class="pe-doc">
                 <div>{{ $label }}
-                    @if($doc)<br><a href="{{ asset('storage/'.$doc->archivo) }}" target="_blank" style="color:var(--purple);font-size:12px;">Ver archivo</a>@endif
+                    @if($doc)<br><a href="{{ route('admin.expediente-fiscal.descargar', $doc) }}" target="_blank" style="color:var(--purple);font-size:12px;">Ver archivo</a>@endif
                 </div>
                 <span class="pe-badge {{ $cls }}">{{ $txt }}</span>
             </div>

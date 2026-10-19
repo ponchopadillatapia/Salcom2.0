@@ -1698,7 +1698,10 @@ class PortalProveedorController extends Controller
                     }
                 }
 
-                $ruta = $archivo->store("expediente_fiscal/{$tipo}", 'public');
+                // POR QUÉ 'local' (privado): son documentos fiscales del proveedor (constancia,
+                // opinión, acta, carátula bancaria). No deben verse por link directo. Se sirven por
+                // la ruta protegida admin.expediente-fiscal.descargar (solo admin con sesión).
+                $ruta = $archivo->store("expediente_fiscal/{$tipo}", 'local');
 
                 $notas = null;
                 if ($tipo === 'caratula_banco' && ($resultadoCaratula['decision'] ?? '') === 'revision') {
@@ -1726,6 +1729,79 @@ class PortalProveedorController extends Controller
         }
 
         return back()->with('adj_exito', "Se subieron {$subidos} documento(s) correctamente. El equipo de Salcom los revisará.");
+    }
+
+    /**
+     * Sirve el PDF o XML de una factura del proveedor desde el disco PRIVADO.
+     *
+     * POR QUÉ: las facturas ya no son públicas (link directo). Esta ruta protegida verifica que
+     * el proveedor en sesión sea DUEÑO de la factura antes de entregar el archivo. Si no, 403/404.
+     *
+     * @param  string  $tipo  'pdf' | 'xml' | 'oc'
+     */
+    public function descargarFactura(Factura $factura, string $tipo)
+    {
+        // 1) Debe haber sesión de proveedor.
+        $proveedorId = session('proveedor_id');
+        $proveedor = $proveedorId ? ProveedorUser::find($proveedorId) : null;
+        if (! $proveedor) {
+            abort(403, 'Debes iniciar sesión.');
+        }
+
+        // 2) La factura debe pertenecer a ESTE proveedor (por sus códigos). Si no, 403.
+        [, $codigos] = $this->resolverCodigosFacturaProveedor($proveedor);
+        if (! in_array($factura->codigo_proveedor, $codigos, true)) {
+            abort(403, 'Esta factura no te pertenece.');
+        }
+
+        // 3) Elegir el archivo según el tipo.
+        $ruta = match ($tipo) {
+            'pdf' => $factura->archivo_pdf,
+            'xml' => $factura->archivo_xml,
+            'oc' => $factura->archivo_oc,
+            default => null,
+        };
+        $ruta = ltrim((string) $ruta, '/');
+        if ($ruta === '') {
+            abort(404, 'Archivo no disponible.');
+        }
+
+        // 4) Entregar desde el disco privado. Si por archivos viejos aún estuviera en 'public',
+        //    también se busca ahí (compatibilidad con los subidos antes de la migración).
+        foreach (['local', 'public'] as $disco) {
+            if (Storage::disk($disco)->exists($ruta)) {
+                return Storage::disk($disco)->response($ruta);
+            }
+        }
+
+        abort(404, 'El archivo no se encontró.');
+    }
+
+    /**
+     * Sirve un DocumentoProveedor (fiscal/extranjero) desde disco privado, al PROVEEDOR dueño.
+     *
+     * POR QUÉ: el proveedor (ej. extranjero en su onboarding) ve sus propios documentos. Validamos
+     * que el documento sea suyo (proveedor_id en sesión) antes de entregarlo. 403 si no.
+     */
+    public function descargarDocumento(DocumentoProveedor $documento)
+    {
+        $proveedorId = session('proveedor_id');
+        if (! $proveedorId || (int) $documento->proveedor_id !== (int) $proveedorId) {
+            abort(403, 'Este documento no te pertenece.');
+        }
+
+        $ruta = ltrim((string) $documento->archivo, '/');
+        if ($ruta === '') {
+            abort(404, 'Documento no disponible.');
+        }
+
+        foreach (['local', 'public'] as $disco) {
+            if (Storage::disk($disco)->exists($ruta)) {
+                return Storage::disk($disco)->response($ruta);
+            }
+        }
+
+        abort(404, 'El archivo no se encontró.');
     }
 
     /**
@@ -2043,16 +2119,19 @@ class PortalProveedorController extends Controller
             throw new \InvalidArgumentException('Los archivos temporales expiraron. Vuelve a validar.');
         }
 
+        // POR QUÉ disco 'local' (privado) y NO 'public': las facturas llevan datos fiscales
+        // (RFC, montos, UUID). En 'public' eran accesibles por link directo sin login. Ahora se
+        // guardan en storage/app/private y solo se sirven por una ruta protegida que verifica sesión.
         $dir = 'facturas-proveedor/'.$proveedor->id;
         $finalPdf = $dir.'/'.uniqid('pdf_', true).'.pdf';
         $finalXml = $dir.'/'.uniqid('xml_', true).'.xml';
-        Storage::disk('public')->put($finalPdf, $disk->get($pendiente['path_pdf']));
-        Storage::disk('public')->put($finalXml, $disk->get($pendiente['path_xml']));
+        Storage::disk('local')->put($finalPdf, $disk->get($pendiente['path_pdf']));
+        Storage::disk('local')->put($finalXml, $disk->get($pendiente['path_xml']));
 
         $finalOc = null;
         if (! empty($pendiente['path_oc']) && $disk->exists($pendiente['path_oc'])) {
             $finalOc = $dir.'/'.uniqid('oc_', true).'.pdf';
-            Storage::disk('public')->put($finalOc, $disk->get($pendiente['path_oc']));
+            Storage::disk('local')->put($finalOc, $disk->get($pendiente['path_oc']));
         }
 
         $folioFactura = trim(($datos['serie'] ?? '').($datos['folio'] ?? ''));
@@ -2634,7 +2713,8 @@ class PortalProveedorController extends Controller
         ]);
 
         $tipo = $request->input('tipo_documento');
-        $ruta = $request->file('archivo')->store("foreign_supplier/{$tipo}", 'public');
+        // Disco PRIVADO (local): documentos del proveedor extranjero, se sirven por ruta protegida.
+        $ruta = $request->file('archivo')->store("foreign_supplier/{$tipo}", 'local');
 
         DocumentoProveedor::updateOrCreate(
             ['proveedor_id' => $proveedor->id, 'tipo' => $tipo],
