@@ -10,6 +10,7 @@ use App\Models\ForeignSupplierProfile;
 use App\Models\ProveedorUser;
 use App\Services\AlertEngineService;
 use App\Services\ProveedorApiService;
+use App\Support\PortalModulos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -623,6 +624,7 @@ class AuthProveedorController extends Controller
     private function redirectTrasLoginProveedor(string $nombre)
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
+
         if ($proveedor && ! $proveedor->activo) {
             // POR QUÉ: el extranjero tiene su propio onboarding en inglés (perfil + cuestionario C-TPAT + docs),
             // separado del onboarding mexicano (RFC/Wiese/CLABE) que no le aplica.
@@ -633,6 +635,12 @@ class AuthProveedorController extends Controller
 
             return redirect()->route('proveedores.onboarding')
                 ->with('mensaje', 'Bienvenido '.$nombre.'. Completa tu onboarding para que Dirección active tu cuenta.');
+        }
+
+        if (! PortalModulos::habilitado('inicio')) {
+            return redirect()
+                ->route(PortalModulos::destino())
+                ->with('mensaje', 'Bienvenido '.$nombre);
         }
 
         return redirect('/portal-proveedor')->with('mensaje', 'Bienvenido '.$nombre);

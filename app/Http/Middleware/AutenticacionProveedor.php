@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\ProveedorUser;
+use App\Support\PortalModulos;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\View;
@@ -103,6 +104,16 @@ class AutenticacionProveedor
                     ->route('proveedores.perfil')
                     ->with('error_contacto', 'Debes registrar mínimo 2 contactos antes de usar el resto del portal.');
             }
+        } elseif (PortalModulos::rutaBloqueada($ruta)) {
+            $mensaje = 'Este módulo aún no está disponible.';
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['mensaje' => $mensaje], 403);
+            }
+
+            return redirect()
+                ->route(PortalModulos::destino())
+                ->with('modulo_cerrado', $mensaje);
         }
 
         $response = $next($request);

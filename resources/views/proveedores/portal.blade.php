@@ -32,6 +32,14 @@
         border-color: var(--purple-dark);
         box-shadow: var(--shadow-md);
     }
+    a.pp-card-locked { cursor: not-allowed; text-decoration: none; color: inherit; }
+    a.pp-card-locked .pp-card,
+    a.pp-quick-card.pp-card-locked { opacity: .5; border-color: #d1d5db; }
+    a.pp-card-locked:hover .pp-card,
+    a.pp-quick-card.pp-card-locked:hover { border-color: #d1d5db; box-shadow: var(--shadow-sm); }
+    a.pp-card-locked .pp-detail-link { color: var(--gray-muted); }
+    a.pp-quick-card.pp-card-locked:hover .pp-quick-icon { background: var(--purple-light); box-shadow: none; }
+    a.pp-quick-card.pp-card-locked:hover .pp-quick-icon svg { stroke: #6b3fa0; }
     .pp-card h4 {
         font-size: 14px;
         font-weight: 700;
@@ -415,10 +423,32 @@
 @endpush
 
 @section('content')
+@php
+    $ventana = function (string $modulo, string $routeName): array {
+        if (\App\Support\PortalModulos::habilitado($modulo)) {
+            return ['href' => route($routeName), 'class' => '', 'attr' => '', 'detalle' => 'Ver detalle →'];
+        }
+
+        return [
+            'href' => '#',
+            'class' => ' pp-card-locked',
+            'attr' => 'title="Módulo aún no disponible." aria-disabled="true" onclick="event.preventDefault()"',
+            'detalle' => 'No disponible',
+        ];
+    };
+    $vAltaProducto = $ventana('alta_producto', 'proveedores.alta-producto');
+    $vFacturas = $ventana('facturas', 'proveedores.facturas');
+    $vMisProductos = $ventana('mis_productos', 'proveedores.mis-productos');
+    $vAltaFacturas = $ventana('alta_facturas', 'proveedores.fiscal');
+    $vOtif = $ventana('otif', 'proveedores.otif');
+    $vOc = $ventana('ordenes_compra', 'proveedores.oc');
+    $vForecast = $ventana('forecast', 'proveedores.forecast');
+    $vPagos = $ventana('business', 'proveedores.payment-history');
+@endphp
 <div class="pp-wrap">
 
     <div class="pp-kpi-section">
-        <a href="{{ route('proveedores.alta-producto') }}">
+        <a href="{{ $vAltaProducto['href'] }}" class="{{ trim($vAltaProducto['class']) }}" {!! $vAltaProducto['attr'] !!}>
         <div class="pp-card">
             <h4>Alta de producto</h4>
             <div class="pp-negocio-row">
@@ -430,11 +460,11 @@
                 <div class="pp-negocio-value" style="font-size:20px;">{{ $productosActivos }}</div>
             </div>
             <div class="pp-negocio-sub">Sube Excel para dar de alta productos</div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">{{ $vAltaProducto['detalle'] }}</span>
         </div>
         </a>
 
-        <a href="{{ route('proveedores.facturas') }}">
+        <a href="{{ $vFacturas['href'] }}" class="{{ trim($vFacturas['class']) }}" {!! $vFacturas['attr'] !!}>
         <div class="pp-card">
             <h4>Facturas</h4>
             <div class="pp-kpi-fact-body">
@@ -449,11 +479,11 @@
                 </div>
                 <div class="pp-chart-wrap-xs"><canvas id="chartFacturacion"></canvas></div>
             </div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">{{ $vFacturas['detalle'] }}</span>
         </div>
         </a>
 
-        <a href="{{ route('proveedores.mis-productos') }}">
+        <a href="{{ $vMisProductos['href'] }}" class="{{ trim($vMisProductos['class']) }}" {!! $vMisProductos['attr'] !!}>
         <div class="pp-card">
             <h4>Mis productos</h4>
             <div class="pp-negocio-row">
@@ -465,11 +495,11 @@
                 <div class="pp-negocio-value" style="font-size:20px;color:var(--red);">{{ $productosInactivos }}</div>
             </div>
             <div class="pp-negocio-sub">Total: {{ $productosActivos + $productosInactivos }}</div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">{{ $vMisProductos['detalle'] }}</span>
         </div>
         </a>
 
-        <a href="{{ route('proveedores.fiscal') }}">
+        <a href="{{ $vAltaFacturas['href'] }}" class="{{ trim($vAltaFacturas['class']) }}" {!! $vAltaFacturas['attr'] !!}>
         <div class="pp-card">
             <h4>Alta de facturas</h4>
             <div class="pp-negocio-row">
@@ -481,49 +511,49 @@
                 <div class="pp-negocio-value" style="font-size:20px;">{{ $facturasTotal }}</div>
             </div>
             <div class="pp-negocio-sub">Sube PDF y XML de la factura</div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">{{ $vAltaFacturas['detalle'] }}</span>
         </div>
         </a>
 
-        <a href="{{ route('proveedores.otif') }}">
+        <a href="{{ $vOtif['href'] }}" class="{{ trim($vOtif['class']) }}" {!! $vOtif['attr'] !!}>
         <div class="pp-card">
             <h4>OTIF</h4>
             <div class="pp-kpi-gauges">
                 <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOT" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ number_format($otPercent, 1) }}%</div></div></div><div class="pp-otif-label">OT</div></div>
                 <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeIF" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ number_format($ifPercent, 1) }}%</div></div></div><div class="pp-otif-label">IF</div></div>
             </div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
+            <span class="pp-detail-link" style="margin-top:auto;">{{ $vOtif['detalle'] }}</span>
         </div>
         </a>
     </div>
 
     <div class="pp-section-title">Accesos directos</div>
     <div class="pp-quick-grid">
-        <a href="{{ route('proveedores.oc') }}" class="pp-card pp-quick-card">
+        <a href="{{ $vOc['href'] }}" class="pp-card pp-quick-card{{ $vOc['class'] }}" {!! $vOc['attr'] !!}>
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
             </div>
             <div><div class="pp-quick-title">OC</div><div class="pp-quick-sub">Órdenes de compra</div></div>
         </a>
-        <a href="{{ route('proveedores.forecast') }}" class="pp-card pp-quick-card">
+        <a href="{{ $vForecast['href'] }}" class="pp-card pp-quick-card{{ $vForecast['class'] }}" {!! $vForecast['attr'] !!}>
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
             </div>
             <div><div class="pp-quick-title">Forecast</div><div class="pp-quick-sub">Tendencias de compra</div></div>
         </a>
-        <a href="{{ route('proveedores.payment-history') }}" class="pp-card pp-quick-card">
+        <a href="{{ $vPagos['href'] }}" class="pp-card pp-quick-card{{ $vPagos['class'] }}" {!! $vPagos['attr'] !!}>
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
             <div><div class="pp-quick-title">Pagos</div><div class="pp-quick-sub">Historial y pendientes</div></div>
         </a>
-        <a href="{{ route('proveedores.alta-producto') }}" class="pp-card pp-quick-card">
+        <a href="{{ $vAltaProducto['href'] }}" class="pp-card pp-quick-card{{ $vAltaProducto['class'] }}" {!! $vAltaProducto['attr'] !!}>
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
             </div>
             <div><div class="pp-quick-title">Alta de producto</div><div class="pp-quick-sub">Nuevo producto</div></div>
         </a>
-        <a href="{{ route('proveedores.mis-productos') }}" class="pp-card pp-quick-card">
+        <a href="{{ $vMisProductos['href'] }}" class="pp-card pp-quick-card{{ $vMisProductos['class'] }}" {!! $vMisProductos['attr'] !!}>
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             </div>

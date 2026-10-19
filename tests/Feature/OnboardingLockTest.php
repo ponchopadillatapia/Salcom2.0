@@ -203,13 +203,37 @@ class OnboardingLockTest extends TestCase
             ->assertRedirect(route('proveedores.onboarding'));
     }
 
-    public function test_activo_si_accede_operaciones(): void
+    public function test_activo_solo_entra_a_modulos_abiertos(): void
     {
         $p = $this->crearInactivo();
         $p->update(['activo' => true]);
         $this->sesion($p->fresh());
 
-        $this->get(route('proveedores.portal'))->assertOk();
+        $this->get(route('proveedores.facturas'))
+            ->assertOk()
+            ->assertSee('sb-locked', false)
+            ->assertSee('Módulo aún no disponible', false)
+            ->assertSee('Alta Facturas', false)
+            ->assertSee(route('proveedores.fiscal'), false);
+        $this->get(route('proveedores.onboarding'))->assertOk();
+        $this->get(route('proveedores.perfil'))->assertOk();
+
+        $this->get(route('proveedores.portal'))
+            ->assertOk()
+            ->assertSee(route('proveedores.facturas'), false)
+            ->assertSee(route('proveedores.fiscal'), false)
+            ->assertSee('pp-card-locked', false)
+            ->assertSee('No disponible', false)
+            ->assertDontSee(route('proveedores.alta-producto'), false)
+            ->assertDontSee(route('proveedores.otif'), false);
+        $this->get(route('proveedores.oc'))
+            ->assertRedirect(route('proveedores.facturas'));
+        $this->get(route('proveedores.mis-productos'))
+            ->assertRedirect(route('proveedores.facturas'));
+        $this->get(route('proveedores.ia'))
+            ->assertRedirect(route('proveedores.facturas'));
+
+        config(['salcom.portal_modulos.ordenes_compra' => true]);
         $this->get(route('proveedores.oc'))->assertOk();
     }
 
