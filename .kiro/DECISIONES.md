@@ -6,6 +6,50 @@
 
 ---
 
+## 2026-09-07 — Seguridad del API 5009 (APIPortalWeb): JWT + secretos fuera del código
+
+- **QUÉ:** El gateway 5009 ya NO es abierto. Ahora todos los endpoints exigen un token JWT, y los
+  secretos (llave JWT, usuario/clave de Wiese) salieron del código y viven como variables de
+  entorno del servicio en el 251 (vía NSSM).
+- **POR QUÉ:** lo pidió Alan (seguridad OWASP). Antes cualquiera con la URL del 5009 podía listar
+  proveedores, documentos y crear pagos sin credencial. Riesgo directo de fuga/fraude.
+- **CÓMO funciona (nivel B, JWT):**
+  1. El cliente (SiteGround) hace `POST /login` con un `GATEWAY_TOKEN` (contraseña de entrada).
+  2. Si el token es correcto, el 5009 devuelve un **JWT que dura 1 hora**.
+  3. Cada llamada a los endpoints lleva el header `Authorization: Bearer <jwt>`.
+  4. Sin token o con token malo → **401 Unauthorized**.
+- **DÓNDE en el código** (proyecto C# `C:\Users\IT\source\repos_git\APIPortalWeb\APIPortalWeb\`):
+  - `APIPortalWeb.csproj`: paquete `Microsoft.AspNetCore.Authentication.JwtBearer` 8.0.0.
+  - `appsettings.json`: `Jwt.Issuer` / `Jwt.Audience` (NO secreto, solo identificadores).
+  - `Program.cs`: lee `JWT_KEY` y `GATEWAY_TOKEN` de variables de entorno (defaults solo para dev
+    local); AddAuthentication/AddJwtBearer; Swagger con botón Authorize (candado); endpoint
+    `POST /login` que valida GatewayToken y firma el JWT 1h; bloque HTTPS Kestrel 5443 COMENTADO
+    (espera el certificado SAN de Genaro). Tipos auxiliares al final: SeguridadConfig, LoginRequest,
+    JwtHelper.GenerarToken.
+  - `Controllers/PagoProveedorController.cs`: `[Authorize]` sobre la clase; usuario/clave Wiese
+    sacados a `WIESE_USER`/`WIESE_PWD` (ya no "CONSULTA/12345" hardcodeados).
+- **SECRETOS (en el 251, NO en código ni en git)** — configurados con:
+  `nssm set APIPortalWeb AppEnvironmentExtra "JWT_KEY=..." "GATEWAY_TOKEN=..." "WIESE_USER=..." "WIESE_PWD=..."`
+- **VERIFICADO en el 251 (07-sep):** sin token → 401; `/login` con GATEWAY_TOKEN → JWT (3600 s);
+  con el JWT en `Authorization: Bearer` → endpoints responden datos. OK.
+- **LADO SITEGROUND (Laravel) — hecho el mismo día:** `ProveedorApiService` ya se autentica
+  contra el 5009. Nuevo método privado `tokenGateway5009()` que hace `POST /login` con el
+  GATEWAY_TOKEN, recibe el JWT (1h) y lo **cachea ~55 min** (clave con hash del token para no
+  reusar uno viejo si se rota). Los 3 métodos del camino 5009 (`listarFacturasPendientesTodos`,
+  `buscarProveedorWiese`, `listarProveedoresWiese`) ya mandan ese JWT como Bearer (antes iban con
+  token vacío porque "el puente autenticaba solo"). Nueva config `services.proveedor_api.pagos_gateway_token`
+  = env `PAGOS_GATEWAY_TOKEN`. Verificado: `php -l` OK y 321 tests del servicio en verde.
+  OJO `WieseBancoContpaqiService` (CrearPagoYSaldar) NO se tocó: usa `CONTPAQI_API_URL` (127.0.0.1:7090),
+  flujo local de oficina, no pasa por el 5009 público. Confirmar si en prod apunta a otra URL.
+- **PENDIENTE:**
+  1. **Regenerar JWT_KEY y GATEWAY_TOKEN antes del cierre** (quedaron expuestos en el chat de la sesión).
+  2. **Poner `PAGOS_GATEWAY_TOKEN=<gateway_token real>` en el `.env` de SiteGround** (igual al del 251),
+     y `php artisan config:cache`. Sin eso, SiteGround no se autentica y el 5009 responde 401.
+  3. **HTTPS (opción A):** cuando Genaro instale el certificado SAN en el almacén del 251,
+     descomentar el bloque Kestrel 5443 de Program.cs con el DNS real, recompilar y redesplegar.
+
+---
+
 ## 2026-10-16 — Migración del API 5009 (APIPortalWeb) de la laptop al servidor 251
 
 - **QUÉ:** El gateway 5009 (proyecto C# APIPortalWeb, puente SiteGround→5009→250 Wiese) dejó de

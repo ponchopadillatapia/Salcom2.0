@@ -47,6 +47,11 @@ return [
         // API pública (APIPortalWeb 5009) que hace de puente hacia Wiese para ListarDocumentos.
         // Si vacía, el método cae al docs_url (250 directo). En producción va con la IP pública.
         'pagos_url' => env('PAGOS_API_URL', ''),
+        // POR QUÉ: desde sep-2026 el 5009 exige JWT. Este es el GATEWAY_TOKEN (contraseña de
+        // entrada) que SiteGround manda a POST /login del 5009 para que le devuelva un JWT de 1h.
+        // Debe coincidir EXACTAMENTE con el GATEWAY_TOKEN configurado en el servicio del 251 (NSSM).
+        // Vacío = no se autentica (solo sirve en oficina/local donde se va directo al 250).
+        'pagos_gateway_token' => env('PAGOS_GATEWAY_TOKEN', ''),
         'connect_timeout' => (int) env('PROVEEDOR_API_CONNECT_TIMEOUT', 5),
         'timeout' => (int) env('PROVEEDOR_API_TIMEOUT', 15),
         'max_retries' => (int) env('PROVEEDOR_API_MAX_RETRIES', 3),

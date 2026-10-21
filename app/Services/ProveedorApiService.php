@@ -411,10 +411,12 @@ class ProveedorApiService
         $pagosUrl = rtrim((string) config('services.proveedor_api.pagos_url', ''), '/');
 
         if ($pagosUrl !== '') {
-            // Camino 5009 (producción): sin docsUrl, sin loginServicio. El puente ya autentica.
+            // Camino 5009 (producción): sin docsUrl, sin loginServicio al 250.
+            // POR QUÉ: desde sep-2026 el 5009 exige JWT. Pedimos el token de entrada (GATEWAY_TOKEN)
+            // al propio 5009 vía /login y lo mandamos como Bearer. El 5009 hace su login interno al 250.
             $base = $pagosUrl;
             $endpoint = '/PagoProveedor/ListarDocumentos';     // ruta en la API 5009
-            $token = $token ?? '';
+            $token = $this->tokenGateway5009($pagosUrl);
         } else {
             // Camino 250 directo (oficina/local): sí requiere docsUrl y login al 250.
             $configError = $this->validarDocsConfiguracion();
@@ -537,12 +539,13 @@ class ProveedorApiService
         $pagosUrl = rtrim((string) config('services.proveedor_api.pagos_url', ''), '/');
 
         if ($pagosUrl !== '') {
-            // Producción: el puente 5009 autentica solo; sin docsUrl ni login al 250.
+            // Producción: el 5009 hace su propio login al 250; aquí solo autenticamos CONTRA el 5009.
+            // POR QUÉ: desde sep-2026 el 5009 exige JWT (antes era abierto). Token de entrada vía /login.
             $base = $pagosUrl;
             $endpoint = $porRfc
                 ? '/PagoProveedor/BuscarPorRFC'
                 : '/PagoProveedor/BuscarPorCodigo';
-            $token = '';
+            $token = $this->tokenGateway5009($pagosUrl);
         } else {
             // Oficina/local: 250 directo, requiere docsUrl + login.
             $configError = $this->validarDocsConfiguracion();
@@ -620,9 +623,11 @@ class ProveedorApiService
         $pagosUrl = rtrim((string) config('services.proveedor_api.pagos_url', ''), '/');
 
         if ($pagosUrl !== '') {
+            // POR QUÉ: desde sep-2026 el 5009 exige JWT. Autenticamos contra el 5009 vía /login;
+            // el 5009 hace su propio login al 250 internamente.
             $base = $pagosUrl;
             $endpoint = '/PagoProveedor/ListarProveedores'; // puente en el 5009
-            $token = $token ?? '';
+            $token = $this->tokenGateway5009($pagosUrl);
         } else {
             // Si no nos pasan token, hacemos login de servicio para obtenerlo.
             if ($token === null || $token === '') {
@@ -738,6 +743,79 @@ class ProveedorApiService
     }
 
     // ── Métodos privados ──
+
+    /**
+     * Obtiene un JWT del gateway 5009 (APIPortalWeb) para autenticar las llamadas.
+     *
+     * POR QUÉ EXISTE: desde sep-2026 el 5009 dejó de ser abierto. Ahora cada endpoint exige
+     * un JWT en el header "Authorization: Bearer". El JWT se consigue mandando el GATEWAY_TOKEN
+     * (contraseña de entrada) a POST /login; el 5009 responde con un token que dura 1 hora.
+     *
+     * Se CACHEA el JWT ~55 min para no pedir uno nuevo en cada llamada (el token dura 60 min;
+     * dejamos 5 de margen por si el reloj va desfasado). Si no hay GATEWAY_TOKEN configurado
+     * (ej. en oficina/local donde se va directo al 250), devuelve '' y no se autentica.
+     *
+     * @param  string  $baseUrl  URL del 5009 (pagos_url)
+     * @return string  el JWT, o '' si no se pudo obtener / no aplica
+     */
+    private function tokenGateway5009(string $baseUrl): string
+    {
+        $gatewayToken = (string) config('services.proveedor_api.pagos_gateway_token', '');
+
+        // Sin contraseña de entrada no hay forma de autenticarse; devolvemos vacío.
+        if ($gatewayToken === '' || $baseUrl === '') {
+            return '';
+        }
+
+        // Caché compartido entre requests: evita pegarle a /login en cada llamada.
+        // La clave incluye un hash del token para que, si se rota el GATEWAY_TOKEN, no se
+        // reuse por error un JWT viejo cacheado con la contraseña anterior.
+        $cacheKey = 'pagos5009_jwt_'.substr(hash('sha256', $baseUrl.'|'.$gatewayToken), 0, 16);
+
+        $jwtCacheado = \Illuminate\Support\Facades\Cache::get($cacheKey);
+        if (is_string($jwtCacheado) && $jwtCacheado !== '') {
+            return $jwtCacheado;
+        }
+
+        try {
+            $response = $this->http(15)
+                ->acceptJson()
+                ->asJson()
+                ->post(rtrim($baseUrl, '/').'/login', [
+                    'token' => $gatewayToken,
+                ]);
+
+            if (! $response->successful()) {
+                Log::error('ProveedorAPI: login al gateway 5009 falló', [
+                    'status' => $response->status(),
+                ]);
+
+                return '';
+            }
+
+            $body = $response->json();
+            $jwt = is_array($body) ? (string) ($body['token'] ?? '') : '';
+            // El 5009 dice cuánto dura el token; restamos 5 min de margen de seguridad.
+            $expira = is_array($body) ? (int) ($body['expira_en_segundos'] ?? 3600) : 3600;
+            $ttl = max(60, $expira - 300);
+
+            if ($jwt === '') {
+                Log::error('ProveedorAPI: /login del 5009 no devolvió token');
+
+                return '';
+            }
+
+            \Illuminate\Support\Facades\Cache::put($cacheKey, $jwt, $ttl);
+
+            return $jwt;
+        } catch (\Exception $e) {
+            Log::error('ProveedorAPI: error al pedir JWT al gateway 5009', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return '';
+        }
+    }
 
     private function http(?int $timeout = null): PendingRequest
     {
