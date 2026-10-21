@@ -1279,6 +1279,13 @@ departamento→correo (quizá en `PagoProveedor::DEPARTAMENTOS` o config nuevo).
 - **Dónde:** SDK en `C:\Users\IT\source\repos_git\SDKWieseNET481\...\SDKComercial\Entidades\DocumentoSdk.cs` (métodos `CrearDocumentoCargoAbono`, `SaldarDocumento`, `BuscarSiguienteSerieYFolio`); patrón de conexión visto en `SDKComercial\Pruebas\DocumentoPrueba.cs` (`CrearPedido2`). La API `APIPortalWeb` ya está en x86 y referencia al SDK; `PruebaController` ya probado.
 - **PENDIENTE (esperando respuestas de Alan para mañana):** (1) de dónde salen concepto+serie+folio de la factura de proveedor a saldar; (2) si el código de proveedor es el mismo de Wiese o uno propio de Contpaqi; (3) si se permite pago parcial y cómo se maneja la moneda (hoy todo asume pesos, moneda 1, tipo de cambio 1). Siguiente código a entregar: endpoint de pago en 2 etapas (Etapa 1: solo crear el documento de pago; Etapa 2: agregar el saldado).
 
+## 2026-09-30 — Registro extranjero: traducir TODA la página a inglés al elegir "Foreign"
+- **Qué:** al seleccionar "Foreign supplier" en el registro, ahora se traduce a inglés toda la página (antes solo se traducían algunas etiquetas): encabezado "Registro de Proveedor"/subtítulo, "PORTAL DE PROVEEDORES", "Volver al login", "Verificación de seguridad", "¿Ya tienes cuenta?/Inicia sesión", footer, sección "Contacto y acceso", y los placeholders (teléfono, correo, contraseña).
+- **Por qué:** dirección pidió que todo lo del extranjero esté en inglés; quedaban textos en español.
+- **Dónde:** `resources/views/proveedores/registro.blade.php` — se agregaron ids (`txt_portal`, `txt_card_title`, `txt_card_sub`, `txt_back_login`, `txt_divider`, `txt_have_account`, `txt_footer`) y la función JS `setOrigen()` ahora usa helpers `setText/setHtml/setPh` para traducir todo según nacional/extranjero.
+- **Verificado:** la vista compila con `view:cache` (incluye `{{ route() }}`/`{{ date() }}` dentro del JS).
+- **PENDIENTE deploy:** subir y limpiar caché en producción (`view:clear`); OPcache puede requerir reset.
+
 ## 2026-09-30 — Proveedor EXTRANJERO (importación / C-TPAT) — Parte 1: base + registro
 - **Qué (dirección):** nuevo flujo para proveedores de importación. Se auto-registran con el MISMO login de los nacionales pero modificado: eligen "Foreign supplier" y el formulario cambia a inglés, pidiendo Company name + Tax ID (sin RFC/REPSE/Opinión SAT). Todo lo del extranjero va en inglés.
 - **Por qué:** un proveedor extranjero no tiene RFC ni documentos fiscales mexicanos; usa el paquete C-TPAT (dos cuestionarios + 4 documentos).

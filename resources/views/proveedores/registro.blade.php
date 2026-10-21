@@ -72,17 +72,17 @@
 <div class="orb-accent"></div>
 
 <div class="ios-login-container registro-wide">
-    <a href="/login-proveedor" class="ios-back-link">← Volver al login</a>
+    <a href="/login-proveedor" class="ios-back-link" id="txt_back_login">← Volver al login</a>
 
     <div class="ios-brand">
         @include('partials.logo-salcom', ['size' => 'lg', 'color' => 'light'])
-        <p>PORTAL DE PROVEEDORES</p>
+        <p id="txt_portal">PORTAL DE PROVEEDORES</p>
     </div>
 
     <div class="ios-login-card registro-card">
         <div class="registro-head">
-            <div class="card-title">Registro de Proveedor</div>
-            <div class="card-sub">Completa tus datos para crear tu cuenta</div>
+            <div class="card-title" id="txt_card_title">Registro de Proveedor</div>
+            <div class="card-sub" id="txt_card_sub">Completa tus datos para crear tu cuenta</div>
         </div>
 
         @if ($errors->any())
@@ -216,7 +216,7 @@
                 </div>
             </div>
 
-            <div class="divider">Verificación de seguridad</div>
+            <div class="divider" id="txt_divider">Verificación de seguridad</div>
             <div class="form-row-foot">
                 <div>
                     <div class="g-recaptcha" data-sitekey="{{ config('services.recaptcha.site_key') }}"></div>
@@ -225,10 +225,10 @@
                 <button type="submit" class="ios-btn-primary">Crear mi cuenta</button>
             </div>
         </form>
-        <p class="ios-register-link">¿Ya tienes cuenta? <a href="{{ route('proveedores.login') }}">Inicia sesión aquí</a></p>
+        <p class="ios-register-link" id="txt_have_account">¿Ya tienes cuenta? <a href="{{ route('proveedores.login') }}">Inicia sesión aquí</a></p>
     </div>
 
-    <div class="ios-footer-text">&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
+    <div class="ios-footer-text" id="txt_footer">&copy; {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.</div>
 </div>
 <script>
 (function () {
@@ -398,18 +398,40 @@
         if (companyName) companyName.required = esExtranjero;
         if (taxId) taxId.required = esExtranjero;
 
-        // Traducir etiquetas compartidas (contacto / acceso) y encabezado.
-        var secContacto = document.getElementById('sec-contacto');
-        if (secContacto) secContacto.textContent = esExtranjero ? 'Contact & access' : 'Contacto y acceso';
-        var labTelefono = document.querySelector('label[for]'); // no-op guard
-        var lblTel = document.getElementById('lbl_telefono');
-        var lblCorreo = document.getElementById('lbl_correo');
-        var lblPass = document.getElementById('lbl_password');
-        var lblPassConf = document.getElementById('lbl_password_conf');
-        if (lblTel) lblTel.innerHTML = (esExtranjero ? 'Telephone' : 'Teléfono') + ' <span class="req">*</span>';
-        if (lblCorreo) lblCorreo.innerHTML = (esExtranjero ? 'Email' : 'Correo electrónico') + ' <span class="req">*</span>';
-        if (lblPass) lblPass.innerHTML = (esExtranjero ? 'Password' : 'Contraseña') + ' <span class="req">*</span>';
-        if (lblPassConf) lblPassConf.innerHTML = (esExtranjero ? 'Confirm password' : 'Confirmar contraseña') + ' <span class="req">*</span>';
+        // ── Traducir TODOS los textos compartidos cuando se elige extranjero ──
+        // POR QUÉ: el bloque extranjero ya está en inglés, pero el resto de la página (encabezado,
+        // sección contacto, placeholders, footer, links) seguía en español. Aquí se traduce todo.
+        function setText(id, en, es) { var el = document.getElementById(id); if (el) el.textContent = esExtranjero ? en : es; }
+        function setHtml(id, en, es) { var el = document.getElementById(id); if (el) el.innerHTML = esExtranjero ? en : es; }
+        function setPh(el, en, es) { if (el) el.placeholder = esExtranjero ? en : es; }
+
+        setText('txt_portal', 'SUPPLIER PORTAL', 'PORTAL DE PROVEEDORES');
+        setText('txt_card_title', 'Supplier Registration', 'Registro de Proveedor');
+        setText('txt_card_sub', 'Fill in your details to create your account', 'Completa tus datos para crear tu cuenta');
+        setText('txt_back_login', '← Back to login', '← Volver al login');
+        setText('txt_divider', 'Security verification', 'Verificación de seguridad');
+        setHtml('txt_have_account',
+            esExtranjero
+                ? 'Already have an account? <a href="{{ route('proveedores.login') }}">Sign in here</a>'
+                : '¿Ya tienes cuenta? <a href="{{ route('proveedores.login') }}">Inicia sesión aquí</a>',
+            '¿Ya tienes cuenta? <a href="{{ route('proveedores.login') }}">Inicia sesión aquí</a>');
+        setText('txt_footer',
+            '© {{ date('Y') }} Industrias Salcom. All rights reserved.',
+            '© {{ date('Y') }} Industrias Salcom. Todos los derechos reservados.');
+
+        // Sección contacto / acceso + etiquetas.
+        setText('sec-contacto', 'Contact & access', 'Contacto y acceso');
+        setHtml('lbl_telefono', (esExtranjero ? 'Telephone' : 'Teléfono') + ' <span class="req">*</span>');
+        setHtml('lbl_correo', (esExtranjero ? 'Email' : 'Correo electrónico') + ' <span class="req">*</span>');
+        setHtml('lbl_password', (esExtranjero ? 'Password' : 'Contraseña') + ' <span class="req">*</span>');
+        setHtml('lbl_password_conf', (esExtranjero ? 'Confirm password' : 'Confirmar contraseña') + ' <span class="req">*</span>');
+
+        // Placeholders compartidos.
+        setPh(document.getElementById('reg_telefono'), 'Phone number', '10 dígitos');
+        setPh(document.getElementById('reg_correo'), 'you@email.com', 'tu@correo.com');
+        setPh(document.querySelector('input[name=password]'), 'At least 8 characters', 'Mínimo 8 caracteres');
+        setPh(document.querySelector('input[name=password_confirmation]'), 'Repeat your password', 'Repite tu contraseña');
+
         var btn = document.querySelector('#form-registro .ios-btn-primary');
         if (btn) btn.textContent = esExtranjero ? 'Create my account' : 'Crear mi cuenta';
     };
