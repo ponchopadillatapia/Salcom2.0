@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="{{ app()->getLocale() }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -453,7 +453,7 @@
             <svg class="icon-close" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
         @include('partials.logo-salcom', ['size' => 'sm', 'color' => 'dark'])
-        <span class="nav-title">Portal de Proveedores</span>
+        <span class="nav-title">{{ app()->getLocale() === 'en' ? 'Supplier Portal' : 'Portal de Proveedores' }}</span>
     </div>
     <div class="nav-right">
         {{-- Campanita de notificaciones con dropdown --}}
@@ -482,8 +482,8 @@
             </button>
             <div id="notifDropdown" class="notif-dropdown">
                 <div class="notif-header">
-                    <span>Notificaciones</span>
-                    <span class="notif-count" id="notifCountLabel" style="{{ $alertasSinLeer > 0 ? '' : 'display:none;' }}">{{ $alertasSinLeer }} nuevas</span>
+                    <span>{{ __('portal.notificaciones') }}</span>
+                    <span class="notif-count" id="notifCountLabel" style="{{ $alertasSinLeer > 0 ? '' : 'display:none;' }}">{{ $alertasSinLeer }} {{ __('portal.nuevas') }}</span>
                 </div>
                 <div id="notifItems">
                 @forelse($alertasRecientes as $notif)
@@ -493,18 +493,18 @@
                     <div class="notif-item-time">{{ $notif->created_at->diffForHumans() }}</div>
                 </div>
                 @empty
-                <div class="notif-empty">Sin notificaciones nuevas</div>
+                <div class="notif-empty">{{ __('portal.sin_notificaciones') }}</div>
                 @endforelse
                 </div>
                 @php
                     $notifHref = route('proveedores.onboarding');
-                    $notifLabel = 'Ir a Onboarding';
+                    $notifLabel = __('portal.ir_onboarding');
                     if (($proveedorPortalActivo ?? false) && \App\Support\PortalModulos::habilitado('facturas')) {
                         $notifHref = route('proveedores.facturas');
-                        $notifLabel = 'Ir a Facturas';
+                        $notifLabel = __('portal.ir_facturas');
                     } elseif (($proveedorPortalActivo ?? false) && \App\Support\PortalModulos::habilitado('ia')) {
                         $notifHref = route('proveedores.ia');
-                        $notifLabel = 'Ir a Módulo IA';
+                        $notifLabel = __('portal.ir_ia');
                     }
                 @endphp
                 <a href="{{ $notifHref }}" class="notif-footer">{{ $notifLabel }}</a>
@@ -512,7 +512,7 @@
         </div>
         <form method="POST" action="{{ route('proveedores.logout') }}" style="display:inline;">
             @csrf
-            <button type="submit" class="btn-logout">Salir</button>
+            <button type="submit" class="btn-logout">{{ __('portal.salir') }}</button>
         </form>
     </div>
 </nav>
@@ -550,8 +550,8 @@
                         return ['href' => route($routeName), 'class' => 'sb-link'.$active, 'attr' => ''];
                     }
                     $titulo = ! $portalOk
-                        ? 'Disponible cuando tu cuenta esté activa.'
-                        : 'Módulo aún no disponible.';
+                        ? __('portal.tooltip_cuenta_activa')
+                        : __('portal.tooltip_modulo_no_disponible');
 
                     return [
                         'href' => '#',
@@ -572,36 +572,36 @@
                 $ia = $mod('ia', 'proveedores.ia', 'proveedores.ia*');
             @endphp
 
-            <div class="sb-section">Inicio</div>
+            <div class="sb-section">{{ __('portal.sec_inicio') }}</div>
             <a href="{{ $inicio['href'] }}" class="{{ $inicio['class'] }}" {!! $inicio['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></div>
-                <span class="sb-text">Inicio</span>
+                <span class="sb-text">{{ __('portal.inicio') }}</span>
             </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Productos</div>
+            <div class="sb-section">{{ __('portal.sec_productos') }}</div>
             <a href="{{ $misProductos['href'] }}" class="{{ $misProductos['class'] }}" {!! $misProductos['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
-                <span class="sb-text">Mis productos</span>
+                <span class="sb-text">{{ __('portal.mis_productos') }}</span>
             </a>
             <a href="{{ $altaProducto['href'] }}" class="{{ $altaProducto['class'] }}" {!! $altaProducto['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg></div>
-                <span class="sb-text">Alta de producto</span>
+                <span class="sb-text">{{ __('portal.alta_producto') }}</span>
             </a>
             <a href="{{ $inventario['href'] }}" class="{{ $inventario['class'] }}" {!! $inventario['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
-                <span class="sb-text">Inventario</span>
+                <span class="sb-text">{{ __('portal.inventario') }}</span>
             </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Facturas</div>
+            <div class="sb-section">{{ __('portal.sec_facturas') }}</div>
             <a href="{{ $altaFacturas['href'] }}" class="{{ $altaFacturas['class'] }}" {!! $altaFacturas['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
-                <span class="sb-text">Alta Facturas</span>
+                <span class="sb-text">{{ __('portal.alta_facturas') }}</span>
             </a>
             <a href="{{ $facturas['href'] }}" class="{{ $facturas['class'] }}" {!! $facturas['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
-                <span class="sb-text">Facturas</span>
+                <span class="sb-text">{{ __('portal.facturas') }}</span>
                 @php
                     $provId = session('proveedor_id');
                     $provNotifs = $provId ? \App\Models\Alerta::where('destinatario_tipo','proveedor')->where('destinatario_id', $provId)->whereIn('tipo', ['pago_confirmado', 'facturas_liquidadas'])->whereNotIn('estatus', ['leida', 'accionada'])->count() : 0;
@@ -612,43 +612,43 @@
             </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Operación</div>
+            <div class="sb-section">{{ __('portal.sec_operacion') }}</div>
             <a href="{{ $ordenes['href'] }}" class="{{ $ordenes['class'] }}" {!! $ordenes['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-                <span class="sb-text">Órdenes de Compra</span>
+                <span class="sb-text">{{ __('portal.ordenes_compra') }}</span>
             </a>
             <a href="{{ $otif['href'] }}" class="{{ $otif['class'] }}" {!! $otif['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-                <span class="sb-text">OTIF</span>
+                <span class="sb-text">{{ __('portal.otif') }}</span>
             </a>
             <a href="{{ $forecast['href'] }}" class="{{ $forecast['class'] }}" {!! $forecast['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></div>
-                <span class="sb-text">Forecast</span>
+                <span class="sb-text">{{ __('portal.forecast') }}</span>
             </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Mi empresa</div>
+            <div class="sb-section">{{ __('portal.sec_mi_empresa') }}</div>
             <a href="{{ route('proveedores.onboarding') }}" class="sb-link {{ request()->routeIs('proveedores.onboarding') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg></div>
-                <span class="sb-text">Onboarding</span>
+                <span class="sb-text">{{ __('portal.onboarding') }}</span>
             </a>
             <a href="{{ $business['href'] }}" class="{{ $business['class'] }}" {!! $business['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></div>
-                <span class="sb-text">Business</span>
+                <span class="sb-text">{{ __('portal.business') }}</span>
             </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Inteligencia</div>
+            <div class="sb-section">{{ __('portal.sec_inteligencia') }}</div>
             <a href="{{ $ia['href'] }}" class="{{ $ia['class'] }}" {!! $ia['attr'] !!}>
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v1a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V6a4 4 0 0 1 4-4z"/><path d="M16 11v1a4 4 0 0 1-8 0v-1"/><line x1="12" y1="16" x2="12" y2="20"/><line x1="8" y1="20" x2="16" y2="20"/></svg></div>
-                <span class="sb-text">Módulo IA</span>
+                <span class="sb-text">{{ __('portal.modulo_ia') }}</span>
             </a>
 
             <div class="sb-hr"></div>
-            <div class="sb-section">Cuenta</div>
+            <div class="sb-section">{{ __('portal.sec_cuenta') }}</div>
             <a href="{{ route('proveedores.perfil') }}" class="sb-link {{ request()->routeIs('proveedores.perfil') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
-                <span class="sb-text">Mi Perfil</span>
+                <span class="sb-text">{{ __('portal.mi_perfil') }}</span>
             </a>
         </nav>
     </div>
@@ -658,7 +658,7 @@
         @yield('hero')
         @if(isset($proveedorPortalActivo) && ! $proveedorPortalActivo && ! request()->routeIs('proveedores.onboarding'))
         <div style="background:#fff7ed;border:1px solid #fcd34d;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#92400e;">
-            Cuenta en onboarding. <a href="{{ route('proveedores.onboarding') }}" style="color:var(--purple);font-weight:600;">Ir a Onboarding</a>
+            {{ __('portal.cuenta_en_onboarding') }} <a href="{{ route('proveedores.onboarding') }}" style="color:var(--purple);font-weight:600;">{{ __('portal.ir_onboarding') }}</a>
         </div>
         @endif
         @if(session('modulo_cerrado'))

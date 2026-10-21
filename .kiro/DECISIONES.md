@@ -1279,6 +1279,18 @@ departamento→correo (quizá en `PagoProveedor::DEPARTAMENTOS` o config nuevo).
 - **Dónde:** SDK en `C:\Users\IT\source\repos_git\SDKWieseNET481\...\SDKComercial\Entidades\DocumentoSdk.cs` (métodos `CrearDocumentoCargoAbono`, `SaldarDocumento`, `BuscarSiguienteSerieYFolio`); patrón de conexión visto en `SDKComercial\Pruebas\DocumentoPrueba.cs` (`CrearPedido2`). La API `APIPortalWeb` ya está en x86 y referencia al SDK; `PruebaController` ya probado.
 - **PENDIENTE (esperando respuestas de Alan para mañana):** (1) de dónde salen concepto+serie+folio de la factura de proveedor a saldar; (2) si el código de proveedor es el mismo de Wiese o uno propio de Contpaqi; (3) si se permite pago parcial y cómo se maneja la moneda (hoy todo asume pesos, moneda 1, tipo de cambio 1). Siguiente código a entregar: endpoint de pago en 2 etapas (Etapa 1: solo crear el documento de pago; Etapa 2: agregar el saldado).
 
+## 2026-09-30 — Portal de proveedores en inglés para extranjeros — Parte A: layout/sidebar (i18n real)
+- **Qué:** se montó el sistema de traducción real de Laravel (locale + archivos lang) y se tradujo el layout/sidebar/header del portal de proveedores. Un proveedor extranjero ve el portal en inglés; el nacional en español.
+- **Cómo:**
+  - `AutenticacionProveedor` (middleware `auth.proveedor`) fija el locale: `app()->setLocale($prov->esExtranjero() ? 'en' : 'es')`. OJO: el default de la app es `en`, por eso se fuerza `es` explícitamente para el nacional (no basta con no tocar nada).
+  - Archivos `lang/es/portal.php` y `lang/en/portal.php` con las claves del sidebar/header (secciones, enlaces, notificaciones, salir, banner onboarding, tooltips).
+  - `layouts/proveedor.blade.php`: todos los textos fijos → `__('portal.*')`; `<html lang>` y "Portal de Proveedores"/"Supplier Portal" según locale.
+- **Por qué así (Opción A):** es el enfoque escalable; se irá traduciendo pantalla por pantalla reusando este mismo mecanismo (solo agregar claves y envolver textos en `__()`).
+- **Verificado:** `php -l` OK, vistas compilan, `__('portal.*')` resuelve EN y ES correctamente.
+- **Parte B — Dashboard/Inicio (`proveedores/portal.blade.php`):** traducido con claves `portal.dash.*` en `lang/es` y `lang/en`. Incluye las 5 KPI cards (Alta de producto, Facturas, Mis productos, Alta de facturas, OTIF), la sección "Accesos directos" con sus 5 tarjetas, los "Ver detalle →"/tooltips de módulos bloqueados y el title de la pestaña. Verificado: compila y resuelve EN/ES.
+- **PENDIENTE:** seguir con las demás vistas del portal (facturas, OC, OTIF, perfil; onboarding mexicano NO aplica al extranjero → usa `/foreign-onboarding`). Y desplegar (incluye crear `lang/` en prod vía git + limpiar caché).
+- **OJO onboarding:** el extranjero NO debe ver el onboarding mexicano; su onboarding es `/foreign-onboarding` (ya en inglés). Si en prod ve el mexicano, es porque falta correr `php artisan migrate` allá (sin la columna `es_extranjero` lo tratan como nacional).
+
 ## 2026-09-30 — Registro extranjero: traducir TODA la página a inglés al elegir "Foreign"
 - **Qué:** al seleccionar "Foreign supplier" en el registro, ahora se traduce a inglés toda la página (antes solo se traducían algunas etiquetas): encabezado "Registro de Proveedor"/subtítulo, "PORTAL DE PROVEEDORES", "Volver al login", "Verificación de seguridad", "¿Ya tienes cuenta?/Inicia sesión", footer, sección "Contacto y acceso", y los placeholders (teléfono, correo, contraseña).
 - **Por qué:** dirección pidió que todo lo del extranjero esté en inglés; quedaban textos en español.

@@ -68,6 +68,11 @@ class AutenticacionProveedor
         $activo = $proveedor ? (bool) $proveedor->activo : false;
         $debeContactos = $this->debeCompletarContactos($proveedor);
 
+        // POR QUÉ: los proveedores extranjeros (importación) ven todo el portal en inglés y los
+        // nacionales en español. Fijamos el locale explícitamente (el default de la app es 'en',
+        // así que NO basta con no tocar nada: hay que forzar 'es' para el nacional).
+        app()->setLocale($proveedor && $proveedor->esExtranjero() ? 'en' : 'es');
+
         View::share('proveedorPortalActivo', $activo && ! $debeContactos);
         View::share('proveedorPortal', $proveedor);
         View::share('proveedorDebeContactos', $debeContactos);

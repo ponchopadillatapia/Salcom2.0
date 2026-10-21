@@ -1,6 +1,6 @@
 @extends('layouts.proveedor')
 
-@section('title', 'Inicio')
+@section('title', __('portal.inicio'))
 
 {{-- sin hero: el nombre ya va en la barra superior --}}
 
@@ -426,14 +426,14 @@
 @php
     $ventana = function (string $modulo, string $routeName): array {
         if (\App\Support\PortalModulos::habilitado($modulo)) {
-            return ['href' => route($routeName), 'class' => '', 'attr' => '', 'detalle' => 'Ver detalle →'];
+            return ['href' => route($routeName), 'class' => '', 'attr' => '', 'detalle' => __('portal.dash.ver_detalle')];
         }
 
         return [
             'href' => '#',
             'class' => ' pp-card-locked',
-            'attr' => 'title="Módulo aún no disponible." aria-disabled="true" onclick="event.preventDefault()"',
-            'detalle' => 'No disponible',
+            'attr' => 'title="'.__('portal.tooltip_modulo_no_disponible').'" aria-disabled="true" onclick="event.preventDefault()"',
+            'detalle' => __('portal.dash.no_disponible'),
         ];
     };
     $vAltaProducto = $ventana('alta_producto', 'proveedores.alta-producto');
@@ -450,31 +450,31 @@
     <div class="pp-kpi-section">
         <a href="{{ $vAltaProducto['href'] }}" class="{{ trim($vAltaProducto['class']) }}" {!! $vAltaProducto['attr'] !!}>
         <div class="pp-card">
-            <h4>Alta de producto</h4>
+            <h4>{{ __('portal.dash.card_alta_producto') }}</h4>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Altas del mes</div>
+                <div class="pp-negocio-label">{{ __('portal.dash.altas_del_mes') }}</div>
                 <div class="pp-negocio-value" style="color:var(--green);font-size:20px;">{{ $altasProductoMes }}</div>
             </div>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Catálogo activo</div>
+                <div class="pp-negocio-label">{{ __('portal.dash.catalogo_activo') }}</div>
                 <div class="pp-negocio-value" style="font-size:20px;">{{ $productosActivos }}</div>
             </div>
-            <div class="pp-negocio-sub">Sube Excel para dar de alta productos</div>
+            <div class="pp-negocio-sub">{{ __('portal.dash.sube_excel_productos') }}</div>
             <span class="pp-detail-link" style="margin-top:auto;">{{ $vAltaProducto['detalle'] }}</span>
         </div>
         </a>
 
         <a href="{{ $vFacturas['href'] }}" class="{{ trim($vFacturas['class']) }}" {!! $vFacturas['attr'] !!}>
         <div class="pp-card">
-            <h4>Facturas</h4>
+            <h4>{{ __('portal.dash.card_facturas') }}</h4>
             <div class="pp-kpi-fact-body">
                 <div class="pp-kpi-fact-stats">
-                    <div class="pp-negocio-sub">{{ $facturasPendientes }} {{ $facturasPendientes === 1 ? 'pendiente' : 'pendientes' }}</div>
-                    <div class="pp-negocio-sub">${{ number_format($montoPorCobrar, 0) }} por cobrar</div>
+                    <div class="pp-negocio-sub">{{ $facturasPendientes }} {{ $facturasPendientes === 1 ? __('portal.dash.pendiente') : __('portal.dash.pendientes') }}</div>
+                    <div class="pp-negocio-sub">${{ number_format($montoPorCobrar, 0) }} {{ __('portal.dash.por_cobrar') }}</div>
                     <div class="pp-negocio-sub" style="margin-top:4px;">
-                        <span style="color:var(--green);">●</span> {{ $facturasPagadas }} pagadas &nbsp;
-                        <span style="color:var(--amber);">●</span> {{ $facturasPendientes }} pendientes &nbsp;
-                        <span style="color:var(--red);">●</span> {{ $facturasCanceladas }} canceladas
+                        <span style="color:var(--green);">●</span> {{ $facturasPagadas }} {{ __('portal.dash.pagadas') }} &nbsp;
+                        <span style="color:var(--amber);">●</span> {{ $facturasPendientes }} {{ __('portal.dash.pendientes') }} &nbsp;
+                        <span style="color:var(--red);">●</span> {{ $facturasCanceladas }} {{ __('portal.dash.canceladas') }}
                     </div>
                 </div>
                 <div class="pp-chart-wrap-xs"><canvas id="chartFacturacion"></canvas></div>
@@ -485,39 +485,39 @@
 
         <a href="{{ $vMisProductos['href'] }}" class="{{ trim($vMisProductos['class']) }}" {!! $vMisProductos['attr'] !!}>
         <div class="pp-card">
-            <h4>Mis productos</h4>
+            <h4>{{ __('portal.dash.card_mis_productos') }}</h4>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Activos</div>
+                <div class="pp-negocio-label">{{ __('portal.dash.activos') }}</div>
                 <div class="pp-negocio-value" style="font-size:20px;color:var(--green);">{{ $productosActivos }}</div>
             </div>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Inactivos</div>
+                <div class="pp-negocio-label">{{ __('portal.dash.inactivos') }}</div>
                 <div class="pp-negocio-value" style="font-size:20px;color:var(--red);">{{ $productosInactivos }}</div>
             </div>
-            <div class="pp-negocio-sub">Total: {{ $productosActivos + $productosInactivos }}</div>
+            <div class="pp-negocio-sub">{{ __('portal.dash.total') }}: {{ $productosActivos + $productosInactivos }}</div>
             <span class="pp-detail-link" style="margin-top:auto;">{{ $vMisProductos['detalle'] }}</span>
         </div>
         </a>
 
         <a href="{{ $vAltaFacturas['href'] }}" class="{{ trim($vAltaFacturas['class']) }}" {!! $vAltaFacturas['attr'] !!}>
         <div class="pp-card">
-            <h4>Alta de facturas</h4>
+            <h4>{{ __('portal.dash.card_alta_facturas') }}</h4>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Altas del mes</div>
+                <div class="pp-negocio-label">{{ __('portal.dash.altas_del_mes') }}</div>
                 <div class="pp-negocio-value" style="color:var(--green);font-size:20px;">{{ $altasFacturaMes }}</div>
             </div>
             <div class="pp-negocio-row">
-                <div class="pp-negocio-label">Total registradas</div>
+                <div class="pp-negocio-label">{{ __('portal.dash.total_registradas') }}</div>
                 <div class="pp-negocio-value" style="font-size:20px;">{{ $facturasTotal }}</div>
             </div>
-            <div class="pp-negocio-sub">Sube PDF y XML de la factura</div>
+            <div class="pp-negocio-sub">{{ __('portal.dash.sube_pdf_xml') }}</div>
             <span class="pp-detail-link" style="margin-top:auto;">{{ $vAltaFacturas['detalle'] }}</span>
         </div>
         </a>
 
         <a href="{{ $vOtif['href'] }}" class="{{ trim($vOtif['class']) }}" {!! $vOtif['attr'] !!}>
         <div class="pp-card">
-            <h4>OTIF</h4>
+            <h4>{{ __('portal.dash.card_otif') }}</h4>
             <div class="pp-kpi-gauges">
                 <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOT" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ number_format($otPercent, 1) }}%</div></div></div><div class="pp-otif-label">OT</div></div>
                 <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeIF" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ number_format($ifPercent, 1) }}%</div></div></div><div class="pp-otif-label">IF</div></div>
@@ -527,37 +527,37 @@
         </a>
     </div>
 
-    <div class="pp-section-title">Accesos directos</div>
+    <div class="pp-section-title">{{ __('portal.dash.accesos_directos') }}</div>
     <div class="pp-quick-grid">
         <a href="{{ $vOc['href'] }}" class="pp-card pp-quick-card{{ $vOc['class'] }}" {!! $vOc['attr'] !!}>
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
             </div>
-            <div><div class="pp-quick-title">OC</div><div class="pp-quick-sub">Órdenes de compra</div></div>
+            <div><div class="pp-quick-title">{{ __('portal.dash.oc') }}</div><div class="pp-quick-sub">{{ __('portal.dash.oc_sub') }}</div></div>
         </a>
         <a href="{{ $vForecast['href'] }}" class="pp-card pp-quick-card{{ $vForecast['class'] }}" {!! $vForecast['attr'] !!}>
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/></svg>
             </div>
-            <div><div class="pp-quick-title">Forecast</div><div class="pp-quick-sub">Tendencias de compra</div></div>
+            <div><div class="pp-quick-title">{{ __('portal.dash.forecast') }}</div><div class="pp-quick-sub">{{ __('portal.dash.forecast_sub') }}</div></div>
         </a>
         <a href="{{ $vPagos['href'] }}" class="pp-card pp-quick-card{{ $vPagos['class'] }}" {!! $vPagos['attr'] !!}>
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             </div>
-            <div><div class="pp-quick-title">Pagos</div><div class="pp-quick-sub">Historial y pendientes</div></div>
+            <div><div class="pp-quick-title">{{ __('portal.dash.pagos') }}</div><div class="pp-quick-sub">{{ __('portal.dash.pagos_sub') }}</div></div>
         </a>
         <a href="{{ $vAltaProducto['href'] }}" class="pp-card pp-quick-card{{ $vAltaProducto['class'] }}" {!! $vAltaProducto['attr'] !!}>
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
             </div>
-            <div><div class="pp-quick-title">Alta de producto</div><div class="pp-quick-sub">Nuevo producto</div></div>
+            <div><div class="pp-quick-title">{{ __('portal.dash.alta_producto') }}</div><div class="pp-quick-sub">{{ __('portal.dash.alta_producto_sub') }}</div></div>
         </a>
         <a href="{{ $vMisProductos['href'] }}" class="pp-card pp-quick-card{{ $vMisProductos['class'] }}" {!! $vMisProductos['attr'] !!}>
             <div class="pp-quick-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#6b3fa0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
             </div>
-            <div><div class="pp-quick-title">Mis productos</div><div class="pp-quick-sub">Catálogo del proveedor</div></div>
+            <div><div class="pp-quick-title">{{ __('portal.dash.mis_productos') }}</div><div class="pp-quick-sub">{{ __('portal.dash.mis_productos_sub') }}</div></div>
         </a>
     </div>
 
