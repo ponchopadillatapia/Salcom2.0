@@ -6,6 +6,24 @@
 
 ---
 
+## ⚠️ PENDIENTES ANTES DE REABRIR EL API 5009/5443 AL PÚBLICO (NO OLVIDAR)
+
+> La conexión pública la apagó Genaro hasta ~30-nov. Estos 4 puntos hay que cerrarlos
+> ANTES de que se reabra al público:
+
+1. **Probar el HTTPS desde fuera** → cuando Genaro reabra el NAT (hasta el 30 nov). Dentro del
+   251 no se puede probar por el nombre porque el NAT está apagado; por eso usamos localhost.
+   Pedir a Genaro que al reabrir abra también el **5443** (no solo el 5009).
+2. **Renovar el certificado ~16 dic** (repetir el registro TXT en SiteGround con win-acme) —
+   o pasarlo a automático cuando reabra el puerto 80 (validación HTTP-01).
+3. **Regenerar los 2 tokens** (JWT_KEY y GATEWAY_TOKEN) antes de reabrir al público
+   (quedaron expuestos en el chat/notas). Cambiarlos en el 251 (NSSM) y en el `.env` de SiteGround.
+4. **Pasar a Production** (`ASPNETCORE_ENVIRONMENT=Production` en NSSM) para ocultar Swagger
+   antes de reabrir. OJO: `AppEnvironmentExtra` reemplaza TODA la lista, hay que volver a poner
+   los 4 secretos cambiando solo esa palabra.
+
+---
+
 ## 2026-09-07 — Seguridad del API 5009 (APIPortalWeb): JWT + secretos fuera del código
 
 - **QUÉ:** El gateway 5009 ya NO es abierto. Ahora todos los endpoints exigen un token JWT, y los
@@ -41,8 +59,38 @@
   = env `PAGOS_GATEWAY_TOKEN`. Verificado: `php -l` OK y 321 tests del servicio en verde.
   OJO `WieseBancoContpaqiService` (CrearPagoYSaldar) NO se tocó: usa `CONTPAQI_API_URL` (127.0.0.1:7090),
   flujo local de oficina, no pasa por el 5009 público. Confirmar si en prod apunta a otra URL.
+- **FILTRO POR IP (lista blanca) — código agregado al Program.cs:** middleware `app.Use(...)`
+  colocado DESPUÉS del `if (IsDevelopment)` de Swagger y ANTES de `app.UseAuthentication()`.
+  Lee la lista de la variable de entorno `IPS_PERMITIDAS` (IPs separadas por coma). Si la lista
+  está VACÍA no filtra nada (modo dev / actual). Si tiene IPs y la de origen no está, corta con
+  403 y lo escribe en consola (`[IP-BLOCK] ...`). Normaliza IPv6 mapeada (`::ffff:` → IPv4).
+  También se lee `var ipsPermitidas` al inicio, junto a jwtKey/gatewayToken.
+  POR QUÉ dormido: la conexión pública la apagó Genaro hasta ~30-nov; no se puede saber qué IP
+  ve el 5009 cuando llega SiteGround (por el NAT) hasta que se reabra. Al reabrir: hacer una
+  llamada, ver la IP en el log, y recién llenar `IPS_PERMITIDAS` (SiteGround 35.215.67.229 +
+  red interna 172.16.1.x + 127.0.0.1).
+- **DESPLEGADO al 251 (versión con JWT + filtro por IP):** publish win-x86 → copiado a
+  C:\APIPortalWeb → Start-Service. Verificado: 401 sin token, /login da JWT, filtro dormido
+  deja pasar. OK.
+- **HTTPS ACTIVADO (paso 6 de Alan) — 07-sep (hecho por Said, sin Genaro):** certificado REAL
+  de Let's Encrypt para `api-pagos.salcomlink.mx`, emitido con **win-acme** (`C:\win-acme\wacs.exe`)
+  por **validación DNS-01 manual** (registro TXT en SiteGround), porque el puerto 80 público está
+  cerrado. Certificado instalado en el almacén de Windows del 251 (LocalMachine\My),
+  thumbprint `23A6C89F42819C2CED006D2881DD4AF6B59EA792`, vence 20-ene-2027 (~90 días).
+  - DNS creado en SiteGround: `A api-pagos.salcomlink.mx → 189.254.241.195`.
+  - El servicio corre como **LocalSystem**, así que ya tiene acceso a la clave privada (sin paso extra).
+  - `Program.cs`: bloque HTTPS DESCOMENTADO, Kestrel escucha HTTPS en **5443** buscando el cert
+    por THUMBPRINT (más robusto que por nombre). El 5009 HTTP se dejó temporal (no romper mientras se prueba).
+  - Firewall 251: regla inbound TCP 5443 ("API HTTPS 5443").
+  - VERIFICADO en el 251: `netstat` muestra 5443 LISTENING; `https://localhost:5443/login` con el
+    GATEWAY_TOKEN devuelve JWT (3600 s). HTTPS OK.
+  - RENOVACIÓN: por ahora MANUAL cada ~90 días (validación DNS, hay que repetir el TXT). Próxima ~16-dic.
+    Cuando reabra el puerto 80 público, se puede pasar a automática (HTTP-01).
 - **PENDIENTE:**
-  1. **Regenerar JWT_KEY y GATEWAY_TOKEN antes del cierre** (quedaron expuestos en el chat de la sesión).
+  1. **Regenerar JWT_KEY y GATEWAY_TOKEN antes de reabrir** (quedaron expuestos en el chat).
+  1b. **Probar HTTPS desde fuera** cuando se reabra el NAT (puerto 5443 público → `https://api-pagos.salcomlink.mx:5443`).
+      Dentro del 251 el nombre no resuelve por el NAT apagado; por eso se probó con localhost.
+  1c. **Renovar el certificado ~16-dic** (TXT manual en SiteGround) o pasar a auto al reabrir el 80.
   2. **Poner `PAGOS_GATEWAY_TOKEN=<gateway_token real>` en el `.env` de SiteGround** (igual al del 251),
      y `php artisan config:cache`. Sin eso, SiteGround no se autentica y el 5009 responde 401.
   3. **HTTPS (opción A):** cuando Genaro instale el certificado SAN en el almacén del 251,
