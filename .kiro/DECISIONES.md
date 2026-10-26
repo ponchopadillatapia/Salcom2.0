@@ -1379,6 +1379,19 @@ departamento→correo (quizá en `PagoProveedor::DEPARTAMENTOS` o config nuevo).
 - **Dónde:** SDK en `C:\Users\IT\source\repos_git\SDKWieseNET481\...\SDKComercial\Entidades\DocumentoSdk.cs` (métodos `CrearDocumentoCargoAbono`, `SaldarDocumento`, `BuscarSiguienteSerieYFolio`); patrón de conexión visto en `SDKComercial\Pruebas\DocumentoPrueba.cs` (`CrearPedido2`). La API `APIPortalWeb` ya está en x86 y referencia al SDK; `PruebaController` ya probado.
 - **PENDIENTE (esperando respuestas de Alan para mañana):** (1) de dónde salen concepto+serie+folio de la factura de proveedor a saldar; (2) si el código de proveedor es el mismo de Wiese o uno propio de Contpaqi; (3) si se permite pago parcial y cómo se maneja la moneda (hoy todo asume pesos, moneda 1, tipo de cambio 1). Siguiente código a entregar: endpoint de pago en 2 etapas (Etapa 1: solo crear el documento de pago; Etapa 2: agregar el saldado).
 
+## 2026-09-30 — Portal EXTRANJERO independiente (no comparte nada con el nacional)
+- **Qué (dirección):** el proveedor extranjero, al entrar al portal, NO debe ver nada del portal nacional (ni facturas MX, OC, onboarding mexicano, Wiese, identificación fiscal, módulo IA). Tiene su PROPIO portal en inglés con menú: Home · My Onboarding · Invoices · Purchase Orders · My Profile.
+- **Cómo:**
+  - Layout nuevo `layouts/proveedor-extranjero.blade.php` (sidebar propio, en inglés, standalone; NO usa el layout nacional).
+  - Vistas nuevas: `foreign-portal` (Home/dashboard con estado del onboarding), `foreign-invoices`, `foreign-po`, `foreign-profile`.
+  - Controlador `PortalProveedorController`: `mostrarForeignPortal/Invoices/Po/Profile` + helper `soloExtranjero()` (si no es extranjero, redirige al portal nacional).
+  - Rutas `proveedores.foreign-portal/-invoices/-po/-profile`.
+  - Login (`AuthProveedorController::redirectTrasLoginProveedor`): extranjero activo → `foreign-portal`; inactivo → `foreign-onboarding`; nunca ve el portal/onboarding mexicano.
+  - AISLAMIENTO en middleware `AutenticacionProveedor`: lista blanca `$rutasExtranjero`; un extranjero que pida una ruta nacional → redirect a su portal (y salta TODA la lógica mexicana: onboarding, 2 contactos, módulos). Un nacional que pida una ruta `foreign-*` → redirect al portal nacional.
+  - Fix: el link "Go to portal" del onboarding extranjero ahora apunta a `foreign-portal` (antes iba al nacional).
+- **Verificado (e2e):** sus 5 rutas PASAN; las 5 nacionales (facturas, oc, onboarding, fiscal, ia) REDIRIGEN a su portal; las 4 vistas renderizan OK. `php -l` OK, vistas compilan, rutas registradas.
+- **PENDIENTE deploy:** subir + `php artisan migrate` en prod (columna es_extranjero) + limpiar caché/OPcache.
+
 ## 2026-09-30 — Portal de proveedores en inglés para extranjeros — Parte A: layout/sidebar (i18n real)
 - **Qué:** se montó el sistema de traducción real de Laravel (locale + archivos lang) y se tradujo el layout/sidebar/header del portal de proveedores. Un proveedor extranjero ve el portal en inglés; el nacional en español.
 - **Cómo:**

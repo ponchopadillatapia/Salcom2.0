@@ -2730,6 +2730,86 @@ class PortalProveedorController extends Controller
             ->with('mensaje', 'Document uploaded successfully. Our team will review it.');
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // PORTAL del proveedor EXTRANJERO (independiente del portal nacional)
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /** Garantiza que quien entra es un extranjero; si no, lo manda a su portal correcto. */
+    private function soloExtranjero(): ?ProveedorUser
+    {
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        if (! $proveedor) {
+            return null;
+        }
+        if (! $proveedor->esExtranjero()) {
+            return null; // el llamador redirige al portal nacional
+        }
+
+        return $proveedor;
+    }
+
+    /** Home del portal extranjero: estado del onboarding. */
+    public function mostrarForeignPortal()
+    {
+        $proveedor = $this->soloExtranjero();
+        if (! $proveedor) {
+            return redirect()->route('proveedores.portal');
+        }
+
+        $proveedor->load('documentos');
+        $perfil = $proveedor->perfilExtranjero()->first();
+        $reqDocs = $proveedor->documentosExtranjeroRequeridos();
+        $docsTotal = count($reqDocs);
+        $docsSubidos = 0;
+        foreach (array_keys($reqDocs) as $t) {
+            $d = $proveedor->documentos->firstWhere('tipo', $t);
+            if ($d && $d->estatus !== 'rechazado') {
+                $docsSubidos++;
+            }
+        }
+        $docsOk = $docsSubidos === $docsTotal;
+
+        return view('proveedores.foreign-portal', compact('proveedor', 'perfil', 'docsTotal', 'docsSubidos', 'docsOk'));
+    }
+
+    public function mostrarForeignInvoices()
+    {
+        $proveedor = $this->soloExtranjero();
+        if (! $proveedor) {
+            return redirect()->route('proveedores.portal');
+        }
+        // Reusa la resolución de códigos de factura; si no hay, llega una colección vacía.
+        [, $codigos] = $this->resolverCodigosFacturaProveedor($proveedor);
+        $facturas = \App\Models\Factura::query()
+            ->whereIn('codigo_proveedor', $codigos)
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+
+        return view('proveedores.foreign-invoices', compact('proveedor', 'facturas'));
+    }
+
+    public function mostrarForeignPo()
+    {
+        $proveedor = $this->soloExtranjero();
+        if (! $proveedor) {
+            return redirect()->route('proveedores.portal');
+        }
+
+        return view('proveedores.foreign-po', compact('proveedor'));
+    }
+
+    public function mostrarForeignProfile()
+    {
+        $proveedor = $this->soloExtranjero();
+        if (! $proveedor) {
+            return redirect()->route('proveedores.portal');
+        }
+        $perfil = $proveedor->perfilExtranjero()->first();
+
+        return view('proveedores.foreign-profile', compact('proveedor', 'perfil'));
+    }
+
     private function normalizarTipoPersona(?string $tipo): string
     {
         $tipo = trim((string) $tipo);

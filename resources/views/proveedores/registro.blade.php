@@ -94,7 +94,7 @@
 
             {{-- Selector de tipo de proveedor: nacional (flujo fiscal MX) vs extranjero (importación, C-TPAT en inglés). --}}
             <input type="hidden" name="es_extranjero" id="reg_es_extranjero" value="{{ old('es_extranjero', '0') }}">
-            <div class="form-section-title">Supplier type / Tipo de proveedor</div>
+            <div class="form-section-title" id="txt_supplier_type">Supplier type / Tipo de proveedor</div>
             <div class="form-row" style="margin-bottom:6px;">
                 <div class="ios-field" style="grid-column:1 / -1;">
                     <select id="reg_origen" onchange="setOrigen(this.value)">
@@ -405,6 +405,7 @@
         function setHtml(id, en, es) { var el = document.getElementById(id); if (el) el.innerHTML = esExtranjero ? en : es; }
         function setPh(el, en, es) { if (el) el.placeholder = esExtranjero ? en : es; }
 
+        setText('txt_supplier_type', 'Supplier type', 'Supplier type / Tipo de proveedor');
         setText('txt_portal', 'SUPPLIER PORTAL', 'PORTAL DE PROVEEDORES');
         setText('txt_card_title', 'Supplier Registration', 'Registro de Proveedor');
         setText('txt_card_sub', 'Fill in your details to create your account', 'Completa tus datos para crear tu cuenta');
