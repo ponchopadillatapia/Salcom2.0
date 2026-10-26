@@ -271,7 +271,7 @@
 
             <div class="fo-actions">
                 <button type="button" class="fo-btn fo-btn-ghost" onclick="foGo(2)">← Back</button>
-                <a href="/portal-proveedor" class="fo-btn fo-btn-ghost" style="text-decoration:none;">Go to portal</a>
+                <a href="{{ route('proveedores.foreign-portal') }}" class="fo-btn fo-btn-ghost" style="text-decoration:none;">Go to portal</a>
             </div>
         </div>
     </div>

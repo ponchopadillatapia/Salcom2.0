@@ -36,6 +36,31 @@ class AutenticacionProveedor
         'aviso.privacidad',
     ];
 
+    /**
+     * Rutas permitidas para un proveedor EXTRANJERO.
+     * POR QUÉ: su portal es independiente; NO puede ver facturas MX, OC, onboarding mexicano,
+     * Wiese, identificación fiscal, módulo IA, etc. Solo su propio portal + utilidades comunes.
+     */
+    private array $rutasExtranjero = [
+        'proveedores.foreign-portal',
+        'proveedores.foreign-invoices',
+        'proveedores.foreign-po',
+        'proveedores.foreign-profile',
+        'proveedores.foreign-onboarding',
+        'proveedores.foreign-onboarding.profile',
+        'proveedores.foreign-onboarding.security',
+        'proveedores.foreign-onboarding.document',
+        'proveedores.documento.archivo',
+        // Comunes (compartidas sin problema)
+        'proveedores.perfil.actualizar',
+        'proveedores.logout',
+        'proveedores.aviso.aceptar',
+        'proveedores.alertas.recientes',
+        'proveedores.alertas.leer',
+        'proveedores.alertas.leer-todas',
+        'aviso.privacidad',
+    ];
+
     /** Rutas permitidas si ya está activo pero aún le faltan los 2 contactos. */
     private array $rutasSoloContactos = [
         'proveedores.onboarding',
@@ -78,6 +103,32 @@ class AutenticacionProveedor
         View::share('proveedorDebeContactos', $debeContactos);
 
         $ruta = optional($request->route())->getName();
+
+        // AISLAMIENTO EXTRANJERO: su portal es independiente y NO pasa por las reglas mexicanas
+        // (onboarding MX, 2 contactos, módulos). Si la ruta es suya → sigue; si no → a su portal.
+        if ($proveedor && $proveedor->esExtranjero()) {
+            if ($ruta && in_array($ruta, $this->rutasExtranjero, true)) {
+                // Ruta válida del extranjero: salta toda la lógica nacional de abajo.
+                $response = $next($request);
+                $response->headers->set('Cache-Control', 'no-cache, no-store, must-revalidate');
+                $response->headers->set('Pragma', 'no-cache');
+                $response->headers->set('Expires', '0');
+
+                return $response;
+            }
+
+            if ($request->expectsJson() || $request->ajax()) {
+                return response()->json(['mensaje' => 'Not available for your account.'], 403);
+            }
+
+            // Cualquier ruta nacional → de vuelta a su portal.
+            return redirect()->route('proveedores.foreign-portal');
+        }
+
+        // Un nacional NO puede entrar a las rutas del portal extranjero.
+        if ($proveedor && $ruta && str_starts_with($ruta, 'proveedores.foreign-')) {
+            return redirect()->route('proveedores.portal');
+        }
 
         if (! $activo) {
             $permitida = $ruta && (
