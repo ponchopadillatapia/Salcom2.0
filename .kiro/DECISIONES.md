@@ -11,9 +11,17 @@
 > La conexión pública la apagó Genaro hasta ~30-nov. Estos 4 puntos hay que cerrarlos
 > ANTES de que se reabra al público:
 
-1. **Probar el HTTPS desde fuera** → cuando Genaro reabra el NAT (hasta el 30 nov). Dentro del
-   251 no se puede probar por el nombre porque el NAT está apagado; por eso usamos localhost.
-   Pedir a Genaro que al reabrir abra también el **5443** (no solo el 5009).
+1. **✅ RESUELTO — HTTPS del 5443 YA ENTRA DESDE INTERNET.** La policy **"Wiese Chapalita"** en el
+   FortiGate (FortiNave3, 172.16.1.1) YA EXISTÍA pero estaba **DESACTIVADA**. Daniel Crespo solo la
+   **ACTIVÓ (Enabled)** y empezó a pasar tráfico (se ve el contador subiendo, ~6.65 MB).
+   La policy: Incoming wan1 → Outgoing lan, Source all, Destination = VIP "chapalita web 2"
+   (189.254.241.195 → 172.16.1.251), Service ALL, Action ACCEPT. No se creó nada nuevo, solo se habilitó.
+   VERIFICADO desde fuera: `https://api-pagos.salcomlink.mx:5443/swagger` abre desde celular con
+   datos; el swagger.json se lee desde la nube pública. Endpoints y seguridad Bearer visibles.
+   NOTA: la policy usa Service=ALL (no solo 5443) y el VIP es Static NAT compartido con "chapalita".
+   Mejora futura (con redes): acotar a Service TCP 5443 y restringir Source a la IP de SiteGround
+   (35.215.67.229), para no exponer de más. No urgente.
+   El `.env` de SiteGround ya apunta a `https://api-pagos.salcomlink.mx:5443`.
 2. **Renovar el certificado ~16 dic** (repetir el registro TXT en SiteGround con win-acme) —
    o pasarlo a automático cuando reabra el puerto 80 (validación HTTP-01).
 3. **Regenerar los 2 tokens** (JWT_KEY y GATEWAY_TOKEN) antes de reabrir al público
