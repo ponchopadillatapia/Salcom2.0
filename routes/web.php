@@ -31,6 +31,11 @@ Route::get('/proveedor/facturas/excel', [PortalProveedorController::class, 'fact
 // Descarga PROTEGIDA de la factura (PDF/XML/OC): verifica que la factura sea del proveedor en sesión.
 Route::get('/proveedor/facturas/{factura}/archivo/{tipo}', [PortalProveedorController::class, 'descargarFactura'])->name('proveedores.facturas.archivo')->middleware('auth.proveedor')->whereIn('tipo', ['pdf', 'xml', 'oc']);
 Route::get('/onboarding', [PortalProveedorController::class, 'mostrarOnboarding'])->name('proveedores.onboarding')->middleware('auth.proveedor');
+// ── Portal proveedor EXTRANJERO (independiente del nacional, en inglés) ──
+Route::get('/foreign-portal', [PortalProveedorController::class, 'mostrarForeignPortal'])->name('proveedores.foreign-portal')->middleware('auth.proveedor');
+Route::get('/foreign-invoices', [PortalProveedorController::class, 'mostrarForeignInvoices'])->name('proveedores.foreign-invoices')->middleware('auth.proveedor');
+Route::get('/foreign-purchase-orders', [PortalProveedorController::class, 'mostrarForeignPo'])->name('proveedores.foreign-po')->middleware('auth.proveedor');
+Route::get('/foreign-profile', [PortalProveedorController::class, 'mostrarForeignProfile'])->name('proveedores.foreign-profile')->middleware('auth.proveedor');
 // ── Onboarding proveedor EXTRANJERO (importación / C-TPAT, en inglés) ──
 Route::get('/foreign-onboarding', [PortalProveedorController::class, 'mostrarForeignOnboarding'])->name('proveedores.foreign-onboarding')->middleware('auth.proveedor');
 Route::post('/foreign-onboarding/profile', [PortalProveedorController::class, 'guardarPerfilExtranjero'])->name('proveedores.foreign-onboarding.profile')->middleware('auth.proveedor');

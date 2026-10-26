@@ -625,14 +625,18 @@ class AuthProveedorController extends Controller
     {
         $proveedor = ProveedorUser::find(session('proveedor_id'));
 
-        if ($proveedor && ! $proveedor->activo) {
-            // POR QUÉ: el extranjero tiene su propio onboarding en inglés (perfil + cuestionario C-TPAT + docs),
-            // separado del onboarding mexicano (RFC/Wiese/CLABE) que no le aplica.
-            if ($proveedor->esExtranjero()) {
-                return redirect()->route('proveedores.foreign-onboarding')
-                    ->with('mensaje', 'Welcome '.$nombre.'. Please complete your onboarding so our team can activate your account.');
+        // POR QUÉ: el extranjero tiene su PROPIO portal (en inglés), totalmente separado del nacional.
+        // Activo → su portal; inactivo → su onboarding C-TPAT. Nunca ve el portal/onboarding mexicano.
+        if ($proveedor && $proveedor->esExtranjero()) {
+            if ($proveedor->activo) {
+                return redirect()->route('proveedores.foreign-portal')->with('mensaje', 'Welcome '.$nombre);
             }
 
+            return redirect()->route('proveedores.foreign-onboarding')
+                ->with('mensaje', 'Welcome '.$nombre.'. Please complete your onboarding so our team can activate your account.');
+        }
+
+        if ($proveedor && ! $proveedor->activo) {
             return redirect()->route('proveedores.onboarding')
                 ->with('mensaje', 'Bienvenido '.$nombre.'. Completa tu onboarding para que Dirección active tu cuenta.');
         }
