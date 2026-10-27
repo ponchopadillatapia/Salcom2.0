@@ -70,6 +70,7 @@ class AltaFacturaValidationService
             'uso_cfdi' => null,
             'moneda' => null,
             'producto' => null,
+            'tipo_cambio' => 1.0,
             'subtotal' => 0.0,
             'descuento' => 0.0,
             'iva' => 0.0,
@@ -281,6 +282,9 @@ class AltaFacturaValidationService
             'fecha' => (string) ($attrs['Fecha'] ?? ''),
             'tipo_comprobante' => (string) ($attrs['TipoDeComprobante'] ?? ''),
             'moneda' => strtoupper((string) ($attrs['Moneda'] ?? 'MXN')),
+            // TipoCambio del comprobante: lo necesita la regla de moneda extranjera.
+            // Si no viene (típico en MXN), se asume 1.
+            'tipo_cambio' => (float) ($attrs['TipoCambio'] ?? 1),
             'forma_pago' => $this->normalizarCodigoPago((string) ($attrs['FormaPago'] ?? ''), 2),
             'metodo_pago' => strtoupper(trim((string) ($attrs['MetodoPago'] ?? ''))) ?: null,
             'uso_cfdi' => null,
@@ -346,6 +350,7 @@ class AltaFacturaValidationService
         $datos['metodo_pago'] = $cfdi['metodo_pago'];
         $datos['uso_cfdi'] = $cfdi['uso_cfdi'];
         $datos['moneda'] = $cfdi['moneda'];
+        $datos['tipo_cambio'] = $cfdi['tipo_cambio'] ?? 1.0;
         $datos['subtotal'] = $cfdi['subtotal'];
         $datos['descuento'] = $cfdi['descuento'] ?? 0.0;
         $datos['total'] = $cfdi['total'];
@@ -1064,6 +1069,40 @@ class AltaFacturaValidationService
             $okPago = false;
         } elseif (! array_key_exists($datos['uso_cfdi'], $usos)) {
             $errores[] = "UsoCFDI '{$datos['uso_cfdi']}' del XML no está en el catálogo aceptado.";
+            $okPago = false;
+        }
+
+        // ════════════════════════════════════════════════════════════
+        // REGLAS DE COHERENCIA SAT (Anexo 20) — además de que existan en catálogo
+        // ════════════════════════════════════════════════════════════
+
+        // REGLA 1: PUE/PPD ↔ FormaPago (regla oficial SAT, error CFDI40105).
+        // POR QUÉ: pago diferido (PPD) obliga FormaPago 99; una exhibición (PUE) no puede ser 99.
+        if ($datos['metodo_pago'] === 'PPD' && $datos['forma_pago'] !== '99') {
+            $errores[] = "Método PPD (pago diferido) exige FormaPago '99 — Por definir', pero el XML trae '{$datos['forma_pago']}'. (Regla SAT CFDI40105)";
+            $okPago = false;
+        }
+        if ($datos['metodo_pago'] === 'PUE' && $datos['forma_pago'] === '99') {
+            $errores[] = "Método PUE (una exhibición) no puede usar FormaPago '99 — Por definir'; debe indicar cómo se pagó (ej. 03 transferencia). (Regla SAT CFDI40105)";
+            $okPago = false;
+        }
+
+        // REGLA 2: moneda extranjera debe traer tipo de cambio válido (> 0).
+        // POR QUÉ: sin tipo de cambio no se puede convertir a pesos para pagar.
+        $moneda = strtoupper((string) ($datos['moneda'] ?? 'MXN'));
+        if ($moneda !== 'MXN' && $moneda !== 'XXX') {
+            $tc = (float) ($datos['tipo_cambio'] ?? 0);
+            if ($tc <= 0) {
+                $errores[] = "La factura está en {$moneda} pero el XML no trae un TipoCambio válido (> 0).";
+                $okPago = false;
+            }
+        }
+
+        // REGLA 3: UsoCFDI de deducciones personales (D01-D10) no aplica a persona moral.
+        // POR QUÉ: Salcom/Fram son morales; los usos "D" son solo de personas físicas.
+        $usoCfdiVal = strtoupper((string) ($datos['uso_cfdi'] ?? ''));
+        if (str_starts_with($usoCfdiVal, 'D')) {
+            $errores[] = "UsoCFDI '{$usoCfdiVal}' es de deducciones personales (solo personas físicas). Salcom es persona moral; pide al proveedor corregir el Uso de CFDI (ej. G01, G03).";
             $okPago = false;
         }
 

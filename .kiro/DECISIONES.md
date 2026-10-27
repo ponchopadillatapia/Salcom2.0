@@ -6,6 +6,46 @@
 
 ---
 
+## 2026-10-27 — CIDDOCUMENTODE en ListarDocumentos + comentado Contpaqi del gateway
+
+- **QUÉ:** (1) Alan agregó al **APIWIESE** (250) el parámetro `CIDDOCUMENTODE` a los métodos de
+  listar documentos (ListarDocumentos/Codigo/Rfc) + ahora traen `Movimientos` (renglones/cantidades).
+  (2) En MI gateway **APIPortalWeb** (251), actualicé `ListarDocumentos` para mandar ese parámetro
+  (2 líneas: firma con `string ciddocumentode = "19"` + `&CIDDOCUMENTODE={ciddocumentode}` en la URL al 250).
+  (3) **COMENTÉ** (no borré, con Ctrl+K Ctrl+C) los 3 endpoints del gateway que usaban SDK de Contpaqi
+  LOCAL: `CrearPago`, `FacturasProveedor`, `CrearPagoYSaldar`.
+- **POR QUÉ:** CIDDOCUMENTODE = tipo de documento Contpaqi (17=OC, 19=Compras/facturas, 32=entradas
+  almacén). Antes el endpoint traía fijo 19; ahora puedo pedir 17 (OC) para el flujo nuevo factura↔OC.
+  Los de Contpaqi se comentan porque usan el SDK local (`C:\Compac\Empresas\adSalcom18`) y se va a
+  migrar a SAP; el día que quiten Contpaqi, esos truenan.
+- **DÓNDE:** `APIPortalWeb/Controllers/PagoProveedorController.cs`. Compiló 0 errores.
+- **⚠️ PENDIENTE CRÍTICO:** comentar los de Contpaqi deja al sistema SIN poder crear/saldar pagos.
+  HOY no rompe nada (producción no está en uso), pero ANTES del arranque real Alan debe tener listo
+  el **reemplazo de crear/saldar pagos sin Contpaqi (vía SAP/APIWIESE)**. Confirmar con Alan.
+- **FALTA:** desplegar al 251 (publish → copiar → restart). Por ahora solo está en la laptop.
+  Conceptos Contpaqi documentados en `.kiro/CONCEPTOS-CONTPAQI.md`.
+
+---
+
+## 2026-10-27 — 3 reglas SAT de coherencia en validación de facturas (Anexo 20)
+
+- **QUÉ:** Se agregaron 3 validaciones nuevas al alta de facturas, en
+  `app/Services/AltaFacturaValidationService.php`, método `validarDatosPagoCfdi()`:
+  1. **PUE/PPD ↔ FormaPago** (regla oficial SAT CFDI40105): PPD obliga FormaPago 99;
+     PUE no puede ser 99.
+  2. **Moneda extranjera** (≠ MXN) debe traer `TipoCambio > 0`.
+  3. **UsoCFDI "D" (D01-D10)** rechazado porque Salcom/Fram son personas MORALES
+     (los usos D son deducciones personales, solo de físicas).
+- **POR QUÉ:** son las mismas reglas que aplican Alegra/PAC al emitir (Anexo 20). Antes el
+  sistema solo checaba que forma/método/uso EXISTIERAN en catálogo, no la COHERENCIA entre ellos.
+- **DÓNDE/EXTRA:** se agregó el campo `tipo_cambio` al objeto del CFDI (se lee de `TipoCambio`
+  del comprobante; default 1 si no viene) — antes no se leía. Si falla → `$okPago = false`.
+- **VERIFICADO:** `php -l` OK; tests en verde (27 unit + 10 feature de alta de factura).
+- Pendientes de las reglas SAT que NO se hicieron (decisión de negocio, confirmar con Contabilidad):
+  ampliar catálogo de formas de pago (05,06,29,31) y usos CFDI (I02-I07) si los proveedores los usan.
+
+---
+
 ## ⚠️ PENDIENTES ANTES DE REABRIR EL API 5009/5443 AL PÚBLICO (NO OLVIDAR)
 
 > La conexión pública la apagó Genaro hasta ~30-nov. Estos 4 puntos hay que cerrarlos
