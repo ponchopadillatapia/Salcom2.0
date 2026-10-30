@@ -456,6 +456,14 @@ class PortalProveedorController extends Controller
                         $all = $all->where('_estatus', $filtroEstatus);
                     }
 
+                    // Más recientes arriba: ordenar por fecha de la factura descendente.
+                    // POR QUÉ: Wiese las manda por folio ascendente (viejas primero); el proveedor
+                    // quiere ver primero lo más nuevo. Se cubren los nombres de campo de fecha que
+                    // puede traer Wiese (cfecha / fecha / fechaFactura).
+                    $all = $all->sortByDesc(function ($doc) {
+                        return (string) ($doc['cfecha'] ?? $doc['fecha'] ?? $doc['fechaFactura'] ?? '');
+                    })->values();
+
                     $wieseTotal = $all->count();
                     $wieseFacturas = $all->take(100)->values();
                 } else {
@@ -1874,7 +1882,18 @@ class PortalProveedorController extends Controller
             $request->validate([
                 'archivo' => ($tienePrev ? 'nullable' : 'required').'|file|extensions:pdf|max:10240',
                 'archivo_xml' => ($tienePrev ? 'nullable' : 'required').'|file|extensions:xml|max:5120',
+                // La OC ya NO se sube como PDF (archivo_oc opcional). El cruce se hace con el
+                // NÚMERO de OC que escribe el proveedor, buscándola directo en Wiese.
                 'archivo_oc' => 'nullable|file|extensions:pdf|max:10240',
+                // Número de OC: NO obligatorio en el form. POR QUÉ: aquí todavía no sabemos si la
+                // factura es de producto (lleva OC) o de servicio/flete (no lleva). Eso se decide al
+                // leer el XML en validar(). Si lo dejáramos required, un flete legítimo (ej. LARO,
+                // sin OC) no podría ni enviarse. La lógica de negocio en el validador se encarga.
+                'numero_oc' => 'nullable|string|max:50',
+                // Declaración del proveedor cuando deja la OC vacía: por qué no la pone.
+                // flete_servicio = no lleva OC; remision = compra por remisión/requisición sin OC.
+                // Si pone OC, este campo se ignora. Cierra el hueco de "sin OC = validada perfecta".
+                'tipo_sin_oc' => 'nullable|in:flete_servicio,remision',
                 'es_fletera' => 'nullable|in:0,1',
             ], [
                 'archivo.required' => 'La factura en PDF es obligatoria.',
@@ -1969,12 +1988,22 @@ class PortalProveedorController extends Controller
 
         $esFletera = $request->input('es_fletera') === '1';
         $rfcProveedor = $this->rfcProveedorSesion($proveedor);
-        $resultado = $validator->validar((string) $xmlContent, $esFletera, $rfcProveedor, (string) $pdfContent, $ocBinary);
+        // Número de OC que escribió el proveedor (o el que quedó del intento previo).
+        $numeroOc = trim((string) ($request->input('numero_oc') ?: ($prev['numero_oc'] ?? '')));
+        $codigoProvOc = (string) $proveedor->codigoParaFacturas(session('proveedor_codigo'));
+        // Declaración del proveedor cuando deja la OC vacía (flete_servicio|remision|''). Si escribió
+        // número de OC, no aplica. Se conserva del intento previo igual que numero_oc.
+        $declaracionSinOc = $numeroOc !== ''
+            ? ''
+            : trim((string) ($request->input('tipo_sin_oc') ?: ($prev['tipo_sin_oc'] ?? '')));
+        $resultado = $validator->validar((string) $xmlContent, $esFletera, $rfcProveedor, (string) $pdfContent, $ocBinary, $numeroOc, $codigoProvOc, $declaracionSinOc);
         $esFleteraEfectivo = (bool) ($resultado['datos']['es_fletera'] ?? $esFletera);
 
         $this->actualizarFiscalPendiente([
             'aprobado' => (bool) ($resultado['aprobado'] ?? false),
             'es_fletera' => $esFleteraEfectivo,
+            'numero_oc' => $numeroOc,
+            'tipo_sin_oc' => $declaracionSinOc,
             'resultado' => $resultado,
             'expires_at' => now()->addMinutes(30)->timestamp,
         ]);
@@ -1993,10 +2022,18 @@ class PortalProveedorController extends Controller
             ]);
         }
 
+        // POR QUÉ mensaje distinto: si la factura pasó pero REQUIERE autorización del admin (producto
+        // sin OC declarado remisión), NO debe verse como "validación correcta" a secas. Se avisa que
+        // queda pendiente de autorización, aunque sí se pueda subir.
+        $requiereAutorizacion = (bool) ($resultado['datos']['requiere_autorizacion_admin'] ?? false);
+        $mensajeOk = $requiereAutorizacion
+            ? 'Factura aceptada, PENDIENTE DE AUTORIZACIÓN del administrador (declaraste que es una compra por remisión sin OC). Puedes subirla; el administrador la revisará antes de pagarla.'
+            : ($resultado['mensaje'] ?? 'Validación correcta.');
+
         return $this->redirectConResultadoFiscal([
             'aprobado' => true,
-            'estatus' => $resultado['estatus'] ?? 'aprobada',
-            'mensaje' => ($resultado['mensaje'] ?? 'Validación correcta.').'',
+            'estatus' => $requiereAutorizacion ? 'pendiente_autorizacion' : ($resultado['estatus'] ?? 'aprobada'),
+            'mensaje' => $mensajeOk,
             'errores' => [],
             'advertencias' => $resultado['advertencias'] ?? [],
             'checklist' => $resultado['checklist'] ?? [],
@@ -2023,34 +2060,10 @@ class PortalProveedorController extends Controller
             ]);
         }
 
-        $plazos = config('facturas.plazos_dias', [30, 45, 60, 90, 120, 150, 360]);
-        $maxDias = (int) config('facturas.plazos_dias_max', 3650);
-        $opcionPlazo = $request->input('dias_plazo');
-
-        try {
-            if ($opcionPlazo === 'otro') {
-                $request->validate([
-                    'dias_plazo_otro' => ['required', 'integer', 'min:1', 'max:'.$maxDias],
-                ], [
-                    'dias_plazo_otro.required' => 'Escribe la cantidad de días del plazo.',
-                    'dias_plazo_otro.integer' => 'La cantidad de días debe ser un número entero.',
-                    'dias_plazo_otro.min' => 'El plazo debe ser de al menos 1 día.',
-                    'dias_plazo_otro.max' => 'El plazo no puede ser mayor a '.$maxDias.' días.',
-                ]);
-                $diasPlazo = (int) $request->input('dias_plazo_otro');
-            } else {
-                $request->validate([
-                    'dias_plazo' => ['required', Rule::in($plazos)],
-                ], [
-                    'dias_plazo.required' => 'Selecciona los días de plazo antes de subir.',
-                    'dias_plazo.in' => 'Selecciona un plazo de la lista o elige «Otro».',
-                ]);
-                $diasPlazo = (int) $opcionPlazo;
-            }
-        } catch (ValidationException $e) {
-            $this->conservarUiFiscalTrasRedirect();
-            throw $e;
-        }
+        // POR QUÉ plazo FIJO (y ya NO lo elige el proveedor): el proveedor no puede decidir cuándo se
+        // le paga (pondría "1 día"). El plazo de pago lo define Salcom/contabilidad. Usamos el plazo
+        // por defecto de config; contabilidad puede ajustar el vencimiento después si hace falta.
+        $diasPlazo = (int) config('facturas.plazo_default_dias', 30);
 
         $resultado = $pendiente['resultado'] ?? [];
 
@@ -2078,20 +2091,14 @@ class PortalProveedorController extends Controller
         $this->limpiarFiscalPendiente();
 
         $estatus = $resultado['estatus'] ?? 'aprobada';
-        $mensaje = "Factura registrada correctamente a {$diasPlazo} días. Queda pendiente de revisión contable.";
-        $datos = $resultado['datos'] ?? [];
-        $datos['dias_plazo'] = $diasPlazo;
+        // POR QUÉ redirigir a "Mis Facturas" (y no quedarse en Alta): al subir, el proveedor debe ver
+        // su factura ya registrada en la lista, no quedarse en el formulario sin saber si pasó algo.
+        // Se limpia el pendiente de sesión para que el formulario quede limpio para la siguiente.
+        $this->limpiarFiscalPendiente();
 
-        return $this->redirectConResultadoFiscal([
-            'aprobado' => true,
-            'estatus' => $estatus,
-            'mensaje' => $mensaje,
-            'errores' => [],
-            'advertencias' => $resultado['advertencias'] ?? [],
-            'checklist' => $resultado['checklist'] ?? [],
-            'datos' => $datos,
-            'registrada' => true,
-        ]);
+        return redirect()
+            ->route('proveedores.facturas')
+            ->with('ok', 'Factura subida correctamente. Queda pendiente de revisión contable.');
     }
 
     /**
@@ -2181,6 +2188,8 @@ class PortalProveedorController extends Controller
                 'forma_pago' => $datos['forma_pago'] ?? null,
                 'metodo_pago' => $datos['metodo_pago'] ?? null,
                 'uso_cfdi' => $datos['uso_cfdi'] ?? null,
+                'numero_oc' => $pendiente['numero_oc'] ?? ($datos['numero_oc'] ?? null),
+                'oc_cruce_detalle' => $datos['oc_cruce_detalle'] ?? null,
                 'producto' => $datos['producto'] ?? null,
                 'cfdi_relacionados' => $datos['cfdi_relacionados'] ?? [],
                 'tipo_relacion' => $datos['tipo_relacion'] ?? null,

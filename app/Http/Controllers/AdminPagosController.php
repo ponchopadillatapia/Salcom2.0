@@ -151,9 +151,15 @@ class AdminPagosController extends Controller
         try {
             $resTabla = app(\App\Services\ProveedorApiService::class)->listarFacturasPendientesTodos();
             if ($resTabla['success'] ?? false) {
+                // PUENTE portal ↔ Wiese: marcar qué facturas de Wiese YA tienen documentos subidos
+                // por el portal del proveedor (PDF/XML/validación). Es solo DECORACIÓN: no duplica
+                // ni crea nada; Wiese sigue siendo la fuente de verdad.
+                $items = $this->marcarFacturasConDocumentosPortal(
+                    collect($resTabla['data']['items'] ?? [])
+                );
                 // Agrupar las facturas por proveedor (código) y ordenar los bloques por NOMBRE
                 // del proveedor (orden alfabético), como pidió Brenda.
-                $tablaProveedores = collect($resTabla['data']['items'] ?? [])
+                $tablaProveedores = $items
                     ->groupBy('codigo')
                     ->sortBy(fn ($facturas) => mb_strtoupper((string) ($facturas->first()['nombre'] ?? '')));
             } else {
@@ -176,6 +182,88 @@ class AdminPagosController extends Controller
             'tablaProveedores',
             'tablaError'
         ));
+    }
+
+    /**
+     * PUENTE portal ↔ Wiese: marca cada factura de Wiese que YA tenga documentos subidos por el
+     * portal del proveedor (PDF/XML/validación), para que el admin lo vea en el Formato para pago.
+     *
+     * POR QUÉ (decisión Said): la factura vive en Wiese (fuente de verdad); el portal solo le aporta
+     * el PDF/XML y la validación fiscal. Aquí NO se crea ni duplica nada: se "decora" el array de
+     * cada factura de Wiese con banderas (tiene_docs, factura_local_id, etc.) leyendo la tabla local.
+     *
+     * CÓMO se hace el MATCH: por `codigo_proveedor + folio`. OJO: el endpoint de Wiese NO devuelve el
+     * UUID del CFDI (solo serie/folio/codigo), así que NO podemos casar por UUID todavía. Si Alan
+     * agrega el UUID al endpoint, conviene cambiar a match por UUID (más robusto). El folio local
+     * (`folio_cfdi`) puede ser `serie+folio` y a veces con sufijo `-xxxx` por colisión; por eso
+     * normalizamos a solo dígitos/base y comparamos contra `serie.folio` y el folio crudo del XML.
+     *
+     * Rendimiento: UNA sola query local con whereIn(codigo) y el match en memoria (sin N+1).
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string,mixed>>  $facturasWiese
+     * @return \Illuminate\Support\Collection<int, array<string,mixed>>
+     */
+    private function marcarFacturasConDocumentosPortal(\Illuminate\Support\Collection $facturasWiese): \Illuminate\Support\Collection
+    {
+        if ($facturasWiese->isEmpty()) {
+            return $facturasWiese;
+        }
+
+        // Normalizador de folio: minúsculas, sin espacios, sin el sufijo "-xxxx" de colisión.
+        $norm = static function (string $v): string {
+            $v = strtolower(trim($v));
+            // quitar sufijo de colisión tipo "-a1b2" que agrega el portal si el folio ya existía
+            $v = preg_replace('/-[0-9a-f]{4}$/', '', $v) ?? $v;
+
+            return $v;
+        };
+
+        $codigos = $facturasWiese
+            ->map(fn ($f) => trim((string) ($f['codigo'] ?? '')))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        if ($codigos === []) {
+            return $facturasWiese;
+        }
+
+        // UNA query: todas las facturas locales de esos proveedores. Índice por codigo|folio.
+        $locales = Factura::query()
+            ->whereIn('codigo_proveedor', $codigos)
+            ->get(['id', 'codigo_proveedor', 'folio_cfdi', 'uuid_cfdi', 'archivo_pdf', 'archivo_xml', 'archivo_oc', 'estatus', 'validacion_detalle']);
+
+        $indice = [];
+        foreach ($locales as $loc) {
+            $cod = trim((string) $loc->codigo_proveedor);
+            // Folio del XML guardado aparte (sin sufijo); y el folio_cfdi normalizado.
+            $vd = is_array($loc->validacion_detalle) ? $loc->validacion_detalle : [];
+            $folioXml = $norm((string) ($vd['folio'] ?? ''));
+            $folioCfdi = $norm((string) $loc->folio_cfdi);
+            foreach (array_unique(array_filter([$folioCfdi, $folioXml])) as $fol) {
+                $indice[$cod.'|'.$fol] = $loc;
+            }
+        }
+
+        return $facturasWiese->map(function ($f) use ($indice, $norm) {
+            $cod = trim((string) ($f['codigo'] ?? ''));
+            // En Wiese el folio viene solo (sin serie). Probamos contra "serie.folio" y "folio".
+            $folioWieseSolo = $norm((string) ($f['folio'] ?? ''));
+            $folioWieseConSerie = $norm((string) ($f['serie'] ?? '').(string) ($f['folio'] ?? ''));
+
+            $loc = $indice[$cod.'|'.$folioWieseConSerie]
+                ?? $indice[$cod.'|'.$folioWieseSolo]
+                ?? null;
+
+            $f['tiene_docs'] = $loc !== null;
+            $f['factura_local_id'] = $loc?->id;
+            $f['docs_pdf'] = $loc && $loc->archivo_pdf ? true : false;
+            $f['docs_xml'] = $loc && $loc->archivo_xml ? true : false;
+            $f['estatus_local'] = $loc?->estatus;
+
+            return $f;
+        });
     }
 
     public function proveedor(string $codigo)
@@ -259,6 +347,8 @@ class AdminPagosController extends Controller
                     ->reject(fn ($f) => in_array((string) ($f['folio'] ?? ''), $foliosEnProceso, true))
                     ->sortBy(fn ($f) => $f['fecha_vence'] ?? '9999-12-31')
                     ->values();
+                // PUENTE portal ↔ Wiese: marcar cuáles ya tienen documentos subidos por el portal.
+                $facturasWiese = $this->marcarFacturasConDocumentosPortal($facturasWiese);
             } else {
                 $wieseError = $res['message'] ?? 'No se pudieron cargar las facturas de Wiese.';
             }

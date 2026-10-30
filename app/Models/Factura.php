@@ -44,6 +44,13 @@ class Factura extends Model
         'archivo_oc',
         'notas',
         'validacion_detalle',
+        // Visto bueno visual del admin (flujo de expediente, separado del estatus de pago).
+        'revision_admin',
+        'revision_notas',
+        'revisado_por',
+        'revisado_por_nombre',
+        'revisado_admin_at',
+        'visto_admin_at',
     ];
 
     protected $casts = [
@@ -57,6 +64,8 @@ class Factura extends Model
         'fecha_vencimiento' => 'date',
         'dias_plazo' => 'integer',
         'validacion_detalle' => 'array',
+        'revisado_admin_at' => 'datetime',
+        'visto_admin_at' => 'datetime',
     ];
 
     public function pedido()

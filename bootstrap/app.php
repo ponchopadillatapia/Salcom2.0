@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AdminAccesoDireccion;
+use App\Http\Middleware\AdminPermiso;
 use App\Http\Middleware\AdminRol;
 use App\Http\Middleware\ApiTokenAuth;
 use App\Http\Middleware\AutenticacionAdmin;
@@ -30,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'auth.admin' => AutenticacionAdmin::class,
             'auth.api_token' => ApiTokenAuth::class,
             'admin.rol' => AdminRol::class,
+            'admin.permiso' => AdminPermiso::class,
             'admin.direccion' => AdminAccesoDireccion::class,
         ]);
     })

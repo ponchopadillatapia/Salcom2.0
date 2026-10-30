@@ -219,6 +219,7 @@
                         <th style="text-align:right;">Importe pago</th>
                         <th style="text-align:right;">IVA dólares</th>
                         <th style="text-align:center;">Moneda</th>
+                        <th style="text-align:center;">Documentos</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -231,7 +232,7 @@
                              Ya NO hay botón por proveedor: se marca de varios proveedores a la vez
                              y se envían todos juntos con el botón verde global de abajo. --}}
                         <tr class="date-row">
-                            <td colspan="12">
+                            <td colspan="13">
                                 <input type="checkbox" class="fp-chk-all" data-prov="{{ $codigoProv }}" title="Seleccionar todas de este proveedor" style="margin-right:6px;vertical-align:middle;">
                                 <a class="code-link" href="{{ route('admin.pagos.proveedor', $codigoProv) }}">{{ $codigoProv }}</a>
                                 — {{ $nombreProv }}
@@ -270,6 +271,22 @@
                                 <td style="text-align:right;white-space:nowrap;">${{ number_format((float) ($f['iva_dlls'] ?? 0), 2) }}</td>
                                 <td style="text-align:center;">
                                     @if($esUsd)<span class="mon-badge mon-usd" style="background:#dbeafe;color:#1d4ed8;">USD</span>@else<span class="mon-badge mon-mxn">MXN</span>@endif
+                                </td>
+                                {{-- PUENTE portal↔Wiese: marca si esta factura de Wiese ya tiene PDF/XML
+                                     subidos por el proveedor en el portal. Verde = con docs. --}}
+                                <td style="text-align:center;white-space:nowrap;">
+                                    @if(!empty($f['tiene_docs']))
+                                        @if(!empty($f['factura_local_id']))
+                                            <a href="{{ route('admin.pagos.factura-archivo', ['factura' => $f['factura_local_id'], 'tipo' => 'pdf']) }}"
+                                               target="_blank"
+                                               style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;text-decoration:none;"
+                                               title="Ver PDF subido por el proveedor">📄 Con docs</a>
+                                        @else
+                                            <span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;">📄 Con docs</span>
+                                        @endif
+                                    @else
+                                        <span style="background:#f3f4f6;color:#9ca3af;font-size:11px;padding:3px 8px;border-radius:999px;">Sin docs</span>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

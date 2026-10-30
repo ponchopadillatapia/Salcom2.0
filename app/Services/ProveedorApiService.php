@@ -446,9 +446,15 @@ class ProveedorApiService
                 $peticion = $peticion->withToken($token);
             }
 
+            // POR QUÉ CIDDOCUMENTODE=19: desde que Alan lo volvió obligatorio, ListarDocumentos
+            // responde 400 ("CIDDOCUMENTODE field is required") si no se manda. Las facturas de
+            // proveedor (compras) son tipo 19 en Wiese/Contpaqi (las OC son 17). Confirmado buscando
+            // la factura real 93150 de ORPACK: aparece en tipo 19. Configurable por si cambia.
+            $tipoFactura = (string) config('facturas.tipo_documento_compra', '19');
             $response = $peticion->get($base.$endpoint, [
                 'fechaInicial' => $fechaInicial,
                 'fechaFinal' => $fechaFinal,
+                'CIDDOCUMENTODE' => $tipoFactura,
             ]);
 
             if (! $response->successful()) {
@@ -740,6 +746,181 @@ class ProveedorApiService
         ]];
 
         return ['success' => true, 'data' => ['cuentas' => $cuentas]];
+    }
+
+    /**
+     * Busca UNA Orden de Compra (OC) de un proveedor por su número de folio, y devuelve sus
+     * movimientos (renglones con cantidades).
+     *
+     * POR QUÉ EXISTE (Fase 1 del cruce factura↔OC): cuando el proveedor sube su factura escribe
+     * el número de OC (ej. 81686). Con ese folio y el código del proveedor, pedimos al API todas
+     * sus OC (CIDDOCUMENTODE = 17, que ya vienen con Movimientos) y nos quedamos con la que tenga
+     * ese folio. De ahí sacamos la cantidad pedida y lo recibido (cunidades − cunidadespendientes).
+     *
+     * @param  string  $codigoProveedor  código Wiese del proveedor
+     * @param  string  $folioOc          número de OC que escribió el proveedor
+     * @return array{success: bool, data?: array, message: string, error_type: ?string}
+     */
+    public function buscarOcPorFolio(string $codigoProveedor, string $folioOc, float $totalFactura = 0.0): array
+    {
+        $codigoProveedor = trim($codigoProveedor);
+        $folioOc = trim($folioOc);
+        if ($codigoProveedor === '' || $folioOc === '') {
+            return $this->buildErrorResponse('Falta el código del proveedor o el número de OC.', 'validation');
+        }
+
+        // POR QUÉ ventana acotada (y NO 2020-2035): con CIDDOCUMENTODE=17 el 250 trae las OC CON
+        // todos sus Movimientos. Pedir 15 años de historia para un proveedor con muchas OC hace que
+        // la consulta tarde > límite de PHP y truene con timeout (lo vimos en pruebas: 2020-2035 =
+        // cuelgue; solo 2026 = responde en ~8s con 1MB). Una OC siempre es anterior o cercana a la
+        // factura, no de años atrás; con ~18 meses hacia atrás cubrimos de sobra los casos reales.
+        $meses = (int) config('facturas.oc_ventana_meses', 18);
+        $params = [
+            'fechaInicial' => now()->subMonths($meses)->startOfMonth()->format('Y-m-d'),
+            'fechaFinal' => now()->addMonth()->endOfMonth()->format('Y-m-d'),
+            'codigo' => $codigoProveedor,
+            'CIDDOCUMENTODE' => '17', // 17 = Órdenes de Compra (traen Movimientos con cantidades)
+        ];
+
+        // DOS caminos (igual que el resto): 5009 en producción, 250 directo en oficina.
+        $pagosUrl = rtrim((string) config('services.proveedor_api.pagos_url', ''), '/');
+
+        if ($pagosUrl !== '') {
+            $base = $pagosUrl;
+            $endpoint = '/PagoProveedor/ListarDocumentosCodigo'; // puente en el 5009
+            $token = $this->tokenGateway5009($pagosUrl);
+        } else {
+            $configError = $this->validarDocsConfiguracion();
+            if ($configError) {
+                return $configError;
+            }
+            $login = $this->loginServicio();
+            if (! ($login['success'] ?? false)) {
+                return $login;
+            }
+            $token = (string) ($login['data']['tokenCreado'] ?? '');
+            $base = $this->docsUrl;
+            $endpoint = '/DatoDocumentoProveedor/ListarDocumentosCodigo';
+        }
+
+        try {
+            // POR QUÉ 60s: el 250 NO sabe filtrar por folio (probado: ignora folio/Folio/cfolio y
+            // siempre devuelve TODAS las OC del proveedor — ORPACK tiene 1864 — con sus movimientos).
+            // Esa consulta tarda ~20-30s y a veces pico de 30s+. Con 25s se cortaba en demo (cURL 28).
+            // Subimos a 60s de margen. El tope lo pone config para poder ajustarlo sin tocar código.
+            // NOTA: la solución de fondo (que respondería en ms) es que Alan agregue filtro por folio
+            // en el API del 250; mientras no exista, toca esperar a que traiga todo.
+            $timeoutOc = (int) config('facturas.oc_timeout_seg', 60);
+            $peticion = $this->http($timeoutOc)->acceptJson();
+            if ($token !== '') {
+                $peticion = $peticion->withToken($token);
+            }
+            $response = $peticion->get($base.$endpoint, $params);
+
+            if (! $response->successful()) {
+                return $this->procesarRespuesta($response, $endpoint);
+            }
+
+            $body = $response->json();
+            $lista = is_array($body) ? (array_is_list($body) ? $body : [$body]) : [];
+
+            // Buscar la OC cuyo folio coincida con el que escribió el proveedor.
+            // El folio puede venir como 'folio', 'Folio' o 'cfolio' según el documento.
+            //
+            // POR QUÉ normalizamos a solo dígitos: en Wiese la OC a veces trae un prefijo de letra
+            // (ej. "A81686" para parcialidades) o ceros a la izquierda ("081686"). El proveedor
+            // escribe "81686" a secas. Dejando solo los números en AMBOS lados, "A81686", "081686"
+            // y "81686" se consideran la misma OC y evitamos un falso "no encontrada".
+            $soloDigitos = static fn (string $v): string => ltrim(preg_replace('/\D/', '', $v) ?? '', '0');
+            $folioBuscado = $soloDigitos($folioOc);
+
+            // POR QUÉ juntamos TODAS (y no la primera): en Wiese el folio NO es único. Puede haber
+            // varias OC con el mismo folio pero distinta SERIE (ej. 81686 serie '' = 7200 pzas y
+            // 81686 serie '-A' = 8754 pzas). Si nos quedábamos con la primera (break), agarrábamos
+            // la equivocada. Las juntamos y abajo elegimos la correcta por el total de la factura.
+            $candidatas = [];
+            foreach ($lista as $doc) {
+                $folioDoc = (string) ($doc['folio'] ?? $doc['Folio'] ?? $doc['cfolio'] ?? '');
+                if ($folioDoc !== '' && $folioBuscado !== '' && $soloDigitos($folioDoc) === $folioBuscado) {
+                    $candidatas[] = $doc;
+                }
+            }
+
+            if (count($candidatas) === 0) {
+                return $this->buildErrorResponse(
+                    "No se encontró la OC {$folioOc} para el proveedor {$codigoProveedor} en Wiese. Verifica el número de OC.",
+                    ProveedorApiException::NO_ENCONTRADO
+                );
+            }
+
+            // DESEMPATE por total: si hay varias OC con el mismo folio, elegimos la que su total se
+            // parezca más al de la factura. POR QUÉ el total: la factura tiene que cuadrar en dinero
+            // con su OC, así que es el mejor dato para distinguir versiones del mismo folio sin
+            // pedirle la serie al proveedor. Si solo hay una candidata, se usa esa sin más.
+            // NOTA Fase 2: cuando haya parcialidades el total puede NO cuadrar exacto; ahí habrá que
+            // usar la serie/prefijo. Por eso guardamos la serie en el resultado (ver 'serie_oc').
+            if (count($candidatas) === 1 || $totalFactura <= 0) {
+                $oc = $candidatas[0];
+            } else {
+                usort($candidatas, static function (array $a, array $b) use ($totalFactura): int {
+                    $da = abs(((float) ($a['total'] ?? 0)) - $totalFactura);
+                    $db = abs(((float) ($b['total'] ?? 0)) - $totalFactura);
+
+                    return $da <=> $db; // la de menor diferencia contra el total de la factura va primero
+                });
+                $oc = $candidatas[0];
+            }
+
+            // Normalizar los movimientos (renglones con cantidades) a un formato limpio.
+            $movs = $oc['movimientos'] ?? $oc['Movimientos'] ?? [];
+            $items = [];
+            $totalPedido = 0.0;
+            $totalRecibido = 0.0;
+            foreach ((is_array($movs) ? $movs : []) as $m) {
+                $pedido = (float) ($m['cunidades'] ?? 0);
+                $pendiente = (float) ($m['cunidadespendientes'] ?? 0);
+                $recibido = max(0.0, $pedido - $pendiente); // lo que llegó a almacén (Acatlán)
+                $totalPedido += $pedido;
+                $totalRecibido += $recibido;
+                $items[] = [
+                    'producto' => (string) ($m['codigoProducto'] ?? ''),
+                    'cantidad_pedida' => $pedido,
+                    'cantidad_pendiente' => $pendiente,
+                    'cantidad_recibida' => $recibido,
+                    'precio' => (float) ($m['cprecio'] ?? 0),
+                    'total' => (float) ($m['ctotal'] ?? 0),
+                ];
+            }
+
+            return $this->buildSuccessResponse([
+                'folio_oc' => $folioOc,
+                // serie_oc: en Wiese es lo que distingue dos OC del mismo folio (ej. '-A'). Hoy no
+                // decide nada, pero lo guardamos para Fase 2 (parcialidades/prefijos) y para auditoría.
+                'serie_oc' => (string) ($oc['serie'] ?? $oc['Serie'] ?? ''),
+                // candidatas: cuántas OC compartían el folio. Si es > 1, elegimos por total; sirve
+                // para que el admin sepa que hubo desempate y revise si el total no cuadró claro.
+                'candidatas' => count($candidatas),
+                'id_documento' => $oc['idDocumento'] ?? $oc['ciddocumento'] ?? null,
+                'total_oc' => (float) ($oc['total'] ?? 0),
+                'cantidad_pedida_total' => $totalPedido,
+                'cantidad_recibida_total' => $totalRecibido,
+                'movimientos' => $items,
+            ]);
+        } catch (ConnectionException $e) {
+            Log::error('ProveedorAPI: conexión fallida (buscar OC por folio)', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse('No se pudo conectar con Wiese para buscar la OC.', ProveedorApiException::API_CAIDA);
+        } catch (\Exception $e) {
+            Log::error('ProveedorAPI: error buscar OC por folio', [
+                'endpoint' => $endpoint,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->buildErrorResponse('Ocurrió un error al buscar la OC en Wiese.', ProveedorApiException::ERROR_DESCONOCIDO);
+        }
     }
 
     // ── Métodos privados ──

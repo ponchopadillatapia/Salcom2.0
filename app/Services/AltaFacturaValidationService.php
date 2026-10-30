@@ -36,6 +36,9 @@ class AltaFacturaValidationService
         ?string $rfcProveedor = null,
         ?string $pdfContent = null,
         ?string $ocContent = null,
+        string $folioOc = '',
+        string $codigoProveedor = '',
+        string $declaracionSinOc = '', // qué declaró el proveedor si dejó la OC vacía: flete_servicio|remision|''
     ): array {
         $errores = [];
         $advertencias = [];
@@ -54,6 +57,7 @@ class AltaFacturaValidationService
             'fletera' => ['ok' => false, 'label' => 'Indicador fletera'],
             'retenciones' => ['ok' => false, 'label' => 'Retenciones'],
             'totales' => ['ok' => false, 'label' => 'Totales coherentes'],
+            'oc_cantidad' => ['ok' => true, 'label' => 'Cantidad factura vs OC'],
         ];
 
         $datos = [
@@ -118,9 +122,12 @@ class AltaFacturaValidationService
             }
         }
 
-        // RFC emisor vs proveedor
+        // RFC emisor vs proveedor.
+        // INTERRUPTOR DE PRUEBAS: con FACTURAS_VALIDAR_RFC_EMISOR=false se omite la comparación
+        // RFC del XML vs RFC del proveedor logueado (solo para pruebas; REACTIVAR en producción).
+        $validarRfcEmisor = (bool) config('facturas.validar_rfc_emisor', true);
         if ($datos['rfc_emisor']) {
-            if ($rfcProveedor && strtoupper($rfcProveedor) !== $datos['rfc_emisor']) {
+            if ($validarRfcEmisor && $rfcProveedor && strtoupper($rfcProveedor) !== $datos['rfc_emisor']) {
                 $errores[] = "El RFC emisor del XML ({$datos['rfc_emisor']}) no coincide con el RFC del proveedor ({$rfcProveedor}).";
             } elseif (! preg_match('/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/', $datos['rfc_emisor'])) {
                 $errores[] = "El RFC emisor '{$datos['rfc_emisor']}' no tiene formato válido.";
@@ -206,12 +213,78 @@ class AltaFacturaValidationService
             $checklist['pdf_xml']['ok'] = false;
         }
 
-        // Cruce OC ↔ XML (opcional; también por full-text)
+        // Cruce OC ↔ XML por archivo: ya NO es obligatorio subir el PDF de la OC. El cruce
+        // principal se hace por el NÚMERO de OC contra Wiese (ver cruzarCantidadConOc abajo).
+        // Si el proveedor igual adjuntó el PDF de la OC, se cruza como respaldo; si no, se omite.
         if ($datos['tiene_oc']) {
             $this->cruzarOcConXml($ocContent, $datos, $errores, $advertencias, $checklist);
         } else {
             $checklist['oc_xml']['ok'] = true;
-            $checklist['oc_xml']['label'] = 'OC no adjunta (opcional)';
+            $checklist['oc_xml']['label'] = 'OC por número (no se sube PDF)';
+        }
+
+        // ── Clasificación del tipo de factura para decidir si cruza OC ──
+        // Hay 3 caminos (ver reglas en .kiro/REGLAS-FACTURA-OC.md):
+        //  (A) SERVICIO/FLETE  → NO lleva OC. Se salta el cruce; valida solo lo fiscal (retenciones
+        //      del flete ya se calcularon arriba). Caso real: LARO Logistics (ClaveProdServ 78101800).
+        //  (B) PRODUCTO con número de OC → cruce de cantidad contra Wiese (Fase 1).
+        //  (C) PRODUCTO sin número de OC → NO se rechaza ni se traba. Puede ser una compra por
+        //      "requisición" (papel firmado a mano que no está en sistema) o adquisición de activos.
+        //      El sistema no puede cruzar algo que no existe en Wiese, así que lo marca para
+        //      AUTORIZACIÓN MANUAL del admin (lo valida a la vista contra la requisición de papel).
+        $esServicio = $this->facturaEsServicioSinOc($datos);
+        $datos['requiere_oc'] = ! ($datos['es_nota_credito'] ?? false) && ! $esServicio;
+
+        if (! empty($datos['es_nota_credito'])) {
+            // (D) NOTA DE CRÉDITO (Egreso): NO lleva OC ni cruza cantidad. Se liga por UUID a la
+            // factura que afecta (devolución o mata-anticipo). Sus reglas fiscales (G02, forma 15/30)
+            // ya las revisó validarDatosPagoCfdi. Aquí solo confirmamos el ligado y marcamos tipo.
+            $datos['clasificacion_oc'] = 'nota_credito';
+            $this->validarNotaCredito($datos, $errores, $advertencias, $checklist);
+        } elseif ($esServicio) {
+            // (A) Servicio/flete: sin OC.
+            $datos['clasificacion_oc'] = 'servicio_sin_oc';
+            $checklist['oc_cantidad']['ok'] = true;
+            $checklist['oc_cantidad']['label'] = 'Servicio/flete: no requiere OC';
+        } elseif ($folioOc !== '' && $codigoProveedor !== '') {
+            // (B) Producto con OC: cruce de cantidad (factura ≤ recibido en almacén).
+            // Un ANTICIPO cae aquí también (lleva OC). Lo marcamos para que el expediente sepa que
+            // después llegará una NC (forma 30) que lo mata; NO cambia el cruce ni el pago.
+            $datos['es_anticipo'] = $this->facturaEsAnticipo($datos);
+            $datos['clasificacion_oc'] = $datos['es_anticipo'] ? 'anticipo_con_oc' : 'producto_con_oc';
+            if ($datos['es_anticipo']) {
+                $advertencias[] = 'Esta factura es un ANTICIPO (ClaveProdServ 84111506). Más adelante el proveedor debe emitir una nota de crédito (forma 30) que lo aplique, y luego la factura final.';
+            }
+            $this->cruzarCantidadConOc($folioOc, $codigoProveedor, $datos, $errores, $advertencias, $checklist);
+        } else {
+            // (C) Producto SIN número de OC. El proveedor DEBE declarar por qué (en el formulario):
+            //   - 'remision'       → compra por remisión/requisición (no hay OC en sistema). Legítimo,
+            //                         pero NO se aprueba "limpio": queda PENDIENTE DE AUTORIZACIÓN del
+            //                         admin, con la declaración del proveedor registrada (su responsabilidad).
+            //   - '' (no declaró)  → NO se deja pasar como válida. Se marca ERROR pidiendo que ponga la OC
+            //                         o declare que es remisión. Cierra el hueco de "sin OC = validada perfecta".
+            // (El caso flete/servicio se maneja arriba por ClaveProdServ; si lo declaró, ya ni llega aquí.)
+            $datos['clasificacion_oc'] = 'producto_sin_oc_revision';
+            $datos['declaracion_sin_oc'] = $declaracionSinOc;
+            $datos['oc_cruce_detalle'] = [
+                'folio_oc' => $folioOc,
+                'encontrada' => false,
+                'motivo' => 'sin_oc_requiere_autorizacion',
+                'declaracion' => $declaracionSinOc,
+            ];
+
+            if ($declaracionSinOc === 'remision') {
+                // Legítimo pero pendiente de autorización manual. NO es aprobación limpia.
+                $datos['requiere_autorizacion_admin'] = true;
+                $advertencias[] = 'El proveedor declaró que es una compra por REMISIÓN/REQUISICIÓN (sin OC en sistema). Queda PENDIENTE DE AUTORIZACIÓN del administrador, que la valida a la vista contra la remisión firmada.';
+                $checklist['oc_cantidad']['ok'] = true; // no bloquea el alta, pero el admin debe autorizar
+                $checklist['oc_cantidad']['label'] = 'Remisión declarada — PENDIENTE de autorización del admin';
+            } else {
+                // No puso OC y no declaró remisión → no se acepta como válida.
+                $errores[] = 'Falta el número de Orden de Compra (OC). Si tu factura es de producto con OC, escríbelo. Si es una compra por remisión/requisición sin OC, decláralo en el formulario para que el administrador la autorice.';
+                $checklist['oc_cantidad']['ok'] = false;
+                $checklist['oc_cantidad']['label'] = 'Falta OC o declarar que es remisión';
+            }
         }
 
         return $this->resultado($errores, $advertencias, $checklist, $datos);
@@ -293,8 +366,12 @@ class AltaFacturaValidationService
             'tipo_relacion' => null,
         ];
 
-        if ($objeto['tipo_comprobante'] !== '' && strtoupper($objeto['tipo_comprobante']) !== 'I') {
-            $errores[] = 'Solo se aceptan CFDI de tipo Ingreso (I). Tipo recibido: '.$objeto['tipo_comprobante'];
+        // POR QUÉ aceptamos I y E: "I" (Ingreso) = factura normal/anticipo; "E" (Egreso) = NOTA DE
+        // CRÉDITO (devolución, descuento, o la que mata un anticipo). Ambas entran al portal. El resto
+        // (P pagos, N nómina, T traslado) no aplica a este flujo y se rechaza.
+        $tipoComp = strtoupper($objeto['tipo_comprobante']);
+        if ($objeto['tipo_comprobante'] !== '' && ! in_array($tipoComp, ['I', 'E'], true)) {
+            $errores[] = 'Solo se aceptan CFDI de tipo Ingreso (I) o Egreso/Nota de crédito (E). Tipo recibido: '.$objeto['tipo_comprobante'];
         }
 
         $emisor = $this->findChild($xml, 'Emisor');
@@ -359,6 +436,9 @@ class AltaFacturaValidationService
         $datos['retencion_isr'] = $cfdi['retencion_isr'];
         $datos['fecha'] = $cfdi['fecha'];
         $datos['tipo_comprobante'] = $cfdi['tipo_comprobante'];
+        // es_nota_credito: una NC es un CFDI de Egreso ("E"). Lo usamos para ramificar todas las
+        // reglas (una NC NO lleva OC, NO cruza cantidad, y tiene su propio uso/forma de pago).
+        $datos['es_nota_credito'] = strtoupper((string) $cfdi['tipo_comprobante']) === 'E';
         $datos['conceptos_detalle'] = $cfdi['conceptos'];
         $datos['cfdi_relacionados'] = $cfdi['cfdi_relacionados'] ?? [];
         $datos['tipo_relacion'] = $cfdi['tipo_relacion'] ?? null;
@@ -520,18 +600,21 @@ class AltaFacturaValidationService
         $extraido = $this->extractor->extraerDesdeContenido($pdfContent);
         $texto = $extraido['texto'];
 
+        // POR QUÉ no se marca como problema: casi TODAS las facturas de proveedor son PDF
+        // escaneados/imagen (representación impresa del PAC) y no tienen texto extraíble. El XML
+        // ya es la fuente de verdad y se valida aparte. El cruce visual PDF↔XML lo hace el admin
+        // al dar el visto bueno del expediente. Por eso NO se mete error ni advertencia alarmante:
+        // el checklist queda OK con la nota de que el admin lo confirma a la vista.
         if ($extraido['escaneado'] && mb_strlen(trim($texto)) < 40) {
-            $advertencias[] = 'No se pudo extraer texto del PDF (típico en representaciones impresas del PAC). El XML es válido; el cruce PDF ↔ XML queda pendiente de revisión visual.';
-            $checklist['pdf_xml']['ok'] = false;
-            $checklist['pdf_xml']['warn'] = true;
-            $checklist['pdf_xml']['label'] = 'PDF sin texto extraíble — revisión visual';
+            $checklist['pdf_xml']['ok'] = true;
+            $checklist['pdf_xml']['label'] = 'PDF escaneado — lo confirma el admin a la vista';
             $datos['pdf_coincidencias'] = [
                 'uuid' => false,
                 'rfc_emisor' => false,
                 'rfc_receptor' => false,
                 'total' => false,
             ];
-            $datos['pdf_cruce'] = 'omitido_sin_texto';
+            $datos['pdf_cruce'] = 'escaneado_revision_admin';
 
             return;
         }
@@ -578,13 +661,13 @@ class AltaFacturaValidationService
         $extraido = $this->extractor->extraerDesdeContenido($ocContent);
         $texto = $extraido['texto'];
 
+        // POR QUÉ OK aunque sea escaneada: igual que el PDF de la factura, las OC suelen ser
+        // imagen sin texto. No se bloquea; el admin confirma la OC a la vista en el expediente.
         if ($extraido['escaneado'] && mb_strlen(trim($texto)) < 40) {
-            $advertencias[] = 'No se pudo extraer texto de la Orden de Compra. El cruce OC ↔ XML queda pendiente de revisión visual.';
-            $checklist['oc_xml']['ok'] = false;
-            $checklist['oc_xml']['warn'] = true;
-            $checklist['oc_xml']['label'] = 'OC sin texto extraíble — revisión visual';
+            $checklist['oc_xml']['ok'] = true;
+            $checklist['oc_xml']['label'] = 'OC escaneada — la confirma el admin a la vista';
             $datos['oc_coincidencias'] = ['rfc_emisor' => false, 'total' => false];
-            $datos['oc_cruce'] = 'omitido_sin_texto';
+            $datos['oc_cruce'] = 'escaneado_revision_admin';
 
             return;
         }
@@ -620,6 +703,173 @@ class AltaFacturaValidationService
                 $advertencias[] = 'La OC se adjuntó, pero no se detectaron RFC ni total claros; revisa manualmente.';
             }
         }
+    }
+
+    /**
+     * FASE 1 — Cruce de CANTIDAD: factura vs OC real de Wiese.
+     *
+     * Busca la OC (por su folio) en Wiese vía ProveedorApiService y compara la cantidad total
+     * facturada (suma de Cantidad de los conceptos del XML) contra la cantidad pedida en la OC.
+     *
+     * Regla Fase 1:
+     *  Regla Fase 2 (confirmada con Brenda): la factura se compara contra lo RECIBIDO en almacén
+     *  (cunidades − cunidadespendientes), no contra lo pedido. No se paga lo que no ha llegado.
+     *  - Factura > recibido → ERROR (se rechaza).
+     *  - Factura ≤ recibido → PASA.
+     *  - Recibido = 0 (Acatlán aún no registra entrada) → REVISIÓN (no error).
+     *  - Si no se encuentra la OC → ERROR (el proveedor debe verificar el número).
+     *
+     * @param  array<string, mixed>  $datos
+     * @param  string[]  $errores
+     * @param  string[]  $advertencias
+     * @param  array<string, array{ok: bool, label: string}>  $checklist
+     */
+    private function cruzarCantidadConOc(string $folioOc, string $codigoProveedor, array &$datos, array &$errores, array &$advertencias, array &$checklist): void
+    {
+        // Cantidad total facturada = suma de la Cantidad de cada concepto del XML.
+        $cantidadFactura = 0.0;
+        foreach (($datos['conceptos_detalle'] ?? []) as $c) {
+            $cantidadFactura += (float) ($c['cantidad'] ?? 0);
+        }
+
+        // Consultar la OC en Wiese (por folio + código de proveedor).
+        // POR QUÉ pasamos el total de la factura: el folio NO es único en Wiese (puede haber varias
+        // OC con el mismo folio y distinta serie). El total sirve de desempate para elegir la OC que
+        // de verdad corresponde a esta factura (la de total más parecido).
+        $totalFactura = (float) ($datos['total'] ?? 0);
+        $res = app(\App\Services\ProveedorApiService::class)->buscarOcPorFolio($codigoProveedor, $folioOc, $totalFactura);
+
+        if (! ($res['success'] ?? false)) {
+            $errores[] = 'No se pudo validar contra la OC '.$folioOc.': '.($res['message'] ?? 'OC no encontrada en Wiese.');
+            $checklist['oc_cantidad']['ok'] = false;
+            $checklist['oc_cantidad']['label'] = 'OC '.$folioOc.' no encontrada';
+            $datos['oc_cruce_detalle'] = [
+                'folio_oc' => $folioOc,
+                'encontrada' => false,
+                'cantidad_factura' => $cantidadFactura,
+            ];
+
+            return;
+        }
+
+        $data = $res['data'] ?? [];
+        $cantidadOc = (float) ($data['cantidad_pedida_total'] ?? 0);
+        $cantidadRecibida = (float) ($data['cantidad_recibida_total'] ?? 0);
+
+        // Tolerancia pequeña por redondeos (misma que montos).
+        $tol = (float) config('facturas.tolerancia_cantidad', 0.01);
+
+        $datos['oc_cruce_detalle'] = [
+            'folio_oc' => $folioOc,
+            'serie_oc' => (string) ($data['serie_oc'] ?? ''), // para Fase 2 (prefijos/parcialidades)
+            'candidatas' => (int) ($data['candidatas'] ?? 1),  // >1 = hubo desempate por total
+            'encontrada' => true,
+            'cantidad_factura' => $cantidadFactura,
+            'cantidad_oc' => $cantidadOc,
+            'cantidad_recibida' => $cantidadRecibida,
+            'total_oc' => (float) ($data['total_oc'] ?? 0),
+        ];
+
+        // ── REGLA FASE 2 (parcialidades): la factura se compara contra lo RECIBIDO, no contra lo pedido.
+        // POR QUÉ (confirmado con Brenda): no se paga lo que no ha llegado. Acatlán registra en Wiese
+        // cada recepción, y Wiese baja `cunidadespendientes`. Entonces:
+        //   recibido = cunidades − cunidadespendientes  (ya calculado en buscarOcPorFolio).
+        // Una factura (parcial O completa) solo puede cobrar hasta lo que Acatlán YA recibió.
+        // Esto cubre parcialidades sin distinguir "parcial vs completa": una completa es el caso donde
+        // recibido == pedido. El prefijo A/B/C del folio (A3456, B3456…) apunta a la MISMA OC madre y
+        // ya se normaliza en buscarOcPorFolio (soloDigitos), así que aquí no hace falta tratarlo aparte.
+
+        // Caso especial: Acatlán AÚN no registra nada recibido → no hay contra qué cobrar todavía.
+        // No se rechaza "duro": queda a revisión (puede que la recepción se registre en minutos/horas).
+        if ($cantidadRecibida <= $tol) {
+            $datos['oc_cruce_detalle']['estado'] = 'esperando_recepcion';
+            $advertencias[] = "La OC {$folioOc} todavía no tiene recepción registrada en almacén (Acatlán). La factura queda en revisión hasta que se registre la entrada. Pedido: {$cantidadOc}.";
+            $checklist['oc_cantidad']['ok'] = true; // no bloquea; es un pendiente operativo, no un error
+            $checklist['oc_cantidad']['label'] = "Esperando recepción en almacén (OC {$folioOc})";
+
+            return;
+        }
+
+        // Regla dura: NO puede cobrar más de lo recibido.
+        if ($cantidadFactura > $cantidadRecibida + $tol) {
+            $datos['oc_cruce_detalle']['estado'] = 'excede_recibido';
+            $errores[] = "La factura cobra {$cantidadFactura} pero en almacén solo se han recibido {$cantidadRecibida} de la OC {$folioOc}. No puede facturar más de lo que ya llegó.";
+            $checklist['oc_cantidad']['ok'] = false;
+            $checklist['oc_cantidad']['label'] = "Factura ({$cantidadFactura}) > recibido ({$cantidadRecibida})";
+
+            return;
+        }
+
+        $datos['oc_cruce_detalle']['estado'] = 'ok';
+        $checklist['oc_cantidad']['ok'] = true;
+        $checklist['oc_cantidad']['label'] = "OC {$folioOc}: facturas {$cantidadFactura} de {$cantidadRecibida} ya recibidas (pedido: {$cantidadOc})";
+    }
+
+    /**
+     * Valida una NOTA DE CRÉDITO (CFDI de Egreso "E").
+     *
+     * POR QUÉ existe (Fase 2, confirmado con Brenda): las NC no llevan OC ni se cruzan por cantidad.
+     * Se ligan por UUID (CFDI Relacionados) a la factura que afectan. Reglas fiscales (confirmadas):
+     *  - UsoCFDI SIEMPRE G02 (devoluciones/descuentos/bonificaciones). → ya lo revisa validarDatosPagoCfdi.
+     *  - Método PUE. → ya lo revisa validarDatosPagoCfdi.
+     *  - Forma de pago: 15 (devolución de material) o 30 (aplicación de anticipo = "mata" el anticipo).
+     *  - DEBE traer al menos un UUID relacionado (a qué factura aplica). Sin eso, contabilidad no sabe
+     *    de qué factura descontar → se marca para revisión (no se puede ligar).
+     *
+     * ALCANCE: aquí SOLO validamos y LIGAMOS. El "cuánto se descuenta del saldo a pagar" es de
+     * contabilidad (Formato para pago), NO de este flujo. Por eso no tocamos montos aquí.
+     *
+     * @param  array<string, mixed>  $datos
+     * @param  string[]  $errores
+     * @param  string[]  $advertencias
+     * @param  array<string, array{ok: bool, label: string}>  $checklist
+     */
+    private function validarNotaCredito(array &$datos, array &$errores, array &$advertencias, array &$checklist): void
+    {
+        $forma = (string) ($datos['forma_pago'] ?? '');
+        $uuidsRel = $datos['cfdi_relacionados'] ?? [];
+        $tipoRel = (string) ($datos['tipo_relacion'] ?? '');
+
+        // Subtipo de NC por forma de pago (lo que distingue devolución de mata-anticipo).
+        if ($forma === '15') {
+            $datos['clasificacion_nc'] = 'devolucion';           // devolución de material
+        } elseif ($forma === '30') {
+            $datos['clasificacion_nc'] = 'aplicacion_anticipo';  // "mata" la factura de anticipo
+        } else {
+            $datos['clasificacion_nc'] = 'generica';             // p.ej. descuento por pronto pago
+        }
+
+        // La NC DEBE decir a qué factura aplica (UUID relacionado). Sin eso no se puede ligar.
+        // No se rechaza "duro": queda a revisión para que contabilidad confirme a qué factura va
+        // (Brenda dijo que a veces el proveedor pregunta por correo a qué factura aplicarla).
+        if (empty($uuidsRel)) {
+            $datos['nc_detalle'] = [
+                'subtipo' => $datos['clasificacion_nc'],
+                'ligada' => false,
+                'forma_pago' => $forma,
+            ];
+            $advertencias[] = 'Esta nota de crédito no trae CFDI relacionado (UUID de la factura que afecta). Queda en revisión para que contabilidad confirme a qué factura aplica.';
+            $checklist['oc_cantidad']['ok'] = true; // no bloquea (no aplica OC a una NC)
+            $checklist['oc_cantidad']['label'] = 'Nota de crédito sin factura relacionada — revisión';
+
+            return;
+        }
+
+        $datos['nc_detalle'] = [
+            'subtipo' => $datos['clasificacion_nc'],
+            'ligada' => true,
+            'uuids_relacionados' => $uuidsRel,
+            'tipo_relacion' => $tipoRel ?: null,
+            'forma_pago' => $forma,
+        ];
+
+        $etiquetaSub = match ($datos['clasificacion_nc']) {
+            'devolucion' => 'devolución (forma 15)',
+            'aplicacion_anticipo' => 'aplicación de anticipo (forma 30)',
+            default => 'genérica',
+        };
+        $checklist['oc_cantidad']['ok'] = true;
+        $checklist['oc_cantidad']['label'] = 'Nota de crédito '.$etiquetaSub.' ligada a '.count($uuidsRel).' factura(s)';
     }
 
     /**
@@ -916,6 +1166,85 @@ class AltaFacturaValidationService
     }
 
     /**
+     * ¿Esta factura es de SERVICIO/FLETE (y por lo tanto NO lleva Orden de Compra)?
+     *
+     * POR QUÉ EXISTE: las compras de material tienen OC en Wiese y se cruzan por cantidad. Pero un
+     * flete o un servicio (consultoría, mantenimiento, renta…) NO tiene OC: nadie pide "X piezas de
+     * flete". Si a esas facturas les exigimos OC, se rechazarían o trabarían injustamente (caso real:
+     * LARO Logistics, flete, ClaveProdServ 78101800). Las reconocemos por la ClaveProdServ del SAT:
+     * los SERVICIOS caen en el rango 70000000–99999999; las mercancías en 10000000–69999999. Si TODOS
+     * los conceptos son de servicio (o ya se detectó flete por clave/descripción), la tratamos como
+     * servicio sin OC.
+     *
+     * POR QUÉ no usamos el UsoCFDI: un flete y una compra pueden compartir el mismo uso (G01/G03), así
+     * que el uso NO distingue servicio de producto. La ClaveProdServ sí.
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function facturaEsServicioSinOc(array $datos): bool
+    {
+        // Un ANTICIPO NO es "servicio sin OC": lleva OC (ej. DIMOSA OC 81313) aunque su ClaveProdServ
+        // sea de servicios (84111506). Se trata aparte, así que aquí lo excluimos.
+        if ($this->facturaEsAnticipo($datos)) {
+            return false;
+        }
+
+        // Si ya se detectó concepto de flete (por clave o descripción), es servicio sin OC.
+        if (! empty($datos['tiene_concepto_flete'])) {
+            return true;
+        }
+
+        $conceptos = $datos['conceptos_detalle'] ?? [];
+        if ($conceptos === []) {
+            return false; // sin conceptos no afirmamos nada; lo maneja la validación de claves.
+        }
+
+        // Es servicio sin OC solo si TODOS los conceptos son de servicio. Si hay aunque sea un
+        // concepto de mercancía, hay que tratarla como compra (lleva OC) para no saltarnos el cruce.
+        foreach ($conceptos as $concepto) {
+            $clave = trim((string) ($concepto['clave_prod_serv'] ?? ''));
+            // Clave inválida o de mercancía → NO es "servicio puro".
+            if ($clave === '' || $this->claveProdServEsMercancia($clave)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * ¿Esta factura es un ANTICIPO?
+     *
+     * POR QUÉ existe (Fase 2): el SAT marca los anticipos con la ClaveProdServ **84111506**
+     * ("Servicios de facturación" — la clave estándar para anticipos). Caso real DIMOSA: factura 1 =
+     * anticipo del equipo apilador, clave 84111506, uso G03, y SÍ lleva OC (81313). Más adelante el
+     * proveedor emite una NC (forma 30) que "mata" ese anticipo y luego la factura final.
+     *
+     * Lo detectamos para MARCARLO (informativo). No cambia el pago (eso es contabilidad); solo deja
+     * claro en el expediente que es un anticipo y que después llegará su NC. Un anticipo NO es
+     * "servicio sin OC" aunque su clave sea 84: lleva OC, así que se cruza como producto.
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function facturaEsAnticipo(array $datos): bool
+    {
+        // Una NC nunca es "anticipo" en este sentido (la NC es la que lo mata, no el anticipo).
+        if (! empty($datos['es_nota_credito'])) {
+            return false;
+        }
+
+        $clavesAnticipo = (array) config('facturas.claves_anticipo', ['84111506']);
+        foreach (($datos['conceptos_detalle'] ?? []) as $concepto) {
+            $clave = trim((string) ($concepto['clave_prod_serv'] ?? ''));
+            if (in_array($clave, $clavesAnticipo, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Suma la base gravable solo de conceptos que incluyen
      * <cfdi:Retencion Impuesto="002"> (retención de IVA, p. ej. flete 4%).
      * Prefiere el atributo Base de la retención; si falta, usa Importe del concepto.
@@ -1076,34 +1405,65 @@ class AltaFacturaValidationService
         // REGLAS DE COHERENCIA SAT (Anexo 20) — además de que existan en catálogo
         // ════════════════════════════════════════════════════════════
 
-        // REGLA 1: PUE/PPD ↔ FormaPago (regla oficial SAT, error CFDI40105).
-        // POR QUÉ: pago diferido (PPD) obliga FormaPago 99; una exhibición (PUE) no puede ser 99.
-        if ($datos['metodo_pago'] === 'PPD' && $datos['forma_pago'] !== '99') {
-            $errores[] = "Método PPD (pago diferido) exige FormaPago '99 — Por definir', pero el XML trae '{$datos['forma_pago']}'. (Regla SAT CFDI40105)";
-            $okPago = false;
-        }
-        if ($datos['metodo_pago'] === 'PUE' && $datos['forma_pago'] === '99') {
-            $errores[] = "Método PUE (una exhibición) no puede usar FormaPago '99 — Por definir'; debe indicar cómo se pagó (ej. 03 transferencia). (Regla SAT CFDI40105)";
-            $okPago = false;
-        }
+        $esNotaCredito = ! empty($datos['es_nota_credito']);
 
-        // REGLA 2: moneda extranjera debe traer tipo de cambio válido (> 0).
-        // POR QUÉ: sin tipo de cambio no se puede convertir a pesos para pagar.
+        // Moneda extranjera: aplica a TODO comprobante (factura o NC). Sin tipo de cambio no se
+        // puede convertir a pesos. POR QUÉ: el pago/descuento se hace en pesos.
         $moneda = strtoupper((string) ($datos['moneda'] ?? 'MXN'));
         if ($moneda !== 'MXN' && $moneda !== 'XXX') {
             $tc = (float) ($datos['tipo_cambio'] ?? 0);
             if ($tc <= 0) {
-                $errores[] = "La factura está en {$moneda} pero el XML no trae un TipoCambio válido (> 0).";
+                $errores[] = "El comprobante está en {$moneda} pero el XML no trae un TipoCambio válido (> 0).";
                 $okPago = false;
             }
         }
 
-        // REGLA 3: UsoCFDI de deducciones personales (D01-D10) no aplica a persona moral.
-        // POR QUÉ: Salcom/Fram son morales; los usos "D" son solo de personas físicas.
-        $usoCfdiVal = strtoupper((string) ($datos['uso_cfdi'] ?? ''));
-        if (str_starts_with($usoCfdiVal, 'D')) {
-            $errores[] = "UsoCFDI '{$usoCfdiVal}' es de deducciones personales (solo personas físicas). Salcom es persona moral; pide al proveedor corregir el Uso de CFDI (ej. G01, G03).";
-            $okPago = false;
+        if ($esNotaCredito) {
+            // ── REGLAS DE NOTA DE CRÉDITO (Egreso) — confirmadas con Brenda ──
+            // UsoCFDI SIEMPRE G02 (devoluciones/descuentos/bonificaciones).
+            $usoNc = strtoupper((string) ($datos['uso_cfdi'] ?? ''));
+            if ($usoNc !== '' && $usoNc !== 'G02') {
+                $errores[] = "Nota de crédito: el UsoCFDI debe ser 'G02' (devoluciones/descuentos), pero el XML trae '{$usoNc}'.";
+                $okPago = false;
+            }
+            // Método PUE (las NC no son a plazos).
+            if ($datos['metodo_pago'] && $datos['metodo_pago'] !== 'PUE') {
+                $errores[] = "Nota de crédito: el método de pago debe ser 'PUE', pero el XML trae '{$datos['metodo_pago']}'.";
+                $okPago = false;
+            }
+            // Forma de pago: 15 (devolución de material) o 30 (aplicación de anticipo).
+            if ($datos['forma_pago'] && ! in_array($datos['forma_pago'], ['15', '30'], true)) {
+                $errores[] = "Nota de crédito: la forma de pago debe ser '15' (devolución) o '30' (aplicación de anticipo), pero el XML trae '{$datos['forma_pago']}'.";
+                $okPago = false;
+            }
+        } else {
+            // ── REGLAS DE FACTURA DE INGRESO (I) — las de siempre ──
+
+            // REGLA 1: PUE/PPD ↔ FormaPago (regla oficial SAT, error CFDI40105).
+            // POR QUÉ: pago diferido (PPD) obliga FormaPago 99; una exhibición (PUE) no puede ser 99.
+            if ($datos['metodo_pago'] === 'PPD' && $datos['forma_pago'] !== '99') {
+                $errores[] = "Método PPD (pago diferido) exige FormaPago '99 — Por definir', pero el XML trae '{$datos['forma_pago']}'. (Regla SAT CFDI40105)";
+                $okPago = false;
+            }
+            // POR QUÉ 03: regla de negocio de Salcom — las facturas PUE se pagan por
+            // transferencia (03). Si viene PUE con otra forma (incluido 99), se marca.
+            if ($datos['metodo_pago'] === 'PUE' && $datos['forma_pago'] !== '03') {
+                $errores[] = "Método PUE (una exhibición) debe usar FormaPago '03 — Transferencia electrónica', pero el XML trae '{$datos['forma_pago']}'.";
+                $okPago = false;
+            }
+
+            // REGLA 3: UsoCFDI permitido. POR QUÉ G01/G03: los proveedores (ORPACK, FLEXITEK, etc.)
+            // facturan compra de mercancía/insumos o gastos, así que el Uso de CFDI debe ser
+            // G01 (adquisición de mercancías) o G03 (gastos en general). Cualquier otro (incluidos
+            // los "D" de deducciones personales, que son solo de personas físicas) se rechaza.
+            // La lista se puede ajustar en config/facturas.php (usos_cfdi_permitidos).
+            $usoCfdiVal = strtoupper((string) ($datos['uso_cfdi'] ?? ''));
+            $usosPermitidos = (array) config('facturas.usos_cfdi_permitidos', ['G01', 'G03']);
+            if ($usoCfdiVal !== '' && ! in_array($usoCfdiVal, $usosPermitidos, true)) {
+                $listaOk = implode(' o ', $usosPermitidos);
+                $errores[] = "UsoCFDI '{$usoCfdiVal}' no permitido. Para compras a proveedor debe ser {$listaOk}. Pide al proveedor corregir el Uso de CFDI.";
+                $okPago = false;
+            }
         }
 
         $checklist['pago_cfdi']['ok'] = $okPago;
@@ -1111,9 +1471,11 @@ class AltaFacturaValidationService
             $checklist['pago_cfdi']['label'] = "Forma {$datos['forma_pago']} · {$datos['metodo_pago']} · Uso {$datos['uso_cfdi']}";
         }
 
+        // POR QUÉ ya NO es obligatorio (decisión de Said): el concepto/producto se muestra como
+        // dato, pero su ausencia no bloquea el alta. Si no viene, queda como aviso informativo.
         if (! $datos['producto']) {
-            $errores[] = 'El XML no trae descripción en Conceptos (producto/concepto requerido).';
-            $checklist['producto']['ok'] = false;
+            $checklist['producto']['ok'] = true;
+            $checklist['producto']['label'] = 'Concepto no detectado (no obligatorio)';
         } else {
             $checklist['producto']['ok'] = true;
             $checklist['producto']['label'] = 'Concepto: '.Str::limit($datos['producto'], 60);

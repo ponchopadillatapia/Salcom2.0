@@ -36,11 +36,14 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
         $proveedor = $this->crearProveedor();
         $pdf = UploadedFile::fake()->createWithContent('factura.pdf', '%PDF-1.4 demo');
         $xml = UploadedFile::fake()->createWithContent('factura.xml', '<?xml version="1.0"?><not-a-cfdi/>');
+        $oc = UploadedFile::fake()->createWithContent('oc.pdf', '%PDF-1.4 oc demo'); // OC ahora obligatoria
 
         $response = $this->withSession(['proveedor_id' => $proveedor->id])
             ->post(route('proveedores.fiscal.validar'), [
                 'archivo' => $pdf,
                 'archivo_xml' => $xml,
+                'archivo_oc' => $oc,
+                'numero_oc' => '81686',
                 'es_fletera' => '0',
             ]);
 
@@ -64,11 +67,14 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
         $proveedor = $this->crearProveedor();
         $pdf = UploadedFile::fake()->createWithContent('factura.pdf', '%PDF-1.4 demo');
         $xml = UploadedFile::fake()->createWithContent('factura.xml', '<?xml version="1.0"?><not-a-cfdi/>');
+        $oc = UploadedFile::fake()->createWithContent('oc.pdf', '%PDF-1.4 oc demo'); // OC ahora obligatoria
 
         $this->withSession(['proveedor_id' => $proveedor->id])
             ->post(route('proveedores.fiscal.validar'), [
                 'archivo' => $pdf,
                 'archivo_xml' => $xml,
+                'archivo_oc' => $oc,
+                'numero_oc' => '81686',
                 'es_fletera' => '0',
             ]);
 
@@ -93,11 +99,14 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
         $proveedor = $this->crearProveedor();
         $pdf = UploadedFile::fake()->createWithContent('factura.pdf', '%PDF-1.4 demo');
         $xml = UploadedFile::fake()->createWithContent('factura.xml', '<?xml version="1.0"?><not-a-cfdi/>');
+        $oc = UploadedFile::fake()->createWithContent('oc.pdf', '%PDF-1.4 oc demo'); // OC ahora obligatoria
 
         $this->withSession(['proveedor_id' => $proveedor->id])
             ->post(route('proveedores.fiscal.validar'), [
                 'archivo' => $pdf,
                 'archivo_xml' => $xml,
+                'archivo_oc' => $oc,
+                'numero_oc' => '81686',
                 'es_fletera' => '0',
             ])
             ->assertRedirect();
@@ -118,11 +127,14 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
         $proveedor = $this->crearProveedor();
         $pdf = UploadedFile::fake()->createWithContent('factura.pdf', '%PDF-1.4 demo');
         $xml = UploadedFile::fake()->createWithContent('factura.xml', '<?xml version="1.0"?><not-a-cfdi/>');
+        $oc = UploadedFile::fake()->createWithContent('oc.pdf', '%PDF-1.4 oc demo'); // OC ahora obligatoria
 
         $this->withSession(['proveedor_id' => $proveedor->id])
             ->post(route('proveedores.fiscal.validar'), [
                 'archivo' => $pdf,
                 'archivo_xml' => $xml,
+                'archivo_oc' => $oc,
+                'numero_oc' => '81686',
                 'es_fletera' => '0',
             ])
             ->assertRedirect();
@@ -145,11 +157,14 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
         $proveedor = $this->crearProveedor();
         $pdf = UploadedFile::fake()->createWithContent('factura.pdf', '%PDF-1.4 demo');
         $xml = UploadedFile::fake()->createWithContent('factura.xml', '<?xml version="1.0"?><not-a-cfdi/>');
+        $oc = UploadedFile::fake()->createWithContent('oc.pdf', '%PDF-1.4 oc demo'); // OC ahora obligatoria
 
         $this->withSession(['proveedor_id' => $proveedor->id])
             ->post(route('proveedores.fiscal.validar'), [
                 'archivo' => $pdf,
                 'archivo_xml' => $xml,
+                'archivo_oc' => $oc,
+                'numero_oc' => '81686',
                 'es_fletera' => '0',
             ])
             ->assertRedirect();
@@ -173,77 +188,27 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
         $this->assertFalse(Storage::disk('local')->exists($pendiente['path_xml']));
     }
 
-    public function test_subir_exige_plazo_de_dias(): void
-    {
-        Storage::fake('local');
-
-        $proveedor = $this->crearProveedor();
-        $this->withSession([
-            'proveedor_id' => $proveedor->id,
-            'fiscal_pendiente' => $this->pendienteAprobado($proveedor),
-        ])->from(route('proveedores.fiscal'))
-            ->post(route('proveedores.fiscal.subir'))
-            ->assertRedirect(route('proveedores.fiscal'))
-            ->assertSessionHasErrors('dias_plazo');
-    }
-
-    public function test_subir_con_plazo_120_guarda_vencimiento(): void
+    public function test_subir_usa_plazo_por_defecto_sin_pedirlo(): void
     {
         Storage::fake('local');
         Storage::fake('public');
 
         $proveedor = $this->crearProveedor();
+        // POR QUÉ sin mandar dias_plazo: el proveedor YA NO elige el plazo. Al subir, se usa el
+        // plazo por defecto de config (30). El proveedor no decide cuándo se le paga.
         $this->withSession([
             'proveedor_id' => $proveedor->id,
             'fiscal_pendiente' => $this->pendienteAprobado($proveedor),
-        ])->post(route('proveedores.fiscal.subir'), [
-            'dias_plazo' => 120,
-        ])->assertRedirect();
+        ])->post(route('proveedores.fiscal.subir'))->assertRedirect();
 
         $factura = Factura::first();
         $this->assertNotNull($factura);
-        $this->assertSame(120, (int) $factura->dias_plazo);
-        $this->assertSame(now()->addDays(120)->toDateString(), $factura->fecha_vencimiento?->toDateString());
-        $this->assertSame(120, (int) ($factura->validacion_detalle['dias_plazo'] ?? 0));
+        $plazoDefault = (int) config('facturas.plazo_default_dias', 30);
+        $this->assertSame($plazoDefault, (int) $factura->dias_plazo);
+        $this->assertSame(now()->addDays($plazoDefault)->toDateString(), $factura->fecha_vencimiento?->toDateString());
     }
 
-    public function test_subir_con_plazo_otro_guarda_dias_personalizados(): void
-    {
-        Storage::fake('local');
-        Storage::fake('public');
-
-        $proveedor = $this->crearProveedor();
-        $this->withSession([
-            'proveedor_id' => $proveedor->id,
-            'fiscal_pendiente' => $this->pendienteAprobado($proveedor),
-        ])->post(route('proveedores.fiscal.subir'), [
-            'dias_plazo' => 'otro',
-            'dias_plazo_otro' => 75,
-        ])->assertRedirect();
-
-        $factura = Factura::first();
-        $this->assertNotNull($factura);
-        $this->assertSame(75, (int) $factura->dias_plazo);
-        $this->assertSame(now()->addDays(75)->toDateString(), $factura->fecha_vencimiento?->toDateString());
-    }
-
-    public function test_subir_con_otro_exige_cantidad_de_dias(): void
-    {
-        Storage::fake('local');
-
-        $proveedor = $this->crearProveedor();
-        $this->withSession([
-            'proveedor_id' => $proveedor->id,
-            'fiscal_pendiente' => $this->pendienteAprobado($proveedor),
-        ])->from(route('proveedores.fiscal'))
-            ->post(route('proveedores.fiscal.subir'), [
-                'dias_plazo' => 'otro',
-            ])
-            ->assertRedirect(route('proveedores.fiscal'))
-            ->assertSessionHasErrors('dias_plazo_otro');
-    }
-
-    public function test_vista_muestra_plazos_cuando_esta_aprobada(): void
+    public function test_vista_ya_no_muestra_selector_de_plazo(): void
     {
         Storage::fake('local');
 
@@ -256,20 +221,10 @@ class AltaFacturaValidarRetieneArchivosTest extends TestCase
 
         $response->assertOk()
             ->assertViewHas('puedeSubir', true)
-            ->assertSee('Días de plazo')
-            ->assertSee('30 días')
-            ->assertSee('45 días')
-            ->assertSee('60 días')
-            ->assertSee('90 días')
-            ->assertSee('120 días')
-            ->assertSee('150 días')
-            ->assertSee('360 días')
-            ->assertSee('Otro')
-            ->assertSee('Cantidad de días');
-
-        $html = $response->getContent();
-        $this->assertMatchesRegularExpression('/id="btnValidar"[^>]*\bhidden\b/', $html);
-        $this->assertMatchesRegularExpression('/id="btnSubir"[^>]*\bhidden\b/', $html);
+            // El proveedor ya no ve el selector de plazo; ve que validó y el aviso de política.
+            ->assertSee('Factura validada')
+            ->assertDontSee('Elige el plazo')
+            ->assertSee('El plazo de pago lo define Industrias Salcom');
     }
 
     /**

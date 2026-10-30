@@ -685,12 +685,11 @@
             </a>
             <a href="{{ route('admin.expediente-fiscal') }}" class="sb-link {{ request()->is('admin/expediente-fiscal*') ? 'active' : '' }}">
                 <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg></div>
-                <span class="sb-text">Expediente Fiscal</span>
+                <span class="sb-text">Expediente Docs Fiscales</span>
             </a>
-            <a href="{{ route('admin.opinion-positiva') }}" class="sb-link {{ request()->is('admin/opinion-positiva*') ? 'active' : '' }}">
-                <div class="sb-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6B3FA0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
-                <span class="sb-text">Opinión Positiva</span>
-            </a>
+            {{-- "Expediente de facturas" (visto bueno manual) eliminado: la validación de facturas
+                 es ahora 100% automática; ya no hay revisión manual del admin. --}}
+            {{-- Opinión Positiva: módulo eliminado del menú a petición del usuario (ya no se usa). --}}
             {{-- Reportes oculto del menú a petición del usuario (datos de prueba/fake). --}}
             @endif {{-- fin bloque Proveedores (Karen sí lo ve) --}}
 

@@ -147,7 +147,7 @@ XML;
             'uuid' => 'A1B2C3D4-E5F6-7890-ABCD-EF123456789A',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertFalse($result['aprobado']);
         $this->assertFalse($result['checklist']['periodo']['ok']);
@@ -165,7 +165,7 @@ XML;
             'descripcion' => 'Servicio profesional',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertSame('aprobada', $result['estatus']);
@@ -202,7 +202,7 @@ XML;
             'uuid' => 'D1B2C3D4-E5F6-7890-ABCD-EF1234567801',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertSame(160.0, (float) $result['datos']['iva']);
         $this->assertSame(40.0, (float) $result['datos']['retencion_iva']);
@@ -226,7 +226,7 @@ XML;
             'uuid' => 'B1B2C3D4-E5F6-7890-ABCD-EF1234567891',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', 'OC');
 
         $this->assertFalse($result['aprobado']);
         $this->assertSame('rechazada', $result['estatus']);
@@ -277,7 +277,7 @@ XML;
             'subtotal' => '1000.00',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertTrue($result['checklist']['retenciones']['ok']);
@@ -343,7 +343,7 @@ XML;
             'uuid' => $uuid,
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($xml, false, 'AAA010101AAA', 'PDF', null);
+        $result = $service->validar($xml, false, 'AAA010101AAA', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertTrue($result['datos']['tiene_concepto_flete']);
@@ -371,7 +371,7 @@ XML;
             'subtotal' => '1000.00',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'CUPL6007224D1', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'CUPL6007224D1', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertTrue($result['checklist']['retenciones']['ok']);
@@ -396,7 +396,7 @@ XML;
             'subtotal' => '1000.00',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'CUPL6007224D1', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'CUPL6007224D1', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertTrue($result['checklist']['retenciones']['ok']);
@@ -422,7 +422,7 @@ XML;
             'subtotal' => '1000.00',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'CUPL6007224D1', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'CUPL6007224D1', 'PDF', 'OC');
 
         $this->assertFalse($result['aprobado']);
         $this->assertFalse($result['checklist']['retenciones']['ok']);
@@ -448,7 +448,7 @@ XML;
             'uuid' => 'E711959E-17B5-4BAD-A59D-AF17E53970E1',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), true, 'CUPL6007224D1', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), true, 'CUPL6007224D1', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertFalse($result['datos']['tiene_concepto_flete']);
@@ -475,7 +475,7 @@ XML;
             'subtotal' => '1000.00',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', 'OC');
 
         $this->assertTrue($result['datos']['tiene_concepto_flete']);
         $this->assertSame('clave', $result['datos']['deteccion_conceptos']['flete']);
@@ -507,7 +507,7 @@ XML;
         ]);
 
         $service = new AltaFacturaValidationService($mock);
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertFalse($result['aprobado']);
         $this->assertFalse($result['checklist']['pdf_xml']['ok']);
@@ -541,7 +541,7 @@ XML;
         ]);
 
         $service = new AltaFacturaValidationService($mock);
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertTrue($result['checklist']['pdf_xml']['ok']);
@@ -563,7 +563,7 @@ XML;
             'uuid' => 'F1B2C3D4-E5F6-7890-ABCD-EF1234567894',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertSame('resico_moral', $result['datos']['retencion_esperada']['origen']);
@@ -584,7 +584,7 @@ XML;
         ]);
 
         $service = new AltaFacturaValidationService($bad);
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertFalse($result['aprobado']);
         $this->assertSame('rechazada', $result['estatus']);
@@ -613,7 +613,7 @@ XML;
         ]);
 
         $service = new AltaFacturaValidationService($mock);
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertTrue($result['checklist']['pdf_xml']['ok']);
@@ -621,8 +621,10 @@ XML;
         $this->assertTrue($result['datos']['pdf_coincidencias']['rfc_emisor']);
     }
 
-    public function test_pdf_sin_texto_extraible_aprueba_con_observaciones(): void
+    public function test_pdf_escaneado_aprueba_sin_alarmar(): void
     {
+        // Nuevo comportamiento: casi todos los PDF de proveedor son imagen (escaneados).
+        // No se marca como problema; el checklist queda OK y el cruce se delega al admin.
         config(['facturas.rfc_receptor' => '']);
 
         $opts = [
@@ -638,21 +640,18 @@ XML;
         ]);
 
         $service = new AltaFacturaValidationService($mock);
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', '%PDF-1.4 dummy', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', '%PDF-1.4 dummy', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
-        $this->assertSame('aprobada_con_observaciones', $result['estatus']);
         $this->assertEmpty($result['errores']);
-        $this->assertFalse($result['checklist']['pdf_xml']['ok']);
-        $this->assertTrue($result['checklist']['pdf_xml']['warn']);
-        $this->assertSame('omitido_sin_texto', $result['datos']['pdf_cruce']);
-        $this->assertTrue(collect($result['advertencias'])->contains(
-            fn ($a) => str_contains((string) $a, 'revisión visual')
-        ));
+        // Ya NO se marca warn ni se mete advertencia alarmante.
+        $this->assertTrue($result['checklist']['pdf_xml']['ok']);
+        $this->assertSame('escaneado_revision_admin', $result['datos']['pdf_cruce']);
     }
 
-    public function test_oc_sin_texto_extraible_no_rechaza(): void
+    public function test_oc_escaneada_aprueba_sin_alarmar(): void
     {
+        // Igual que el PDF: OC escaneada no bloquea; el admin la confirma a la vista.
         config(['facturas.rfc_receptor' => '']);
 
         $opts = [
@@ -672,13 +671,9 @@ XML;
         $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
-        $this->assertSame('aprobada_con_observaciones', $result['estatus']);
         $this->assertTrue($result['checklist']['pdf_xml']['ok']);
-        $this->assertFalse($result['checklist']['oc_xml']['ok']);
-        $this->assertTrue($result['checklist']['oc_xml']['warn']);
-        $this->assertTrue(collect($result['advertencias'])->contains(
-            fn ($a) => str_contains((string) $a, 'Orden de Compra')
-        ));
+        $this->assertTrue($result['checklist']['oc_xml']['ok']);
+        $this->assertSame('escaneado_revision_admin', $result['datos']['oc_cruce']);
     }
 
     public function test_comision_persona_moral_no_exige_retencion(): void
@@ -697,7 +692,7 @@ XML;
             'iva' => '160.00',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', 'OC');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertTrue($result['datos']['tiene_concepto_comision']);
@@ -778,7 +773,8 @@ XML;
             'uuid' => $uuid,
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($xml, false, 'BIMR760625ES8', 'PDF', null);
+        // Mercancía sin OC: declara 'remision' para que pase (este test valida claves/retenciones, no OC).
+        $result = $service->validar($xml, false, 'BIMR760625ES8', 'PDF', 'OC', '', '', 'remision');
 
         $this->assertTrue($result['checklist']['claves_sat']['ok'], implode(' | ', $result['errores']));
         $this->assertCount(3, $result['datos']['conceptos']);
@@ -810,7 +806,8 @@ XML;
             'uuid' => 'CE24298D-C424-4B43-BC16-DEBCB3193061',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'BIMR760625ES8', 'PDF', null);
+        // Mercancía sin OC: declara 'remision' (este test valida retenciones de mercancía 612, no OC).
+        $result = $service->validar($this->cfdiXml($opts), false, 'BIMR760625ES8', 'PDF', 'OC', '', '', 'remision');
 
         $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
         $this->assertTrue($result['checklist']['retenciones']['ok']);
@@ -833,7 +830,7 @@ XML;
             'uuid' => 'CE24298D-C424-4B43-BC16-DEBCB3193062',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'BIMR760625ES8', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'BIMR760625ES8', 'PDF', 'OC');
 
         $this->assertFalse($result['aprobado']);
         $this->assertFalse($result['checklist']['retenciones']['ok']);
@@ -859,7 +856,7 @@ XML;
             'uuid' => '1BEF3A01-4C29-4D94-8C01-A6D27C6FEC83',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertTrue($result['checklist']['receptor']['ok']);
         $this->assertSame('Fram Foods', $result['datos']['receptor_nombre']);
@@ -883,7 +880,7 @@ XML;
             'uuid' => 'A1B2C3D4-E5F6-7890-ABCD-EF12345678AA',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertTrue($result['checklist']['receptor']['ok']);
         $this->assertSame('Industrias Salcom', $result['datos']['receptor_nombre']);
@@ -907,7 +904,7 @@ XML;
             'uuid' => 'B2C3D4E5-F6A7-8901-BCDE-F12345678901',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));
-        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', null);
+        $result = $service->validar($this->cfdiXml($opts), false, 'XAXX010101000', 'PDF', 'OC');
 
         $this->assertFalse($result['aprobado']);
         $this->assertFalse($result['checklist']['receptor']['ok']);
@@ -915,6 +912,345 @@ XML;
             fn ($e) => str_contains((string) $e, 'EKU9003173C9')
                 && str_contains((string) $e, 'Fram Foods')
                 && str_contains((string) $e, 'FFO140516UG8')
+        ));
+    }
+
+    /**
+     * Flete (ClaveProdServ 78101800) SIN número de OC: no debe exigir OC ni cruzarla.
+     * Caso real: LARO Logistics. Debe clasificarse como 'servicio_sin_oc' y el checklist de
+     * cantidad quedar OK (no bloquea), validando solo lo fiscal.
+     */
+    public function test_flete_sin_oc_no_exige_oc_y_se_clasifica_servicio(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'rfc_emisor' => 'AAA010101AAA',
+            'regimen' => '601',
+            'clave' => '78101800',
+            'descripcion' => 'Flete 01 de octubre destino Sams',
+            'ret_iva' => '40.00',
+            'ret_isr' => '0',
+            'total' => '1040.00',
+            'uuid' => 'D1E2F3A4-B5C6-7890-ABCD-EF1234567F01',
+            'iva' => '160.00',
+            'subtotal' => '1000.00',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        // OJO: se llama SIN folio de OC (los dos últimos args en blanco), como haría un flete real.
+        $result = $service->validar($this->cfdiXml($opts), true, 'AAA010101AAA', 'PDF', null, '', '');
+
+        $this->assertTrue($result['aprobado'], implode(' | ', $result['errores']));
+        $this->assertSame('servicio_sin_oc', $result['datos']['clasificacion_oc']);
+        $this->assertFalse($result['datos']['requiere_oc']);
+        $this->assertTrue($result['checklist']['oc_cantidad']['ok']);
+    }
+
+    private function opcsProductoSinOc(string $uuid): array
+    {
+        return [
+            'rfc_emisor' => 'AAA010101AAA',
+            'regimen' => '601',
+            'clave' => '31201600', // mercancía (empieza en 31 → rango 10-69)
+            'descripcion' => 'Material de empaque sin OC',
+            'ret_iva' => null,
+            'ret_isr' => null,
+            'total' => '1160.00',
+            'uuid' => $uuid,
+            'iva' => '160.00',
+            'subtotal' => '1000.00',
+        ];
+    }
+
+    /**
+     * Producto SIN número de OC y SIN declarar nada → NO pasa como válida: error pidiendo OC o
+     * declarar remisión. Cierra el hueco de "sin OC se ve como validada perfecta".
+     */
+    public function test_producto_sin_oc_sin_declaracion_no_pasa(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = $this->opcsProductoSinOc('D1E2F3A4-B5C6-7890-ABCD-EF1234567F02');
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        // Sin folio de OC y sin declaración ('').
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null, '', '', '');
+
+        $this->assertSame('producto_sin_oc_revision', $result['datos']['clasificacion_oc']);
+        $this->assertFalse($result['checklist']['oc_cantidad']['ok']);
+        $this->assertTrue(collect($result['errores'])->contains(
+            fn ($e) => str_contains((string) $e, 'número de Orden de Compra')
+        ));
+    }
+
+    /**
+     * Producto SIN OC pero el proveedor DECLARA 'remision' → pasa, pero marcado como
+     * requiere_autorizacion_admin (NO es aprobación limpia).
+     */
+    public function test_producto_sin_oc_declarado_remision_requiere_autorizacion(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = $this->opcsProductoSinOc('D1E2F3A4-B5C6-7890-ABCD-EF1234567F03');
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        // Sin OC, pero declara 'remision'.
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null, '', '', 'remision');
+
+        $this->assertSame('producto_sin_oc_revision', $result['datos']['clasificacion_oc']);
+        $this->assertTrue($result['datos']['requiere_autorizacion_admin']);
+        // No bloquea (puede subirla), pero deja claro que es pendiente de autorización.
+        $this->assertTrue($result['checklist']['oc_cantidad']['ok']);
+        $this->assertTrue(collect($result['advertencias'])->contains(
+            fn ($a) => str_contains((string) $a, 'AUTORIZACIÓN')
+        ));
+    }
+
+    /**
+     * Mockea ProveedorApiService::buscarOcPorFolio para que devuelva una OC con cantidades
+     * controladas, sin pegarle a Wiese. Se registra en el container para que el cruce lo use.
+     *
+     * @param  float  $pedido     cantidad pedida en la OC (cunidades)
+     * @param  float  $recibido   cantidad ya recibida en almacén (cunidades − cunidadespendientes)
+     */
+    private function mockOc(float $pedido, float $recibido): void
+    {
+        $mock = $this->createMock(\App\Services\ProveedorApiService::class);
+        $mock->method('buscarOcPorFolio')->willReturn([
+            'success' => true,
+            'message' => 'OK',
+            'error_type' => null,
+            'data' => [
+                'folio_oc' => '3456',
+                'serie_oc' => '',
+                'candidatas' => 1,
+                'id_documento' => 1,
+                'total_oc' => 1160.0,
+                'cantidad_pedida_total' => $pedido,
+                'cantidad_recibida_total' => $recibido,
+                'movimientos' => [],
+            ],
+        ]);
+        app()->instance(\App\Services\ProveedorApiService::class, $mock);
+    }
+
+    private function opcsProducto(string $uuid): array
+    {
+        return [
+            'rfc_emisor' => 'AAA010101AAA',
+            'regimen' => '601',
+            'clave' => '31201600', // mercancía → producto con OC
+            'descripcion' => 'Material de empaque',
+            'ret_iva' => null,
+            'ret_isr' => null,
+            'total' => '1160.00',
+            'uuid' => $uuid,
+            'iva' => '160.00',
+            'subtotal' => '1000.00',
+        ];
+    }
+
+    /**
+     * Factura parcial que cobra ≤ lo recibido en almacén → PASA.
+     * OC pidió 10, ya se recibieron 5, la factura cobra 1 (Cantidad del concepto) → 1 ≤ 5.
+     */
+    public function test_parcial_dentro_de_lo_recibido_pasa(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+        $this->mockOc(pedido: 10, recibido: 5);
+
+        $opts = $this->opcsProducto('E1E2F3A4-B5C6-7890-ABCD-EF1234567F10');
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null, '3456', 'PROV1');
+
+        $this->assertSame('producto_con_oc', $result['datos']['clasificacion_oc']);
+        $this->assertSame('ok', $result['datos']['oc_cruce_detalle']['estado']);
+        $this->assertTrue($result['checklist']['oc_cantidad']['ok']);
+    }
+
+    /**
+     * Factura que cobra MÁS de lo recibido → ERROR (se rechaza).
+     * OC pidió 10, pero solo se recibió 0.5; la factura cobra 1 → 1 > 0.5 → excede_recibido.
+     */
+    public function test_factura_mayor_a_lo_recibido_se_rechaza(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+        $this->mockOc(pedido: 10, recibido: 0.5);
+
+        $opts = $this->opcsProducto('E1E2F3A4-B5C6-7890-ABCD-EF1234567F11');
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null, '3456', 'PROV1');
+
+        $this->assertSame('excede_recibido', $result['datos']['oc_cruce_detalle']['estado']);
+        $this->assertFalse($result['checklist']['oc_cantidad']['ok']);
+        $this->assertTrue(collect($result['errores'])->contains(
+            fn ($e) => str_contains((string) $e, 'solo se han recibido')
+        ));
+    }
+
+    /**
+     * Nada recibido todavía (Acatlán no ha registrado la entrada) → REVISIÓN, no error.
+     * OC pidió 10, recibido 0; la factura cobra 1 → esperando_recepcion (no bloquea).
+     */
+    public function test_nada_recibido_queda_esperando_recepcion(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+        $this->mockOc(pedido: 10, recibido: 0);
+
+        $opts = $this->opcsProducto('E1E2F3A4-B5C6-7890-ABCD-EF1234567F12');
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->cfdiXml($opts), false, 'AAA010101AAA', 'PDF', null, '3456', 'PROV1');
+
+        $this->assertSame('esperando_recepcion', $result['datos']['oc_cruce_detalle']['estado']);
+        // No bloquea (es pendiente operativo), pero deja advertencia.
+        $this->assertTrue($result['checklist']['oc_cantidad']['ok']);
+        $this->assertTrue(collect($result['advertencias'])->contains(
+            fn ($a) => str_contains((string) $a, 'recepción registrada')
+        ));
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // NOTAS DE CRÉDITO (Fase 2) — CFDI de Egreso "E"
+    // ════════════════════════════════════════════════════════════════
+
+    /**
+     * Arma un XML de NOTA DE CRÉDITO (tipo Egreso E), con uso G02 y, opcionalmente, un CFDI
+     * relacionado (UUID de la factura que afecta).
+     */
+    private function notaCreditoXml(array $opts = []): string
+    {
+        $rfcEmisor = $opts['rfc_emisor'] ?? 'AAA010101AAA';
+        $rfcReceptor = $opts['rfc_receptor'] ?? 'EKU9003173C9';
+        $forma = $opts['forma_pago'] ?? '15';
+        $uso = $opts['uso_cfdi'] ?? 'G02';
+        $uuid = $opts['uuid'] ?? 'F1F2F3F4-A5B6-7890-ABCD-EF1234567C01';
+        $total = $opts['total'] ?? '1160.00';
+        $subtotal = $opts['subtotal'] ?? '1000.00';
+        $iva = $opts['iva'] ?? '160.00';
+        $relUuid = $opts['rel_uuid'] ?? null;      // UUID de la factura relacionada
+        $tipoRel = $opts['tipo_relacion'] ?? '01'; // 01=NC de doc relacionado; 07=aplicación anticipo
+        $fecha = now()->format('Y-m-d').'T10:00:00';
+
+        $relacionados = '';
+        if ($relUuid !== null) {
+            $relacionados = '<cfdi:CfdiRelacionados TipoRelacion="'.$tipoRel.'"><cfdi:CfdiRelacionado UUID="'.$relUuid.'"/></cfdi:CfdiRelacionados>';
+        }
+
+        return <<<XML
+<?xml version="1.0" encoding="UTF-8"?>
+<cfdi:Comprobante xmlns:cfdi="http://www.sat.gob.mx/cfd/4" xmlns:tfd="http://www.sat.gob.mx/TimbreFiscalDigital"
+    Version="4.0" Serie="NC" Folio="9" Fecha="{$fecha}"
+    SubTotal="{$subtotal}" Total="{$total}" TipoDeComprobante="E" Moneda="MXN"
+    MetodoPago="PUE" FormaPago="{$forma}">
+  {$relacionados}
+  <cfdi:Emisor Rfc="{$rfcEmisor}" Nombre="PROVEEDOR DEMO" RegimenFiscal="601"/>
+  <cfdi:Receptor Rfc="{$rfcReceptor}" Nombre="INDUSTRIAS SALCOM" UsoCFDI="{$uso}"/>
+  <cfdi:Conceptos>
+    <cfdi:Concepto ClaveProdServ="84111506" Cantidad="1" ClaveUnidad="ACT" Descripcion="Devolucion/NC" ValorUnitario="{$subtotal}" Importe="{$subtotal}">
+      <cfdi:Impuestos>
+        <cfdi:Traslados>
+          <cfdi:Traslado Base="{$subtotal}" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="{$iva}"/>
+        </cfdi:Traslados>
+      </cfdi:Impuestos>
+    </cfdi:Concepto>
+  </cfdi:Conceptos>
+  <cfdi:Impuestos TotalImpuestosTrasladados="{$iva}" TotalImpuestosRetenidos="0">
+    <cfdi:Traslados>
+      <cfdi:Traslado Base="{$subtotal}" Impuesto="002" TipoFactor="Tasa" TasaOCuota="0.160000" Importe="{$iva}"/>
+    </cfdi:Traslados>
+  </cfdi:Impuestos>
+  <cfdi:Complemento>
+    <tfd:TimbreFiscalDigital UUID="{$uuid}" FechaTimbrado="{$fecha}" RfcProvCertif="SAT970701NN3" SelloCFD="x" NoCertificadoSAT="1" SelloSAT="y"/>
+  </cfdi:Complemento>
+</cfdi:Comprobante>
+XML;
+    }
+
+    /**
+     * NC de DEVOLUCIÓN válida: tipo E, uso G02, método PUE, forma 15, con UUID relacionado.
+     * Debe clasificarse como nota_credito / devolución, ligada, y NO cruzar OC.
+     */
+    public function test_nota_credito_devolucion_valida_y_ligada(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'forma_pago' => '15',
+            'uso_cfdi' => 'G02',
+            'uuid' => 'F1F2F3F4-A5B6-7890-ABCD-EF1234567C10',
+            'rel_uuid' => 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE',
+            'tipo_relacion' => '01',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        // Se sube como NC; sin folio de OC (una NC no lleva OC).
+        $result = $service->validar($this->notaCreditoXml($opts), false, 'AAA010101AAA', 'PDF', null, '', '');
+
+        $this->assertTrue($result['datos']['es_nota_credito']);
+        $this->assertSame('nota_credito', $result['datos']['clasificacion_oc']);
+        $this->assertSame('devolucion', $result['datos']['clasificacion_nc']);
+        $this->assertTrue($result['datos']['nc_detalle']['ligada']);
+    }
+
+    /**
+     * NC que MATA ANTICIPO: forma 30, relación 07 → clasificacion_nc = aplicacion_anticipo.
+     */
+    public function test_nota_credito_mata_anticipo_forma_30(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'forma_pago' => '30',
+            'uso_cfdi' => 'G02',
+            'uuid' => 'F1F2F3F4-A5B6-7890-ABCD-EF1234567C11',
+            'rel_uuid' => 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE',
+            'tipo_relacion' => '07',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->notaCreditoXml($opts), false, 'AAA010101AAA', 'PDF', null, '', '');
+
+        $this->assertSame('aplicacion_anticipo', $result['datos']['clasificacion_nc']);
+        $this->assertTrue($result['datos']['nc_detalle']['ligada']);
+    }
+
+    /**
+     * NC SIN CFDI relacionado → queda en revisión (advertencia), no se puede ligar.
+     */
+    public function test_nota_credito_sin_relacionado_queda_en_revision(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'forma_pago' => '15',
+            'uso_cfdi' => 'G02',
+            'uuid' => 'F1F2F3F4-A5B6-7890-ABCD-EF1234567C12',
+            // sin rel_uuid → sin CFDI relacionado
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->notaCreditoXml($opts), false, 'AAA010101AAA', 'PDF', null, '', '');
+
+        $this->assertFalse($result['datos']['nc_detalle']['ligada']);
+        $this->assertTrue(collect($result['advertencias'])->contains(
+            fn ($a) => str_contains((string) $a, 'CFDI relacionado')
+        ));
+    }
+
+    /**
+     * NC con UsoCFDI incorrecto (G01 en vez de G02) → error.
+     */
+    public function test_nota_credito_uso_incorrecto_rechaza(): void
+    {
+        config(['facturas.rfc_receptor' => '']);
+
+        $opts = [
+            'forma_pago' => '15',
+            'uso_cfdi' => 'G01', // mal: una NC debe ser G02
+            'uuid' => 'F1F2F3F4-A5B6-7890-ABCD-EF1234567C13',
+            'rel_uuid' => 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE',
+        ];
+        $service = new AltaFacturaValidationService($this->extractorMatching($opts));
+        $result = $service->validar($this->notaCreditoXml($opts), false, 'AAA010101AAA', 'PDF', null, '', '');
+
+        $this->assertFalse($result['aprobado']);
+        $this->assertTrue(collect($result['errores'])->contains(
+            fn ($e) => str_contains((string) $e, 'G02')
         ));
     }
 }

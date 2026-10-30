@@ -98,6 +98,17 @@ return [
     ],
 
     /*
+    | Usos CFDI ACEPTADOS al validar una factura de proveedor.
+    | POR QUÉ G01/G03: los proveedores facturan compra de mercancía/insumos (G01) o gastos (G03).
+    | Cualquier otro uso (incluidos los "D" de deducciones personales) se rechaza en la validación.
+    | Ajustable con la variable de entorno FACTURAS_USOS_CFDI_PERMITIDOS (separados por coma).
+    */
+    'usos_cfdi_permitidos' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('FACTURAS_USOS_CFDI_PERMITIDOS', 'G01,G03'))
+    ))),
+
+    /*
     |--------------------------------------------------------------------------
     | Detección de conceptos (ClaveProdServ SAT = criterio principal)
     |--------------------------------------------------------------------------
@@ -189,16 +200,42 @@ return [
 
     'tolerancia_monto' => 1.00,
 
+    // Margen de redondeo al comparar cantidad facturada vs cantidad de la OC (Fase 1).
+    'tolerancia_cantidad' => 0.01,
+
+    // Timeout (segundos) para buscar la OC en Wiese. El 250 no filtra por folio y devuelve TODAS las
+    // OC del proveedor (cientos) con movimientos; esa consulta tarda ~20-30s. 60 da margen. Si Alan
+    // agrega filtro por folio al API, esto se podrá bajar mucho.
+    'oc_timeout_seg' => (int) env('FACTURAS_OC_TIMEOUT_SEG', 60),
+
+    // Claves ProdServ del SAT que identifican un ANTICIPO. 84111506 = "Servicios de facturación",
+    // la clave estándar que el SAT usa para anticipos. Se marca la factura como anticipo (informativo
+    // para contabilidad); el descuento real lo maneja la nota de crédito en Formato para pago.
+    'claves_anticipo' => ['84111506'],
+
+    // Tipo de documento (CIDDOCUMENTODE) de las FACTURAS de proveedor (compras) en Wiese/Contpaqi.
+    // POR QUÉ existe: el 250 exige este parámetro al listar documentos. 19 = compras (facturas);
+    // 17 = órdenes de compra. Configurable por si Contpaqi cambia el catálogo.
+    'tipo_documento_compra' => (string) env('FACTURAS_TIPO_DOC_COMPRA', '19'),
+
+    // Cuántos meses hacia atrás buscamos la OC en Wiese al cruzarla con la factura.
+    // POR QUÉ existe: pedir años de historia con CIDDOCUMENTODE=17 (OC + Movimientos) cuelga el 250
+    // por timeout. Una OC es cercana a la factura, así que una ventana corta basta y mantiene la
+    // consulta rápida. Subir con cuidado si algún proveedor factura OC muy viejas.
+    'oc_ventana_meses' => (int) env('FACTURAS_OC_VENTANA_MESES', 18),
+
     'dias_vencimiento' => 30,
 
     /*
     |--------------------------------------------------------------------------
-    | Plazos de pago (portal proveedor, post-validación)
+    | Plazo de pago (portal proveedor, post-validación)
     |--------------------------------------------------------------------------
-    | El proveedor elige uno después de que la factura queda aprobada y
-    | antes de pulsar Subir. Define fecha_vencimiento = hoy + N días.
-    | «Otro» permite un entero entre 1 y plazos_dias_max.
+    | POR QUÉ FIJO: el proveedor YA NO elige el plazo (pondría "1 día"). El plazo de pago lo define
+    | Salcom/contabilidad. Al subir, la factura se registra con este plazo por defecto y
+    | fecha_vencimiento = hoy + N días. Contabilidad puede ajustarlo después si hace falta.
+    | plazos_dias/plazos_dias_max quedan por compatibilidad (otras pantallas los pueden usar).
     */
+    'plazo_default_dias' => (int) env('FACTURAS_PLAZO_DEFAULT_DIAS', 30),
     'plazos_dias' => [30, 45, 60, 90, 120, 150, 360],
     'plazos_dias_max' => 3650,
 
@@ -210,4 +247,8 @@ return [
     | Facturas de meses anteriores (periodo ya cerrado) se rechazan.
     */
     'solo_mes_actual' => env('FACTURAS_SOLO_MES_ACTUAL', true),
+
+    // Validar que el RFC emisor del XML sea el del proveedor logueado.
+    // Default true (seguro). Se puede apagar en pruebas con FACTURAS_VALIDAR_RFC_EMISOR=false.
+    'validar_rfc_emisor' => env('FACTURAS_VALIDAR_RFC_EMISOR', true),
 ];

@@ -152,15 +152,7 @@
             <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
         </div></a>
 
-        <a href="{{ route('admin.opinion-positiva') }}" style="text-decoration:none;color:inherit;">
-        <div class="pp-card" style="height:100%;display:flex;flex-direction:column;">
-            <h4>Opinión positiva</h4>
-            <div class="pp-kpi-gauges">
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOpOk" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent">{{ $opinionPctActualizados }}%</div></div></div><div class="pp-otif-label">Actualizados</div></div>
-                <div style="text-align:center;"><div class="pp-otif-canvas-wrap"><canvas id="gaugeOpNo" width="80" height="80"></canvas><div class="pp-otif-center"><div class="pp-otif-percent" style="color:var(--amber)">{{ $opinionPctNoActualizados }}%</div></div></div><div class="pp-otif-label">No actualizados</div></div>
-            </div>
-            <span class="pp-detail-link" style="margin-top:auto;">Ver detalle →</span>
-        </div></a>
+        {{-- Tarjeta "Opinión positiva" eliminada del dashboard (módulo retirado a petición del usuario). --}}
     </div>
 
     {{-- Accesos directos --}}

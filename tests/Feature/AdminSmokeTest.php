@@ -53,7 +53,6 @@ class AdminSmokeTest extends TestCase
             '/admin/gestion-compras',
             '/admin/reporte-proveedores',
             '/admin/reporte-proveedores/corte',
-            '/admin/opinion-positiva',
             '/admin/alta-producto',
             '/admin/migracion-masiva',
             '/admin/ia',

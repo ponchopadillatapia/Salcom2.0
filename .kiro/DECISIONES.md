@@ -6,6 +6,279 @@
 
 ---
 
+## 2026-09-09 — Fix: el botón "Subir" no servía tras quitar el plazo + redirect a Mis Facturas
+
+- **QUÉ (bug):** Tras validar una factura, al pulsar "Subir" no pasaba nada. Causa: el JS de
+  fiscal.blade.php seguía amarrado al selector de plazo (que ya quitamos). `syncPaso()` solo mostraba/
+  habilitaba el botón Subir si `eligioPlazo()` era true, pero `diasPlazo` ya no existe → el botón nunca
+  se habilitaba. También el handler del submit bloqueaba por `plazoSeleccionado()`.
+- **FIX:** limpié el JS: el botón Subir se muestra/habilita en cuanto `puedeSubir` es true (factura
+  validada), sin depender de plazo. Quité eligioPlazo/plazoSeleccionado y sus bloqueos en el submit.
+- **QUÉ (mejora UX):** al subir, ahora redirige a "Mis Facturas" (`proveedores.facturas`) con flash
+  `ok` = "Factura subida correctamente. Queda pendiente de revisión contable." (antes se quedaba en el
+  formulario sin feedback claro). Se limpia el pendiente de sesión. Banner verde de éxito agregado a
+  la vista facturas.blade.php.
+- **QUÉ (orden):** en "Mis Facturas", la sección "Facturas registradas en sistema" (las de Wiese)
+  ahora se ordena por fecha DESC (más recientes arriba). Antes salían por folio ascendente (viejas
+  primero). Las facturas locales ya estaban con orderByDesc(created_at).
+- **DÓNDE:** `resources/views/proveedores/fiscal.blade.php` (JS); `PortalProveedorController::subir...`
+  (redirect + flash) y `mostrarFacturas` (sortByDesc de wieseFacturas); `facturas.blade.php` (banner ok).
+- **PRUEBA:** 47 tests verdes (el de subir sigue pasando: verifica redirect + factura creada).
+
+---
+
+## 2026-09-09 — PUENTE portal ↔ Formato para pago (marcar facturas con documentos)
+
+- **QUÉ:** El Formato para pago (que lee facturas EN VIVO de Wiese) ahora MARCA cuáles ya tienen
+  documentos subidos por el portal del proveedor (PDF/XML). Columna nueva "Documentos" con badge
+  verde "📄 Con docs" (link al PDF) o gris "Sin docs". Aplica en la tabla global (index) y en el
+  detalle del proveedor (proveedor()).
+- **POR QUÉ (Said):** juntar los dos mundos sin duplicar. La factura vive en Wiese (fuente de verdad);
+  el portal solo le aporta PDF/XML + validación. Es DECORACIÓN de solo lectura: NO crea ni duplica.
+- **CÓMO (match):** por `codigo_proveedor + folio`. OJO: el endpoint de Wiese NO devuelve el UUID del
+  CFDI (solo serie/folio/codigo/id_documento), así que NO se puede casar por UUID todavía. El folio
+  local (`folio_cfdi` = serie+folio, a veces con sufijo "-xxxx" por colisión) se normaliza (sin sufijo)
+  y se compara contra `serie.folio` y el folio crudo del XML (`validacion_detalle.folio`). Match en
+  memoria con UNA sola query local (whereIn codigo), sin N+1.
+- **DÓNDE:** `AdminPagosController::marcarFacturasConDocumentosPortal()` (nuevo); llamado en `index()`
+  (tabla global) y `proveedor()` ($facturasWiese). Vista `admin/pagos/index.blade.php` columna nueva.
+  Banderas añadidas a cada factura: `tiene_docs`, `factura_local_id`, `docs_pdf`, `docs_xml`,
+  `estatus_local`.
+- **PENDIENTE (mejora futura con Alan):** que el endpoint de Wiese devuelva el UUID del CFDI → cambiar
+  el match a UUID (más robusto que folio+codigo, que puede fallar con sufijos de colisión).
+- **PRUEBA:** `tests/Feature/PuenteFacturasDocumentosTest.php` (3 tests: con docs se marca; tolera
+  sufijo -xxxx; otro proveedor no matchea).
+
+---
+
+## 2026-09-09 — Quitado el selector de "días de plazo" del proveedor (plazo fijo por Salcom)
+
+- **QUÉ:** El proveedor YA NO elige los días de plazo al subir la factura. Se quitó el bloque
+  "DÍAS DE PLAZO" (select + opción "otro") del formulario. Al subir, la factura se registra con un
+  plazo FIJO por defecto (config `facturas.plazo_default_dias`, env `FACTURAS_PLAZO_DEFAULT_DIAS`,
+  default 30). fecha_vencimiento = hoy + ese plazo.
+- **POR QUÉ (Said):** si el proveedor elige el plazo, pondría "1 día" para cobrar ya. El plazo de pago
+  lo define Salcom/contabilidad, no el proveedor.
+- **DÓNDE:** `resources/views/proveedores/fiscal.blade.php` (bloque plazo reemplazado por aviso
+  "El plazo lo define Industrias Salcom"); `PortalProveedorController::subir...` (ya no valida
+  dias_plazo/dias_plazo_otro; usa el default); `config/facturas.php` (nuevo plazo_default_dias;
+  plazos_dias se deja por compatibilidad).
+- **PRUEBA:** tests del plazo viejo reemplazados por 2 nuevos (subir sin pedir plazo usa el default;
+  la vista ya no muestra el selector). 44 tests verdes.
+
+---
+
+## 2026-09-09 — Producto sin OC: el proveedor DEBE declarar (cierra hueco de "sin OC = validada")
+
+- **QUÉ:** Si una factura de producto (mercancía) llega SIN número de OC, el proveedor ahora DEBE
+  declarar por qué en el formulario:
+  - **flete_servicio**: no lleva OC (se refuerza lo que ya se detecta por ClaveProdServ).
+  - **remision**: compra por remisión/requisición sin OC en sistema → pasa pero marcada
+    `requiere_autorizacion_admin=true`, estatus `pendiente_autorizacion` (NO "validada correctamente").
+  - **nada declarado** → ERROR: "Falta el número de OC… o declara que es remisión". Ya NO se cuela.
+- **POR QUÉ:** En pruebas, FLEXITEK subió una factura de producto SIN OC (teniendo OC) y el sistema la
+  mostró como "validada correctamente" en verde. Hueco: una compra sin su OC no debe verse igual que
+  una aprobación limpia. Idea de Said: que el proveedor DECLARE (responsabilidad de él). No se consulta
+  Wiese (sería lento —cientos de OC— y no concluyente: tener OCs no prueba que ESTA tenga).
+- **DÓNDE:** `AltaFacturaValidationService::validar()` nuevo parámetro `$declaracionSinOc`; caso (C)
+  ramifica por la declaración. `PortalProveedorController::validarAltaFactura` valida `tipo_sin_oc`
+  (in:flete_servicio,remision), lo pasa al validador y lo conserva en el pendiente; el mensaje de
+  éxito dice "PENDIENTE DE AUTORIZACIÓN" cuando aplica. Vista `fiscal.blade.php`: bloque amarillo
+  `#bloqueSinOc` con 2 radios que aparece cuando el campo OC está vacío.
+- **PRUEBA:** 2 tests nuevos (sin declaración → error; declara remisión → pasa con
+  requiere_autorizacion_admin). 2 tests viejos de mercancía-sin-OC ajustados para declarar 'remision'.
+  47 tests verdes.
+
+---
+
+## 2026-09-09 — Timeout de búsqueda de OC subido a 60s (el 250 tarda 20-30s)
+
+- **QUÉ:** El timeout de `buscarOcPorFolio` subió de 25s a 60s (config `facturas.oc_timeout_seg`,
+  env `FACTURAS_OC_TIMEOUT_SEG`).
+- **POR QUÉ:** En demo con Brenda, la factura 93150 dio "OC 81686 no encontrada / no se pudo conectar".
+  El log mostró cURL error 28 (timeout a los 25s). NO era bug del fix anterior: el rango corto y el
+  prefijo ya estaban bien. La causa: el 250 NO sabe filtrar por folio (probado: ignora
+  folio/Folio/cfolio/numeroDocumento y SIEMPRE devuelve las 1864 OC de ORPACK con movimientos). Esa
+  consulta tarda 20-30s (medido: hasta 30.7s), variable; con 25s a veces cortaba. Con 60s hay margen.
+- **PRUEBA:** `buscarOcPorFolio('M213015002','81686',77479.90)` → SUCCESS en 16.8s, serie -A, pedido
+  8754, recibido 8754. 46 tests verdes.
+- **SOLUCIÓN DE FONDO (pendiente Alan):** que el API del 250 acepte filtrar por folio y devuelva solo
+  esa OC → respondería en ms. Mientras no exista, toca esperar a que traiga todo.
+- **DÓNDE:** `ProveedorApiService::buscarOcPorFolio()`; `config/facturas.php` (oc_timeout_seg).
+
+---
+
+## 2026-09-09 — Fase 2: Notas de crédito y anticipos (detectar y ligar, NO calcular saldos)
+
+- **QUÉ:** El validador ahora acepta y clasifica NOTAS DE CRÉDITO (CFDI de Egreso "E") y detecta
+  ANTICIPOS. Antes rechazaba todo lo que no fuera Ingreso ("I").
+- **NOTA DE CRÉDITO (tipo E):**
+  - Se acepta E además de I (P/N/T siguen rechazados). `datos.es_nota_credito`.
+  - Reglas fiscales (confirmadas Brenda): UsoCFDI **G02**, método **PUE**, forma **15** (devolución) o
+    **30** (aplicación de anticipo / mata-anticipo).
+  - Subtipo por forma: 15→`devolucion`, 30→`aplicacion_anticipo`, otra→`generica` (ej. pronto pago).
+  - Debe traer CFDI Relacionado (UUID de la factura que afecta). Sin UUID → advertencia/revisión (no
+    bloquea): contabilidad confirma a qué factura aplica. `datos.nc_detalle`, `datos.clasificacion_nc`.
+  - La NC NO lleva OC ni cruza cantidad (rama D en validar()).
+- **ANTICIPO (factura de Ingreso):** se detecta por ClaveProdServ **84111506** (config
+  `facturas.claves_anticipo`). Lleva OC (no es "servicio sin OC"). Se marca `datos.es_anticipo` +
+  `clasificacion_oc='anticipo_con_oc'` + advertencia de que después llegará su NC (forma 30). Caso DIMOSA.
+- **ALCANCE (Said):** SOLO detectar/validar/ligar. El "cuánto se descuenta del saldo" es de
+  CONTABILIDAD en Formato para pago, NO de este flujo. No se tocan montos aquí.
+- **DÓNDE:** `AltaFacturaValidationService`: check tipo E/I; `validarNotaCredito()`;
+  `facturaEsAnticipo()`; `validarDatosPagoCfdi()` ramifica NC vs factura; rama (D) en `validar()`.
+  Config nueva `facturas.claves_anticipo`.
+- **PRUEBA:** 4 tests NC nuevos (devolución ligada / mata-anticipo forma30 / sin relacionado=revisión /
+  uso G01 incorrecto rechaza). 46 tests verdes.
+
+---
+
+## 2026-09-09 — Fase 2 parcialidades: factura se compara contra lo RECIBIDO (no lo pedido)
+
+- **QUÉ:** El cruce de cantidad (`cruzarCantidadConOc`) ahora compara la cantidad facturada contra lo
+  RECIBIDO en almacén (`cunidades − cunidadespendientes` = `cantidad_recibida_total`), NO contra lo
+  pedido (`cunidades`). 3 estados en `oc_cruce_detalle['estado']`:
+  - `ok`: factura ≤ recibido → pasa.
+  - `excede_recibido`: factura > recibido → ERROR, se rechaza ("no puede facturar más de lo que llegó").
+  - `esperando_recepcion`: recibido = 0 (Acatlán aún no registra entrada) → ADVERTENCIA, NO bloquea
+    (queda en revisión hasta que se registre la recepción).
+- **POR QUÉ (Brenda):** no se paga lo que no ha llegado. Acatlán registra cada recepción en Wiese y
+  baja `cunidadespendientes`. Para saber si la factura es válida, se ve si el material ya llegó (si
+  Acatlán ya lo registró). Esto cubre parcialidades sin distinguir parcial/completa: una completa es
+  el caso donde recibido == pedido. El prefijo A/B/C del folio (A3456, B3456…) apunta a la MISMA OC
+  madre (folio base 3456) y ya se normaliza con soloDigitos en buscarOcPorFolio.
+- **ALCANCE (Said):** compras solo VALIDA y LIGA; el "cuánto se paga" (saldos con NC/anticipos) es de
+  CONTABILIDAD en Formato para pago, NO de este flujo. Por eso aquí no se calcula saldo.
+- **DÓNDE:** `AltaFacturaValidationService::cruzarCantidadConOc()` (ahora recibe &$advertencias).
+- **PRUEBA:** 3 tests nuevos (parcial pasa / excede recibido rechaza / nada recibido = revisión).
+  42 tests verdes.
+- **PENDIENTE Fase 2 (siguiente):** detección y ligado de Notas de Crédito (G02; devolución forma 15;
+  NC que mata anticipo forma 30, relación 07; ligar por UUID de CFDI relacionados) y anticipos
+  (G03, ligados a NC). Sin tocar saldos (eso es contabilidad). Ver REGLAS-FACTURA-OC.md.
+
+---
+
+## 2026-09-08 — Servicios/fletes sin OC + producto sin OC = revisión manual
+
+- **QUÉ:** La validación de factura ahora clasifica en 3 caminos antes de cruzar OC:
+  - **(A) Servicio/flete** (ClaveProdServ de servicio, rango 70-99, o concepto de flete detectado):
+    NO lleva OC. Se salta el cruce; valida solo lo fiscal. `clasificacion_oc='servicio_sin_oc'`.
+  - **(B) Producto con número de OC:** cruce de cantidad contra Wiese (Fase 1). `='producto_con_oc'`.
+  - **(C) Producto SIN número de OC:** NO se rechaza ni se traba. Queda para AUTORIZACIÓN MANUAL del
+    admin (caso requisición de papel / adquisición de activos que no están en sistema).
+    `='producto_sin_oc_revision'` + advertencia.
+- **POR QUÉ:** un flete (ej. LARO Logistics, ClaveProdServ 78101800) no tiene OC; si se la exigíamos,
+  se rechazaba/trababa. El UsoCFDI NO sirve para distinguir (flete y compra comparten G01/G03); la
+  ClaveProdServ sí (mercancía 10-69, servicio 70-99). Lo del producto-sin-OC es por las requisiciones
+  en papel firmadas a mano que no están en Wiese: el sistema no puede cruzar lo que no existe, así que
+  lo manda a revisión humana en vez de adivinar.
+- **DÓNDE:** `AltaFacturaValidationService::facturaEsServicioSinOc()` (nuevo) + clasificación en
+  `validar()`. `numero_oc` ya NO es required: `PortalProveedorController::validarAltaFactura`
+  (nullable) ni en `resources/views/proveedores/fiscal.blade.php` (quitado required, etiqueta nueva
+  "déjalo vacío si es flete o servicio"). Config no cambió.
+- **PRUEBA:** 2 tests nuevos (flete sin OC → servicio_sin_oc aprueba; producto sin OC → revisión
+  manual, no rechaza). 39 tests verdes.
+- **🟡 PENDIENTE BRENDA (Fase 2):** (1) requisición de papel: ¿quién autoriza y cómo? ¿entran algún
+  día a Wiese como OC? (2) maquinaria/activos: ¿llevan OC o van por requisición? (3) ¿hay servicios
+  que SÍ lleven OC (maquila/contratos)? Si sí, la regla "servicio=sin OC" no sería absoluta.
+
+## 2026-09-08 — Proveedores de PRUEBA locales: LARO (flete) y FLEXITEK (producto)
+
+- **QUÉ:** creados 2 proveedores de prueba en LOCAL (docs fiscales aprobados + activos) para probar
+  los 3 escenarios junto con ORPACK.
+- **CREDENCIALES DE PRUEBA (solo local):**
+  - **ORPACK** (producto con OC): `wiese_M213015002` / `orpack123` — código Wiese M213015002.
+  - **LARO** (flete, sin OC): `laro.flete` / `laro123` — persona física, RFC QUVA991011I34, código
+    LARO-TEST (NO está en Wiese; es flete, no cruza OC).
+  - **FLEXITEK** (producto con OC): `flexitek.prov` / `flexitek123` — persona moral, RFC FME010503KZ7,
+    código REAL de Wiese M213006022.
+- **POR QUÉ LARO no tiene código Wiese:** no aparece en el directorio de proveedores de Wiese (los
+  fletes a veces no están dados de alta como proveedor de compras). No importa: el flete valida solo
+  fiscal, no necesita cruzar OC.
+
+---
+
+## 2026-09-07 — Fix 400 en listarFacturasPendientesTodos (faltaba CIDDOCUMENTODE=19)
+
+- **QUÉ:** El Formato para pago no traía facturas (tabla vacía). Causa: `listarFacturasPendientesTodos()`
+  llamaba a `ListarDocumentos` SIN `CIDDOCUMENTODE`, y Alan lo volvió obligatorio → 400
+  ("CIDDOCUMENTODE field is required"). Se agregó `CIDDOCUMENTODE=19` (facturas de compra).
+- **POR QUÉ 19:** las facturas de proveedor son tipo 19 (compras) en Wiese; las OC son 17.
+  Confirmado buscando la factura REAL 93150 de ORPACK: aparece en tipo 19.
+- **PRUEBA:** `listarFacturasPendientesTodos('2025-01-01','2026-12-31')` → SUCCESS, 1518 facturas
+  pendientes de todos; 286 de ORPACK. Antes: 400. 37 tests verdes.
+- **DÓNDE:** `app/Services/ProveedorApiService.php` → `listarFacturasPendientesTodos()`;
+  config nueva `facturas.tipo_documento_compra` (env `FACTURAS_TIPO_DOC_COMPRA`, default 19).
+- **CONTEXTO (plan de juntar portal ↔ Formato para pago, sin tocar API de Alan):** la factura que el
+  proveedor sube por el portal YA existe en Wiese (Acatlán la captura al recibir material). El plan es
+  hacer MATCH (no duplicar): cuando el proveedor sube PDF+XML+OC, el sistema encuentra esa misma
+  factura en Wiese (por UUID, o folio+serie+código) y le pega los documentos. Pendiente de implementar.
+
+---
+
+## 2026-09-07 — Desempate de OC por total (folio NO es único en Wiese)
+
+- **QUÉ:** `buscarOcPorFolio()` ahora recibe el total de la factura y, cuando hay VARIAS OC con el
+  mismo folio, elige la que su total se parezca más al de la factura. Antes se quedaba con la primera
+  (break) y podía agarrar la equivocada. También devuelve `serie_oc` y `candidatas` (cuántas
+  compartían folio) y los guarda en `oc_cruce_detalle`.
+- **POR QUÉ:** Con ORPACK descubrimos DOS OC folio 81686: serie '' = 7200 pzas ($63,725.76) y
+  serie '-A' = 8754 pzas ($77,479.90). La factura real es la '-A'. El folio solo no distingue; el
+  total sí. La serie '-A' es justo el "prefijo" del que habla Said (parte de Fase 2).
+- **PRUEBA:** `buscarOcPorFolio('M213015002','81686', 77479.90)` → elige serie '-A', 8754 pzas. Sin
+  total → agarra la de 7200 (viejo). 37 tests verdes.
+- **DÓNDE:** `app/Services/ProveedorApiService.php` → `buscarOcPorFolio()` (junta candidatas + usort
+  por |total_oc − total_factura|); `AltaFacturaValidationService::cruzarCantidadConOc()` le pasa
+  `$datos['total']` y guarda `serie_oc`/`candidatas`.
+- **OJO Fase 2:** el desempate por total falla en PARCIALIDADES (la factura parcial NO cuadra con el
+  total de la OC). Ahí habrá que usar la serie/prefijo. Por eso ya guardamos `serie_oc`. Pendiente
+  confirmar con Brenda (ver `.kiro/REGLAS-FACTURA-OC.md` y el doc de preguntas).
+
+---
+
+## 2026-09-07 — ✅ RESUELTO: el cruce de OC se colgaba por pedir rango de 15 años (era NUESTRO)
+
+- **QUÉ:** El cruce factura↔OC se quedaba en "No se pudo conectar con Wiese". Causa real: en
+  `buscarOcPorFolio()` pedíamos `fechaInicial=2020-01-01` / `fechaFinal=2035-12-31` (15 años). Con
+  `CIDDOCUMENTODE=17` el 250 trae las OC CON todos sus Movimientos, y 15 años de historia tardan más
+  que el límite de PHP → timeout. NO era culpa del API de Alan ni de la red.
+- **PRUEBA (diagnóstico directo al 250, probando variantes de parámetros):**
+  - Rango 2020-2035 + CIDDOCUMENTODE=17 → cuelga (timeout, 0 bytes).
+  - Rango SOLO 2026 + CIDDOCUMENTODE=17 → **200 OK en ~8s, 1 MB**. El endpoint y el parámetro están bien.
+  - Sin CIDDOCUMENTODE o sin codigo → 400 inmediato (ambos son required). O sea el API responde rápido;
+    lo que lo ahoga es el tamaño del resultado por el rango enorme.
+- **FIX:** acotar el rango a una ventana de ~18 meses (config `facturas.oc_ventana_meses`, env
+  `FACTURAS_OC_VENTANA_MESES`). Con eso `buscarOcPorFolio('M213015002','81686')` devuelve SUCCESS:
+  OC 81686, 7200 pedidas, total 63725.76, en ~18s.
+- **DÓNDE:** `app/Services/ProveedorApiService.php` → `buscarOcPorFolio()` (rango con `now()->subMonths`);
+  `config/facturas.php` → `oc_ventana_meses`. Timeout de la llamada quedó en 25s (del fix anterior).
+- **OJO PENDIENTE (optimización, NO urgente):** aun con ventana corta tarda ~18s porque el 250 manda
+  TODAS las OC del proveedor y filtramos el folio en PHP. Idealmente Alan podría agregar filtro por
+  folio en el 250 para devolver solo esa OC. Mientras, funciona dentro del timeout.
+- **OJO DATOS DE PRUEBA:** la OC 81686 pidió 7200 pzas pero la factura de prueba F0000093150 cobra
+  8754 → la regla Fase 1 la RECHAZA ("no puede facturar más de lo pedido"). Es correcto; para ver el
+  camino feliz hace falta una factura con cantidad ≤ 7200.
+
+---
+
+## 2026-09-07 — Fix cuelgue 60s al buscar OC + folio tolera prefijo "A"
+
+- **QUÉ:** (1) Bajé el timeout de la llamada que busca la OC en Wiese de 60s a **25s**.
+  (2) La comparación del folio de OC ahora **ignora letras y ceros a la izquierda** ("A81686",
+  "081686" y "81686" se tratan como la misma OC).
+- **POR QUÉ:** Al probar con ORPACK el portal murió con "Maximum execution time of 60 seconds
+  exceeded" (Guzzle/curl). El timeout de 60s == límite de PHP (max_execution_time), así que PHP
+  reventaba ANTES de que Guzzle cortara limpio. Con 25s, si Wiese no responde falla rápido y
+  muestra mensaje bonito en vez de pantalla de error. Lo del prefijo "A" evita falsos "OC no
+  encontrada" porque en Wiese las parcialidades llevan prefijo de letra.
+- **DÓNDE:** `app/Services/ProveedorApiService.php` → método `buscarOcPorFolio()`
+  (timeout `$this->http(25)` + normalización `$soloDigitos` antes de comparar folios).
+- **NOTA:** `tests/Unit/WieseGatewayTest.php` está ROTO (requiere `wiese-gateway/src/Gateway.php`
+  que no existe) y tumba `php artisan test` completo. Los 37 tests de factura pasan corriéndolos
+  por ruta directa con phpunit. Pendiente revisar ese test aparte.
+
+---
+
 ## 2026-10-27 — CIDDOCUMENTODE en ListarDocumentos + comentado Contpaqi del gateway
 
 - **QUÉ:** (1) Alan agregó al **APIWIESE** (250) el parámetro `CIDDOCUMENTODE` a los métodos de
@@ -43,6 +316,17 @@
 - **VERIFICADO:** `php -l` OK; tests en verde (27 unit + 10 feature de alta de factura).
 - Pendientes de las reglas SAT que NO se hicieron (decisión de negocio, confirmar con Contabilidad):
   ampliar catálogo de formas de pago (05,06,29,31) y usos CFDI (I02-I07) si los proveedores los usan.
+
+---
+
+## 🔴 REACTIVAR EL SÁBADO — bloqueos de validación de factura desactivados para pruebas
+
+> Desactivados el 27-oct SOLO para probar (factura de ORPACK estando logueado como Aneso, y
+> facturas de meses viejos). REACTIVAR el SÁBADO:
+> En el `.env` (local y producción) poner en **true** o quitar estas 2 líneas:
+> - `FACTURAS_SOLO_MES_ACTUAL=false`  → true (solo acepta facturas del mes en curso)
+> - `FACTURAS_VALIDAR_RFC_EMISOR=false` → true (RFC emisor del XML debe = RFC del proveedor logueado)
+> Luego `php artisan config:clear`. Son validaciones de seguridad importantes, NO dejarlas apagadas.
 
 ---
 

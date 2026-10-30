@@ -239,6 +239,8 @@ Route::get('/admin/migracion-masiva/template', [AltaProductoController::class, '
 Route::get('/admin/facturas', [AdminPanelController::class, 'facturas'])->name('admin.facturas')->middleware('auth.admin');
 Route::get('/admin/facturas/excel', [AdminPanelController::class, 'facturasExcel'])->name('admin.facturas.excel')->middleware('auth.admin');
 
+// Expediente de facturas (visto bueno manual) eliminado: la validación de facturas es automática.
+
 use App\Http\Controllers\AdminPagosController;
 
 Route::get('/admin/pagos', [AdminPagosController::class, 'index'])->name('admin.pagos')->middleware('auth.admin');
@@ -324,7 +326,7 @@ Route::get('/admin/materia-prima/nuevo', [AdminPanelController::class, 'materiaP
 Route::post('/admin/materia-prima/nuevo', [AdminPanelController::class, 'materiaPrimaGuardar'])->name('admin.materia-prima.guardar')->middleware(['auth.admin', 'admin.rol:materia_prima']);
 Route::get('/admin/material-empaque', [AdminPanelController::class, 'materialEmpaque'])->name('admin.material-empaque')->middleware(['auth.admin', 'admin.rol:material_empaque']);
 Route::get('/admin/fiscal', [AdminPanelController::class, 'fiscal'])->name('admin.fiscal')->middleware('auth.admin');
-Route::get('/admin/opinion-positiva', [AdminPanelController::class, 'opinionPositiva'])->name('admin.opinion-positiva')->middleware('auth.admin');
+// Opinión Positiva: módulo eliminado a petición del usuario (ya no se usa).
 Route::get('/admin/gestion-compras', [AdminPanelController::class, 'gestionCompras'])->name('admin.gestion-compras')->middleware('auth.admin');
 Route::get('/admin/gestion-compras/excel/opinion', [AdminPanelController::class, 'exportOpinion'])->name('admin.export-opinion')->middleware('auth.admin');
 Route::get('/admin/gestion-compras/excel/autorizacion', [AdminPanelController::class, 'exportAutorizacion'])->name('admin.export-autorizacion')->middleware('auth.admin');

@@ -557,10 +557,45 @@
             @endif
             @if(!empty($res['datos']['uuid']))
                 <div class="dato-chip">
-                    <div class="dl">UUID</div>
+                    <div class="dl">UUID (folio fiscal)</div>
                     <div class="dv">{{ $res['datos']['uuid'] }}</div>
                 </div>
             @endif
+
+            {{-- Tipo de comprobante: factura, anticipo o nota de crédito --}}
+            @php
+                $clasOc = $res['datos']['clasificacion_oc'] ?? '';
+                $tipoDoc = match($clasOc) {
+                    'nota_credito' => 'Nota de crédito',
+                    'anticipo_con_oc' => 'Anticipo',
+                    'servicio_sin_oc' => 'Servicio / flete',
+                    'producto_sin_oc_revision' => 'Compra sin OC',
+                    default => 'Factura',
+                };
+            @endphp
+            <div class="dato-chip">
+                <div class="dl">Tipo de documento</div>
+                <div class="dv">{{ $tipoDoc }}</div>
+            </div>
+
+            {{-- Datos de la Orden de Compra (OC) cuando aplica --}}
+            @php $ocDet = $res['datos']['oc_cruce_detalle'] ?? []; @endphp
+            @if(!empty($ocDet['folio_oc']) && !empty($ocDet['encontrada']))
+                <div class="dato-chip">
+                    <div class="dl">Orden de Compra (OC)</div>
+                    <div class="dv">#{{ $ocDet['folio_oc'] }}@if(!empty($ocDet['serie_oc'])) · serie {{ $ocDet['serie_oc'] }}@endif</div>
+                </div>
+                <div class="dato-chip">
+                    <div class="dl">Cantidad facturada / recibida</div>
+                    <div class="dv">{{ rtrim(rtrim(number_format((float)($ocDet['cantidad_factura'] ?? 0), 2), '0'), '.') }} de {{ rtrim(rtrim(number_format((float)($ocDet['cantidad_recibida'] ?? 0), 2), '0'), '.') }} recibidas (pedido: {{ rtrim(rtrim(number_format((float)($ocDet['cantidad_oc'] ?? 0), 2), '0'), '.') }})</div>
+                </div>
+            @elseif($clasOc === 'nota_credito' && !empty($res['datos']['nc_detalle']['uuids_relacionados']))
+                <div class="dato-chip">
+                    <div class="dl">Nota de crédito aplica a</div>
+                    <div class="dv">{{ \Illuminate\Support\Str::limit(implode(', ', $res['datos']['nc_detalle']['uuids_relacionados']), 40) }}</div>
+                </div>
+            @endif
+
             <div class="dato-chip">
                 <div class="dl">Total</div>
                 <div class="dv">${{ number_format((float)($res['datos']['total'] ?? 0), 2) }}</div>
@@ -580,15 +615,25 @@
                 </div>
             @endif
             @if(!empty($res['datos']['metodo_pago']))
+                @php
+                    $metDesc = ['PUE' => 'Pago en una sola exhibición', 'PPD' => 'Pago en parcialidades o diferido'];
+                @endphp
                 <div class="dato-chip">
                     <div class="dl">Método de pago</div>
-                    <div class="dv">{{ $res['datos']['metodo_pago'] }}</div>
+                    <div class="dv">{{ $res['datos']['metodo_pago'] }}@if(!empty($metDesc[$res['datos']['metodo_pago']])) — {{ $metDesc[$res['datos']['metodo_pago']] }}@endif</div>
                 </div>
             @endif
             @if(!empty($res['datos']['uso_cfdi']))
+                @php
+                    $usoDesc = [
+                        'G01' => 'Adquisición de mercancías',
+                        'G03' => 'Gastos en general',
+                        'G02' => 'Devoluciones, descuentos o bonificaciones',
+                    ];
+                @endphp
                 <div class="dato-chip">
                     <div class="dl">Uso CFDI</div>
-                    <div class="dv">{{ $res['datos']['uso_cfdi'] }}</div>
+                    <div class="dv">{{ $res['datos']['uso_cfdi'] }}@if(!empty($usoDesc[$res['datos']['uso_cfdi']])) — {{ $usoDesc[$res['datos']['uso_cfdi']] }}@endif</div>
                 </div>
             @endif
             @if(!empty($res['datos']['producto']))
@@ -671,48 +716,60 @@
                     <div class="dz-file" {{ !empty($tieneArchivosPendientes) ? '' : 'hidden' }}>{{ $pendiente['nombre_xml'] ?? '' }}</div>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Orden de compra <span style="color:var(--gray-muted);font-weight:500;">(opcional)</span></label>
-                <div class="dropzone {{ !empty($pendiente['nombre_oc'] ?? null) ? 'has-file' : '' }}" data-dz="archivo_oc">
-                    <input type="file" name="archivo_oc" id="archivo_oc" accept=".pdf,application/pdf">
-                    <div class="dz-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--gray-muted)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    </div>
-                    <div class="dz-title">OC</div>
-                    <div class="dz-sub">{{ !empty($pendiente['nombre_oc'] ?? null) ? 'En servidor — opcional reemplazar' : 'Opcional' }}</div>
-                    <div class="dz-file" {{ !empty($pendiente['nombre_oc'] ?? null) ? '' : 'hidden' }}>{{ $pendiente['nombre_oc'] ?? '' }}</div>
+        </div>
+
+        {{-- La OC ya NO se sube como PDF: solo se escribe su número. El sistema busca la OC
+             en Wiese con ese número para cruzar cantidades contra la factura. --}}
+        {{-- Número de OC: lo escribe el proveedor (viene en su factura/OC). El sistema lo usa para
+             buscar la OC en Wiese y cruzar cantidad/total contra la factura. --}}
+        <div class="form-group" style="margin-top:14px">
+            <label for="numero_oc">Número de Orden de Compra (OC)</label>
+            {{-- POR QUÉ ya NO es required: los fletes/servicios no tienen OC. Para compras de producto
+                 SÍ hay que ponerlo. Si se deja vacío, el proveedor DEBE declarar por qué (abajo), para
+                 no colar una factura de producto sin OC como si fuera válida perfecta. --}}
+            <input type="text" name="numero_oc" id="numero_oc"
+                   value="{{ old('numero_oc', $pendiente['numero_oc'] ?? '') }}"
+                   placeholder="Ej. 81686"
+                   oninput="document.getElementById('bloqueSinOc').style.display = this.value.trim() ? 'none' : 'block';"
+                   style="width:100%;max-width:280px;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none">
+            <div style="font-size:12px;color:var(--gray-muted);margin-top:4px">
+                Es el número de OC que aparece en tu factura de producto. Con él validamos cantidades contra lo recibido.
+            </div>
+
+            {{-- Si deja la OC vacía, debe declarar por qué. POR QUÉ: una factura de producto SÍ lleva
+                 OC; si no la pone sin explicar, no debe pasar como "validada". Esto pone la
+                 responsabilidad en el proveedor y evita que se cuele una compra sin su OC. --}}
+            @php $tipoSinOcPrev = old('tipo_sin_oc', $pendiente['tipo_sin_oc'] ?? ''); @endphp
+            <div id="bloqueSinOc" style="display:{{ trim((string) old('numero_oc', $pendiente['numero_oc'] ?? '')) === '' ? 'block' : 'none' }};margin-top:12px;padding:12px 14px;background:#fff8ec;border:1.5px solid #f0d089;border-radius:8px">
+                <div style="font-size:13px;font-weight:600;color:#8a6d20;margin-bottom:8px">
+                    No pusiste número de OC. Dinos qué tipo de factura es:
+                </div>
+                <label style="display:block;font-size:13px;margin-bottom:6px;cursor:pointer">
+                    <input type="radio" name="tipo_sin_oc" value="flete_servicio" {{ $tipoSinOcPrev === 'flete_servicio' ? 'checked' : '' }}>
+                    Es <strong>flete o servicio</strong> (no lleva OC)
+                </label>
+                <label style="display:block;font-size:13px;margin-bottom:6px;cursor:pointer">
+                    <input type="radio" name="tipo_sin_oc" value="remision" {{ $tipoSinOcPrev === 'remision' ? 'checked' : '' }}>
+                    Es una compra por <strong>remisión/requisición</strong> (sin OC en sistema) — la autoriza el administrador
+                </label>
+                <div style="font-size:12px;color:#8a6d20;margin-top:6px">
+                    Si en realidad SÍ tienes el número de OC, escríbelo arriba.
                 </div>
             </div>
         </div>
 
-        @php
-            $plazosDias = config('facturas.plazos_dias', [30, 45, 60, 90, 120, 150, 360]);
-            $oldPlazo = old('dias_plazo');
-            $esOtro = (string) $oldPlazo === 'otro';
-        @endphp
+        {{-- POR QUÉ ya NO hay selector de "días de plazo": el proveedor NO decide cuándo se le paga
+             (si no, pondría "1 día" y listo). El plazo de pago lo define Salcom/contabilidad. Aquí
+             solo se confirma que la factura validó; al subir se usa el plazo por defecto de config. --}}
         @if(!empty($puedeSubir))
         <div class="plazo-box" id="plazoBox">
-            <div class="section-label">Días de plazo</div>
             @php $estatusPlazo = is_array($res ?? null) ? ($res['estatus'] ?? '') : ''; @endphp
             <div class="plazo-ok" @if($estatusPlazo === 'aprobada_con_observaciones') style="color:#b45309;" @endif>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
                 {{ $estatusPlazo === 'aprobada_con_observaciones' ? 'Factura validada con observaciones' : 'Factura validada correctamente' }}
             </div>
-            <div class="plazo-fields">
-                <div class="form-group">
-                    <label for="diasPlazo">Elige el plazo</label>
-                    <select name="dias_plazo" id="diasPlazo">
-                        <option value="">Selecciona…</option>
-                        @foreach($plazosDias as $dias)
-                            <option value="{{ $dias }}" {{ (string) $oldPlazo === (string) $dias ? 'selected' : '' }}>{{ $dias }} días</option>
-                        @endforeach
-                        <option value="otro" {{ $esOtro ? 'selected' : '' }}>Otro</option>
-                    </select>
-                </div>
-                <div class="form-group plazo-otro{{ $esOtro ? ' is-open' : '' }}" id="plazoOtroWrap">
-                    <label for="diasPlazoOtro">Cantidad de días</label>
-                    <input type="number" name="dias_plazo_otro" id="diasPlazoOtro" min="1" max="{{ (int) config('facturas.plazos_dias_max', 3650) }}" step="1" inputmode="numeric" placeholder="Escribe los días" value="{{ old('dias_plazo_otro') }}" autocomplete="off" {{ $esOtro ? '' : 'disabled' }}>
-                </div>
+            <div style="font-size:12px;color:var(--gray-muted);margin-top:6px">
+                El plazo de pago lo define Industrias Salcom según la política acordada. Pulsa «Subir» para registrar tu factura.
             </div>
         </div>
         @endif
@@ -720,7 +777,7 @@
         <div class="form-actions">
             <span class="step-hint" id="stepHint">
                 @if(!empty($puedeSubir))
-                    Elige los días de plazo y pulsa Subir.
+                    Pulsa Subir para registrar tu factura.
                 @elseif(!empty($tieneArchivosPendientes))
                     Archivos listos — pulsa Validar de nuevo o reemplázalos.
                 @else
@@ -825,53 +882,22 @@
     var btnValidar = document.getElementById('btnValidar');
     var btnSubir = document.getElementById('btnSubir');
     var stepHint = document.getElementById('stepHint');
-    var diasPlazo = document.getElementById('diasPlazo');
-    var plazoOtroWrap = document.getElementById('plazoOtroWrap');
-    var diasPlazoOtro = document.getElementById('diasPlazoOtro');
     var puedeSubir = {{ !empty($puedeSubir) ? 'true' : 'false' }};
     var tieneArchivosPendientes = {{ !empty($tieneArchivosPendientes) ? 'true' : 'false' }};
-    var maxDiasPlazo = {{ (int) config('facturas.plazos_dias_max', 3650) }};
 
-    function eligioPlazo() {
-        return !!(diasPlazo && diasPlazo.value);
-    }
-
-    function plazoSeleccionado() {
-        if (!eligioPlazo()) return false;
-        if (diasPlazo.value !== 'otro') return true;
-        if (!diasPlazoOtro) return false;
-        var n = parseInt(diasPlazoOtro.value, 10);
-        return Number.isInteger(n) && n >= 1 && n <= maxDiasPlazo;
-    }
-
+    // POR QUÉ ya no hay lógica de plazo: el proveedor ya NO elige días de plazo (lo pone Salcom).
+    // El botón "Subir" se muestra/habilita en cuanto la factura quedó validada (puedeSubir=true).
     function syncPaso() {
-        var esOtro = !!(diasPlazo && diasPlazo.value === 'otro');
-        if (plazoOtroWrap) {
-            plazoOtroWrap.classList.toggle('is-open', esOtro);
-        }
-        if (diasPlazoOtro) {
-            diasPlazoOtro.disabled = !esOtro;
-            diasPlazoOtro.required = esOtro;
-            if (!esOtro) diasPlazoOtro.value = '';
-        }
-
         if (btnValidar) {
             btnValidar.hidden = puedeSubir;
             btnValidar.disabled = puedeSubir;
         }
         if (btnSubir) {
-            var mostrarSubir = puedeSubir && eligioPlazo();
-            btnSubir.hidden = !mostrarSubir;
-            btnSubir.disabled = !(puedeSubir && plazoSeleccionado());
+            btnSubir.hidden = !puedeSubir;
+            btnSubir.disabled = !puedeSubir;
         }
         if (stepHint && puedeSubir) {
-            if (!eligioPlazo()) {
-                stepHint.textContent = 'Elige los días de plazo y pulsa Subir.';
-            } else if (diasPlazo.value === 'otro' && !plazoSeleccionado()) {
-                stepHint.textContent = 'Escribe la cantidad de días y pulsa Subir.';
-            } else {
-                stepHint.textContent = 'Pulsa Subir para registrar la factura.';
-            }
+            stepHint.textContent = 'Pulsa Subir para registrar tu factura.';
         }
     }
 
@@ -891,8 +917,6 @@
         if (stepHint) stepHint.textContent = 'Cambiaste archivos — vuelve a validar antes de subir.';
     }
 
-    if (diasPlazo) diasPlazo.addEventListener('change', syncPaso);
-    if (diasPlazoOtro) diasPlazoOtro.addEventListener('input', syncPaso);
     syncPaso();
 
     function assignFiles(input, file) {
@@ -975,27 +999,14 @@
     if (form) {
         form.addEventListener('submit', function (e) {
             var submitter = e.submitter || document.activeElement;
+            // Subir: ya no depende de plazo. Si la factura está validada (puedeSubir), se envía.
             if (submitter === btnSubir) {
-                if (!puedeSubir || !plazoSeleccionado()) {
+                if (!puedeSubir) {
                     e.preventDefault();
-                    if (puedeSubir && !plazoSeleccionado()) {
-                        alert(eligioPlazo() && diasPlazo && diasPlazo.value === 'otro'
-                            ? 'Escribe la cantidad de días del plazo antes de subir.'
-                            : 'Selecciona los días de plazo antes de subir.');
-                    }
                     return;
                 }
                 btnSubir.textContent = 'Subiendo…';
                 setTimeout(function () { btnSubir.disabled = true; }, 0);
-                return;
-            }
-            if (puedeSubir) {
-                e.preventDefault();
-                if (!eligioPlazo()) {
-                    alert('Selecciona los días de plazo antes de subir.');
-                } else if (!plazoSeleccionado()) {
-                    alert('Escribe la cantidad de días del plazo antes de subir.');
-                }
                 return;
             }
             var pdf = document.getElementById('archivo');
