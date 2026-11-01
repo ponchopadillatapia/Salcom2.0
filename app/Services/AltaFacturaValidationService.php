@@ -203,7 +203,16 @@ class AltaFacturaValidationService
             $checklist['fletera']['label'] = $esFletera ? 'Marcada como fletera' : 'No es fletera';
         }
 
-        $this->validarRetenciones($datos, $esFletera, $errores, $advertencias, $checklist);
+        // POR QUÉ saltamos retenciones en NC: la validación de retenciones (IVA/ISR por régimen, flete,
+        // persona física) es para FACTURAS de ingreso. Una NOTA DE CRÉDITO (Egreso) no trae esas
+        // retenciones; exigírselas la rechazaba injustamente (bug visto con docs reales: NC régimen
+        // 612 "requiere retenciones"). Las NC validan sus propias reglas (G02/I08, forma 15/30) aparte.
+        if (empty($datos['es_nota_credito'])) {
+            $this->validarRetenciones($datos, $esFletera, $errores, $advertencias, $checklist);
+        } else {
+            $checklist['retenciones']['ok'] = true;
+            $checklist['retenciones']['label'] = 'Nota de crédito — no aplica retención';
+        }
 
         // Paso 2–3: Cruce Factura PDF ↔ XML por full-text search
         if ($pdfContent !== null && $pdfContent !== '') {
@@ -517,19 +526,10 @@ class AltaFacturaValidationService
      */
     private function validarPeriodoMes(array $datos, array &$errores, array &$checklist): void
     {
-        // ⚠️ TEMPORAL — VENTANA DE PRUEBAS (quitar después del 2026-09-28):
-        // Durante el periodo de pruebas se aceptan facturas de cualquier mes.
-        // Al llegar la fecha de corte, vuelve automáticamente a exigir el mes en curso.
-        $finVentanaPruebas = Carbon::create(2026, 9, 28, 23, 59, 59);
-        if (now()->lte($finVentanaPruebas)) {
-            $checklist['periodo'] = [
-                'ok' => true,
-                'label' => 'Periodo no restringido (ventana de pruebas)',
-            ];
-
-            return;
-        }
-
+        // El bloqueo de mes se controla SOLO por config/env (facturas.solo_mes_actual). Por decisión
+        // de Said queda activado siempre en producción; para pruebas locales se puede apagar con
+        // FACTURAS_SOLO_MES_ACTUAL=false. (Antes había una ventana de pruebas temporal hardcodeada
+        // hasta 2026-09-28; se quitó porque ya expiró y ensuciaba la lógica.)
         if (! config('facturas.solo_mes_actual', true)) {
             $checklist['periodo'] = [
                 'ok' => true,
@@ -1419,11 +1419,14 @@ class AltaFacturaValidationService
         }
 
         if ($esNotaCredito) {
-            // ── REGLAS DE NOTA DE CRÉDITO (Egreso) — confirmadas con Brenda ──
-            // UsoCFDI SIEMPRE G02 (devoluciones/descuentos/bonificaciones).
+            // ── REGLAS DE NOTA DE CRÉDITO (Egreso) ──
+            // UsoCFDI: normalmente G02 (devoluciones/descuentos), pero también I08/I01 cuando la NC
+            // afecta una compra de maquinaria/activo (confirmado con docs reales). Lista configurable.
             $usoNc = strtoupper((string) ($datos['uso_cfdi'] ?? ''));
-            if ($usoNc !== '' && $usoNc !== 'G02') {
-                $errores[] = "Nota de crédito: el UsoCFDI debe ser 'G02' (devoluciones/descuentos), pero el XML trae '{$usoNc}'.";
+            $usosNcPermitidos = (array) config('facturas.usos_cfdi_nc', ['G02']);
+            if ($usoNc !== '' && ! in_array($usoNc, $usosNcPermitidos, true)) {
+                $listaNc = implode(' o ', $usosNcPermitidos);
+                $errores[] = "Nota de crédito: el UsoCFDI '{$usoNc}' no es válido. Debe ser {$listaNc}.";
                 $okPago = false;
             }
             // Método PUE (las NC no son a plazos).

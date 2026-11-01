@@ -78,7 +78,12 @@ return [
         '02' => '02 — Cheque nominativo',
         '03' => '03 — Transferencia electrónica de fondos',
         '04' => '04 — Tarjeta de crédito',
+        // POR QUÉ 15 y 30: las usan las NOTAS DE CRÉDITO. 15 = condonación (devolución de material),
+        // 30 = aplicación de anticipos (la NC que "mata" el anticipo). Sin ellas en el catálogo, las
+        // NC se rechazaban antes de llegar a su validación específica (confirmado con docs reales).
+        '15' => '15 — Condonación (devolución)',
         '28' => '28 — Tarjeta de débito',
+        '30' => '30 — Aplicación de anticipos',
         '99' => '99 — Por definir',
     ],
 
@@ -98,14 +103,28 @@ return [
     ],
 
     /*
-    | Usos CFDI ACEPTADOS al validar una factura de proveedor.
-    | POR QUÉ G01/G03: los proveedores facturan compra de mercancía/insumos (G01) o gastos (G03).
-    | Cualquier otro uso (incluidos los "D" de deducciones personales) se rechaza en la validación.
-    | Ajustable con la variable de entorno FACTURAS_USOS_CFDI_PERMITIDOS (separados por coma).
+    | Usos CFDI ACEPTADOS al validar una FACTURA de proveedor (tipo Ingreso).
+    | POR QUÉ G01/G03/I08/I01:
+    |   G01 = adquisición de mercancías, G03 = gastos en general (insumos/servicios),
+    |   I08 = otra maquinaria y equipo, I01 = construcciones (compra de activos, confirmado con docs
+    |   reales: facturas de maquinaria con OC vienen con I08).
+    | Si aparece otro uso válido en operación, AGRÉGALO aquí o en la env (separados por coma). No hace
+    | falta tocar código: FACTURAS_USOS_CFDI_PERMITIDOS=G01,G03,I08,I01,...
     */
     'usos_cfdi_permitidos' => array_values(array_filter(array_map(
         'trim',
-        explode(',', (string) env('FACTURAS_USOS_CFDI_PERMITIDOS', 'G01,G03'))
+        explode(',', (string) env('FACTURAS_USOS_CFDI_PERMITIDOS', 'G01,G03,I08,I01'))
+    ))),
+
+    /*
+    | Usos CFDI ACEPTADOS en una NOTA DE CRÉDITO (tipo Egreso).
+    | G02 = devoluciones/descuentos/bonificaciones (lo normal). I08/I01 cuando la NC afecta una
+    | compra de maquinaria/activo (confirmado con docs reales: NC de anticipo de maquinaria trae I08).
+    | Ajustable con env FACTURAS_USOS_CFDI_NC (separados por coma).
+    */
+    'usos_cfdi_nc' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('FACTURAS_USOS_CFDI_NC', 'G02,I08,I01'))
     ))),
 
     /*

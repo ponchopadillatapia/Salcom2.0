@@ -6,6 +6,47 @@
 
 ---
 
+## 2026-09-10 — Afinación con docs reales: I08/I01 permitidos + NC no lleva retenciones
+
+- **QUÉ (3 ajustes tras probar 10 XML reales de notas de crédito/anticipos/maquinaria):**
+  1. **UsoCFDI I08 (maquinaria) e I01 (construcciones)** ahora permitidos en FACTURAS. Config
+     `facturas.usos_cfdi_permitidos` default `G01,G03,I08,I01` (env FACTURAS_USOS_CFDI_PERMITIDOS).
+  2. **NC acepta G02 + I08 + I01** (no solo G02): config nueva `facturas.usos_cfdi_nc` default
+     `G02,I08,I01` (env FACTURAS_USOS_CFDI_NC). POR QUÉ: una NC que afecta compra de maquinaria trae I08.
+  3. **BUG arreglado:** las NOTAS DE CRÉDITO ya NO pasan por la validación de retenciones de factura
+     (régimen 612, flete, persona física). Esas son de facturas de ingreso; a una NC la rechazaban
+     injustamente ("régimen 612 requiere retenciones"). Ahora si es NC se salta validarRetenciones.
+  4. Agregadas formas de pago **15** (condonación/devolución) y **30** (aplicación de anticipos) al
+     catálogo `formas_pago` (faltaban; las NC las usan).
+- **VALIDADO:** los 10 XML reales (4 NC devolución/anticipo ligadas por UUID, facturas de maquinaria
+  con I08, anticipos) clasifican y pasan correctamente.
+- **DÓNDE:** `config/facturas.php` (usos + formas); `AltaFacturaValidationService::validarDatosPagoCfdi`
+  (rama NC usa usos_cfdi_nc) y `validar()` (salta retenciones si es NC).
+- **COMO AGREGAR MÁS USOS (para Said):** si aparece otro UsoCFDI válido, solo agrégalo en config o en
+  el .env (FACTURAS_USOS_CFDI_PERMITIDOS / FACTURAS_USOS_CFDI_NC), separados por coma. No toca código.
+- **Fix extra:** `test_factura_de_mes_anterior_se_rechaza` era frágil (now()->subMonth() el día 31 caía
+  en el mismo mes). Cambiado a startOfMonth()->subMonth(). 49 tests verdes.
+
+---
+
+## 2026-09-09 — Facturas HUÉRFANAS: subidas al portal pero que no están en Wiese
+
+- **QUÉ:** Nueva sección en el Formato para pago (index) "⚠️ Facturas del portal pendientes de aparecer
+  en Wiese": lista las facturas locales (pendientes, con PDF del portal) que NO tienen contraparte en
+  la lista de pendientes de Wiese. Muestra proveedor, folio, total, fecha de subida y links a PDF/XML.
+- **POR QUÉ:** el Formato para pago solo muestra facturas de Wiese. Una factura que el proveedor sube
+  al portal pero que Wiese no reporta (se adelantó antes de que Acatlán la capture, o es remisión sin
+  OC) no aparecería y se perdería. Caso real: la 9178 de FLEXITEK (existe en local, NO en Wiese).
+- **CÓMO:** mismo match que el puente (codigo + folio normalizado, sin sufijo). Huérfana = local
+  pendiente con PDF cuyo folio NO está en el feed de Wiese. Si SÍ está, no es huérfana (sale en la
+  tabla normal marcada "Con docs").
+- **DÓNDE:** `AdminPagosController::facturasPortalSinContraparteEnWiese()` (nuevo), llamado en index();
+  vista `admin/pagos/index.blade.php` sección amarilla antes de la tabla global.
+- **PRUEBA:** 2 tests nuevos (local sin contraparte = huérfana; con contraparte = no huérfana).
+  5 tests en PuenteFacturasDocumentosTest.
+
+---
+
 ## 2026-09-09 — Fix: el botón "Subir" no servía tras quitar el plazo + redirect a Mis Facturas
 
 - **QUÉ (bug):** Tras validar una factura, al pulsar "Subir" no pasaba nada. Causa: el JS de

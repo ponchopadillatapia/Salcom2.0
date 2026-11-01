@@ -143,7 +143,10 @@ XML;
         $opts = [
             'clave' => '01010101',
             'descripcion' => 'Servicio profesional',
-            'fecha' => now()->subMonth()->format('Y-m-d').'T10:00:00',
+            // POR QUÉ startOfMonth()->subMonth(): usar now()->subMonth() directo falla los días 29-31
+            // (ej. 31-oct − 1 mes = 1-oct, que sigue siendo el mes en curso). Tomando el inicio del
+            // mes y restando uno, siempre caemos en el mes anterior de forma segura.
+            'fecha' => now()->startOfMonth()->subMonth()->format('Y-m-d').'T10:00:00',
             'uuid' => 'A1B2C3D4-E5F6-7890-ABCD-EF123456789A',
         ];
         $service = new AltaFacturaValidationService($this->extractorMatching($opts));

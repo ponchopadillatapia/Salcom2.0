@@ -87,6 +87,64 @@ class PuenteFacturasDocumentosTest extends TestCase
         $this->assertTrue($out->first()['tiene_docs']);
     }
 
+    /**
+     * Invoca el método privado de huérfanas vía reflexión.
+     *
+     * @param  array<int, array<string,mixed>>  $facturasWiese
+     */
+    private function huerfanas(array $facturasWiese): Collection
+    {
+        $controller = app(AdminPagosController::class);
+        $m = new ReflectionMethod($controller, 'facturasPortalSinContraparteEnWiese');
+        $m->setAccessible(true);
+
+        return $m->invoke($controller, collect($facturasWiese));
+    }
+
+    public function test_factura_local_sin_contraparte_en_wiese_es_huerfana(): void
+    {
+        // Subida por el portal (tiene PDF), pendiente, folio 9178.
+        Factura::create([
+            'folio_cfdi' => 'FAA9178',
+            'codigo_proveedor' => 'M213006022',
+            'monto' => 1000,
+            'monto_iva' => 0,
+            'total' => 1000,
+            'estatus' => 'pendiente',
+            'archivo_pdf' => 'facturas-proveedor/1/pdf_a.pdf',
+            'validacion_detalle' => ['folio' => '9178', 'serie' => 'FAA'],
+        ]);
+
+        // Wiese NO reporta la 9178 (solo otras). → la 9178 es huérfana.
+        $huerfanas = $this->huerfanas([
+            ['codigo' => 'M213006022', 'serie' => 'ALM', 'folio' => '9215', 'total' => 500],
+        ]);
+
+        $this->assertCount(1, $huerfanas);
+        $this->assertSame('FAA9178', $huerfanas->first()->folio_cfdi);
+    }
+
+    public function test_factura_local_con_contraparte_en_wiese_no_es_huerfana(): void
+    {
+        Factura::create([
+            'folio_cfdi' => 'A1205',
+            'codigo_proveedor' => 'M213006022',
+            'monto' => 1000,
+            'monto_iva' => 0,
+            'total' => 1000,
+            'estatus' => 'pendiente',
+            'archivo_pdf' => 'facturas-proveedor/1/pdf_b.pdf',
+            'validacion_detalle' => ['folio' => '1205', 'serie' => 'A'],
+        ]);
+
+        // Wiese SÍ reporta la A1205 → NO es huérfana (ya sale en la tabla normal con "Con docs").
+        $huerfanas = $this->huerfanas([
+            ['codigo' => 'M213006022', 'serie' => 'A', 'folio' => '1205', 'total' => 1000],
+        ]);
+
+        $this->assertCount(0, $huerfanas);
+    }
+
     public function test_factura_de_otro_proveedor_no_matchea(): void
     {
         // Mismo folio pero DISTINTO proveedor → NO debe marcar (el match es por codigo+folio).

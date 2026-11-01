@@ -148,20 +148,28 @@ class AdminPagosController extends Controller
         // aviso y la página NO se rompe (el buscador por proveedor sigue funcionando igual).
         $tablaProveedores = collect();
         $tablaError = null;
+        $facturasHuerfanas = collect();
+        $wieseRespondio = false;
         try {
             $resTabla = app(\App\Services\ProveedorApiService::class)->listarFacturasPendientesTodos();
             if ($resTabla['success'] ?? false) {
+                $wieseRespondio = true;
+                $itemsWiese = collect($resTabla['data']['items'] ?? []);
                 // PUENTE portal ↔ Wiese: marcar qué facturas de Wiese YA tienen documentos subidos
                 // por el portal del proveedor (PDF/XML/validación). Es solo DECORACIÓN: no duplica
                 // ni crea nada; Wiese sigue siendo la fuente de verdad.
-                $items = $this->marcarFacturasConDocumentosPortal(
-                    collect($resTabla['data']['items'] ?? [])
-                );
+                $items = $this->marcarFacturasConDocumentosPortal($itemsWiese);
                 // Agrupar las facturas por proveedor (código) y ordenar los bloques por NOMBRE
                 // del proveedor (orden alfabético), como pidió Brenda.
                 $tablaProveedores = $items
                     ->groupBy('codigo')
                     ->sortBy(fn ($facturas) => mb_strtoupper((string) ($facturas->first()['nombre'] ?? '')));
+
+                // HUÉRFANAS: facturas subidas por el portal (local) que NO aparecen en Wiese como
+                // pendientes. Pueden ser de un proveedor que se adelantó (aún no la capturan en
+                // Acatlán) o remisiones que nunca entran a Wiese. Se muestran aparte para que el
+                // admin NO las pierda.
+                $facturasHuerfanas = $this->facturasPortalSinContraparteEnWiese($itemsWiese);
             } else {
                 $tablaError = $resTabla['message'] ?? 'No se pudo traer la lista de facturas pendientes.';
             }
@@ -180,8 +188,61 @@ class AdminPagosController extends Controller
             'expediente',
             'formatosCreados',
             'tablaProveedores',
-            'tablaError'
+            'tablaError',
+            'facturasHuerfanas'
         ));
+    }
+
+    /**
+     * HUÉRFANAS: facturas que el proveedor subió por el portal (tabla local, estatus pendiente) pero
+     * que NO aparecen en la lista de pendientes de Wiese. El admin debe verlas para no perderlas.
+     *
+     * POR QUÉ existen: (1) el proveedor se adelantó y subió la factura antes de que Acatlán la capture
+     * en Wiese; (2) es una compra por remisión/requisición que no entra a Wiese por el flujo normal.
+     * El match es el MISMO que el puente (codigo + folio normalizado). Si una factura local tiene
+     * contraparte en Wiese, NO es huérfana (ya sale en la tabla normal marcada "Con docs").
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string,mixed>>  $facturasWiese
+     * @return \Illuminate\Support\Collection<int, \App\Models\Factura>
+     */
+    private function facturasPortalSinContraparteEnWiese(\Illuminate\Support\Collection $facturasWiese): \Illuminate\Support\Collection
+    {
+        $norm = static function (string $v): string {
+            $v = strtolower(trim($v));
+
+            return preg_replace('/-[0-9a-f]{4}$/', '', $v) ?? $v;
+        };
+
+        // Set de claves (codigo|folio) que SÍ están en Wiese, en las dos variantes (con y sin serie).
+        $enWiese = [];
+        foreach ($facturasWiese as $f) {
+            $cod = trim((string) ($f['codigo'] ?? ''));
+            $enWiese[$cod.'|'.$norm((string) ($f['folio'] ?? ''))] = true;
+            $enWiese[$cod.'|'.$norm((string) ($f['serie'] ?? '').(string) ($f['folio'] ?? ''))] = true;
+        }
+
+        // Facturas locales que valen para pago: pendientes (no rechazadas, no pagadas/programadas).
+        $locales = Factura::query()
+            ->where('estatus', 'pendiente')
+            ->whereNotNull('archivo_pdf') // que de verdad vengan del portal (tienen documentos)
+            ->orderByDesc('created_at')
+            ->get(['id', 'codigo_proveedor', 'folio_cfdi', 'total', 'estatus', 'created_at', 'archivo_pdf', 'archivo_xml', 'validacion_detalle']);
+
+        return $locales->reject(function ($loc) use ($enWiese, $norm) {
+            $cod = trim((string) $loc->codigo_proveedor);
+            $vd = is_array($loc->validacion_detalle) ? $loc->validacion_detalle : [];
+            $folioXml = $norm((string) ($vd['folio'] ?? ''));
+            $folioCfdi = $norm((string) $loc->folio_cfdi);
+
+            // Si cualquiera de sus folios está en Wiese, NO es huérfana (reject = quitarla de la lista).
+            foreach (array_unique(array_filter([$folioCfdi, $folioXml])) as $fol) {
+                if (isset($enWiese[$cod.'|'.$fol])) {
+                    return true;
+                }
+            }
+
+            return false;
+        })->values();
     }
 
     /**

@@ -166,6 +166,57 @@
 </div>
 
 @if(! $filtrosBusqueda)
+    {{-- ── HUÉRFANAS: facturas subidas por el portal que aún NO están en Wiese ──
+         POR QUÉ: una factura que el proveedor subió al portal pero que Wiese no reporta como
+         pendiente (se adelantó antes de que Acatlán la capture, o es una remisión sin OC). No
+         saldrían en la tabla de abajo (que es puro Wiese), así que se muestran aquí para no perderlas. --}}
+    @if(isset($facturasHuerfanas) && $facturasHuerfanas->isNotEmpty())
+        <div class="adm-section anim" style="animation-delay:.05s;border:1.5px solid #f0d089;background:#fffdf5;">
+            <div class="adm-section-head">
+                <div>
+                    <h4 style="color:#8a6d20;">⚠️ Facturas del portal pendientes de aparecer en Wiese</h4>
+                    <div class="adm-section-meta">
+                        El proveedor las subió por el portal, pero Wiese todavía no las reporta (quizá Acatlán
+                        aún no las captura, o son remisiones sin OC). Revísalas a la vista.
+                    </div>
+                </div>
+            </div>
+            <div class="tbl-wrap">
+                <table class="admin-table">
+                    <thead>
+                        <tr>
+                            <th>Proveedor</th>
+                            <th>Folio</th>
+                            <th style="text-align:right;">Total</th>
+                            <th>Subida</th>
+                            <th style="text-align:center;">Documentos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($facturasHuerfanas as $h)
+                            <tr>
+                                <td style="font-weight:600;">{{ $h->codigo_proveedor }}</td>
+                                <td>{{ $h->folio_cfdi }}</td>
+                                <td style="text-align:right;white-space:nowrap;">${{ number_format((float) $h->total, 2) }}</td>
+                                <td style="white-space:nowrap;">{{ $h->created_at?->format('d/m/Y H:i') }}</td>
+                                <td style="text-align:center;white-space:nowrap;">
+                                    @if($h->archivo_pdf)
+                                        <a href="{{ route('admin.pagos.factura-archivo', ['factura' => $h->id, 'tipo' => 'pdf']) }}" target="_blank"
+                                           style="background:#ede9fe;color:#6B3FA0;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;text-decoration:none;">PDF</a>
+                                    @endif
+                                    @if($h->archivo_xml)
+                                        <a href="{{ route('admin.pagos.factura-archivo', ['factura' => $h->id, 'tipo' => 'xml']) }}" target="_blank"
+                                           style="background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;text-decoration:none;margin-left:4px;">XML</a>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
     {{-- ── TABLA GLOBAL estilo reporte Wiese: proveedores por consecutivo con sus facturas ──
          POR QUÉ: Brenda pidió ver de entrada la lista de proveedores (ordenados por código) con
          sus facturas pendientes, marcando en ROJO las vencidas. Los datos vienen en vivo del
