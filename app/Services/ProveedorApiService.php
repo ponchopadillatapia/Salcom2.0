@@ -902,6 +902,13 @@ class ProveedorApiService
                 'candidatas' => count($candidatas),
                 'id_documento' => $oc['idDocumento'] ?? $oc['ciddocumento'] ?? null,
                 'total_oc' => (float) ($oc['total'] ?? 0),
+                // Fechas de la OC (contexto; NO es la fecha de recepción en almacén, que Wiese no da aquí):
+                //  - fecha_oc    = fechaFactura: cuándo se generó la OC.
+                //  - fecha_vence = fechaVence: vencimiento de la OC.
+                //  - fecha_movimiento = cfecha del renglón.
+                'fecha_oc' => $oc['fechaFactura'] ?? $oc['FechaFactura'] ?? null,
+                'fecha_vence' => $oc['fechaVence'] ?? $oc['FechaVence'] ?? null,
+                'fecha_movimiento' => ($movs[0]['cfecha'] ?? $movs[0]['Cfecha'] ?? null),
                 'cantidad_pedida_total' => $totalPedido,
                 'cantidad_recibida_total' => $totalRecibido,
                 'movimientos' => $items,

@@ -535,7 +535,14 @@
 
     @if(!empty($res['checklist']))
         <div class="checklist">
-            @foreach($res['checklist'] as $item)
+            @php
+                // Ítems del checklist que NO se muestran al proveedor: son ruido interno o técnicos
+                // (indicador fletera, cómo se cruzó el PDF/OC, retención cuando no aplica). Se siguen
+                // validando por detrás; solo se ocultan de la pantalla para que el resultado sea claro.
+                $ocultarChecklist = ['fletera', 'oc_xml', 'pdf_xml', 'retenciones'];
+            @endphp
+            @foreach($res['checklist'] as $clave => $item)
+                @continue(in_array($clave, $ocultarChecklist, true))
                 @php
                     $dot = ! empty($item['warn']) ? 'warn' : (! empty($item['ok']) ? 'ok' : 'fail');
                 @endphp
@@ -585,10 +592,51 @@
                     <div class="dl">Orden de Compra (OC)</div>
                     <div class="dv">#{{ $ocDet['folio_oc'] }}@if(!empty($ocDet['serie_oc'])) · serie {{ $ocDet['serie_oc'] }}@endif</div>
                 </div>
+                @php
+                    $qPedido   = (float) ($ocDet['cantidad_oc'] ?? 0);
+                    $qRecibido = (float) ($ocDet['cantidad_recibida'] ?? 0);
+                    // Llegó completo si lo recibido alcanza (o supera) lo pedido → verde fuerte en ambos.
+                    $llegoCompleto = $qPedido > 0 && $qRecibido >= $qPedido;
+                    $fmt = fn ($n) => rtrim(rtrim(number_format((float) $n, 2), '0'), '.');
+                    $verde = '#15803d'; // verde fuerte
+                    $ambar = '#b45309'; // si aún no llega todo
+                @endphp
                 <div class="dato-chip">
-                    <div class="dl">Cantidad facturada / recibida</div>
-                    <div class="dv">{{ rtrim(rtrim(number_format((float)($ocDet['cantidad_factura'] ?? 0), 2), '0'), '.') }} de {{ rtrim(rtrim(number_format((float)($ocDet['cantidad_recibida'] ?? 0), 2), '0'), '.') }} recibidas (pedido: {{ rtrim(rtrim(number_format((float)($ocDet['cantidad_oc'] ?? 0), 2), '0'), '.') }})</div>
+                    <div class="dl">Cantidad pedida vs. recibida en almacén</div>
+                    <div class="dv" style="font-size:15px;">
+                        Pedido:
+                        <strong style="color:{{ $verde }};">{{ $fmt($qPedido) }}</strong>
+                        &nbsp;·&nbsp; Recibido:
+                        <strong style="color:{{ $llegoCompleto ? $verde : $ambar }};">{{ $fmt($qRecibido) }}</strong>
+                        @if($llegoCompleto)
+                            <span style="color:{{ $verde }};font-weight:600;">✓ llegó completo</span>
+                        @else
+                            <span style="color:{{ $ambar }};font-weight:600;">· parcial</span>
+                        @endif
+                    </div>
                 </div>
+
+                {{-- Fechas de la OC (contexto). NO es la fecha de recepción en almacén. --}}
+                @php
+                    $fFecha = function ($v) {
+                        if (empty($v)) return null;
+                        try { return \Illuminate\Support\Carbon::parse($v)->format('d/m/Y'); }
+                        catch (\Throwable $e) { return null; }
+                    };
+                    $fOc    = $fFecha($ocDet['fecha_oc'] ?? null);
+                    $fVence = $fFecha($ocDet['fecha_vence'] ?? null);
+                    $fMov   = $fFecha($ocDet['fecha_movimiento'] ?? null);
+                @endphp
+                @if($fOc || $fVence || $fMov)
+                    <div class="dato-chip">
+                        <div class="dl">Fechas de la OC</div>
+                        <div class="dv" style="font-size:13px;">
+                            @if($fOc) OC: <strong>{{ $fOc }}</strong> @endif
+                            @if($fVence) &nbsp;·&nbsp; Vence: <strong>{{ $fVence }}</strong> @endif
+                            @if($fMov) &nbsp;·&nbsp; Movimiento: <strong>{{ $fMov }}</strong> @endif
+                        </div>
+                    </div>
+                @endif
             @elseif($clasOc === 'nota_credito' && !empty($res['datos']['nc_detalle']['uuids_relacionados']))
                 <div class="dato-chip">
                     <div class="dl">Nota de crédito aplica a</div>
@@ -600,14 +648,9 @@
                 <div class="dl">Total</div>
                 <div class="dv">${{ number_format((float)($res['datos']['total'] ?? 0), 2) }}</div>
             </div>
-            <div class="dato-chip">
-                <div class="dl">Ret. IVA / ISR</div>
-                <div class="dv">${{ number_format((float)($res['datos']['retencion_iva'] ?? 0), 2) }} / ${{ number_format((float)($res['datos']['retencion_isr'] ?? 0), 2) }}</div>
-            </div>
-            <div class="dato-chip">
-                <div class="dl">Fletera</div>
-                <div class="dv">{{ !empty($res['datos']['es_fletera']) ? 'Sí' : 'No' }}</div>
-            </div>
+            {{-- Ret. IVA/ISR se ocultó del resultado: casi siempre va en 0 y confunde al proveedor.
+                 La retención se sigue validando por detrás; solo no se muestra aquí. --}}
+
             @if(!empty($res['datos']['forma_pago']))
                 <div class="dato-chip">
                     <div class="dl">Forma de pago</div>

@@ -768,6 +768,10 @@ class AltaFacturaValidationService
             'cantidad_oc' => $cantidadOc,
             'cantidad_recibida' => $cantidadRecibida,
             'total_oc' => (float) ($data['total_oc'] ?? 0),
+            // Fechas de la OC (contexto). OJO: NO es la fecha de recepción en almacén.
+            'fecha_oc' => $data['fecha_oc'] ?? null,
+            'fecha_vence' => $data['fecha_vence'] ?? null,
+            'fecha_movimiento' => $data['fecha_movimiento'] ?? null,
         ];
 
         // ── REGLA FASE 2 (parcialidades): la factura se compara contra lo RECIBIDO, no contra lo pedido.
