@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-11-03 — Alta de nuevo colaborador: identidad de git local (AlexMixteco)
+
+- **QUÉ:** Se configuró la identidad de git SOLO para este repo (`--local`) a nombre del
+  nuevo empleado: `user.name = AlexMixteco`, `user.email = alejandro.mixteco.24e@utzmg.edu.mx`.
+  Además se borró del Windows Credential Manager la credencial HTTPS anterior para que el push
+  se autentique con el PAT de la cuenta nueva.
+- **POR QUÉ:** la laptop venía configurada con la cuenta anterior (ponchopadillatapia); los commits
+  de este nuevo colaborador deben salir a su propio nombre y autenticarse con su propio acceso.
+- **DÓNDE:** config local en `.git/config` (no toca la global de la máquina). Remoto sin cambios:
+  `github.com/ponchopadillatapia/Salcom2.0`. Esta entrada es además el commit de prueba que valida
+  el nuevo push.
+
+---
+
 ## 2026-09-10 — Afinación con docs reales: I08/I01 permitidos + NC no lleva retenciones
 
 - **QUÉ (3 ajustes tras probar 10 XML reales de notas de crédito/anticipos/maquinaria):**
