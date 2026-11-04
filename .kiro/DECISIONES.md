@@ -20,6 +20,60 @@
 
 ---
 
+## 2026-09-07 — Seguridad gateway C# (251): rate limiting + ocultar password + diagnóstico 500
+
+- **QUÉ:** Genaro pidió en auditoría cerrar 2 puntos de seguridad en el gateway C# APIPortalWeb (251):
+  1. **Rate limiting**: 60 peticiones/min por IP (status 429) vía `AddRateLimiter` + `app.UseRateLimiter()`.
+  2. **Ocultar password en respuestas**: helper `LimpiarCamposSensibles(json)` que borra campos
+     sensibles por nombre (pwd, password, clave, etc.) en los 3 endpoints `[Tags("Proveedores")]`.
+  Ya desplegado al 251 (Swagger oculto en Production, 5009 cerrado, 5443 HTTPS).
+- **POR QUÉ:** Auditoría de seguridad (Genaro). El gateway devolvía credenciales en claro de Wiese
+  y no tenía límite de peticiones (riesgo de abuso/DoS).
+- **DÓNDE:** `APIPortalWeb\Program.cs` (rate limiter) y `APIPortalWeb\Controllers\PagoProveedorController.cs`
+  (helper `LimpiarCamposSensibles` + `return Content(...)` en ListarProveedores/BuscarPorCodigo/BuscarPorRFC).
+- **DIAGNÓSTICO 500:** Los endpoints de proveedores Y ListarDocumentos daban 500. Con try/catch se
+  confirmó el mensaje real: *"No se pudo conectar al API Wiese 250 (172.16.1.250:7183)"*. O sea:
+  el 500 **NO es del helper ni del rate limiting** — el gateway (251) funciona y valida el JWT bien;
+  el que no responde es el **API Wiese del 250**. Falta revisar/levantar ese servicio y reprobar que
+  el password ya no salga. PENDIENTE: verificar ocultamiento de password cuando el 250 reviva.
+
+---
+
+## 2026-11-03 — Reenvío de verificación de correo para proveedores (salida al callejón sin salida)
+
+- **QUÉ:** Se agregó un flujo para que el proveedor pueda **reenviarse** el correo de verificación
+  cuando su enlace expiró o nunca le llegó:
+  1. Nuevo método `reenviarVerificacion()` + ruta `POST /proveedor/reenviar-verificacion`.
+  2. Formulario desplegable ("¿No te llegó o expiró tu correo? Reenviar verificación") en la vista
+     de login del proveedor.
+  3. Mensaje de enlace expirado reescrito: ahora manda a reenviar, NO a registrarse de nuevo.
+  4. En `guardar()`, si el correo ya existe pero NO está verificado, se guía al reenvío en vez de
+     solo decir "este correo ya está registrado".
+- **POR QUÉ:** Al registrarse, la cuenta se guarda de inmediato con el correo sin verificar. Si el
+  enlace de 48h expiraba, el proveedor quedaba atrapado: no podía iniciar sesión (correo no
+  verificado) ni volver a registrarse ("ya está registrado"). Antes se le mandaba a "contacta a
+  Compras", lo que generaba trabajo manual. Ahora resuelve él solo. La respuesta del reenvío es
+  neutra (no revela si el correo existe) para evitar enumeración de cuentas.
+- **DÓNDE:** `app/Http/Controllers/AuthProveedorController.php` (`reenviarVerificacion()`,
+  `verificarCorreo()`, `guardar()`), `routes/web.php` (ruta `proveedores.reenviar-verificacion`),
+  `resources/views/proveedores/login.blade.php` (bloque `<details class="ios-reenviar">`).
+  El enlace se firma a 48h en `enviarBienvenidaRegistro()` con `temporarySignedRoute`.
+
+---
+
+## 2026-11-03 — Alta del admin principal fredcominu
+
+- **QUÉ:** Se creó el registro en `admin_users` para el usuario `fredcominu` (rol `admin`, activo),
+  con contraseña hasheada. Quedó con `id=1`.
+- **POR QUÉ:** `fredcominu` ya estaba en `AdminUser::USUARIOS_DIRECCION` (acceso total), pero no
+  existía el registro en BD, así que no podía iniciar sesión.
+- **DÓNDE:** tabla `admin_users`. El login valida con `Hash::check` en
+  `AuthAdminController::procesarLogin`, por eso la password se guardó con `Hash::make`.
+- **NOTA:** la contraseña `Co.123` tiene 6 caracteres; la pantalla de alta de administradores
+  (`guardarAdministrador`) exige `min:8`, por eso se creó por fuera de esa validación.
+
+---
+
 ## 2026-09-10 — Afinación con docs reales: I08/I01 permitidos + NC no lleva retenciones
 
 - **QUÉ (3 ajustes tras probar 10 XML reales de notas de crédito/anticipos/maquinaria):**

@@ -50,6 +50,59 @@ class SeedProveedoresPrueba extends Command
             'rfc' => 'FME010503KZ7',
             'correo' => 'pruebas-flexitek@test.com',
         ],
+        // ── Proveedores de las NOTAS DE CRÉDITO (para probar NC en el portal) ──
+        // OJO: el código es provisional (el RFC). Para NC no importa el código Wiese porque las NC
+        // NO cruzan OC; solo se valida que el RFC emisor coincida con el proveedor logueado.
+        [
+            'usuario' => 'molina.prov',
+            'password' => 'molina123',
+            'id_proveedor' => 'DMO870708IT7',
+            'codigo' => 'DMO870708IT7',
+            'nombre' => 'DISTRIBUCIONES MOLINA',
+            'tipo_persona' => 'Persona Moral',
+            'rfc' => 'DMO870708IT7',
+            'correo' => 'pruebas-molina@test.com',
+        ],
+        [
+            'usuario' => 'harmony.prov',
+            'password' => 'harmony123',
+            'id_proveedor' => 'HCE170808AK5',
+            'codigo' => 'HCE170808AK5',
+            'nombre' => 'HARMONY CHEM',
+            'tipo_persona' => 'Persona Moral',
+            'rfc' => 'HCE170808AK5',
+            'correo' => 'pruebas-harmony@test.com',
+        ],
+        [
+            'usuario' => 'emi.prov',
+            'password' => 'emi123',
+            'id_proveedor' => 'ECO231107954',
+            'codigo' => 'ECO231107954',
+            'nombre' => 'EMI CONVERTIDORA',
+            'tipo_persona' => 'Persona Moral',
+            'rfc' => 'ECO231107954',
+            'correo' => 'pruebas-emi@test.com',
+        ],
+        [
+            'usuario' => 'laura.torres',
+            'password' => 'laura123',
+            'id_proveedor' => 'TOEL780328JP3',
+            'codigo' => 'TOEL780328JP3',
+            'nombre' => 'LAURA TORRES ENRIQUEZ',
+            'tipo_persona' => 'Persona Fisica',
+            'rfc' => 'TOEL780328JP3',
+            'correo' => 'pruebas-laura@test.com',
+        ],
+        [
+            'usuario' => 'concepcion.loza',
+            'password' => 'loza123',
+            'id_proveedor' => 'LORC640507TC6',
+            'codigo' => 'LORC640507TC6',
+            'nombre' => 'MA. CONSEPCION LOZA RAMIREZ',
+            'tipo_persona' => 'Persona Fisica',
+            'rfc' => 'LORC640507TC6',
+            'correo' => 'pruebas-loza@test.com',
+        ],
     ];
 
     public function handle(): int

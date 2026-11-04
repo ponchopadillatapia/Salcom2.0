@@ -51,9 +51,37 @@
             <button type="submit" class="ios-btn-primary">Ingresar al portal</button>
         </form>
 
+        <style>
+            /* POR QUÉ: estilos mínimos para que el bloque de reenvío combine con el tema morado del login. */
+            .ios-reenviar { margin-top: 14px; }
+            .ios-reenviar > summary {
+                cursor: pointer;
+                font-size: 13px;
+                color: #c4b5fd;
+                list-style: none;
+                text-align: center;
+            }
+            .ios-reenviar > summary:hover { text-decoration: underline; }
+            .ios-reenviar[open] > summary { margin-bottom: 4px; }
+        </style>
+
         <p class="ios-register-link">
             ¿Eres proveedor nuevo? <a href="{{ route('proveedores.registro') }}">Regístrate aquí</a>
         </p>
+
+        {{-- POR QUÉ: salida para quien ya se registró pero su enlace de verificación expiró o no le llegó.
+             Oculto por defecto para no saturar el login; se abre con el enlace de abajo. --}}
+        <details class="ios-reenviar">
+            <summary>¿No te llegó o expiró tu correo? Reenviar verificación</summary>
+            <form method="POST" action="{{ route('proveedores.reenviar-verificacion') }}" style="margin-top:12px;">
+                @csrf
+                <div class="ios-field">
+                    <label>Correo con el que te registraste</label>
+                    <input type="email" name="correo" placeholder="tu@correo.com" value="{{ old('correo') }}" required>
+                </div>
+                <button type="submit" class="ios-btn-primary">Reenviar enlace de verificación</button>
+            </form>
+        </details>
     </div>
 
     <a href="{{ route('muestras.crear') }}" class="ios-muestras-card">

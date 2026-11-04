@@ -178,13 +178,25 @@ class AuthProveedorController extends Controller
             }
 
             // Verificar si ya existe por correo
-            $existe = DB::table('proveedores_users')
+            $existente = DB::table('proveedores_users')
                 ->where('correo', $correo)
                 ->orWhere('usuario', $correo)
-                ->exists();
+                ->first();
 
-            if ($existe) {
-                return back()->withErrors(['correo' => 'Este correo ya está registrado.'])->withInput();
+            if ($existente) {
+                // POR QUÉ: si el correo ya existe pero NUNCA se verificó, no es que el proveedor
+                //          esté duplicando su registro: casi siempre es que su enlace expiró o no le
+                //          llegó. En vez del callejón "ya está registrado", lo guiamos a reenviarse
+                //          el enlace. Solo si ya está verificado le decimos que inicie sesión.
+                $verificado = isset($existente->correo_verified_at) && $existente->correo_verified_at !== null;
+
+                if (! $verificado) {
+                    return back()->withErrors([
+                        'correo' => 'Este correo ya tiene un registro pendiente de confirmar. No te registres de nuevo: usa la opción "¿No te llegó o expiró tu correo? Reenviar verificación" en la pantalla de login para recibir un enlace nuevo.',
+                    ])->withInput();
+                }
+
+                return back()->withErrors(['correo' => 'Este correo ya está registrado. Inicia sesión con tu usuario o correo.'])->withInput();
             }
 
             $recaptchaSecret = config('services.recaptcha.secret_key');
@@ -483,7 +495,11 @@ class AuthProveedorController extends Controller
     {
         if (! $request->hasValidSignature()) {
             return redirect('/login-proveedor')
-                ->with('error', 'El enlace de verificación no es válido o ya expiró. Si necesitas uno nuevo, contacta a Compras.');
+                // POR QUÉ: el enlace se firma a 48h (ver enviarBienvenidaRegistro). Si expira, NO sirve
+                //          mandarlo a registrarse de nuevo: su cuenta ya existe sin verificar y le saldría
+                //          "este correo ya está registrado". La salida correcta es pedir un enlace NUEVO,
+                //          por eso lo mandamos al formulario de reenvío (abajo, en la vista de login).
+                ->with('error', 'Tu enlace de verificación ya expiró. Los enlaces solo son válidos durante 48 horas. No vuelvas a registrarte: usa la opción "¿No te llegó o expiró tu correo? Reenviar verificación" aquí abajo para recibir un enlace nuevo.');
         }
 
         $proveedor = ProveedorUser::find($id);
@@ -499,6 +515,53 @@ class AuthProveedorController extends Controller
         return redirect('/login-proveedor')->with(
             'mensaje',
             'Correo confirmado. Ya puedes iniciar sesión con tu usuario o correo.'
+        );
+    }
+
+    /**
+     * Reenvía el correo de verificación a un proveedor cuya cuenta ya existe pero
+     * aún no confirma su correo.
+     *
+     * POR QUÉ: al registrarse, la cuenta se guarda de inmediato en `proveedores_users`
+     *          con el correo SIN verificar. Si el enlace de 48h expira (o nunca llegó),
+     *          el proveedor quedaba en un callejón sin salida: no podía iniciar sesión
+     *          (correo no verificado) ni volver a registrarse ("este correo ya está
+     *          registrado"). Esta ruta le da la salida: pedir un enlace nuevo él mismo,
+     *          sin depender de Compras.
+     */
+    public function reenviarVerificacion(Request $request)
+    {
+        $request->validate(
+            ['correo' => 'required|email'],
+            [
+                'correo.required' => 'Escribe tu correo para reenviarte la verificación.',
+                'correo.email' => 'El correo no es válido.',
+            ]
+        );
+
+        $correo = strtolower(trim((string) $request->correo));
+
+        // Buscamos SOLO cuentas que existan y aún no hayan verificado su correo.
+        $proveedor = ProveedorUser::where(function ($q) use ($correo) {
+            $q->where('correo', $correo)->orWhere('usuario', $correo);
+        })->first();
+
+        // POR QUÉ: respondemos lo mismo exista o no la cuenta (y esté o no verificada) para
+        //          no revelar qué correos están registrados (evita enumeración de cuentas).
+        //          Solo reenviamos de verdad cuando aplica.
+        if ($proveedor && ! $proveedor->hasVerifiedCorreo()) {
+            $this->enviarBienvenidaRegistro(
+                (int) $proveedor->id,
+                (string) ($proveedor->nombre ?? 'Proveedor'),
+                (string) $proveedor->correo,
+                (string) $proveedor->usuario
+            );
+        }
+
+        return redirect('/login-proveedor')->with(
+            'mensaje',
+            'Si tu correo está registrado y aún no lo confirmas, te enviamos un enlace nuevo. '
+            .'Revisa tu bandeja (y la carpeta de spam). El enlace es válido por 48 horas.'
         );
     }
 

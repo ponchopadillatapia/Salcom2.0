@@ -19,6 +19,8 @@ Route::post('/logout-proveedor', [AuthProveedorController::class, 'cerrarSesion'
 Route::get('/proveedor/registro', [AuthProveedorController::class, 'mostrarRegistro'])->name('proveedores.registro');
 Route::post('/proveedor/registro', [AuthProveedorController::class, 'guardar'])->name('proveedores.registro.guardar');
 Route::get('/proveedor/verificar-correo/{id}', [AuthProveedorController::class, 'verificarCorreo'])->name('proveedores.verificar-correo');
+// POR QUÉ: salida para el proveedor cuyo enlace de verificación expiró o no le llegó, sin depender de Compras.
+Route::post('/proveedor/reenviar-verificacion', [AuthProveedorController::class, 'reenviarVerificacion'])->name('proveedores.reenviar-verificacion');
 Route::get('/proveedor/actualizacion', [AuthProveedorController::class, 'mostrarActualizacion'])->name('proveedores.actualizacion')->middleware('auth.proveedor');
 Route::put('/proveedor/actualizacion', [AuthProveedorController::class, 'guardarActualizacion'])->name('proveedores.actualizacion.guardar')->middleware('auth.proveedor');
 
