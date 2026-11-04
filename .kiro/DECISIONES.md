@@ -6,6 +6,183 @@
 
 ---
 
+## 2026-11-04 — Normalizar TODAS las alertas del proyecto (estándar UI) — EN PROGRESO
+
+- **QUÉ:** Se arranca la unificación de todas las "alertas" de la app a un estándar único, con el
+  look iOS/Apple que ya se usa en el carrito de pago. Dos familias de alerta a normalizar:
+  1. **Confirmaciones destructivas/importantes** (hoy son `confirm()` nativos del navegador, grises
+     y fuera de estilo) → reemplazar por un **modal propio** (fondo oscurecido con blur, tarjeta
+     centrada, botones pill, variante normal ⚠️ y variante peligro 🗑️ roja).
+  2. **Mensajes de sesión** (`session('mensaje')` / `session('error')`, banners verde/rojo) →
+     banner con ícono circular (✓ / !), botón cerrar (×) y auto-ocultado a los 5s.
+- **ESTÁNDAR acordado (para replicar en cada vista):**
+  - Confirmaciones: NUNCA usar `confirm()` nativo. Usar un modal con `event.preventDefault()`
+    en el `onclick`, guardar el form pendiente y enviarlo SOLO al confirmar. Fallback seguro:
+    si el JS no carga, el form NO debe ejecutar la acción destructiva sin confirmar.
+  - Banners: ícono + mensaje + botón cerrar, cierre manual y auto-ocultado, animación de entrada/salida.
+  - Colores: éxito verde (#1a7f45 / fondo #eafbf0), error/peligro rojo (#c0392b / fondo #fdeded),
+    advertencia ámbar (#b45309). Radios grandes (14–20px), botones pill (border-radius:980px).
+  - A futuro: extraer esto a un **partial reutilizable** (p. ej. `partials/ui-alertas.blade.php`
+    + componente de modal) para no copiar CSS/JS en cada vista.
+- **POR QUÉ:** hoy cada vista maneja las alertas a su manera (unas con `confirm()` nativo, otras con
+  banners sueltos). Es inconsistente y los `confirm()` rompen el diseño. Un estándar único da
+  coherencia visual y mejor UX (cerrar, auto-ocultar, confirmar con intención clara).
+- **DÓNDE (ya hecho):** `resources/views/admin/pagos/carrito.blade.php` — primer vista migrada al
+  estándar (modal `#cartModal` + `cartConfirmar()` reemplazan los 2 `confirm()` de Generar/Vaciar;
+  banners `.cart-alert` con ícono/cerrar/auto-ocultar). CSS en su `@push('styles')`, JS en `@push('scripts')`.
+- **PENDIENTE (barrido del resto del proyecto):**
+  - Buscar todos los `confirm(` en `resources/views/**` y migrarlos al modal.
+  - Revisar `index.blade.php` de pagos y demás vistas admin/portal con `session('...')` para unificar banners.
+  - Decidir si se centraliza en un partial/componente Blade reutilizable (recomendado) antes de
+    seguir copiando el patrón vista por vista.
+- **VERIFICADO (carrito):** `php artisan view:cache` compila limpio; layout `layouts.admin` tiene
+  `@stack('scripts')` y `@stack('styles')`.
+
+### Código de referencia (plantilla copiable del estándar)
+
+> Copia estos 3 bloques en la vista a migrar. CSS en `@push('styles')`, HTML donde van los
+> banners/modal, y JS en `@push('scripts')`. Ajusta solo textos y rutas de los forms.
+
+**1) CSS (va en `@push('styles')`):**
+```css
+/* ── Banners de sesión: ícono + mensaje + cerrar ── */
+.ui-alert{display:flex;align-items:center;gap:12px;padding:14px 16px;border-radius:14px;margin-bottom:16px;font-size:14px;font-weight:500;letter-spacing:-.01em;box-shadow:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.05);animation:uiAlertIn .35s cubic-bezier(.4,0,.2,1) both}
+.ui-alert.ok{background:#eafbf0;color:#1a7f45;border:1px solid #c7efd5}
+.ui-alert.err{background:#fdeded;color:#c0392b;border:1px solid #f7cfcf}
+.ui-alert .ua-ico{flex:0 0 auto;width:24px;height:24px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;background:rgba(255,255,255,.7)}
+.ui-alert .ua-msg{flex:1 1 auto;min-width:0}
+.ui-alert .ua-close{flex:0 0 auto;background:none;border:none;color:inherit;opacity:.55;font-size:18px;line-height:1;cursor:pointer;padding:2px 4px;border-radius:8px;transition:opacity .15s,background .15s;font-family:inherit}
+.ui-alert .ua-close:hover{opacity:1;background:rgba(0,0,0,.06)}
+@keyframes uiAlertIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+.ui-alert.ua-hide{opacity:0;transform:translateY(-8px);transition:opacity .3s,transform .3s}
+
+/* ── Modal de confirmación (reemplaza confirm() nativo) ── */
+.cm-overlay{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:20px}
+.cm-overlay.is-open{display:flex;animation:cmFade .2s ease both}
+.cm-box{background:#fff;border-radius:20px;max-width:380px;width:100%;padding:26px 24px 20px;box-shadow:0 20px 60px rgba(0,0,0,.25);text-align:center;animation:cmPop .25s cubic-bezier(.34,1.3,.64,1) both;font-family:inherit;color:#1d1d1f}
+.cm-box .cm-ico{width:52px;height:52px;border-radius:50%;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.cm-box .cm-ico.warn{background:#fff4e5;color:#b45309}
+.cm-box .cm-ico.danger{background:#fdeded;color:#c0392b}
+.cm-box h4{margin:0 0 6px;font-size:18px;font-weight:600;letter-spacing:-.02em}
+.cm-box p{margin:0 0 20px;font-size:14px;color:#86868b;line-height:1.45;letter-spacing:-.01em}
+.cm-box .cm-actions{display:flex;gap:10px}
+.cm-box .cm-actions button{flex:1;padding:12px 18px;border-radius:980px;font-size:15px;font-weight:600;cursor:pointer;border:none;letter-spacing:-.01em;transition:transform .12s,background .15s;font-family:inherit}
+.cm-box .cm-actions button:active{transform:scale(.97)}
+.cm-cancel{background:#f5f5f7;color:#1d1d1f}
+.cm-cancel:hover{background:#ececef}
+.cm-ok{background:#059669;color:#fff}
+.cm-ok:hover{background:#047a55}
+.cm-ok.danger{background:#c0392b}
+.cm-ok.danger:hover{background:#a53125}
+@keyframes cmFade{from{opacity:0}to{opacity:1}}
+@keyframes cmPop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+```
+
+**2) HTML (banners donde arranca el contenido + modal una sola vez por vista):**
+```blade
+@if(session('mensaje'))
+    <div class="ui-alert ok" role="status">
+        <span class="ua-ico">✓</span>
+        <span class="ua-msg">{{ session('mensaje') }}</span>
+        <button type="button" class="ua-close" aria-label="Cerrar aviso" onclick="uiCerrarAlerta(this)">×</button>
+    </div>
+@endif
+@if(session('error'))
+    <div class="ui-alert err" role="alert">
+        <span class="ua-ico">!</span>
+        <span class="ua-msg">{{ session('error') }}</span>
+        <button type="button" class="ua-close" aria-label="Cerrar aviso" onclick="uiCerrarAlerta(this)">×</button>
+    </div>
+@endif
+
+{{-- Modal reutilizable: una sola instancia por vista. --}}
+<div class="cm-overlay" id="uiModal" role="dialog" aria-modal="true" aria-labelledby="cmTitulo">
+    <div class="cm-box">
+        <div class="cm-ico warn" id="cmIcono">⚠️</div>
+        <h4 id="cmTitulo">Confirmar</h4>
+        <p id="cmTexto">¿Seguro?</p>
+        <div class="cm-actions">
+            <button type="button" class="cm-cancel" onclick="uiCerrarModal()">Cancelar</button>
+            <button type="button" class="cm-ok" id="cmOk">Confirmar</button>
+        </div>
+    </div>
+</div>
+```
+
+**Botón que dispara el modal** (ejemplo normal y ejemplo peligro):
+```blade
+<button type="submit" class="btn-generar"
+    onclick="return uiConfirmar(event, this.form, {titulo:'Generar formato', texto:'Se creará el formato con las facturas.', ok:'Generar', icono:'warn'});">
+    Generar
+</button>
+
+<button type="submit" class="btn-vaciar"
+    onclick="return uiConfirmar(event, this.form, {titulo:'Vaciar carrito', texto:'Esta acción no se puede deshacer.', ok:'Vaciar', icono:'danger', peligro:true});">
+    Vaciar
+</button>
+```
+
+**3) JS (va en `@push('scripts')`):**
+```javascript
+// Form pendiente de enviar cuando el usuario confirme en el modal.
+let uiFormPendiente = null;
+
+// Intercepta el submit: abre el modal en vez del confirm() nativo.
+// Devuelve false SIEMPRE; el envío real lo hace cmOk al confirmar.
+function uiConfirmar(event, form, opts) {
+    event.preventDefault();
+    uiFormPendiente = form;
+    document.getElementById('cmTitulo').textContent = opts.titulo || 'Confirmar';
+    document.getElementById('cmTexto').textContent  = opts.texto  || '';
+    const ico = document.getElementById('cmIcono');
+    ico.className   = 'cm-ico ' + (opts.icono || 'warn');
+    ico.textContent = opts.peligro ? '🗑️' : '⚠️';
+    const btnOk = document.getElementById('cmOk');
+    btnOk.textContent = opts.ok || 'Confirmar';
+    btnOk.className   = 'cm-ok' + (opts.peligro ? ' danger' : '');
+    document.getElementById('uiModal').classList.add('is-open');
+    return false;
+}
+
+function uiCerrarModal() {
+    document.getElementById('uiModal').classList.remove('is-open');
+    uiFormPendiente = null;
+}
+
+// Confirmar: enviar el form que quedó pendiente.
+document.getElementById('cmOk').addEventListener('click', function () {
+    if (uiFormPendiente) uiFormPendiente.submit();
+});
+
+// Cerrar al hacer clic fuera de la tarjeta o con Escape.
+document.getElementById('uiModal').addEventListener('click', function (e) {
+    if (e.target === this) uiCerrarModal();
+});
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') uiCerrarModal();
+});
+
+// Banners: cerrar manual (×) y auto-ocultar a los 5s.
+function uiCerrarAlerta(btn) {
+    const el = btn.closest('.ui-alert');
+    if (!el) return;
+    el.classList.add('ua-hide');
+    setTimeout(() => el.remove(), 320);
+}
+document.querySelectorAll('.ui-alert').forEach(function (el) {
+    setTimeout(function () {
+        const btn = el.querySelector('.ua-close');
+        if (btn) uiCerrarAlerta(btn);
+    }, 5000);
+});
+```
+
+> NOTA: en el carrito las clases llevan prefijo `cart-`/`ca-` y funciones `cart*`. En esta plantilla
+> se renombraron con prefijo neutro `ui-`/`ua-` y funciones `ui*` para que sirva en cualquier vista.
+> Cuando se extraiga al partial reutilizable, usar estos nombres `ui-`.
+
+---
+
 ## 2026-11-03 — Alta de nuevo colaborador: identidad de git local (AlexMixteco)
 
 - **QUÉ:** Se configuró la identidad de git SOLO para este repo (`--local`) a nombre del
