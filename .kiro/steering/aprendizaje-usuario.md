@@ -61,3 +61,17 @@ Existe `.kiro/DECISIONES.md` como memoria externa del proyecto. CADA vez que se 
 cambio importante o algo que pidió Alan/dirección, agrega al INICIO del archivo una entrada
 corta con: fecha, QUÉ se hizo, POR QUÉ, y DÓNDE en el código (archivo + método).
 No hay que pedir permiso para actualizarlo: hazlo como parte del cambio.
+
+## Regla 5: NUNCA emojis en el código ni en la UI
+
+Al programar, NO pongas emojis en ningún lado: ni en el código, ni en los textos de las
+vistas (Blade/HTML), ni en mensajes al usuario, ni en comentarios. POR QUÉ: los emojis dan
+aspecto de "hecho con ChatGPT" y el usuario NO quiere esa apariencia en su producto.
+
+- En lugar de emojis de estado (✅, ⏳, ⚠️, 📄, etc.) usa texto claro o, si hace falta
+  un indicador visual, un ícono SVG o una etiqueta/badge con color (como el resto del proyecto
+  ya hace con los chips de colores).
+- Esto aplica a TODO cambio nuevo. Si editas una vista que ya tenía emojis por un cambio
+  anterior, aprovecha para quitarlos.
+- En el CHAT puedes ser normal, pero evita saturar de emojis. La regla dura es para el
+  código y la interfaz del producto.

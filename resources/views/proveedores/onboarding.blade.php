@@ -107,7 +107,7 @@
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                 </div>
                 <div style="flex:1;">
-                    <p style="font-size:14px;font-weight:700;color:#92400e;margin:0 0 6px;">⚠️ Se detectaron estos 2 registros. ¿Son correctos?</p>
+                    <p style="font-size:14px;font-weight:700;color:#92400e;margin:0 0 6px;">Se detectaron estos 2 registros. ¿Son correctos?</p>
                     <p style="font-size:12px;color:#78350f;margin:0 0 14px;line-height:1.5;">Tu cuenta opera en pesos (MXN) y dólares (USD). Debes registrar y confirmar ambas cuentas bancarias para poder continuar.</p>
 
                     @php
@@ -118,7 +118,7 @@
                     @if($tieneDatosMxn || $tieneDatosUsd)
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
                         <div style="background:{{ $tieneDatosMxn ? '#f0fdf4' : '#f9fafb' }};border:1px solid {{ $tieneDatosMxn ? '#86efac' : '#e5e7eb' }};border-radius:10px;padding:12px 14px;">
-                            <p style="font-size:10px;font-weight:700;color:{{ $tieneDatosMxn ? '#166534' : '#6b7280' }};text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px;">💵 Cuenta MXN (Pesos)</p>
+                            <p style="font-size:10px;font-weight:700;color:{{ $tieneDatosMxn ? '#166534' : '#6b7280' }};text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px;">Cuenta MXN (Pesos)</p>
                             @if($tieneDatosMxn)
                                 <p style="font-size:12px;color:#15803d;margin:0;font-weight:600;">{{ $datosBancariosResumen['banco_mxn'] }}</p>
                                 <p style="font-size:11px;color:#166534;margin:2px 0 0;">CLABE: {{ $datosBancariosResumen['clabe_mxn'] }}</p>
@@ -128,7 +128,7 @@
                             @endif
                         </div>
                         <div style="background:{{ $tieneDatosUsd ? '#eff6ff' : '#f9fafb' }};border:1px solid {{ $tieneDatosUsd ? '#93c5fd' : '#e5e7eb' }};border-radius:10px;padding:12px 14px;">
-                            <p style="font-size:10px;font-weight:700;color:{{ $tieneDatosUsd ? '#1e40af' : '#6b7280' }};text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px;">💲 Cuenta USD (Dólares)</p>
+                            <p style="font-size:10px;font-weight:700;color:{{ $tieneDatosUsd ? '#1e40af' : '#6b7280' }};text-transform:uppercase;letter-spacing:.5px;margin:0 0 4px;">Cuenta USD (Dólares)</p>
                             @if($tieneDatosUsd)
                                 <p style="font-size:12px;color:#1d4ed8;margin:0;font-weight:600;">{{ $datosBancariosResumen['banco_usd'] }}</p>
                                 <p style="font-size:11px;color:#1e40af;margin:2px 0 0;">CLABE: {{ $datosBancariosResumen['clabe_usd'] }}</p>

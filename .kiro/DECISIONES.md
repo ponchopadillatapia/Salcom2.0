@@ -197,6 +197,35 @@ document.querySelectorAll('.ui-alert').forEach(function (el) {
 
 ---
 
+## 2026-09-07 — Modal de confirmación en show.blade.php (adiós al confirm() nativo)
+
+- **QUÉ:** En el detalle de pago (`show.blade.php`) se reemplazaron los 2 `confirm()` nativos del
+  navegador (el gris "127.0.0.1 dice...") por el modal propio del estándar iOS/Apple del proyecto:
+  "Confirmar pago" (normal) y "Cancelar borrador" (peligro/rojo).
+- **POR QUÉ (lo pidió Said):** el confirm() del navegador rompe el diseño y se ve de sistema. Es la
+  misma migración que ya se hizo en carrito.blade.php (ver bitácora 2026-11-04 del estándar de alertas).
+- **DÓNDE:** `resources/views/admin/pagos/show.blade.php`: CSS del modal en `@push('styles')`, HTML
+  del modal `#uiModal` antes del `@endsection`, JS (uiConfirmar/uiCerrarModal) en `@push('scripts')`.
+  Los botones "Confirmar pago" y "Cancelar borrador" ahora llaman a `uiConfirmar()`.
+- **IMPORTANTE (regla de no-emojis):** el estándar documentado usaba emojis (⚠️🗑️) en el ícono del
+  modal. Como ahora rige la regla 5 (sin emojis), aquí el ícono se hizo con SVG (triángulo de
+  advertencia / bote de basura), NO con emoji. Al migrar el resto de vistas, usar SVG igual.
+
+---
+
+## 2026-09-07 — Regla permanente: NUNCA emojis en código ni en la UI
+
+- **QUÉ:** Nueva regla de estilo permanente. Prohibido poner emojis en el código, en las vistas
+  (Blade/HTML), en mensajes al usuario y en comentarios. Se usan íconos SVG o badges de color en su
+  lugar (como ya hace el proyecto).
+- **POR QUÉ (lo pidió Said):** los emojis dan aspecto de "hecho con ChatGPT" y no quiere esa
+  apariencia en su producto.
+- **DÓNDE:** regla agregada en `.kiro/steering/aprendizaje-usuario.md` (Regla 5) para que aplique
+  en todas las sesiones. PENDIENTE: quitar los emojis que quedaron de cambios recientes (chips
+  ✅/⏳ en la columna "Recepción" de resources/views/admin/pagos/index.blade.php).
+
+---
+
 ## 2026-09-07 — Proveedor con VARIAS cuentas en Wiese: ligar todas (no elegir una)
 
 - **QUÉ:** En el onboarding, cuando un RFC tiene varias cuentas en Wiese (ej. ORPACK = M213015002

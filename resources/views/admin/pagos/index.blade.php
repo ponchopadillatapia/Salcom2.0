@@ -331,11 +331,11 @@
                                 <td style="text-align:center;white-space:nowrap;">
                                     @php $recEstado = $f['recibido_estado'] ?? null; @endphp
                                     @if($recEstado === 'ok')
-                                        <span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;" title="Acatlán ya registró que llegó completo">✅ Llegó completo</span>
+                                        <span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;" title="Acatlán ya registró que llegó completo">Llegó completo</span>
                                     @elseif($recEstado === 'esperando_recepcion')
-                                        <span style="background:#fef9c3;color:#854d0e;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;" title="Acatlán aún no registra la entrada en almacén">⏳ Sin recepción</span>
+                                        <span style="background:#fef9c3;color:#854d0e;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;" title="Acatlán aún no registra la entrada en almacén">Sin recepción</span>
                                     @elseif($recEstado === 'excede_recibido' && !is_null($f['recibido_cant']) && !is_null($f['pedido_cant']))
-                                        <span style="background:#ffedd5;color:#9a3412;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;" title="Llegó una parte: {{ rtrim(rtrim(number_format($f['recibido_cant'],2),'0'),'.') }} de {{ rtrim(rtrim(number_format($f['pedido_cant'],2),'0'),'.') }}">⏳ Parcial</span>
+                                        <span style="background:#ffedd5;color:#9a3412;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;" title="Llegó una parte: {{ rtrim(rtrim(number_format($f['recibido_cant'],2),'0'),'.') }} de {{ rtrim(rtrim(number_format($f['pedido_cant'],2),'0'),'.') }}">Parcial</span>
                                     @else
                                         <span style="color:#9ca3af;font-size:11px;">—</span>
                                     @endif
@@ -348,9 +348,9 @@
                                             <a href="{{ route('admin.pagos.factura-archivo', ['factura' => $f['factura_local_id'], 'tipo' => 'pdf']) }}"
                                                target="_blank"
                                                style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;text-decoration:none;"
-                                               title="Ver PDF subido por el proveedor">📄 Con docs</a>
+                                               title="Ver PDF subido por el proveedor">Con docs</a>
                                         @else
-                                            <span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;">📄 Con docs</span>
+                                            <span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;">Con docs</span>
                                         @endif
                                     @else
                                         <span style="background:#f3f4f6;color:#9ca3af;font-size:11px;padding:3px 8px;border-radius:999px;">Sin docs</span>

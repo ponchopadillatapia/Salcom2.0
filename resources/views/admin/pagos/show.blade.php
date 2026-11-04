@@ -74,6 +74,27 @@
     .upload-card.factura .upload-card-head{color:#1e40af}
     .upload-card input[type=file]{width:100%;font-size:12px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:8px}
     .upload-card-hint{display:block;font-size:11px;color:var(--gray-muted);margin-top:8px}
+
+    /* ── Modal de confirmación (reemplaza el confirm() nativo del navegador) ──
+       POR QUÉ: el confirm() gris del navegador rompe el diseño y se ve "de sistema".
+       Este modal sigue el estándar iOS/Apple del proyecto (ver bitácora 2026-11-04). */
+    @keyframes cmFade{from{opacity:0}to{opacity:1}}
+    @keyframes cmPop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .cm-overlay{position:fixed;inset:0;z-index:1000;background:rgba(17,24,39,.45);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:none;align-items:center;justify-content:center;padding:20px}
+    .cm-overlay.is-open{display:flex;animation:cmFade .2s ease both}
+    .cm-box{background:#fff;border-radius:18px;max-width:380px;width:100%;padding:26px 24px 20px;text-align:center;box-shadow:0 20px 50px rgba(0,0,0,.25);animation:cmPop .22s cubic-bezier(.4,0,.2,1) both}
+    .cm-ico{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+    .cm-ico.warn{background:#fef3c7;color:#b45309}
+    .cm-ico.danger{background:#fdeded;color:#c0392b}
+    .cm-box h4{margin:0 0 6px;font-size:17px;font-weight:700;color:var(--gray-text)}
+    .cm-box p{margin:0 0 20px;font-size:13.5px;color:var(--gray-muted);line-height:1.5}
+    .cm-actions{display:flex;gap:10px;justify-content:center}
+    .cm-actions button{border:none;border-radius:980px;padding:10px 22px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+    .cm-cancel{background:#eef0f3;color:#374151}
+    .cm-cancel:hover{background:#e2e5ea}
+    .cm-ok{background:var(--purple);color:#fff}
+    .cm-ok:hover{filter:brightness(.95)}
+    .cm-ok.danger{background:#c0392b}
 </style>
 @endpush
 @section('content')
@@ -150,9 +171,10 @@
 
 <div class="pag-actions anim">
     @if($pago->esBorrador())
-        <form method="POST" action="{{ route('admin.pagos.cancelar', $pago) }}" onsubmit="return confirm('¿Cancelar este borrador?');">
+        <form method="POST" action="{{ route('admin.pagos.cancelar', $pago) }}">
             @csrf
-            <button type="submit" class="btn btn-danger">Cancelar borrador</button>
+            <button type="submit" class="btn btn-danger"
+                onclick="return uiConfirmar(event, this.form, {titulo:'Cancelar borrador', texto:'Se eliminará este borrador de pago. Esta acción no se puede deshacer.', ok:'Cancelar borrador', peligro:true});">Cancelar borrador</button>
         </form>
     @else
         {{-- POR QUÉ sin botón al expediente: quien arma el Formato para pago NO debe entrar al
@@ -179,7 +201,7 @@
         @if(!empty($errorDatosAuto))
             <div class="pag-alert err" style="margin:0 0 14px;">{{ $errorDatosAuto }}</div>
         @endif
-        <form method="POST" action="{{ route('admin.pagos.confirmar', $pago) }}" enctype="multipart/form-data" onsubmit="return confirm('¿Confirmar? Las facturas pasarán a programada.');">
+        <form method="POST" action="{{ route('admin.pagos.confirmar', $pago) }}" enctype="multipart/form-data">
             @csrf
             <input type="hidden" name="fecha_pago" value="{{ now()->format('Y-m-d') }}">
             @php $docsFiscales = $docsFiscales ?? []; @endphp
@@ -343,7 +365,8 @@
 
             <p class="hint" style="margin-top:12px;">Al confirmar, las facturas pasan a estatus «programada» y el expediente queda <strong>pendiente de autorizar</strong> por Dirección.</p>
             <div style="margin-top:14px;">
-                <button type="submit" class="btn btn-primary" @disabled(!empty($errorDatosAuto))>Confirmar pago</button>
+                <button type="submit" class="btn btn-primary" @disabled(!empty($errorDatosAuto))
+                    onclick="return uiConfirmar(event, this.form, {titulo:'Confirmar pago', texto:'Las facturas de este lote pasarán a estatus «programada» y el expediente quedará pendiente de autorizar por Dirección.', ok:'Confirmar'});">Confirmar pago</button>
             </div>
         </form>
     </div>
@@ -499,6 +522,23 @@
         </div>
     @endif
 </div>
+
+{{-- Modal de confirmación reutilizable (una sola instancia por vista). Reemplaza el confirm()
+     nativo del navegador. El ícono es un SVG (sin emojis, por regla de estilo). --}}
+<div class="cm-overlay" id="uiModal" role="dialog" aria-modal="true" aria-labelledby="cmTitulo">
+    <div class="cm-box">
+        <div class="cm-ico warn" id="cmIcono">
+            {{-- Ícono de advertencia (triángulo). Se cambia a "bote" por JS si es acción peligrosa. --}}
+            <svg id="cmSvg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h4 id="cmTitulo">Confirmar</h4>
+        <p id="cmTexto">¿Seguro?</p>
+        <div class="cm-actions">
+            <button type="button" class="cm-cancel" onclick="uiCerrarModal()">Cancelar</button>
+            <button type="button" class="cm-ok" id="cmOk">Confirmar</button>
+        </div>
+    </div>
+</div>
 @endsection
 @push('scripts')
 @if(request('descargar_reporte'))
@@ -508,4 +548,56 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @endif
+
+<script>
+// ── Modal de confirmación (reemplaza confirm() nativo) ──
+// Guarda el form pendiente y lo envía SOLO cuando el usuario confirma en el modal.
+(function () {
+    var uiFormPendiente = null;
+
+    // SVGs del ícono: advertencia (normal) y bote de basura (peligro). Sin emojis.
+    var svgWarn = '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>';
+    var svgDanger = '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>';
+
+    // Intercepta el submit: abre el modal en vez del confirm() nativo.
+    // Devuelve false SIEMPRE; el envío real lo hace el botón OK al confirmar.
+    window.uiConfirmar = function (event, form, opts) {
+        event.preventDefault();
+        opts = opts || {};
+        uiFormPendiente = form;
+        document.getElementById('cmTitulo').textContent = opts.titulo || 'Confirmar';
+        document.getElementById('cmTexto').textContent  = opts.texto  || '';
+
+        var ico = document.getElementById('cmIcono');
+        var svg = document.getElementById('cmSvg');
+        ico.className = 'cm-ico ' + (opts.peligro ? 'danger' : 'warn');
+        svg.innerHTML = opts.peligro ? svgDanger : svgWarn;
+
+        var btnOk = document.getElementById('cmOk');
+        btnOk.textContent = opts.ok || 'Confirmar';
+        btnOk.className = 'cm-ok' + (opts.peligro ? ' danger' : '');
+
+        document.getElementById('uiModal').classList.add('is-open');
+        return false;
+    };
+
+    window.uiCerrarModal = function () {
+        document.getElementById('uiModal').classList.remove('is-open');
+        uiFormPendiente = null;
+    };
+
+    // Confirmar: envía el form que quedó pendiente.
+    document.getElementById('cmOk').addEventListener('click', function () {
+        if (uiFormPendiente) uiFormPendiente.submit();
+    });
+
+    // Cerrar al hacer clic fuera de la tarjeta o con Escape.
+    document.getElementById('uiModal').addEventListener('click', function (e) {
+        if (e.target === this) window.uiCerrarModal();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') window.uiCerrarModal();
+    });
+})();
+</script>
 @endpush
