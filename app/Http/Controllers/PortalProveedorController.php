@@ -133,8 +133,18 @@ class PortalProveedorController extends Controller
             }
 
             if (! $proveedor) {
-                return redirect('/portal-proveedor')
-                    ->with('error', 'No se pudo cargar el onboarding. Cierra sesión e inicia de nuevo.');
+                // POR QUÉ cerramos sesión y vamos al LOGIN (y NO a /portal-proveedor): si el
+                // proveedor_id de la sesión ya no existe (se borró en un reseed, o cookie vieja),
+                // mandar a /portal-proveedor causaba un BUCLE (ERR_TOO_MANY_REDIRECTS): portal ve
+                // "no activo" → manda a onboarding → onboarding no halla al proveedor → manda a
+                // portal → ... Al limpiar la sesión y mandar al login se corta el ciclo de raíz.
+                session()->forget([
+                    'proveedor_id', 'proveedor_nombre', 'proveedor_codigo',
+                    'proveedor_correo', 'proveedor_token', 'proveedor_login_source',
+                ]);
+
+                return redirect('/login-proveedor')
+                    ->with('error', 'Tu sesión expiró o la cuenta ya no existe. Inicia sesión de nuevo.');
             }
 
             try {
@@ -1174,16 +1184,30 @@ class PortalProveedorController extends Controller
         if ($accion === 'confirmar') {
             $datos = $proveedor->datos_identificacion ?? [];
             $datos['cuenta_wiese_confirmada'] = true;
+
+            // POR QUÉ guardamos TODAS las cuentas: un RFC puede tener varias en Wiese (ej. ORPACK).
+            // El proveedor NO elige una (no sabría cuál): confirma que la empresa es suya y ligamos
+            // todas. La primera queda como principal en id_proveedor (por compatibilidad con el resto
+            // del sistema) y la lista completa en datos_identificacion['codigos_wiese'], de donde la
+            // leen codigosWiese()/codigosParaFacturas() para buscar OC/facturas en cualquier cuenta.
+            $cuentas = $datos['cuentas_wiese'] ?? [];
+            $codigosWiese = collect($cuentas)
+                ->map(fn ($c) => trim((string) ($c['codigo'] ?? '')))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+
+            $datos['codigos_wiese'] = $codigosWiese;
             $proveedor->update(['datos_identificacion' => $datos]);
 
-            // Asignar el código del proveedor si viene de las cuentas encontradas
-            $cuentas = $datos['cuentas_wiese'] ?? [];
-            if (! empty($cuentas) && ! empty($cuentas[0]['codigo'])) {
-                $proveedor->update(['id_proveedor' => $cuentas[0]['codigo']]);
+            // Código principal = primera cuenta (si hay). El resto viven en codigos_wiese.
+            if (! empty($codigosWiese)) {
+                $proveedor->update(['id_proveedor' => $codigosWiese[0]]);
             }
 
             return redirect()->route('proveedores.onboarding')
-                ->with('mensaje', 'Cuenta confirmada correctamente. Tu expediente está listo para revisión de Dirección.');
+                ->with('mensaje', 'Cuenta(s) confirmada(s) correctamente. Tu expediente está listo para revisión de Dirección.');
         }
 
         // Si dice que no es suya, marcar como "requiere atención" para que admin investigue
@@ -1990,7 +2014,10 @@ class PortalProveedorController extends Controller
         $rfcProveedor = $this->rfcProveedorSesion($proveedor);
         // Número de OC que escribió el proveedor (o el que quedó del intento previo).
         $numeroOc = trim((string) ($request->input('numero_oc') ?: ($prev['numero_oc'] ?? '')));
-        $codigoProvOc = (string) $proveedor->codigoParaFacturas(session('proveedor_codigo'));
+        // POR QUÉ todos los códigos (separados por coma): un RFC puede tener varias cuentas en Wiese
+        // (ej. ORPACK). La OC puede estar en cualquiera. El validador prueba cada código hasta hallar
+        // la OC, así no importa en qué cuenta la tenga Acatlán.
+        $codigoProvOc = implode(',', $proveedor->codigosParaFacturas(session('proveedor_codigo')));
         // Declaración del proveedor cuando deja la OC vacía (flete_servicio|remision|''). Si escribió
         // número de OC, no aplica. Se conserva del intento previo igual que numero_oc.
         $declaracionSinOc = $numeroOc !== ''
@@ -2158,6 +2185,18 @@ class PortalProveedorController extends Controller
         $esFletera = (bool) ($pendiente['es_fletera'] ?? false);
         $total = (float) (($datos['total'] ?? 0) ?: (($datos['subtotal'] ?? 0) + ($datos['iva'] ?? 0)));
 
+        // POR QUÉ: la fecha de vencimiento REAL la define Contpaqi/Wiese (el acuerdo de pago con
+        // cada proveedor), no el portal. Antes poníamos "hoy + 30 días" como relleno, lo que hacía
+        // que Formato para pago (que lee Wiese) y el Detalle de adeudos (que leía la local) mostraran
+        // fechas distintas para la MISMA factura. Ahora, al subir, buscamos la factura en Wiese por
+        // código + folio y usamos SU fecha. Si Wiese aún no la reporta (el proveedor se adelantó a
+        // Acatlán), dejamos la fecha en NULL en vez de inventar una: se corrige sola cuando aparezca.
+        $vencimientoWiese = $this->fechaVencimientoWiese(
+            (string) $codigoProv,
+            (string) ($datos['serie'] ?? ''),
+            (string) ($datos['folio'] ?? '')
+        );
+
         $factura = Factura::create([
             'folio_cfdi' => $folioCfdi,
             'uuid_cfdi' => $uuid,
@@ -2170,7 +2209,8 @@ class PortalProveedorController extends Controller
             'retencion_isr' => $datos['retencion_isr'] ?? 0,
             'total' => $total,
             'estatus' => 'pendiente',
-            'fecha_vencimiento' => now()->addDays($dias)->toDateString(),
+            // Fecha REAL de Wiese si la factura ya está allá; si no, NULL (no inventamos hoy+30).
+            'fecha_vencimiento' => $vencimientoWiese,
             'dias_plazo' => $dias,
             'archivo_pdf' => $finalPdf,
             'archivo_xml' => $finalXml,
@@ -2232,6 +2272,70 @@ class PortalProveedorController extends Controller
         }
 
         return $factura;
+    }
+
+    /**
+     * Busca la factura recién subida en Wiese (por código de proveedor + folio) y devuelve
+     * su fecha de vencimiento REAL. Si Wiese aún no la reporta, devuelve null.
+     *
+     * POR QUÉ existe: la fecha de pago la manda el sistema contable (Wiese), no el portal. Así
+     * Formato para pago y el Detalle de adeudos muestran la MISMA fecha. El match es el mismo que
+     * usa el admin (AdminPagosController::marcarFacturasConDocumentosPortal): código + folio
+     * normalizado, probando "folio solo" y "serie+folio" porque Wiese manda el folio sin serie.
+     *
+     * Es tolerante a fallos: si Wiese no responde, NO truena el alta (devuelve null y la factura
+     * queda sin fecha hasta que aparezca). Por eso va envuelto en try/catch.
+     */
+    private function fechaVencimientoWiese(string $codigoProveedor, string $serie, string $folio): ?string
+    {
+        $codigoProveedor = trim($codigoProveedor);
+        $folio = trim($folio);
+        if ($codigoProveedor === '' || $folio === '') {
+            return null;
+        }
+
+        // Normaliza igual que el admin: minúsculas, sin espacios, sin sufijo de colisión "-xxxx".
+        $norm = static function (string $v): string {
+            $v = strtolower(trim($v));
+
+            return preg_replace('/-[0-9a-f]{4}$/', '', $v) ?? $v;
+        };
+
+        try {
+            // Pedimos a Wiese SOLO las facturas de este proveedor (codigoFiltro), no las de todos.
+            $res = app(ProveedorApiService::class)->listarFacturasPendientesTodos(
+                codigoFiltro: $codigoProveedor
+            );
+            if (! ($res['success'] ?? false)) {
+                return null;
+            }
+
+            // Claves que ofrece NUESTRA factura: folio solo y serie+folio (ambas normalizadas).
+            $misClaves = array_unique(array_filter([
+                $norm($folio),
+                $norm($serie.$folio),
+            ]));
+
+            foreach ($res['data']['items'] ?? [] as $f) {
+                if (trim((string) ($f['codigo'] ?? '')) !== $codigoProveedor) {
+                    continue;
+                }
+                // Wiese manda el folio sin serie; probamos "folio" y "serie+folio".
+                $wFolioSolo = $norm((string) ($f['folio'] ?? ''));
+                $wConSerie = $norm((string) ($f['serie'] ?? '').(string) ($f['folio'] ?? ''));
+
+                if (in_array($wFolioSolo, $misClaves, true) || in_array($wConSerie, $misClaves, true)) {
+                    $venceRaw = $f['fecha_vence'] ?? null;
+                    if (! empty($venceRaw)) {
+                        return \Illuminate\Support\Carbon::parse($venceRaw)->toDateString();
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[AltaFactura] No se pudo traer la fecha de vencimiento de Wiese: '.$e->getMessage());
+        }
+
+        return null;
     }
 
     /**

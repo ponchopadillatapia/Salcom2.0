@@ -788,6 +788,14 @@ class AdminPanelController extends Controller
 
         $facturas = Factura::where('codigo_proveedor', $codigo)->orderBy('fecha_vencimiento', 'desc')->get();
 
+        // POR QUÉ: la fecha de vencimiento que MANDA es la de Wiese (sistema contable), no la local.
+        // Antes el portal guardaba "hoy + 30 días" como relleno, así que esta pantalla (que leía la
+        // fecha local) se contradecía con Formato para pago (que lee Wiese): la MISMA factura salía
+        // "Vigente" aquí y "VENCIDA" allá. Aquí pisamos en memoria la fecha local con la real de
+        // Wiese cuando la factura exista allá, para que ambas pantallas muestren lo mismo. Las
+        // facturas nuevas ya guardan la fecha correcta de origen; esto además corrige las viejas.
+        $this->alinearVencimientosConWiese($facturas, $codigo, $wieseApi);
+
         // Código Wiese del proveedor: primero id_proveedor (donde se guarda el código Wiese
         // al confirmar la cuenta en el onboarding), luego la columna codigo, y por último el
         // de la URL. POR QUÉ: ORPACK tiene su código Wiese en id_proveedor (M213015002), no
@@ -909,6 +917,74 @@ class AdminPanelController extends Controller
             'wiesePagado',
             'wieseVencidas'
         ));
+    }
+
+    /**
+     * Pisa en memoria la fecha_vencimiento de las facturas locales con la fecha REAL de Wiese
+     * cuando la factura exista allá (match por código + folio normalizado, igual que el admin).
+     *
+     * POR QUÉ: la fecha contable válida es la de Wiese. Esto NO guarda nada en BD (solo ajusta los
+     * objetos que la vista muestra), así que es seguro y no desincroniza. Las facturas que no estén
+     * en Wiese conservan su fecha local (o null). Tolerante a fallos: si Wiese no responde, se deja
+     * todo como está.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\Factura>  $facturas
+     */
+    private function alinearVencimientosConWiese(\Illuminate\Support\Collection $facturas, string $codigo, ProveedorApiService $wieseApi): void
+    {
+        if ($facturas->isEmpty()) {
+            return;
+        }
+
+        $norm = static function (string $v): string {
+            $v = strtolower(trim($v));
+
+            return preg_replace('/-[0-9a-f]{4}$/', '', $v) ?? $v;
+        };
+
+        try {
+            $res = $wieseApi->listarFacturasPendientesTodos(codigoFiltro: $codigo);
+            if (! ($res['success'] ?? false)) {
+                return;
+            }
+
+            // Índice de fechas de Wiese por folio normalizado (folio solo y serie+folio).
+            $fechasWiese = [];
+            foreach ($res['data']['items'] ?? [] as $f) {
+                if (trim((string) ($f['codigo'] ?? '')) !== $codigo) {
+                    continue;
+                }
+                $venceRaw = $f['fecha_vence'] ?? null;
+                if (empty($venceRaw)) {
+                    continue;
+                }
+                $fecha = \Illuminate\Support\Carbon::parse($venceRaw)->toDateString();
+                $fechasWiese[$norm((string) ($f['folio'] ?? ''))] = $fecha;
+                $fechasWiese[$norm((string) ($f['serie'] ?? '').(string) ($f['folio'] ?? ''))] = $fecha;
+            }
+
+            if ($fechasWiese === []) {
+                return;
+            }
+
+            foreach ($facturas as $factura) {
+                $vd = is_array($factura->validacion_detalle) ? $factura->validacion_detalle : [];
+                // Claves que ofrece la factura local: su folio_cfdi y el folio del XML (si lo hay).
+                $claves = array_unique(array_filter([
+                    $norm((string) $factura->folio_cfdi),
+                    $norm((string) ($vd['folio'] ?? '')),
+                ]));
+                foreach ($claves as $clave) {
+                    if (isset($fechasWiese[$clave])) {
+                        // Pisar solo el atributo mostrado (no se persiste en BD).
+                        $factura->fecha_vencimiento = \Illuminate\Support\Carbon::parse($fechasWiese[$clave]);
+                        break;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[DetalleAdeudos] No se pudieron alinear vencimientos con Wiese: '.$e->getMessage());
+        }
     }
 
     // ── Exportar facturas pendientes a Excel ──

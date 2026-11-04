@@ -891,9 +891,9 @@
                                             Vencida ({{ abs($restantes) }})
                                         @endif
                                     </div>
-                                    @if($f->dias_plazo)
-                                        <div class="dias-sub">de {{ $f->dias_plazo }}</div>
-                                    @endif
+                                    {{-- POR QUÉ ya NO mostramos "de X días": el vencimiento ahora sale de la
+                                         fecha REAL de Wiese, no de un plazo nominal (hoy+30). El "de 30"
+                                         confundía porque mezclaba la fecha buena con un plazo que ya no aplica. --}}
                                 @endif
                             </td>
                             <td>

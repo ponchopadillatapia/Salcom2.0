@@ -20,6 +20,85 @@
 
 ---
 
+## 2026-09-07 — Proveedor con VARIAS cuentas en Wiese: ligar todas (no elegir una)
+
+- **QUÉ:** En el onboarding, cuando un RFC tiene varias cuentas en Wiese (ej. ORPACK = M213015002
+  y 103015031), ahora se muestran TODAS y el proveedor solo confirma que la empresa es suya. Al
+  confirmar se ligan todas. La validación de OC y las listas de facturas buscan en CUALQUIER cuenta.
+- **POR QUÉ (lo pidió Said):** antes solo se mostraba UNA cuenta (la que daba BuscarPorRFC) y el
+  proveedor tenía que "elegir". Si elegía la cuenta sin la OC (le pasó con ORPACK/103015031), la
+  factura se rechazaba con "OC no encontrada". El proveedor NO sabe cuál de sus cuentas es la buena
+  (es detalle interno de Salcom), así que no debe elegir: se ligan todas.
+- **PRUEBA DE ENDPOINT:** BuscarPorRFC devuelve SOLO 1 cuenta (103015031). ListarProveedorWeb
+  filtrado por RFC devuelve las 2. Por eso se cambió la fuente a la lista filtrada.
+- **DÓNDE:**
+  - `app/Services/ProveedorApiService.php` → `buscarProveedorPorRFC()`: ahora filtra
+    `listarProveedoresWiese()` por RFC y devuelve TODAS las cuentas (fallback a BuscarPorRFC si falla).
+  - `app/Models/ProveedorUser.php` → nuevo `codigosWiese()` (lee `datos_identificacion['codigos_wiese']`)
+    e integrado en `codigosParaFacturas()`.
+  - `app/Http/Controllers/PortalProveedorController.php` → `confirmarCuentaWiese()` guarda todos los
+    códigos en `codigos_wiese` (principal en `id_proveedor`); en `validarAltaFactura()` se pasa la lista
+    de códigos (coma-separada) al validador.
+  - `app/Services/AltaFacturaValidationService.php` → `cruzarCantidadConOc()` prueba la OC en cada
+    código hasta encontrarla.
+  - `resources/views/proveedores/onboarding.blade.php` → texto "elige" → "confirma que es tu empresa",
+    adaptado a singular/plural según cuántas cuentas haya.
+- **VERIFICACIÓN:** script real con ORPACK → buscarProveedorPorRFC trae 2 cuentas; codigosParaFacturas
+  devuelve M213015002, 103015031, P5. Tests PuenteFacturasDocumentos + FacturasProveedorAislamiento
+  8/8 verde (usan SQLite en memoria, NO tocan MySQL salcom20). Los códigos Wiese se guardan en JSON
+  (sin migración).
+- **NOTA:** la tabla `facturas` local está en 0 (hay que re-subir la 93150 para ver el flujo completo).
+  Los proveedores (7) están intactos.
+
+---
+
+## 2026-09-07 — Formato para pago: columna "Recepción" (¿ya llegó la mercancía?)
+
+- **QUÉ:** En la tabla de Formato para pago se agregó una columna "Recepción" que muestra, junto a
+  cada factura, si la mercancía ya llegó a almacén: "✅ Llegó completo", "⏳ Parcial" o "⏳ Sin
+  recepción" (o "—" si es servicio/flete o no tiene docs del portal).
+- **POR QUÉ (lo pidió Said):** que una factura esté en Wiese significa que Acatlán la CAPTURÓ, pero
+  NO que el producto ya llegó físicamente. El "llegó y cuánto" vive en la OC (recibido = cunidades −
+  cunidadespendientes) y antes solo se veía en la validación del proveedor. Ahora el admin lo ve al
+  lado de la factura al momento de pagar.
+- **DÓNDE:** `app/Http/Controllers/AdminPagosController.php` → `marcarFacturasConDocumentosPortal()`
+  lee `validacion_detalle['oc_cruce_detalle']` (estado/cantidad_recibida/cantidad_oc) de la factura
+  local YA cruzada y lo expone como `recibido_estado/recibido_cant/pedido_cant`. SIN llamadas extra
+  a Wiese (reusa lo guardado al validar). Vista `resources/views/admin/pagos/index.blade.php`: nueva
+  columna + chip de color; colspan del separador de proveedor 13→14.
+- **PENDIENTE (de Said):** renombrar en la vista el bloque "Facturas del portal pendientes de aparecer
+  en Wiese" → "En espera a que Acatlán registre que llegaron" (solo el texto del <h4> y su descripción;
+  NO tocar nombres de métodos como facturasPortalSinContraparteEnWiese). Lo intenta Said (regla yo-primero).
+
+---
+
+## 2026-09-07 — Fecha de vencimiento de facturas: la que manda es la de Wiese (no "hoy+30")
+
+- **QUÉ:** Al subir una factura por el portal, el sistema ya NO pone "hoy + 30 días" como fecha de
+  vencimiento. Ahora busca la factura en Wiese (por código + folio) y usa SU fecha real. Si Wiese
+  aún no la reporta, la deja en NULL (no inventa fecha). Además, la pantalla "Detalle de adeudos"
+  pisa en memoria la fecha local con la de Wiese cuando la factura exista allá.
+- **POR QUÉ (lo pidió Said):** la MISMA factura (ej. ORPACK 93150) salía con fechas distintas:
+  "VENCIDA 31/10/2026" en Formato para pago (que lee Wiese) y "Vigente 04/12/2026" en Detalle de
+  adeudos (que leía la local = hoy+30). Confundía a quien paga. La fecha contable válida es la de
+  Wiese; el portal no debe inventar una.
+- **DÓNDE:**
+  - `app/Http/Controllers/PortalProveedorController.php`: nuevo helper `fechaVencimientoWiese()`
+    (cruza código+folio normalizado, mismo match que el admin) y `registrarFacturaDesdePendiente()`
+    guarda esa fecha en vez de `now()->addDays(30)`.
+  - `app/Http/Controllers/AdminPanelController.php`: nuevo `alinearVencimientosConWiese()`, llamado
+    en `proveedorFacturas()`, pisa en memoria (NO en BD) la fecha mostrada. Corrige también las
+    facturas viejas que quedaron con la fecha inventada.
+- **VERIFICACIÓN:** `PuenteFacturasDocumentosTest` 5/5 verde (mismo match que usa el fix). `php -l`
+  OK. Los fallos de `FlujoCompletoProveedorTest` (419 CSRF) son PREEXISTENTES (confirmado con git
+  stash), no de este cambio.
+- **OJO / PENDIENTE:** correr `php artisan test` aquí usa RefreshDatabase sobre la base de desarrollo
+  `salcom20` y la DEJA VACÍA (borró la 93150 de prueba). Falta base de testing separada. Said debe
+  re-sembrar (`php artisan facturas:seed-proveedores-prueba`), re-subir la 93150 y confirmar a ojo
+  que el vencimiento sale 31/10/2026 (Wiese).
+
+---
+
 ## 2026-09-07 — Seguridad gateway C# (251): rate limiting + ocultar password + diagnóstico 500
 
 - **QUÉ:** Genaro pidió en auditoría cerrar 2 puntos de seguridad en el gateway C# APIPortalWeb (251):

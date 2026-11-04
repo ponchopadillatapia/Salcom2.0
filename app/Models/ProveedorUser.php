@@ -311,14 +311,43 @@ class ProveedorUser extends Authenticatable
     public function codigosParaFacturas(?string $codigoSesion = null): array
     {
         $codigos = [];
+        // POR QUÉ: además de los fallbacks del código principal, incluimos TODAS las cuentas Wiese
+        // del proveedor (un RFC puede tener varias, ej. ORPACK). Así las facturas/OC ligadas a
+        // CUALQUIER cuenta del mismo proveedor se ven juntas. Los códigos Wiese extra se guardan al
+        // confirmar el onboarding en datos_identificacion['codigos_wiese'] (ver codigosWiese()).
         foreach ([
             $this->id_proveedor,
             $this->attributes['codigo_compras'] ?? null,
             $this->attributes['codigo'] ?? null,
             $codigoSesion,
+            ...$this->codigosWiese(),
             'P'.$this->id,
         ] as $c) {
             $c = trim((string) ($c ?? ''));
+            if ($c !== '') {
+                $codigos[$c] = $c;
+            }
+        }
+
+        return array_values($codigos);
+    }
+
+    /**
+     * Todas las cuentas (códigos) que Wiese tiene con el RFC de este proveedor.
+     *
+     * POR QUÉ existe: un mismo RFC puede estar dado de alta con VARIOS códigos en Wiese
+     * (ej. ORPACK = M213015002 y 103015031). Al confirmar el onboarding se guardan todos en
+     * datos_identificacion['codigos_wiese']; aquí los leemos para que las búsquedas de OC y
+     * facturas prueben en TODAS las cuentas, no solo en la principal (id_proveedor).
+     *
+     * @return list<string>
+     */
+    public function codigosWiese(): array
+    {
+        $di = is_array($this->datos_identificacion) ? $this->datos_identificacion : [];
+        $codigos = [];
+        foreach ((array) ($di['codigos_wiese'] ?? []) as $c) {
+            $c = trim((string) $c);
             if ($c !== '') {
                 $codigos[$c] = $c;
             }

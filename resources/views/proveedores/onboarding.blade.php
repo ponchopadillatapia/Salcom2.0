@@ -282,9 +282,23 @@
                 <span class="paso-badge badge-pendiente">Pendiente</span>
             </div>
 
-            {{-- Cuentas encontradas --}}
+            {{-- Cuentas encontradas.
+                 POR QUÉ el texto cambió de "elige tu cuenta" a "confirma que la empresa es tuya":
+                 un RFC puede tener VARIAS cuentas en Wiese (razones/registros distintos del mismo
+                 proveedor). El proveedor NO sabe cuál es "la buena" (es un detalle interno de Salcom),
+                 así que NO lo hacemos elegir: le mostramos todas las que tiene su RFC y solo confirma
+                 que la empresa es suya. Al confirmar se ligan TODAS; luego el sistema busca la OC/
+                 facturas en cualquiera de ellas. --}}
             <div style="background:#fffbeb;border:2px solid #f59e0b;border-radius:14px;padding:20px 22px;margin:-8px 0 8px;box-shadow:0 2px 12px rgba(245,158,11,.12);">
-                <p style="font-size:14px;font-weight:700;color:#92400e;margin:0 0 12px;">¿Estas son tus cuentas?</p>
+                <p style="font-size:14px;font-weight:700;color:#92400e;margin:0 0 6px;">Encontramos {{ count($cuentasWiese) > 1 ? 'estas cuentas' : 'esta cuenta' }} con tu RFC</p>
+                <p style="font-size:12px;color:#92400e;margin:0 0 12px;opacity:.85;">
+                    @if(count($cuentasWiese) > 1)
+                        Tu empresa tiene varias cuentas en nuestro sistema contable. No tienes que elegir
+                        ninguna: solo confirma que son de tu empresa y las enlazaremos todas.
+                    @else
+                        Confirma que esta cuenta es de tu empresa para enlazarla.
+                    @endif
+                </p>
                 <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:10px;margin-bottom:16px;">
                     @foreach($cuentasWiese as $cuenta)
                     <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;">
@@ -297,8 +311,8 @@
                 </div>
                 <form method="POST" action="{{ route('proveedores.confirmar-cuenta-wiese') }}" style="display:flex;gap:10px;flex-wrap:wrap;">
                     @csrf
-                    <button type="submit" name="accion" value="confirmar" style="padding:9px 20px;border:none;border-radius:10px;background:#059669;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">✓ Sí, es mi cuenta</button>
-                    <button type="submit" name="accion" value="no_es_mia" style="padding:9px 20px;border:1.5px solid #dc2626;border-radius:10px;background:#fff;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">✗ No es mi cuenta</button>
+                    <button type="submit" name="accion" value="confirmar" style="padding:9px 20px;border:none;border-radius:10px;background:#059669;color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">✓ Sí, {{ count($cuentasWiese) > 1 ? 'son de mi empresa' : 'es mi cuenta' }}</button>
+                    <button type="submit" name="accion" value="no_es_mia" style="padding:9px 20px;border:1.5px solid #dc2626;border-radius:10px;background:#fff;color:#dc2626;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">✗ No {{ count($cuentasWiese) > 1 ? 'son de mi empresa' : 'es mi cuenta' }}</button>
                 </form>
             </div>
             @elseif($wieseError ?? null)

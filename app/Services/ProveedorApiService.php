@@ -702,10 +702,19 @@ class ProveedorApiService
      * al proveedor recién registrado si la cuenta que Wiese tiene con su RFC es suya. Al
      * confirmar, se guarda el código Wiese (id_proveedor) y quedan ligados portal <-> Wiese.
      *
-     * ANTES estaba SIMULADO (hardcodeado solo para ORPACK). Ahora hace la llamada REAL al
-     * endpoint /ClienteProveedor/BuscarPorRFC vía buscarProveedorWiese(), y adapta la
-     * respuesta cruda de Wiese al formato { cuentas: [{codigo, razonSocial, moneda, fechaAlta}] }
-     * que espera el onboarding.
+     * Devuelve TODAS las cuentas que Wiese tiene con ese RFC, en el formato
+     * { cuentas: [{codigo, razonSocial, moneda, fechaAlta, rfc}] } que espera el onboarding.
+     *
+     * POR QUÉ filtra la LISTA completa y NO usa BuscarPorRFC: un mismo RFC puede tener VARIAS
+     * cuentas en Wiese (ej. ORPACK = M213015002 y 103015031, dos razones/registros en Contpaqi).
+     * El endpoint BuscarPorRFC devuelve SOLO UNA (probado: regresaba 103015031 y se perdía la
+     * M213015002, que es justo la que tiene las OC). En cambio ListarProveedorWeb trae la lista
+     * completa y, filtrando por RFC, salen TODAS las cuentas de ese proveedor. Así el proveedor
+     * no tiene que adivinar cuál de las dos es "la buena": se ligan todas y la búsqueda de OC/
+     * facturas luego prueba en todos sus códigos.
+     *
+     * Si la lista no está disponible, cae de vuelta a BuscarPorRFC (una sola) para no romper el
+     * onboarding: es mejor una cuenta que ninguna.
      */
     public function buscarProveedorPorRFC(string $rfc): array
     {
@@ -715,11 +724,39 @@ class ProveedorApiService
             return $this->buildErrorResponse('RFC vacío', 'validation');
         }
 
-        // Llamada REAL a Wiese (login + /ClienteProveedor/BuscarPorRFC).
-        $res = $this->buscarProveedorWiese($rfc, true);
+        // CAMINO PRINCIPAL: traer la lista completa y filtrar por RFC (trae TODAS las cuentas).
+        $lista = $this->listarProveedoresWiese();
+        if ($lista['success'] ?? false) {
+            $cuentas = collect($lista['data']['items'] ?? [])
+                ->filter(function ($p) use ($rfc) {
+                    $rfcItem = strtoupper(trim((string) ($p['rfc'] ?? $p['Rfc'] ?? '')));
 
-        // Si no se encontró el proveedor en Wiese, devolvemos lista vacía (no es error:
-        // simplemente ese RFC no está dado de alta en el sistema contable todavía).
+                    return $rfcItem === $rfc;
+                })
+                ->map(function ($p) use ($rfc) {
+                    $cod = trim((string) ($p['codigo'] ?? $p['Codigo'] ?? ''));
+                    // Wiese: "1"=MXN, "2"=USD.
+                    $mon = (string) ($p['moneda'] ?? $p['Moneda'] ?? $p['cidmoneda'] ?? $p['idMoneda'] ?? '1');
+
+                    return [
+                        'codigo' => $cod,
+                        'razonSocial' => (string) ($p['nombre'] ?? $p['Nombre'] ?? $p['crazonsocial'] ?? ''),
+                        'moneda' => $mon === '2' ? 'USD' : 'MXN',
+                        'fechaAlta' => $p['fechaCreacion'] ?? $p['fechaAlta'] ?? null,
+                        'rfc' => $rfc,
+                    ];
+                })
+                // Descartar basura (código vacío o "(Ninguno)") y duplicados por código.
+                ->filter(fn ($c) => $c['codigo'] !== '' && stripos($c['codigo'], 'ninguno') === false)
+                ->unique('codigo')
+                ->values()
+                ->all();
+
+            return ['success' => true, 'data' => ['cuentas' => $cuentas]];
+        }
+
+        // FALLBACK: si la lista completa falló, usar BuscarPorRFC (una sola cuenta).
+        $res = $this->buscarProveedorWiese($rfc, true);
         if (! ($res['success'] ?? false)) {
             $tipo = $res['error_type'] ?? null;
             if ($tipo === ProveedorApiException::NO_ENCONTRADO) {
@@ -729,10 +766,8 @@ class ProveedorApiService
             return $res; // error real (conexión / VPN) — se propaga tal cual
         }
 
-        // Wiese devuelve UN objeto de proveedor. Lo adaptamos al formato de "cuentas".
         $prov = $res['data'] ?? [];
         $codigo = trim((string) ($prov['codigo'] ?? ''));
-
         if ($codigo === '') {
             return ['success' => true, 'data' => ['cuentas' => []]];
         }

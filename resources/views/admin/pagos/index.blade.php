@@ -174,7 +174,7 @@
         <div class="adm-section anim" style="animation-delay:.05s;border:1.5px solid #f0d089;background:#fffdf5;">
             <div class="adm-section-head">
                 <div>
-                    <h4 style="color:#8a6d20;">⚠️ Facturas del portal pendientes de aparecer en Wiese</h4>
+                    <h4 style="color:#8a6d20;">Facturas en espera a que Acatlán registre ingreso</h4>
                     <div class="adm-section-meta">
                         El proveedor las subió por el portal, pero Wiese todavía no las reporta (quizá Acatlán
                         aún no las captura, o son remisiones sin OC). Revísalas a la vista.
@@ -270,6 +270,7 @@
                         <th style="text-align:right;">Importe pago</th>
                         <th style="text-align:right;">IVA dólares</th>
                         <th style="text-align:center;">Moneda</th>
+                        <th style="text-align:center;">Recepción</th>
                         <th style="text-align:center;">Documentos</th>
                     </tr>
                 </thead>
@@ -283,7 +284,7 @@
                              Ya NO hay botón por proveedor: se marca de varios proveedores a la vez
                              y se envían todos juntos con el botón verde global de abajo. --}}
                         <tr class="date-row">
-                            <td colspan="13">
+                            <td colspan="14">
                                 <input type="checkbox" class="fp-chk-all" data-prov="{{ $codigoProv }}" title="Seleccionar todas de este proveedor" style="margin-right:6px;vertical-align:middle;">
                                 <a class="code-link" href="{{ route('admin.pagos.proveedor', $codigoProv) }}">{{ $codigoProv }}</a>
                                 — {{ $nombreProv }}
@@ -322,6 +323,22 @@
                                 <td style="text-align:right;white-space:nowrap;">${{ number_format((float) ($f['iva_dlls'] ?? 0), 2) }}</td>
                                 <td style="text-align:center;">
                                     @if($esUsd)<span class="mon-badge mon-usd" style="background:#dbeafe;color:#1d4ed8;">USD</span>@else<span class="mon-badge mon-mxn">MXN</span>@endif
+                                </td>
+                                {{-- RECEPCIÓN EN ALMACÉN: ¿ya llegó la mercancía y cuánto? Viene del cruce
+                                     con la OC guardado al validar la factura (recibido = cunidades −
+                                     cunidadespendientes). Solo aplica si la factura tiene docs del portal
+                                     y se cruzó con una OC; las de servicio/flete o sin docs muestran "—". --}}
+                                <td style="text-align:center;white-space:nowrap;">
+                                    @php $recEstado = $f['recibido_estado'] ?? null; @endphp
+                                    @if($recEstado === 'ok')
+                                        <span style="background:#dcfce7;color:#166534;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;" title="Acatlán ya registró que llegó completo">✅ Llegó completo</span>
+                                    @elseif($recEstado === 'esperando_recepcion')
+                                        <span style="background:#fef9c3;color:#854d0e;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;" title="Acatlán aún no registra la entrada en almacén">⏳ Sin recepción</span>
+                                    @elseif($recEstado === 'excede_recibido' && !is_null($f['recibido_cant']) && !is_null($f['pedido_cant']))
+                                        <span style="background:#ffedd5;color:#9a3412;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;" title="Llegó una parte: {{ rtrim(rtrim(number_format($f['recibido_cant'],2),'0'),'.') }} de {{ rtrim(rtrim(number_format($f['pedido_cant'],2),'0'),'.') }}">⏳ Parcial</span>
+                                    @else
+                                        <span style="color:#9ca3af;font-size:11px;">—</span>
+                                    @endif
                                 </td>
                                 {{-- PUENTE portal↔Wiese: marca si esta factura de Wiese ya tiene PDF/XML
                                      subidos por el proveedor en el portal. Verde = con docs. --}}

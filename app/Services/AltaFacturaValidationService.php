@@ -737,10 +737,30 @@ class AltaFacturaValidationService
         // OC con el mismo folio y distinta serie). El total sirve de desempate para elegir la OC que
         // de verdad corresponde a esta factura (la de total más parecido).
         $totalFactura = (float) ($datos['total'] ?? 0);
-        $res = app(\App\Services\ProveedorApiService::class)->buscarOcPorFolio($codigoProveedor, $folioOc, $totalFactura);
 
-        if (! ($res['success'] ?? false)) {
-            $errores[] = 'No se pudo validar contra la OC '.$folioOc.': '.($res['message'] ?? 'OC no encontrada en Wiese.');
+        // POR QUÉ probamos VARIOS códigos: un RFC puede tener varias cuentas en Wiese (ej. ORPACK =
+        // M213015002 y 103015031). La OC puede estar en cualquiera de ellas. $codigoProveedor llega
+        // como lista separada por comas (los codigosParaFacturas del proveedor); probamos uno por uno
+        // y nos quedamos con la PRIMERA cuenta donde la OC exista. Así el proveedor no tiene que saber
+        // en cuál de sus cuentas está la OC.
+        $codigos = array_values(array_filter(array_map('trim', explode(',', $codigoProveedor))));
+        if ($codigos === []) {
+            $codigos = [$codigoProveedor];
+        }
+
+        $res = null;
+        $ultimoMsg = 'OC no encontrada en Wiese.';
+        foreach ($codigos as $cod) {
+            $intento = app(\App\Services\ProveedorApiService::class)->buscarOcPorFolio($cod, $folioOc, $totalFactura);
+            if ($intento['success'] ?? false) {
+                $res = $intento;
+                break; // encontrada en esta cuenta; dejamos de probar
+            }
+            $ultimoMsg = $intento['message'] ?? $ultimoMsg;
+        }
+
+        if ($res === null) {
+            $errores[] = 'No se pudo validar contra la OC '.$folioOc.': '.$ultimoMsg;
             $checklist['oc_cantidad']['ok'] = false;
             $checklist['oc_cantidad']['label'] = 'OC '.$folioOc.' no encontrada';
             $datos['oc_cruce_detalle'] = [

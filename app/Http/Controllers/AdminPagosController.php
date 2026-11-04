@@ -323,6 +323,25 @@ class AdminPagosController extends Controller
             $f['docs_xml'] = $loc && $loc->archivo_xml ? true : false;
             $f['estatus_local'] = $loc?->estatus;
 
+            // RECEPCIÓN EN ALMACÉN (¿ya llegó la mercancía y cuánto?). POR QUÉ: la factura puede
+            // estar en Wiese (capturada por Acatlán) pero eso NO dice si el producto YA llegó físico.
+            // Ese dato vive en la OC (recibido = cunidades − cunidadespendientes) y ya quedó guardado
+            // al validar la factura, en validacion_detalle['oc_cruce_detalle']. Lo exponemos aquí para
+            // que el admin vea, junto a la factura, si llegó completo / parcial / aún sin recepción,
+            // SIN hacer una llamada extra a Wiese (lo leemos de lo que ya tenemos en local).
+            $f['recibido_estado'] = null;   // 'ok' | 'esperando_recepcion' | 'excede_recibido' | null
+            $f['recibido_cant'] = null;
+            $f['pedido_cant'] = null;
+            if ($loc) {
+                $vd = is_array($loc->validacion_detalle) ? $loc->validacion_detalle : [];
+                $oc = is_array($vd['oc_cruce_detalle'] ?? null) ? $vd['oc_cruce_detalle'] : [];
+                if (! empty($oc['encontrada'])) {
+                    $f['recibido_estado'] = $oc['estado'] ?? null;
+                    $f['recibido_cant'] = isset($oc['cantidad_recibida']) ? (float) $oc['cantidad_recibida'] : null;
+                    $f['pedido_cant'] = isset($oc['cantidad_oc']) ? (float) $oc['cantidad_oc'] : null;
+                }
+            }
+
             return $f;
         });
     }
