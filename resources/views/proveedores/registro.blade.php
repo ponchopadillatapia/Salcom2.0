@@ -98,8 +98,8 @@
             <div class="form-row" style="margin-bottom:6px;">
                 <div class="ios-field" style="grid-column:1 / -1;">
                     <select id="reg_origen" onchange="setOrigen(this.value)">
-                        <option value="nacional" {{ old('es_extranjero','0')==='1' ? '' : 'selected' }}>National supplier (México) · Proveedor nacional</option>
-                        <option value="extranjero" {{ old('es_extranjero','0')==='1' ? 'selected' : '' }}>Foreign supplier (import) · Proveedor extranjero</option>
+                        <option value="nacional" {{ old('es_extranjero','0')==='1' ? '' : 'selected' }}>Proveedor nacional(México)</option>
+                        <option value="extranjero" {{ old('es_extranjero','0')==='1' ? 'selected' : '' }}>Foreign supplier (import)</option>
                     </select>
                 </div>
             </div>
@@ -422,10 +422,11 @@
 
         // Sección contacto / acceso + etiquetas.
         setText('sec-contacto', 'Contact & access', 'Contacto y acceso');
-        setHtml('lbl_telefono', (esExtranjero ? 'Telephone' : 'Teléfono') + ' <span class="req">*</span>');
-        setHtml('lbl_correo', (esExtranjero ? 'Email' : 'Correo electrónico') + ' <span class="req">*</span>');
-        setHtml('lbl_password', (esExtranjero ? 'Password' : 'Contraseña') + ' <span class="req">*</span>');
-        setHtml('lbl_password_conf', (esExtranjero ? 'Confirm password' : 'Confirmar contraseña') + ' <span class="req">*</span>');
+        setHtml('lbl_telefono', 'Telephone <span class="req">*</span>', 'Teléfono <span class="req">*</span>');
+        setHtml('lbl_correo', 'Email <span class="req">*</span>', 'Correo electrónico <span class="req">*</span>');
+        setHtml('lbl_password', 'Password <span class="req">*</span>', 'Contraseña <span class="req">*</span>');
+        setHtml('lbl_password_conf', 'Confirm password <span class="req">*</span>', 'Confirmar contraseña <span class="req">*</span>');
+
 
         // Placeholders compartidos.
         setPh(document.getElementById('reg_telefono'), 'Phone number', '10 dígitos');
