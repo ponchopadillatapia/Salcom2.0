@@ -6,6 +6,144 @@
 
 ---
 
+## 2026-09-07 — CONFIRMADO con Brenda: anticipo y factura final SÍ llevan OC (NO cambiar)
+
+- **QUÉ:** Se evaluó agregar opciones "es anticipo / es nota de crédito" al bloque de "sin OC", o
+  permitir que el anticipo (doc 1) y la factura final (doc 3) se subieran SIN OC (porque en los PDF
+  de HARMONY la OC solo venía en las notas, no en el campo ni en el XML). DECISIÓN: **NO se cambia
+  nada.** El sistema está correcto exigiendo OC a esas facturas.
+- **POR QUÉ:** Said consultó a Brenda (contabilidad). Brenda confirmó que el anticipo y la factura
+  final SÍ DEBEN llevar número de OC; que no la pusieran era **mala práctica de las ayudantes**, no
+  algo que el sistema deba permitir. El sistema rechazando esas facturas sin OC está haciendo cumplir
+  la buena práctica (es lo deseado, no un bug).
+- **REGLA FINAL (no tocar):**
+  - Anticipo (ClaveProdServ 84111506) → SÍ exige OC.
+  - Factura final (relaciona anticipo por UUID 07) → SÍ exige OC.
+  - Nota de crédito (tipo E) → NO lleva OC; se liga por UUID relacionado (correcto).
+- **DÓNDE:** `app/Services/AltaFacturaValidationService.php` (clasificación OC). No se modificó; se
+  deja como está. Esta entrada existe para que nadie "arregle" esto a futuro pensando que es un bug.
+
+---
+
+## 2026-11-05 — Bloqueo en pantalla: sin OC obliga a declarar flete/servicio o remisión
+
+- **QUÉ:** En el portal del proveedor (Alta de facturas), si el proveedor deja vacío el número de
+  OC y NO elige ninguna de las dos opciones (flete/servicio o remisión/requisición), ahora el
+  botón "Validar" ya no envía el formulario: se frena en el navegador, se abre el bloque amarillo
+  y se avisa que debe elegir una opción.
+- **POR QUÉ:** Antes podía mandar PDF+XML sin elegir nada y el rechazo llegaba hasta el backend.
+  El usuario pidió que no se pueda ni intentar subir sin declarar el tipo. Es defensa en capas: el
+  backend sigue validando igual (AltaFacturaValidationService caso C), esto solo mejora la UX y
+  cierra el intento en pantalla.
+- **DÓNDE:** `resources/views/proveedores/fiscal.blade.php`, listener `form.addEventListener('submit')`
+  dentro del `@push('scripts')` (chequeo de `numero_oc` vacío + `input[name="tipo_sin_oc"]:checked`).
+- **ACTUALIZACIÓN (mismo día):** Se quitó el `alert()` nativo del navegador (se veía feo, tipo
+  "ChatGPT") y se cambió por un aviso inline dentro del bloque amarillo `#avisoSinOc`, con el rojo
+  del proyecto (`--red` / `--red-bg`) e ícono SVG. Se oculta solo cuando el proveedor elige una
+  opción o escribe la OC. Sin emojis (regla del proyecto).
+
+---
+
+## 2026-09-07 — Flujo anticipo→NC→factura final: ligado sin importar el orden (dinero)
+
+- **QUÉ:** Se blindó el flujo del anticipo para que las 3 piezas se liguen y el dinero cuadre sin
+  importar el orden en que el proveedor las suba por el portal:
+  1. Al subir una factura de ANTICIPO (ClaveProdServ 84111506), se crea solo su registro en
+     `anticipos_proveedor` con estatus 'pagado' (idempotente por uuid_cfdi; no duplica si ya existe).
+  2. RECONCILIACIÓN bidireccional: si llega la factura final busca su anticipo y lo aplica; si llega
+     el anticipo DESPUÉS, busca facturas finales previas que lo relacionen y las cubre.
+  3. La NOTA DE CRÉDITO forma 30 "mata" el anticipo que referencia (saldo a 0, estatus 'aplicado'),
+     cubriendo dos casos: NC que relaciona directo el anticipo, o NC que relaciona la factura final
+     (puente: factura final → anticipo).
+- **POR QUÉ (lo detectó Said):** antes el ligado solo corría al subir la factura final, mirando solo
+  anticipos registrados por el ADMIN, y en un solo sentido. Si el proveedor subía en desorden (o el
+  anticipo venía del portal), las piezas quedaban sueltas y el anticipo no se descontaba. Confirmado
+  con Said: el anticipo lo sube el proveedor y YA está pagado; la NC forma 30 mata el anticipo.
+- **GUARDAS DE DINERO:** `aplicarAnticipoAFactura` respeta `monto_aplicado` previo (no doble-aplica),
+  nunca aplica más que el saldo de la factura, y todo va en transacción.
+- **DÓNDE:** `app/Http/Controllers/PortalProveedorController.php`. Nuevo orquestador
+  `procesarFlujoAnticipos()` (reemplaza al viejo `autoLigarAnticipos`) + helpers
+  `cfdiEsAnticipo`, `registrarAnticipoDesdeFactura`, `reconciliarAnticipos`,
+  `anticiposQueAplicanAFactura`, `facturasQueRelacionanAnticipo`, `aplicarAnticipoAFactura`,
+  `matarAnticipoConNotaCredito`.
+- **VERIFICADO:** `tests/Feature/FlujoAnticipoNotaCreditoTest.php` 5/5 verde: registro del anticipo
+  del portal, orden normal, ORDEN INVERTIDO (factura antes que anticipo), NC forma 30 mata anticipo,
+  y no duplica dinero al reprocesar. `AltaFacturaValidationServiceTest` 37/37 sigue verde. php -l OK.
+- **NOTA:** los 3 XML reales de prueba están en `C:\Users\IT\Desktop\notas de credito` (F-INV_2249
+  anticipo, INVNC_198 NC forma 30, F-INV_2345 factura final). Said puede probar a mano subiéndolos
+  en cualquier orden como HARMONY.
+
+---
+
+## 2026-09-07 — "Órdenes de Compra" del proveedor: ahora muestra las OC REALES de Wiese
+
+- **QUÉ:** La pantalla "Órdenes de Compra" del portal del proveedor mostraba OC "generadas por IA"
+  (tabla local OcBorrador según inventario). Said pidió quitar todo lo de IA y que muestre las OC
+  REALES de Wiese del proveedor (las mismas que ve el admin en Detalle de adeudos). Se eliminó el
+  bloque "Generación automática de OC / Generar OC ahora / fórmula IA".
+- **POR QUÉ:** el proveedor quiere ver sus pedidos reales (lo que Salcom le compró), no sugerencias
+  de IA. Es el par de "Mis Facturas": facturas reales en una pantalla, OC reales en la otra.
+- **DÓNDE:** `app/Http/Controllers/OrdenCompraController.php` → `mostrarConsultarOC()` ahora trae
+  `listarDocumentosOCPorProveedorFechas(codigoWiese)` (CIDDOCUMENTODE=17) y mapea folio/serie/fecha/
+  vence/total/pendiente/estatus. Vista `resources/views/proveedores/consultar-oc.blade.php` reescrita
+  sin IA: KPIs reales (total/pendientes/pagadas/canceladas) + tabla de OC. El método `generarOC()`
+  (IA) quedó en el controlador sin uso (la ruta ya no se llama); se puede quitar después si se quiere.
+- **TAMBIÉN:** se desbloqueó el módulo en `.env` (`PORTAL_MODULO_ORDENES_COMPRA=true`) — nace cerrado
+  en config/salcom.php. Recordar ponerlo también en el `.env` de PRODUCCIÓN si se quiere abrir allá.
+- **VERIFICADO:** php -l OK + vista compila. (HARMONY tiene 24 OC en Wiese que ya deben verse aquí.)
+
+---
+
+## 2026-09-07 — "Mis Facturas" del proveedor: mostraba OC, ahora muestra FACTURAS reales
+
+- **QUÉ:** En el portal del proveedor, la sección "Facturas registradas en sistema" de la pantalla
+  "Mis Facturas" traía ÓRDENES DE COMPRA (tipo 17) pero las mostraba como "Facturas" — confundía
+  (lo detectó Said: "dice facturas y no lo son"). Ahora muestra las FACTURAS pendientes de pago
+  reales (tipo 19), que es lo que el proveedor espera ver ahí. Las OC se quedan en su propia
+  pantalla del menú "Órdenes de Compra" (no se duplican).
+- **POR QUÉ:** separar conceptos: OC = pedidos que Salcom le hizo (pantalla Órdenes de Compra);
+  factura = lo que el proveedor cobró y está por cobrar (pantalla Mis Facturas). Antes se mezclaban.
+- **DÓNDE:** `app/Http/Controllers/PortalProveedorController.php` → `mostrarFacturas()`: se cambió
+  `listarDocumentosOCPorProveedorFechas` (tipo 17) por `listarFacturasPendientesTodos(...codigo)`
+  (tipo 19), mapeando sus campos (serie/folio/total/saldo/fecha_vence) a los nombres crudos que la
+  vista ya usaba (cfolio/ctotal/cpendiente/cfecha) para no reescribir tabla ni modal. Vista
+  `resources/views/proveedores/facturas.blade.php`: título aclarado a "Facturas pendientes de pago
+  (sistema contable)" + nota de que las OC están en otro menú.
+- **VERIFICADO (HARMONY CHEM M213008002):** Mis Facturas ahora trae 1 factura (ALMPA 2830,
+  $1,051,922.80) = la MISMA que ve el admin en Formato para pago. Las 24 OC se quedan en Órdenes de
+  Compra. php -l OK + vista compila.
+
+---
+
+## 2026-09-07 — PENDIENTE: fletes/servicios NO deben caer en "en espera de Acatlán"
+
+- **PROBLEMA (lo detectó Said):** un FLETE/SERVICIO no se valida contra Acatlán (no hay mercancía
+  física que llegue al almacén). Pero hoy, al subir un flete por el portal, cae en el bloque
+  "Facturas en espera a que Acatlán registre ingreso" y se quedaría ahí PARA SIEMPRE, porque Acatlán
+  nunca lo va a capturar como mercancía recibida.
+- **VERIFICADO con datos reales (flete de ARTURO QUINTANAR, RFC QUVA991011I34, folio 2109):**
+  - Arturo NO existe como proveedor en Wiese (0 cuentas con su RFC).
+  - El folio 2109 NO aparece en las 1,944 facturas pendientes de Wiese (tipo 19).
+  - O sea: el flete NO está capturado en Wiese tipo 19. Confirmado que el problema es real.
+- **FALTA DECIDIR CON CONTABILIDAD (Brenda) antes de implementar:**
+  - ¿Los fletes SÍ se capturan en Contpaqi/Wiese pero con OTRO tipo de documento (no el 19 de
+    compras)? Si sí → habría que consultar ese tipo también y los fletes aparecerían en la tabla.
+  - ¿O los fletes se pagan POR FUERA del flujo contable de compras (solo validación fiscal del
+    portal + visto bueno de quien contrató el flete)? Si sí → necesitan su propio camino.
+- **PLAN (cuando se resuelva la duda):**
+  - El dato para distinguir ya existe: `validacion_detalle['clasificacion_oc'] = 'servicio_sin_oc'`
+    marca los fletes. Usarlo para que NO entren en el bloque de huérfanas/"en espera de Acatlán".
+  - Solución recomendada: sacar los servicios de "en espera de Acatlán" y darles estado
+    "Servicio validado — listo para pagar" (no depende de almacén), en su propio bloque/sección.
+  - DÓNDE tocar: `app/Http/Controllers/AdminPagosController.php` →
+    `facturasPortalSinContraparteEnWiese()` (hoy mete TODA factura local pendiente sin contraparte
+    en Wiese, sin distinguir producto vs servicio); y la vista `resources/views/admin/pagos/index.blade.php`
+    (el bloque "Facturas en espera a que Acatlán registre ingreso").
+- **ESTADO:** pausado por decisión de Said para avanzar en otra cosa. Retomar tras confirmar con
+  Brenda cómo se capturan/pagan los fletes.
+
+---
+
 ## 2026-11-04 — Normalizar TODAS las alertas del proyecto (estándar UI) — EN PROGRESO
 
 - **QUÉ:** Se arranca la unificación de todas las "alertas" de la app a un estándar único, con el

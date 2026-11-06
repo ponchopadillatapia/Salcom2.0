@@ -1,11 +1,11 @@
 @extends('layouts.proveedor')
 
-@section('title', 'Consultar OC')
+@section('title', 'Órdenes de Compra')
 
 @section('hero')
 <div class="hero-band">
-    <h1>Consultar Órdenes de Compra</h1>
-    <p>Revisa tus órdenes de compra generadas automáticamente por la IA</p>
+    <h1>Órdenes de Compra</h1>
+    <p>Tus órdenes de compra registradas en el sistema de Industrias Salcom</p>
 </div>
 @endsection
 
@@ -23,12 +23,10 @@
     .metric-card .accent { position: absolute; top: 0; left: 0; width: 4px; height: 100%; border-radius: 12px 0 0 12px; }
     .metric-label { font-size: 12px; color: var(--gray-text); font-weight: 500; margin-bottom: 6px; padding-left: 8px; }
     .metric-value { font-size: 26px; font-weight: 600; color: var(--purple-dark); padding-left: 8px; line-height: 1; }
-    .metric-sub { font-size: 11px; color: #AAA; padding-left: 8px; margin-top: 4px; }
 
     .card { background: var(--white); border-radius: 14px; border: 0.5px solid var(--border); overflow: hidden; }
     .card-head { padding: 14px 20px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
     .card-head h3 { font-size: 14px; font-weight: 600; color: var(--purple-dark); }
-    .card-head-right { display: flex; align-items: center; gap: 10px; }
     .btn-excel { display: inline-flex; align-items: center; gap: 6px; padding: 5px 14px; background: #16a34a; color: white; border: none; border-radius: 8px; font-size: 12px; font-family: inherit; cursor: pointer; font-weight: 600; transition: background .2s; }
     .btn-excel:hover { background: #15803d; }
 
@@ -37,17 +35,17 @@
     .tabla td { padding: 12px 20px; font-size: 13px; color: var(--gray-text); border-bottom: 0.5px solid var(--border); }
     .tabla tr:last-child td { border-bottom: none; }
     .tabla tr:hover td { background: var(--gray-soft); }
+    .monto { font-variant-numeric: tabular-nums; }
 
-    .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
-    .badge-green  { background: var(--green-bg); color: var(--green); }
-    .badge-amber  { background: var(--amber-bg); color: var(--amber); }
-    .badge-blue   { background: var(--blue-bg);  color: var(--blue); }
+    .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+    /* POR QUÉ colores fijos (hex) y NO variables: las variables --red/--red-bg no siempre están
+       definidas en el tema del portal del proveedor, y si no existen el color sale vacío (no se veía
+       el rojo). Con hex directo se ve siempre. */
+    .badge-amber  { background: #fef3c7; color: #b45309; }
+    .badge-green  { background: #dcfce7; color: #166534; }
+    .badge-red    { background: #fee2e2; color: #dc2626; }
 
-    .oc-gen-section { background: var(--white); border: 1px solid var(--border-light); border-radius: 14px; padding: 22px; margin-bottom: 28px; }
-    .btn-generar { display: inline-block; padding: 10px 22px; background: var(--purple); color: var(--white); font-size: 13px; font-weight: 600; border-radius: 999px; border: none; cursor: pointer; transition: background .2s, transform .1s; }
-    .btn-generar:hover { background: var(--purple-dark); transform: translateY(-1px); }
-    .alert-success { background: var(--green-bg); border: 1px solid var(--green); border-radius: 8px; padding: 10px 16px; font-size: 13px; color: var(--green); margin-bottom: 16px; }
-    .alert-info { background: var(--blue-bg); border: 1px solid var(--blue); border-radius: 8px; padding: 10px 16px; font-size: 13px; color: var(--blue); margin-bottom: 16px; }
+    .aviso { background: var(--amber-bg,#fef3cd); border: 1px solid var(--amber,#d97706); border-radius: 10px; padding: 14px; font-size: 13px; color: var(--amber); margin-bottom: 20px; }
 
     @media (max-width: 768px) { .metrics-row { grid-template-columns: 1fr 1fr; } }
 </style>
@@ -55,112 +53,86 @@
 
 @section('content')
 
-    @if(session('mensaje'))
-    <div class="alert-success">{{ session('mensaje') }}</div>
+    @if($wieseError)
+        <div class="aviso">{{ $wieseError }}</div>
     @endif
-
-    {{-- ═══ Generar OC ═══ --}}
-    <div class="oc-gen-section">
-        <h3 style="font-size: 14px; font-weight: 700; color: var(--gray-text); margin-bottom: 16px;">Generación automática de OC</h3>
-        <div style="background: var(--purple-subtle); border-radius: 10px; padding: 14px 18px; margin-bottom: 16px;">
-            <div style="font-size: 11px; color: var(--gray-muted); font-weight: 600; margin-bottom: 4px;">Fórmula</div>
-            <div style="font-size: 13px; color: var(--gray-text); font-weight: 600;">OC sugerida = (Consumo promedio 3 meses + Alto mensual del año) / 2</div>
-        </div>
-        <p style="font-size: 12px; color: var(--gray-muted); margin-bottom: 16px;">
-            La IA analiza el inventario actual y genera una OC con los productos que están bajo el mínimo. Se auto-aprueba inmediatamente.
-        </p>
-        <form method="POST" action="{{ route('proveedores.oc.generar') }}" style="display:inline;">
-            @csrf
-            <button type="submit" class="btn-generar">Generar OC ahora</button>
-        </form>
-    </div>
 
     {{-- BUSCADOR --}}
     <div class="search-bar">
-        <input type="text" class="search-input" id="buscarFolio" placeholder="Buscar por número de folio o producto...">
+        <input type="text" class="search-input" id="buscarFolio" placeholder="Buscar por folio, fecha o estatus...">
         <button class="btn-search" onclick="buscarOC()">Buscar</button>
     </div>
 
-    {{-- MÉTRICAS — clickeables para filtrar --}}
-    <div class="metrics-row" style="grid-template-columns: repeat(4, 1fr);">
-        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="filtrarOCPorEstatus('atrasada')" id="card-atrasada">
-            <div class="accent" style="background:var(--red)"></div>
-            <div class="metric-label">OC Atrasadas</div>
-            <div class="metric-value" style="color:var(--red);">{{ $ordenes->filter(fn($o) => $o->estatus !== 'completada' && $o->created_at->addDays(30)->isPast())->count() }}</div>
+    {{-- KPIs clickeables: al picar uno, filtra la tabla por ese estatus. "Total de OC" muestra todo.
+         Colores fijos (hex) para que se vean sí o sí, sin depender de variables del tema. --}}
+    <div class="metrics-row">
+        <div class="metric-card" style="cursor:pointer;" data-filtro="todos" onclick="filtrarOC('todos', this)">
+            <div class="accent" style="background:#6B3FA0"></div>
+            <div class="metric-label">Total de OC</div>
+            <div class="metric-value">{{ $stats['total'] }}</div>
         </div>
-        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="filtrarOCPorEstatus('en_proceso')" id="card-en_proceso">
-            <div class="accent" style="background:var(--amber)"></div>
-            <div class="metric-label">OC En proceso</div>
-            <div class="metric-value">{{ $stats['en_proceso'] }}</div>
+        <div class="metric-card" style="cursor:pointer;" data-filtro="pendiente" onclick="filtrarOC('pendiente', this)">
+            <div class="accent" style="background:#dc2626"></div>
+            <div class="metric-label">Pendientes</div>
+            <div class="metric-value" style="color:#dc2626;">{{ $stats['pendientes'] }}</div>
         </div>
-        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="filtrarOCPorEstatus('aprobada')" id="card-aprobada">
-            <div class="accent" style="background:var(--purple)"></div>
-            <div class="metric-label">OC Abiertas</div>
-            <div class="metric-value">{{ $stats['abiertas'] }}</div>
+        <div class="metric-card" style="cursor:pointer;" data-filtro="pagada" onclick="filtrarOC('pagada', this)">
+            <div class="accent" style="background:#16a34a"></div>
+            <div class="metric-label">Pagadas</div>
+            <div class="metric-value" style="color:#16a34a;">{{ $stats['pagadas'] }}</div>
         </div>
-        <div class="metric-card" style="cursor:pointer;transition:all .15s;" onclick="filtrarOCPorEstatus('completada')" id="card-completada">
-            <div class="accent" style="background:var(--green)"></div>
-            <div class="metric-label">OC Completadas</div>
-            <div class="metric-value">{{ $stats['completadas'] }}</div>
+        <div class="metric-card" style="cursor:pointer;" data-filtro="cancelada" onclick="filtrarOC('cancelada', this)">
+            <div class="accent" style="background:#9ca3af"></div>
+            <div class="metric-label">Canceladas</div>
+            <div class="metric-value" style="color:#6b7280;">{{ $stats['canceladas'] }}</div>
         </div>
     </div>
 
-    {{-- TABLA --}}
+    {{-- TABLA de OC reales de Wiese --}}
     <div class="card">
         <div class="card-head">
-            <h3>Órdenes de Compra</h3>
-            <div class="card-head-right">
-                <button class="btn-excel" onclick="exportarExcel('tablaOC','ordenes-compra')">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Exportar Excel
-                </button>
-            </div>
+            <h3>Órdenes de Compra ({{ $stats['total'] }})</h3>
+            <button class="btn-excel" onclick="exportarExcel('tablaOC','ordenes-compra')">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar Excel
+            </button>
         </div>
         <div style="overflow-x:auto;">
         <table class="tabla" id="tablaOC">
             <thead>
-                <tr><th>OC #</th><th>Fecha</th><th>Código producto</th><th>Productos</th><th>Cantidad</th><th>Importe</th><th>Fecha vencimiento</th><th>Motivo</th><th>Estatus</th></tr>
+                <tr>
+                    <th>Folio OC</th>
+                    <th>Serie</th>
+                    <th>Fecha</th>
+                    <th>Vencimiento</th>
+                    <th style="text-align:right;">Total</th>
+                    <th style="text-align:right;">Pendiente</th>
+                    <th>Estatus</th>
+                </tr>
             </thead>
             <tbody>
                 @forelse($ordenes as $oc)
-                @php $ocAtrasada = $oc->estatus !== 'completada' && $oc->created_at->addDays(30)->isPast(); @endphp
-                <tr data-estatus="{{ $oc->estatus }}" data-atrasada="{{ $ocAtrasada ? '1' : '0' }}" style="{{ $ocAtrasada ? 'background:rgba(255,59,48,0.04);' : '' }}">
-                    <td><strong>#{{ $oc->id }}</strong></td>
-                    <td>{{ $oc->created_at->format('d/m/Y') }}</td>
-                    <td style="font-size:12px;">
-                        @foreach($oc->productos ?? [] as $prod)
-                            {{ $prod['codigo'] ?? '' }}<br>
-                        @endforeach
-                    </td>
-                    <td style="font-size:12px;">
-                        @foreach($oc->productos ?? [] as $prod)
-                            {{ $prod['nombre'] ?? '' }}<br>
-                        @endforeach
-                    </td>
-                    <td style="font-size:12px;">
-                        @foreach($oc->productos ?? [] as $prod)
-                            {{ $prod['cantidad'] ?? 0 }} {{ $prod['unidad'] ?? '' }}<br>
-                        @endforeach
-                    </td>
-                    <td style="font-weight:600;">${{ number_format($oc->monto_estimado, 2) }}</td>
-                    <td>{{ $oc->created_at->addDays(30)->format('d/m/Y') }}</td>
-                    <td style="font-size:12px;color:var(--gray-muted);">{{ Str::limit($oc->motivo, 40) }}</td>
+                <tr class="oc-row" data-estatus="{{ $oc['estatus'] }}">
+                    <td><strong>{{ $oc['folio'] ?: '—' }}</strong></td>
+                    <td>{{ $oc['serie'] ?: '—' }}</td>
+                    <td>{{ !empty($oc['fecha']) ? \Illuminate\Support\Carbon::parse($oc['fecha'])->format('d/m/Y') : '—' }}</td>
+                    <td>{{ !empty($oc['vence']) ? \Illuminate\Support\Carbon::parse($oc['vence'])->format('d/m/Y') : '—' }}</td>
+                    <td class="monto" style="text-align:right;">${{ number_format($oc['total'], 2) }}</td>
+                    <td class="monto" style="text-align:right;font-weight:600;">${{ number_format($oc['pendiente'], 2) }}</td>
                     <td>
-                        @if($oc->estatus === 'aprobada')
-                            <span class="badge badge-green">Aprobada</span>
-                        @elseif($oc->estatus === 'en_proceso')
-                            <span class="badge badge-amber">En proceso</span>
-                        @elseif($oc->estatus === 'completada')
-                            <span class="badge badge-blue">Completada</span>
+                        @if($oc['estatus'] === 'pagada')
+                            <span class="badge badge-green">Pagada</span>
+                        @elseif($oc['estatus'] === 'cancelada')
+                            <span class="badge badge-red">Cancelada</span>
                         @else
-                            <span class="badge badge-amber">{{ ucfirst($oc->estatus) }}</span>
+                            <span class="badge badge-red">Pendiente</span>
                         @endif
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="9" style="text-align:center;padding:32px;color:var(--gray-muted);">
-                        No hay órdenes de compra. Se generarán automáticamente cuando el inventario lo requiera.
+                    <td colspan="7" style="text-align:center;padding:32px;color:var(--gray-muted);">
+                        No se encontraron órdenes de compra registradas.
                     </td>
                 </tr>
                 @endforelse
@@ -188,39 +160,38 @@ function exportarExcel(tablaId, nombre) {
     a.click();
 }
 
-function buscarOC() {
-    const texto = document.getElementById('buscarFolio').value.toLowerCase();
-    document.querySelectorAll('#tablaOC tbody tr').forEach(fila => {
-        fila.style.display = fila.textContent.toLowerCase().includes(texto) ? '' : 'none';
+// Estado de los dos filtros que trabajan juntos: el texto del buscador y el estatus del KPI.
+var ocFiltroEstatus = 'todos';
+
+// Aplica AMBOS filtros a la vez (texto + estatus) sobre cada fila de la tabla.
+function aplicarFiltrosOC() {
+    var texto = (document.getElementById('buscarFolio').value || '').toLowerCase();
+    document.querySelectorAll('#tablaOC tbody tr.oc-row').forEach(function (fila) {
+        var coincideTexto = fila.textContent.toLowerCase().includes(texto);
+        var est = fila.getAttribute('data-estatus') || '';
+        var coincideEstatus = (ocFiltroEstatus === 'todos') || (est === ocFiltroEstatus);
+        fila.style.display = (coincideTexto && coincideEstatus) ? '' : 'none';
     });
 }
-document.getElementById('buscarFolio').addEventListener('keyup', e => { if (e.key === 'Enter') buscarOC(); });
 
-// Filtrar OC por estatus al hacer click en las cards
-var filtroActivo = null;
-function filtrarOCPorEstatus(estatus) {
-    if (filtroActivo === estatus) {
-        filtroActivo = null;
-        document.querySelectorAll('#tablaOC tbody tr').forEach(fila => { fila.style.display = ''; });
-        document.querySelectorAll('.metric-card').forEach(c => { c.style.boxShadow = ''; c.style.border = ''; });
-        return;
-    }
+// Buscador (botón y Enter).
+function buscarOC() { aplicarFiltrosOC(); }
+document.getElementById('buscarFolio').addEventListener('keyup', function (e) { aplicarFiltrosOC(); });
 
-    filtroActivo = estatus;
-    document.querySelectorAll('#tablaOC tbody tr').forEach(fila => {
-        if (estatus === 'atrasada') {
-            fila.style.display = fila.getAttribute('data-atrasada') === '1' ? '' : 'none';
-        } else {
-            fila.style.display = fila.getAttribute('data-estatus') === estatus ? '' : 'none';
-        }
+// KPI clickeable: filtra por estatus y resalta la tarjeta activa.
+function filtrarOC(estatus, card) {
+    ocFiltroEstatus = (ocFiltroEstatus === estatus && estatus !== 'todos') ? 'todos' : estatus;
+
+    // Resaltar la tarjeta activa (borde morado); limpiar las demás.
+    document.querySelectorAll('.metric-card').forEach(function (c) {
+        c.style.boxShadow = '';
+        c.style.borderColor = '';
     });
-
-    document.querySelectorAll('.metric-card').forEach(c => { c.style.boxShadow = ''; c.style.border = '0.5px solid var(--border)'; });
-    var cardActiva = document.getElementById('card-' + estatus);
-    if (cardActiva) {
-        cardActiva.style.boxShadow = '0 0 0 2px var(--purple)';
-        cardActiva.style.border = '1.5px solid var(--purple)';
+    if (ocFiltroEstatus !== 'todos' && card) {
+        card.style.boxShadow = '0 0 0 2px #6B3FA0';
     }
+
+    aplicarFiltrosOC();
 }
 </script>
 @endpush

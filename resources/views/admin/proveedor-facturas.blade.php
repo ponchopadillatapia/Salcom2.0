@@ -72,6 +72,15 @@
     </a>
 </div>
 
+{{-- POR QUÉ título grande y explícito: esta pantalla muestra DOS tablas (facturas del portal y OC
+     de Wiese) que se confundían. El encabezado deja claro que ESTA es de FACTURAS subidas por el
+     proveedor (base local), no de órdenes de compra. --}}
+<h2 style="font-size:18px;font-weight:800;color:var(--purple-dark,#5b21b6);margin:28px 0 4px;display:flex;align-items:center;gap:8px;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    Facturas subidas por el proveedor
+</h2>
+<p style="font-size:12px;color:var(--gray-muted);margin:0 0 12px;">Facturas que el proveedor cargó en el portal (base local). Las órdenes de compra están más abajo.</p>
+
 <div class="table-card">
     <div class="table-head">Detalle de adeudos — {{ $proveedor->nombre ?? $codigo }}</div>
     @if($facturas->count())
@@ -79,8 +88,9 @@
         <thead>
             <tr>
                 <th>Factura</th>
-                <th>Producto</th>
-                <th>Código producto</th>
+                <th>UUID (folio fiscal)</th>
+                <th>Concepto</th>
+                <th>ClaveProdServ</th>
                 <th>Total</th>
                 <th>Vencimiento</th>
                 <th>Días vencido</th>
@@ -91,19 +101,28 @@
         @foreach($facturas as $f)
             @php
                 $vencida = $f->estatus === 'pendiente' && $f->fecha_vencimiento && $f->fecha_vencimiento->isPast();
-                $diasV = $vencida ? $f->fecha_vencimiento->diffInDays(now()) : 0;
-                $producto = null;
-                if ($f->pedido_id) {
+                // POR QUÉ (int) round(...): diffInDays a veces da decimales largos (4.43...). Redondeamos
+                // a días enteros para que NO salga "4.4311301525579 días", solo "4 días".
+                $diasV = $vencida ? (int) round($f->fecha_vencimiento->diffInDays(now())) : 0;
+
+                // Datos del CFDI (guardados al validar) — NO dependen de pedido local ni del API.
+                $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
+                // Concepto/producto: primero lo del CFDI; respaldo: pedido local si existiera.
+                $concepto = $vd['producto'] ?? null;
+                $claveProdServ = $vd['clave_prod_serv'] ?? ($vd['claves_prod_serv'][0] ?? null);
+                if ((! $concepto || ! $claveProdServ) && $f->pedido_id) {
                     $pedido = \App\Models\Pedido::find($f->pedido_id);
                     if ($pedido && is_array($pedido->productos) && count($pedido->productos) > 0) {
-                        $producto = $pedido->productos[0];
+                        $concepto = $concepto ?: ($pedido->productos[0]['nombre'] ?? null);
+                        $claveProdServ = $claveProdServ ?: ($pedido->productos[0]['sku'] ?? $pedido->productos[0]['codigo'] ?? null);
                     }
                 }
             @endphp
             <tr>
                 <td style="font-weight:700;color:var(--purple)">{{ $f->folio_cfdi }}</td>
-                <td>{{ $producto['nombre'] ?? 'Compra general' }}</td>
-                <td style="color:var(--gray-muted)">{{ $producto['sku'] ?? $producto['codigo'] ?? '—' }}</td>
+                <td style="font-size:11px;color:var(--gray-muted)">{{ $f->uuid_cfdi ? \Illuminate\Support\Str::limit($f->uuid_cfdi, 20) : '—' }}</td>
+                <td>{{ $concepto ?: 'Compra general' }}</td>
+                <td style="color:var(--gray-muted)">{{ $claveProdServ ?: '—' }}</td>
                 <td style="font-weight:700;font-variant-numeric:tabular-nums">${{ number_format($f->total, 2) }}</td>
                 <td style="color:{{ $vencida ? '#dc2626' : 'var(--gray-muted)' }};font-weight:{{ $vencida ? '700' : '400' }}">
                     {{ $f->fecha_vencimiento?->format('d/m/Y') ?? '—' }}
@@ -123,7 +142,7 @@
                     @elseif($vencida)
                         <span class="badge badge-vencida">Vencida</span>
                     @else
-                        <span class="badge badge-pendiente">Pendiente</span>
+                        <span class="badge badge-vencida">Pendiente</span>
                     @endif
                 </td>
             </tr>
@@ -135,8 +154,15 @@
     @endif
 </div>
 
-{{-- Órdenes de compra desde Wiese --}}
-<div class="table-card section-gap">
+{{-- Órdenes de compra desde Wiese. Título grande para diferenciarlas CLARAMENTE de las facturas
+     de arriba (antes se confundían: arriba facturas, aquí OC). --}}
+<h2 style="font-size:18px;font-weight:800;color:#1d4ed8;margin:36px 0 4px;display:flex;align-items:center;gap:8px;">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11H3v10h6V11zM21 3h-6v18h6V3zM15 7H9v14h6V7z"/></svg>
+    Órdenes de compra (Wiese)
+</h2>
+<p style="font-size:12px;color:var(--gray-muted);margin:0 0 12px;">Pedidos que Salcom le hizo a este proveedor en el sistema contable. NO son facturas.</p>
+
+<div class="table-card section-gap" style="margin-top:0;">
     <div class="table-head">Órdenes de compra (Wiese)</div>
     <form method="GET" action="{{ route('admin.proveedor-facturas', $codigo) }}" class="oc-filters">
         <label>
@@ -173,7 +199,7 @@
             <table class="tbl" id="oc-tabla">
                 <thead>
                     <tr>
-                        <th>Folio OC (Wiese)</th>
+                        <th>Órdenes de compra</th>
                         <th>Fecha</th>
                         <th>Razón social</th>
                         <th>RFC</th>
@@ -214,7 +240,7 @@
                             @if($estatusOc === 'cancelada')
                                 <span class="badge badge-vencida">Cancelada</span>
                             @elseif($estatusOc === 'pendiente')
-                                <span class="badge badge-pendiente">Pendiente</span>
+                                <span class="badge badge-vencida">Pendiente</span>
                             @else
                                 <span class="badge badge-pagada">Pagada</span>
                             @endif

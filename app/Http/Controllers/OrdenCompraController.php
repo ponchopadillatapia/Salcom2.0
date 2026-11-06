@@ -11,23 +11,67 @@ use Illuminate\Http\Request;
 
 class OrdenCompraController extends Controller
 {
-    public function mostrarConsultarOC()
+    public function mostrarConsultarOC(\App\Services\ProveedorApiService $wieseApi)
     {
-        $provId = session('proveedor_id');
+        // POR QUÉ cambió: antes esta pantalla mostraba OC "generadas por IA" (tabla local OcBorrador
+        // según inventario). Said pidió que el proveedor vea sus ÓRDENES DE COMPRA REALES de Wiese
+        // (las mismas que el admin ve en Detalle de adeudos), no sugerencias de IA. Ahora se traen
+        // de Wiese por el código del proveedor (CIDDOCUMENTODE=17 = órdenes de compra).
+        $proveedor = ProveedorUser::find(session('proveedor_id'));
+        $wieseCodigo = trim((string) ($proveedor?->id_proveedor ?? $proveedor?->codigo ?? ''));
 
-        // orderBy id evita filesort del JSON `productos` (Out of sort memory en prod).
-        $ordenes = OcBorrador::where('proveedor_id', $provId)
-            ->orderByDesc('id')
-            ->get();
+        $ordenes = collect();
+        $wieseError = null;
+
+        if ($wieseCodigo === '') {
+            $wieseError = 'Tu cuenta aún no tiene código del sistema contable. Contacta a Salcom.';
+        } else {
+            try {
+                // Ventana amplia: desde inicio del año anterior hasta hoy (cubre el historial útil).
+                $desde = now()->subYear()->startOfYear()->format('Y-m-d');
+                $hasta = now()->format('Y-m-d');
+                $res = $wieseApi->listarDocumentosOCPorProveedorFechas($wieseCodigo, $desde, $hasta);
+                if ($res['success'] ?? false) {
+                    $ordenes = collect($res['data']['items'] ?? [])
+                        ->map(function ($oc) {
+                            // Estatus de la OC: cancelada / pagada / pendiente (misma regla que el admin).
+                            if ((int) ($oc['ccancelado'] ?? 0) === 1) {
+                                $estatus = 'cancelada';
+                            } elseif ((float) ($oc['cpendiente'] ?? 0) > 0) {
+                                $estatus = 'pendiente';
+                            } else {
+                                $estatus = 'pagada';
+                            }
+
+                            return [
+                                'folio' => (string) ($oc['cfolio'] ?? $oc['folio'] ?? ''),
+                                'serie' => (string) ($oc['cseriedocumento'] ?? $oc['serie'] ?? ''),
+                                'fecha' => $oc['cfecha'] ?? $oc['fechaFactura'] ?? null,
+                                'vence' => $oc['cfechavencimiento'] ?? $oc['fechaVence'] ?? null,
+                                'total' => (float) ($oc['ctotal'] ?? $oc['total'] ?? 0),
+                                'pendiente' => (float) ($oc['cpendiente'] ?? 0),
+                                'estatus' => $estatus,
+                            ];
+                        })
+                        ->sortByDesc(fn ($o) => (string) ($o['fecha'] ?? ''))
+                        ->values();
+                } else {
+                    $wieseError = $res['message'] ?? 'No se pudieron cargar tus órdenes de compra.';
+                }
+            } catch (\Throwable $e) {
+                $wieseError = 'No se pudo conectar con el sistema contable.';
+            }
+        }
 
         $stats = [
-            'abiertas' => $ordenes->where('estatus', 'aprobada')->count(),
-            'completadas' => $ordenes->where('estatus', 'completada')->count(),
-            'en_proceso' => $ordenes->where('estatus', 'en_proceso')->count(),
-            'monto_total' => $ordenes->sum('monto_estimado'),
+            'total' => $ordenes->count(),
+            'pendientes' => $ordenes->where('estatus', 'pendiente')->count(),
+            'pagadas' => $ordenes->where('estatus', 'pagada')->count(),
+            'canceladas' => $ordenes->where('estatus', 'cancelada')->count(),
+            'monto_total' => $ordenes->sum('total'),
         ];
 
-        return view('proveedores.consultar-oc', compact('ordenes', 'stats'));
+        return view('proveedores.consultar-oc', compact('ordenes', 'stats', 'wieseError'));
     }
 
     /**

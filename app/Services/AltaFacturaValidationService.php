@@ -362,6 +362,11 @@ class AltaFacturaValidationService
             'folio' => (string) ($attrs['Folio'] ?? ''),
             'serie' => (string) ($attrs['Serie'] ?? ''),
             'fecha' => (string) ($attrs['Fecha'] ?? ''),
+            // Lugar de expedición (código postal del CFDI) y fecha de timbrado (del SAT).
+            // POR QUÉ: datos del CFDI que el admin quiere ver en el panel. La fecha de timbrado
+            // es cuándo el PAC/SAT selló la factura (NO es la fecha de pago).
+            'lugar_expedicion' => (string) ($attrs['LugarExpedicion'] ?? ''),
+            'fecha_timbrado' => $this->extraerFechaTimbrado($xml),
             'tipo_comprobante' => (string) ($attrs['TipoDeComprobante'] ?? ''),
             'moneda' => strtoupper((string) ($attrs['Moneda'] ?? 'MXN')),
             // TipoCambio del comprobante: lo necesita la regla de moneda extranjera.
@@ -431,6 +436,9 @@ class AltaFacturaValidationService
         $datos['rfc_emisor'] = $cfdi['rfc_emisor'];
         $datos['nombre_emisor'] = $cfdi['nombre_emisor'];
         $datos['rfc_receptor'] = $cfdi['rfc_receptor'];
+        $datos['fecha'] = $cfdi['fecha'] ?? null;                         // fecha de emisión del CFDI
+        $datos['fecha_timbrado'] = $cfdi['fecha_timbrado'] ?? null;       // cuándo lo selló el SAT/PAC
+        $datos['lugar_expedicion'] = $cfdi['lugar_expedicion'] ?? null;   // CP de expedición
         $datos['regimen_fiscal'] = $cfdi['regimen_fiscal'];
         $datos['forma_pago'] = $cfdi['forma_pago'];
         $datos['metodo_pago'] = $cfdi['metodo_pago'];
@@ -826,7 +834,9 @@ class AltaFacturaValidationService
 
         $datos['oc_cruce_detalle']['estado'] = 'ok';
         $checklist['oc_cantidad']['ok'] = true;
-        $checklist['oc_cantidad']['label'] = "OC {$folioOc}: facturas {$cantidadFactura} de {$cantidadRecibida} ya recibidas (pedido: {$cantidadOc})";
+        // POR QUÉ el texto: aclara que son UNIDADES/piezas del producto (antes decía "facturas 7200",
+        // que confundía: no son facturas, son las piezas facturadas vs. las recibidas en almacén).
+        $checklist['oc_cantidad']['label'] = "OC {$folioOc}: factura {$cantidadFactura} piezas de {$cantidadRecibida} recibidas en almacén (pedido: {$cantidadOc})";
     }
 
     /**
@@ -1625,6 +1635,23 @@ class AltaFacturaValidationService
         }
 
         return ['uuids' => array_values(array_unique($uuids)), 'tipo_relacion' => $tipoRelacion];
+    }
+
+    /**
+     * Fecha de timbrado del CFDI (atributo FechaTimbrado del TimbreFiscalDigital).
+     * POR QUÉ: es cuándo el SAT/PAC selló la factura; dato real del CFDI que el admin quiere ver.
+     * NO es la fecha de pago (esa la define Salcom) ni la de recepción de mercancía.
+     */
+    private function extraerFechaTimbrado(SimpleXMLElement $xml): ?string
+    {
+        $nodes = $xml->xpath("//*[local-name()='TimbreFiscalDigital']");
+        if ($nodes && isset($nodes[0])) {
+            $fecha = (string) ($nodes[0]->attributes()['FechaTimbrado'] ?? '');
+
+            return $fecha !== '' ? $fecha : null;
+        }
+
+        return null;
     }
 
     private function extraerUuid(SimpleXMLElement $xml): ?string

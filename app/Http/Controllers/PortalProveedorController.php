@@ -425,7 +425,15 @@ class PortalProveedorController extends Controller
             'campo' => $campo,
         ];
 
-        // === Facturas Wiese (API) ===
+        // === FACTURAS reales de Wiese (tipo 19), NO órdenes de compra ===
+        // POR QUÉ el cambio: antes esta sección usaba listarDocumentosOCPorProveedorFechas, que trae
+        // ÓRDENES DE COMPRA (tipo 17) — pero se mostraban bajo el título "Facturas", lo que confundía
+        // (las OC ya tienen su propia pantalla "Órdenes de Compra" en el menú del proveedor). Aquí,
+        // en "Mis Facturas", el proveedor debe ver sus FACTURAS pendientes de pago (tipo 19), que es
+        // justo lo que trae listarFacturasPendientesTodos filtrando por su código (mismo método que
+        // usa el admin en Formato para pago). Mapeamos los campos (serie/folio/total/saldo/fecha_vence)
+        // a los nombres crudos que la vista ya usaba (cfolio/ctotal/cpendiente/cfecha...) para no
+        // reescribir toda la tabla ni el modal.
         $wieseFacturas = collect();
         $wieseTotal = 0;
         $wieseError = null;
@@ -435,49 +443,41 @@ class PortalProveedorController extends Controller
         if ($wieseCodigo !== '') {
             try {
                 $wieseApi = app(ProveedorApiService::class);
-                $fechaInicio = $request->input('fecha_desde', now()->subYear()->startOfYear()->format('Y-m-d'));
-                $fechaFin = $request->input('fecha_hasta', now()->format('Y-m-d'));
-                $ocResult = $wieseApi->listarDocumentosOCPorProveedorFechas($wieseCodigo, $fechaInicio, $fechaFin);
-                if ($ocResult['success'] ?? false) {
-                    $all = collect($ocResult['data']['items'] ?? []);
+                $facRes = $wieseApi->listarFacturasPendientesTodos('2020-01-01', '2035-12-31', null, $wieseCodigo);
+                if ($facRes['success'] ?? false) {
+                    $all = collect($facRes['data']['items'] ?? [])
+                        // Mapear a los nombres que la vista/modal ya consumen (c... de Wiese).
+                        ->map(function ($f) {
+                            $serie = (string) ($f['serie'] ?? '');
+                            $folio = (string) ($f['folio'] ?? '');
 
-                    // Asignar estatus: cancelado=1 → cancelada, pendiente>0 → pendiente, else → pagada
-                    $all = $all->map(function ($doc) {
-                        if (($doc['ccancelado'] ?? 0) == 1) {
-                            $doc['_estatus'] = 'cancelada';
-                        } elseif (($doc['cpendiente'] ?? 0) > 0) {
-                            $doc['_estatus'] = 'pendiente';
-                        } else {
-                            $doc['_estatus'] = 'pagada';
-                        }
+                            return [
+                                'cfolio' => trim($serie.' '.$folio),
+                                'cfecha' => $f['fecha_factura'] ?? null,
+                                'cfechavencimiento' => $f['fecha_vence'] ?? null,
+                                'ctotal' => (float) ($f['total'] ?? 0),
+                                // listarFacturasPendientesTodos ya filtra saldo>0: todas son pendientes.
+                                'cpendiente' => (float) ($f['saldo'] ?? $f['total'] ?? 0),
+                                'crazonsocial' => (string) ($f['nombre'] ?? ($proveedor->nombre ?? '')),
+                                'crfc' => (string) ($f['rfc'] ?? ''),
+                                'creferencia' => (string) ($f['referencia'] ?? ''),
+                                'cobservaciones' => '',
+                                '_estatus' => 'pendiente',
+                            ];
+                        })
+                        ->values();
 
-                        return $doc;
-                    })->values();
-
-                    // KPIs Wiese
-                    $wieseKpis['pendientes'] = $all->where('_estatus', 'pendiente')->count();
-                    $wieseKpis['pagadas'] = $all->where('_estatus', 'pagada')->count();
-                    $wieseKpis['canceladas'] = $all->where('_estatus', 'cancelada')->count();
+                    // KPIs: todas las de este endpoint son facturas pendientes de pago.
+                    $wieseKpis['pendientes'] = $all->count();
                     $wieseKpis['totales'] = $all->count();
 
-                    // Filtrar por estatus si viene en query
-                    $filtroEstatus = $request->input('wiese_estatus', '');
-                    if ($filtroEstatus !== '') {
-                        $all = $all->where('_estatus', $filtroEstatus);
-                    }
-
-                    // Más recientes arriba: ordenar por fecha de la factura descendente.
-                    // POR QUÉ: Wiese las manda por folio ascendente (viejas primero); el proveedor
-                    // quiere ver primero lo más nuevo. Se cubren los nombres de campo de fecha que
-                    // puede traer Wiese (cfecha / fecha / fechaFactura).
-                    $all = $all->sortByDesc(function ($doc) {
-                        return (string) ($doc['cfecha'] ?? $doc['fecha'] ?? $doc['fechaFactura'] ?? '');
-                    })->values();
+                    // Más recientes arriba (por fecha de factura).
+                    $all = $all->sortByDesc(fn ($doc) => (string) ($doc['cfecha'] ?? ''))->values();
 
                     $wieseTotal = $all->count();
                     $wieseFacturas = $all->take(100)->values();
                 } else {
-                    $wieseError = $ocResult['message'] ?? 'No se pudieron cargar las facturas.';
+                    $wieseError = $facRes['message'] ?? 'No se pudieron cargar las facturas.';
                 }
             } catch (\Exception $e) {
                 $wieseError = 'No se pudo conectar con el sistema de facturación.';
@@ -2263,15 +2263,127 @@ class PortalProveedorController extends Controller
             // No bloquear el alta si falla la notificación
         }
 
-        // Auto-ligar anticipos timbrados que esta factura aplique (CfdiRelacionados 07),
-        // con respaldo por número de OC/folio_general.
+        // ── FLUJO DE ANTICIPOS (sin importar el orden de subida) ──
+        // POR QUÉ: el proveedor puede subir en cualquier orden el anticipo (ClaveProdServ 84111506),
+        // la factura final (relaciona el anticipo, TipoRelacion 07) y la nota de crédito (forma 30,
+        // "mata" el anticipo). Antes solo se ligaba factura→anticipo y únicamente si el anticipo lo
+        // había registrado el admin ANTES. Ahora:
+        //   1) Si ESTA factura ES un anticipo, se registra solo en anticipos_proveedor (estatus pagado).
+        //   2) Luego se RECONCILIA: se ligan las piezas que ya existan (en ambos sentidos).
+        //   3) Si ESTA es una NC forma 30, mata el anticipo que referencia.
+        // Todo tolerante a fallos: si algo truena, no se cae el alta de la factura.
         try {
-            $this->autoLigarAnticipos($factura, $datos, (string) $codigoProv);
+            $this->procesarFlujoAnticipos($factura, $datos, (string) $codigoProv);
         } catch (\Throwable $e) {
-            Log::warning('[AutoAnticipo] No se pudo auto-ligar: '.$e->getMessage());
+            Log::warning('[AutoAnticipo] No se pudo procesar el flujo de anticipos: '.$e->getMessage());
         }
 
         return $factura;
+    }
+
+    /**
+     * Orquesta el flujo anticipo→NC→factura final al registrar CUALQUIER factura por el portal.
+     * Es idempotente y no depende del orden de subida.
+     *
+     * @param  array<string, mixed>  $datos  resultado de validación del CFDI recién subido
+     */
+    private function procesarFlujoAnticipos(Factura $factura, array $datos, string $codigoProv): void
+    {
+        $esNc = ! empty($datos['es_nota_credito']);
+        $esAnticipo = ! $esNc && $this->cfdiEsAnticipo($datos);
+
+        // 1) Si la factura recién subida ES un anticipo, materializarlo en anticipos_proveedor.
+        if ($esAnticipo) {
+            $this->registrarAnticipoDesdeFactura($factura, $datos, $codigoProv);
+        }
+
+        // 2) Si es una NOTA DE CRÉDITO forma 30, mata el anticipo que referencia.
+        if ($esNc && (string) ($datos['forma_pago'] ?? '') === '30') {
+            $this->matarAnticipoConNotaCredito($factura, $datos, $codigoProv);
+        }
+
+        // 3) Reconciliar: ligar factura_final↔anticipo con lo que ya exista (en cualquier orden).
+        //    - Si subieron la factura final: busca su anticipo y lo aplica.
+        //    - Si subieron el anticipo: busca facturas finales previas que lo relacionen.
+        $this->reconciliarAnticipos($factura, $datos, $codigoProv, $esAnticipo);
+    }
+
+    /**
+     * ¿El CFDI recién validado es una factura de ANTICIPO? (ClaveProdServ 84111506 en conceptos).
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function cfdiEsAnticipo(array $datos): bool
+    {
+        $claves = (array) config('facturas.claves_anticipo', ['84111506']);
+        foreach (($datos['conceptos_detalle'] ?? []) as $c) {
+            if (in_array(trim((string) ($c['clave_prod_serv'] ?? '')), $claves, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Crea el registro en anticipos_proveedor a partir de una factura-anticipo subida por el portal.
+     * Idempotente: si ya existe un anticipo con ese uuid_cfdi, no lo duplica.
+     *
+     * POR QUÉ "pagado": el proveedor confirmó (y Said validó) que el anticipo que se sube por el
+     * portal YA está pagado por Salcom; por eso nace listo para aplicarse a la factura final.
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function registrarAnticipoDesdeFactura(Factura $factura, array $datos, string $codigoProv): void
+    {
+        $uuid = strtoupper(trim((string) ($datos['uuid'] ?? $factura->uuid_cfdi ?? '')));
+        if ($uuid === '') {
+            return; // sin UUID no hay forma segura de ligar/deduplicar
+        }
+
+        // Idempotencia: no crear dos veces el mismo anticipo (si se re-sube o se reintenta).
+        if (AnticipoProveedor::where(DB::raw('UPPER(uuid_cfdi)'), $uuid)->exists()) {
+            return;
+        }
+
+        $importe = (float) ($datos['subtotal'] ?? 0);
+        $iva = (float) ($datos['iva'] ?? 0);
+        $totalBanco = (float) (($datos['total'] ?? 0) ?: ($importe + $iva));
+
+        // folio_general = referencia para el respaldo de ligado por OC/folio (si no hay UUID en la
+        // factura final). Usamos el número de OC declarado o el folio del propio anticipo.
+        $folioGeneral = trim((string) (
+            $datos['numero_oc']
+            ?? ($factura->validacion_detalle['numero_oc'] ?? '')
+            ?? ''
+        ));
+        if ($folioGeneral === '') {
+            $folioGeneral = trim((string) ($datos['serie'] ?? '').(string) ($datos['folio'] ?? ''));
+        }
+
+        $proveedor = $factura->proveedor;
+
+        AnticipoProveedor::create([
+            'folio' => 'FCONA-PORTAL',
+            'proveedor_id' => $proveedor?->id,
+            'codigo_proveedor' => $codigoProv,
+            'nombre_proveedor' => $proveedor?->nombre ?? $codigoProv,
+            'rfc_proveedor' => strtoupper((string) ($datos['rfc_emisor'] ?? $proveedor?->rfc ?? '')),
+            'importe' => $importe,
+            'iva' => $iva,
+            'total_banco' => $totalBanco,
+            'folio_general' => $folioGeneral,
+            'uuid_cfdi' => $uuid,
+            'departamento' => 'Portal proveedor',
+            'fecha' => now()->toDateString(),
+            'concepto' => 'Anticipo subido por el proveedor (portal).',
+            'estatus' => 'pagado',
+            'monto_aplicado' => 0,
+            'datos' => [
+                'origen' => 'portal',
+                'factura_anticipo_id' => $factura->id,
+            ],
+        ]);
     }
 
     /**
@@ -2346,47 +2458,253 @@ class PortalProveedorController extends Controller
      *
      * @param  array<string, mixed>  $datos
      */
-    private function autoLigarAnticipos(Factura $factura, array $datos, string $codigoProv): void
+    /**
+     * Reconcilia anticipos ↔ factura final SIN importar el orden de subida.
+     *
+     * Dos caminos según qué se acaba de subir:
+     *   - Si se subió una FACTURA FINAL (relaciona un anticipo por UUID 07, o por folio/OC):
+     *     busca ese anticipo "pagado" y lo aplica a ESTA factura.
+     *   - Si se subió un ANTICIPO: busca facturas finales YA registradas que lo relacionen
+     *     (que llegaron antes) y le aplica el anticipo a ellas.
+     * Así, llegue primero el anticipo o primero la factura, en cuanto estén ambas se ligan.
+     *
+     * @param  array<string, mixed>  $datos
+     * @param  bool  $esAnticipo  true si la factura recién subida ES el anticipo
+     */
+    private function reconciliarAnticipos(Factura $factura, array $datos, string $codigoProv, bool $esAnticipo): void
     {
-        // 1) Match por UUID de CfdiRelacionados (solo si TipoRelacion es 07 = aplicación de anticipo).
+        if ($esAnticipo) {
+            // Llegó el anticipo. ¿Hay facturas finales previas que lo referencien? Aplicarlo a ellas.
+            $anticipo = AnticipoProveedor::where(DB::raw('UPPER(uuid_cfdi)'), strtoupper((string) $factura->uuid_cfdi))
+                ->where('estatus', 'pagado')
+                ->first();
+            if (! $anticipo) {
+                return;
+            }
+
+            $facturasDestino = $this->facturasQueRelacionanAnticipo($anticipo, $codigoProv);
+            foreach ($facturasDestino as $facturaFinal) {
+                $this->aplicarAnticipoAFactura($anticipo, $facturaFinal, 'uuid_cfdi');
+                if ($anticipo->fresh()->saldoPendiente() <= 0) {
+                    break;
+                }
+            }
+
+            return;
+        }
+
+        // Llegó una FACTURA FINAL (no anticipo, no NC): buscar su anticipo y aplicarlo.
+        $anticipos = $this->anticiposQueAplicanAFactura($factura, $datos, $codigoProv);
+        foreach ($anticipos as $anticipo) {
+            $via = ((string) ($datos['tipo_relacion'] ?? '') === '07') ? 'uuid_cfdi' : 'folio_oc';
+            $this->aplicarAnticipoAFactura($anticipo, $factura, $via);
+            $factura->refresh();
+            if (round((float) $factura->total - (float) $factura->monto_pagado, 2) <= 0) {
+                break;
+            }
+        }
+    }
+
+    /**
+     * Anticipos "pagados" que esta FACTURA FINAL referencia (por UUID 07 o por folio/OC).
+     *
+     * @param  array<string, mixed>  $datos
+     * @return \Illuminate\Support\Collection<int, AnticipoProveedor>
+     */
+    private function anticiposQueAplicanAFactura(Factura $factura, array $datos, string $codigoProv): \Illuminate\Support\Collection
+    {
+        // 1) Por UUID relacionado (TipoRelacion 07 = aplicación de anticipo).
         $tipoRelacion = (string) ($datos['tipo_relacion'] ?? '');
         $uuidsRel = array_values(array_filter(array_map(
             fn ($u) => strtoupper(trim((string) $u)),
             (array) ($datos['cfdi_relacionados'] ?? [])
         )));
 
-        $anticipos = collect();
-
         if ($tipoRelacion === '07' && ! empty($uuidsRel)) {
-            $anticipos = AnticipoProveedor::query()
+            $porUuid = AnticipoProveedor::query()
                 ->where('codigo_proveedor', $codigoProv)
                 ->where('estatus', 'pagado')
                 ->whereNotNull('uuid_cfdi')
                 ->whereIn(DB::raw('UPPER(uuid_cfdi)'), $uuidsRel)
                 ->get();
+            if ($porUuid->isNotEmpty()) {
+                return $porUuid;
+            }
         }
 
-        // 2) Respaldo por número de OC: si el folio de la factura o su serie/folio
-        //    contienen el folio_general del anticipo. Solo si no hubo match por UUID.
+        // 2) Respaldo por folio/OC (solo si no hubo match por UUID).
+        $refFactura = strtoupper(trim(
+            (string) ($factura->folio_cfdi ?? '').' '.
+            (string) ($datos['serie'] ?? '').' '.
+            (string) ($datos['folio'] ?? '').' '.
+            (string) ($datos['numero_oc'] ?? '')
+        ));
+        if ($refFactura === '') {
+            return collect();
+        }
+
+        return AnticipoProveedor::query()
+            ->where('codigo_proveedor', $codigoProv)
+            ->where('estatus', 'pagado')
+            ->whereNotNull('folio_general')
+            ->get()
+            ->filter(function ($ant) use ($refFactura) {
+                $fg = strtoupper(trim((string) $ant->folio_general));
+
+                return $fg !== '' && str_contains($refFactura, $fg);
+            })
+            ->values();
+    }
+
+    /**
+     * Facturas finales (NO anticipo, NO NC) que relacionan a ESTE anticipo por su UUID.
+     * Se usa cuando el anticipo llega DESPUÉS de la factura final.
+     *
+     * @return \Illuminate\Support\Collection<int, Factura>
+     */
+    private function facturasQueRelacionanAnticipo(AnticipoProveedor $anticipo, string $codigoProv): \Illuminate\Support\Collection
+    {
+        $uuidAnt = strtoupper((string) $anticipo->uuid_cfdi);
+        if ($uuidAnt === '') {
+            return collect();
+        }
+
+        return Factura::query()
+            ->where('codigo_proveedor', $codigoProv)
+            ->whereNotNull('uuid_cfdi')
+            // La propia factura-anticipo NO se auto-aplica.
+            ->where(DB::raw('UPPER(uuid_cfdi)'), '!=', $uuidAnt)
+            ->get()
+            ->filter(function ($f) use ($uuidAnt) {
+                $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
+                if ((string) ($vd['tipo_relacion'] ?? '') !== '07') {
+                    return false;
+                }
+                $rels = array_map(fn ($u) => strtoupper(trim((string) $u)), (array) ($vd['cfdi_relacionados'] ?? []));
+
+                return in_array($uuidAnt, $rels, true);
+            })
+            ->values();
+    }
+
+    /**
+     * Aplica un anticipo "pagado" a una factura, moviendo el dinero con guardas:
+     *   - respeta el saldo ya aplicado del anticipo (no lo usa dos veces),
+     *   - no aplica más que el saldo pendiente de la factura,
+     *   - todo en transacción.
+     */
+    private function aplicarAnticipoAFactura(AnticipoProveedor $anticipo, Factura $factura, string $via): void
+    {
+        DB::transaction(function () use ($anticipo, $factura, $via) {
+            $anticipo->refresh();
+            $factura->refresh();
+
+            $saldoAnticipo = round((float) $anticipo->total_banco - (float) $anticipo->monto_aplicado, 2);
+            $saldoFactura = round((float) $factura->total - (float) $factura->monto_pagado, 2);
+            if ($saldoAnticipo <= 0 || $saldoFactura <= 0) {
+                return; // nada que aplicar (guarda contra doble aplicación)
+            }
+
+            $montoAplicar = min($saldoAnticipo, $saldoFactura);
+            if ($montoAplicar <= 0) {
+                return;
+            }
+
+            // Factura: sube lo pagado; si se cubre, pasa a pagada.
+            $nuevoPagado = round((float) $factura->monto_pagado + $montoAplicar, 2);
+            $factura->monto_pagado = $nuevoPagado;
+            if ($nuevoPagado >= (float) $factura->total) {
+                $factura->estatus = 'pagada';
+            }
+            $factura->save();
+
+            // Anticipo: acumula lo aplicado; si se agotó, queda "aplicado".
+            $nuevoAplicado = round((float) $anticipo->monto_aplicado + $montoAplicar, 2);
+            $anticipo->monto_aplicado = $nuevoAplicado;
+            if ($nuevoAplicado >= (float) $anticipo->total_banco) {
+                $anticipo->estatus = 'aplicado';
+                $anticipo->factura_id = $factura->id;
+            }
+            $anticipo->datos = array_merge($anticipo->datos ?? [], [
+                'aplicado_auto' => true,
+                'aplicado_via' => $via,
+                'aplicado_at' => now()->toDateTimeString(),
+                'factura_folio' => $factura->folio_cfdi,
+            ]);
+            $anticipo->save();
+
+            try {
+                Alerta::create([
+                    'tipo' => 'anticipo_autoligado',
+                    'modulo' => 'anticipos',
+                    'destinatario_tipo' => 'admin',
+                    'destinatario_id' => 1,
+                    'titulo' => 'Anticipo aplicado automáticamente',
+                    'contenido' => 'El anticipo '.($anticipo->folio_general ?: $anticipo->uuid_cfdi).' por $'.number_format($montoAplicar, 2).' se aplicó a la factura '.($factura->folio_cfdi ?: ('FAC-'.$factura->id)).'.',
+                    'nivel' => 'info',
+                    'estatus' => 'nueva',
+                    'datos' => ['anticipo_id' => $anticipo->id, 'factura_id' => $factura->id, 'monto' => $montoAplicar],
+                ]);
+            } catch (\Throwable $e) {
+                // no bloquear
+            }
+        });
+    }
+
+    /**
+     * NOTA DE CRÉDITO forma 30: "mata" el anticipo que referencia.
+     *
+     * POR QUÉ: una NC forma 30 es la aplicación formal del anticipo. Al registrarse, el anticipo
+     * referenciado se da por consumido (saldo a 0, estatus 'aplicado'). Si la NC relaciona el UUID
+     * de la FACTURA FINAL (no del anticipo), también se busca el anticipo que esa factura relaciona.
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function matarAnticipoConNotaCredito(Factura $notaCredito, array $datos, string $codigoProv): void
+    {
+        $uuidsRel = array_values(array_filter(array_map(
+            fn ($u) => strtoupper(trim((string) $u)),
+            (array) ($datos['cfdi_relacionados'] ?? [])
+        )));
+        if (empty($uuidsRel)) {
+            return; // sin UUID relacionado no se puede saber a qué anticipo mata (queda en revisión)
+        }
+
+        // Caso A: la NC relaciona DIRECTAMENTE el UUID del anticipo.
+        $anticipos = AnticipoProveedor::query()
+            ->where('codigo_proveedor', $codigoProv)
+            ->whereIn('estatus', ['pagado', 'aplicado'])
+            ->whereNotNull('uuid_cfdi')
+            ->whereIn(DB::raw('UPPER(uuid_cfdi)'), $uuidsRel)
+            ->get();
+
+        // Caso B: la NC relaciona el UUID de la FACTURA FINAL; esa factura a su vez relaciona el
+        // anticipo. Buscamos el anticipo "puente".
         if ($anticipos->isEmpty()) {
-            $refFactura = strtoupper(trim(
-                (string) ($factura->folio_cfdi ?? '').' '.
-                (string) ($datos['serie'] ?? '').' '.
-                (string) ($datos['folio'] ?? '')
-            ));
+            $facturasRel = Factura::query()
+                ->where('codigo_proveedor', $codigoProv)
+                ->whereNotNull('uuid_cfdi')
+                ->whereIn(DB::raw('UPPER(uuid_cfdi)'), $uuidsRel)
+                ->get();
 
-            if ($refFactura !== '') {
-                $candidatos = AnticipoProveedor::query()
+            $uuidsAnticipo = [];
+            foreach ($facturasRel as $f) {
+                $vd = is_array($f->validacion_detalle) ? $f->validacion_detalle : [];
+                if ((string) ($vd['tipo_relacion'] ?? '') === '07') {
+                    foreach ((array) ($vd['cfdi_relacionados'] ?? []) as $u) {
+                        $uuidsAnticipo[] = strtoupper(trim((string) $u));
+                    }
+                }
+            }
+            $uuidsAnticipo = array_values(array_filter(array_unique($uuidsAnticipo)));
+
+            if (! empty($uuidsAnticipo)) {
+                $anticipos = AnticipoProveedor::query()
                     ->where('codigo_proveedor', $codigoProv)
-                    ->where('estatus', 'pagado')
-                    ->whereNotNull('folio_general')
+                    ->whereIn('estatus', ['pagado', 'aplicado'])
+                    ->whereNotNull('uuid_cfdi')
+                    ->whereIn(DB::raw('UPPER(uuid_cfdi)'), $uuidsAnticipo)
                     ->get();
-
-                $anticipos = $candidatos->filter(function ($ant) use ($refFactura) {
-                    $fg = strtoupper(trim((string) $ant->folio_general));
-
-                    return $fg !== '' && str_contains($refFactura, $fg);
-                })->values();
             }
         }
 
@@ -2394,55 +2712,30 @@ class PortalProveedorController extends Controller
             return;
         }
 
-        DB::transaction(function () use ($anticipos, $factura, $tipoRelacion) {
+        DB::transaction(function () use ($anticipos, $notaCredito) {
             foreach ($anticipos as $anticipo) {
-                $factura->refresh();
-                $saldoFactura = round((float) $factura->total - (float) $factura->monto_pagado, 2);
-                if ($saldoFactura <= 0) {
-                    break; // ya no queda saldo por cubrir
-                }
-
-                // No aplicar más del saldo disponible de la factura.
-                $montoAplicar = min(round((float) $anticipo->total_banco, 2), $saldoFactura);
-                if ($montoAplicar <= 0) {
-                    continue;
-                }
-
-                $nuevoPagado = round((float) $factura->monto_pagado + $montoAplicar, 2);
-                $factura->monto_pagado = $nuevoPagado;
-                if ($nuevoPagado >= (float) $factura->total) {
-                    $factura->estatus = 'pagada';
-                }
-                $factura->save();
-
-                $anticipo->update([
-                    'estatus' => 'aplicado',
-                    'factura_id' => $factura->id,
-                    'monto_aplicado' => $montoAplicar,
-                    'datos' => array_merge($anticipo->datos ?? [], [
-                        'aplicado_auto' => true,
-                        'aplicado_via' => $tipoRelacion === '07' ? 'uuid_cfdi' : 'folio_oc',
-                        'aplicado_at' => now()->toDateTimeString(),
-                        'factura_folio' => $factura->folio_cfdi,
-                    ]),
+                // "Matar" el anticipo: saldo a 0, marcado como aplicado/consumido por la NC.
+                $anticipo->monto_aplicado = (float) $anticipo->total_banco;
+                $anticipo->estatus = 'aplicado';
+                $anticipo->datos = array_merge($anticipo->datos ?? [], [
+                    'matado_por_nc' => true,
+                    'nc_uuid' => $notaCredito->uuid_cfdi,
+                    'nc_folio' => $notaCredito->folio_cfdi,
+                    'matado_at' => now()->toDateTimeString(),
                 ]);
+                $anticipo->save();
 
-                // Alerta para admin: anticipo ligado automáticamente.
                 try {
                     Alerta::create([
-                        'tipo' => 'anticipo_autoligado',
+                        'tipo' => 'anticipo_matado_nc',
                         'modulo' => 'anticipos',
                         'destinatario_tipo' => 'admin',
                         'destinatario_id' => 1,
-                        'titulo' => 'Anticipo aplicado automáticamente',
-                        'contenido' => 'El anticipo '.($anticipo->folio_general ?: $anticipo->uuid_cfdi).' por $'.number_format($montoAplicar, 2).' se aplicó a la factura '.($factura->folio_cfdi ?: ('FAC-'.$factura->id)).'.',
+                        'titulo' => 'Anticipo aplicado por nota de crédito',
+                        'contenido' => 'La nota de crédito '.($notaCredito->folio_cfdi ?: ('NC-'.$notaCredito->id)).' aplicó (forma 30) el anticipo '.($anticipo->folio_general ?: $anticipo->uuid_cfdi).' por $'.number_format((float) $anticipo->total_banco, 2).'.',
                         'nivel' => 'info',
                         'estatus' => 'nueva',
-                        'datos' => [
-                            'anticipo_id' => $anticipo->id,
-                            'factura_id' => $factura->id,
-                            'monto' => $montoAplicar,
-                        ],
+                        'datos' => ['anticipo_id' => $anticipo->id, 'nc_id' => $notaCredito->id],
                     ]);
                 } catch (\Throwable $e) {
                     // no bloquear

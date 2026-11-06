@@ -105,44 +105,9 @@
 </div>
 @endif
 
-<div class="inv-metrics">
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'rechazada'])) }}">
-        <div class="accent" style="background:#7f1d1d"></div>
-        <div class="inv-metric-label">Canceladas</div>
-        <div class="inv-metric-val" id="kpi-canceladas">{{ $kpis['rechazadas'] }}</div>
-        <div class="inv-metric-sub">No vigentes</div>
-    </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pendiente'])) }}">
-        <div class="accent" style="background:#6b7280"></div>
-        <div class="inv-metric-label">Pendientes</div>
-        <div class="inv-metric-val" id="kpi-pendientes">{{ $kpis['pendientes'] }}</div>
-        <div class="inv-metric-sub">Por programar</div>
-    </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'programada'])) }}">
-        <div class="accent" style="background:#dc2626"></div>
-        <div class="inv-metric-label">Programadas</div>
-        <div class="inv-metric-val" id="kpi-programadas">{{ \App\Models\Factura::whereIn('codigo_proveedor', $codigos)->where('estatus', 'programada')->count() }}</div>
-        <div class="inv-metric-sub">En proceso de pago</div>
-    </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'pagada'])) }}">
-        <div class="accent" style="background:#ca8a04"></div>
-        <div class="inv-metric-label">Pagadas</div>
-        <div class="inv-metric-val" id="kpi-pagadas">{{ \App\Models\Factura::whereIn('codigo_proveedor', $codigos)->where('estatus', 'pagada')->count() }}</div>
-        <div class="inv-metric-sub">Pago realizado</div>
-    </a>
-    <a class="inv-metric" href="{{ route('proveedores.facturas', array_merge($baseKpiQuery, ['campo' => 'estatus', 'q' => 'liquidada'])) }}">
-        <div class="accent" style="background:#16a34a"></div>
-        <div class="inv-metric-label">Liquidadas</div>
-        <div class="inv-metric-val" id="kpi-liquidadas">{{ \App\Models\Factura::whereIn('codigo_proveedor', $codigos)->where('estatus', 'liquidada')->count() }}</div>
-        <div class="inv-metric-sub">Cerradas</div>
-    </a>
-    <div class="inv-metric">
-        <div class="accent" style="background:#2563eb"></div>
-        <div class="inv-metric-label">Total pendiente</div>
-        <div class="inv-metric-val" id="kpi-dinero" style="font-size:18px">${{ number_format($kpis['por_cobrar'], 2) }}</div>
-        <div class="inv-metric-sub">Por cobrar</div>
-    </div>
-</div>
+{{-- KPIs eliminados (decisión de Said): contaban solo las facturas LOCALES subidas por el portal,
+     no reflejaban el estado real de pago del sistema contable, así que no eran funcionales para el
+     proveedor. La tabla de abajo ("Facturas registradas en sistema") ya muestra lo real de Wiese. --}}
 
 <form method="GET" action="{{ route('proveedores.facturas') }}" class="ph-toolbar">
     @if($filtros['fecha_desde'])<input type="hidden" name="fecha_desde" value="{{ $filtros['fecha_desde'] }}">@endif
@@ -175,20 +140,18 @@
         <table class="tabla" id="tablaFacturas">
             <thead>
                 <tr>
-                    <th>Folio</th>
+                    <th>Folio factura</th>
                     <th>Hora alta</th>
                     <th>Monto</th>
-                    <th>Abonado</th>
                     <th>Restante</th>
                     <th>Vencimiento</th>
                     <th>Estatus</th>
-                    <th>Hora pago</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach($facturasAgrupadas as $fechaKey => $filas)
                     <tr class="date-row">
-                        <td colspan="8">
+                        <td colspan="6">
                             @if($fechaKey === 'sin-fecha')
                                 Sin fecha
                             @else
@@ -233,7 +196,6 @@
                                 {{ $f->created_at?->format('h:i a') ?? '—' }}
                             </td>
                             <td class="monto">${{ number_format((float) $f->total, 2) }}</td>
-                            <td style="font-size:12px;color:{{ (float)($f->monto_pagado ?? 0) > 0 ? 'var(--green)' : 'var(--gray-muted)' }};font-weight:600">${{ number_format((float)($f->monto_pagado ?? 0), 2) }}</td>
                             <td style="font-size:12px;font-weight:600;color:{{ $saldo > 0 ? '#dc2626' : 'var(--green)' }}">${{ number_format($saldo, 2) }}</td>
                             <td>
                                 @if(in_array($f->estatus, ['pagada', 'liquidada']))
@@ -253,15 +215,8 @@
                                 @else
                                     <span class="pill {{ $f->estatus }}">{{ $f->estatus }}</span>
                                 @endif
-                            </td>
-                            <td style="font-size:11px;color:var(--gray-muted)">
-                                @if((float)($f->monto_pagado ?? 0) > 0)
-                                    {{ $f->updated_at?->format('d/m/Y h:i a') ?? '—' }}
-                                @else
-                                    —
-                                @endif
                                 @if($f->estatus === 'pendiente')
-                                    <span class="nueva-dot" data-id="{{ $f->id }}" style="display:inline-flex;margin-left:8px;width:12px;height:12px;border-radius:50%;background:var(--red,#dc2626);flex-shrink:0"></span>
+                                    <span class="nueva-dot" data-id="{{ $f->id }}" style="display:inline-flex;margin-left:8px;width:10px;height:10px;border-radius:50%;background:var(--red,#dc2626);flex-shrink:0"></span>
                                 @endif
                             </td>
                         </tr>
@@ -278,7 +233,8 @@
 {{-- ═══ Facturas del sistema Wiese ═══ --}}
 @if(isset($wieseFacturas))
 <div style="margin-top:32px;">
-    <h3 style="font-size:16px;font-weight:700;color:var(--gray-text);margin-bottom:16px;">Facturas registradas en sistema</h3>
+    <h3 style="font-size:16px;font-weight:700;color:var(--gray-text);margin-bottom:4px;">Facturas pendientes de pago</h3>
+    <p style="font-size:12px;color:var(--gray-muted);margin:0 0 16px;">Tus facturas que Industrias Salcom tiene registradas y aún no te paga. Tus órdenes de compra las ves en el menú «Órdenes de Compra».</p>
 
     @if($wieseError)
         <div style="background:var(--amber-bg,#fef3cd);border:1px solid var(--amber,#d97706);border-radius:10px;padding:14px;font-size:13px;color:var(--amber);">
@@ -291,7 +247,7 @@
             <table class="tabla">
                 <thead>
                     <tr>
-                        <th>Folio</th>
+                        <th>Folio factura</th>
                         <th>Fecha</th>
                         <th>Total</th>
                         <th>Pendiente</th>

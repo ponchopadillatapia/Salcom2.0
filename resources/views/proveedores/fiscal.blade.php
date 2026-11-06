@@ -569,6 +569,50 @@
                 </div>
             @endif
 
+            {{-- Serie y folio del CFDI --}}
+            @php
+                $serieCfdi = trim((string) ($res['datos']['serie'] ?? ''));
+                $folioCfdi = trim((string) ($res['datos']['folio'] ?? ''));
+            @endphp
+            @if($serieCfdi !== '' || $folioCfdi !== '')
+                <div class="dato-chip">
+                    <div class="dl">Serie y folio</div>
+                    <div class="dv">{{ trim($serieCfdi.' '.$folioCfdi) }}</div>
+                </div>
+            @endif
+
+            {{-- Fecha de timbrado: cuándo el SAT/PAC selló la factura. Dato real del CFDI.
+                 NO es la fecha de pago (esa la define Salcom). --}}
+            @php
+                $fTimbrado = null;
+                if (!empty($res['datos']['fecha_timbrado'])) {
+                    try { $fTimbrado = \Illuminate\Support\Carbon::parse($res['datos']['fecha_timbrado'])->format('d/m/Y H:i'); }
+                    catch (\Throwable $e) { $fTimbrado = null; }
+                }
+            @endphp
+            @if($fTimbrado)
+                <div class="dato-chip">
+                    <div class="dl">Fecha de timbrado (SAT)</div>
+                    <div class="dv">{{ $fTimbrado }}</div>
+                </div>
+            @endif
+
+            {{-- Emisor (proveedor) --}}
+            @if(!empty($res['datos']['nombre_emisor']))
+                <div class="dato-chip">
+                    <div class="dl">Emisor (proveedor)</div>
+                    <div class="dv">{{ $res['datos']['nombre_emisor'] }}@if(!empty($res['datos']['rfc_emisor'])) · {{ $res['datos']['rfc_emisor'] }}@endif</div>
+                </div>
+            @endif
+
+            {{-- Receptor (Salcom) + lugar de expedición --}}
+            @if(!empty($res['datos']['rfc_receptor']))
+                <div class="dato-chip">
+                    <div class="dl">Receptor</div>
+                    <div class="dv">{{ $res['datos']['receptor_nombre'] ?? 'Industrias Salcom' }} · {{ $res['datos']['rfc_receptor'] }}@if(!empty($res['datos']['lugar_expedicion'])) · CP expedición {{ $res['datos']['lugar_expedicion'] }}@endif</div>
+                </div>
+            @endif
+
             {{-- Tipo de comprobante: factura, anticipo o nota de crédito --}}
             @php
                 $clasOc = $res['datos']['clasificacion_oc'] ?? '';
@@ -609,7 +653,7 @@
                         &nbsp;·&nbsp; Recibido:
                         <strong style="color:{{ $llegoCompleto ? $verde : $ambar }};">{{ $fmt($qRecibido) }}</strong>
                         @if($llegoCompleto)
-                            <span style="color:{{ $verde }};font-weight:600;">✓ llegó completo</span>
+                            <span style="color:{{ $verde }};font-weight:600;">— llegó completo</span>
                         @else
                             <span style="color:{{ $ambar }};font-weight:600;">· parcial</span>
                         @endif
@@ -628,12 +672,18 @@
                     $fMov   = $fFecha($ocDet['fecha_movimiento'] ?? null);
                 @endphp
                 @if($fOc || $fVence || $fMov)
+                    {{-- POR QUÉ etiquetas explícitas: antes decían "OC / Vence / Movimiento" a secas y
+                         confundían (parecían fechas de la factura). Son fechas de la ORDEN DE COMPRA en
+                         el sistema contable, NO de esta factura. Se aclara cada una para el proveedor. --}}
                     <div class="dato-chip">
-                        <div class="dl">Fechas de la OC</div>
-                        <div class="dv" style="font-size:13px;">
-                            @if($fOc) OC: <strong>{{ $fOc }}</strong> @endif
-                            @if($fVence) &nbsp;·&nbsp; Vence: <strong>{{ $fVence }}</strong> @endif
-                            @if($fMov) &nbsp;·&nbsp; Movimiento: <strong>{{ $fMov }}</strong> @endif
+                        <div class="dl">Fechas de la Orden de Compra (no de esta factura)</div>
+                        <div class="dv" style="font-size:13px;line-height:1.7;">
+                            @if($fOc)<div>Emisión de la OC: <strong>{{ $fOc }}</strong></div>@endif
+                            @if($fVence)<div>Vencimiento de la OC: <strong>{{ $fVence }}</strong></div>@endif
+                            @if($fMov)<div>Registro del movimiento: <strong>{{ $fMov }}</strong></div>@endif
+                        </div>
+                        <div style="font-size:11px;color:var(--gray-muted);margin-top:4px;">
+                            Estas fechas son de la orden de compra en el sistema, como referencia. El vencimiento de pago de tu factura lo define Industrias Salcom.
                         </div>
                     </div>
                 @endif
@@ -773,7 +823,7 @@
             <input type="text" name="numero_oc" id="numero_oc"
                    value="{{ old('numero_oc', $pendiente['numero_oc'] ?? '') }}"
                    placeholder="Ej. 81686"
-                   oninput="document.getElementById('bloqueSinOc').style.display = this.value.trim() ? 'none' : 'block';"
+                   oninput="document.getElementById('bloqueSinOc').style.display = this.value.trim() ? 'none' : 'block'; if (this.value.trim()) { var a = document.getElementById('avisoSinOc'); if (a) a.style.display = 'none'; }"
                    style="width:100%;max-width:280px;border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:14px;font-family:inherit;outline:none">
             <div style="font-size:12px;color:var(--gray-muted);margin-top:4px">
                 Es el número de OC que aparece en tu factura de producto. Con él validamos cantidades contra lo recibido.
@@ -797,6 +847,14 @@
                 </label>
                 <div style="font-size:12px;color:#8a6d20;margin-top:6px">
                     Si en realidad SÍ tienes el número de OC, escríbelo arriba.
+                </div>
+
+                {{-- Aviso inline (oculto por defecto). POR QUÉ: reemplaza el alert() nativo del
+                     navegador por un mensaje integrado al diseño, con el rojo del proyecto. Se
+                     muestra desde JS si el proveedor intenta validar sin OC y sin elegir opción. --}}
+                <div id="avisoSinOc" role="alert" style="display:none;margin-top:10px;padding:10px 12px;background:var(--red-bg);border:1.5px solid #fecaca;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--red);align-items:center;gap:8px">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    <span>Elige si la factura es flete/servicio o remisión/requisición antes de validar.</span>
                 </div>
             </div>
         </div>
@@ -1039,6 +1097,14 @@
         });
     });
 
+    // Al elegir una opción (flete/servicio o remisión), oculta el aviso de error si estaba visible.
+    document.querySelectorAll('input[name="tipo_sin_oc"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            var aviso = document.getElementById('avisoSinOc');
+            if (aviso) aviso.style.display = 'none';
+        });
+    });
+
     if (form) {
         form.addEventListener('submit', function (e) {
             var submitter = e.submitter || document.activeElement;
@@ -1063,6 +1129,26 @@
                 if (xml && !xml.files.length) {
                     e.preventDefault();
                     alert('Adjunta el XML CFDI.');
+                    return;
+                }
+            }
+            // POR QUÉ: si no hay número de OC, el proveedor DEBE declarar si es flete/servicio o
+            // remisión antes de validar. Antes podía mandar la factura sin elegir y el backend la
+            // rechazaba hasta después; aquí lo frenamos en pantalla para que ni lo intente y quede
+            // claro qué falta. El backend sigue validando igual (defensa en capas).
+            var ocInput = document.getElementById('numero_oc');
+            var ocVacia = !ocInput || ocInput.value.trim() === '';
+            if (ocVacia) {
+                var tipoElegido = document.querySelector('input[name="tipo_sin_oc"]:checked');
+                if (!tipoElegido) {
+                    e.preventDefault();
+                    var bloqueSinOc = document.getElementById('bloqueSinOc');
+                    if (bloqueSinOc) bloqueSinOc.style.display = 'block';
+                    var avisoSinOc = document.getElementById('avisoSinOc');
+                    if (avisoSinOc) {
+                        avisoSinOc.style.display = 'flex';
+                        avisoSinOc.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                     return;
                 }
             }
