@@ -923,10 +923,19 @@ class AdminPanelController extends Controller
      * Pisa en memoria la fecha_vencimiento de las facturas locales con la fecha REAL de Wiese
      * cuando la factura exista allá (match por código + folio normalizado, igual que el admin).
      *
-     * POR QUÉ: la fecha contable válida es la de Wiese. Esto NO guarda nada en BD (solo ajusta los
-     * objetos que la vista muestra), así que es seguro y no desincroniza. Las facturas que no estén
-     * en Wiese conservan su fecha local (o null). Tolerante a fallos: si Wiese no responde, se deja
-     * todo como está.
+     * POR QUÉ: la fecha y el estatus contables válidos son los de Wiese ("Wiese manda"). Esto NO
+     * guarda nada en BD (solo ajusta los objetos que la vista muestra), así que es seguro y no
+     * desincroniza. Las facturas que no estén en Wiese conservan su dato local. Tolerante a fallos.
+     *
+     * Reconciliación de ESTATUS (Wiese manda):
+     *   - Si la factura local aparece en la lista de PENDIENTES de Wiese -> estatus 'pendiente'
+     *     (o 'cancelada' si Wiese la marcó cancelada). Se pisa el estatus local mostrado.
+     *   - Si NO aparece en pendientes de Wiese PERO el estatus local dice pendiente/programada
+     *     -> Wiese ya no la tiene como pendiente = la dio por PAGADA (saldo 0). Se muestra 'pagada'.
+     *     (POR QUÉ: listarFacturasPendientesTodos solo trae saldo>0; si una factura "cayó" de esa
+     *     lista es porque Wiese la saldó.)
+     *   - Si la factura local NO tiene contraparte conocida en Wiese (nunca apareció), se deja su
+     *     estatus local tal cual (aún no capturada en Acatlán).
      *
      * @param  \Illuminate\Support\Collection<int, \App\Models\Factura>  $facturas
      */
@@ -945,45 +954,55 @@ class AdminPanelController extends Controller
         try {
             $res = $wieseApi->listarFacturasPendientesTodos(codigoFiltro: $codigo);
             if (! ($res['success'] ?? false)) {
-                return;
+                return; // Wiese no respondió: dejamos todo como está (no inventamos).
             }
 
-            // Índice de fechas de Wiese por folio normalizado (folio solo y serie+folio).
-            $fechasWiese = [];
+            // Índice de Wiese por folio normalizado: guarda fecha de vencimiento y estatus derivado.
+            $wiese = [];
             foreach ($res['data']['items'] ?? [] as $f) {
                 if (trim((string) ($f['codigo'] ?? '')) !== $codigo) {
                     continue;
                 }
-                $venceRaw = $f['fecha_vence'] ?? null;
-                if (empty($venceRaw)) {
-                    continue;
-                }
-                $fecha = \Illuminate\Support\Carbon::parse($venceRaw)->toDateString();
-                $fechasWiese[$norm((string) ($f['folio'] ?? ''))] = $fecha;
-                $fechasWiese[$norm((string) ($f['serie'] ?? '').(string) ($f['folio'] ?? ''))] = $fecha;
-            }
-
-            if ($fechasWiese === []) {
-                return;
+                $estatusW = \App\Models\Factura::estatusDesdeWiese($f); // 'pendiente'|'cancelada' (pagada no viene aquí)
+                $fecha = ! empty($f['fecha_vence']) ? \Illuminate\Support\Carbon::parse($f['fecha_vence'])->toDateString() : null;
+                $entry = ['fecha' => $fecha, 'estatus' => $estatusW];
+                $wiese[$norm((string) ($f['folio'] ?? ''))] = $entry;
+                $wiese[$norm((string) ($f['serie'] ?? '').(string) ($f['folio'] ?? ''))] = $entry;
             }
 
             foreach ($facturas as $factura) {
                 $vd = is_array($factura->validacion_detalle) ? $factura->validacion_detalle : [];
-                // Claves que ofrece la factura local: su folio_cfdi y el folio del XML (si lo hay).
                 $claves = array_unique(array_filter([
                     $norm((string) $factura->folio_cfdi),
                     $norm((string) ($vd['folio'] ?? '')),
                 ]));
+
+                $enWiese = null;
                 foreach ($claves as $clave) {
-                    if (isset($fechasWiese[$clave])) {
-                        // Pisar solo el atributo mostrado (no se persiste en BD).
-                        $factura->fecha_vencimiento = \Illuminate\Support\Carbon::parse($fechasWiese[$clave]);
+                    if (isset($wiese[$clave])) {
+                        $enWiese = $wiese[$clave];
                         break;
                     }
                 }
+
+                if ($enWiese !== null) {
+                    // Wiese la reporta como pendiente (o cancelada): su fecha y estatus MANDAN.
+                    // Se pisa el estatus local mostrado para que NUNCA se contradiga con Wiese.
+                    if ($enWiese['fecha']) {
+                        $factura->fecha_vencimiento = \Illuminate\Support\Carbon::parse($enWiese['fecha']);
+                    }
+                    $factura->estatus = $enWiese['estatus'];
+                }
+                // POR QUÉ NO marcamos "pagada" automáticamente cuando NO aparece en Wiese: el endpoint
+                // de pendientes filtra saldo>0, así que una factura ausente puede ser (a) ya pagada en
+                // Wiese, o (b) aún NO capturada en Acatlán. No se puede distinguir con esta consulta,
+                // y marcar "pagada" por error sería grave (es dinero). Por eso, si Wiese no la reporta,
+                // se deja el estatus LOCAL tal cual (pendiente/programada) hasta que se defina una
+                // consulta que traiga también las pagadas. Esto evita contradecir "hacia pagada" sin
+                // certeza; lo que Wiese SÍ dice (pendiente/cancelada) siempre manda.
             }
         } catch (\Throwable $e) {
-            Log::warning('[DetalleAdeudos] No se pudieron alinear vencimientos con Wiese: '.$e->getMessage());
+            Log::warning('[DetalleAdeudos] No se pudieron alinear estatus/vencimientos con Wiese: '.$e->getMessage());
         }
     }
 

@@ -6,6 +6,35 @@
 
 ---
 
+## 2026-09-07 — WIESE MANDA en el estatus de pago (el sistema nunca se contradice con Wiese)
+
+- **QUÉ:** El estatus que MUESTRA el sistema para una factura ahora se reconcilia con Wiese: si una
+  factura local aparece en los pendientes de Wiese, su badge pasa a lo que diga Wiese (pendiente/
+  cancelada), pisando el estatus local. Así NUNCA se ve un estatus que contradiga al sistema contable.
+- **POR QUÉ (decisión de Said):** "Wiese manda" porque el sistema local está en desarrollo; no puede
+  afirmar "pagada" por su cuenta si el flujo de pago aún no llega. La verdad del estatus de pago la
+  dice Wiese. Antes había 2 pantallas que mezclaban estatus local + Wiese y podían contradecirse.
+- **CÓMO:**
+  - Helper central `Factura::estatusDesdeWiese(array $doc)` (app/Models/Factura.php): regla ÚNICA
+    (ccancelado=1→cancelada; cpendiente/saldo>0→pendiente; else→pagada). Antes estaba copiada en 4+
+    sitios; ahora vive en uno solo.
+  - `AdminPanelController::alinearVencimientosConWiese()` ampliado: ya alineaba la FECHA, ahora
+    también el ESTATUS (pisa en memoria, no BD) → vista admin/proveedor-facturas.
+  - `PortalProveedorController::alinearEstatusFacturasConWiese()` nuevo, llamado en mostrarFacturas
+    → vista proveedores/facturas (Mis Facturas del portal).
+- **GUARDA DE SEGURIDAD (dinero):** solo se pisa el estatus cuando la factura SÍ aparece en los
+  pendientes de Wiese (pendiente/cancelada). NO se marca 'pagada' automáticamente cuando NO aparece,
+  porque listarFacturasPendientesTodos filtra saldo>0 y no distingue "pagada" de "no capturada aún";
+  marcar pagada por error sería grave. Si Wiese no la reporta, se conserva el estatus local.
+- **NO se persiste:** solo se ajusta el objeto mostrado (igual que la fecha). El campo
+  Factura.estatus local sigue existiendo para el flujo interno; Wiese manda en lo que se MUESTRA.
+- **VERIFICADO:** `tests/Feature/EstatusWieseMandaTest.php` 3/3 verde (helper + Wiese pisa estatus +
+  seguridad no-inventar-pagada). Suite facturas/anticipos/validación 49/49 verde (nada roto). php -l OK.
+- **PENDIENTE (futuro, cuando el flujo de pago esté terminado):** definir la sincronización real
+  local↔Wiese y una consulta que traiga también las PAGADAS para poder reflejar "pagada" con certeza.
+
+---
+
 ## 2026-09-07 — CONFIRMADO con Brenda: anticipo y factura final SÍ llevan OC (NO cambiar)
 
 - **QUÉ:** Se evaluó agregar opciones "es anticipo / es nota de crédito" al bloque de "sin OC", o

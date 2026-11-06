@@ -418,6 +418,11 @@ class PortalProveedorController extends Controller
 
         $facturas = $query->orderByDesc('created_at')->paginate(50)->withQueryString();
 
+        // WIESE MANDA: alinear el estatus mostrado de estas facturas locales con lo que diga Wiese,
+        // para que el proveedor NUNCA vea un estatus que contradiga al sistema contable. Solo pisa en
+        // memoria (no toca BD). Si Wiese no la reporta, se deja el estatus local. Ver método abajo.
+        $this->alinearEstatusFacturasConWiese($facturas->getCollection(), $proveedor);
+
         $filtros = [
             'fecha_desde' => $request->input('fecha_desde', ''),
             'fecha_hasta' => $request->input('fecha_hasta', ''),
@@ -2866,6 +2871,73 @@ class PortalProveedorController extends Controller
      *
      * @return array{0: string, 1: list<string>}
      */
+    /**
+     * WIESE MANDA: pisa en memoria el estatus mostrado de las facturas locales con el que diga Wiese.
+     *
+     * POR QUÉ (decisión Said/Brenda): el sistema local está en desarrollo; la verdad del estatus de
+     * pago la dice Wiese. Si una factura local aparece en los pendientes de Wiese, su estatus mostrado
+     * pasa a lo que diga Wiese (pendiente/cancelada), para que el proveedor NUNCA vea un estatus que
+     * contradiga al sistema contable. Si Wiese no la reporta, se deja el estatus local (no se asume
+     * "pagada" sin certeza, porque el endpoint de pendientes filtra saldo>0 y no distingue pagada de
+     * no-capturada). NO guarda en BD: solo ajusta el objeto mostrado. Tolerante a fallos.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\Factura>  $facturas
+     */
+    private function alinearEstatusFacturasConWiese(\Illuminate\Support\Collection $facturas, ?ProveedorUser $proveedor): void
+    {
+        if ($facturas->isEmpty() || ! $proveedor) {
+            return;
+        }
+
+        $codigo = trim((string) ($proveedor->id_proveedor ?? $proveedor->codigo ?? ''));
+        if ($codigo === '') {
+            return;
+        }
+
+        $norm = static function (string $v): string {
+            $v = strtolower(trim($v));
+
+            return preg_replace('/-[0-9a-f]{4}$/', '', $v) ?? $v;
+        };
+
+        try {
+            $res = app(ProveedorApiService::class)->listarFacturasPendientesTodos(codigoFiltro: $codigo);
+            if (! ($res['success'] ?? false)) {
+                return;
+            }
+
+            $estatusWiese = [];
+            foreach ($res['data']['items'] ?? [] as $f) {
+                if (trim((string) ($f['codigo'] ?? '')) !== $codigo) {
+                    continue;
+                }
+                $est = \App\Models\Factura::estatusDesdeWiese($f);
+                $estatusWiese[$norm((string) ($f['folio'] ?? ''))] = $est;
+                $estatusWiese[$norm((string) ($f['serie'] ?? '').(string) ($f['folio'] ?? ''))] = $est;
+            }
+
+            if ($estatusWiese === []) {
+                return;
+            }
+
+            foreach ($facturas as $factura) {
+                $vd = is_array($factura->validacion_detalle) ? $factura->validacion_detalle : [];
+                $claves = array_unique(array_filter([
+                    $norm((string) $factura->folio_cfdi),
+                    $norm((string) ($vd['folio'] ?? '')),
+                ]));
+                foreach ($claves as $clave) {
+                    if (isset($estatusWiese[$clave])) {
+                        $factura->estatus = $estatusWiese[$clave]; // Wiese manda
+                        break;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning('[MisFacturas] No se pudo alinear estatus con Wiese: '.$e->getMessage());
+        }
+    }
+
     private function resolverCodigosFacturaProveedor(?ProveedorUser $proveedor): array
     {
         $codigoSesion = trim((string) (session('proveedor_codigo') ?? ''));

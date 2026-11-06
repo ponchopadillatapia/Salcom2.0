@@ -110,4 +110,34 @@ class Factura extends Model
         }
         return self::diasHastaVencimiento($this->fecha_vencimiento);
     }
+
+    /**
+     * Deriva el estatus de pago a partir de un documento de Wiese (la FUENTE DE VERDAD).
+     *
+     * POR QUÉ existe (decisión de Said/Brenda): "Wiese manda". El sistema local está en desarrollo,
+     * así que la verdad sobre si una factura está pagada o pendiente la dice Wiese, NO el estatus
+     * local. Esta regla estaba COPIADA en 4+ lugares (controladores y vistas); aquí queda en UN solo
+     * sitio para que no se desincronice.
+     *
+     * Regla (confirmada con Alan):
+     *   ccancelado == 1   -> 'cancelada'
+     *   cpendiente  > 0   -> 'pendiente'  (todavía debe saldo)
+     *   cpendiente == 0   -> 'pagada'     (saldo cubierto)
+     *
+     * Acepta tanto los campos crudos de Wiese (ccancelado/cpendiente) como los ya mapeados
+     * (saldo), para servir a cualquier pantalla.
+     *
+     * @param  array<string,mixed>  $doc  item de Wiese (factura u OC)
+     */
+    public static function estatusDesdeWiese(array $doc): string
+    {
+        if ((int) ($doc['ccancelado'] ?? 0) === 1) {
+            return 'cancelada';
+        }
+
+        // Saldo pendiente: Wiese lo manda como 'cpendiente' (crudo) o 'saldo' (ya mapeado).
+        $saldo = (float) ($doc['cpendiente'] ?? $doc['saldo'] ?? 0);
+
+        return $saldo > 0 ? 'pendiente' : 'pagada';
+    }
 }
