@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-11-06 — Fix 401/404: el gateway 5009 pone los datos bajo /api y el login en la raíz
+
+- **QUÉ:** las llamadas de datos al gateway de pagos (ListarProveedores, ListarDocumentos,
+  BuscarPorRFC/BuscarPorCodigo, ListarDocumentosCodigo) ahora cuelgan de `/api`; el login sigue
+  yendo a la raíz (`/login`). Antes todo usaba `PAGOS_API_URL` pelado y las rutas de datos daban 404.
+- **POR QUÉ:** probado con curl contra producción (SiteGround): `/login` responde 200 SIN `/api` y
+  404 CON `/api`; `/PagoProveedor/ListarProveedores` responde 404 SIN `/api` y 200 CON `/api`. Son
+  DOS prefijos distintos en el gateway, así que NO se puede arreglar desde el `.env` (cualquier
+  valor rompe una de las dos llamadas). La "Formato para pago" en producción salía vacía por esto.
+- **DÓNDE:** `app/Services/ProveedorApiService.php` → nuevo helper `urlGateway5009()` que pega `/api`
+  solo a las rutas de datos (idempotente: no duplica si el .env ya lo trae). Se usa en los 4 métodos
+  que van por el camino 5009. `tokenGateway5009()` (login) quedó intacto, usa la base sin `/api`.
+
+---
+
 ## 2026-11-06 — Brenda Pliego promovida a Dirección (ve toda la operación)
 
 - **QUÉ:** `brenda.pliego` pasó de acceso restringido (solo Productos + Anticipos) a acceso TOTAL

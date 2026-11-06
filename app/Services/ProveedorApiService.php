@@ -414,7 +414,9 @@ class ProveedorApiService
             // Camino 5009 (producción): sin docsUrl, sin loginServicio al 250.
             // POR QUÉ: desde sep-2026 el 5009 exige JWT. Pedimos el token de entrada (GATEWAY_TOKEN)
             // al propio 5009 vía /login y lo mandamos como Bearer. El 5009 hace su login interno al 250.
-            $base = $pagosUrl;
+            // POR QUÉ urlGateway5009: los datos cuelgan de /api; el login (dentro de
+            // tokenGateway5009) NO. Ver comentario del helper.
+            $base = $this->urlGateway5009($pagosUrl);
             $endpoint = '/PagoProveedor/ListarDocumentos';     // ruta en la API 5009
             $token = $this->tokenGateway5009($pagosUrl);
         } else {
@@ -547,7 +549,8 @@ class ProveedorApiService
         if ($pagosUrl !== '') {
             // Producción: el 5009 hace su propio login al 250; aquí solo autenticamos CONTRA el 5009.
             // POR QUÉ: desde sep-2026 el 5009 exige JWT (antes era abierto). Token de entrada vía /login.
-            $base = $pagosUrl;
+            // POR QUÉ urlGateway5009: los datos cuelgan de /api; el login NO. Ver helper.
+            $base = $this->urlGateway5009($pagosUrl);
             $endpoint = $porRfc
                 ? '/PagoProveedor/BuscarPorRFC'
                 : '/PagoProveedor/BuscarPorCodigo';
@@ -631,7 +634,8 @@ class ProveedorApiService
         if ($pagosUrl !== '') {
             // POR QUÉ: desde sep-2026 el 5009 exige JWT. Autenticamos contra el 5009 vía /login;
             // el 5009 hace su propio login al 250 internamente.
-            $base = $pagosUrl;
+            // POR QUÉ urlGateway5009: los datos cuelgan de /api; el login NO. Ver helper.
+            $base = $this->urlGateway5009($pagosUrl);
             $endpoint = '/PagoProveedor/ListarProveedores'; // puente en el 5009
             $token = $this->tokenGateway5009($pagosUrl);
         } else {
@@ -821,7 +825,8 @@ class ProveedorApiService
         $pagosUrl = rtrim((string) config('services.proveedor_api.pagos_url', ''), '/');
 
         if ($pagosUrl !== '') {
-            $base = $pagosUrl;
+            // POR QUÉ urlGateway5009: los datos cuelgan de /api; el login NO. Ver helper.
+            $base = $this->urlGateway5009($pagosUrl);
             $endpoint = '/PagoProveedor/ListarDocumentosCodigo'; // puente en el 5009
             $token = $this->tokenGateway5009($pagosUrl);
         } else {
@@ -981,6 +986,30 @@ class ProveedorApiService
      * @param  string  $baseUrl  URL del 5009 (pagos_url)
      * @return string  el JWT, o '' si no se pudo obtener / no aplica
      */
+    /**
+     * Arma la URL base de los ENDPOINTS DE DATOS del gateway 5009 (ListarProveedores,
+     * ListarDocumentos, BuscarPorRFC, etc.).
+     *
+     * POR QUÉ existe: el gateway (APIPortalWeb) monta el login en la RAÍZ (POST /login) pero
+     * todos los endpoints de datos cuelgan de /api (ej. /api/PagoProveedor/ListarProveedores).
+     * Confirmado con curl contra producción (nov-2026): /login => 200 sin /api y 404 con /api;
+     * /PagoProveedor/ListarProveedores => 404 sin /api y 200 con /api. Como son DOS prefijos
+     * distintos, no se puede arreglar desde el .env (cualquier valor rompe una de las dos
+     * llamadas). Por eso el prefijo /api se pega AQUÍ, en un solo lugar, y el login sigue usando
+     * la base pelada. Es idempotente: si algún día el .env ya trae /api, no lo duplica.
+     */
+    private function urlGateway5009(string $baseUrl): string
+    {
+        $base = rtrim($baseUrl, '/');
+
+        // Si la base ya termina en /api (por si se configura así en el futuro), no lo repetimos.
+        if (preg_match('#/api$#i', $base)) {
+            return $base;
+        }
+
+        return $base.'/api';
+    }
+
     private function tokenGateway5009(string $baseUrl): string
     {
         $gatewayToken = (string) config('services.proveedor_api.pagos_gateway_token', '');
