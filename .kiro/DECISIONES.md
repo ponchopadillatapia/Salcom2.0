@@ -6,6 +6,31 @@
 
 ---
 
+## 2026-11-06 (tarde) — CAUSA CONFIRMADA: geobloqueo "solo México" tumbó a SiteGround
+
+- **QUÉ:** por la tarde, "Formato para pago" en producción dejó de cargar facturas. Más temprano
+  ESE MISMO DÍA sí funcionaba (se vieron facturas reales en salcomlink.mx). No se cambió código ni
+  `.env` entre que funcionó y que dejó de funcionar.
+- **CAUSA RAÍZ (confirmada con Genaro):** Genaro activó en el gateway una regla de geobloqueo que
+  solo permite conexiones desde MÉXICO. SiteGround es un hosting en EE.UU.: su IP de salida
+  `35.215.123.224` está en Los Ángeles, California (Google Cloud). El geobloqueo la bloqueó.
+  Síntoma: desde SiteGround, `curl` a `https://api-pagos.salcomlink.mx:5443/login` devuelve HTTP
+  000 (no conecta). La confusión "oficina sí / café no" fue coincidencia con la HORA en que Genaro
+  prendió la regla, no con la ubicación de Said.
+- **CÓDIGO/CONFIG: están bien.** El fix del prefijo `/api` quedó desplegado y el `.env` de
+  producción es correcto. El problema NO es de Salcom/SiteGround.
+- **SOLUCIÓN (Genaro):** mantener el geobloqueo pero AGREGAR la IP de SiteGround
+  (`35.215.123.224`) como excepción en lista blanca. NO abrir EE.UU. como país completo (perdería
+  el sentido del filtro). OJO: la IP de un hosting compartido puede cambiar; si vuelve a fallar
+  "sin razón", revisar primero si la IP de salida de SiteGround cambió. Verificación:
+  `curl -X POST https://api-pagos.salcomlink.mx:5443/login -d '{"token":"..."}'` debe dar JWT.
+- **MITIGACIÓN:** se bajó `PROVEEDOR_API_CONNECT_TIMEOUT` de 30 a 5 en el `.env` de producción
+  para que la pantalla no se cuelgue mientras el gateway bloquea.
+- **OJO SEGURIDAD:** el `PAGOS_GATEWAY_TOKEN` se expuso en texto durante el diagnóstico; conviene
+  rotarlo (generar uno nuevo en el gateway y actualizar el `.env` de producción y el del 251).
+
+---
+
 ## 2026-11-06 — Fix 401/404: el gateway 5009 pone los datos bajo /api y el login en la raíz
 
 - **QUÉ:** las llamadas de datos al gateway de pagos (ListarProveedores, ListarDocumentos,
