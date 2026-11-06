@@ -6,6 +6,34 @@
 
 ---
 
+## 2026-11-06 — Brenda Pliego promovida a Dirección (ve toda la operación)
+
+- **QUÉ:** `brenda.pliego` pasó de acceso restringido (solo Productos + Anticipos) a acceso TOTAL
+  como Dirección. Ahora ve todo el panel (Pagos, Proveedores, Negocio, Operación, etc.).
+- **POR QUÉ:** dirección pidió que Brenda vea toda la operación igual que Dirección, no solo su área.
+- **DÓNDE:** `app/Models/AdminUser.php` → se agregó `'brenda.pliego'` a la constante
+  `USUARIOS_DIRECCION` y se quitó su entrada de `ACCESOS_RESTRINGIDOS`. Con eso `esDireccion()`
+  devuelve true y el menú (`layouts/admin.blade.php`, condiciones `@if($adminEsDireccion)`) le muestra
+  todas las secciones. Se corrió `php artisan view:clear`.
+
+---
+
+## 2026-09-07 — Formato de Identificación del Proveedor ahora es OPCIONAL (en todas las capas)
+
+- **QUÉ:** El "Formato de Identificación del Proveedor" (FCONT-0010) pasó de obligatorio a OPCIONAL.
+  Si el proveedor lo sube, se valida y guarda igual; si no lo sube, NO bloquea el alta ni el onboarding.
+- **POR QUÉ (lo pidió Said):** no siempre lo tienen a la mano y no debe trabar el registro.
+- **DÓNDE (3 capas, para que no quede obligatorio en ningún lado):**
+  - `resources/views/APIS/empresa.blade.php`: label con badge "Opcional" + hint "(opcional)"; y se
+    quitó `formato_identificacion` de la lista `base` de requeridos del JS `getCamposRequeridos()`.
+  - `app/Http/Controllers/APIS/EmpresaApiController.php`: `$reglaFormato` ahora es
+    `nullable|mimes:pdf|max:20480` SIEMPRE (antes required para altas nuevas no-REPSE).
+  - `app/Models/ProveedorUser.php` `documentosRequeridos()`: se quitó el formato de los documentos
+    requeridos, así el onboarding se considera completo sin él.
+- **VERIFICADO:** php -l OK en los 2 PHP + vista compila.
+
+---
+
 ## 2026-09-07 — WIESE MANDA en el estatus de pago (el sistema nunca se contradice con Wiese)
 
 - **QUÉ:** El estatus que MUESTRA el sistema para una factura ahora se reconcilia con Wiese: si una

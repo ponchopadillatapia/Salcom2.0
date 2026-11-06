@@ -41,6 +41,10 @@ class AdminUser extends Authenticatable
         'sandra.gutierrez',
         'rebeca',
         'aneso.cominu',
+        // POR QUÉ: dirección pidió que Brenda vea TODA la operación como Dirección,
+        // no solo Productos/Anticipos. Se promueve a acceso total (antes estaba en
+        // ACCESOS_RESTRINGIDOS). Ver DECISIONES.md 2026-11-06.
+        'brenda.pliego',
     ];
 
     /**
@@ -63,8 +67,7 @@ class AdminUser extends Authenticatable
      * alta_pt y alta_mto son secciones distintas que abren rutas distintas.
      */
     public const ACCESOS_RESTRINGIDOS = [
-        // Compras Nacional (ME, MP): catálogo + todas las altas + anticipos
-        'brenda.pliego' => ['productos', 'anticipos'],
+        // Brenda Pliego se promovió a Dirección (acceso total). Ver USUARIOS_DIRECCION arriba.
         // Contabilidad: pagos y proveedores
         'karen.bravo' => ['pagos', 'proveedores'],
         // Comercial PT: solo alta de Producto Terminado

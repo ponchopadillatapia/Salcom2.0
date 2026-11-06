@@ -543,8 +543,8 @@
         {{-- Formato de Identificación: NO aplica a proveedores REPSE --}}
         @if(empty($esRepse))
         <div class="doc-row" id="row_formato_identificacion">
-            <label class="doc-label" for="formato_identificacion"><i class="bi bi-file-earmark-person"></i> Formato de Identificación del Proveedor</label>
-            <p class="doc-hint">Formato de Salcom (FCONT-0010) firmado electrónicamente · PDF</p>
+            <label class="doc-label" for="formato_identificacion"><i class="bi bi-file-earmark-person"></i> Formato de Identificación del Proveedor <span class="optional-badge">Opcional</span></label>
+            <p class="doc-hint">Formato de Salcom (FCONT-0010) firmado electrónicamente · PDF (opcional)</p>
             <input type="file" id="formato_identificacion" accept=".pdf" onchange="verArchivo('formato_identificacion')">
             <label for="formato_identificacion" class="file-btn"><i class="bi bi-upload"></i> Seleccionar PDF</label>
             <span id="formato_identificacion_nombre" class="file-name empty">Sin archivo</span>
@@ -775,9 +775,9 @@ if (identificacion && identificacion.tipo_clave) {
 
 function getCamposRequeridos() {
     // El Formato de Identificación no aplica a proveedores REPSE.
-    const base = window.ES_REPSE
-        ? ['cif', 'opinion', 'caratula_banco']
-        : ['cif', 'opinion', 'caratula_banco', 'formato_identificacion'];
+    // POR QUÉ formato_identificacion YA NO está en requeridos: se volvió OPCIONAL (decisión de Said).
+    // Si lo suben, se valida/guarda; si no, no bloquea. Igual que el Poder Notarial.
+    const base = ['cif', 'opinion', 'caratula_banco'];
     if (tipoPersona === 'moral') {
         base.push('rep_legal');
         base.push('contribuyente');

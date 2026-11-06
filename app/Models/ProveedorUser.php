@@ -438,13 +438,10 @@ class ProveedorUser extends Authenticatable
             ];
         }
 
-        // El "Formato de Identificación del Proveedor" (FCONT-0010) solo se exige a
-        // proveedores en proceso de alta (aún NO activos) y que NO sean REPSE.
-        // Los REPSE tienen su propio paquete de documentos y no requieren este formato.
-        // Los ya activos quedan exentos (requisito no retroactivo).
-        if (! $this->activo && ! $this->esRepse()) {
-            $docs['formato_identificacion'] = 'Formato de Identificación del Proveedor';
-        }
+        // POR QUÉ el "Formato de Identificación del Proveedor" (FCONT-0010) ya NO va aquí:
+        // se volvió OPCIONAL (decisión de Said). Si el proveedor lo sube, se guarda y valida; si no,
+        // NO bloquea el onboarding. Por eso NO se agrega a la lista de documentos REQUERIDOS. (Antes
+        // se exigía a altas nuevas no-REPSE; se quitó esa exigencia.)
 
         return $docs;
     }

@@ -47,17 +47,10 @@ class EmpresaApiController extends Controller
 
             $tipoPersona = $request->input('tipo_persona', 'moral'); // moral | fisica
 
-            // Formato de Identificación: se exige solo a altas nuevas (no activos) y que
-            // NO sean REPSE. Los REPSE tienen su propio paquete de documentos y quedan
-            // exentos. Los ya activos también (requisito no retroactivo).
-            $provActualReglas = $provId ? ProveedorUser::find($provId) : null;
-            $proveedorYaActivo = $provActualReglas && $provActualReglas->activo;
-            $proveedorEsRepse = ($provActualReglas && $provActualReglas->esRepse())
-                || $request->input('es_repse') === '1'
-                || $request->input('es_repse') === 'si';
-            $reglaFormato = ($proveedorYaActivo || $proveedorEsRepse)
-                ? 'nullable|mimes:pdf|max:20480'
-                : 'required|mimes:pdf|max:20480';
+            // Formato de Identificación: AHORA es OPCIONAL SIEMPRE (decisión de Said). Si lo suben,
+            // se valida y guarda; si no, no bloquea el alta. Antes era obligatorio para altas nuevas;
+            // se relajó porque no siempre lo tienen a la mano y no debe trabar el onboarding.
+            $reglaFormato = 'nullable|mimes:pdf|max:20480';
 
             // Reglas de validación dinámicas (hasta 20MB por PDF)
             $rules = [
